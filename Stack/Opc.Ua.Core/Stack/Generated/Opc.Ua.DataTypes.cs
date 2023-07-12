@@ -53,11 +53,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEnumeration", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Enumeration")]
-    #if !NET_STANDARD
     public partial class EnumerationCollection : List<Enumeration>, ICloneable
-    #else
-    public partial class EnumerationCollection : List<Enumeration>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -94,7 +90,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -102,7 +97,6 @@ namespace Opc.Ua
             return (EnumerationCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -147,11 +141,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfNamingRuleType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NamingRuleType")]
-    #if !NET_STANDARD
     public partial class NamingRuleTypeCollection : List<NamingRuleType>, ICloneable
-    #else
-    public partial class NamingRuleTypeCollection : List<NamingRuleType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -188,7 +178,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -196,7 +185,6 @@ namespace Opc.Ua
             return (NamingRuleTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -294,13 +282,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (Union)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -321,11 +307,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUnion", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Union")]
-    #if !NET_STANDARD
     public partial class UnionCollection : List<Union>, ICloneable
-    #else
-    public partial class UnionCollection : List<Union>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -362,7 +344,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -370,7 +351,6 @@ namespace Opc.Ua
             return (UnionCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -491,13 +471,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (KeyValuePair)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -522,11 +500,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfKeyValuePair", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "KeyValuePair")]
-    #if !NET_STANDARD
     public partial class KeyValuePairCollection : List<KeyValuePair>, ICloneable
-    #else
-    public partial class KeyValuePairCollection : List<KeyValuePair>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -563,7 +537,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -571,7 +544,6 @@ namespace Opc.Ua
             return (KeyValuePairCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -692,13 +664,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (AdditionalParametersType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -820,13 +790,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (EphemeralKeyType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -974,13 +942,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (EndpointType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -1009,11 +975,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEndpointType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EndpointType")]
-    #if !NET_STANDARD
     public partial class EndpointTypeCollection : List<EndpointType>, ICloneable
-    #else
-    public partial class EndpointTypeCollection : List<EndpointType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -1050,7 +1012,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -1058,7 +1019,6 @@ namespace Opc.Ua
             return (EndpointTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -1179,13 +1139,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (RationalNumber)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -1210,11 +1168,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfRationalNumber", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RationalNumber")]
-    #if !NET_STANDARD
     public partial class RationalNumberCollection : List<RationalNumber>, ICloneable
-    #else
-    public partial class RationalNumberCollection : List<RationalNumber>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -1251,7 +1205,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -1259,7 +1212,6 @@ namespace Opc.Ua
             return (RationalNumberCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -1357,13 +1309,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (Vector)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -1384,11 +1334,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfVector", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Vector")]
-    #if !NET_STANDARD
     public partial class VectorCollection : List<Vector>, ICloneable
-    #else
-    public partial class VectorCollection : List<Vector>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -1425,7 +1371,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -1433,7 +1378,6 @@ namespace Opc.Ua
             return (VectorCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -1458,7 +1402,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ThreeDVector : Vector
+    public partial class ThreeDVector : Opc.Ua.Vector
     {
         #region Constructors
         /// <remarks />
@@ -1568,16 +1512,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_y, value.m_y)) return false;
             if (!Utils.IsEqual(m_z, value.m_z)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (ThreeDVector)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -1604,11 +1546,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfThreeDVector", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ThreeDVector")]
-    #if !NET_STANDARD
     public partial class ThreeDVectorCollection : List<ThreeDVector>, ICloneable
-    #else
-    public partial class ThreeDVectorCollection : List<ThreeDVector>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -1645,7 +1583,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -1653,7 +1590,6 @@ namespace Opc.Ua
             return (ThreeDVectorCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -1751,13 +1687,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (CartesianCoordinates)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -1778,11 +1712,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfCartesianCoordinates", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "CartesianCoordinates")]
-    #if !NET_STANDARD
     public partial class CartesianCoordinatesCollection : List<CartesianCoordinates>, ICloneable
-    #else
-    public partial class CartesianCoordinatesCollection : List<CartesianCoordinates>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -1819,7 +1749,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -1827,7 +1756,6 @@ namespace Opc.Ua
             return (CartesianCoordinatesCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -1852,7 +1780,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ThreeDCartesianCoordinates : CartesianCoordinates
+    public partial class ThreeDCartesianCoordinates : Opc.Ua.CartesianCoordinates
     {
         #region Constructors
         /// <remarks />
@@ -1962,16 +1890,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_y, value.m_y)) return false;
             if (!Utils.IsEqual(m_z, value.m_z)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (ThreeDCartesianCoordinates)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -1998,11 +1924,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfThreeDCartesianCoordinates", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ThreeDCartesianCoordinates")]
-    #if !NET_STANDARD
     public partial class ThreeDCartesianCoordinatesCollection : List<ThreeDCartesianCoordinates>, ICloneable
-    #else
-    public partial class ThreeDCartesianCoordinatesCollection : List<ThreeDCartesianCoordinates>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -2039,7 +1961,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -2047,7 +1968,6 @@ namespace Opc.Ua
             return (ThreeDCartesianCoordinatesCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -2145,13 +2065,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (Orientation)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -2172,11 +2090,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfOrientation", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Orientation")]
-    #if !NET_STANDARD
     public partial class OrientationCollection : List<Orientation>, ICloneable
-    #else
-    public partial class OrientationCollection : List<Orientation>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -2213,7 +2127,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -2221,7 +2134,6 @@ namespace Opc.Ua
             return (OrientationCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -2246,7 +2158,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ThreeDOrientation : Orientation
+    public partial class ThreeDOrientation : Opc.Ua.Orientation
     {
         #region Constructors
         /// <remarks />
@@ -2356,16 +2268,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_b, value.m_b)) return false;
             if (!Utils.IsEqual(m_c, value.m_c)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (ThreeDOrientation)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -2392,11 +2302,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfThreeDOrientation", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ThreeDOrientation")]
-    #if !NET_STANDARD
     public partial class ThreeDOrientationCollection : List<ThreeDOrientation>, ICloneable
-    #else
-    public partial class ThreeDOrientationCollection : List<ThreeDOrientation>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -2433,7 +2339,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -2441,7 +2346,6 @@ namespace Opc.Ua
             return (ThreeDOrientationCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -2539,13 +2443,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (Frame)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -2566,11 +2468,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfFrame", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Frame")]
-    #if !NET_STANDARD
     public partial class FrameCollection : List<Frame>, ICloneable
-    #else
-    public partial class FrameCollection : List<Frame>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -2607,7 +2505,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -2615,7 +2512,6 @@ namespace Opc.Ua
             return (FrameCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -2640,7 +2536,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ThreeDFrame : Frame
+    public partial class ThreeDFrame : Opc.Ua.Frame
     {
         #region Constructors
         /// <remarks />
@@ -2762,16 +2658,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_cartesianCoordinates, value.m_cartesianCoordinates)) return false;
             if (!Utils.IsEqual(m_orientation, value.m_orientation)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (ThreeDFrame)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -2796,11 +2690,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfThreeDFrame", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ThreeDFrame")]
-    #if !NET_STANDARD
     public partial class ThreeDFrameCollection : List<ThreeDFrame>, ICloneable
-    #else
-    public partial class ThreeDFrameCollection : List<ThreeDFrame>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -2837,7 +2727,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -2845,7 +2734,6 @@ namespace Opc.Ua
             return (ThreeDFrameCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -2894,11 +2782,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfOpenFileMode", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "OpenFileMode")]
-    #if !NET_STANDARD
     public partial class OpenFileModeCollection : List<OpenFileMode>, ICloneable
-    #else
-    public partial class OpenFileModeCollection : List<OpenFileMode>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -2935,7 +2819,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -2943,7 +2826,6 @@ namespace Opc.Ua
             return (OpenFileModeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -3004,11 +2886,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfIdentityCriteriaType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "IdentityCriteriaType")]
-    #if !NET_STANDARD
     public partial class IdentityCriteriaTypeCollection : List<IdentityCriteriaType>, ICloneable
-    #else
-    public partial class IdentityCriteriaTypeCollection : List<IdentityCriteriaType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -3045,7 +2923,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -3053,7 +2930,6 @@ namespace Opc.Ua
             return (IdentityCriteriaTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -3174,13 +3050,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (IdentityMappingRuleType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -3205,11 +3079,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfIdentityMappingRuleType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "IdentityMappingRuleType")]
-    #if !NET_STANDARD
     public partial class IdentityMappingRuleTypeCollection : List<IdentityMappingRuleType>, ICloneable
-    #else
-    public partial class IdentityMappingRuleTypeCollection : List<IdentityMappingRuleType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -3246,7 +3116,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -3254,7 +3123,6 @@ namespace Opc.Ua
             return (IdentityMappingRuleTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -3399,13 +3267,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (CurrencyUnitType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -3434,11 +3300,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfCurrencyUnitType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "CurrencyUnitType")]
-    #if !NET_STANDARD
     public partial class CurrencyUnitTypeCollection : List<CurrencyUnitType>, ICloneable
-    #else
-    public partial class CurrencyUnitTypeCollection : List<CurrencyUnitType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -3475,7 +3337,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -3483,7 +3344,6 @@ namespace Opc.Ua
             return (CurrencyUnitTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -3723,13 +3583,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (TrustListDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -3760,11 +3618,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfTrustListDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TrustListDataType")]
-    #if !NET_STANDARD
     public partial class TrustListDataTypeCollection : List<TrustListDataType>, ICloneable
-    #else
-    public partial class TrustListDataTypeCollection : List<TrustListDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -3801,7 +3655,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -3809,7 +3662,6 @@ namespace Opc.Ua
             return (TrustListDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -3930,13 +3782,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (DecimalDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -4132,13 +3982,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (DataTypeSchemaHeader)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -4167,11 +4015,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataTypeSchemaHeader", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataTypeSchemaHeader")]
-    #if !NET_STANDARD
     public partial class DataTypeSchemaHeaderCollection : List<DataTypeSchemaHeader>, ICloneable
-    #else
-    public partial class DataTypeSchemaHeaderCollection : List<DataTypeSchemaHeader>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -4208,7 +4052,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -4216,7 +4059,6 @@ namespace Opc.Ua
             return (DataTypeSchemaHeaderCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -4337,13 +4179,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (DataTypeDescription)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -4368,11 +4208,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataTypeDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataTypeDescription")]
-    #if !NET_STANDARD
     public partial class DataTypeDescriptionCollection : List<DataTypeDescription>, ICloneable
-    #else
-    public partial class DataTypeDescriptionCollection : List<DataTypeDescription>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -4409,7 +4245,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -4417,7 +4252,6 @@ namespace Opc.Ua
             return (DataTypeDescriptionCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -4442,7 +4276,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class StructureDescription : DataTypeDescription
+    public partial class StructureDescription : Opc.Ua.DataTypeDescription
     {
         #region Constructors
         /// <remarks />
@@ -4540,16 +4374,14 @@ namespace Opc.Ua
             if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_structureDefinition, value.m_structureDefinition)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (StructureDescription)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -4572,11 +4404,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfStructureDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StructureDescription")]
-    #if !NET_STANDARD
     public partial class StructureDescriptionCollection : List<StructureDescription>, ICloneable
-    #else
-    public partial class StructureDescriptionCollection : List<StructureDescription>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -4613,7 +4441,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -4621,7 +4448,6 @@ namespace Opc.Ua
             return (StructureDescriptionCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -4646,7 +4472,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class EnumDescription : DataTypeDescription
+    public partial class EnumDescription : Opc.Ua.DataTypeDescription
     {
         #region Constructors
         /// <remarks />
@@ -4756,16 +4582,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_enumDefinition, value.m_enumDefinition)) return false;
             if (!Utils.IsEqual(m_builtInType, value.m_builtInType)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (EnumDescription)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -4790,11 +4614,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEnumDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EnumDescription")]
-    #if !NET_STANDARD
     public partial class EnumDescriptionCollection : List<EnumDescription>, ICloneable
-    #else
-    public partial class EnumDescriptionCollection : List<EnumDescription>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -4831,7 +4651,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -4839,7 +4658,6 @@ namespace Opc.Ua
             return (EnumDescriptionCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -4864,7 +4682,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class SimpleTypeDescription : DataTypeDescription
+    public partial class SimpleTypeDescription : Opc.Ua.DataTypeDescription
     {
         #region Constructors
         /// <remarks />
@@ -4962,16 +4780,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_baseDataType, value.m_baseDataType)) return false;
             if (!Utils.IsEqual(m_builtInType, value.m_builtInType)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (SimpleTypeDescription)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -4996,11 +4812,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSimpleTypeDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SimpleTypeDescription")]
-    #if !NET_STANDARD
     public partial class SimpleTypeDescriptionCollection : List<SimpleTypeDescription>, ICloneable
-    #else
-    public partial class SimpleTypeDescriptionCollection : List<SimpleTypeDescription>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -5037,7 +4849,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -5045,7 +4856,6 @@ namespace Opc.Ua
             return (SimpleTypeDescriptionCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -5070,7 +4880,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class UABinaryFileDataType : DataTypeSchemaHeader
+    public partial class UABinaryFileDataType : Opc.Ua.DataTypeSchemaHeader
     {
         #region Constructors
         /// <remarks />
@@ -5192,16 +5002,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_fileHeader, value.m_fileHeader)) return false;
             if (!Utils.IsEqual(m_body, value.m_body)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (UABinaryFileDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -5228,11 +5036,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUABinaryFileDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UABinaryFileDataType")]
-    #if !NET_STANDARD
     public partial class UABinaryFileDataTypeCollection : List<UABinaryFileDataType>, ICloneable
-    #else
-    public partial class UABinaryFileDataTypeCollection : List<UABinaryFileDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -5269,7 +5073,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -5277,7 +5080,6 @@ namespace Opc.Ua
             return (UABinaryFileDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -5330,11 +5132,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPubSubState", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubState")]
-    #if !NET_STANDARD
     public partial class PubSubStateCollection : List<PubSubState>, ICloneable
-    #else
-    public partial class PubSubStateCollection : List<PubSubState>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -5371,7 +5169,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -5379,7 +5176,6 @@ namespace Opc.Ua
             return (PubSubStateCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -5404,7 +5200,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DataSetMetaDataType : DataTypeSchemaHeader
+    public partial class DataSetMetaDataType : Opc.Ua.DataTypeSchemaHeader
     {
         #region Constructors
         /// <remarks />
@@ -5562,16 +5358,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_dataSetClassId, value.m_dataSetClassId)) return false;
             if (!Utils.IsEqual(m_configurationVersion, value.m_configurationVersion)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (DataSetMetaDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -5602,11 +5396,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetMetaDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetMetaDataType")]
-    #if !NET_STANDARD
     public partial class DataSetMetaDataTypeCollection : List<DataSetMetaDataType>, ICloneable
-    #else
-    public partial class DataSetMetaDataTypeCollection : List<DataSetMetaDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -5643,7 +5433,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -5651,7 +5440,6 @@ namespace Opc.Ua
             return (DataSetMetaDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -5892,13 +5680,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (FieldMetaData)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -5939,11 +5725,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfFieldMetaData", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "FieldMetaData")]
-    #if !NET_STANDARD
     public partial class FieldMetaDataCollection : List<FieldMetaData>, ICloneable
-    #else
-    public partial class FieldMetaDataCollection : List<FieldMetaData>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -5980,7 +5762,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -5988,7 +5769,6 @@ namespace Opc.Ua
             return (FieldMetaDataCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -6128,13 +5908,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ConfigurationVersionDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -6159,11 +5937,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfConfigurationVersionDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ConfigurationVersionDataType")]
-    #if !NET_STANDARD
     public partial class ConfigurationVersionDataTypeCollection : List<ConfigurationVersionDataType>, ICloneable
-    #else
-    public partial class ConfigurationVersionDataTypeCollection : List<ConfigurationVersionDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -6200,7 +5974,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -6208,7 +5981,6 @@ namespace Opc.Ua
             return (ConfigurationVersionDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -6401,13 +6173,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (PublishedDataSetDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -6438,11 +6208,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPublishedDataSetDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedDataSetDataType")]
-    #if !NET_STANDARD
     public partial class PublishedDataSetDataTypeCollection : List<PublishedDataSetDataType>, ICloneable
-    #else
-    public partial class PublishedDataSetDataTypeCollection : List<PublishedDataSetDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -6479,7 +6245,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -6487,7 +6252,6 @@ namespace Opc.Ua
             return (PublishedDataSetDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -6585,13 +6349,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (PublishedDataSetSourceDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -6612,11 +6374,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPublishedDataSetSourceDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedDataSetSourceDataType")]
-    #if !NET_STANDARD
     public partial class PublishedDataSetSourceDataTypeCollection : List<PublishedDataSetSourceDataType>, ICloneable
-    #else
-    public partial class PublishedDataSetSourceDataTypeCollection : List<PublishedDataSetSourceDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -6653,7 +6411,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -6661,7 +6418,6 @@ namespace Opc.Ua
             return (PublishedDataSetSourceDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -6866,13 +6622,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (PublishedVariableDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -6909,11 +6663,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPublishedVariableDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedVariableDataType")]
-    #if !NET_STANDARD
     public partial class PublishedVariableDataTypeCollection : List<PublishedVariableDataType>, ICloneable
-    #else
-    public partial class PublishedVariableDataTypeCollection : List<PublishedVariableDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -6950,7 +6700,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -6958,7 +6707,6 @@ namespace Opc.Ua
             return (PublishedVariableDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -6983,7 +6731,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class PublishedDataItemsDataType : PublishedDataSetSourceDataType
+    public partial class PublishedDataItemsDataType : Opc.Ua.PublishedDataSetSourceDataType
     {
         #region Constructors
         /// <remarks />
@@ -7081,16 +6829,14 @@ namespace Opc.Ua
             if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_publishedData, value.m_publishedData)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (PublishedDataItemsDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -7113,11 +6859,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPublishedDataItemsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedDataItemsDataType")]
-    #if !NET_STANDARD
     public partial class PublishedDataItemsDataTypeCollection : List<PublishedDataItemsDataType>, ICloneable
-    #else
-    public partial class PublishedDataItemsDataTypeCollection : List<PublishedDataItemsDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -7154,7 +6896,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -7162,7 +6903,6 @@ namespace Opc.Ua
             return (PublishedDataItemsDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -7187,7 +6927,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class PublishedEventsDataType : PublishedDataSetSourceDataType
+    public partial class PublishedEventsDataType : Opc.Ua.PublishedDataSetSourceDataType
     {
         #region Constructors
         /// <remarks />
@@ -7321,16 +7061,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_selectedFields, value.m_selectedFields)) return false;
             if (!Utils.IsEqual(m_filter, value.m_filter)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (PublishedEventsDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -7357,11 +7095,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPublishedEventsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedEventsDataType")]
-    #if !NET_STANDARD
     public partial class PublishedEventsDataTypeCollection : List<PublishedEventsDataType>, ICloneable
-    #else
-    public partial class PublishedEventsDataTypeCollection : List<PublishedEventsDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -7398,7 +7132,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -7406,7 +7139,6 @@ namespace Opc.Ua
             return (PublishedEventsDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -7467,11 +7199,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetFieldContentMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetFieldContentMask")]
-    #if !NET_STANDARD
     public partial class DataSetFieldContentMaskCollection : List<DataSetFieldContentMask>, ICloneable
-    #else
-    public partial class DataSetFieldContentMaskCollection : List<DataSetFieldContentMask>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -7508,7 +7236,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -7516,7 +7243,6 @@ namespace Opc.Ua
             return (DataSetFieldContentMaskCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -7733,13 +7459,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (DataSetWriterDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -7778,11 +7502,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetWriterDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetWriterDataType")]
-    #if !NET_STANDARD
     public partial class DataSetWriterDataTypeCollection : List<DataSetWriterDataType>, ICloneable
-    #else
-    public partial class DataSetWriterDataTypeCollection : List<DataSetWriterDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -7819,7 +7539,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -7827,7 +7546,6 @@ namespace Opc.Ua
             return (DataSetWriterDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -7925,13 +7643,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (DataSetWriterTransportDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -7952,11 +7668,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetWriterTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetWriterTransportDataType")]
-    #if !NET_STANDARD
     public partial class DataSetWriterTransportDataTypeCollection : List<DataSetWriterTransportDataType>, ICloneable
-    #else
-    public partial class DataSetWriterTransportDataTypeCollection : List<DataSetWriterTransportDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -7993,7 +7705,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -8001,7 +7712,6 @@ namespace Opc.Ua
             return (DataSetWriterTransportDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -8099,13 +7809,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (DataSetWriterMessageDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -8126,11 +7834,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetWriterMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetWriterMessageDataType")]
-    #if !NET_STANDARD
     public partial class DataSetWriterMessageDataTypeCollection : List<DataSetWriterMessageDataType>, ICloneable
-    #else
-    public partial class DataSetWriterMessageDataTypeCollection : List<DataSetWriterMessageDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -8167,7 +7871,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -8175,7 +7878,6 @@ namespace Opc.Ua
             return (DataSetWriterMessageDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -8380,13 +8082,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (PubSubGroupDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -8421,11 +8121,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPubSubGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubGroupDataType")]
-    #if !NET_STANDARD
     public partial class PubSubGroupDataTypeCollection : List<PubSubGroupDataType>, ICloneable
-    #else
-    public partial class PubSubGroupDataTypeCollection : List<PubSubGroupDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -8462,7 +8158,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -8470,7 +8165,6 @@ namespace Opc.Ua
             return (PubSubGroupDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -8495,7 +8189,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class WriterGroupDataType : PubSubGroupDataType
+    public partial class WriterGroupDataType : Opc.Ua.PubSubGroupDataType
     {
         #region Constructors
         /// <remarks />
@@ -8701,16 +8395,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_messageSettings, value.m_messageSettings)) return false;
             if (!Utils.IsEqual(m_dataSetWriters, value.m_dataSetWriters)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (WriterGroupDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -8749,11 +8441,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfWriterGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "WriterGroupDataType")]
-    #if !NET_STANDARD
     public partial class WriterGroupDataTypeCollection : List<WriterGroupDataType>, ICloneable
-    #else
-    public partial class WriterGroupDataTypeCollection : List<WriterGroupDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -8790,7 +8478,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -8798,7 +8485,6 @@ namespace Opc.Ua
             return (WriterGroupDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -8896,13 +8582,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (WriterGroupTransportDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -8923,11 +8607,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfWriterGroupTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "WriterGroupTransportDataType")]
-    #if !NET_STANDARD
     public partial class WriterGroupTransportDataTypeCollection : List<WriterGroupTransportDataType>, ICloneable
-    #else
-    public partial class WriterGroupTransportDataTypeCollection : List<WriterGroupTransportDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -8964,7 +8644,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -8972,7 +8651,6 @@ namespace Opc.Ua
             return (WriterGroupTransportDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -9070,13 +8748,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (WriterGroupMessageDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -9097,11 +8773,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfWriterGroupMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "WriterGroupMessageDataType")]
-    #if !NET_STANDARD
     public partial class WriterGroupMessageDataTypeCollection : List<WriterGroupMessageDataType>, ICloneable
-    #else
-    public partial class WriterGroupMessageDataTypeCollection : List<WriterGroupMessageDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -9138,7 +8810,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -9146,7 +8817,6 @@ namespace Opc.Ua
             return (WriterGroupMessageDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -9387,13 +9057,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (PubSubConnectionDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -9432,11 +9100,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPubSubConnectionDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubConnectionDataType")]
-    #if !NET_STANDARD
     public partial class PubSubConnectionDataTypeCollection : List<PubSubConnectionDataType>, ICloneable
-    #else
-    public partial class PubSubConnectionDataTypeCollection : List<PubSubConnectionDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -9473,7 +9137,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -9481,7 +9144,6 @@ namespace Opc.Ua
             return (PubSubConnectionDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -9579,13 +9241,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ConnectionTransportDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -9606,11 +9266,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfConnectionTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ConnectionTransportDataType")]
-    #if !NET_STANDARD
     public partial class ConnectionTransportDataTypeCollection : List<ConnectionTransportDataType>, ICloneable
-    #else
-    public partial class ConnectionTransportDataTypeCollection : List<ConnectionTransportDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -9647,7 +9303,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -9655,7 +9310,6 @@ namespace Opc.Ua
             return (ConnectionTransportDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -9764,13 +9418,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (NetworkAddressDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -9793,11 +9445,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfNetworkAddressDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NetworkAddressDataType")]
-    #if !NET_STANDARD
     public partial class NetworkAddressDataTypeCollection : List<NetworkAddressDataType>, ICloneable
-    #else
-    public partial class NetworkAddressDataTypeCollection : List<NetworkAddressDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -9834,7 +9482,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -9842,7 +9489,6 @@ namespace Opc.Ua
             return (NetworkAddressDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -9867,7 +9513,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class NetworkAddressUrlDataType : NetworkAddressDataType
+    public partial class NetworkAddressUrlDataType : Opc.Ua.NetworkAddressDataType
     {
         #region Constructors
         /// <remarks />
@@ -9953,16 +9599,14 @@ namespace Opc.Ua
             if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_url, value.m_url)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (NetworkAddressUrlDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -9985,11 +9629,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfNetworkAddressUrlDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NetworkAddressUrlDataType")]
-    #if !NET_STANDARD
     public partial class NetworkAddressUrlDataTypeCollection : List<NetworkAddressUrlDataType>, ICloneable
-    #else
-    public partial class NetworkAddressUrlDataTypeCollection : List<NetworkAddressUrlDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -10026,7 +9666,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -10034,7 +9673,6 @@ namespace Opc.Ua
             return (NetworkAddressUrlDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -10059,7 +9697,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ReaderGroupDataType : PubSubGroupDataType
+    public partial class ReaderGroupDataType : Opc.Ua.PubSubGroupDataType
     {
         #region Constructors
         /// <remarks />
@@ -10181,16 +9819,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_messageSettings, value.m_messageSettings)) return false;
             if (!Utils.IsEqual(m_dataSetReaders, value.m_dataSetReaders)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (ReaderGroupDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -10217,11 +9853,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfReaderGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReaderGroupDataType")]
-    #if !NET_STANDARD
     public partial class ReaderGroupDataTypeCollection : List<ReaderGroupDataType>, ICloneable
-    #else
-    public partial class ReaderGroupDataTypeCollection : List<ReaderGroupDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -10258,7 +9890,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -10266,7 +9897,6 @@ namespace Opc.Ua
             return (ReaderGroupDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -10364,13 +9994,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ReaderGroupTransportDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -10391,11 +10019,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfReaderGroupTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReaderGroupTransportDataType")]
-    #if !NET_STANDARD
     public partial class ReaderGroupTransportDataTypeCollection : List<ReaderGroupTransportDataType>, ICloneable
-    #else
-    public partial class ReaderGroupTransportDataTypeCollection : List<ReaderGroupTransportDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -10432,7 +10056,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -10440,7 +10063,6 @@ namespace Opc.Ua
             return (ReaderGroupTransportDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -10538,13 +10160,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ReaderGroupMessageDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -10565,11 +10185,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfReaderGroupMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReaderGroupMessageDataType")]
-    #if !NET_STANDARD
     public partial class ReaderGroupMessageDataTypeCollection : List<ReaderGroupMessageDataType>, ICloneable
-    #else
-    public partial class ReaderGroupMessageDataTypeCollection : List<ReaderGroupMessageDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -10606,7 +10222,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -10614,7 +10229,6 @@ namespace Opc.Ua
             return (ReaderGroupMessageDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -10951,13 +10565,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (DataSetReaderDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -11012,11 +10624,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetReaderDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetReaderDataType")]
-    #if !NET_STANDARD
     public partial class DataSetReaderDataTypeCollection : List<DataSetReaderDataType>, ICloneable
-    #else
-    public partial class DataSetReaderDataTypeCollection : List<DataSetReaderDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -11053,7 +10661,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -11061,7 +10668,6 @@ namespace Opc.Ua
             return (DataSetReaderDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -11159,13 +10765,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (DataSetReaderTransportDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -11186,11 +10790,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetReaderTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetReaderTransportDataType")]
-    #if !NET_STANDARD
     public partial class DataSetReaderTransportDataTypeCollection : List<DataSetReaderTransportDataType>, ICloneable
-    #else
-    public partial class DataSetReaderTransportDataTypeCollection : List<DataSetReaderTransportDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -11227,7 +10827,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -11235,7 +10834,6 @@ namespace Opc.Ua
             return (DataSetReaderTransportDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -11333,13 +10931,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (DataSetReaderMessageDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -11360,11 +10956,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetReaderMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetReaderMessageDataType")]
-    #if !NET_STANDARD
     public partial class DataSetReaderMessageDataTypeCollection : List<DataSetReaderMessageDataType>, ICloneable
-    #else
-    public partial class DataSetReaderMessageDataTypeCollection : List<DataSetReaderMessageDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -11401,7 +10993,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -11409,7 +11000,6 @@ namespace Opc.Ua
             return (DataSetReaderMessageDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -11507,13 +11097,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (SubscribedDataSetDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -11534,11 +11122,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSubscribedDataSetDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SubscribedDataSetDataType")]
-    #if !NET_STANDARD
     public partial class SubscribedDataSetDataTypeCollection : List<SubscribedDataSetDataType>, ICloneable
-    #else
-    public partial class SubscribedDataSetDataTypeCollection : List<SubscribedDataSetDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -11575,7 +11159,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -11583,7 +11166,6 @@ namespace Opc.Ua
             return (SubscribedDataSetDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -11608,7 +11190,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class TargetVariablesDataType : SubscribedDataSetDataType
+    public partial class TargetVariablesDataType : Opc.Ua.SubscribedDataSetDataType
     {
         #region Constructors
         /// <remarks />
@@ -11706,16 +11288,14 @@ namespace Opc.Ua
             if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_targetVariables, value.m_targetVariables)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (TargetVariablesDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -11738,11 +11318,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfTargetVariablesDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TargetVariablesDataType")]
-    #if !NET_STANDARD
     public partial class TargetVariablesDataTypeCollection : List<TargetVariablesDataType>, ICloneable
-    #else
-    public partial class TargetVariablesDataTypeCollection : List<TargetVariablesDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -11779,7 +11355,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -11787,7 +11362,6 @@ namespace Opc.Ua
             return (TargetVariablesDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -11968,13 +11542,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (FieldTargetDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -12009,11 +11581,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfFieldTargetDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "FieldTargetDataType")]
-    #if !NET_STANDARD
     public partial class FieldTargetDataTypeCollection : List<FieldTargetDataType>, ICloneable
-    #else
-    public partial class FieldTargetDataTypeCollection : List<FieldTargetDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -12050,7 +11618,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -12058,7 +11625,6 @@ namespace Opc.Ua
             return (FieldTargetDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -12103,11 +11669,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfOverrideValueHandling", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "OverrideValueHandling")]
-    #if !NET_STANDARD
     public partial class OverrideValueHandlingCollection : List<OverrideValueHandling>, ICloneable
-    #else
-    public partial class OverrideValueHandlingCollection : List<OverrideValueHandling>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -12144,7 +11706,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -12152,7 +11713,6 @@ namespace Opc.Ua
             return (OverrideValueHandlingCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -12177,7 +11737,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class SubscribedDataSetMirrorDataType : SubscribedDataSetDataType
+    public partial class SubscribedDataSetMirrorDataType : Opc.Ua.SubscribedDataSetDataType
     {
         #region Constructors
         /// <remarks />
@@ -12287,16 +11847,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_parentNodeName, value.m_parentNodeName)) return false;
             if (!Utils.IsEqual(m_rolePermissions, value.m_rolePermissions)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (SubscribedDataSetMirrorDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -12321,11 +11879,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSubscribedDataSetMirrorDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SubscribedDataSetMirrorDataType")]
-    #if !NET_STANDARD
     public partial class SubscribedDataSetMirrorDataTypeCollection : List<SubscribedDataSetMirrorDataType>, ICloneable
-    #else
-    public partial class SubscribedDataSetMirrorDataTypeCollection : List<SubscribedDataSetMirrorDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -12362,7 +11916,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -12370,7 +11923,6 @@ namespace Opc.Ua
             return (SubscribedDataSetMirrorDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -12527,13 +12079,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (PubSubConfigurationDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -12560,11 +12110,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPubSubConfigurationDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubConfigurationDataType")]
-    #if !NET_STANDARD
     public partial class PubSubConfigurationDataTypeCollection : List<PubSubConfigurationDataType>, ICloneable
-    #else
-    public partial class PubSubConfigurationDataTypeCollection : List<PubSubConfigurationDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -12601,7 +12147,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -12609,7 +12154,6 @@ namespace Opc.Ua
             return (PubSubConfigurationDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -12654,11 +12198,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataSetOrderingType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataSetOrderingType")]
-    #if !NET_STANDARD
     public partial class DataSetOrderingTypeCollection : List<DataSetOrderingType>, ICloneable
-    #else
-    public partial class DataSetOrderingTypeCollection : List<DataSetOrderingType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -12695,7 +12235,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -12703,7 +12242,6 @@ namespace Opc.Ua
             return (DataSetOrderingTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -12784,11 +12322,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUadpNetworkMessageContentMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UadpNetworkMessageContentMask")]
-    #if !NET_STANDARD
     public partial class UadpNetworkMessageContentMaskCollection : List<UadpNetworkMessageContentMask>, ICloneable
-    #else
-    public partial class UadpNetworkMessageContentMaskCollection : List<UadpNetworkMessageContentMask>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -12825,7 +12359,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -12833,7 +12366,6 @@ namespace Opc.Ua
             return (UadpNetworkMessageContentMaskCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -12858,7 +12390,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class UadpWriterGroupMessageDataType : WriterGroupMessageDataType
+    public partial class UadpWriterGroupMessageDataType : Opc.Ua.WriterGroupMessageDataType
     {
         #region Constructors
         /// <remarks />
@@ -13004,16 +12536,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_samplingOffset, value.m_samplingOffset)) return false;
             if (!Utils.IsEqual(m_publishingOffset, value.m_publishingOffset)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (UadpWriterGroupMessageDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -13044,11 +12574,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUadpWriterGroupMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UadpWriterGroupMessageDataType")]
-    #if !NET_STANDARD
     public partial class UadpWriterGroupMessageDataTypeCollection : List<UadpWriterGroupMessageDataType>, ICloneable
-    #else
-    public partial class UadpWriterGroupMessageDataTypeCollection : List<UadpWriterGroupMessageDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -13085,7 +12611,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -13093,7 +12618,6 @@ namespace Opc.Ua
             return (UadpWriterGroupMessageDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -13154,11 +12678,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUadpDataSetMessageContentMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UadpDataSetMessageContentMask")]
-    #if !NET_STANDARD
     public partial class UadpDataSetMessageContentMaskCollection : List<UadpDataSetMessageContentMask>, ICloneable
-    #else
-    public partial class UadpDataSetMessageContentMaskCollection : List<UadpDataSetMessageContentMask>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -13195,7 +12715,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -13203,7 +12722,6 @@ namespace Opc.Ua
             return (UadpDataSetMessageContentMaskCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -13228,7 +12746,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class UadpDataSetWriterMessageDataType : DataSetWriterMessageDataType
+    public partial class UadpDataSetWriterMessageDataType : Opc.Ua.DataSetWriterMessageDataType
     {
         #region Constructors
         /// <remarks />
@@ -13350,16 +12868,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_networkMessageNumber, value.m_networkMessageNumber)) return false;
             if (!Utils.IsEqual(m_dataSetOffset, value.m_dataSetOffset)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (UadpDataSetWriterMessageDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -13388,11 +12904,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUadpDataSetWriterMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UadpDataSetWriterMessageDataType")]
-    #if !NET_STANDARD
     public partial class UadpDataSetWriterMessageDataTypeCollection : List<UadpDataSetWriterMessageDataType>, ICloneable
-    #else
-    public partial class UadpDataSetWriterMessageDataTypeCollection : List<UadpDataSetWriterMessageDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -13429,7 +12941,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -13437,7 +12948,6 @@ namespace Opc.Ua
             return (UadpDataSetWriterMessageDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -13462,7 +12972,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class UadpDataSetReaderMessageDataType : DataSetReaderMessageDataType
+    public partial class UadpDataSetReaderMessageDataType : Opc.Ua.DataSetReaderMessageDataType
     {
         #region Constructors
         /// <remarks />
@@ -13644,16 +13154,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_receiveOffset, value.m_receiveOffset)) return false;
             if (!Utils.IsEqual(m_processingOffset, value.m_processingOffset)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (UadpDataSetReaderMessageDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -13692,11 +13200,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUadpDataSetReaderMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UadpDataSetReaderMessageDataType")]
-    #if !NET_STANDARD
     public partial class UadpDataSetReaderMessageDataTypeCollection : List<UadpDataSetReaderMessageDataType>, ICloneable
-    #else
-    public partial class UadpDataSetReaderMessageDataTypeCollection : List<UadpDataSetReaderMessageDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -13733,7 +13237,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -13741,7 +13244,6 @@ namespace Opc.Ua
             return (UadpDataSetReaderMessageDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -13802,11 +13304,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfJsonNetworkMessageContentMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonNetworkMessageContentMask")]
-    #if !NET_STANDARD
     public partial class JsonNetworkMessageContentMaskCollection : List<JsonNetworkMessageContentMask>, ICloneable
-    #else
-    public partial class JsonNetworkMessageContentMaskCollection : List<JsonNetworkMessageContentMask>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -13843,7 +13341,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -13851,7 +13348,6 @@ namespace Opc.Ua
             return (JsonNetworkMessageContentMaskCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -13876,7 +13372,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class JsonWriterGroupMessageDataType : WriterGroupMessageDataType
+    public partial class JsonWriterGroupMessageDataType : Opc.Ua.WriterGroupMessageDataType
     {
         #region Constructors
         /// <remarks />
@@ -13962,16 +13458,14 @@ namespace Opc.Ua
             if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_networkMessageContentMask, value.m_networkMessageContentMask)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (JsonWriterGroupMessageDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -13994,11 +13488,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfJsonWriterGroupMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonWriterGroupMessageDataType")]
-    #if !NET_STANDARD
     public partial class JsonWriterGroupMessageDataTypeCollection : List<JsonWriterGroupMessageDataType>, ICloneable
-    #else
-    public partial class JsonWriterGroupMessageDataTypeCollection : List<JsonWriterGroupMessageDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -14035,7 +13525,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -14043,7 +13532,6 @@ namespace Opc.Ua
             return (JsonWriterGroupMessageDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -14104,11 +13592,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfJsonDataSetMessageContentMask", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonDataSetMessageContentMask")]
-    #if !NET_STANDARD
     public partial class JsonDataSetMessageContentMaskCollection : List<JsonDataSetMessageContentMask>, ICloneable
-    #else
-    public partial class JsonDataSetMessageContentMaskCollection : List<JsonDataSetMessageContentMask>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -14145,7 +13629,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -14153,7 +13636,6 @@ namespace Opc.Ua
             return (JsonDataSetMessageContentMaskCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -14178,7 +13660,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class JsonDataSetWriterMessageDataType : DataSetWriterMessageDataType
+    public partial class JsonDataSetWriterMessageDataType : Opc.Ua.DataSetWriterMessageDataType
     {
         #region Constructors
         /// <remarks />
@@ -14264,16 +13746,14 @@ namespace Opc.Ua
             if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_dataSetMessageContentMask, value.m_dataSetMessageContentMask)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (JsonDataSetWriterMessageDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -14296,11 +13776,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfJsonDataSetWriterMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonDataSetWriterMessageDataType")]
-    #if !NET_STANDARD
     public partial class JsonDataSetWriterMessageDataTypeCollection : List<JsonDataSetWriterMessageDataType>, ICloneable
-    #else
-    public partial class JsonDataSetWriterMessageDataTypeCollection : List<JsonDataSetWriterMessageDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -14337,7 +13813,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -14345,7 +13820,6 @@ namespace Opc.Ua
             return (JsonDataSetWriterMessageDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -14370,7 +13844,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class JsonDataSetReaderMessageDataType : DataSetReaderMessageDataType
+    public partial class JsonDataSetReaderMessageDataType : Opc.Ua.DataSetReaderMessageDataType
     {
         #region Constructors
         /// <remarks />
@@ -14468,16 +13942,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_networkMessageContentMask, value.m_networkMessageContentMask)) return false;
             if (!Utils.IsEqual(m_dataSetMessageContentMask, value.m_dataSetMessageContentMask)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (JsonDataSetReaderMessageDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -14502,11 +13974,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfJsonDataSetReaderMessageDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "JsonDataSetReaderMessageDataType")]
-    #if !NET_STANDARD
     public partial class JsonDataSetReaderMessageDataTypeCollection : List<JsonDataSetReaderMessageDataType>, ICloneable
-    #else
-    public partial class JsonDataSetReaderMessageDataTypeCollection : List<JsonDataSetReaderMessageDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -14543,7 +14011,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -14551,7 +14018,6 @@ namespace Opc.Ua
             return (JsonDataSetReaderMessageDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -14576,7 +14042,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DatagramConnectionTransportDataType : ConnectionTransportDataType
+    public partial class DatagramConnectionTransportDataType : Opc.Ua.ConnectionTransportDataType
     {
         #region Constructors
         /// <remarks />
@@ -14662,16 +14128,14 @@ namespace Opc.Ua
             if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_discoveryAddress, value.m_discoveryAddress)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (DatagramConnectionTransportDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -14694,11 +14158,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDatagramConnectionTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DatagramConnectionTransportDataType")]
-    #if !NET_STANDARD
     public partial class DatagramConnectionTransportDataTypeCollection : List<DatagramConnectionTransportDataType>, ICloneable
-    #else
-    public partial class DatagramConnectionTransportDataTypeCollection : List<DatagramConnectionTransportDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -14735,7 +14195,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -14743,7 +14202,6 @@ namespace Opc.Ua
             return (DatagramConnectionTransportDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -14768,7 +14226,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DatagramWriterGroupTransportDataType : WriterGroupTransportDataType
+    public partial class DatagramWriterGroupTransportDataType : Opc.Ua.WriterGroupTransportDataType
     {
         #region Constructors
         /// <remarks />
@@ -14866,16 +14324,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_messageRepeatCount, value.m_messageRepeatCount)) return false;
             if (!Utils.IsEqual(m_messageRepeatDelay, value.m_messageRepeatDelay)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (DatagramWriterGroupTransportDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -14900,11 +14356,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDatagramWriterGroupTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DatagramWriterGroupTransportDataType")]
-    #if !NET_STANDARD
     public partial class DatagramWriterGroupTransportDataTypeCollection : List<DatagramWriterGroupTransportDataType>, ICloneable
-    #else
-    public partial class DatagramWriterGroupTransportDataTypeCollection : List<DatagramWriterGroupTransportDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -14941,7 +14393,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -14949,7 +14400,6 @@ namespace Opc.Ua
             return (DatagramWriterGroupTransportDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -14974,7 +14424,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class BrokerConnectionTransportDataType : ConnectionTransportDataType
+    public partial class BrokerConnectionTransportDataType : Opc.Ua.ConnectionTransportDataType
     {
         #region Constructors
         /// <remarks />
@@ -15072,16 +14522,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_resourceUri, value.m_resourceUri)) return false;
             if (!Utils.IsEqual(m_authenticationProfileUri, value.m_authenticationProfileUri)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (BrokerConnectionTransportDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -15106,11 +14554,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrokerConnectionTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrokerConnectionTransportDataType")]
-    #if !NET_STANDARD
     public partial class BrokerConnectionTransportDataTypeCollection : List<BrokerConnectionTransportDataType>, ICloneable
-    #else
-    public partial class BrokerConnectionTransportDataTypeCollection : List<BrokerConnectionTransportDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -15147,7 +14591,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -15155,7 +14598,6 @@ namespace Opc.Ua
             return (BrokerConnectionTransportDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -15208,11 +14650,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrokerTransportQualityOfService", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrokerTransportQualityOfService")]
-    #if !NET_STANDARD
     public partial class BrokerTransportQualityOfServiceCollection : List<BrokerTransportQualityOfService>, ICloneable
-    #else
-    public partial class BrokerTransportQualityOfServiceCollection : List<BrokerTransportQualityOfService>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -15249,7 +14687,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -15257,7 +14694,6 @@ namespace Opc.Ua
             return (BrokerTransportQualityOfServiceCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -15282,7 +14718,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class BrokerWriterGroupTransportDataType : WriterGroupTransportDataType
+    public partial class BrokerWriterGroupTransportDataType : Opc.Ua.WriterGroupTransportDataType
     {
         #region Constructors
         /// <remarks />
@@ -15404,16 +14840,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_authenticationProfileUri, value.m_authenticationProfileUri)) return false;
             if (!Utils.IsEqual(m_requestedDeliveryGuarantee, value.m_requestedDeliveryGuarantee)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (BrokerWriterGroupTransportDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -15442,11 +14876,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrokerWriterGroupTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrokerWriterGroupTransportDataType")]
-    #if !NET_STANDARD
     public partial class BrokerWriterGroupTransportDataTypeCollection : List<BrokerWriterGroupTransportDataType>, ICloneable
-    #else
-    public partial class BrokerWriterGroupTransportDataTypeCollection : List<BrokerWriterGroupTransportDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -15483,7 +14913,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -15491,7 +14920,6 @@ namespace Opc.Ua
             return (BrokerWriterGroupTransportDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -15516,7 +14944,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class BrokerDataSetWriterTransportDataType : DataSetWriterTransportDataType
+    public partial class BrokerDataSetWriterTransportDataType : Opc.Ua.DataSetWriterTransportDataType
     {
         #region Constructors
         /// <remarks />
@@ -15662,16 +15090,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_metaDataQueueName, value.m_metaDataQueueName)) return false;
             if (!Utils.IsEqual(m_metaDataUpdateTime, value.m_metaDataUpdateTime)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (BrokerDataSetWriterTransportDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -15704,11 +15130,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrokerDataSetWriterTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrokerDataSetWriterTransportDataType")]
-    #if !NET_STANDARD
     public partial class BrokerDataSetWriterTransportDataTypeCollection : List<BrokerDataSetWriterTransportDataType>, ICloneable
-    #else
-    public partial class BrokerDataSetWriterTransportDataTypeCollection : List<BrokerDataSetWriterTransportDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -15745,7 +15167,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -15753,7 +15174,6 @@ namespace Opc.Ua
             return (BrokerDataSetWriterTransportDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -15778,7 +15198,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class BrokerDataSetReaderTransportDataType : DataSetReaderTransportDataType
+    public partial class BrokerDataSetReaderTransportDataType : Opc.Ua.DataSetReaderTransportDataType
     {
         #region Constructors
         /// <remarks />
@@ -15912,16 +15332,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_requestedDeliveryGuarantee, value.m_requestedDeliveryGuarantee)) return false;
             if (!Utils.IsEqual(m_metaDataQueueName, value.m_metaDataQueueName)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (BrokerDataSetReaderTransportDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -15952,11 +15370,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrokerDataSetReaderTransportDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrokerDataSetReaderTransportDataType")]
-    #if !NET_STANDARD
     public partial class BrokerDataSetReaderTransportDataTypeCollection : List<BrokerDataSetReaderTransportDataType>, ICloneable
-    #else
-    public partial class BrokerDataSetReaderTransportDataTypeCollection : List<BrokerDataSetReaderTransportDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -15993,7 +15407,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -16001,7 +15414,6 @@ namespace Opc.Ua
             return (BrokerDataSetReaderTransportDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -16054,11 +15466,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDiagnosticsLevel", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DiagnosticsLevel")]
-    #if !NET_STANDARD
     public partial class DiagnosticsLevelCollection : List<DiagnosticsLevel>, ICloneable
-    #else
-    public partial class DiagnosticsLevelCollection : List<DiagnosticsLevel>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -16095,7 +15503,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -16103,7 +15510,6 @@ namespace Opc.Ua
             return (DiagnosticsLevelCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -16144,11 +15550,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfPubSubDiagnosticsCounterClassification", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PubSubDiagnosticsCounterClassification")]
-    #if !NET_STANDARD
     public partial class PubSubDiagnosticsCounterClassificationCollection : List<PubSubDiagnosticsCounterClassification>, ICloneable
-    #else
-    public partial class PubSubDiagnosticsCounterClassificationCollection : List<PubSubDiagnosticsCounterClassification>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -16185,7 +15587,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -16193,7 +15594,6 @@ namespace Opc.Ua
             return (PubSubDiagnosticsCounterClassificationCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -16326,13 +15726,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (AliasNameDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -16357,11 +15755,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfAliasNameDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AliasNameDataType")]
-    #if !NET_STANDARD
     public partial class AliasNameDataTypeCollection : List<AliasNameDataType>, ICloneable
-    #else
-    public partial class AliasNameDataTypeCollection : List<AliasNameDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -16398,7 +15792,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -16406,7 +15799,6 @@ namespace Opc.Ua
             return (AliasNameDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -16451,11 +15843,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDuplex", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Duplex")]
-    #if !NET_STANDARD
     public partial class DuplexCollection : List<Duplex>, ICloneable
-    #else
-    public partial class DuplexCollection : List<Duplex>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -16492,7 +15880,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -16500,7 +15887,6 @@ namespace Opc.Ua
             return (DuplexCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -16545,11 +15931,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfInterfaceAdminStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "InterfaceAdminStatus")]
-    #if !NET_STANDARD
     public partial class InterfaceAdminStatusCollection : List<InterfaceAdminStatus>, ICloneable
-    #else
-    public partial class InterfaceAdminStatusCollection : List<InterfaceAdminStatus>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -16586,7 +15968,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -16594,7 +15975,6 @@ namespace Opc.Ua
             return (InterfaceAdminStatusCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -16655,11 +16035,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfInterfaceOperStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "InterfaceOperStatus")]
-    #if !NET_STANDARD
     public partial class InterfaceOperStatusCollection : List<InterfaceOperStatus>, ICloneable
-    #else
-    public partial class InterfaceOperStatusCollection : List<InterfaceOperStatus>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -16696,7 +16072,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -16704,7 +16079,6 @@ namespace Opc.Ua
             return (InterfaceOperStatusCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -16757,11 +16131,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfNegotiationStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NegotiationStatus")]
-    #if !NET_STANDARD
     public partial class NegotiationStatusCollection : List<NegotiationStatus>, ICloneable
-    #else
-    public partial class NegotiationStatusCollection : List<NegotiationStatus>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -16798,7 +16168,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -16806,7 +16175,6 @@ namespace Opc.Ua
             return (NegotiationStatusCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -16943,11 +16311,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfTsnFailureCode", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TsnFailureCode")]
-    #if !NET_STANDARD
     public partial class TsnFailureCodeCollection : List<TsnFailureCode>, ICloneable
-    #else
-    public partial class TsnFailureCodeCollection : List<TsnFailureCode>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -16984,7 +16348,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -16992,7 +16355,6 @@ namespace Opc.Ua
             return (TsnFailureCodeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -17045,11 +16407,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfTsnStreamState", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TsnStreamState")]
-    #if !NET_STANDARD
     public partial class TsnStreamStateCollection : List<TsnStreamState>, ICloneable
-    #else
-    public partial class TsnStreamStateCollection : List<TsnStreamState>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -17086,7 +16444,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -17094,7 +16451,6 @@ namespace Opc.Ua
             return (TsnStreamStateCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -17139,11 +16495,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfTsnTalkerStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TsnTalkerStatus")]
-    #if !NET_STANDARD
     public partial class TsnTalkerStatusCollection : List<TsnTalkerStatus>, ICloneable
-    #else
-    public partial class TsnTalkerStatusCollection : List<TsnTalkerStatus>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -17180,7 +16532,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -17188,7 +16539,6 @@ namespace Opc.Ua
             return (TsnTalkerStatusCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -17237,11 +16587,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfTsnListenerStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TsnListenerStatus")]
-    #if !NET_STANDARD
     public partial class TsnListenerStatusCollection : List<TsnListenerStatus>, ICloneable
-    #else
-    public partial class TsnListenerStatusCollection : List<TsnListenerStatus>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -17278,7 +16624,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -17286,7 +16631,6 @@ namespace Opc.Ua
             return (TsnListenerStatusCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -17407,13 +16751,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (UnsignedRationalNumber)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -17438,11 +16780,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUnsignedRationalNumber", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UnsignedRationalNumber")]
-    #if !NET_STANDARD
     public partial class UnsignedRationalNumberCollection : List<UnsignedRationalNumber>, ICloneable
-    #else
-    public partial class UnsignedRationalNumberCollection : List<UnsignedRationalNumber>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -17479,7 +16817,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -17487,7 +16824,6 @@ namespace Opc.Ua
             return (UnsignedRationalNumberCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -17536,11 +16872,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfIdType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "IdType")]
-    #if !NET_STANDARD
     public partial class IdTypeCollection : List<IdType>, ICloneable
-    #else
-    public partial class IdTypeCollection : List<IdType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -17577,7 +16909,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -17585,7 +16916,6 @@ namespace Opc.Ua
             return (IdTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -17996,13 +17326,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (RolePermissionType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -18027,11 +17355,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfRolePermissionType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RolePermissionType")]
-    #if !NET_STANDARD
     public partial class RolePermissionTypeCollection : List<RolePermissionType>, ICloneable
-    #else
-    public partial class RolePermissionTypeCollection : List<RolePermissionType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -18068,7 +17392,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -18076,7 +17399,6 @@ namespace Opc.Ua
             return (RolePermissionTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -18174,13 +17496,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (DataTypeDefinition)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -18201,11 +17521,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDataTypeDefinition", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DataTypeDefinition")]
-    #if !NET_STANDARD
     public partial class DataTypeDefinitionCollection : List<DataTypeDefinition>, ICloneable
-    #else
-    public partial class DataTypeDefinitionCollection : List<DataTypeDefinition>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -18242,7 +17558,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -18250,7 +17565,6 @@ namespace Opc.Ua
             return (DataTypeDefinitionCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -18474,13 +17788,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (StructureField)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -18515,11 +17827,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfStructureField", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StructureField")]
-    #if !NET_STANDARD
     public partial class StructureFieldCollection : List<StructureField>, ICloneable
-    #else
-    public partial class StructureFieldCollection : List<StructureField>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -18556,7 +17864,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -18564,7 +17871,6 @@ namespace Opc.Ua
             return (StructureFieldCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -18589,7 +17895,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class StructureDefinition : DataTypeDefinition
+    public partial class StructureDefinition : Opc.Ua.DataTypeDefinition
     {
         #region Constructors
         /// <remarks />
@@ -18723,16 +18029,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_structureType, value.m_structureType)) return false;
             if (!Utils.IsEqual(m_fields, value.m_fields)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (StructureDefinition)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -18761,11 +18065,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfStructureDefinition", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StructureDefinition")]
-    #if !NET_STANDARD
     public partial class StructureDefinitionCollection : List<StructureDefinition>, ICloneable
-    #else
-    public partial class StructureDefinitionCollection : List<StructureDefinition>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -18802,7 +18102,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -18810,7 +18109,6 @@ namespace Opc.Ua
             return (StructureDefinitionCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -18835,7 +18133,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class EnumDefinition : DataTypeDefinition
+    public partial class EnumDefinition : Opc.Ua.DataTypeDefinition
     {
         #region Constructors
         /// <remarks />
@@ -18933,16 +18231,14 @@ namespace Opc.Ua
             if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_fields, value.m_fields)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (EnumDefinition)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -18965,11 +18261,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEnumDefinition", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EnumDefinition")]
-    #if !NET_STANDARD
     public partial class EnumDefinitionCollection : List<EnumDefinition>, ICloneable
-    #else
-    public partial class EnumDefinitionCollection : List<EnumDefinition>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -19006,7 +18298,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -19014,7 +18305,6 @@ namespace Opc.Ua
             return (EnumDefinitionCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -19279,13 +18569,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (Node)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -19328,11 +18616,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfNode", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Node")]
-    #if !NET_STANDARD
     public partial class NodeCollection : List<Node>, ICloneable
-    #else
-    public partial class NodeCollection : List<Node>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -19369,7 +18653,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -19377,7 +18660,6 @@ namespace Opc.Ua
             return (NodeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -19402,7 +18684,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class InstanceNode : Node
+    public partial class InstanceNode : Opc.Ua.Node
     {
         #region Constructors
         /// <remarks />
@@ -19476,16 +18758,14 @@ namespace Opc.Ua
             }
 
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (InstanceNode)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -19509,7 +18789,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class TypeNode : Node
+    public partial class TypeNode : Opc.Ua.Node
     {
         #region Constructors
         /// <remarks />
@@ -19583,16 +18863,14 @@ namespace Opc.Ua
             }
 
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (TypeNode)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -19616,7 +18894,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ObjectNode : InstanceNode
+    public partial class ObjectNode : Opc.Ua.InstanceNode
     {
         #region Constructors
         /// <remarks />
@@ -19702,16 +18980,14 @@ namespace Opc.Ua
             if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_eventNotifier, value.m_eventNotifier)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (ObjectNode)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -19737,7 +19013,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ObjectTypeNode : TypeNode
+    public partial class ObjectTypeNode : Opc.Ua.TypeNode
     {
         #region Constructors
         /// <remarks />
@@ -19823,16 +19099,14 @@ namespace Opc.Ua
             if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_isAbstract, value.m_isAbstract)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (ObjectTypeNode)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -19858,7 +19132,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class VariableNode : InstanceNode
+    public partial class VariableNode : Opc.Ua.InstanceNode
     {
         #region Constructors
         /// <remarks />
@@ -20052,16 +19326,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_historizing, value.m_historizing)) return false;
             if (!Utils.IsEqual(m_accessLevelEx, value.m_accessLevelEx)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (VariableNode)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -20103,7 +19375,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class VariableTypeNode : TypeNode
+    public partial class VariableTypeNode : Opc.Ua.TypeNode
     {
         #region Constructors
         /// <remarks />
@@ -20249,16 +19521,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_arrayDimensions, value.m_arrayDimensions)) return false;
             if (!Utils.IsEqual(m_isAbstract, value.m_isAbstract)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (VariableTypeNode)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -20292,7 +19562,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ReferenceTypeNode : TypeNode
+    public partial class ReferenceTypeNode : Opc.Ua.TypeNode
     {
         #region Constructors
         /// <remarks />
@@ -20402,16 +19672,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_symmetric, value.m_symmetric)) return false;
             if (!Utils.IsEqual(m_inverseName, value.m_inverseName)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (ReferenceTypeNode)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -20441,7 +19709,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class MethodNode : InstanceNode
+    public partial class MethodNode : Opc.Ua.InstanceNode
     {
         #region Constructors
         /// <remarks />
@@ -20539,16 +19807,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_executable, value.m_executable)) return false;
             if (!Utils.IsEqual(m_userExecutable, value.m_userExecutable)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (MethodNode)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -20576,7 +19842,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ViewNode : InstanceNode
+    public partial class ViewNode : Opc.Ua.InstanceNode
     {
         #region Constructors
         /// <remarks />
@@ -20674,16 +19940,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_containsNoLoops, value.m_containsNoLoops)) return false;
             if (!Utils.IsEqual(m_eventNotifier, value.m_eventNotifier)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (ViewNode)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -20711,7 +19975,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DataTypeNode : TypeNode
+    public partial class DataTypeNode : Opc.Ua.TypeNode
     {
         #region Constructors
         /// <remarks />
@@ -20809,16 +20073,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_isAbstract, value.m_isAbstract)) return false;
             if (!Utils.IsEqual(m_dataTypeDefinition, value.m_dataTypeDefinition)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (DataTypeNode)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -20954,13 +20216,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ReferenceNode)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -20987,11 +20247,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfReferenceNode", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReferenceNode")]
-    #if !NET_STANDARD
     public partial class ReferenceNodeCollection : List<ReferenceNode>, ICloneable
-    #else
-    public partial class ReferenceNodeCollection : List<ReferenceNode>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -21028,7 +20284,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -21036,7 +20291,6 @@ namespace Opc.Ua
             return (ReferenceNodeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -21205,13 +20459,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (Argument)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -21242,11 +20494,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfArgument", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Argument")]
-    #if !NET_STANDARD
     public partial class ArgumentCollection : List<Argument>, ICloneable
-    #else
-    public partial class ArgumentCollection : List<Argument>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -21283,7 +20531,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -21291,7 +20538,6 @@ namespace Opc.Ua
             return (ArgumentCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -21424,13 +20670,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (EnumValueType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -21457,11 +20701,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEnumValueType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EnumValueType")]
-    #if !NET_STANDARD
     public partial class EnumValueTypeCollection : List<EnumValueType>, ICloneable
-    #else
-    public partial class EnumValueTypeCollection : List<EnumValueType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -21498,7 +20738,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -21506,7 +20745,6 @@ namespace Opc.Ua
             return (EnumValueTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -21531,7 +20769,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class EnumField : EnumValueType
+    public partial class EnumField : Opc.Ua.EnumValueType
     {
         #region Constructors
         /// <remarks />
@@ -21617,16 +20855,14 @@ namespace Opc.Ua
             if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_name, value.m_name)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (EnumField)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -21649,11 +20885,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEnumField", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EnumField")]
-    #if !NET_STANDARD
     public partial class EnumFieldCollection : List<EnumField>, ICloneable
-    #else
-    public partial class EnumFieldCollection : List<EnumField>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -21690,7 +20922,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -21698,7 +20929,6 @@ namespace Opc.Ua
             return (EnumFieldCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -21819,13 +21049,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (OptionSet)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -21850,11 +21078,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfOptionSet", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "OptionSet")]
-    #if !NET_STANDARD
     public partial class OptionSetCollection : List<OptionSet>, ICloneable
-    #else
-    public partial class OptionSetCollection : List<OptionSet>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -21891,7 +21115,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -21899,7 +21122,6 @@ namespace Opc.Ua
             return (OptionSetCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -22020,13 +21242,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (TimeZoneDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -22051,11 +21271,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfTimeZoneDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TimeZoneDataType")]
-    #if !NET_STANDARD
     public partial class TimeZoneDataTypeCollection : List<TimeZoneDataType>, ICloneable
-    #else
-    public partial class TimeZoneDataTypeCollection : List<TimeZoneDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -22092,7 +21308,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -22100,7 +21315,6 @@ namespace Opc.Ua
             return (TimeZoneDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -22320,13 +21534,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ApplicationDescription)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -22361,11 +21573,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfApplicationDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ApplicationDescription")]
-    #if !NET_STANDARD
     public partial class ApplicationDescriptionCollection : List<ApplicationDescription>, ICloneable
-    #else
-    public partial class ApplicationDescriptionCollection : List<ApplicationDescription>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -22402,7 +21610,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -22410,7 +21617,6 @@ namespace Opc.Ua
             return (ApplicationDescriptionCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -22591,13 +21797,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (RequestHeader)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -22791,13 +21995,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ResponseHeader)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -22929,13 +22131,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ServiceFault)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -23129,13 +22329,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (SessionlessInvokeRequestType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -23301,13 +22499,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (SessionlessInvokeResponseType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -23493,13 +22689,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (FindServersRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -23651,13 +22845,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (FindServersResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -23817,13 +23009,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ServerOnNetwork)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -23852,11 +23042,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfServerOnNetwork", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ServerOnNetwork")]
-    #if !NET_STANDARD
     public partial class ServerOnNetworkCollection : List<ServerOnNetwork>, ICloneable
-    #else
-    public partial class ServerOnNetworkCollection : List<ServerOnNetwork>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -23893,7 +23079,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -23901,7 +23086,6 @@ namespace Opc.Ua
             return (ServerOnNetworkCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -24070,13 +23254,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (FindServersOnNetworkRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -24240,13 +23422,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (FindServersOnNetworkResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -24462,13 +23642,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (UserTokenPolicy)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -24499,11 +23677,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfUserTokenPolicy", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UserTokenPolicy")]
-    #if !NET_STANDARD
     public partial class UserTokenPolicyCollection : List<UserTokenPolicy>, ICloneable
-    #else
-    public partial class UserTokenPolicyCollection : List<UserTokenPolicy>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -24540,7 +23714,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -24548,7 +23721,6 @@ namespace Opc.Ua
             return (UserTokenPolicyCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -24765,13 +23937,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (EndpointDescription)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -24808,11 +23978,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEndpointDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EndpointDescription")]
-    #if !NET_STANDARD
     public partial class EndpointDescriptionCollection : List<EndpointDescription>, ICloneable
-    #else
-    public partial class EndpointDescriptionCollection : List<EndpointDescription>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -24849,7 +24015,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -24857,7 +24022,6 @@ namespace Opc.Ua
             return (EndpointDescriptionCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -25038,13 +24202,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (GetEndpointsRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -25196,13 +24358,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (GetEndpointsResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -25422,13 +24582,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (RegisteredServer)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -25465,11 +24623,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfRegisteredServer", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RegisteredServer")]
-    #if !NET_STANDARD
     public partial class RegisteredServerCollection : List<RegisteredServer>, ICloneable
-    #else
-    public partial class RegisteredServerCollection : List<RegisteredServer>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -25506,7 +24660,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -25514,7 +24667,6 @@ namespace Opc.Ua
             return (RegisteredServerCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -25659,13 +24811,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (RegisterServerRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -25789,13 +24939,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (RegisterServerResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -25894,13 +25042,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (DiscoveryConfiguration)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -25924,7 +25070,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class MdnsDiscoveryConfiguration : DiscoveryConfiguration
+    public partial class MdnsDiscoveryConfiguration : Opc.Ua.DiscoveryConfiguration
     {
         #region Constructors
         /// <remarks />
@@ -26034,16 +25180,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_mdnsServerName, value.m_mdnsServerName)) return false;
             if (!Utils.IsEqual(m_serverCapabilities, value.m_serverCapabilities)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (MdnsDiscoveryConfiguration)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -26215,13 +25359,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (RegisterServer2Request)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -26395,13 +25537,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (RegisterServer2Response)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -26570,13 +25710,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ChannelSecurityToken)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -26764,13 +25902,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (OpenSecureChannelRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -26950,13 +26086,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (OpenSecureChannelResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -27084,13 +26218,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (CloseSecureChannelRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -27212,13 +26344,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (CloseSecureChannelResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -27340,13 +26470,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (SignedSoftwareCertificate)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -27371,11 +26499,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSignedSoftwareCertificate", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SignedSoftwareCertificate")]
-    #if !NET_STANDARD
     public partial class SignedSoftwareCertificateCollection : List<SignedSoftwareCertificate>, ICloneable
-    #else
-    public partial class SignedSoftwareCertificateCollection : List<SignedSoftwareCertificate>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -27412,7 +26536,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -27420,7 +26543,6 @@ namespace Opc.Ua
             return (SignedSoftwareCertificateCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -27541,13 +26663,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (SignatureData)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -27779,13 +26899,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (CreateSessionRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -28067,13 +27185,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (CreateSessionResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -28201,13 +27317,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (UserIdentityToken)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -28233,7 +27347,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class AnonymousIdentityToken : UserIdentityToken
+    public partial class AnonymousIdentityToken : Opc.Ua.UserIdentityToken
     {
         #region Constructors
         /// <remarks />
@@ -28307,16 +27421,14 @@ namespace Opc.Ua
             }
 
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (AnonymousIdentityToken)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -28340,7 +27452,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class UserNameIdentityToken : UserIdentityToken
+    public partial class UserNameIdentityToken : Opc.Ua.UserIdentityToken
     {
         #region Constructors
         /// <remarks />
@@ -28450,16 +27562,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_password, value.m_password)) return false;
             if (!Utils.IsEqual(m_encryptionAlgorithm, value.m_encryptionAlgorithm)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (UserNameIdentityToken)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -28489,7 +27599,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class X509IdentityToken : UserIdentityToken
+    public partial class X509IdentityToken : Opc.Ua.UserIdentityToken
     {
         #region Constructors
         /// <remarks />
@@ -28575,16 +27685,14 @@ namespace Opc.Ua
             if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_certificateData, value.m_certificateData)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (X509IdentityToken)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -28610,7 +27718,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class IssuedIdentityToken : UserIdentityToken
+    public partial class IssuedIdentityToken : Opc.Ua.UserIdentityToken
     {
         #region Constructors
         /// <remarks />
@@ -28708,16 +27816,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_tokenData, value.m_tokenData)) return false;
             if (!Utils.IsEqual(m_encryptionAlgorithm, value.m_encryptionAlgorithm)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (IssuedIdentityToken)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -28949,13 +28055,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ActivateSessionRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -29147,13 +28251,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ActivateSessionResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -29293,13 +28395,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (CloseSessionRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -29423,13 +28523,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (CloseSessionResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -29563,13 +28661,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (CancelRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -29705,13 +28801,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (CancelResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -30022,13 +29116,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (NodeAttributes)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -30062,7 +29154,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ObjectAttributes : NodeAttributes
+    public partial class ObjectAttributes : Opc.Ua.NodeAttributes
     {
         #region Constructors
         /// <remarks />
@@ -30148,16 +29240,14 @@ namespace Opc.Ua
             if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_eventNotifier, value.m_eventNotifier)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (ObjectAttributes)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -30183,7 +29273,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class VariableAttributes : NodeAttributes
+    public partial class VariableAttributes : Opc.Ua.NodeAttributes
     {
         #region Constructors
         /// <remarks />
@@ -30365,16 +29455,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_minimumSamplingInterval, value.m_minimumSamplingInterval)) return false;
             if (!Utils.IsEqual(m_historizing, value.m_historizing)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (VariableAttributes)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -30414,7 +29502,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class MethodAttributes : NodeAttributes
+    public partial class MethodAttributes : Opc.Ua.NodeAttributes
     {
         #region Constructors
         /// <remarks />
@@ -30512,16 +29600,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_executable, value.m_executable)) return false;
             if (!Utils.IsEqual(m_userExecutable, value.m_userExecutable)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (MethodAttributes)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -30549,7 +29635,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ObjectTypeAttributes : NodeAttributes
+    public partial class ObjectTypeAttributes : Opc.Ua.NodeAttributes
     {
         #region Constructors
         /// <remarks />
@@ -30635,16 +29721,14 @@ namespace Opc.Ua
             if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_isAbstract, value.m_isAbstract)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (ObjectTypeAttributes)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -30670,7 +29754,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class VariableTypeAttributes : NodeAttributes
+    public partial class VariableTypeAttributes : Opc.Ua.NodeAttributes
     {
         #region Constructors
         /// <remarks />
@@ -30816,16 +29900,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_arrayDimensions, value.m_arrayDimensions)) return false;
             if (!Utils.IsEqual(m_isAbstract, value.m_isAbstract)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (VariableTypeAttributes)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -30859,7 +29941,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ReferenceTypeAttributes : NodeAttributes
+    public partial class ReferenceTypeAttributes : Opc.Ua.NodeAttributes
     {
         #region Constructors
         /// <remarks />
@@ -30969,16 +30051,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_symmetric, value.m_symmetric)) return false;
             if (!Utils.IsEqual(m_inverseName, value.m_inverseName)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (ReferenceTypeAttributes)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -31008,7 +30088,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DataTypeAttributes : NodeAttributes
+    public partial class DataTypeAttributes : Opc.Ua.NodeAttributes
     {
         #region Constructors
         /// <remarks />
@@ -31094,16 +30174,14 @@ namespace Opc.Ua
             if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_isAbstract, value.m_isAbstract)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (DataTypeAttributes)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -31129,7 +30207,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ViewAttributes : NodeAttributes
+    public partial class ViewAttributes : Opc.Ua.NodeAttributes
     {
         #region Constructors
         /// <remarks />
@@ -31227,16 +30305,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_containsNoLoops, value.m_containsNoLoops)) return false;
             if (!Utils.IsEqual(m_eventNotifier, value.m_eventNotifier)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (ViewAttributes)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -31360,13 +30436,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (GenericAttributeValue)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -31391,11 +30465,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfGenericAttributeValue", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "GenericAttributeValue")]
-    #if !NET_STANDARD
     public partial class GenericAttributeValueCollection : List<GenericAttributeValue>, ICloneable
-    #else
-    public partial class GenericAttributeValueCollection : List<GenericAttributeValue>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -31432,7 +30502,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -31440,7 +30509,6 @@ namespace Opc.Ua
             return (GenericAttributeValueCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -31465,7 +30533,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class GenericAttributes : NodeAttributes
+    public partial class GenericAttributes : Opc.Ua.NodeAttributes
     {
         #region Constructors
         /// <remarks />
@@ -31563,16 +30631,14 @@ namespace Opc.Ua
             if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_attributeValues, value.m_attributeValues)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (GenericAttributes)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -31754,13 +30820,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (AddNodesItem)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -31795,11 +30859,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfAddNodesItem", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AddNodesItem")]
-    #if !NET_STANDARD
     public partial class AddNodesItemCollection : List<AddNodesItem>, ICloneable
-    #else
-    public partial class AddNodesItemCollection : List<AddNodesItem>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -31836,7 +30896,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -31844,7 +30903,6 @@ namespace Opc.Ua
             return (AddNodesItemCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -31965,13 +31023,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (AddNodesResult)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -31996,11 +31052,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfAddNodesResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AddNodesResult")]
-    #if !NET_STANDARD
     public partial class AddNodesResultCollection : List<AddNodesResult>, ICloneable
-    #else
-    public partial class AddNodesResultCollection : List<AddNodesResult>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -32037,7 +31089,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -32045,7 +31096,6 @@ namespace Opc.Ua
             return (AddNodesResultCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -32190,13 +31240,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (AddNodesRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -32368,13 +31416,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (AddNodesResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -32548,13 +31594,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (AddReferencesItem)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -32587,11 +31631,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfAddReferencesItem", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "AddReferencesItem")]
-    #if !NET_STANDARD
     public partial class AddReferencesItemCollection : List<AddReferencesItem>, ICloneable
-    #else
-    public partial class AddReferencesItemCollection : List<AddReferencesItem>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -32628,7 +31668,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -32636,7 +31675,6 @@ namespace Opc.Ua
             return (AddReferencesItemCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -32781,13 +31819,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (AddReferencesRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -32959,13 +31995,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (AddReferencesResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -33091,13 +32125,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (DeleteNodesItem)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -33122,11 +32154,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDeleteNodesItem", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DeleteNodesItem")]
-    #if !NET_STANDARD
     public partial class DeleteNodesItemCollection : List<DeleteNodesItem>, ICloneable
-    #else
-    public partial class DeleteNodesItemCollection : List<DeleteNodesItem>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -33163,7 +32191,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -33171,7 +32198,6 @@ namespace Opc.Ua
             return (DeleteNodesItemCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -33316,13 +32342,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (DeleteNodesRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -33494,13 +32518,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (DeleteNodesResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -33662,13 +32684,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (DeleteReferencesItem)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -33699,11 +32719,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfDeleteReferencesItem", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DeleteReferencesItem")]
-    #if !NET_STANDARD
     public partial class DeleteReferencesItemCollection : List<DeleteReferencesItem>, ICloneable
-    #else
-    public partial class DeleteReferencesItemCollection : List<DeleteReferencesItem>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -33740,7 +32756,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -33748,7 +32763,6 @@ namespace Opc.Ua
             return (DeleteReferencesItemCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -33893,13 +32907,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (DeleteReferencesRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -34071,13 +33083,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (DeleteReferencesResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -34361,13 +33371,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ViewDescription)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -34541,13 +33549,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (BrowseDescription)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -34580,11 +33586,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrowseDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrowseDescription")]
-    #if !NET_STANDARD
     public partial class BrowseDescriptionCollection : List<BrowseDescription>, ICloneable
-    #else
-    public partial class BrowseDescriptionCollection : List<BrowseDescription>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -34621,7 +33623,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -34629,7 +33630,6 @@ namespace Opc.Ua
             return (BrowseDescriptionCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -34861,13 +33861,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ReferenceDescription)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -34902,11 +33900,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfReferenceDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReferenceDescription")]
-    #if !NET_STANDARD
     public partial class ReferenceDescriptionCollection : List<ReferenceDescription>, ICloneable
-    #else
-    public partial class ReferenceDescriptionCollection : List<ReferenceDescription>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -34943,7 +33937,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -34951,7 +33944,6 @@ namespace Opc.Ua
             return (ReferenceDescriptionCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -35096,13 +34088,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (BrowseResult)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -35129,11 +34119,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrowseResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrowseResult")]
-    #if !NET_STANDARD
     public partial class BrowseResultCollection : List<BrowseResult>, ICloneable
-    #else
-    public partial class BrowseResultCollection : List<BrowseResult>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -35170,7 +34156,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -35178,7 +34163,6 @@ namespace Opc.Ua
             return (BrowseResultCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -35359,13 +34343,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (BrowseRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -35541,13 +34523,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (BrowseResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -35709,13 +34689,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (BrowseNextRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -35889,13 +34867,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (BrowseNextResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -36045,13 +35021,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (RelativePathElement)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -36080,11 +35054,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfRelativePathElement", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RelativePathElement")]
-    #if !NET_STANDARD
     public partial class RelativePathElementCollection : List<RelativePathElement>, ICloneable
-    #else
-    public partial class RelativePathElementCollection : List<RelativePathElement>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -36121,7 +35091,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -36129,7 +35098,6 @@ namespace Opc.Ua
             return (RelativePathElementCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -36250,13 +35218,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (RelativePath)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -36390,13 +35356,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (BrowsePath)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -36421,11 +35385,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrowsePath", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrowsePath")]
-    #if !NET_STANDARD
     public partial class BrowsePathCollection : List<BrowsePath>, ICloneable
-    #else
-    public partial class BrowsePathCollection : List<BrowsePath>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -36462,7 +35422,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -36470,7 +35429,6 @@ namespace Opc.Ua
             return (BrowsePathCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -36591,13 +35549,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (BrowsePathTarget)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -36622,11 +35578,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrowsePathTarget", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrowsePathTarget")]
-    #if !NET_STANDARD
     public partial class BrowsePathTargetCollection : List<BrowsePathTarget>, ICloneable
-    #else
-    public partial class BrowsePathTargetCollection : List<BrowsePathTarget>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -36663,7 +35615,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -36671,7 +35622,6 @@ namespace Opc.Ua
             return (BrowsePathTargetCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -36804,13 +35754,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (BrowsePathResult)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -36835,11 +35783,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfBrowsePathResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "BrowsePathResult")]
-    #if !NET_STANDARD
     public partial class BrowsePathResultCollection : List<BrowsePathResult>, ICloneable
-    #else
-    public partial class BrowsePathResultCollection : List<BrowsePathResult>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -36876,7 +35820,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -36884,7 +35827,6 @@ namespace Opc.Ua
             return (BrowsePathResultCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -37029,13 +35971,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (TranslateBrowsePathsToNodeIdsRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -37207,13 +36147,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (TranslateBrowsePathsToNodeIdsResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -37363,13 +36301,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (RegisterNodesRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -37517,13 +36453,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (RegisterNodesResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -37671,13 +36605,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (UnregisterNodesRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -37801,13 +36733,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (UnregisterNodesResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -38013,13 +36943,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (EndpointConfiguration)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -38058,11 +36986,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEndpointConfiguration", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EndpointConfiguration")]
-    #if !NET_STANDARD
     public partial class EndpointConfigurationCollection : List<EndpointConfiguration>, ICloneable
-    #else
-    public partial class EndpointConfigurationCollection : List<EndpointConfiguration>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -38099,7 +37023,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -38107,7 +37030,6 @@ namespace Opc.Ua
             return (EndpointConfigurationCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -38252,13 +37174,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (QueryDataDescription)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -38285,11 +37205,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfQueryDataDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "QueryDataDescription")]
-    #if !NET_STANDARD
     public partial class QueryDataDescriptionCollection : List<QueryDataDescription>, ICloneable
-    #else
-    public partial class QueryDataDescriptionCollection : List<QueryDataDescription>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -38326,7 +37242,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -38334,7 +37249,6 @@ namespace Opc.Ua
             return (QueryDataDescriptionCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -38479,13 +37393,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (NodeTypeDescription)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -38512,11 +37424,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfNodeTypeDescription", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NodeTypeDescription")]
-    #if !NET_STANDARD
     public partial class NodeTypeDescriptionCollection : List<NodeTypeDescription>, ICloneable
-    #else
-    public partial class NodeTypeDescriptionCollection : List<NodeTypeDescription>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -38553,7 +37461,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -38561,7 +37468,6 @@ namespace Opc.Ua
             return (NodeTypeDescriptionCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -38789,13 +37695,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (QueryDataSet)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -38822,11 +37726,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfQueryDataSet", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "QueryDataSet")]
-    #if !NET_STANDARD
     public partial class QueryDataSetCollection : List<QueryDataSet>, ICloneable
-    #else
-    public partial class QueryDataSetCollection : List<QueryDataSet>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -38863,7 +37763,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -38871,7 +37770,6 @@ namespace Opc.Ua
             return (QueryDataSetCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -39028,13 +37926,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (NodeReference)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -39063,11 +37959,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfNodeReference", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NodeReference")]
-    #if !NET_STANDARD
     public partial class NodeReferenceCollection : List<NodeReference>, ICloneable
-    #else
-    public partial class NodeReferenceCollection : List<NodeReference>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -39104,7 +37996,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -39112,7 +38003,6 @@ namespace Opc.Ua
             return (NodeReferenceCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -39245,13 +38135,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ContentFilterElement)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -39276,11 +38164,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfContentFilterElement", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ContentFilterElement")]
-    #if !NET_STANDARD
     public partial class ContentFilterElementCollection : List<ContentFilterElement>, ICloneable
-    #else
-    public partial class ContentFilterElementCollection : List<ContentFilterElement>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -39317,7 +38201,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -39325,7 +38208,6 @@ namespace Opc.Ua
             return (ContentFilterElementCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -39446,13 +38328,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ContentFilter)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -39475,11 +38355,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfContentFilter", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ContentFilter")]
-    #if !NET_STANDARD
     public partial class ContentFilterCollection : List<ContentFilter>, ICloneable
-    #else
-    public partial class ContentFilterCollection : List<ContentFilter>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -39516,7 +38392,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -39524,7 +38399,6 @@ namespace Opc.Ua
             return (ContentFilterCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -39622,13 +38496,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (FilterOperand)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -39652,7 +38524,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ElementOperand : FilterOperand
+    public partial class ElementOperand : Opc.Ua.FilterOperand
     {
         #region Constructors
         /// <remarks />
@@ -39738,16 +38610,14 @@ namespace Opc.Ua
             if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_index, value.m_index)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (ElementOperand)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -39773,7 +38643,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class LiteralOperand : FilterOperand
+    public partial class LiteralOperand : Opc.Ua.FilterOperand
     {
         #region Constructors
         /// <remarks />
@@ -39859,16 +38729,14 @@ namespace Opc.Ua
             if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_value, value.m_value)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (LiteralOperand)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -39894,7 +38762,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class AttributeOperand : FilterOperand
+    public partial class AttributeOperand : Opc.Ua.FilterOperand
     {
         #region Constructors
         /// <remarks />
@@ -40040,16 +38908,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_attributeId, value.m_attributeId)) return false;
             if (!Utils.IsEqual(m_indexRange, value.m_indexRange)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (AttributeOperand)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -40083,7 +38949,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class SimpleAttributeOperand : FilterOperand
+    public partial class SimpleAttributeOperand : Opc.Ua.FilterOperand
     {
         #region Constructors
         /// <remarks />
@@ -40217,16 +39083,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_attributeId, value.m_attributeId)) return false;
             if (!Utils.IsEqual(m_indexRange, value.m_indexRange)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (SimpleAttributeOperand)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -40255,11 +39119,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSimpleAttributeOperand", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SimpleAttributeOperand")]
-    #if !NET_STANDARD
     public partial class SimpleAttributeOperandCollection : List<SimpleAttributeOperand>, ICloneable
-    #else
-    public partial class SimpleAttributeOperandCollection : List<SimpleAttributeOperand>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -40296,7 +39156,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -40304,7 +39163,6 @@ namespace Opc.Ua
             return (SimpleAttributeOperandCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -40461,13 +39319,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ContentFilterElementResult)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -40494,11 +39350,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfContentFilterElementResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ContentFilterElementResult")]
-    #if !NET_STANDARD
     public partial class ContentFilterElementResultCollection : List<ContentFilterElementResult>, ICloneable
-    #else
-    public partial class ContentFilterElementResultCollection : List<ContentFilterElementResult>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -40535,7 +39387,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -40543,7 +39394,6 @@ namespace Opc.Ua
             return (ContentFilterElementResultCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -40688,13 +39538,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ContentFilterResult)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -40854,13 +39702,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ParsingResult)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -40887,11 +39733,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfParsingResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ParsingResult")]
-    #if !NET_STANDARD
     public partial class ParsingResultCollection : List<ParsingResult>, ICloneable
-    #else
-    public partial class ParsingResultCollection : List<ParsingResult>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -40928,7 +39770,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -40936,7 +39777,6 @@ namespace Opc.Ua
             return (ParsingResultCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -41153,13 +39993,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (QueryFirstRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -41399,13 +40237,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (QueryFirstResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -41561,13 +40397,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (QueryNextRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -41729,13 +40563,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (QueryNextResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -41916,13 +40748,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ReadValueId)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -41951,11 +40781,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfReadValueId", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ReadValueId")]
-    #if !NET_STANDARD
     public partial class ReadValueIdCollection : List<ReadValueId>, ICloneable
-    #else
-    public partial class ReadValueIdCollection : List<ReadValueId>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -41992,7 +40818,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -42000,7 +40825,6 @@ namespace Opc.Ua
             return (ReadValueIdCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -42169,13 +40993,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ReadRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -42351,13 +41173,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ReadResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -42507,13 +41327,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (HistoryReadValueId)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -42542,11 +41360,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfHistoryReadValueId", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "HistoryReadValueId")]
-    #if !NET_STANDARD
     public partial class HistoryReadValueIdCollection : List<HistoryReadValueId>, ICloneable
-    #else
-    public partial class HistoryReadValueIdCollection : List<HistoryReadValueId>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -42583,7 +41397,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -42591,7 +41404,6 @@ namespace Opc.Ua
             return (HistoryReadValueIdCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -42724,13 +41536,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (HistoryReadResult)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -42757,11 +41567,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfHistoryReadResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "HistoryReadResult")]
-    #if !NET_STANDARD
     public partial class HistoryReadResultCollection : List<HistoryReadResult>, ICloneable
-    #else
-    public partial class HistoryReadResultCollection : List<HistoryReadResult>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -42798,7 +41604,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -42806,7 +41611,6 @@ namespace Opc.Ua
             return (HistoryReadResultCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -42904,13 +41708,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (HistoryReadDetails)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -42934,7 +41736,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ReadEventDetails : HistoryReadDetails
+    public partial class ReadEventDetails : Opc.Ua.HistoryReadDetails
     {
         #region Constructors
         /// <remarks />
@@ -43068,16 +41870,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_endTime, value.m_endTime)) return false;
             if (!Utils.IsEqual(m_filter, value.m_filter)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (ReadEventDetails)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -43109,7 +41909,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ReadRawModifiedDetails : HistoryReadDetails
+    public partial class ReadRawModifiedDetails : Opc.Ua.HistoryReadDetails
     {
         #region Constructors
         /// <remarks />
@@ -43243,16 +42043,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_numValuesPerNode, value.m_numValuesPerNode)) return false;
             if (!Utils.IsEqual(m_returnBounds, value.m_returnBounds)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (ReadRawModifiedDetails)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -43286,7 +42084,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ReadProcessedDetails : HistoryReadDetails
+    public partial class ReadProcessedDetails : Opc.Ua.HistoryReadDetails
     {
         #region Constructors
         /// <remarks />
@@ -43444,16 +42242,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_aggregateType, value.m_aggregateType)) return false;
             if (!Utils.IsEqual(m_aggregateConfiguration, value.m_aggregateConfiguration)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (ReadProcessedDetails)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -43487,7 +42283,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ReadAtTimeDetails : HistoryReadDetails
+    public partial class ReadAtTimeDetails : Opc.Ua.HistoryReadDetails
     {
         #region Constructors
         /// <remarks />
@@ -43597,16 +42393,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_reqTimes, value.m_reqTimes)) return false;
             if (!Utils.IsEqual(m_useSimpleBounds, value.m_useSimpleBounds)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (ReadAtTimeDetails)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -43634,7 +42428,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ReadAnnotationDataDetails : HistoryReadDetails
+    public partial class ReadAnnotationDataDetails : Opc.Ua.HistoryReadDetails
     {
         #region Constructors
         /// <remarks />
@@ -43732,16 +42526,14 @@ namespace Opc.Ua
             if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_reqTimes, value.m_reqTimes)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (ReadAnnotationDataDetails)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -43863,13 +42655,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (HistoryData)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -44003,13 +42793,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ModificationInfo)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -44036,11 +42824,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfModificationInfo", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ModificationInfo")]
-    #if !NET_STANDARD
     public partial class ModificationInfoCollection : List<ModificationInfo>, ICloneable
-    #else
-    public partial class ModificationInfoCollection : List<ModificationInfo>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -44077,7 +42861,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -44085,7 +42868,6 @@ namespace Opc.Ua
             return (ModificationInfoCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -44110,7 +42892,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class HistoryModifiedData : HistoryData
+    public partial class HistoryModifiedData : Opc.Ua.HistoryData
     {
         #region Constructors
         /// <remarks />
@@ -44208,16 +42990,14 @@ namespace Opc.Ua
             if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_modificationInfos, value.m_modificationInfos)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (HistoryModifiedData)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -44339,13 +43119,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (HistoryEvent)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -44527,13 +43305,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (HistoryReadRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -44711,13 +43487,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (HistoryReadResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -44867,13 +43641,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (WriteValue)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -44902,11 +43674,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfWriteValue", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "WriteValue")]
-    #if !NET_STANDARD
     public partial class WriteValueCollection : List<WriteValue>, ICloneable
-    #else
-    public partial class WriteValueCollection : List<WriteValue>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -44943,7 +43711,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -44951,7 +43718,6 @@ namespace Opc.Ua
             return (WriteValueCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -45096,13 +43862,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (WriteRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -45274,13 +44038,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (WriteResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -45394,13 +44156,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (HistoryUpdateDetails)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -45480,7 +44240,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class UpdateDataDetails : HistoryUpdateDetails
+    public partial class UpdateDataDetails : Opc.Ua.HistoryUpdateDetails
     {
         #region Constructors
         /// <remarks />
@@ -45590,16 +44350,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_performInsertReplace, value.m_performInsertReplace)) return false;
             if (!Utils.IsEqual(m_updateValues, value.m_updateValues)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (UpdateDataDetails)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -45627,7 +44385,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class UpdateStructureDataDetails : HistoryUpdateDetails
+    public partial class UpdateStructureDataDetails : Opc.Ua.HistoryUpdateDetails
     {
         #region Constructors
         /// <remarks />
@@ -45737,16 +44495,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_performInsertReplace, value.m_performInsertReplace)) return false;
             if (!Utils.IsEqual(m_updateValues, value.m_updateValues)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (UpdateStructureDataDetails)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -45774,7 +44530,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class UpdateEventDetails : HistoryUpdateDetails
+    public partial class UpdateEventDetails : Opc.Ua.HistoryUpdateDetails
     {
         #region Constructors
         /// <remarks />
@@ -45908,16 +44664,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_filter, value.m_filter)) return false;
             if (!Utils.IsEqual(m_eventData, value.m_eventData)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (UpdateEventDetails)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -45947,7 +44701,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DeleteRawModifiedDetails : HistoryUpdateDetails
+    public partial class DeleteRawModifiedDetails : Opc.Ua.HistoryUpdateDetails
     {
         #region Constructors
         /// <remarks />
@@ -46057,16 +44811,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_startTime, value.m_startTime)) return false;
             if (!Utils.IsEqual(m_endTime, value.m_endTime)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (DeleteRawModifiedDetails)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -46096,7 +44848,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DeleteAtTimeDetails : HistoryUpdateDetails
+    public partial class DeleteAtTimeDetails : Opc.Ua.HistoryUpdateDetails
     {
         #region Constructors
         /// <remarks />
@@ -46194,16 +44946,14 @@ namespace Opc.Ua
             if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_reqTimes, value.m_reqTimes)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (DeleteAtTimeDetails)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -46229,7 +44979,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DeleteEventDetails : HistoryUpdateDetails
+    public partial class DeleteEventDetails : Opc.Ua.HistoryUpdateDetails
     {
         #region Constructors
         /// <remarks />
@@ -46327,16 +45077,14 @@ namespace Opc.Ua
             if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_eventIds, value.m_eventIds)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (DeleteEventDetails)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -46494,13 +45242,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (HistoryUpdateResult)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -46527,11 +45273,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfHistoryUpdateResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "HistoryUpdateResult")]
-    #if !NET_STANDARD
     public partial class HistoryUpdateResultCollection : List<HistoryUpdateResult>, ICloneable
-    #else
-    public partial class HistoryUpdateResultCollection : List<HistoryUpdateResult>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -46568,7 +45310,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -46576,7 +45317,6 @@ namespace Opc.Ua
             return (HistoryUpdateResultCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -46721,13 +45461,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (HistoryUpdateRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -46899,13 +45637,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (HistoryUpdateResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -47055,13 +45791,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (CallMethodRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -47088,11 +45822,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfCallMethodRequest", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "CallMethodRequest")]
-    #if !NET_STANDARD
     public partial class CallMethodRequestCollection : List<CallMethodRequest>, ICloneable
-    #else
-    public partial class CallMethodRequestCollection : List<CallMethodRequest>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -47129,7 +45859,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -47137,7 +45866,6 @@ namespace Opc.Ua
             return (CallMethodRequestCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -47318,13 +46046,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (CallMethodResult)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -47353,11 +46079,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfCallMethodResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "CallMethodResult")]
-    #if !NET_STANDARD
     public partial class CallMethodResultCollection : List<CallMethodResult>, ICloneable
-    #else
-    public partial class CallMethodResultCollection : List<CallMethodResult>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -47394,7 +46116,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -47402,7 +46123,6 @@ namespace Opc.Ua
             return (CallMethodResultCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -47547,13 +46267,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (CallRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -47725,13 +46443,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (CallResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -47903,13 +46619,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (MonitoringFilter)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -47933,7 +46647,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DataChangeFilter : MonitoringFilter
+    public partial class DataChangeFilter : Opc.Ua.MonitoringFilter
     {
         #region Constructors
         /// <remarks />
@@ -48043,16 +46757,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_deadbandType, value.m_deadbandType)) return false;
             if (!Utils.IsEqual(m_deadbandValue, value.m_deadbandValue)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (DataChangeFilter)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -48082,7 +46794,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class EventFilter : MonitoringFilter
+    public partial class EventFilter : Opc.Ua.MonitoringFilter
     {
         #region Constructors
         /// <remarks />
@@ -48204,16 +46916,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_selectClauses, value.m_selectClauses)) return false;
             if (!Utils.IsEqual(m_whereClause, value.m_whereClause)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (EventFilter)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -48373,13 +47083,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (AggregateConfiguration)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -48413,7 +47121,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class AggregateFilter : MonitoringFilter
+    public partial class AggregateFilter : Opc.Ua.MonitoringFilter
     {
         #region Constructors
         /// <remarks />
@@ -48547,16 +47255,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_processingInterval, value.m_processingInterval)) return false;
             if (!Utils.IsEqual(m_aggregateConfiguration, value.m_aggregateConfiguration)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (AggregateFilter)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -48661,13 +47367,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (MonitoringFilterResult)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -48691,7 +47395,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class EventFilterResult : MonitoringFilterResult
+    public partial class EventFilterResult : Opc.Ua.MonitoringFilterResult
     {
         #region Constructors
         /// <remarks />
@@ -48837,16 +47541,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_selectClauseDiagnosticInfos, value.m_selectClauseDiagnosticInfos)) return false;
             if (!Utils.IsEqual(m_whereClauseResult, value.m_whereClauseResult)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (EventFilterResult)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -48876,7 +47578,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class AggregateFilterResult : MonitoringFilterResult
+    public partial class AggregateFilterResult : Opc.Ua.MonitoringFilterResult
     {
         #region Constructors
         /// <remarks />
@@ -48998,16 +47700,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_revisedProcessingInterval, value.m_revisedProcessingInterval)) return false;
             if (!Utils.IsEqual(m_revisedAggregateConfiguration, value.m_revisedAggregateConfiguration)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (AggregateFilterResult)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -49169,13 +47869,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (MonitoringParameters)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -49341,13 +48039,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (MonitoredItemCreateRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -49374,11 +48070,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfMonitoredItemCreateRequest", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MonitoredItemCreateRequest")]
-    #if !NET_STANDARD
     public partial class MonitoredItemCreateRequestCollection : List<MonitoredItemCreateRequest>, ICloneable
-    #else
-    public partial class MonitoredItemCreateRequestCollection : List<MonitoredItemCreateRequest>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -49415,7 +48107,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -49423,7 +48114,6 @@ namespace Opc.Ua
             return (MonitoredItemCreateRequestCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -49580,13 +48270,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (MonitoredItemCreateResult)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -49617,11 +48305,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfMonitoredItemCreateResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MonitoredItemCreateResult")]
-    #if !NET_STANDARD
     public partial class MonitoredItemCreateResultCollection : List<MonitoredItemCreateResult>, ICloneable
-    #else
-    public partial class MonitoredItemCreateResultCollection : List<MonitoredItemCreateResult>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -49658,7 +48342,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -49666,7 +48349,6 @@ namespace Opc.Ua
             return (MonitoredItemCreateResultCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -49835,13 +48517,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (CreateMonitoredItemsRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -50017,13 +48697,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (CreateMonitoredItemsResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -50161,13 +48839,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (MonitoredItemModifyRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -50192,11 +48868,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfMonitoredItemModifyRequest", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MonitoredItemModifyRequest")]
-    #if !NET_STANDARD
     public partial class MonitoredItemModifyRequestCollection : List<MonitoredItemModifyRequest>, ICloneable
-    #else
-    public partial class MonitoredItemModifyRequestCollection : List<MonitoredItemModifyRequest>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -50233,7 +48905,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -50241,7 +48912,6 @@ namespace Opc.Ua
             return (MonitoredItemModifyRequestCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -50386,13 +49056,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (MonitoredItemModifyResult)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -50421,11 +49089,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfMonitoredItemModifyResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MonitoredItemModifyResult")]
-    #if !NET_STANDARD
     public partial class MonitoredItemModifyResultCollection : List<MonitoredItemModifyResult>, ICloneable
-    #else
-    public partial class MonitoredItemModifyResultCollection : List<MonitoredItemModifyResult>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -50462,7 +49126,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -50470,7 +49133,6 @@ namespace Opc.Ua
             return (MonitoredItemModifyResultCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -50639,13 +49301,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ModifyMonitoredItemsRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -50821,13 +49481,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ModifyMonitoredItemsResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -51001,13 +49659,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (SetMonitoringModeRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -51183,13 +49839,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (SetMonitoringModeResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -51387,13 +50041,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (SetTriggeringRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -51619,13 +50271,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (SetTriggeringResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -51791,13 +50441,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (DeleteMonitoredItemsRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -51971,13 +50619,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (DeleteMonitoredItemsResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -52175,13 +50821,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (CreateSubscriptionRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -52363,13 +51007,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (CreateSubscriptionResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -52571,13 +51213,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ModifySubscriptionRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -52747,13 +51387,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ModifySubscriptionResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -52917,13 +51555,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (SetPublishingModeRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -53097,13 +51733,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (SetPublishingModeResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -53253,13 +51887,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (NotificationMessage)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -53362,13 +51994,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (NotificationData)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -53392,7 +52022,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DataChangeNotification : NotificationData
+    public partial class DataChangeNotification : Opc.Ua.NotificationData
     {
         #region Constructors
         /// <remarks />
@@ -53514,16 +52144,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_monitoredItems, value.m_monitoredItems)) return false;
             if (!Utils.IsEqual(m_diagnosticInfos, value.m_diagnosticInfos)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (DataChangeNotification)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -53647,13 +52275,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (MonitoredItemNotification)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -53678,11 +52304,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfMonitoredItemNotification", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "MonitoredItemNotification")]
-    #if !NET_STANDARD
     public partial class MonitoredItemNotificationCollection : List<MonitoredItemNotification>, ICloneable
-    #else
-    public partial class MonitoredItemNotificationCollection : List<MonitoredItemNotification>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -53719,7 +52341,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -53727,7 +52348,6 @@ namespace Opc.Ua
             return (MonitoredItemNotificationCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -53752,7 +52372,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class EventNotificationList : NotificationData
+    public partial class EventNotificationList : Opc.Ua.NotificationData
     {
         #region Constructors
         /// <remarks />
@@ -53850,16 +52470,14 @@ namespace Opc.Ua
             if (!base.IsEqual(encodeable)) return false;
             if (!Utils.IsEqual(m_events, value.m_events)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (EventNotificationList)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -53993,13 +52611,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (EventFieldList)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -54024,11 +52640,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEventFieldList", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EventFieldList")]
-    #if !NET_STANDARD
     public partial class EventFieldListCollection : List<EventFieldList>, ICloneable
-    #else
-    public partial class EventFieldListCollection : List<EventFieldList>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -54065,7 +52677,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -54073,7 +52684,6 @@ namespace Opc.Ua
             return (EventFieldListCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -54194,13 +52804,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (HistoryEventFieldList)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -54223,11 +52831,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfHistoryEventFieldList", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "HistoryEventFieldList")]
-    #if !NET_STANDARD
     public partial class HistoryEventFieldListCollection : List<HistoryEventFieldList>, ICloneable
-    #else
-    public partial class HistoryEventFieldListCollection : List<HistoryEventFieldList>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -54264,7 +52868,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -54272,7 +52875,6 @@ namespace Opc.Ua
             return (HistoryEventFieldListCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -54297,7 +52899,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class StatusChangeNotification : NotificationData
+    public partial class StatusChangeNotification : Opc.Ua.NotificationData
     {
         #region Constructors
         /// <remarks />
@@ -54395,16 +52997,14 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_status, value.m_status)) return false;
             if (!Utils.IsEqual(m_diagnosticInfo, value.m_diagnosticInfo)) return false;
 
-            return true;
+            return base.IsEqual(encodeable);
         }    
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public override object Clone()
         {
             return (StatusChangeNotification)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -54528,13 +53128,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (SubscriptionAcknowledgement)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -54559,11 +53157,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSubscriptionAcknowledgement", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SubscriptionAcknowledgement")]
-    #if !NET_STANDARD
     public partial class SubscriptionAcknowledgementCollection : List<SubscriptionAcknowledgement>, ICloneable
-    #else
-    public partial class SubscriptionAcknowledgementCollection : List<SubscriptionAcknowledgement>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -54600,7 +53194,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -54608,7 +53201,6 @@ namespace Opc.Ua
             return (SubscriptionAcknowledgementCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -54753,13 +53345,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (PublishRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -55003,13 +53593,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (PublishResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -55167,13 +53755,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (RepublishRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -55323,13 +53909,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (RepublishResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -55465,13 +54049,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (TransferResult)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -55496,11 +54078,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfTransferResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TransferResult")]
-    #if !NET_STANDARD
     public partial class TransferResultCollection : List<TransferResult>, ICloneable
-    #else
-    public partial class TransferResultCollection : List<TransferResult>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -55537,7 +54115,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -55545,7 +54122,6 @@ namespace Opc.Ua
             return (TransferResultCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -55702,13 +54278,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (TransferSubscriptionsRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -55882,13 +54456,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (TransferSubscriptionsResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -56038,13 +54610,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (DeleteSubscriptionsRequest)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -56216,13 +54786,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (DeleteSubscriptionsResponse)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -56396,13 +54964,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (BuildInfo)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -56624,13 +55190,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (RedundantServerDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -56657,11 +55221,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfRedundantServerDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "RedundantServerDataType")]
-    #if !NET_STANDARD
     public partial class RedundantServerDataTypeCollection : List<RedundantServerDataType>, ICloneable
-    #else
-    public partial class RedundantServerDataTypeCollection : List<RedundantServerDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -56698,7 +55258,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -56706,7 +55265,6 @@ namespace Opc.Ua
             return (RedundantServerDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -56827,13 +55385,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (EndpointUrlListDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -56856,11 +55412,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfEndpointUrlListDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "EndpointUrlListDataType")]
-    #if !NET_STANDARD
     public partial class EndpointUrlListDataTypeCollection : List<EndpointUrlListDataType>, ICloneable
-    #else
-    public partial class EndpointUrlListDataTypeCollection : List<EndpointUrlListDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -56897,7 +55449,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -56905,7 +55456,6 @@ namespace Opc.Ua
             return (EndpointUrlListDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -57038,13 +55588,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (NetworkGroupDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -57069,11 +55617,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfNetworkGroupDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NetworkGroupDataType")]
-    #if !NET_STANDARD
     public partial class NetworkGroupDataTypeCollection : List<NetworkGroupDataType>, ICloneable
-    #else
-    public partial class NetworkGroupDataTypeCollection : List<NetworkGroupDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -57110,7 +55654,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -57118,7 +55661,6 @@ namespace Opc.Ua
             return (NetworkGroupDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -57263,13 +55805,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (SamplingIntervalDiagnosticsDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -57298,11 +55838,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSamplingIntervalDiagnosticsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SamplingIntervalDiagnosticsDataType")]
-    #if !NET_STANDARD
     public partial class SamplingIntervalDiagnosticsDataTypeCollection : List<SamplingIntervalDiagnosticsDataType>, ICloneable
-    #else
-    public partial class SamplingIntervalDiagnosticsDataTypeCollection : List<SamplingIntervalDiagnosticsDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -57339,7 +55875,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -57347,7 +55882,6 @@ namespace Opc.Ua
             return (SamplingIntervalDiagnosticsDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -57588,13 +56122,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ServerDiagnosticsSummaryDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -57798,13 +56330,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ServerStatusDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -58800,13 +57330,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (SessionDiagnosticsDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -58913,11 +57441,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSessionDiagnosticsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SessionDiagnosticsDataType")]
-    #if !NET_STANDARD
     public partial class SessionDiagnosticsDataTypeCollection : List<SessionDiagnosticsDataType>, ICloneable
-    #else
-    public partial class SessionDiagnosticsDataTypeCollection : List<SessionDiagnosticsDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -58954,7 +57478,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -58962,7 +57485,6 @@ namespace Opc.Ua
             return (SessionDiagnosticsDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -59179,13 +57701,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (SessionSecurityDiagnosticsDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -59224,11 +57744,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSessionSecurityDiagnosticsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SessionSecurityDiagnosticsDataType")]
-    #if !NET_STANDARD
     public partial class SessionSecurityDiagnosticsDataTypeCollection : List<SessionSecurityDiagnosticsDataType>, ICloneable
-    #else
-    public partial class SessionSecurityDiagnosticsDataTypeCollection : List<SessionSecurityDiagnosticsDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -59265,7 +57781,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -59273,7 +57788,6 @@ namespace Opc.Ua
             return (SessionSecurityDiagnosticsDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -59394,13 +57908,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ServiceCounterDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -59524,13 +58036,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (StatusResult)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -59555,11 +58065,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfStatusResult", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "StatusResult")]
-    #if !NET_STANDARD
     public partial class StatusResultCollection : List<StatusResult>, ICloneable
-    #else
-    public partial class StatusResultCollection : List<StatusResult>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -59596,7 +58102,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -59604,7 +58109,6 @@ namespace Opc.Ua
             return (StatusResultCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -60073,13 +58577,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (SubscriptionDiagnosticsDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -60162,11 +58664,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSubscriptionDiagnosticsDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SubscriptionDiagnosticsDataType")]
-    #if !NET_STANDARD
     public partial class SubscriptionDiagnosticsDataTypeCollection : List<SubscriptionDiagnosticsDataType>, ICloneable
-    #else
-    public partial class SubscriptionDiagnosticsDataTypeCollection : List<SubscriptionDiagnosticsDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -60203,7 +58701,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -60211,7 +58708,6 @@ namespace Opc.Ua
             return (SubscriptionDiagnosticsDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -60375,13 +58871,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ModelChangeStructureDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -60408,11 +58902,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfModelChangeStructureDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ModelChangeStructureDataType")]
-    #if !NET_STANDARD
     public partial class ModelChangeStructureDataTypeCollection : List<ModelChangeStructureDataType>, ICloneable
-    #else
-    public partial class ModelChangeStructureDataTypeCollection : List<ModelChangeStructureDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -60449,7 +58939,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -60457,7 +58946,6 @@ namespace Opc.Ua
             return (ModelChangeStructureDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -60578,13 +59066,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (SemanticChangeStructureDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -60609,11 +59095,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfSemanticChangeStructureDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SemanticChangeStructureDataType")]
-    #if !NET_STANDARD
     public partial class SemanticChangeStructureDataTypeCollection : List<SemanticChangeStructureDataType>, ICloneable
-    #else
-    public partial class SemanticChangeStructureDataTypeCollection : List<SemanticChangeStructureDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -60650,7 +59132,6 @@ namespace Opc.Ua
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -60658,7 +59139,6 @@ namespace Opc.Ua
             return (SemanticChangeStructureDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -60779,13 +59259,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (Range)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -60933,13 +59411,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (EUInformation)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -61090,13 +59566,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ComplexNumberType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -61220,13 +59694,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (DoubleComplexNumberType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -61422,13 +59894,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (AxisInformation)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -61558,13 +60028,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (XVType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -61820,13 +60288,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ProgramDiagnosticDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -62134,13 +60600,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ProgramDiagnostic2DataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -62296,13 +60760,11 @@ namespace Opc.Ua
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (Annotation)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()

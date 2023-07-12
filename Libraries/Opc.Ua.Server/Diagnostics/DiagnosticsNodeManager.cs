@@ -403,8 +403,31 @@ namespace Opc.Ua.Server
 
             if (passiveNode == null)
             {
-                MethodState passiveMethod = predefinedNode as MethodState;
+                BaseVariableState passiveVariable = predefinedNode as BaseVariableState;
+                if (passiveVariable != null)
+                {
+                    if (passiveVariable.NodeId == VariableIds.ServerStatusType_BuildInfo)
+                    {
+                        if (passiveVariable is BuildInfoVariableState)
+                        {
+                            return predefinedNode;
+                        }
 
+                        BuildInfoVariableState activeNode = new BuildInfoVariableState(passiveVariable.Parent);
+                        activeNode.Create(context, passiveVariable);
+
+                        // replace the node in the parent.
+                        if (passiveVariable.Parent != null)
+                        {
+                            passiveVariable.Parent.ReplaceChild(context, activeNode);
+                        }
+
+                        return activeNode;
+                    }
+                    return predefinedNode;
+                }
+
+                MethodState passiveMethod = predefinedNode as MethodState;
                 if (passiveMethod == null)
                 {
                     return predefinedNode;
@@ -440,7 +463,6 @@ namespace Opc.Ua.Server
 
                     return activeNode;
                 }
-
 
                 return predefinedNode;
             }

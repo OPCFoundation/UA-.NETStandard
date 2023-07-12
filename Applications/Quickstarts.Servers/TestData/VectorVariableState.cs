@@ -50,7 +50,7 @@ namespace TestData
 
         #region Protected Methods
         /// <summary>
-        /// Initialzies the variable as a counter.
+        /// Initializes the variable.
         /// </summary>
         protected void InitializeVariable(ISystemContext context, BaseVariableState variable)
         {
@@ -78,7 +78,7 @@ namespace TestData
             AccessLevel = UserAccessLevel = AccessLevels.CurrentReadOrWrite;
 
             // generate structure values here
-            var result = this.WriteValueAttribute(context, NumericRange.Empty, system.ReadValue(this), StatusCodes.Good, DateTime.UtcNow);
+            ServiceResult result = WriteValueAttribute(context, NumericRange.Empty, system.ReadValue(this), StatusCodes.Good, DateTime.UtcNow);
 
             AccessLevel = accessLevel;
             UserAccessLevel = userAccessLevel;

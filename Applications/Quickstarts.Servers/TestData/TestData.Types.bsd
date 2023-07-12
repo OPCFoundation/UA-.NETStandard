@@ -8,7 +8,7 @@
 >
   <opc:Import Namespace="http://opcfoundation.org/UA/" Location="Opc.Ua.BinarySchema.bsd"/>
 
-  <opc:StructuredType Name="ScalarValueDataType" BaseType="ua:ExtensionObject">
+  <opc:StructuredType Name="ScalarStructureDataType" BaseType="ua:ExtensionObject">
     <opc:Field Name="BooleanValue" TypeName="opc:Boolean" />
     <opc:Field Name="SByteValue" TypeName="opc:SByte" />
     <opc:Field Name="ByteValue" TypeName="opc:Byte" />

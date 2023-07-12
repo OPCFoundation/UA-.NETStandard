@@ -246,7 +246,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             await samples.LoadTypeSystem(m_session).ConfigureAwait(false);
 
             // test the static version of the structure
-            ExpandedNodeId structureVariable = TestData.VariableIds.Data_Static_StructureScalar;
+            ExpandedNodeId structureVariable = TestData.VariableIds.Data_Static_Structure_ScalarStructure;
             Assert.NotNull(structureVariable);
             NodeId nodeId = ExpandedNodeId.ToNodeId(structureVariable, m_session.NamespaceUris);
             Assert.NotNull(nodeId);

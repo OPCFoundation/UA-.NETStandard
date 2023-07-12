@@ -1790,6 +1790,26 @@ namespace Opc.Ua
             }
             else
             {
+                bool hasDiagnosticInfos = diagnosticInfos.Count > 0;
+                bool hasEmptyDiagnosticInfos = diagnosticInfos.Count == 0 && results.Count > 0;
+                bool hasBatchDiagnosticInfos = batchedDiagnosticInfos.Count > 0;
+                int correctionCount = 0;
+                if (hasBatchDiagnosticInfos && hasEmptyDiagnosticInfos)
+                {
+                    correctionCount = results.Count;
+                }
+                else if (!hasBatchDiagnosticInfos && hasDiagnosticInfos)
+                {
+                    correctionCount = batchedResults.Count;
+                }
+                if (correctionCount > 0)
+                {
+                    // fill missing diagnostics infos with empty ones
+                    for (int i = 0; i < correctionCount; i++)
+                    {
+                        diagnosticInfos.Add(new DiagnosticInfo());
+                    }
+                }
                 results.AddRange(batchedResults);
                 diagnosticInfos.AddRange(batchedDiagnosticInfos);
             }

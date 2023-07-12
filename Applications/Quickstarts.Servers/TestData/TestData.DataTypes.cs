@@ -36,17 +36,17 @@ using Opc.Ua;
 
 namespace TestData
 {
-    #region ScalarValueDataType Class
-    #if (!OPCUA_EXCLUDE_ScalarValueDataType)
+    #region ScalarStructureDataType Class
+    #if (!OPCUA_EXCLUDE_ScalarStructureDataType)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = TestData.Namespaces.TestData)]
-    public partial class ScalarValueDataType : IEncodeable, IJsonEncodeable
+    public partial class ScalarStructureDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
-        public ScalarValueDataType()
+        public ScalarStructureDataType()
         {
             Initialize();
         }
@@ -309,16 +309,16 @@ namespace TestData
 
         #region IEncodeable Members
         /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId => DataTypeIds.ScalarValueDataType; 
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ScalarStructureDataType; 
 
         /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ScalarValueDataType_Encoding_DefaultBinary;
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ScalarStructureDataType_Encoding_DefaultBinary;
 
         /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ScalarValueDataType_Encoding_DefaultXml;
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ScalarStructureDataType_Encoding_DefaultXml;
                     
         /// <summary cref="IJsonEncodeable.JsonEncodingId" />
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ScalarValueDataType_Encoding_DefaultJson; 
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ScalarStructureDataType_Encoding_DefaultJson; 
 
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
@@ -400,7 +400,7 @@ namespace TestData
                 return true;
             }
 
-            ScalarValueDataType value = encodeable as ScalarValueDataType;
+            ScalarStructureDataType value = encodeable as ScalarStructureDataType;
 
             if (value == null)
             {
@@ -441,13 +441,13 @@ namespace TestData
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
-            return (ScalarValueDataType)this.MemberwiseClone();
+            return (ScalarStructureDataType)this.MemberwiseClone();
         }
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            ScalarValueDataType clone = (ScalarValueDataType)base.MemberwiseClone();
+            ScalarStructureDataType clone = (ScalarStructureDataType)base.MemberwiseClone();
 
             clone.m_booleanValue = (bool)Utils.Clone(this.m_booleanValue);
             clone.m_sByteValue = (sbyte)Utils.Clone(this.m_sByteValue);
@@ -512,38 +512,38 @@ namespace TestData
         #endregion
     }
 
-    #region ScalarValueDataTypeCollection Class
+    #region ScalarStructureDataTypeCollection Class
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfScalarValueDataType", Namespace = TestData.Namespaces.TestData, ItemName = "ScalarValueDataType")]
-    public partial class ScalarValueDataTypeCollection : List<ScalarValueDataType>, ICloneable
+    [CollectionDataContract(Name = "ListOfScalarStructureDataType", Namespace = TestData.Namespaces.TestData, ItemName = "ScalarStructureDataType")]
+    public partial class ScalarStructureDataTypeCollection : List<ScalarStructureDataType>, ICloneable
     {
         #region Constructors
         /// <remarks />
-        public ScalarValueDataTypeCollection() {}
+        public ScalarStructureDataTypeCollection() {}
 
         /// <remarks />
-        public ScalarValueDataTypeCollection(int capacity) : base(capacity) {}
+        public ScalarStructureDataTypeCollection(int capacity) : base(capacity) {}
 
         /// <remarks />
-        public ScalarValueDataTypeCollection(IEnumerable<ScalarValueDataType> collection) : base(collection) {}
+        public ScalarStructureDataTypeCollection(IEnumerable<ScalarStructureDataType> collection) : base(collection) {}
         #endregion
 
         #region Static Operators
         /// <remarks />
-        public static implicit operator ScalarValueDataTypeCollection(ScalarValueDataType[] values)
+        public static implicit operator ScalarStructureDataTypeCollection(ScalarStructureDataType[] values)
         {
             if (values != null)
             {
-                return new ScalarValueDataTypeCollection(values);
+                return new ScalarStructureDataTypeCollection(values);
             }
 
-            return new ScalarValueDataTypeCollection();
+            return new ScalarStructureDataTypeCollection();
         }
 
         /// <remarks />
-        public static explicit operator ScalarValueDataType[](ScalarValueDataTypeCollection values)
+        public static explicit operator ScalarStructureDataType[](ScalarStructureDataTypeCollection values)
         {
             if (values != null)
             {
@@ -558,18 +558,18 @@ namespace TestData
         /// <remarks />
         public object Clone()
         {
-            return (ScalarValueDataTypeCollection)this.MemberwiseClone();
+            return (ScalarStructureDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            ScalarValueDataTypeCollection clone = new ScalarValueDataTypeCollection(this.Count);
+            ScalarStructureDataTypeCollection clone = new ScalarStructureDataTypeCollection(this.Count);
 
             for (int ii = 0; ii < this.Count; ii++)
             {
-                clone.Add((ScalarValueDataType)Utils.Clone(this[ii]));
+                clone.Add((ScalarStructureDataType)Utils.Clone(this[ii]));
             }
 
             return clone;

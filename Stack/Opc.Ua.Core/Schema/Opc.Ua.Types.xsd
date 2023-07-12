@@ -37,7 +37,7 @@
 >
   <xs:annotation>
     <xs:appinfo>
-      <tns:Model ModelUri="http://opcfoundation.org/UA/" Version="1.04.11" PublicationDate="2022-03-29T00:00:00Z" />
+      <ua:Model ModelUri="http://opcfoundation.org/UA/" Version="1.04.11" PublicationDate="2022-03-29T00:00:00Z" />
     </xs:appinfo>
   </xs:annotation>
   
@@ -351,7 +351,21 @@
   </xs:complexType>
   <xs:element name="ListOfExtensionObject" type="tns:ListOfExtensionObject" nillable="true"></xs:element>
 
-  <!--
+  <xs:complexType name="Decimal">
+    <xs:sequence>
+      <xs:element name="TypeId" type="tns:NodeId" minOccurs="0" />
+      <xs:element name="Body" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="Scale" type="xs:short" />
+            <xs:element name="Value" type="xs:string" />
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+    <!--
     Some WSDL/XML compilers have issues with the xs:choice construct. For that reason
     the default declaration of a Variant uses xs:any construct. The schema acutually
     defined by the specification is provided by the Matrix and VariantValue complex types
