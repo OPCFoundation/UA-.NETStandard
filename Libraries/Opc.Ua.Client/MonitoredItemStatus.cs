@@ -218,11 +218,6 @@ namespace Opc.Ua.Client
             {
                 m_filter = Utils.Clone(monitoredItem.Filter) as MonitoringFilter;
             }
-
-            if (monitoredItem.FilterResult != null)
-            {
-                m_filterResult = Utils.Clone(monitoredItem.FilterResult) as MonitoringFilterResult;
-            }            
         }
 
         /// <summary>
