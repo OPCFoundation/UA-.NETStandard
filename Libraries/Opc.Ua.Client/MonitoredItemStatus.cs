@@ -174,6 +174,7 @@ namespace Opc.Ua.Client
             m_queueSize = request.RequestedParameters.QueueSize;
             m_discardOldest = request.RequestedParameters.DiscardOldest;
             m_filter = null;
+            m_filterResult = null;
             m_error = error;
 
             if (request.RequestedParameters.Filter != null)
@@ -211,11 +212,17 @@ namespace Opc.Ua.Client
             m_queueSize = monitoredItem.QueueSize;
             m_discardOldest = monitoredItem.DiscardOldest;
             m_filter = null;
+            m_filterResult = null;
 
             if (monitoredItem.Filter != null)
             {
                 m_filter = Utils.Clone(monitoredItem.Filter) as MonitoringFilter;
             }
+
+            if (monitoredItem.FilterResult != null)
+            {
+                m_filterResult = Utils.Clone(monitoredItem.FilterResult) as MonitoringFilterResult;
+            }            
         }
 
         /// <summary>
@@ -238,6 +245,7 @@ namespace Opc.Ua.Client
                 m_queueSize = request.RequestedParameters.QueueSize;
                 m_discardOldest = request.RequestedParameters.DiscardOldest;
                 m_filter = null;
+                m_filterResult = null;
 
                 if (request.RequestedParameters.Filter != null)
                 {
