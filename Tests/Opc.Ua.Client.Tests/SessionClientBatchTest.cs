@@ -637,6 +637,13 @@ namespace Opc.Ua.Client.Tests
                     NodeId = nodeId
                 }));
 
+            // add a some real history nodes
+            testSet = GetTestSetHistory(Session.NamespaceUris);
+            nodesToRead.AddRange(
+                testSet.Select(nodeId => new HistoryReadValueId {
+                    NodeId = nodeId
+                }));
+
             var response = await Session.HistoryReadAsync(
                 null,
                 eventDetails ? ReadEventDetails() : ReadRawModifiedDetails(),
