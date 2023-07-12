@@ -381,7 +381,7 @@ namespace Opc.Ua.Client.Controls
                         ClientBase.ValidateResponse(results, continuationPoints);
                         ClientBase.ValidateDiagnosticInfos(diagnosticInfos, continuationPoints);
 
-                        ByteStringCollection revisedContiuationPoints = new ByteStringCollection();
+                        ByteStringCollection revisedContinuationPoints = new ByteStringCollection();
                         for (int ii = 0; ii < continuationPoints.Count; ii++)
                         {
                             // check for error.
@@ -402,12 +402,12 @@ namespace Opc.Ua.Client.Controls
                             // check for continuation point.
                             if (results[ii].ContinuationPoint != null)
                             {
-                                revisedContiuationPoints.Add(results[ii].ContinuationPoint);
+                                revisedContinuationPoints.Add(results[ii].ContinuationPoint);
                             }
                         }
 
                         // check if browsing must continue;
-                        continuationPoints = revisedContiuationPoints;
+                        continuationPoints = revisedContinuationPoints;
                     }
 
                     // check if unprocessed results exist.

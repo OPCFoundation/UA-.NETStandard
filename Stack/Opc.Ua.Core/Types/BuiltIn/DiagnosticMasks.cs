@@ -18,7 +18,7 @@ namespace Opc.Ua
     /// The DiagnosticsMasks enumeration.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1717:OnlyFlagsEnumsShouldHavePluralNames"), Flags]
-    public enum DiagnosticsMasks
+    public enum DiagnosticsMasks : uint
     {
         /// <summary>
         /// ServiceSymbolicId = 0,
@@ -143,6 +143,15 @@ namespace Opc.Ua
         /// <summary>
         /// All = 1023
         /// </summary>
-        All = 1023
+        All = 1023,
+
+        /// <summary>
+        /// UserPermissionAdditionalInfo = 0x80000000,
+        /// </summary>
+        /// <remarks>
+        /// Mask for internal use only.
+        /// </remarks>
+        UserPermissionAdditionalInfo = 0x80000000
+
     }
 }

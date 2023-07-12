@@ -95,7 +95,7 @@
     </opc:Children>
   </opc:ObjectType>
 
-  <opc:DataType SymbolicName="ScalarValueDataType" BaseType="ua:Structure">
+  <opc:DataType SymbolicName="ScalarStructureDataType" BaseType="ua:Structure">
     <opc:Fields>
       <opc:Field Name="BooleanValue" DataType="ua:Boolean" />
       <opc:Field Name="SByteValue" DataType="ua:SByte" />
@@ -126,25 +126,8 @@
       <opc:Field Name="UIntegerValue" DataType="ua:UInteger" />
     </opc:Fields>
   </opc:DataType>
-
-  <opc:VariableType SymbolicName="TestDataVariableType" BaseType="ua:BaseDataVariableType">
-    <opc:Children>
-      <opc:Property SymbolicName="SimulationActive" DataType="ua:Boolean" ModellingRule="Mandatory">
-        <opc:Description>If true the server will produce new values for each monitored variable.</opc:Description>
-      </opc:Property>
-      <opc:Method SymbolicName="GenerateValues" TypeDefinition="GenerateValuesMethodType" ModellingRule="Mandatory"></opc:Method>
-      <opc:Object SymbolicName="CycleComplete" TypeDefinition="ua:AcknowledgeableConditionType" ModellingRule="Mandatory">
-        <opc:References>
-          <opc:Reference IsInverse="true">
-            <opc:ReferenceType>ua:HasEventSource</opc:ReferenceType>
-            <opc:TargetId>TestDataVariableType</opc:TargetId>
-          </opc:Reference>
-        </opc:References>
-      </opc:Object>
-    </opc:Children>
-  </opc:VariableType>
-
-  <opc:VariableType SymbolicName="ScalarValueVariableType" DataType="ScalarValueDataType" BaseType="TestDataVariableType">
+  
+  <opc:VariableType SymbolicName="ScalarStructureVariableType" DataType="ScalarStructureDataType" BaseType="ua:BaseDataVariableType">
     <opc:Children>
       <opc:Variable SymbolicName="BooleanValue" DataType="ua:Boolean" ModellingRule="Mandatory"/>
       <opc:Variable SymbolicName="SByteValue" DataType="ua:SByte" ModellingRule="Mandatory" />
@@ -275,6 +258,13 @@
       <opc:Variable SymbolicName="IntegerValue" DataType="ua:Integer" ModellingRule="Mandatory" />
       <opc:Variable SymbolicName="UIntegerValue" DataType="ua:UInteger" ModellingRule="Mandatory" />
       <opc:Variable SymbolicName="VectorValue" DataType="Vector" TypeDefinition="VectorVariableType" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="StructureValueObjectType" BaseType="TestDataObjectType">
+    <opc:Children>
+      <opc:Variable SymbolicName="ScalarStructure" DataType="ScalarStructureDataType" TypeDefinition="ScalarStructureVariableType" ModellingRule="Mandatory"/>      
+      <opc:Variable SymbolicName="VectorStructure" DataType="Vector" TypeDefinition="VectorVariableType" ModellingRule="Mandatory" />
     </opc:Children>
   </opc:ObjectType>
 
@@ -653,7 +643,7 @@
     </opc:Children>
   </opc:VariableType>
 
-  <!-- TODO Structure With Optional Fields and Union
+<!--
   <opc:DataType SymbolicName="VectorUnion" BaseType="ua:Union" IsUnion="true">
     <opc:Fields>
       <opc:Field Name="X" DataType="ua:Double" />
@@ -800,7 +790,7 @@
       <opc:Object SymbolicName="Static" TypeDefinition="ua:FolderType" SupportsEvents="true">
         <opc:Children>
           <opc:Object SymbolicName="Scalar" TypeDefinition="ScalarValueObjectType" ModellingRule="Mandatory"/>
-          <opc:Variable SymbolicName="StructureScalar" DataType="ScalarValueDataType" TypeDefinition="ScalarValueVariableType" ModellingRule="Mandatory"/>
+          <opc:Object SymbolicName="Structure" TypeDefinition="StructureValueObjectType" ModellingRule="Mandatory"/>
           <opc:Object SymbolicName="Array" TypeDefinition="ArrayValueObjectType" ModellingRule="Mandatory"/>
           <opc:Object SymbolicName="UserScalar" TypeDefinition="UserScalarValueObjectType" ModellingRule="Mandatory"/>
           <opc:Object SymbolicName="UserArray" TypeDefinition="UserArrayValueObjectType" ModellingRule="Mandatory"/>
@@ -830,7 +820,7 @@
               </opc:Property>
             </opc:Children>
           </opc:Object>
-          <opc:Variable SymbolicName="StructureScalar" DataType="ScalarValueDataType" TypeDefinition="ScalarValueVariableType" ModellingRule="Mandatory">
+          <opc:Object SymbolicName="Structure" TypeDefinition="StructureValueObjectType" ModellingRule="Mandatory">
             <opc:Children>
               <opc:Property SymbolicName="SimulationActive">
                 <opc:DefaultValue>
@@ -838,7 +828,7 @@
                 </opc:DefaultValue>
               </opc:Property>
             </opc:Children>
-          </opc:Variable>
+          </opc:Object>
           <opc:Object SymbolicName="Array" TypeDefinition="ArrayValueObjectType" ModellingRule="Mandatory">
             <opc:Children>
               <opc:Property SymbolicName="SimulationActive">
@@ -896,22 +886,6 @@
           </opc:Reference>
         </opc:References>
       </opc:Object>
-      <!--  
-      <opc:Object SymbolicName="Structures" TypeDefinition="ua:FolderType">
-        <opc:Children>
-          <opc:Variable SymbolicName="Scalar" DataType="ScalarValueDataType" TypeDefinition="ScalarValueVariableType" ModellingRule="Mandatory"/>
-          <opc:Variable SymbolicName="Array" DataType="ArrayValueDataType"  TypeDefinition="ArrayValueVariableType" ModellingRule="Mandatory"/>
-          <opc:Variable SymbolicName="UserScalar" TypeDefinition="UserScalarValueVariableType" ModellingRule="Mandatory"/>
-          <opc:Variable SymbolicName="UserArray" TypeDefinition="UserArrayValueVariableType" ModellingRule="Mandatory"/>
-        </opc:Children>
-        <opc:References>
-          <opc:Reference>
-            <opc:ReferenceType>ua:HasEventSource</opc:ReferenceType>
-            <opc:TargetId>Data_Structures_Scalar</opc:TargetId>
-          </opc:Reference>
-        </opc:References>
-      </opc:Object>
-      -->
       <opc:Object SymbolicName="Conditions" TypeDefinition="ua:FolderType" SupportsEvents="true">
         <opc:Children>
           <opc:Object SymbolicName="SystemStatus" TypeDefinition="TestSystemConditionType" ModellingRule="Mandatory" />
@@ -941,13 +915,7 @@
         <opc:ReferenceType>ua:HasNotifier</opc:ReferenceType>
         <opc:TargetId>Data_Dynamic</opc:TargetId>
       </opc:Reference>
-
       <!--
-      <opc:Reference>
-        <opc:ReferenceType>ua:HasNotifier</opc:ReferenceType>
-        <opc:TargetId>Data_Structures</opc:TargetId>
-      </opc:Reference>
-        
       <opc:Reference>
         <opc:ReferenceType>ua:HasNotifier</opc:ReferenceType>
         <opc:TargetId>Data_Conditions</opc:TargetId>

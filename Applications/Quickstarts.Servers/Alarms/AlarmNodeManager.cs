@@ -343,7 +343,7 @@ namespace Alarms
                 if (m_success > 0)
                 {
                     m_missed++;
-                    Utils.LogInfo("Alarms: Missed Loop {1} Success {2}", m_missed, m_success);
+                    Utils.LogInfo("Alarms: Missed Loop {0} Success {1}", m_missed, m_success);
                 }
             }
         }

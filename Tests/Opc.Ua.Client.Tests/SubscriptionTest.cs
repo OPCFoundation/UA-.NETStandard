@@ -292,7 +292,7 @@ namespace Opc.Ua.Client.Tests
                 await subscription.CreateAsync().ConfigureAwait(false);
             }
 
-            await Task.Delay(5000);
+            await Task.Delay(5000).ConfigureAwait(false);
 
             TestContext.Out.WriteLine("{0} value changes.", valueChanges);
 
@@ -512,6 +512,7 @@ namespace Opc.Ua.Client.Tests
         {
             const int kTestSubscriptions = 2;
             const int kDelay = 2_000;
+            const int kQueueSize = 10;
 
             // create test session and subscription
             var originSession = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
@@ -537,7 +538,7 @@ namespace Opc.Ua.Client.Tests
 
                 // set defaults
                 subscription.DefaultItem.DiscardOldest = true;
-                subscription.DefaultItem.QueueSize = (ii == 0) ? 0U : 5;
+                subscription.DefaultItem.QueueSize = (ii == 0) ? 0U : kQueueSize;
                 subscription.DefaultItem.MonitoringMode = MonitoringMode.Reporting;
 
                 // create test set

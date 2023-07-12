@@ -98,7 +98,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         protected void SetRepeatedRandomSeed()
         {
-            int randomSeed = TestContext.CurrentContext.Random.Next() + kRandomStart;
+            int randomSeed = TestContext.CurrentContext.CurrentRepeatCount + kRandomStart;
             RandomSource = new RandomSource(randomSeed);
             DataGenerator = new DataGenerator(RandomSource);
         }
@@ -799,6 +799,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     s_count = 0;
                 }
+            }
+
+            public virtual object Clone()
+            {
+                return this.MemberwiseClone();
+            }
+
+            public new object MemberwiseClone()
+            {
+                return new FooBarEncodeable(FieldName, Foo) {
+                    Count = this.Count
+                };
             }
 
             private bool m_resetCounter;

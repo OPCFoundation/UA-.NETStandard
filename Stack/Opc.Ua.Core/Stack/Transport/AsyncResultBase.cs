@@ -76,6 +76,13 @@ namespace Opc.Ua
 
                 // signal any waiting threads.
                 DisposeWaitHandle(true);
+
+                // dispose the cancellation token.
+                if (m_cts != null)
+                {
+                    Utils.SilentDispose(m_cts);
+                    m_cts = null;
+                }
             }
         }
         #endregion

@@ -655,12 +655,18 @@ namespace Opc.Ua.Server
                     CurrentTime = DateTime.UtcNow,
                     State = ServerState.Shutdown
                 };
-                serverStatus.BuildInfo.ProductName = m_serverDescription.ProductName;
-                serverStatus.BuildInfo.ProductUri = m_serverDescription.ProductUri;
-                serverStatus.BuildInfo.ManufacturerName = m_serverDescription.ManufacturerName;
-                serverStatus.BuildInfo.SoftwareVersion = m_serverDescription.SoftwareVersion;
-                serverStatus.BuildInfo.BuildNumber = m_serverDescription.BuildNumber;
-                serverStatus.BuildInfo.BuildDate = m_serverDescription.BuildDate;
+
+                var buildInfo = new BuildInfo() {
+                    ProductName = m_serverDescription.ProductName,
+                    ProductUri = m_serverDescription.ProductUri,
+                    ManufacturerName = m_serverDescription.ManufacturerName,
+                    SoftwareVersion = m_serverDescription.SoftwareVersion,
+                    BuildNumber = m_serverDescription.BuildNumber,
+                    BuildDate = m_serverDescription.BuildDate,
+                };
+                var buildInfoVariableState = (BuildInfoVariableState)m_diagnosticsNodeManager.FindPredefinedNode(VariableIds.Server_ServerStatus_BuildInfo, typeof(BuildInfoVariableState));
+                var buildInfoVariable = new BuildInfoVariableValue(buildInfoVariableState, buildInfo, null);
+                serverStatus.BuildInfo = buildInfoVariable.Value;
 
                 serverObject.ServerStatus.MinimumSamplingInterval = 1000;
                 serverObject.ServerStatus.CurrentTime.MinimumSamplingInterval = 1000;
@@ -805,7 +811,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Updates the Server.Auditing flag.
+        /// Reads the Server.Auditing flag.
         /// </summary>
         private ServiceResult OnReadAuditing(
             ISystemContext context,

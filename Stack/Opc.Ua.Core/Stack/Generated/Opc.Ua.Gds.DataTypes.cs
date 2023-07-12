@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// To support ICloneable, manually undef NET_STANDARD until Modelcompiler is fixed
+#undef NET_STANDARD
+
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -234,13 +237,11 @@ namespace Opc.Ua.Gds
             return true;
         }
 
-        #if !NET_STANDARD
         /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ApplicationRecordDataType)this.MemberwiseClone();
         }
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
@@ -275,11 +276,7 @@ namespace Opc.Ua.Gds
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [CollectionDataContract(Name = "ListOfApplicationRecordDataType", Namespace = Opc.Ua.Gds.Namespaces.OpcUaGdsXsd, ItemName = "ApplicationRecordDataType")]
-    #if !NET_STANDARD
     public partial class ApplicationRecordDataTypeCollection : List<ApplicationRecordDataType>, ICloneable
-    #else
-    public partial class ApplicationRecordDataTypeCollection : List<ApplicationRecordDataType>
-    #endif
     {
         #region Constructors
         /// <remarks />
@@ -316,7 +313,6 @@ namespace Opc.Ua.Gds
         }
         #endregion
 
-        #if !NET_STANDARD
         #region ICloneable Methods
         /// <remarks />
         public object Clone()
@@ -324,7 +320,6 @@ namespace Opc.Ua.Gds
             return (ApplicationRecordDataTypeCollection)this.MemberwiseClone();
         }
         #endregion
-        #endif
 
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()

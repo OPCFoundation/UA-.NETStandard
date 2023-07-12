@@ -57,6 +57,27 @@ namespace Opc.Ua.Client.ComplexTypes
         }
         #endregion Constructors
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public override object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
+        /// <summary>
+        /// Makes a deep copy of the object.
+        /// </summary>
+        /// <returns>
+        /// A new object that is a copy of this instance.
+        /// </returns>
+        public new object MemberwiseClone()
+        {
+            UnionComplexType clone = (UnionComplexType)base.MemberwiseClone();
+            clone.m_switchField = m_switchField;
+            return clone;
+        }
+        #endregion
+
         #region Public Properties
         /// <summary>
         /// The union selector determines which property is valid.
@@ -67,19 +88,6 @@ namespace Opc.Ua.Client.ComplexTypes
 
         /// <inheritdoc/>
         public override StructureType StructureType => StructureType.Union;
-
-        /// <summary>
-        /// Makes a deep copy of the object.
-        /// </summary>
-        /// <returns>
-        /// A new object that is a copy of this instance.
-        /// </returns>
-        public override object MemberwiseClone()
-        {
-            UnionComplexType clone = (UnionComplexType)base.MemberwiseClone();
-            clone.m_switchField = m_switchField;
-            return clone;
-        }
 
         /// <inheritdoc/>
         public override void Encode(IEncoder encoder)

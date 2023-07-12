@@ -11,8 +11,8 @@ The Reverse Connect option consists of the following elements:
 * Updated client library which support to 
   - Configure a client endpoint to accept *ReverseHello* messages using a *ReverseConnectManager*.
   - A client API extension to allow applications to register for reverse connections either by callback or by waiting for the *ReverseHello* message for a specific server endpoint and application Uri combination. An optional filter for server Uris or endpoint Urls can be applied to allow multiple clients to use the same endpoint.
-* The updated C# [Reference Server](../Applications/ConsoleReferenceServer) with reverse connect support.
-* The C# Core [Client](https://github.com/OPCFoundation/UA-.NETStandard-Samples/tree/master/Samples/NetCoreComplexClient) and [Server](https://github.com/OPCFoundation/UA-.NETStandard-Samples/tree/master/Samples/NetCoreConsoleServer) samples that can initiate a Reverse connection with command line options.
+* The C# [Console Reference Server](../Applications/ConsoleReferenceServer) with reverse connect support in the configuration xml.
+* The C# Core [Console Reference Client](../Applications/ConsoleReferenceClient) that can initiate a Reverse connection with command line options.
 * A modified C# [Aggregation Server](https://github.com/OPCFoundation/UA-.NETStandard-Samples/tree/master/Workshop/Aggregation) that supports incoming and outgoing reverse connections.
 
 ## Reverse Connect Handshake ##

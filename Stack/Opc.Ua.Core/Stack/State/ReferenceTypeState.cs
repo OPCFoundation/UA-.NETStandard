@@ -312,7 +312,14 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        value = inverseName;
+                        if (inverseName == null)
+                        {
+                            result = StatusCodes.BadAttributeIdInvalid;
+                        }
+                        else
+                        {
+                            value = inverseName;
+                        }
                     }
 
                     return result;

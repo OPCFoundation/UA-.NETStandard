@@ -114,6 +114,7 @@ namespace Opc.Ua.Client
             m_transferSubscriptionsOnReconnect = template.m_transferSubscriptionsOnReconnect;
             m_sessionTimeout = template.m_sessionTimeout;
             m_maxRequestMessageSize = template.m_maxRequestMessageSize;
+            m_minPublishRequestCount = template.m_minPublishRequestCount;
             m_preferredLocales = template.PreferredLocales;
             m_sessionName = template.SessionName;
             m_handle = template.Handle;
@@ -130,6 +131,7 @@ namespace Opc.Ua.Client
                 m_KeepAlive = template.m_KeepAlive;
                 m_Publish = template.m_Publish;
                 m_PublishError = template.m_PublishError;
+                m_PublishSequenceNumbersToAcknowledge = template.m_PublishSequenceNumbersToAcknowledge;
                 m_SubscriptionsChanged = template.m_SubscriptionsChanged;
                 m_SessionClosing = template.m_SessionClosing;
             }
@@ -267,6 +269,7 @@ namespace Opc.Ua.Client
             m_outstandingRequests = new LinkedList<AsyncRequestState>();
             m_keepAliveInterval = 5000;
             m_tooManyPublishRequests = 0;
+            m_minPublishRequestCount = kDefaultPublishRequestCount;
             m_sessionName = "";
             m_deleteSubscriptionsOnClose = true;
             m_transferSubscriptionsOnReconnect = false;
@@ -384,6 +387,17 @@ namespace Opc.Ua.Client
             }
 
             base.Dispose(disposing);
+
+            if (disposing)
+            {
+                // suppress spurious events
+                m_KeepAlive = null;
+                m_Publish = null;
+                m_PublishError = null;
+                m_PublishSequenceNumbersToAcknowledge = null;
+                m_SubscriptionsChanged = null;
+                m_SessionClosing = null;
+            }
         }
         #endregion
 
@@ -470,6 +484,27 @@ namespace Opc.Ua.Client
                 lock (m_eventLock)
                 {
                     m_PublishError -= value;
+                }
+            }
+        }
+
+
+        /// <inheritdoc/>
+        public event PublishSequenceNumbersToAcknowledgeEventHandler PublishSequenceNumbersToAcknowledge
+        {
+            add
+            {
+                lock (m_eventLock)
+                {
+                    m_PublishSequenceNumbersToAcknowledge += value;
+                }
+            }
+
+            remove
+            {
+                lock (m_eventLock)
+                {
+                    m_PublishSequenceNumbersToAcknowledge -= value;
                 }
             }
         }
@@ -795,6 +830,29 @@ namespace Opc.Ua.Client
                     }
 
                     return count;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets and sets the minimum number of publish requests to be used in the session.
+        /// </summary>
+        public int MinPublishRequestCount
+        {
+            get => m_minPublishRequestCount;
+            set
+            {
+                lock (SyncRoot)
+                {
+                    if (value >= kDefaultPublishRequestCount && value <= kMinPublishRequestCountMax)
+                    {
+                        m_minPublishRequestCount = value;
+                    }
+                    else
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(MinPublishRequestCount),
+                            $"Minimum publish request count must be between {kDefaultPublishRequestCount} and {kMinPublishRequestCountMax}.");
+                    }
                 }
             }
         }
@@ -1387,7 +1445,7 @@ namespace Opc.Ua.Client
                     m_previousServerNonce = m_serverNonce;
                     m_serverNonce = serverNonce;
                     m_reconnecting = false;
-                    publishCount = m_subscriptions.Count;
+                    publishCount = GetMinPublishRequestCount();
                 }
 
                 // refill pipeline.
@@ -1400,7 +1458,10 @@ namespace Opc.Ua.Client
             }
             finally
             {
-                m_reconnecting = false;
+                lock (SyncRoot)
+                {
+                    m_reconnecting = false;
+                }
             }
         }
 
@@ -1513,7 +1574,7 @@ namespace Opc.Ua.Client
             ResponseHeader responseHeader = this.Read(
                 null,
                 0,
-                TimestampsToReturn.Both,
+                TimestampsToReturn.Neither,
                 nodesToRead,
                 out DataValueCollection values,
                 out DiagnosticInfoCollection diagnosticInfos);
@@ -1841,6 +1902,10 @@ namespace Opc.Ua.Client
                 {
                     namespaces[((NodeId)referenceNodeIds[ii])] = (string)nameSpaceValues[ii];
                 }
+                else
+                {
+                    Utils.LogWarning("Failed to load namespace {0}: {1}", namespaceNodeIds[ii], errors[ii]);
+                }
             }
 
             // build the namespace/schema import dictionary
@@ -1848,9 +1913,9 @@ namespace Opc.Ua.Client
             foreach (var r in references)
             {
                 NodeId nodeId = ExpandedNodeId.ToNodeId(r.NodeId, NamespaceUris);
-                if (schemas.TryGetValue(nodeId, out var schema))
+                if (schemas.TryGetValue(nodeId, out var schema) && namespaces.TryGetValue(nodeId, out var ns))
                 {
-                    imports[namespaces[nodeId]] = schema;
+                    imports[ns] = schema;
                 }
             }
 
@@ -4254,11 +4319,7 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                lock (SyncRoot)
-                {
-                    count = m_subscriptions.Count;
-                }
-
+                count = GetMinPublishRequestCount();
                 while (count-- > 0)
                 {
                     BeginPublish(OperationTimeout);
@@ -5075,13 +5136,39 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            SubscriptionAcknowledgementCollection acknowledgementsToSend = null;
+            // get event handler to modify ack list
+            PublishSequenceNumbersToAcknowledgeEventHandler callback = null;
+            lock (m_eventLock)
+            {
+                callback = m_PublishSequenceNumbersToAcknowledge;
+            }
 
             // collect the current set if acknowledgements.
+            SubscriptionAcknowledgementCollection acknowledgementsToSend = null;
             lock (SyncRoot)
             {
-                acknowledgementsToSend = m_acknowledgementsToSend;
-                m_acknowledgementsToSend = new SubscriptionAcknowledgementCollection();
+                if (callback != null)
+                {
+                    try
+                    {
+                        var deferredAcknowledgementsToSend = new SubscriptionAcknowledgementCollection();
+                        callback(this, new PublishSequenceNumbersToAcknowledgeEventArgs(m_acknowledgementsToSend, deferredAcknowledgementsToSend));
+                        acknowledgementsToSend = m_acknowledgementsToSend;
+                        m_acknowledgementsToSend = deferredAcknowledgementsToSend;
+                    }
+                    catch (Exception e2)
+                    {
+                        Utils.LogError(e2, "Session: Unexpected error invoking PublishSequenceNumbersToAcknowledgeEventArgs.");
+                    }
+                }
+
+                if (acknowledgementsToSend == null)
+                {
+                    // send all ack values, clear list
+                    acknowledgementsToSend = m_acknowledgementsToSend;
+                    m_acknowledgementsToSend = new SubscriptionAcknowledgementCollection();
+                }
+
                 foreach (var toSend in acknowledgementsToSend)
                 {
                     m_latestAcknowledgementsSent[toSend.SubscriptionId] = toSend.SequenceNumber;
@@ -5252,7 +5339,8 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                // don't send another publish for these errors.
+                // don't send another publish for these errors,
+                // or throttle to avoid server overload.
                 switch (error.Code)
                 {
                     case StatusCodes.BadTooManyPublishRequests:
@@ -5280,20 +5368,27 @@ namespace Opc.Ua.Client
                     case StatusCodes.BadSecureChannelIdInvalid:
                     case StatusCodes.BadServerHalted:
                         return;
+
+                    // Servers may return this error when overloaded
+                    case StatusCodes.BadTooManyOperations:
+                    case StatusCodes.BadTcpServerTooBusy:
+                        // throttle the resend to reduce server load
+                        Thread.Sleep(100);
+                        break;
                 }
 
                 Utils.LogError(e, "PUBLISH #{0} - Unhandled error {1} during Publish.", requestHeader.RequestHandle, error.StatusCode);
             }
 
             int requestCount = GoodPublishRequestCount;
-            var subscriptionsCount = m_subscriptions.Count;
-            if (requestCount < subscriptionsCount)
+            var minPublishRequestCount = GetMinPublishRequestCount();
+            if (requestCount < minPublishRequestCount)
             {
                 BeginPublish(OperationTimeout);
             }
             else
             {
-                Utils.LogInfo("PUBLISH - Did not send another publish request. GoodPublishRequestCount={0}, Subscriptions={1}", requestCount, subscriptionsCount);
+                Utils.LogInfo("PUBLISH - Did not send another publish request. GoodPublishRequestCount={0}, MinPublishRequestCount={1}", requestCount, minPublishRequestCount);
             }
         }
 
@@ -5345,7 +5440,7 @@ namespace Opc.Ua.Client
                         Utils.LogWarning("Message {0}-{1} no longer available.", subscriptionId, sequenceNumber);
                         break;
                     // if encoding limits are exceeded, the issue is logged and
-                    // the published data is acknoledged to prevent the endless republish loop.
+                    // the published data is acknowledged to prevent the endless republish loop.
                     case StatusCodes.BadEncodingLimitsExceeded:
                         Utils.LogError(e, "Message {0}-{1} exceeded size limits, ignored.", subscriptionId, sequenceNumber);
                         var ack = new SubscriptionAcknowledgement {
@@ -5578,7 +5673,15 @@ namespace Opc.Ua.Client
                 }
                 catch (ServiceResultException sre)
                 {
-                    Utils.LogError(sre, "Transfer subscriptions failed.");
+                    if (sre.StatusCode == StatusCodes.BadServiceUnsupported)
+                    {
+                        TransferSubscriptionsOnReconnect = false;
+                        Utils.LogWarning("Transfer subscription unsupported, TransferSubscriptionsOnReconnect set to false.");
+                    }
+                    else
+                    {
+                        Utils.LogError(sre, "Transfer subscriptions failed.");
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -5723,6 +5826,24 @@ namespace Opc.Ua.Client
             return (m_tooManyPublishRequests == 0) ||
                 (requestCount < m_tooManyPublishRequests);
         }
+
+        /// <summary>
+        /// Returns the minimum number of active publish request that should be used.
+        /// </summary>
+        /// <remarks>
+        /// Returns 0 if there are no subscriptions.
+        /// </remarks>
+        private int GetMinPublishRequestCount()
+        {
+            lock (SyncRoot)
+            {
+                if (m_subscriptions.Count == 0)
+                {
+                    return 0;
+                }
+                return Math.Max(m_subscriptions.Count, m_minPublishRequestCount);
+            }
+        }
         #endregion
 
         #region Protected Fields
@@ -5801,6 +5922,9 @@ namespace Opc.Ua.Client
         private long m_keepAliveCounter;
         private bool m_reconnecting;
         private const int kReconnectTimeout = 15000;
+        private const int kMinPublishRequestCountMax = 100;
+        private const int kDefaultPublishRequestCount = 1;
+        private int m_minPublishRequestCount;
         private LinkedList<AsyncRequestState> m_outstandingRequests;
         private readonly EndpointDescriptionCollection m_discoveryServerEndpoints;
         private readonly StringCollection m_discoveryProfileUris;
@@ -5818,6 +5942,7 @@ namespace Opc.Ua.Client
         private event KeepAliveEventHandler m_KeepAlive;
         private event NotificationEventHandler m_Publish;
         private event PublishErrorEventHandler m_PublishError;
+        private event PublishSequenceNumbersToAcknowledgeEventHandler m_PublishSequenceNumbersToAcknowledge;
         private event EventHandler m_SubscriptionsChanged;
         private event EventHandler m_SessionClosing;
         private event EventHandler m_BadSessionClosed;
@@ -5974,6 +6099,59 @@ namespace Opc.Ua.Client
         private readonly uint m_subscriptionId;
         private readonly uint m_sequenceNumber;
         private readonly ServiceResult m_status;
+        #endregion
+    }
+    #endregion
+
+    #region PublishSequenceNumbersToAcknowledgeEventArgs Class
+    /// <summary>
+    /// Represents the event arguments provided when publish response
+    /// sequence numbers are about to be achknoledged with a publish request.
+    /// </summary>
+    /// <remarks>
+    /// A callee can defer an acknowledge to the next publish request by
+    /// moving the <see cref="SubscriptionAcknowledgement"/> to the deferred list.
+    /// The callee can modify the list of acknowledgements to send, it is the
+    /// responsibility of the caller to protect the lists for modifications.
+    /// </remarks>
+    public class PublishSequenceNumbersToAcknowledgeEventArgs : EventArgs
+    {
+        #region Constructors
+        /// <summary>
+        /// Creates a new instance.
+        /// </summary>
+        internal PublishSequenceNumbersToAcknowledgeEventArgs(
+            SubscriptionAcknowledgementCollection acknowledgementsToSend,
+            SubscriptionAcknowledgementCollection deferredAcknowledgementsToSend)
+        {
+            m_acknowledgementsToSend = acknowledgementsToSend;
+            m_deferredAcknowledgementsToSend = deferredAcknowledgementsToSend;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// The acknowledgements which are sent with the next publish request.
+        /// </summary>
+        /// <remarks>
+        /// A client may also chose to remove an acknowledgement from this list to add it back
+        /// to the list in a subsequent callback when the request is fully processed.
+        /// </remarks>
+        public SubscriptionAcknowledgementCollection AcknowledgementsToSend => m_acknowledgementsToSend;
+
+        /// <summary>
+        /// The deferred list of acknowledgements.
+        /// </summary>
+        /// <remarks>
+        /// The callee can transfer an outstanding <see cref="SubscriptionAcknowledgement"/>
+        /// to this list to defer the acknowledge of a sequence number to the next publish request.
+        /// </remarks>
+        public SubscriptionAcknowledgementCollection DeferredAcknowledgementsToSend => m_deferredAcknowledgementsToSend;
+        #endregion
+
+        #region Private Fields
+        private readonly SubscriptionAcknowledgementCollection m_acknowledgementsToSend;
+        private readonly SubscriptionAcknowledgementCollection m_deferredAcknowledgementsToSend;
         #endregion
     }
     #endregion

@@ -44,6 +44,7 @@ namespace Opc.Ua.Configuration
         IApplicationConfigurationBuilderClientSelected,
         IApplicationConfigurationBuilderSecurity,
         IApplicationConfigurationBuilderSecurityOptions,
+        IApplicationConfigurationBuilderSecurityOptionStores,
         IApplicationConfigurationBuilderServerPolicies,
         IApplicationConfigurationBuilderCreate
     {
@@ -380,6 +381,52 @@ namespace Opc.Ua.Configuration
             string pkiRoot = null,
             string appRoot = null,
             string rejectedRoot = null
+            );
+
+        /// <summary>
+        /// Add the security configuration for mandatory application, issuer and trusted stores.
+        /// </summary>
+        /// <param name="subjectName">Application certificate subject name as distinguished name.
+        /// A DC=localhost entry is converted to the hostname. The common name CN= is mandatory.</param>
+        /// <param name="appRoot">The path to the app cert store.</param>
+        /// <param name="trustedRoot">The path to the trusted cert store.</param>
+        /// <param name="issuerRoot">The path to the issuer cert store.</param>
+        /// <param name="rejectedRoot">The path to the rejected certificate store.</param>
+        IApplicationConfigurationBuilderSecurityOptionStores AddSecurityConfigurationStores(
+            string subjectName,
+            string appRoot,
+            string trustedRoot,
+            string issuerRoot,
+            string rejectedRoot = null
+            );
+    }
+
+    /// <summary>
+    /// Add security options to the configuration.
+    /// </summary>
+    public interface IApplicationConfigurationBuilderSecurityOptionStores :
+        IApplicationConfigurationBuilderTraceConfiguration,
+        IApplicationConfigurationBuilderExtension,
+        IApplicationConfigurationBuilderCreate
+    {
+        /// <summary>
+        /// Add the security configuration for the user certificate issuer and trusted stores.
+        /// </summary>
+        /// <param name="trustedRoot">The path to the trusted cert store.</param>
+        /// <param name="issuerRoot">The path to the issuer cert store.</param>
+        IApplicationConfigurationBuilderSecurityOptionStores AddSecurityConfigurationUserStore(
+            string trustedRoot,
+            string issuerRoot
+            );
+
+        /// <summary>
+        /// Add the security configuration for the https certificate issuer and trusted stores.
+        /// </summary>
+        /// <param name="trustedRoot">The path to the trusted cert store.</param>
+        /// <param name="issuerRoot">The path to the issuer cert store.</param>
+        IApplicationConfigurationBuilderSecurityOptionStores AddSecurityConfigurationHttpsStore(
+            string trustedRoot,
+            string issuerRoot
             );
     }
 
