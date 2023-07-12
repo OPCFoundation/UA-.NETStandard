@@ -72,12 +72,13 @@ namespace Opc.Ua.Client.Tests
         public Uri ServerUrl { get; private set; }
         public ExpandedNodeId[] TestSetStatic { get; private set; }
         public ExpandedNodeId[] TestSetSimulation { get; private set; }
-
+        public ExpandedNodeId[] TestSetHistory { get; private set; }
         public ClientTestFramework(string uriScheme = Utils.UriSchemeOpcTcp)
         {
             UriScheme = uriScheme;
             TestSetStatic = CommonTestWorkers.NodeIdTestSetStatic;
             TestSetSimulation = CommonTestWorkers.NodeIdTestSetSimulation;
+            TestSetHistory = CommonTestWorkers.NodeIdTestDataHistory;
         }
 
         #region DataPointSources
@@ -259,6 +260,16 @@ namespace Opc.Ua.Client.Tests
         public IList<NodeId> GetTestSetSimulation(NamespaceTable namespaceUris)
         {
             return TestSetSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null).ToList();
+        }
+
+        /// <summary>
+        /// Return a test set of nodes with history values.
+        /// </summary>
+        /// <param name="namespaceUris">The namesapce table used in the session.</param>
+        /// <returns>The list of test nodes.</returns>
+        public IList<NodeId> GetTestSetHistory(NamespaceTable namespaceUris)
+        {
+            return TestSetHistory.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null).ToList();
         }
         #endregion
 
