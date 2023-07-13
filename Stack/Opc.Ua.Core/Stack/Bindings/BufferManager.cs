@@ -121,9 +121,13 @@ namespace Opc.Ua.Bindings
         /// <param name="maxBufferSize">Max size of the buffer.</param>
         public BufferManager(string name, int maxBufferSize)
         {
+            m_arrayPool = maxBufferSize <= 1024 * 1024
+                ? ArrayPool<byte>.Shared
+                : ArrayPool<byte>.Create(maxBufferSize, 32);
+#if TRACK_MEMORY
             m_name = name;
-            m_arrayPool = ArrayPool<byte>.Shared;
             m_maxBufferSize = maxBufferSize;
+#endif
         }
         #endregion
 
@@ -136,13 +140,16 @@ namespace Opc.Ua.Bindings
         /// <returns>The buffer content</returns>
         public byte[] TakeBuffer(int size, string owner)
         {
+#if TRACK_MEMORY
             if (size > m_maxBufferSize)
             {
                 throw new ArgumentOutOfRangeException(nameof(size));
             }
-
+#endif
+#if !TRACK_MEMORY
+            byte[] buffer = m_arrayPool.Rent(size);
+#else
             byte[] buffer = m_arrayPool.Rent(size + m_cookieLength);
-#if TRACK_MEMORY
             lock (m_lock)
             {
                 byte[] bytes = BitConverter.GetBytes(++m_id);
@@ -163,8 +170,9 @@ namespace Opc.Ua.Bindings
 #if TRACE_MEMORY
             Utils.LogTrace("{0:X}:TakeBuffer({1:X},{2:X},{3},{4})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner, ++m_buffersTaken);
 #endif
+#if TRACK_MEMORY
             buffer[buffer.Length - 1] = m_cookieUnlocked;
-
+#endif
             return buffer;
         }
 
@@ -213,14 +221,18 @@ namespace Opc.Ua.Bindings
         /// <param name="buffer">The buffer.</param>
         public static void LockBuffer(byte[] buffer)
         {
+#if TRACK_MEMORY
             if (buffer[buffer.Length - 1] != m_cookieUnlocked)
             {
                 throw new InvalidOperationException("Buffer is already locked.");
             }
-#if TRACE_MEMORY
-            Utils.LogTrace("LockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
 #endif
-            buffer[buffer.Length - 1] = m_cookieLocked;
+#if TRACE_MEMORY
+          Utils.LogTrace("LockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
+#endif
+#if TRACK_MEMORY
+          buffer[buffer.Length - 1] = m_cookieLocked;
+#endif
         }
 
         /// <summary>
@@ -229,14 +241,18 @@ namespace Opc.Ua.Bindings
         /// <param name="buffer">The buffer.</param>
         public static void UnlockBuffer(byte[] buffer)
         {
+#if TRACK_MEMORY
             if (buffer[buffer.Length - 1] != m_cookieLocked)
             {
                 throw new InvalidOperationException("Buffer is not locked.");
             }
+#endif
 #if TRACE_MEMORY
             Utils.LogTrace("UnlockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
 #endif
+#if TRACK_MEMORY
             buffer[buffer.Length - 1] = m_cookieUnlocked;
+#endif
         }
 
         /// <summary>
@@ -254,6 +270,7 @@ namespace Opc.Ua.Bindings
 #if TRACE_MEMORY
             Utils.LogTrace("{0:X}:ReturnBuffer({1:X},{2:X},{3},{4})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner, --m_buffersTaken);
 #endif
+#if TRACK_MEMORY
             if (buffer[buffer.Length - 1] != m_cookieUnlocked)
             {
                 throw new InvalidOperationException("Buffer has been locked.");
@@ -262,7 +279,6 @@ namespace Opc.Ua.Bindings
             // destroy cookie
             buffer[buffer.Length - 1] = m_cookieUnlocked ^ m_cookieLocked;
 
-#if TRACK_MEMORY
             lock (m_lock)
             {
 
@@ -335,18 +351,18 @@ namespace Opc.Ua.Bindings
 #endif
             m_arrayPool.Return(buffer);
         }
-        #endregion
+#endregion
 
         #region Private Fields
-        private readonly string m_name;
-        private readonly int m_maxBufferSize;
+        private ArrayPool<byte> m_arrayPool;
 #if TRACE_MEMORY
         private int m_buffersTaken = 0;
 #endif
-        private ArrayPool<byte> m_arrayPool;
+#if TRACK_MEMORY
+        private readonly string m_name;
+        private readonly int m_maxBufferSize;
         const byte m_cookieLocked = 0xa5;
         const byte m_cookieUnlocked = 0x5a;
-#if TRACK_MEMORY
         const byte m_cookieLength = 5;
         class Allocation
         {
@@ -361,8 +377,6 @@ namespace Opc.Ua.Bindings
         private int m_allocated;
         private int m_id;
         private SortedDictionary<int, Allocation> m_allocations = new SortedDictionary<int, Allocation>();
-#else
-        const byte m_cookieLength = 1;
 #endif
         #endregion
     }
