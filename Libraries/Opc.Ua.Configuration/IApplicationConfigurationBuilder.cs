@@ -405,9 +405,7 @@ namespace Opc.Ua.Configuration
     /// Add security options to the configuration.
     /// </summary>
     public interface IApplicationConfigurationBuilderSecurityOptionStores :
-        IApplicationConfigurationBuilderTraceConfiguration,
-        IApplicationConfigurationBuilderExtension,
-        IApplicationConfigurationBuilderCreate
+        IApplicationConfigurationBuilderSecurityOptions
     {
         /// <summary>
         /// Add the security configuration for the user certificate issuer and trusted stores.

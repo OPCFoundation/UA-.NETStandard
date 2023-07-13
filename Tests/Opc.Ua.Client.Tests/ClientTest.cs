@@ -535,6 +535,8 @@ namespace Opc.Ua.Client.Tests
                 var dataValue = Session.ReadValue(nodeId);
                 Assert.NotNull(dataValue);
                 Assert.NotNull(dataValue.Value);
+                Assert.AreNotEqual(DateTime.MinValue, dataValue.SourceTimestamp);
+                Assert.AreNotEqual(DateTime.MinValue, dataValue.ServerTimestamp);
             }
         }
 
@@ -543,7 +545,7 @@ namespace Opc.Ua.Client.Tests
         {
             var namespaceUris = Session.NamespaceUris;
             var testSet = new NodeIdCollection(GetTestSetStatic(namespaceUris));
-            testSet.AddRange(GetTestSetSimulation(namespaceUris));
+            testSet.AddRange(GetTestSetFullSimulation(namespaceUris));
             Session.ReadValues(testSet, out DataValueCollection values, out IList<ServiceResult> errors);
             Assert.AreEqual(testSet.Count, values.Count);
             Assert.AreEqual(testSet.Count, errors.Count);
@@ -554,7 +556,7 @@ namespace Opc.Ua.Client.Tests
         {
             var namespaceUris = Session.NamespaceUris;
             var testSet = GetTestSetStatic(namespaceUris).ToList();
-            testSet.AddRange(GetTestSetSimulation(namespaceUris));
+            testSet.AddRange(GetTestSetFullSimulation(namespaceUris));
             DataValueCollection values;
             IList<ServiceResult> errors;
             (values, errors) = await Session.ReadValuesAsync(new NodeIdCollection(testSet)).ConfigureAwait(false);

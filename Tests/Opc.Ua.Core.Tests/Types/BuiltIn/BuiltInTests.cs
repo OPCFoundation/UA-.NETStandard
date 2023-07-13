@@ -240,6 +240,26 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         }
 
         /// <summary>
+        /// Ensure defaults are correct.
+        /// </summary>
+        [Test]
+        public void DiagnosticInfoDefault()
+        {
+            DiagnosticInfo diagnosticInfo = new DiagnosticInfo();
+            Assert.NotNull(diagnosticInfo);
+            Assert.AreEqual(-1, diagnosticInfo.SymbolicId);
+            Assert.AreEqual(-1, diagnosticInfo.NamespaceUri);
+            Assert.AreEqual(-1, diagnosticInfo.Locale);
+            Assert.AreEqual(-1, diagnosticInfo.LocalizedText);
+            Assert.AreEqual(null, diagnosticInfo.AdditionalInfo);
+            Assert.AreEqual(ServiceResult.Good.StatusCode, diagnosticInfo.InnerStatusCode);
+            Assert.AreEqual(null, diagnosticInfo.InnerDiagnosticInfo);
+
+            Assert.IsTrue(diagnosticInfo.Equals(null));
+            Assert.IsTrue(diagnosticInfo.IsNullDiagnosticInfo);
+        }
+
+        /// <summary>
         /// Ensure the matrix dimension and order is identical
         /// after constructor and ToArray is called.
         /// </summary>
