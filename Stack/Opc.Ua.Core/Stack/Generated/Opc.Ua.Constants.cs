@@ -11312,7 +11312,7 @@ namespace Opc.Ua
         public const uint HistoryServerCapabilities_DeleteEventCapability = 11502;
 
         /// <remarks />
-        public const uint HistoryServerCapabilities_InsertAnnotationsCapability = 11275;
+        public const uint HistoryServerCapabilities_InsertAnnotationCapability = 11275;
 
         /// <remarks />
         public const uint StateMachineType_CurrentState = 2769;
@@ -15296,7 +15296,7 @@ namespace Opc.Ua
         public const uint HistoricalDataConfigurationType_StartOfOnlineArchive = 11500;
 
         /// <remarks />
-        public const uint HistoricalDataConfigurationType_ServerTimestampIncluded = 19092;
+        public const uint HistoricalDataConfigurationType_ServerTimestampSupported = 32680;
 
         /// <remarks />
         public const uint HistoricalDataConfigurationType_MaxTimeStoredValues = 32619;
@@ -15404,10 +15404,10 @@ namespace Opc.Ua
         public const uint HistoryServerCapabilitiesType_DeleteEventCapability = 11501;
 
         /// <remarks />
-        public const uint HistoryServerCapabilitiesType_InsertAnnotationsCapability = 11270;
+        public const uint HistoryServerCapabilitiesType_InsertAnnotationCapability = 11270;
 
         /// <remarks />
-        public const uint HistoryServerCapabilitiesType_ServerTimestampCapability = 19094;
+        public const uint HistoryServerCapabilitiesType_ServerTimestampSupported = 19094;
 
         /// <remarks />
         public const uint AuditHistoryEventUpdateEventType_UpdatedNode = 3025;
@@ -41311,7 +41311,7 @@ namespace Opc.Ua
         public static readonly NodeId HistoryServerCapabilities_DeleteEventCapability = new NodeId(Opc.Ua.Variables.HistoryServerCapabilities_DeleteEventCapability);
 
         /// <remarks />
-        public static readonly NodeId HistoryServerCapabilities_InsertAnnotationsCapability = new NodeId(Opc.Ua.Variables.HistoryServerCapabilities_InsertAnnotationsCapability);
+        public static readonly NodeId HistoryServerCapabilities_InsertAnnotationCapability = new NodeId(Opc.Ua.Variables.HistoryServerCapabilities_InsertAnnotationCapability);
 
         /// <remarks />
         public static readonly NodeId StateMachineType_CurrentState = new NodeId(Opc.Ua.Variables.StateMachineType_CurrentState);
@@ -45295,7 +45295,7 @@ namespace Opc.Ua
         public static readonly NodeId HistoricalDataConfigurationType_StartOfOnlineArchive = new NodeId(Opc.Ua.Variables.HistoricalDataConfigurationType_StartOfOnlineArchive);
 
         /// <remarks />
-        public static readonly NodeId HistoricalDataConfigurationType_ServerTimestampIncluded = new NodeId(Opc.Ua.Variables.HistoricalDataConfigurationType_ServerTimestampIncluded);
+        public static readonly NodeId HistoricalDataConfigurationType_ServerTimestampSupported = new NodeId(Opc.Ua.Variables.HistoricalDataConfigurationType_ServerTimestampSupported);
 
         /// <remarks />
         public static readonly NodeId HistoricalDataConfigurationType_MaxTimeStoredValues = new NodeId(Opc.Ua.Variables.HistoricalDataConfigurationType_MaxTimeStoredValues);
@@ -45403,10 +45403,10 @@ namespace Opc.Ua
         public static readonly NodeId HistoryServerCapabilitiesType_DeleteEventCapability = new NodeId(Opc.Ua.Variables.HistoryServerCapabilitiesType_DeleteEventCapability);
 
         /// <remarks />
-        public static readonly NodeId HistoryServerCapabilitiesType_InsertAnnotationsCapability = new NodeId(Opc.Ua.Variables.HistoryServerCapabilitiesType_InsertAnnotationsCapability);
+        public static readonly NodeId HistoryServerCapabilitiesType_InsertAnnotationCapability = new NodeId(Opc.Ua.Variables.HistoryServerCapabilitiesType_InsertAnnotationCapability);
 
         /// <remarks />
-        public static readonly NodeId HistoryServerCapabilitiesType_ServerTimestampCapability = new NodeId(Opc.Ua.Variables.HistoryServerCapabilitiesType_ServerTimestampCapability);
+        public static readonly NodeId HistoryServerCapabilitiesType_ServerTimestampSupported = new NodeId(Opc.Ua.Variables.HistoryServerCapabilitiesType_ServerTimestampSupported);
 
         /// <remarks />
         public static readonly NodeId AuditHistoryEventUpdateEventType_UpdatedNode = new NodeId(Opc.Ua.Variables.AuditHistoryEventUpdateEventType_UpdatedNode);
@@ -62410,7 +62410,7 @@ namespace Opc.Ua
         public const string InputNode = "InputNode";
 
         /// <remarks />
-        public const string InsertAnnotationsCapability = "InsertAnnotationsCapability";
+        public const string InsertAnnotationCapability = "InsertAnnotationCapability";
 
         /// <remarks />
         public const string InsertDataCapability = "InsertDataCapability";
@@ -64339,10 +64339,7 @@ namespace Opc.Ua
         public const string ServerStatusType = "ServerStatusType";
 
         /// <remarks />
-        public const string ServerTimestampCapability = "ServerTimestampCapability";
-
-        /// <remarks />
-        public const string ServerTimestampIncluded = "ServerTimestampIncluded";
+        public const string ServerTimestampSupported = "ServerTimestampSupported";
 
         /// <remarks />
         public const string ServerType = "ServerType";

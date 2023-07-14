@@ -61316,9 +61316,9 @@ namespace Opc.Ua
                 StartOfOnlineArchive.Initialize(context, StartOfOnlineArchive_InitializationString);
             }
 
-            if (ServerTimestampIncluded != null)
+            if (ServerTimestampSupported != null)
             {
-                ServerTimestampIncluded.Initialize(context, ServerTimestampIncluded_InitializationString);
+                ServerTimestampSupported.Initialize(context, ServerTimestampSupported_InitializationString);
             }
 
             if (MaxTimeStoredValues != null)
@@ -61363,9 +61363,9 @@ namespace Opc.Ua
            "//////////8VYIkKAgAAAAAAFAAAAFN0YXJ0T2ZPbmxpbmVBcmNoaXZlAQDsLAAuAETsLAAAAQAmAf//" +
            "//8BAf////8AAAAA";
 
-        private const string ServerTimestampIncluded_InitializationString =
-           "//////////8VYIkKAgAAAAAAFwAAAFNlcnZlclRpbWVzdGFtcEluY2x1ZGVkAQCUSgAuAESUSgAAAAH/" +
-           "////AQH/////AAAAAA==";
+        private const string ServerTimestampSupported_InitializationString =
+           "//////////8VYIkKAgAAAAAAGAAAAFNlcnZlclRpbWVzdGFtcFN1cHBvcnRlZAEAqH8ALgBEqH8AAAAB" +
+           "/////wEB/////wAAAAA=";
 
         private const string MaxTimeStoredValues_InitializationString =
            "//////////8VYIkKAgAAAAAAEwAAAE1heFRpbWVTdG9yZWRWYWx1ZXMBAGt/AC4ARGt/AAABACIB////" +
@@ -61391,10 +61391,10 @@ namespace Opc.Ua
            "AABFeGNlcHRpb25EZXZpYXRpb25Gb3JtYXQBABgJAC4ARBgJAAABAHoD/////wEB/////wAAAAAVYIkK" +
            "AgAAAAAADgAAAFN0YXJ0T2ZBcmNoaXZlAQDrLAAuAETrLAAAAQAmAf////8BAf////8AAAAAFWCJCgIA" +
            "AAAAABQAAABTdGFydE9mT25saW5lQXJjaGl2ZQEA7CwALgBE7CwAAAEAJgH/////AQH/////AAAAABVg" +
-           "iQoCAAAAAAAXAAAAU2VydmVyVGltZXN0YW1wSW5jbHVkZWQBAJRKAC4ARJRKAAAAAf////8BAf////8A" +
-           "AAAAFWCJCgIAAAAAABMAAABNYXhUaW1lU3RvcmVkVmFsdWVzAQBrfwAuAERrfwAAAQAiAf////8BAf//" +
-           "//8AAAAAFWCJCgIAAAAAABQAAABNYXhDb3VudFN0b3JlZFZhbHVlcwEAbH8ALgBEbH8AAAAH/////wEB" +
-           "/////wAAAAA=";
+           "iQoCAAAAAAAYAAAAU2VydmVyVGltZXN0YW1wU3VwcG9ydGVkAQCofwAuAESofwAAAAH/////AQH/////" +
+           "AAAAABVgiQoCAAAAAAATAAAATWF4VGltZVN0b3JlZFZhbHVlcwEAa38ALgBEa38AAAEAIgH/////AQH/" +
+           "////AAAAABVgiQoCAAAAAAAUAAAATWF4Q291bnRTdG9yZWRWYWx1ZXMBAGx/AC4ARGx/AAAAB/////8B" +
+           "Af////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -61591,21 +61591,21 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public PropertyState<bool> ServerTimestampIncluded
+        public PropertyState<bool> ServerTimestampSupported
         {
             get
             {
-                return m_serverTimestampIncluded;
+                return m_serverTimestampSupported;
             }
 
             set
             {
-                if (!Object.ReferenceEquals(m_serverTimestampIncluded, value))
+                if (!Object.ReferenceEquals(m_serverTimestampSupported, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.Children;
                 }
 
-                m_serverTimestampIncluded = value;
+                m_serverTimestampSupported = value;
             }
         }
 
@@ -61704,9 +61704,9 @@ namespace Opc.Ua
                 children.Add(m_startOfOnlineArchive);
             }
 
-            if (m_serverTimestampIncluded != null)
+            if (m_serverTimestampSupported != null)
             {
-                children.Add(m_serverTimestampIncluded);
+                children.Add(m_serverTimestampSupported);
             }
 
             if (m_maxTimeStoredValues != null)
@@ -61948,24 +61948,24 @@ namespace Opc.Ua
                     break;
                 }
 
-                case Opc.Ua.BrowseNames.ServerTimestampIncluded:
+                case Opc.Ua.BrowseNames.ServerTimestampSupported:
                 {
                     if (createOrReplace)
                     {
-                        if (ServerTimestampIncluded == null)
+                        if (ServerTimestampSupported == null)
                         {
                             if (replacement == null)
                             {
-                                ServerTimestampIncluded = new PropertyState<bool>(this);
+                                ServerTimestampSupported = new PropertyState<bool>(this);
                             }
                             else
                             {
-                                ServerTimestampIncluded = (PropertyState<bool>)replacement;
+                                ServerTimestampSupported = (PropertyState<bool>)replacement;
                             }
                         }
                     }
 
-                    instance = ServerTimestampIncluded;
+                    instance = ServerTimestampSupported;
                     break;
                 }
 
@@ -62032,7 +62032,7 @@ namespace Opc.Ua
         private PropertyState<ExceptionDeviationFormat> m_exceptionDeviationFormat;
         private PropertyState<DateTime> m_startOfArchive;
         private PropertyState<DateTime> m_startOfOnlineArchive;
-        private PropertyState<bool> m_serverTimestampIncluded;
+        private PropertyState<bool> m_serverTimestampSupported;
         private PropertyState<double> m_maxTimeStoredValues;
         private PropertyState<uint> m_maxCountStoredValues;
         #endregion
@@ -62805,16 +62805,16 @@ namespace Opc.Ua
         {
             base.InitializeOptionalChildren(context);
 
-            if (ServerTimestampCapability != null)
+            if (ServerTimestampSupported != null)
             {
-                ServerTimestampCapability.Initialize(context, ServerTimestampCapability_InitializationString);
+                ServerTimestampSupported.Initialize(context, ServerTimestampSupported_InitializationString);
             }
         }
 
         #region Initialization String
-        private const string ServerTimestampCapability_InitializationString =
-           "//////////8VYIkKAgAAAAAAGQAAAFNlcnZlclRpbWVzdGFtcENhcGFiaWxpdHkBAJZKAC4ARJZKAAAA" +
-           "Af////8BAf////8AAAAA";
+        private const string ServerTimestampSupported_InitializationString =
+           "//////////8VYIkKAgAAAAAAGAAAAFNlcnZlclRpbWVzdGFtcFN1cHBvcnRlZAEAlkoALgBElkoAAAAB" +
+           "/////wEB/////wAAAAA=";
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAJQAAAEhpc3RvcnlTZXJ2ZXJDYXBhYmlsaXRpZXNUeXBlSW5zdGFuY2UB" +
@@ -62832,10 +62832,10 @@ namespace Opc.Ua
            "CgIAAAAAABYAAABSZXBsYWNlRXZlbnRDYXBhYmlsaXR5AQAPLAAuAEQPLAAAAAH/////AQH/////AAAA" +
            "ABVgiQoCAAAAAAAVAAAAVXBkYXRlRXZlbnRDYXBhYmlsaXR5AQAQLAAuAEQQLAAAAAH/////AQH/////" +
            "AAAAABVgiQoCAAAAAAAVAAAARGVsZXRlRXZlbnRDYXBhYmlsaXR5AQDtLAAuAETtLAAAAAH/////AQH/" +
-           "////AAAAABVgiQoCAAAAAAAbAAAASW5zZXJ0QW5ub3RhdGlvbnNDYXBhYmlsaXR5AQAGLAAuAEQGLAAA" +
-           "AAH/////AQH/////AAAAAARggAoBAAAAAAASAAAAQWdncmVnYXRlRnVuY3Rpb25zAQCkKwAvAD2kKwAA" +
-           "/////wAAAAAVYIkKAgAAAAAAGQAAAFNlcnZlclRpbWVzdGFtcENhcGFiaWxpdHkBAJZKAC4ARJZKAAAA" +
-           "Af////8BAf////8AAAAA";
+           "////AAAAABVgiQoCAAAAAAAaAAAASW5zZXJ0QW5ub3RhdGlvbkNhcGFiaWxpdHkBAAYsAC4ARAYsAAAA" +
+           "Af////8BAf////8AAAAABGCACgEAAAAAABIAAABBZ2dyZWdhdGVGdW5jdGlvbnMBAKQrAC8APaQrAAD/" +
+           "////AAAAABVgiQoCAAAAAAAYAAAAU2VydmVyVGltZXN0YW1wU3VwcG9ydGVkAQCWSgAuAESWSgAAAAH/" +
+           "////AQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -63089,21 +63089,21 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public PropertyState<bool> InsertAnnotationsCapability
+        public PropertyState<bool> InsertAnnotationCapability
         {
             get
             {
-                return m_insertAnnotationsCapability;
+                return m_insertAnnotationCapability;
             }
 
             set
             {
-                if (!Object.ReferenceEquals(m_insertAnnotationsCapability, value))
+                if (!Object.ReferenceEquals(m_insertAnnotationCapability, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.Children;
                 }
 
-                m_insertAnnotationsCapability = value;
+                m_insertAnnotationCapability = value;
             }
         }
 
@@ -63127,21 +63127,21 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public PropertyState<bool> ServerTimestampCapability
+        public PropertyState<bool> ServerTimestampSupported
         {
             get
             {
-                return m_serverTimestampCapability;
+                return m_serverTimestampSupported;
             }
 
             set
             {
-                if (!Object.ReferenceEquals(m_serverTimestampCapability, value))
+                if (!Object.ReferenceEquals(m_serverTimestampSupported, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.Children;
                 }
 
-                m_serverTimestampCapability = value;
+                m_serverTimestampSupported = value;
             }
         }
         #endregion
@@ -63217,9 +63217,9 @@ namespace Opc.Ua
                 children.Add(m_deleteEventCapability);
             }
 
-            if (m_insertAnnotationsCapability != null)
+            if (m_insertAnnotationCapability != null)
             {
-                children.Add(m_insertAnnotationsCapability);
+                children.Add(m_insertAnnotationCapability);
             }
 
             if (m_aggregateFunctions != null)
@@ -63227,9 +63227,9 @@ namespace Opc.Ua
                 children.Add(m_aggregateFunctions);
             }
 
-            if (m_serverTimestampCapability != null)
+            if (m_serverTimestampSupported != null)
             {
-                children.Add(m_serverTimestampCapability);
+                children.Add(m_serverTimestampSupported);
             }
 
             base.GetChildren(context, children);
@@ -63524,24 +63524,24 @@ namespace Opc.Ua
                     break;
                 }
 
-                case Opc.Ua.BrowseNames.InsertAnnotationsCapability:
+                case Opc.Ua.BrowseNames.InsertAnnotationCapability:
                 {
                     if (createOrReplace)
                     {
-                        if (InsertAnnotationsCapability == null)
+                        if (InsertAnnotationCapability == null)
                         {
                             if (replacement == null)
                             {
-                                InsertAnnotationsCapability = new PropertyState<bool>(this);
+                                InsertAnnotationCapability = new PropertyState<bool>(this);
                             }
                             else
                             {
-                                InsertAnnotationsCapability = (PropertyState<bool>)replacement;
+                                InsertAnnotationCapability = (PropertyState<bool>)replacement;
                             }
                         }
                     }
 
-                    instance = InsertAnnotationsCapability;
+                    instance = InsertAnnotationCapability;
                     break;
                 }
 
@@ -63566,24 +63566,24 @@ namespace Opc.Ua
                     break;
                 }
 
-                case Opc.Ua.BrowseNames.ServerTimestampCapability:
+                case Opc.Ua.BrowseNames.ServerTimestampSupported:
                 {
                     if (createOrReplace)
                     {
-                        if (ServerTimestampCapability == null)
+                        if (ServerTimestampSupported == null)
                         {
                             if (replacement == null)
                             {
-                                ServerTimestampCapability = new PropertyState<bool>(this);
+                                ServerTimestampSupported = new PropertyState<bool>(this);
                             }
                             else
                             {
-                                ServerTimestampCapability = (PropertyState<bool>)replacement;
+                                ServerTimestampSupported = (PropertyState<bool>)replacement;
                             }
                         }
                     }
 
-                    instance = ServerTimestampCapability;
+                    instance = ServerTimestampSupported;
                     break;
                 }
             }
@@ -63611,9 +63611,9 @@ namespace Opc.Ua
         private PropertyState<bool> m_replaceEventCapability;
         private PropertyState<bool> m_updateEventCapability;
         private PropertyState<bool> m_deleteEventCapability;
-        private PropertyState<bool> m_insertAnnotationsCapability;
+        private PropertyState<bool> m_insertAnnotationCapability;
         private FolderState m_aggregateFunctions;
-        private PropertyState<bool> m_serverTimestampCapability;
+        private PropertyState<bool> m_serverTimestampSupported;
         #endregion
     }
     #endif

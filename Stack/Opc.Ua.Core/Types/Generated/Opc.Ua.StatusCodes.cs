@@ -300,6 +300,16 @@ namespace Opc.Ua
         public const uint BadLicenseNotAvailable = 0x81100000;
 
         /// <summary>
+        /// The Server does not have the resources to process the request at this time.
+        /// </summary>
+        public const uint BadServerTooBusy = 0x80EE0000;
+
+        /// <summary>
+        /// The log-on for the user succeeded but the user is required to change the password.
+        /// </summary>
+        public const uint GoodPasswordChangeRequired = 0x00EF0000;
+
+        /// <summary>
         /// The subscription was transferred to another session.
         /// </summary>
         public const uint GoodSubscriptionTransferred = 0x002D0000;

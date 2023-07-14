@@ -51050,18 +51050,10 @@ namespace Opc.Ua
             
         private void Initialize()
         {
-            m_nodeId = null;
         }
         #endregion
 
         #region Public Properties
-        /// <remarks />
-        [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
-        public NodeId NodeId
-        {
-            get { return m_nodeId;  }
-            set { m_nodeId = value; }
-        }
         #endregion
 
         #region IEncodeable Members
@@ -51082,7 +51074,6 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            encoder.WriteNodeId("NodeId", NodeId);
 
             encoder.PopNamespace();
         }
@@ -51092,7 +51083,6 @@ namespace Opc.Ua
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
-            NodeId = decoder.ReadNodeId("NodeId");
 
             decoder.PopNamespace();
         }
@@ -51112,7 +51102,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!Utils.IsEqual(m_nodeId, value.m_nodeId)) return false;
 
             return true;
         }
@@ -51128,14 +51117,12 @@ namespace Opc.Ua
         {
             HistoryUpdateDetails clone = (HistoryUpdateDetails)base.MemberwiseClone();
 
-            clone.m_nodeId = (NodeId)Utils.Clone(this.m_nodeId);
 
             return clone;
         }
         #endregion
 
         #region Private Fields
-        private NodeId m_nodeId;
         #endregion
     }
     #endif
@@ -51218,6 +51205,7 @@ namespace Opc.Ua
 
         private void Initialize()
         {
+            m_nodeId = null;
             m_performInsertReplace = PerformUpdateType.Insert;
             m_updateValues = new DataValueCollection();
         }
@@ -51225,7 +51213,15 @@ namespace Opc.Ua
 
         #region Public Properties
         /// <remarks />
-        [DataMember(Name = "PerformInsertReplace", IsRequired = false, Order = 1)]
+        [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
+        public override NodeId NodeId
+        {
+            get { return m_nodeId;  }
+            set { m_nodeId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PerformInsertReplace", IsRequired = false, Order = 2)]
         public PerformUpdateType PerformInsertReplace
         {
             get { return m_performInsertReplace;  }
@@ -51233,7 +51229,7 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        [DataMember(Name = "UpdateValues", IsRequired = false, Order = 2)]
+        [DataMember(Name = "UpdateValues", IsRequired = false, Order = 3)]
         public DataValueCollection UpdateValues
         {
             get
@@ -51273,6 +51269,7 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
+            encoder.WriteNodeId("NodeId", NodeId);
             encoder.WriteEnumerated("PerformInsertReplace", PerformInsertReplace);
             encoder.WriteDataValueArray("UpdateValues", UpdateValues);
 
@@ -51286,6 +51283,7 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
+            NodeId = decoder.ReadNodeId("NodeId");
             PerformInsertReplace = (PerformUpdateType)decoder.ReadEnumerated("PerformInsertReplace", typeof(PerformUpdateType));
             UpdateValues = decoder.ReadDataValueArray("UpdateValues");
 
@@ -51308,6 +51306,7 @@ namespace Opc.Ua
             }
 
             if (!base.IsEqual(encodeable)) return false;
+            if (!Utils.IsEqual(m_nodeId, value.m_nodeId)) return false;
             if (!Utils.IsEqual(m_performInsertReplace, value.m_performInsertReplace)) return false;
             if (!Utils.IsEqual(m_updateValues, value.m_updateValues)) return false;
 
@@ -51325,6 +51324,7 @@ namespace Opc.Ua
         {
             UpdateDataDetails clone = (UpdateDataDetails)base.MemberwiseClone();
 
+            clone.m_nodeId = (NodeId)Utils.Clone(this.m_nodeId);
             clone.m_performInsertReplace = (PerformUpdateType)Utils.Clone(this.m_performInsertReplace);
             clone.m_updateValues = (DataValueCollection)Utils.Clone(this.m_updateValues);
 
@@ -51333,6 +51333,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
+        private NodeId m_nodeId;
         private PerformUpdateType m_performInsertReplace;
         private DataValueCollection m_updateValues;
         #endregion
@@ -51363,6 +51364,7 @@ namespace Opc.Ua
 
         private void Initialize()
         {
+            m_nodeId = null;
             m_performInsertReplace = PerformUpdateType.Insert;
             m_updateValues = new DataValueCollection();
         }
@@ -51370,7 +51372,15 @@ namespace Opc.Ua
 
         #region Public Properties
         /// <remarks />
-        [DataMember(Name = "PerformInsertReplace", IsRequired = false, Order = 1)]
+        [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
+        public override NodeId NodeId
+        {
+            get { return m_nodeId;  }
+            set { m_nodeId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PerformInsertReplace", IsRequired = false, Order = 2)]
         public PerformUpdateType PerformInsertReplace
         {
             get { return m_performInsertReplace;  }
@@ -51378,7 +51388,7 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        [DataMember(Name = "UpdateValues", IsRequired = false, Order = 2)]
+        [DataMember(Name = "UpdateValues", IsRequired = false, Order = 3)]
         public DataValueCollection UpdateValues
         {
             get
@@ -51418,6 +51428,7 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
+            encoder.WriteNodeId("NodeId", NodeId);
             encoder.WriteEnumerated("PerformInsertReplace", PerformInsertReplace);
             encoder.WriteDataValueArray("UpdateValues", UpdateValues);
 
@@ -51431,6 +51442,7 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
+            NodeId = decoder.ReadNodeId("NodeId");
             PerformInsertReplace = (PerformUpdateType)decoder.ReadEnumerated("PerformInsertReplace", typeof(PerformUpdateType));
             UpdateValues = decoder.ReadDataValueArray("UpdateValues");
 
@@ -51453,6 +51465,7 @@ namespace Opc.Ua
             }
 
             if (!base.IsEqual(encodeable)) return false;
+            if (!Utils.IsEqual(m_nodeId, value.m_nodeId)) return false;
             if (!Utils.IsEqual(m_performInsertReplace, value.m_performInsertReplace)) return false;
             if (!Utils.IsEqual(m_updateValues, value.m_updateValues)) return false;
 
@@ -51470,6 +51483,7 @@ namespace Opc.Ua
         {
             UpdateStructureDataDetails clone = (UpdateStructureDataDetails)base.MemberwiseClone();
 
+            clone.m_nodeId = (NodeId)Utils.Clone(this.m_nodeId);
             clone.m_performInsertReplace = (PerformUpdateType)Utils.Clone(this.m_performInsertReplace);
             clone.m_updateValues = (DataValueCollection)Utils.Clone(this.m_updateValues);
 
@@ -51478,6 +51492,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
+        private NodeId m_nodeId;
         private PerformUpdateType m_performInsertReplace;
         private DataValueCollection m_updateValues;
         #endregion
@@ -51508,6 +51523,7 @@ namespace Opc.Ua
 
         private void Initialize()
         {
+            m_nodeId = null;
             m_performInsertReplace = PerformUpdateType.Insert;
             m_filter = new EventFilter();
             m_eventData = new HistoryEventFieldListCollection();
@@ -51516,7 +51532,15 @@ namespace Opc.Ua
 
         #region Public Properties
         /// <remarks />
-        [DataMember(Name = "PerformInsertReplace", IsRequired = false, Order = 1)]
+        [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
+        public override NodeId NodeId
+        {
+            get { return m_nodeId;  }
+            set { m_nodeId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "PerformInsertReplace", IsRequired = false, Order = 2)]
         public PerformUpdateType PerformInsertReplace
         {
             get { return m_performInsertReplace;  }
@@ -51524,7 +51548,7 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        [DataMember(Name = "Filter", IsRequired = false, Order = 2)]
+        [DataMember(Name = "Filter", IsRequired = false, Order = 3)]
         public EventFilter Filter
         {
             get
@@ -51544,7 +51568,7 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        [DataMember(Name = "EventData", IsRequired = false, Order = 3)]
+        [DataMember(Name = "EventData", IsRequired = false, Order = 4)]
         public HistoryEventFieldListCollection EventData
         {
             get
@@ -51584,6 +51608,7 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
+            encoder.WriteNodeId("NodeId", NodeId);
             encoder.WriteEnumerated("PerformInsertReplace", PerformInsertReplace);
             encoder.WriteEncodeable("Filter", Filter, typeof(EventFilter));
             encoder.WriteEncodeableArray("EventData", EventData.ToArray(), typeof(HistoryEventFieldList));
@@ -51598,6 +51623,7 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
+            NodeId = decoder.ReadNodeId("NodeId");
             PerformInsertReplace = (PerformUpdateType)decoder.ReadEnumerated("PerformInsertReplace", typeof(PerformUpdateType));
             Filter = (EventFilter)decoder.ReadEncodeable("Filter", typeof(EventFilter));
             EventData = (HistoryEventFieldListCollection)decoder.ReadEncodeableArray("EventData", typeof(HistoryEventFieldList));
@@ -51621,6 +51647,7 @@ namespace Opc.Ua
             }
 
             if (!base.IsEqual(encodeable)) return false;
+            if (!Utils.IsEqual(m_nodeId, value.m_nodeId)) return false;
             if (!Utils.IsEqual(m_performInsertReplace, value.m_performInsertReplace)) return false;
             if (!Utils.IsEqual(m_filter, value.m_filter)) return false;
             if (!Utils.IsEqual(m_eventData, value.m_eventData)) return false;
@@ -51639,6 +51666,7 @@ namespace Opc.Ua
         {
             UpdateEventDetails clone = (UpdateEventDetails)base.MemberwiseClone();
 
+            clone.m_nodeId = (NodeId)Utils.Clone(this.m_nodeId);
             clone.m_performInsertReplace = (PerformUpdateType)Utils.Clone(this.m_performInsertReplace);
             clone.m_filter = (EventFilter)Utils.Clone(this.m_filter);
             clone.m_eventData = (HistoryEventFieldListCollection)Utils.Clone(this.m_eventData);
@@ -51648,6 +51676,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
+        private NodeId m_nodeId;
         private PerformUpdateType m_performInsertReplace;
         private EventFilter m_filter;
         private HistoryEventFieldListCollection m_eventData;
@@ -51679,6 +51708,7 @@ namespace Opc.Ua
 
         private void Initialize()
         {
+            m_nodeId = null;
             m_isDeleteModified = true;
             m_startTime = DateTime.MinValue;
             m_endTime = DateTime.MinValue;
@@ -51687,7 +51717,15 @@ namespace Opc.Ua
 
         #region Public Properties
         /// <remarks />
-        [DataMember(Name = "IsDeleteModified", IsRequired = false, Order = 1)]
+        [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
+        public override NodeId NodeId
+        {
+            get { return m_nodeId;  }
+            set { m_nodeId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "IsDeleteModified", IsRequired = false, Order = 2)]
         public bool IsDeleteModified
         {
             get { return m_isDeleteModified;  }
@@ -51695,7 +51733,7 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        [DataMember(Name = "StartTime", IsRequired = false, Order = 2)]
+        [DataMember(Name = "StartTime", IsRequired = false, Order = 3)]
         public DateTime StartTime
         {
             get { return m_startTime;  }
@@ -51703,7 +51741,7 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        [DataMember(Name = "EndTime", IsRequired = false, Order = 3)]
+        [DataMember(Name = "EndTime", IsRequired = false, Order = 4)]
         public DateTime EndTime
         {
             get { return m_endTime;  }
@@ -51731,6 +51769,7 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
+            encoder.WriteNodeId("NodeId", NodeId);
             encoder.WriteBoolean("IsDeleteModified", IsDeleteModified);
             encoder.WriteDateTime("StartTime", StartTime);
             encoder.WriteDateTime("EndTime", EndTime);
@@ -51745,6 +51784,7 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
+            NodeId = decoder.ReadNodeId("NodeId");
             IsDeleteModified = decoder.ReadBoolean("IsDeleteModified");
             StartTime = decoder.ReadDateTime("StartTime");
             EndTime = decoder.ReadDateTime("EndTime");
@@ -51768,6 +51808,7 @@ namespace Opc.Ua
             }
 
             if (!base.IsEqual(encodeable)) return false;
+            if (!Utils.IsEqual(m_nodeId, value.m_nodeId)) return false;
             if (!Utils.IsEqual(m_isDeleteModified, value.m_isDeleteModified)) return false;
             if (!Utils.IsEqual(m_startTime, value.m_startTime)) return false;
             if (!Utils.IsEqual(m_endTime, value.m_endTime)) return false;
@@ -51786,6 +51827,7 @@ namespace Opc.Ua
         {
             DeleteRawModifiedDetails clone = (DeleteRawModifiedDetails)base.MemberwiseClone();
 
+            clone.m_nodeId = (NodeId)Utils.Clone(this.m_nodeId);
             clone.m_isDeleteModified = (bool)Utils.Clone(this.m_isDeleteModified);
             clone.m_startTime = (DateTime)Utils.Clone(this.m_startTime);
             clone.m_endTime = (DateTime)Utils.Clone(this.m_endTime);
@@ -51795,6 +51837,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
+        private NodeId m_nodeId;
         private bool m_isDeleteModified;
         private DateTime m_startTime;
         private DateTime m_endTime;
@@ -51826,13 +51869,22 @@ namespace Opc.Ua
 
         private void Initialize()
         {
+            m_nodeId = null;
             m_reqTimes = new DateTimeCollection();
         }
         #endregion
 
         #region Public Properties
         /// <remarks />
-        [DataMember(Name = "ReqTimes", IsRequired = false, Order = 1)]
+        [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
+        public override NodeId NodeId
+        {
+            get { return m_nodeId;  }
+            set { m_nodeId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ReqTimes", IsRequired = false, Order = 2)]
         public DateTimeCollection ReqTimes
         {
             get
@@ -51872,6 +51924,7 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
+            encoder.WriteNodeId("NodeId", NodeId);
             encoder.WriteDateTimeArray("ReqTimes", ReqTimes);
 
             encoder.PopNamespace();
@@ -51884,6 +51937,7 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
+            NodeId = decoder.ReadNodeId("NodeId");
             ReqTimes = decoder.ReadDateTimeArray("ReqTimes");
 
             decoder.PopNamespace();
@@ -51905,6 +51959,7 @@ namespace Opc.Ua
             }
 
             if (!base.IsEqual(encodeable)) return false;
+            if (!Utils.IsEqual(m_nodeId, value.m_nodeId)) return false;
             if (!Utils.IsEqual(m_reqTimes, value.m_reqTimes)) return false;
 
             return base.IsEqual(encodeable);
@@ -51921,6 +51976,7 @@ namespace Opc.Ua
         {
             DeleteAtTimeDetails clone = (DeleteAtTimeDetails)base.MemberwiseClone();
 
+            clone.m_nodeId = (NodeId)Utils.Clone(this.m_nodeId);
             clone.m_reqTimes = (DateTimeCollection)Utils.Clone(this.m_reqTimes);
 
             return clone;
@@ -51928,6 +51984,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
+        private NodeId m_nodeId;
         private DateTimeCollection m_reqTimes;
         #endregion
     }
@@ -51957,13 +52014,22 @@ namespace Opc.Ua
 
         private void Initialize()
         {
+            m_nodeId = null;
             m_eventIds = new ByteStringCollection();
         }
         #endregion
 
         #region Public Properties
         /// <remarks />
-        [DataMember(Name = "EventIds", IsRequired = false, Order = 1)]
+        [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
+        public override NodeId NodeId
+        {
+            get { return m_nodeId;  }
+            set { m_nodeId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "EventIds", IsRequired = false, Order = 2)]
         public ByteStringCollection EventIds
         {
             get
@@ -52003,6 +52069,7 @@ namespace Opc.Ua
 
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
+            encoder.WriteNodeId("NodeId", NodeId);
             encoder.WriteByteStringArray("EventIds", EventIds);
 
             encoder.PopNamespace();
@@ -52015,6 +52082,7 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
 
+            NodeId = decoder.ReadNodeId("NodeId");
             EventIds = decoder.ReadByteStringArray("EventIds");
 
             decoder.PopNamespace();
@@ -52036,6 +52104,7 @@ namespace Opc.Ua
             }
 
             if (!base.IsEqual(encodeable)) return false;
+            if (!Utils.IsEqual(m_nodeId, value.m_nodeId)) return false;
             if (!Utils.IsEqual(m_eventIds, value.m_eventIds)) return false;
 
             return base.IsEqual(encodeable);
@@ -52052,6 +52121,7 @@ namespace Opc.Ua
         {
             DeleteEventDetails clone = (DeleteEventDetails)base.MemberwiseClone();
 
+            clone.m_nodeId = (NodeId)Utils.Clone(this.m_nodeId);
             clone.m_eventIds = (ByteStringCollection)Utils.Clone(this.m_eventIds);
 
             return clone;
@@ -52059,6 +52129,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
+        private NodeId m_nodeId;
         private ByteStringCollection m_eventIds;
         #endregion
     }

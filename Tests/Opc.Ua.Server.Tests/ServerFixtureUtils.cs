@@ -150,17 +150,67 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Validate the response of a service call and validate the number of items returned.
+        /// </summary>
+        /// <remarks>
+        /// On the client the generated code already validates the response but the
+        /// check is duplicated here to catch also issues when running tests within
+        /// the shared client/server context.
+        /// </remarks>
+        /// <param name="header">The response header of the service call.</param>
+        /// <param name="response">The list of returned values by the service call.</param>
+        /// <param name="request">The list of requests passed to the service call.</param>
+        public static void ValidateResponse(ResponseHeader header, IList response, IList request)
+        {
+            ValidateResponse(header);
+
+            if (response is DiagnosticInfoCollection)
+            {
+                throw new ArgumentException("Must call ValidateDiagnosticInfos() for DiagnosticInfoCollections.", nameof(response));
+            }
+
+            if (response == null || response.Count != request.Count)
+            {
+                throw new ServiceResultException(StatusCodes.BadUnexpectedError, "The server returned a list without the expected number of elements.");
+            }
+        }
+
+        /// <summary>
         /// Validate the diagnostic response of a service call.
         /// </summary>
         /// <param name="response">The diagnostic info response.</param>
         /// <param name="request">The request items of the service call.</param>
-        public static void ValidateDiagnosticInfos(DiagnosticInfoCollection response, IList request)
+        public static void ValidateDiagnosticInfos(DiagnosticInfoCollection response, IList request, StringCollection stringTable)
         {
             // returning an empty list for diagnostic info arrays is allowed.
-            if (response != null && response.Count != 0 && response.Count != request.Count)
+            if (response != null && response.Count != 0)
             {
-                throw new ServiceResultException(StatusCodes.BadUnexpectedError,
-                    "The server forgot to fill in the DiagnosticInfos array correctly when returning an operation level error.");
+                if (response.Count != request.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadUnexpectedError,
+                        "The server forgot to fill in the DiagnosticInfos array correctly when returning an operation level error.");
+                }
+
+                // now validate the string table
+                if (stringTable != null)
+                {
+                    for (int ii = 0; ii < response.Count; ii++)
+                    {
+                        if (response[ii] is DiagnosticInfo diagnosticInfo && !diagnosticInfo.IsNullDiagnosticInfo)
+                        {
+                            if (diagnosticInfo.NamespaceUri >= stringTable.Count ||
+                                diagnosticInfo.SymbolicId >= stringTable.Count ||
+                                diagnosticInfo.Locale >= stringTable.Count ||
+                                diagnosticInfo.LocalizedText >= stringTable.Count)
+                            {
+                                throw new ServiceResultException(StatusCodes.BadUnexpectedError,
+                                    "The server forgot to fill in string table for the DiagnosticInfos array correctly when returning an operation level error.");
+                            }
+                            var serviceResult = new ServiceResult(StatusCodes.Good, ii, response, stringTable);
+                            Utils.LogInfo("DiagnosticInfo: {0}", serviceResult.ToString());
+                        }
+                    }
+                }
             }
         }
 
