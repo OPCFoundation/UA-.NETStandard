@@ -535,6 +535,8 @@ namespace Opc.Ua.Client.Tests
                 var dataValue = Session.ReadValue(nodeId);
                 Assert.NotNull(dataValue);
                 Assert.NotNull(dataValue.Value);
+                Assert.AreNotEqual(DateTime.MinValue, dataValue.SourceTimestamp);
+                Assert.AreNotEqual(DateTime.MinValue, dataValue.ServerTimestamp);
             }
         }
 
@@ -543,7 +545,7 @@ namespace Opc.Ua.Client.Tests
         {
             var namespaceUris = Session.NamespaceUris;
             var testSet = new NodeIdCollection(GetTestSetStatic(namespaceUris));
-            testSet.AddRange(GetTestSetSimulation(namespaceUris));
+            testSet.AddRange(GetTestSetFullSimulation(namespaceUris));
             Session.ReadValues(testSet, out DataValueCollection values, out IList<ServiceResult> errors);
             Assert.AreEqual(testSet.Count, values.Count);
             Assert.AreEqual(testSet.Count, errors.Count);
@@ -554,7 +556,7 @@ namespace Opc.Ua.Client.Tests
         {
             var namespaceUris = Session.NamespaceUris;
             var testSet = GetTestSetStatic(namespaceUris).ToList();
-            testSet.AddRange(GetTestSetSimulation(namespaceUris));
+            testSet.AddRange(GetTestSetFullSimulation(namespaceUris));
             DataValueCollection values;
             IList<ServiceResult> errors;
             (values, errors) = await Session.ReadValuesAsync(new NodeIdCollection(testSet)).ConfigureAwait(false);
@@ -1008,6 +1010,48 @@ namespace Opc.Ua.Client.Tests
             {
                 transferSession?.Dispose();
             }
+        }
+
+        /// <summary>
+        /// Read BuildInfo and ensure the values in the structure are the same as in the properties.
+        /// </summary>
+        [Test, Order(10000)]
+        public void ReadBuildInfo()
+        {
+            NodeIdCollection nodes = new NodeIdCollection()
+            {
+                VariableIds.Server_ServerStatus_BuildInfo,
+                VariableIds.Server_ServerStatus_BuildInfo_ProductName,
+                VariableIds.Server_ServerStatus_BuildInfo_ProductUri,
+                VariableIds.Server_ServerStatus_BuildInfo_ManufacturerName,
+                VariableIds.Server_ServerStatus_BuildInfo_SoftwareVersion,
+                VariableIds.Server_ServerStatus_BuildInfo_BuildNumber,
+                VariableIds.Server_ServerStatus_BuildInfo_BuildDate
+            };
+
+            Session.ReadNodes(nodes, out IList<Node> nodeCollection, out IList<ServiceResult> errors);
+            Assert.NotNull(nodeCollection);
+            Assert.NotNull(errors);
+            Assert.AreEqual(nodes.Count, nodeCollection.Count);
+            Assert.AreEqual(nodes.Count, errors.Count);
+
+            Session.ReadValues(nodes, out DataValueCollection values, out IList<ServiceResult> errors2);
+            Assert.NotNull(values);
+            Assert.NotNull(errors);
+            Assert.AreEqual(nodes.Count, values.Count);
+            Assert.AreEqual(nodes.Count, errors2.Count);
+
+            IList<VariableNode> variableNodes = nodeCollection.Cast<VariableNode>().ToList();
+
+            // test build info contains the equal values as the properties
+            var buildInfo = (values[0].Value as ExtensionObject)?.Body as BuildInfo;
+            Assert.NotNull(buildInfo);
+            Assert.AreEqual(buildInfo.ProductName, values[1].Value);
+            Assert.AreEqual(buildInfo.ProductUri, values[2].Value);
+            Assert.AreEqual(buildInfo.ManufacturerName, values[3].Value);
+            Assert.AreEqual(buildInfo.SoftwareVersion, values[4].Value);
+            Assert.AreEqual(buildInfo.BuildNumber, values[5].Value);
+            Assert.AreEqual(buildInfo.BuildDate, values[6].Value);
         }
         #endregion
 
