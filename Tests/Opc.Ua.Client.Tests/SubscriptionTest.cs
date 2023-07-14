@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -650,72 +651,63 @@ namespace Opc.Ua.Client.Tests
                 // Write "Stopped" message along with OperationName, Id, and Duration when an activity stops
                 ActivityStopped = activity =>
                 {
-                       // Console.WriteLine(activity.OperationName + " : " + activity.Id + " : " + activity.Duration);
+                    // Console.WriteLine(activity.OperationName + " : " + activity.Id + " : " + activity.Duration);
 
-                    if (activity.OperationName == "Reconnect")
+                    switch (activity.OperationName)
                     {
-                        Console.WriteLine("Duration of Reconnect(): " + activity.Duration);
+                        case "Reconnect":
+                            Console.WriteLine("Duration of Reconnect(): " + activity.Duration);
+                            break;
+                        case "BeginPublish":
+                            Console.WriteLine("Duration of BeginPublish(): " + activity.Duration);
+                            break;
+                        case "Republish":
+                            Console.WriteLine("Duration of Republish(): " + activity.Duration);
+                            break;
+                        case "TransferSubscriptions":
+                            Console.WriteLine("Duration of TransferSubscriptions(): " + activity.Duration);
+                            break;
+                        case "RemoveSubscriptions":
+                            Console.WriteLine("Duration of RemoveSubscriptions(): " + activity.Duration);
+                            break;
+                        case "RemoveSubscription":
+                            Console.WriteLine("Duration of RemoveSubscription(): " + activity.Duration);
+                            break;
+                        case "AddSubscription":
+                            Console.WriteLine("Duration of AddSubscription(): " + activity.Duration);
+                            break;
+                        case "Create":
+                            Console.WriteLine("Duration of Create(): " + activity.Duration);
+                            break;
+                        case "Transfer":
+                            Console.WriteLine("Duration of Transfer(): " + activity.Duration);
+                            break;
+                        case "Delete":
+                            Console.WriteLine("Duration of Delete(): " + activity.Duration);
+                            break;
+                        case "Modify":
+                            Console.WriteLine("Duration of Modify(): " + activity.Duration);
+                            break;
+                        case "SetPublishingMode":
+                            Console.WriteLine("Duration of SetPublishingMode(): " + activity.Duration);
+                            break;
+                        case "ReadAsync":
+                            Console.WriteLine("Duration of ReadAsync(): " + activity.Duration);
+                            break;
+                        case "ReadValueAsync":
+                            Console.WriteLine("Duration of ReadValueAsync(): " + activity.Duration);
+                            break;
+                        case "WriteAsync":
+                            Console.WriteLine("Duration of WriteAsync(): " + activity.Duration);
+                            break;
+                        case "CallAsync":
+                            Console.WriteLine("Duration of CallAsync(): " + activity.Duration);
+                            break;
+                        default:
+                            Console.WriteLine("Unknown operation: " + activity.OperationName);
+                            break;
                     }
-                    if (activity.OperationName == "BeginPublish")
-                    {
-                        Console.WriteLine("Duration of BeginPublish(): " + activity.Duration);
-                    }
-                    if (activity.OperationName == "Republish")
-                    {
-                        Console.WriteLine("Duration of Republish(): " + activity.Duration);
-                    }
-                    if (activity.OperationName == "TransferSubscriptions")
-                    {
-                        Console.WriteLine("Duration of TransferSubscriptions(): " + activity.Duration);
-                    }
-                    if (activity.OperationName == "RemoveSubscriptions")
-                    {
-                        Console.WriteLine("Duration of RemoveSubscriptions(): " + activity.Duration);
-                    }
-                    if (activity.OperationName == "RemoveSubscription")
-                    {
-                        Console.WriteLine("Duration of RemoveSubscription(): " + activity.Duration);
-                    }
-                    if (activity.OperationName == "AddSubscription")
-                    {
-                        Console.WriteLine("Duration of AddSubscription(): " + activity.Duration);
-                    }
-                    if (activity.OperationName == "Create")
-                    {
-                        Console.WriteLine("Duration of Create(): " + activity.Duration);
-                    }
-                    if (activity.OperationName == "Transfer")
-                    {
-                        Console.WriteLine("Duration of Transfer(): " + activity.Duration);
-                    }
-                    if (activity.OperationName == "Delete")
-                    {
-                        Console.WriteLine("Duration of Delete(): " + activity.Duration);
-                    }
-                    if (activity.OperationName == "Modify")
-                    {
-                        Console.WriteLine("Duration of Modify(): " + activity.Duration);
-                    }
-                    if (activity.OperationName == "SetPublishingMode")
-                    {
-                        Console.WriteLine("Duration of SetPublishingMode(): " + activity.Duration);
-                    }
-                    if (activity.OperationName == "ReadAsync")
-                    {
-                        Console.WriteLine("Duration of ReadAsync(): " + activity.Duration);
-                    }
-                    if (activity.OperationName == "ReadValueAsync")
-                    {
-                        Console.WriteLine("Duration of ReadValueAsync(): " + activity.Duration);
-                    }
-                    if (activity.OperationName == "WriteAsync")
-                    {
-                        Console.WriteLine("Duration of WriteAsync(): " + activity.Duration);
-                    }
-                    if (activity.OperationName == "CallAsync")
-                    {
-                        Console.WriteLine("Duration of CallAsync(): " + activity.Duration);
-                    }
+
                 }
             };
 

@@ -41,7 +41,6 @@ namespace Opc.Ua
     /// </summary>
     public class SessionClientBatched : SessionClient
     {
-        private static readonly ActivitySource activitySource = new ActivitySource("SessionClientBatchedSource");
 
         #region Constructors
         /// <summary>
@@ -750,7 +749,7 @@ namespace Opc.Ua
             ReadValueIdCollection nodesToRead,
             CancellationToken ct)
         {
-            using (var activity = activitySource.StartActivity("ReadAsync"))
+            using (var activity = ActivityHelper.ActivitySrc.StartActivity("ReadAsync"))
             {
                 ReadResponse response = null;
 
@@ -944,7 +943,7 @@ namespace Opc.Ua
             WriteValueCollection nodesToWrite,
             CancellationToken ct)
         {
-            using (var activity = activitySource.StartActivity("WriteAsync"))
+            using (var activity = ActivityHelper.ActivitySrc.StartActivity("WriteAsync"))
             {
                 WriteResponse response = null;
 
@@ -1128,7 +1127,7 @@ namespace Opc.Ua
             CallMethodRequestCollection methodsToCall,
             CancellationToken ct)
         {
-            using (var activity = activitySource.StartActivity("CallAsync"))
+            using (var activity = ActivityHelper.ActivitySrc.StartActivity("CallAsync"))
             {
                 CallResponse response = null;
 

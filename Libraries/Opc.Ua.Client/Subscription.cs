@@ -43,7 +43,6 @@ namespace Opc.Ua.Client
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public partial class Subscription : IDisposable
     {
-        private static readonly ActivitySource activitySource = new ActivitySource("SessionSource");
 
         #region Constructors
         /// <summary>
@@ -778,7 +777,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public void Create()
         {
-            using (var activity = activitySource.StartActivity("Create"))
+            using (var activity = ActivityHelper.ActivitySrc.StartActivity("Create"))
             {
                 VerifySubscriptionState(false);
 
@@ -823,7 +822,7 @@ namespace Opc.Ua.Client
         /// <param name="availableSequenceNumbers">The available sequence numbers on the server.</param>
         public bool Transfer(ISession session, uint id, UInt32Collection availableSequenceNumbers)
         {
-            using (var activity = activitySource.StartActivity("Transfer"))
+            using (var activity = ActivityHelper.ActivitySrc.StartActivity("Transfer"))
             {
                 if (Created)
                 {
@@ -898,7 +897,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public void Delete(bool silent)
         {
-            using (var activity = activitySource.StartActivity("Delete"))
+            using (var activity = ActivityHelper.ActivitySrc.StartActivity("Delete"))
             {
                 if (!silent)
                 {
@@ -968,7 +967,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public void Modify()
         {
-            using (var activity = activitySource.StartActivity("Modify"))
+            using (var activity = ActivityHelper.ActivitySrc.StartActivity("Modify"))
             {
                 VerifySubscriptionState(true);
 
@@ -1008,7 +1007,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public void SetPublishingMode(bool enabled)
         {
-            using (var activity = activitySource.StartActivity("SetPublishingMode"))
+            using (var activity = ActivityHelper.ActivitySrc.StartActivity("SetPublishingMode"))
             {
                 VerifySubscriptionState(true);
 

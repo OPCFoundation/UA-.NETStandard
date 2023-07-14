@@ -313,7 +313,7 @@ namespace Opc.Ua.Client
             NodeId nodeId,
             CancellationToken ct = default)
         {
-            using (var activity = activitySource.StartActivity("ReadValueAsync"))
+            using (var activity = ActivityHelper.ActivitySrc.StartActivity("ReadValueAsync"))
             {
                 ReadValueId itemToRead = new ReadValueId {
                     NodeId = nodeId,
