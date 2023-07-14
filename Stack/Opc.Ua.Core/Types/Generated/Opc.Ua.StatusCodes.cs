@@ -330,7 +330,7 @@ namespace Opc.Ua
         public const uint BadWaitingForInitialData = 0x80320000;
 
         /// <summary>
-        /// The syntax of the node id is not valid.
+        /// The syntax the node id is not valid or refers to a node that is not valid for the operation.
         /// </summary>
         public const uint BadNodeIdInvalid = 0x80330000;
 
@@ -353,6 +353,11 @@ namespace Opc.Ua
         /// No data exists within the range of indexes specified.
         /// </summary>
         public const uint BadIndexRangeNoData = 0x80370000;
+
+        /// <summary>
+        /// The written data does not match the IndexRange specified.
+        /// </summary>
+        public const uint BadIndexRangeDataMismatch = 0x80EA0000;
 
         /// <summary>
         /// The data encoding is invalid.
@@ -498,6 +503,11 @@ namespace Opc.Ua
         /// The number was not accepted because of a numeric overflow.
         /// </summary>
         public const uint BadNumericOverflow = 0x81120000;
+
+        /// <summary>
+        /// The locale in the requested write operation is not supported.
+        /// </summary>
+        public const uint BadLocaleNotSupported = 0x80ED0000;
 
         /// <summary>
         /// The ServerUri is not a valid URI.
@@ -925,7 +935,7 @@ namespace Opc.Ua
         public const uint UncertainEngineeringUnitsExceeded = 0x40940000;
 
         /// <summary>
-        /// The value is derived from multiple sources and has less than the required number of Good sources.
+        /// The data value is derived from multiple sources and has less than the required number of Good sources.
         /// </summary>
         public const uint UncertainSubNormal = 0x40950000;
 
@@ -933,6 +943,11 @@ namespace Opc.Ua
         /// The value has been overridden.
         /// </summary>
         public const uint GoodLocalOverride = 0x00960000;
+
+        /// <summary>
+        /// The value is derived from multiple sources and has the required number of Good sources, but less than the full number of Good sources.
+        /// </summary>
+        public const uint GoodSubNormal = 0x00EB0000;
 
         /// <summary>
         /// This Condition refresh failed, a Condition refresh operation is already in progress.
@@ -1035,7 +1050,7 @@ namespace Opc.Ua
         public const uint BadNoEntryExists = 0x80A00000;
 
         /// <summary>
-        /// The client requested history using a timestamp format the server does not support (i.e requested ServerTimestamp when server only supports SourceTimestamp).
+        /// The Client requested history using a TimestampsToReturn the Server does not support.
         /// </summary>
         public const uint BadTimestampNotSupported = 0x80A10000;
 
@@ -1050,7 +1065,7 @@ namespace Opc.Ua
         public const uint GoodEntryReplaced = 0x00A30000;
 
         /// <summary>
-        /// The value is derived from multiple values and has less than the required number of Good values.
+        /// The aggregate value is derived from multiple values and has less than the required number of Good values.
         /// </summary>
         public const uint UncertainDataSubNormal = 0x40A40000;
 
@@ -1118,6 +1133,11 @@ namespace Opc.Ua
         /// The requested operation is not allowed, because the Node is locked by a different application.
         /// </summary>
         public const uint BadLocked = 0x80E90000;
+
+        /// <summary>
+        /// The requested operation is not allowed, because the Node is not locked by the application.
+        /// </summary>
+        public const uint BadRequiresLock = 0x80EC0000;
 
         /// <summary>
         /// The value does not come from the real source and has been edited by the server.
