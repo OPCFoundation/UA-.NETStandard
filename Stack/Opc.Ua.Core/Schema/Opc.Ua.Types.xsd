@@ -4766,7 +4766,6 @@
 
   <xs:complexType name="HistoryUpdateDetails">
     <xs:sequence>
-      <xs:element name="NodeId" type="ua:NodeId" minOccurs="0" nillable="true" />
     </xs:sequence>
   </xs:complexType>
   <xs:element name="HistoryUpdateDetails" type="tns:HistoryUpdateDetails" />
@@ -4795,6 +4794,7 @@
     <xs:complexContent mixed="false">
       <xs:extension base="tns:HistoryUpdateDetails">
         <xs:sequence>
+          <xs:element name="NodeId" type="ua:NodeId" minOccurs="0" nillable="true" />
           <xs:element name="PerformInsertReplace" type="tns:PerformUpdateType" minOccurs="0" />
           <xs:element name="UpdateValues" type="ua:ListOfDataValue" minOccurs="0" nillable="true" />
         </xs:sequence>
@@ -4807,6 +4807,7 @@
     <xs:complexContent mixed="false">
       <xs:extension base="tns:HistoryUpdateDetails">
         <xs:sequence>
+          <xs:element name="NodeId" type="ua:NodeId" minOccurs="0" nillable="true" />
           <xs:element name="PerformInsertReplace" type="tns:PerformUpdateType" minOccurs="0" />
           <xs:element name="UpdateValues" type="ua:ListOfDataValue" minOccurs="0" nillable="true" />
         </xs:sequence>
@@ -4819,6 +4820,7 @@
     <xs:complexContent mixed="false">
       <xs:extension base="tns:HistoryUpdateDetails">
         <xs:sequence>
+          <xs:element name="NodeId" type="ua:NodeId" minOccurs="0" nillable="true" />
           <xs:element name="PerformInsertReplace" type="tns:PerformUpdateType" minOccurs="0" />
           <xs:element name="Filter" type="tns:EventFilter" minOccurs="0" nillable="true" />
           <xs:element name="EventData" type="tns:ListOfHistoryEventFieldList" minOccurs="0" nillable="true" />
@@ -4832,6 +4834,7 @@
     <xs:complexContent mixed="false">
       <xs:extension base="tns:HistoryUpdateDetails">
         <xs:sequence>
+          <xs:element name="NodeId" type="ua:NodeId" minOccurs="0" nillable="true" />
           <xs:element name="IsDeleteModified" type="xs:boolean" minOccurs="0" />
           <xs:element name="StartTime" type="xs:dateTime" minOccurs="0" />
           <xs:element name="EndTime" type="xs:dateTime" minOccurs="0" />
@@ -4845,6 +4848,7 @@
     <xs:complexContent mixed="false">
       <xs:extension base="tns:HistoryUpdateDetails">
         <xs:sequence>
+          <xs:element name="NodeId" type="ua:NodeId" minOccurs="0" nillable="true" />
           <xs:element name="ReqTimes" type="ua:ListOfDateTime" minOccurs="0" nillable="true" />
         </xs:sequence>
       </xs:extension>
@@ -4856,6 +4860,7 @@
     <xs:complexContent mixed="false">
       <xs:extension base="tns:HistoryUpdateDetails">
         <xs:sequence>
+          <xs:element name="NodeId" type="ua:NodeId" minOccurs="0" nillable="true" />
           <xs:element name="EventIds" type="ua:ListOfByteString" minOccurs="0" nillable="true" />
         </xs:sequence>
       </xs:extension>
