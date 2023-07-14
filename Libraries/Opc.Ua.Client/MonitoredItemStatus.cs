@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -56,6 +56,7 @@ namespace Opc.Ua.Client
             m_clientHandle = 0;
             m_samplingInterval = 0;
             m_filter = null;
+            m_filterResult = null;
             m_queueSize = 0;
             m_discardOldest = true;
         }
@@ -118,6 +119,11 @@ namespace Opc.Ua.Client
         public MonitoringFilter Filter => m_filter;
 
         /// <summary>
+        /// The result of applying the filter
+        /// </summary>
+        public MonitoringFilterResult FilterResult => m_filterResult;
+
+        /// <summary>
         /// The length of the queue used to buffer values.
         /// </summary>
         public uint QueueSize => m_queueSize;
@@ -168,6 +174,7 @@ namespace Opc.Ua.Client
             m_queueSize = request.RequestedParameters.QueueSize;
             m_discardOldest = request.RequestedParameters.DiscardOldest;
             m_filter = null;
+            m_filterResult = null;
             m_error = error;
 
             if (request.RequestedParameters.Filter != null)
@@ -180,6 +187,11 @@ namespace Opc.Ua.Client
                 m_id = result.MonitoredItemId;
                 m_samplingInterval = result.RevisedSamplingInterval;
                 m_queueSize = result.RevisedQueueSize;
+
+                if (result.FilterResult != null)
+                {
+                    m_filterResult = Utils.Clone(result.FilterResult.Body) as MonitoringFilterResult;
+                }
             }
         }
 
@@ -200,6 +212,7 @@ namespace Opc.Ua.Client
             m_queueSize = monitoredItem.QueueSize;
             m_discardOldest = monitoredItem.DiscardOldest;
             m_filter = null;
+            m_filterResult = null;
 
             if (monitoredItem.Filter != null)
             {
@@ -227,6 +240,7 @@ namespace Opc.Ua.Client
                 m_queueSize = request.RequestedParameters.QueueSize;
                 m_discardOldest = request.RequestedParameters.DiscardOldest;
                 m_filter = null;
+                m_filterResult = null;
 
                 if (request.RequestedParameters.Filter != null)
                 {
@@ -235,6 +249,11 @@ namespace Opc.Ua.Client
 
                 m_samplingInterval = result.RevisedSamplingInterval;
                 m_queueSize = result.RevisedQueueSize;
+
+                if (result.FilterResult != null)
+                {
+                    m_filterResult = Utils.Clone(result.FilterResult.Body) as MonitoringFilterResult;
+                }
             }
         }
 
@@ -267,6 +286,7 @@ namespace Opc.Ua.Client
         private uint m_clientHandle;
         private double m_samplingInterval;
         private MonitoringFilter m_filter;
+        private MonitoringFilterResult m_filterResult;
         private uint m_queueSize;
         private bool m_discardOldest;
         #endregion

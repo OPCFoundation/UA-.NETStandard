@@ -63,6 +63,7 @@ namespace TestData
             m_callback = callback;
             m_minimumSamplingInterval = Int32.MaxValue;
             m_monitoredNodes = new Dictionary<uint, BaseVariableState>();
+            m_samplingNodes = null;
             m_generator = new Opc.Ua.Test.DataGenerator(null);
             m_generator.NamespaceUris = namespaceUris;
             m_generator.ServerUris = serverUris;
@@ -358,6 +359,9 @@ namespace TestData
                         return m_generator.GetRandom(BuiltInType.UInteger);
                     }
 
+                    case TestData.Variables.Data_Static_Structure_VectorStructure:
+                    case TestData.Variables.Data_Dynamic_Structure_VectorStructure:
+                    case TestData.Variables.StructureValueObjectType_VectorStructure:
                     case TestData.Variables.ScalarValueObjectType_VectorValue:
                     {
                         return GetRandomVector();
@@ -655,116 +659,117 @@ namespace TestData
                         return m_generator.GetRandomArray(BuiltInType.UInteger, false, 100, false);
                     }
 
-                    case TestData.Variables.Data_Static_StructureScalar:
-                    case TestData.Variables.Data_Dynamic_StructureScalar:
-                        return GetRandomScalarValueDataType();
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure:
+                    case TestData.Variables.StructureValueObjectType_ScalarStructure:
+                        return GetRandomScalarStructureDataType();
 
-                    case TestData.Variables.Data_Static_StructureScalar_BooleanValue:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_BooleanValue:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_BooleanValue:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_BooleanValue:
                         return m_generator.GetRandomBoolean();
 
-                    case TestData.Variables.Data_Static_StructureScalar_SByteValue:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_SByteValue:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_SByteValue:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_SByteValue:
                         return m_generator.GetRandomSByte();
 
-                    case TestData.Variables.Data_Static_StructureScalar_ByteValue:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_ByteValue:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_ByteValue:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_ByteValue:
                         return m_generator.GetRandomByte();
 
-                    case TestData.Variables.Data_Static_StructureScalar_Int16Value:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_Int16Value:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_Int16Value:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_Int16Value:
                         return m_generator.GetRandomInt16();
 
-                    case TestData.Variables.Data_Static_StructureScalar_UInt16Value:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_UInt16Value:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_UInt16Value:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_UInt16Value:
                         return m_generator.GetRandomUInt16();
 
-                    case TestData.Variables.Data_Static_StructureScalar_Int32Value:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_Int32Value:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_Int32Value:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_Int32Value:
                         return m_generator.GetRandomInt32();
 
-                    case TestData.Variables.Data_Static_StructureScalar_UInt32Value:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_UInt32Value:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_UInt32Value:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_UInt32Value:
                         return m_generator.GetRandomUInt32();
 
-                    case TestData.Variables.Data_Static_StructureScalar_Int64Value:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_Int64Value:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_Int64Value:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_Int64Value:
                         return m_generator.GetRandomInt64();
 
-                    case TestData.Variables.Data_Static_StructureScalar_UInt64Value:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_UInt64Value:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_UInt64Value:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_UInt64Value:
                         return m_generator.GetRandomUInt64();
 
-                    case TestData.Variables.Data_Static_StructureScalar_FloatValue:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_FloatValue:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_FloatValue:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_FloatValue:
                         return m_generator.GetRandomFloat();
 
-                    case TestData.Variables.Data_Static_StructureScalar_DoubleValue:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_DoubleValue:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_DoubleValue:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_DoubleValue:
                         return m_generator.GetRandomDouble();
 
-                    case TestData.Variables.Data_Static_StructureScalar_StringValue:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_StringValue:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_StringValue:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_StringValue:
                         return m_generator.GetRandomString();
 
-                    case TestData.Variables.Data_Static_StructureScalar_DateTimeValue:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_DateTimeValue:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_DateTimeValue:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_DateTimeValue:
                         return m_generator.GetRandomDateTime();
 
-                    case TestData.Variables.Data_Static_StructureScalar_GuidValue:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_GuidValue:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_GuidValue:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_GuidValue:
                         return m_generator.GetRandomGuid();
 
-                    case TestData.Variables.Data_Static_StructureScalar_ByteStringValue:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_ByteStringValue:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_ByteStringValue:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_ByteStringValue:
                         return m_generator.GetRandomByteString();
 
-                    case TestData.Variables.Data_Static_StructureScalar_XmlElementValue:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_XmlElementValue:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_XmlElementValue:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_XmlElementValue:
                         return m_generator.GetRandomXmlElement();
 
-                    case TestData.Variables.Data_Static_StructureScalar_NodeIdValue:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_NodeIdValue:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_NodeIdValue:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_NodeIdValue:
                         return m_generator.GetRandomNodeId();
 
-                    case TestData.Variables.Data_Static_StructureScalar_ExpandedNodeIdValue:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_ExpandedNodeIdValue:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_ExpandedNodeIdValue:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_ExpandedNodeIdValue:
                         return m_generator.GetRandomExpandedNodeId();
 
-                    case TestData.Variables.Data_Static_StructureScalar_QualifiedNameValue:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_QualifiedNameValue:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_QualifiedNameValue:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_QualifiedNameValue:
                         return m_generator.GetRandomQualifiedName();
 
-                    case TestData.Variables.Data_Static_StructureScalar_LocalizedTextValue:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_LocalizedTextValue:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_LocalizedTextValue:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_LocalizedTextValue:
                         return m_generator.GetRandomLocalizedText();
 
-                    case TestData.Variables.Data_Static_StructureScalar_StatusCodeValue:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_StatusCodeValue:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_StatusCodeValue:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_StatusCodeValue:
                         return m_generator.GetRandomStatusCode();
 
-                    case TestData.Variables.Data_Static_StructureScalar_VariantValue:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_VariantValue:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_VariantValue:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_VariantValue:
                         return m_generator.GetRandomVariant();
 
-                    case TestData.Variables.Data_Static_StructureScalar_EnumerationValue:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_EnumerationValue:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_EnumerationValue:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_EnumerationValue:
                         return m_generator.GetRandomByte();
 
-                    case TestData.Variables.Data_Static_StructureScalar_StructureValue:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_StructureValue:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_StructureValue:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_StructureValue:
                         return GetRandomStructure();
 
-                    case TestData.Variables.Data_Static_StructureScalar_NumberValue:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_NumberValue:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_NumberValue:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_NumberValue:
                         return new Variant(m_generator.GetRandomNumber());
 
-                    case TestData.Variables.Data_Static_StructureScalar_IntegerValue:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_IntegerValue:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_IntegerValue:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_IntegerValue:
                         return new Variant(m_generator.GetRandomInteger());
 
-                    case TestData.Variables.Data_Static_StructureScalar_UIntegerValue:
-                    case TestData.Variables.Data_Dynamic_StructureScalar_UIntegerValue:
+                    case TestData.Variables.Data_Static_Structure_ScalarStructure_UIntegerValue:
+                    case TestData.Variables.Data_Dynamic_Structure_ScalarStructure_UIntegerValue:
                         return new Variant(m_generator.GetRandomUInteger());
                 }
 
@@ -802,7 +807,7 @@ namespace TestData
         {
             if (m_generator.GetRandomBoolean())
             {
-                ScalarValueDataType value = GetRandomScalarValueDataType();
+                ScalarStructureDataType value = GetRandomScalarStructureDataType();
                 return new ExtensionObject(value.TypeId, value);
             }
             else
@@ -812,9 +817,9 @@ namespace TestData
             }
         }
 
-        public ScalarValueDataType GetRandomScalarValueDataType()
+        public ScalarStructureDataType GetRandomScalarStructureDataType()
         {
-            ScalarValueDataType value = new ScalarValueDataType {
+            ScalarStructureDataType value = new ScalarStructureDataType {
                 BooleanValue = m_generator.GetRandom<bool>(false),
                 SByteValue = m_generator.GetRandom<sbyte>(false),
                 ByteValue = m_generator.GetRandom<byte>(false),
@@ -891,6 +896,7 @@ namespace TestData
                 }
 
                 m_monitoredNodes[monitoredItemId] = variable;
+                m_samplingNodes = null;
 
                 SetSamplingInterval(samplingInterval);
             }
@@ -948,7 +954,12 @@ namespace TestData
                     return;
                 }
 
-                foreach (BaseVariableState variable in m_monitoredNodes.Values)
+                if (m_samplingNodes == null)
+                {
+                    m_samplingNodes = m_monitoredNodes.Values.Distinct(new NodeStateComparer()).Cast<BaseVariableState>().ToList();
+                }
+
+                foreach (BaseVariableState variable in m_samplingNodes)
                 {
                     if (variable is ITestDataSystemValuesGenerator)
                     {
@@ -983,12 +994,10 @@ namespace TestData
                     sample.Timestamp);
             }
 
-            var distinctValues = generateValues.Distinct().ToList();
-            foreach (var generateValue in distinctValues)
+            foreach (var generateValue in generateValues)
             {
                 m_callback.OnGenerateValues(generateValue);
             }
-
         }
 
         public void StopMonitoringValue(uint monitoredItemId)
@@ -1001,6 +1010,7 @@ namespace TestData
                 }
 
                 m_monitoredNodes.Remove(monitoredItemId);
+                m_samplingNodes = null;
 
                 if (m_monitoredNodes.Count == 0)
                 {
@@ -1023,6 +1033,7 @@ namespace TestData
         private Opc.Ua.Test.DataGenerator m_generator;
         private int m_minimumSamplingInterval;
         private Dictionary<uint, BaseVariableState> m_monitoredNodes;
+        private IList<BaseVariableState> m_samplingNodes;
         private Timer m_timer;
         private StatusCode m_systemStatus;
         private HistoryArchive m_historyArchive;

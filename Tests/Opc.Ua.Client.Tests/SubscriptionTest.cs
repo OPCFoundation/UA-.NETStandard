@@ -283,7 +283,7 @@ namespace Opc.Ua.Client.Tests
                 list.ForEach(i => i.Notification += (MonitoredItem item, MonitoredItemNotificationEventArgs e) => {
                     foreach (var value in item.DequeueValues())
                     {
-                        valueChanges++; 
+                        valueChanges++;
                         TestContext.Out.WriteLine("{0}: {1}, {2}, {3}", item.DisplayName, value.Value, value.SourceTimestamp, value.StatusCode);
                     }
                 });
@@ -292,7 +292,7 @@ namespace Opc.Ua.Client.Tests
                 await subscription.CreateAsync().ConfigureAwait(false);
             }
 
-            await Task.Delay(5000);
+            await Task.Delay(5000).ConfigureAwait(false);
 
             TestContext.Out.WriteLine("{0} value changes.", valueChanges);
 
@@ -308,6 +308,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory, Order(300)]
+        [Timeout(30_000)]
         /// <remarks>
         /// This test doesn't deterministically prove sequential publishing,
         /// but rather relies on a subscription not being able to handle the message load.
@@ -415,6 +416,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(400)]
+        [Timeout(30_000)]
         public async Task PublishRequestCount()
         {
             var subscriptionList = new List<Subscription>();
@@ -439,9 +441,9 @@ namespace Opc.Ua.Client.Tests
                 };
 
                 subscriptionList.Add(subscription);
-                var simulatedNodes = GetTestSetSimulation(Session.NamespaceUris);
                 var list = new List<MonitoredItem>();
-                var nodeSet = simulatedNodes;
+                var nodeSet = GetTestSetFullSimulation(Session.NamespaceUris);
+
                 for (int ii = 0; ii < monitoredItemsPerSubscription; ii++)
                 {
                     var nextNode = nodeSet[ii % nodeSet.Count];
@@ -470,7 +472,7 @@ namespace Opc.Ua.Client.Tests
             while (stopwatch.ElapsedMilliseconds < testWaitTime)
             {
                 // use the sample server default for max publish request count
-                Assert.GreaterOrEqual(maxServerPublishRequest, Session.GoodPublishRequestCount);
+                Assert.GreaterOrEqual(Math.Max(maxServerPublishRequest, subscriptions), Session.GoodPublishRequestCount);
                 await Task.Delay(100).ConfigureAwait(false);
             }
 
@@ -510,8 +512,9 @@ namespace Opc.Ua.Client.Tests
         [Theory, Order(810)]
         public async Task TransferSubscription(TransferType transferType, bool sendInitialValues)
         {
-            const int kTestSubscriptions = 2;
+            const int kTestSubscriptions = 5;
             const int kDelay = 2_000;
+            const int kQueueSize = 10;
 
             // create test session and subscription
             var originSession = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
@@ -537,7 +540,7 @@ namespace Opc.Ua.Client.Tests
 
                 // set defaults
                 subscription.DefaultItem.DiscardOldest = true;
-                subscription.DefaultItem.QueueSize = (ii == 0) ? 0U : 5;
+                subscription.DefaultItem.QueueSize = (ii == 0) ? 0U : kQueueSize;
                 subscription.DefaultItem.MonitoringMode = MonitoringMode.Reporting;
 
                 // create test set
@@ -549,7 +552,7 @@ namespace Opc.Ua.Client.Tests
                 }
                 else
                 {
-                    testSet.AddRange(GetTestSetSimulation(namespaceUris));
+                    testSet.AddRange(GetTestSetFullSimulation(namespaceUris));
                 }
 
                 subscription.Handle = ii;

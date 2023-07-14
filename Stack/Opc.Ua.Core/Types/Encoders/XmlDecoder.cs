@@ -1196,43 +1196,50 @@ namespace Opc.Ua
             m_nestingLevel++;
 
             DiagnosticInfo value = new DiagnosticInfo();
-
+            bool hasDiagnosticInfo = false;
             if (BeginField("SymbolicId", true))
             {
                 value.SymbolicId = ReadInt32(null);
                 EndField("SymbolicId");
+                hasDiagnosticInfo = true;
             }
 
             if (BeginField("NamespaceUri", true))
             {
                 value.NamespaceUri = ReadInt32(null);
                 EndField("NamespaceUri");
+                hasDiagnosticInfo = true;
             }
 
             if (BeginField("Locale", true))
             {
                 value.Locale = ReadInt32(null);
                 EndField("Locale");
+                hasDiagnosticInfo = true;
             }
 
             if (BeginField("LocalizedText", true))
             {
                 value.LocalizedText = ReadInt32(null);
                 EndField("LocalizedText");
+                hasDiagnosticInfo = true;
             }
 
             value.AdditionalInfo = ReadString("AdditionalInfo");
             value.InnerStatusCode = ReadStatusCode("InnerStatusCode");
 
+            hasDiagnosticInfo = hasDiagnosticInfo || value.AdditionalInfo != null || value.InnerStatusCode != StatusCodes.Good;
+
             if (BeginField("InnerDiagnosticInfo", true))
             {
                 value.InnerDiagnosticInfo = ReadDiagnosticInfo();
                 EndField("InnerDiagnosticInfo");
+                hasDiagnosticInfo = true;
             }
 
             m_nestingLevel--;
 
-            return value;
+            return hasDiagnosticInfo ? value : null;
         }
 
         /// <summary>

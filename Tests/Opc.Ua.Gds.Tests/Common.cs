@@ -205,7 +205,7 @@ namespace Opc.Ua.Gds.Tests
                 }
                 if ((random & 4) == 0)
                 {
-                    result.Add(String.Format("https://{0}:{1}/{2}", name, (port++).ToString(), appUri));
+                    result.Add(String.Format("opc.https://{0}:{1}/{2}", name, (port++).ToString(), appUri));
                 }
             }
             return result;
@@ -293,15 +293,15 @@ namespace Opc.Ua.Gds.Tests
 
         public static async Task CleanupTrustList(ICertificateStore store, bool dispose = true)
         {
-            var certs = await store.Enumerate();
+            var certs = await store.Enumerate().ConfigureAwait(false);
             foreach (var cert in certs)
             {
-                await store.Delete(cert.Thumbprint);
+                await store.Delete(cert.Thumbprint).ConfigureAwait(false);
             }
-            var crls = await store.EnumerateCRLs();
+            var crls = await store.EnumerateCRLs().ConfigureAwait(false);
             foreach (var crl in crls)
             {
-                await store.DeleteCRL(crl);
+                await store.DeleteCRL(crl).ConfigureAwait(false);
             }
             if (dispose)
             {

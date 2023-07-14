@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
@@ -47,7 +48,8 @@ namespace Opc.Ua.Client.Tests
     {
         public static readonly object[] FixtureArgs = {
             new object [] { Utils.UriSchemeOpcTcp},
-            new object [] { Utils.UriSchemeHttps}
+            new object [] { Utils.UriSchemeHttps},
+            new object [] { Utils.UriSchemeOpcHttps},
         };
 
         public const int MaxReferences = 100;
@@ -70,12 +72,15 @@ namespace Opc.Ua.Client.Tests
         public Uri ServerUrl { get; private set; }
         public ExpandedNodeId[] TestSetStatic { get; private set; }
         public ExpandedNodeId[] TestSetSimulation { get; private set; }
-
+        public ExpandedNodeId[] TestSetDataSimulation { get; private set; }
+        public ExpandedNodeId[] TestSetHistory { get; private set; }
         public ClientTestFramework(string uriScheme = Utils.UriSchemeOpcTcp)
         {
             UriScheme = uriScheme;
             TestSetStatic = CommonTestWorkers.NodeIdTestSetStatic;
             TestSetSimulation = CommonTestWorkers.NodeIdTestSetSimulation;
+            TestSetDataSimulation = CommonTestWorkers.NodeIdTestSetDataSimulation;
+            TestSetHistory = CommonTestWorkers.NodeIdTestDataHistory;
         }
 
         #region DataPointSources
@@ -169,11 +174,12 @@ namespace Opc.Ua.Client.Tests
                 try
                 {
                     Session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+                    Assert.NotNull(Session);
                     Session.ReturnDiagnostics = DiagnosticsMasks.All;
                 }
                 catch (Exception e)
                 {
-                    Assert.Ignore("OneTimeSetup failed to create session, tests skipped. Error: {0}", e.Message);
+                    Assert.Warn("OneTimeSetup failed to create session with {0}, tests fail. Error: {1}", ServerUrl, e.Message);
                 }
             }
         }
@@ -256,6 +262,38 @@ namespace Opc.Ua.Client.Tests
         public IList<NodeId> GetTestSetSimulation(NamespaceTable namespaceUris)
         {
             return TestSetSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null).ToList();
+        }
+
+        /// <summary>
+        /// Return a test set of nodes all nodes with simulated values.
+        /// </summary>
+        /// <param name="namespaceUris">The namesapce table used in the session.</param>
+        /// <returns>The list of simulated test nodes.</returns>
+        public IList<NodeId> GetTestSetFullSimulation(NamespaceTable namespaceUris)
+        {
+            var simulation = TestSetSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null).ToList();
+            simulation.AddRange(TestSetDataSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null));
+            return simulation;
+        }
+
+        /// <summary>
+        /// Return a test data set of nodes with simulated values.
+        /// </summary>
+        /// <param name="namespaceUris">The namesapce table used in the session.</param>
+        /// <returns>The list of simulated test nodes.</returns>
+        public IList<NodeId> GetTestSetDataSimulation(NamespaceTable namespaceUris)
+        {
+            return TestSetDataSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null).ToList();
+        }
+
+        /// <summary>
+        /// Return a test set of nodes with history values.
+        /// </summary>
+        /// <param name="namespaceUris">The namesapce table used in the session.</param>
+        /// <returns>The list of test nodes.</returns>
+        public IList<NodeId> GetTestSetHistory(NamespaceTable namespaceUris)
+        {
+            return TestSetHistory.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null).ToList();
         }
         #endregion
 

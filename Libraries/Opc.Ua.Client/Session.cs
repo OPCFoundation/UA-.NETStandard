@@ -387,6 +387,17 @@ namespace Opc.Ua.Client
             }
 
             base.Dispose(disposing);
+
+            if (disposing)
+            {
+                // suppress spurious events
+                m_KeepAlive = null;
+                m_Publish = null;
+                m_PublishError = null;
+                m_PublishSequenceNumbersToAcknowledge = null;
+                m_SubscriptionsChanged = null;
+                m_SessionClosing = null;
+            }
         }
         #endregion
 
@@ -1860,6 +1871,10 @@ namespace Opc.Ua.Client
                 {
                     namespaces[((NodeId)referenceNodeIds[ii])] = (string)nameSpaceValues[ii];
                 }
+                else
+                {
+                    Utils.LogWarning("Failed to load namespace {0}: {1}", namespaceNodeIds[ii], errors[ii]);
+                }
             }
 
             // build the namespace/schema import dictionary
@@ -1867,9 +1882,9 @@ namespace Opc.Ua.Client
             foreach (var r in references)
             {
                 NodeId nodeId = ExpandedNodeId.ToNodeId(r.NodeId, NamespaceUris);
-                if (schemas.TryGetValue(nodeId, out var schema))
+                if (schemas.TryGetValue(nodeId, out var schema) && namespaces.TryGetValue(nodeId, out var ns))
                 {
-                    imports[namespaces[nodeId]] = schema;
+                    imports[ns] = schema;
                 }
             }
 
@@ -5293,7 +5308,8 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                // don't send another publish for these errors.
+                // don't send another publish for these errors,
+                // or throttle to avoid server overload.
                 switch (error.Code)
                 {
                     case StatusCodes.BadTooManyPublishRequests:
@@ -5311,6 +5327,13 @@ namespace Opc.Ua.Client
                     case StatusCodes.BadSecureChannelClosed:
                     case StatusCodes.BadServerHalted:
                         return;
+
+                    // Servers may return this error when overloaded
+                    case StatusCodes.BadTooManyOperations:
+                    case StatusCodes.BadTcpServerTooBusy:
+                        // throttle the resend to reduce server load
+                        Thread.Sleep(100);
+                        break;
                 }
 
                 Utils.LogError(e, "PUBLISH #{0} - Unhandled error {1} during Publish.", requestHeader.RequestHandle, error.StatusCode);

@@ -383,7 +383,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     ctx.Response.ContentType = "application/x-x509-ca-cert";
                     ctx.Response.OutputStream.Write(certBlob, 0, certBlob.Length);
                     ctx.SetHandled();
-                    await Task.Delay(0);
+                    await Task.Delay(0).ConfigureAwait(false);
                 }));
 #if STATIC_FOLDER // returns error 406 when GET certificate is called by .NET ChainBuilder 
                 .WithStaticFolder("/", tempPath, false, m => m
