@@ -615,7 +615,7 @@ namespace Opc.Ua
             if (encodingByte == 0)
             {
                 m_nestingLevel--;
-                return null;// DiagnosticInfo.Default;
+                return null;
             }
 
             DiagnosticInfo value = new DiagnosticInfo();

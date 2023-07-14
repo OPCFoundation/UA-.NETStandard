@@ -63,6 +63,7 @@ namespace TestData
             m_callback = callback;
             m_minimumSamplingInterval = Int32.MaxValue;
             m_monitoredNodes = new Dictionary<uint, BaseVariableState>();
+            m_samplingNodes = null;
             m_generator = new Opc.Ua.Test.DataGenerator(null);
             m_generator.NamespaceUris = namespaceUris;
             m_generator.ServerUris = serverUris;
@@ -895,6 +896,7 @@ namespace TestData
                 }
 
                 m_monitoredNodes[monitoredItemId] = variable;
+                m_samplingNodes = null;
 
                 SetSamplingInterval(samplingInterval);
             }
@@ -952,7 +954,12 @@ namespace TestData
                     return;
                 }
 
-                foreach (BaseVariableState variable in m_monitoredNodes.Values)
+                if (m_samplingNodes == null)
+                {
+                    m_samplingNodes = m_monitoredNodes.Values.Distinct(new NodeStateComparer()).Cast<BaseVariableState>().ToList();
+                }
+
+                foreach (BaseVariableState variable in m_samplingNodes)
                 {
                     if (variable is ITestDataSystemValuesGenerator)
                     {
@@ -987,8 +994,7 @@ namespace TestData
                     sample.Timestamp);
             }
 
-            var distinctValues = generateValues.Distinct().ToList();
-            foreach (var generateValue in distinctValues)
+            foreach (var generateValue in generateValues)
             {
                 m_callback.OnGenerateValues(generateValue);
             }
@@ -1004,6 +1010,7 @@ namespace TestData
                 }
 
                 m_monitoredNodes.Remove(monitoredItemId);
+                m_samplingNodes = null;
 
                 if (m_monitoredNodes.Count == 0)
                 {
@@ -1026,6 +1033,7 @@ namespace TestData
         private Opc.Ua.Test.DataGenerator m_generator;
         private int m_minimumSamplingInterval;
         private Dictionary<uint, BaseVariableState> m_monitoredNodes;
+        private IList<BaseVariableState> m_samplingNodes;
         private Timer m_timer;
         private StatusCode m_systemStatus;
         private HistoryArchive m_historyArchive;
