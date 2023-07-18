@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -159,7 +160,7 @@ namespace Opc.Ua.Client.Tests
             OutputSubscriptionInfo(TestContext.Out, subscription);
 
             subscription.ConditionRefresh();
-            var sre = Assert.Throws<ServiceResultException>(() => subscription.Republish(subscription.SequenceNumber));
+            var sre = Assert.Throws<ServiceResultException>(() => subscription.Republish(subscription.SequenceNumber + 100));
             Assert.AreEqual(StatusCodes.BadMessageNotAvailable, sre.StatusCode);
 
             subscription.RemoveItems(list);
@@ -264,7 +265,6 @@ namespace Opc.Ua.Client.Tests
             Assert.True(result);
         }
 
-
         [Test, Order(200)]
         public async Task LoadSubscriptionAsync()
         {
@@ -325,14 +325,18 @@ namespace Opc.Ua.Client.Tests
             const int monitoredItemsPerSubscription = 500;
             const int subscriptions = 10;
 
+            Session.MinPublishRequestCount = 3;
+
             // multiple Subscriptions to enforce multiple queued publish requests
             for (int i = 0; i < subscriptions; i++)
             {
                 var s = new Subscription(Session.DefaultSubscription) {
                     SequentialPublishing = enabled,
-                    PublishingInterval = 0,
-                    DisableMonitoredItemCache = true, //Not needed
-                    PublishingEnabled = false
+                    KeepAliveCount = 10,
+                    PublishingInterval = 100,
+                    DisableMonitoredItemCache = true,
+                    PublishingEnabled = false,
+                    MaxMessageCount = 1
                 };
                 subscriptionList.Add(s);
             }
@@ -340,13 +344,18 @@ namespace Opc.Ua.Client.Tests
             var subscription = subscriptionList[0];
 
             // Create monitored items on the server
-            // and track the last reported source timestamp
-            var list = Enumerable.Range(1, monitoredItemsPerSubscription).Select(_ => new MonitoredItem(subscription.DefaultItem) {
-                StartNodeId = new NodeId("Scalar_Simulation_Int32", 2),
+            // and track the last reported sequence number
+            var testSet = new List<NodeId>();
+            while (testSet.Count < monitoredItemsPerSubscription)
+            {
+                testSet.AddRange(GetTestSetFullSimulation(Session.NamespaceUris));
+            }
+            var monitoredItemsList = testSet.Select(nodeId => new MonitoredItem(subscription.DefaultItem) {
+                StartNodeId = nodeId,
                 SamplingInterval = 0,
             }).ToList();
-            var dict = list.ToDictionary(item => item.ClientHandle, _ => DateTime.MinValue);
-            subscription.AddItems(list);
+
+            subscription.AddItems(monitoredItemsList);
 
             foreach (var s in subscriptionList)
             {
@@ -358,19 +367,23 @@ namespace Opc.Ua.Client.Tests
                 subscriptionIds.Add(s.Id);
             }
 
-            //Need to realize test failed, assert needs to be brought to this thread
-            subscription.FastDataChangeCallback = (_, notification, __) => {
-                notification.MonitoredItems.ForEach(item => {
-                    Interlocked.Increment(ref numOfNotifications);
-                    if (dict[item.ClientHandle] > item.Value.SourceTimestamp)
-                    {
-                        TestContext.Out.WriteLine("Out of order encountered");
-                        sequenceBroken.Set();
-                        return;
-                    }
-                    dict[item.ClientHandle] = item.Value.SourceTimestamp;
-                    Thread.Sleep(10);
-                });
+            // populate sequence number dictionary
+            var dictionary = new ConcurrentDictionary<uint, uint>();
+            foreach (var item in subscriptionList)
+            {
+                dictionary.TryAdd(item.Id, 0);
+            }
+
+            // track the last reported sequence number
+            subscription.FastDataChangeCallback = (s, notification, __) => {
+                Interlocked.Increment(ref numOfNotifications);
+                if (dictionary[s.Id] > notification.SequenceNumber)
+                {
+                    TestContext.Out.WriteLine("Out of order encountered Id: {0}, {1} > {2}", s.Id, dictionary[s.Id], notification.SequenceNumber);
+                    sequenceBroken.Set();
+                    return;
+                };
+                dictionary[s.Id] = notification.SequenceNumber;
             };
 
             var stopwatch = Stopwatch.StartNew();
@@ -380,12 +393,17 @@ namespace Opc.Ua.Client.Tests
 
             // Wait for out-of-order to occur
             var failed = sequenceBroken.WaitOne(testWaitTime);
+            if (failed)
+            {
+                TestContext.Out.WriteLine("Error detected, terminating after 1 second");
+                Thread.Sleep(1000);
+            }
 
             // stop
             Session.SetPublishingMode(null, false, subscriptionIds, out results, out diagnosticInfos);
 
             //Log information
-            var elapsed = stopwatch.Elapsed.TotalMilliseconds / 1000.0;
+            double elapsed = stopwatch.Elapsed.TotalMilliseconds / 1000.0;
             TestContext.Out.WriteLine($"Ran for: {elapsed:N} seconds");
             long totalNotifications = Interlocked.Read(ref numOfNotifications);
             double notificationRate = totalNotifications / elapsed;
@@ -506,11 +524,17 @@ namespace Opc.Ua.Client.Tests
             /// after transfer available sequence numbers are
             /// republished.
             /// </summary>
-            DisconnectedRepublish
+            DisconnectedRepublish,
+            /// <summary>
+            /// The origin session gets network disconnected,
+            /// after transfer available sequence numbers are
+            /// republished. The ack was delayed by the client.
+            /// </summary>
+            DisconnectedRepublishDelayedAck
         }
 
         [Theory, Order(810)]
-        public async Task TransferSubscription(TransferType transferType, bool sendInitialValues)
+        public async Task TransferSubscription(TransferType transferType, bool sendInitialValues, bool sequentialPublishing)
         {
             const int kTestSubscriptions = 5;
             const int kDelay = 2_000;
@@ -518,24 +542,38 @@ namespace Opc.Ua.Client.Tests
 
             // create test session and subscription
             var originSession = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+            if (transferType == TransferType.DisconnectedRepublishDelayedAck)
+            {
+                originSession.PublishSequenceNumbersToAcknowledge += DeferSubscriptionAcknowledge;
+            }
+
             bool originSessionOpen = transferType == TransferType.KeepOpen;
 
             // create subscriptions
             var originSubscriptions = new SubscriptionCollection();
             var originSubscriptionCounters = new int[kTestSubscriptions];
+            var originSubscriptionFastDataCounters = new int[kTestSubscriptions];
             var targetSubscriptionCounters = new int[kTestSubscriptions];
+            var targetSubscriptionFastDataCounters = new int[kTestSubscriptions];
 
             for (int ii = 0; ii < kTestSubscriptions; ii++)
             {
                 // create subscription with static monitored items
                 var subscription = new Subscription(originSession.DefaultSubscription) {
                     PublishingInterval = 1_000,
+                    KeepAliveCount = 2,
                     PublishingEnabled = true,
+                    RepublishAfterTransfer = transferType >= TransferType.DisconnectedRepublish,
+                    SequentialPublishing = sequentialPublishing,
+                    Handle = ii,
+                    FastDataChangeCallback = (s, n, _) => {
+                        TestContext.Out.WriteLine($"FastDataChangeHandlerOrigin: {s.Id}-{n.SequenceNumber}-{n.MonitoredItems.Count}");
+                        originSubscriptionFastDataCounters[(int)s.Handle]++;
+                    }
                 };
 
                 originSubscriptions.Add(subscription);
                 originSession.AddSubscription(subscription);
-                subscription.RepublishAfterTransfer = transferType == TransferType.DisconnectedRepublish;
                 subscription.Create();
 
                 // set defaults
@@ -552,10 +590,9 @@ namespace Opc.Ua.Client.Tests
                 }
                 else
                 {
-                    testSet.AddRange(GetTestSetFullSimulation(namespaceUris));
+                    testSet.AddRange(GetTestSetSimulation(namespaceUris));
                 }
 
-                subscription.Handle = ii;
                 var list = CreateMonitoredItemTestSet(subscription, testSet).ToList();
                 list.ForEach(i => i.Notification += (MonitoredItem item, MonitoredItemNotificationEventArgs e) => {
                     originSubscriptionCounters[(int)subscription.Handle]++;
@@ -603,6 +640,10 @@ namespace Opc.Ua.Client.Tests
 
             // create target session
             var targetSession = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+            if (transferType == TransferType.DisconnectedRepublishDelayedAck)
+            {
+                targetSession.PublishSequenceNumbersToAcknowledge += DeferSubscriptionAcknowledge;
+            }
 
             // restore client state
             var transferSubscriptions = new SubscriptionCollection();
@@ -616,23 +657,41 @@ namespace Opc.Ua.Client.Tests
                 foreach (var subscription in transferSubscriptions)
                 {
                     subscription.Handle = ii;
-                    subscription.MonitoredItems.ToList().ForEach(i => i.Notification += (MonitoredItem item, MonitoredItemNotificationEventArgs e) => {
-                        targetSubscriptionCounters[(int)subscription.Handle]++;
-                        foreach (var value in item.DequeueValues())
-                        {
-                            TestContext.Out.WriteLine("Tra:{0}: {1:20}, {2}, {3}, {4}", subscription.Id, item.DisplayName, value.Value, value.SourceTimestamp, value.StatusCode);
+                    subscription.FastDataChangeCallback = (s, n, _) => {
+                        TestContext.Out.WriteLine($"FastDataChangeHandlerTarget: {s.Id}-{n.SequenceNumber}-{n.MonitoredItems.Count}");
+                        targetSubscriptionFastDataCounters[(int)subscription.Handle]++;
+                    };
+                    subscription.MonitoredItems.ToList().ForEach(i =>
+                        i.Notification += (MonitoredItem item, MonitoredItemNotificationEventArgs e) => {
+                            targetSubscriptionCounters[(int)subscription.Handle]++;
+                            foreach (var value in item.DequeueValues())
+                            {
+                                TestContext.Out.WriteLine("Tra:{0}: {1:20}, {2}, {3}, {4}", subscription.Id, item.DisplayName, value.Value, value.SourceTimestamp, value.StatusCode);
+                            }
                         }
-                    });
+                    );
                     ii++;
                 }
+
+                // wait
+                await Task.Delay(kDelay).ConfigureAwait(false);
+
             }
             else
             {
-                transferSubscriptions.AddRange(originSubscriptions);
-            }
+                // wait
+                await Task.Delay(kDelay).ConfigureAwait(false);
 
-            // wait 
-            await Task.Delay(kDelay).ConfigureAwait(false);
+                transferSubscriptions.AddRange(originSubscriptions);
+                int ii = 0;
+                transferSubscriptions.ForEach(s => {
+                    s.Handle = ii++;
+                    s.FastDataChangeCallback = (sub, n, _) => {
+                        TestContext.Out.WriteLine($"FastDataChangeHandlerTarget: {sub.Id}-{n.SequenceNumber}-{n.MonitoredItems.Count}");
+                        targetSubscriptionFastDataCounters[(int)s.Handle]++;
+                    };
+                });
+            }
 
             // transfer restored subscriptions
             var result = targetSession.TransferSubscriptions(transferSubscriptions, sendInitialValues);
@@ -660,13 +719,21 @@ namespace Opc.Ua.Client.Tests
             // validate expected counts
             for (int jj = 0; jj < kTestSubscriptions; jj++)
             {
-                TestContext.Out.WriteLine("Subscription {0}: OriginCounts {1}, TargetCounts {2} ",
+                TestContext.Out.WriteLine("-- Subscription {0}: OriginCounts {1}, TargetCounts {2} ",
                     jj, originSubscriptionCounters[jj], targetSubscriptionCounters[jj]);
+                TestContext.Out.WriteLine("-- Subscription {0}: OriginFastDataCounts {1}, TargetFastDataCounts {2} ",
+                    jj, originSubscriptionFastDataCounters[jj], targetSubscriptionFastDataCounters[jj]);
                 var monitoredItemCount = transferSubscriptions[jj].MonitoredItemCount;
                 var originExpectedCount = sendInitialValues && originSessionOpen ? monitoredItemCount * 2 : monitoredItemCount;
                 var targetExpectedCount = sendInitialValues && !originSessionOpen ? monitoredItemCount : 0;
                 if (jj == 0)
                 {
+                    // correct for delayed ack and republish count
+                    if (transferType == TransferType.DisconnectedRepublishDelayedAck)
+                    {
+                        targetExpectedCount += monitoredItemCount;
+                    }
+
                     // static nodes, expect only one set of changes, another one if send initial values was set
                     Assert.AreEqual(originExpectedCount, originSubscriptionCounters[jj]);
                     Assert.AreEqual(targetExpectedCount, targetSubscriptionCounters[jj]);
@@ -679,6 +746,52 @@ namespace Opc.Ua.Client.Tests
                 }
             }
 
+            // reset counters
+            Array.Clear(originSubscriptionCounters, 0, kTestSubscriptions);
+            Array.Clear(originSubscriptionFastDataCounters, 0, kTestSubscriptions);
+            Array.Clear(targetSubscriptionCounters, 0, kTestSubscriptions);
+            Array.Clear(targetSubscriptionFastDataCounters, 0, kTestSubscriptions);
+
+            // restart publishing
+            foreach (var subscription in transferSubscriptions)
+            {
+                TestContext.Out.WriteLine("SetPublishingMode(true) for SessionId={0}, SubscriptionId={1}",
+                    subscription.Session.SessionId, subscription.Id);
+                subscription.SetPublishingMode(true);
+            }
+
+            // wait for some events
+            await Task.Delay(kDelay).ConfigureAwait(false);
+
+            // validate expected counts
+            for (int jj = 0; jj < kTestSubscriptions; jj++)
+            {
+                TestContext.Out.WriteLine("-- Subscription {0}: OriginCounts {1}, TargetCounts {2} ",
+                    jj, originSubscriptionCounters[jj], targetSubscriptionCounters[jj]);
+                TestContext.Out.WriteLine("-- Subscription {0}: OriginFastDataCounts {1}, TargetFastDataCounts {2} ",
+                    jj, originSubscriptionFastDataCounters[jj], targetSubscriptionFastDataCounters[jj]);
+
+                int[] testCounter = targetSubscriptionCounters;
+                int[] testFastDataCounter = targetSubscriptionFastDataCounters;
+                if (transferType == TransferType.KeepOpen)
+                {
+                    testCounter = originSubscriptionCounters;
+                }
+
+                if (jj == 0)
+                {
+                    // static nodes, expect no activity
+                    Assert.AreEqual(0, testCounter[jj]);
+                    Assert.AreEqual(0, testFastDataCounter[jj]);
+                }
+                else
+                {
+                    // dynamic nodes, expect changes in target counters
+                    Assert.Less(0, testCounter[jj]);
+                    Assert.Less(0, testFastDataCounter[jj]);
+                }
+            }
+
             // close sessions
             targetSession.Close();
             if (originSessionOpen)
@@ -688,6 +801,98 @@ namespace Opc.Ua.Client.Tests
 
             // cleanup
             File.Delete(filePath);
+        }
+
+        [Test, Order(1000)]
+        public void FastKeepAliveCallback()
+        {
+            var subscription = new Subscription();
+
+            // add current time
+            subscription = new Subscription(Session.DefaultSubscription) {
+                KeepAliveCount = 1,
+                PublishingInterval = 250,
+            };
+            TestContext.Out.WriteLine("MaxMessageCount: {0}", subscription.MaxMessageCount);
+            TestContext.Out.WriteLine("MaxNotificationsPerPublish: {0}", subscription.MaxNotificationsPerPublish);
+            TestContext.Out.WriteLine("MinLifetimeInterval: {0}", subscription.MinLifetimeInterval);
+
+            // add static nodes
+            var list = new List<MonitoredItem> {
+                new MonitoredItem(subscription.DefaultItem)
+                {
+                    DisplayName = "ServerStatusState", StartNodeId = VariableIds.Server_ServerStatus_State
+                },
+            };
+
+            var staticNodes = GetTestSetStatic(Session.NamespaceUris);
+            list.AddRange(CreateMonitoredItemTestSet(subscription, staticNodes));
+            list.ForEach(i => i.Notification += (MonitoredItem item, MonitoredItemNotificationEventArgs e) => {
+                foreach (var value in item.DequeueValues())
+                {
+                    TestContext.Out.WriteLine("{0}: {1}, {2}, {3}", item.DisplayName, value.Value, value.SourceTimestamp, value.StatusCode);
+                }
+            });
+            subscription.AddItems(list);
+
+            int numOfKeepAliveNotifications = 0;
+            subscription.FastKeepAliveCallback = (_, notification) => {
+                var n = Interlocked.Increment(ref numOfKeepAliveNotifications);
+                TestContext.Out.WriteLine("KeepAliveCallback {0} next sequenceNumber {1} PublishTime {2}", n, notification.SequenceNumber, notification.PublishTime);
+            };
+
+            int numOfDataChangeNotifications = 0;
+            subscription.FastDataChangeCallback = (_, notification, __) => {
+                var n = Interlocked.Increment(ref numOfDataChangeNotifications);
+                TestContext.Out.WriteLine("DataChangeCallback {0} sequenceNumber {1} PublishTime {2} Count {3}",
+                    n, notification.SequenceNumber, notification.PublishTime, notification.MonitoredItems.Count);
+            };
+
+            bool result = Session.AddSubscription(subscription);
+            Assert.True(result);
+
+            subscription.Create();
+            subscription.ApplyChanges();
+            subscription.SetPublishingMode(false);
+            Assert.False(subscription.PublishingEnabled);
+            subscription.SetPublishingMode(true);
+            Assert.True(subscription.PublishingEnabled);
+            Assert.False(subscription.PublishingStopped);
+
+            subscription.Priority = 55;
+            subscription.Modify();
+
+            TestContext.Out.WriteLine("Waiting for keep alive");
+
+            int delay = 2000;
+            Thread.Sleep(delay);
+            OutputSubscriptionInfo(TestContext.Out, subscription);
+
+            // expect at least half number of keep alive notifications
+            Assert.LessOrEqual((delay / subscription.PublishingInterval) / 2, numOfKeepAliveNotifications);
+            Assert.AreEqual(1, numOfDataChangeNotifications);
+
+            TestContext.Out.WriteLine("Call ResendData.");
+            bool resendData = subscription.ResendData();
+            Assert.True(resendData);
+
+            Thread.Sleep(delay);
+            OutputSubscriptionInfo(TestContext.Out, subscription);
+
+            Assert.AreEqual(2, numOfDataChangeNotifications);
+
+            TestContext.Out.WriteLine("Call ConditionRefresh.");
+            bool conditionRefresh = subscription.ConditionRefresh();
+            Assert.True(conditionRefresh);
+
+            var sre = Assert.Throws<ServiceResultException>(() => subscription.Republish(subscription.SequenceNumber));
+            Assert.AreEqual(StatusCodes.BadMessageNotAvailable, sre.StatusCode);
+
+            subscription.RemoveItems(list);
+            subscription.ApplyChanges();
+
+            result = Session.RemoveSubscription(subscription);
+            Assert.True(result);
         }
         #endregion
 
@@ -703,6 +908,25 @@ namespace Opc.Ua.Client.Tests
                 list.Add(item);
             };
             return list;
+        }
+
+        /// <summary>
+        /// Event handler to defer publish response sequence number acknowledge.
+        /// </summary>
+        private void DeferSubscriptionAcknowledge(ISession session, PublishSequenceNumbersToAcknowledgeEventArgs e)
+        {
+            // for testing keep the latest sequence numbers for a while
+            const int AckDelay = 4;
+            if (e.AcknowledgementsToSend.Count > 0)
+            {
+                // defer latest sequence numbers
+                var deferredItems = e.AcknowledgementsToSend.OrderByDescending(s => s.SequenceNumber).Take(AckDelay).ToList();
+                e.DeferredAcknowledgementsToSend.AddRange(deferredItems);
+                foreach (var deferredItem in deferredItems)
+                {
+                    e.AcknowledgementsToSend.Remove(deferredItem);
+                }
+            }
         }
         #endregion
     }

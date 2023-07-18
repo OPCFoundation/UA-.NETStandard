@@ -594,6 +594,17 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Reset the notification event handler.
+        /// </summary>
+        public void DetachNotificationEventHandlers()
+        {
+            lock (m_cache)
+            {
+                m_Notification = null;
+            }
+        }
+
+        /// <summary>
         /// Saves a data change or event in the cache.
         /// </summary>
         public void SaveValueInCache(IEncodeable newValue)

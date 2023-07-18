@@ -56,8 +56,6 @@ namespace Opc.Ua.Client
 
             AdjustCounts(ref revisedMaxKeepAliveCount, ref revisedLifetimeCount);
 
-            ManageMessageWorkerSemaphore();
-
             var response = await m_session.CreateSubscriptionAsync(
                 null,
                 m_publishingInterval,
