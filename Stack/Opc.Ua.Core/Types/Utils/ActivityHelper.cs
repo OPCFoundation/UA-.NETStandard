@@ -8,13 +8,13 @@ using System.Threading.Tasks;
 namespace Opc.Ua
 {
     /// <summary>
-    /// Activity Helper Class.
+    /// Defines Activity Source
     /// </summary>
-    public static class ActivityHelper
+    public static partial class Utils
     {
         /// <summary>
         /// Activity Source
         /// </summary>
-        public static ActivitySource ActivitySrc { get; } = new ActivitySource("Opc.Ua");
+        public static ActivitySource ActivitySrc { get; } = new ActivitySource("Opc.Ua.Client-ActivitySource");
     }
 }

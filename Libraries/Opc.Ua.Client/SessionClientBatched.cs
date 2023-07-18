@@ -749,7 +749,7 @@ namespace Opc.Ua
             ReadValueIdCollection nodesToRead,
             CancellationToken ct)
         {
-            using (var activity = ActivityHelper.ActivitySrc.StartActivity("ReadAsync"))
+            using (var activity = Utils.ActivitySrc.StartActivity("ReadAsync"))
             {
                 ReadResponse response = null;
 
@@ -943,7 +943,7 @@ namespace Opc.Ua
             WriteValueCollection nodesToWrite,
             CancellationToken ct)
         {
-            using (var activity = ActivityHelper.ActivitySrc.StartActivity("WriteAsync"))
+            using (var activity = Utils.ActivitySrc.StartActivity("WriteAsync"))
             {
                 WriteResponse response = null;
 
@@ -1127,7 +1127,7 @@ namespace Opc.Ua
             CallMethodRequestCollection methodsToCall,
             CancellationToken ct)
         {
-            using (var activity = ActivityHelper.ActivitySrc.StartActivity("CallAsync"))
+            using (var activity = Utils.ActivitySrc.StartActivity("CallAsync"))
             {
                 CallResponse response = null;
 

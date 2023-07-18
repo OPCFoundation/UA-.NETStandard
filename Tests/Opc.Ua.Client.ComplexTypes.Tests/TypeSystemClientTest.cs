@@ -257,7 +257,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 }
             };
 
-            ActivitySrc.AddActivityListener(activityListener);
+            ActivitySource.AddActivityListener(activityListener);
 
             (var values, var serviceResults) = await samples.ReadAllValuesAsync(this, variableIds).ConfigureAwait(false);
 
@@ -351,7 +351,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 }
             };
 
-            ActivitySrc.AddActivityListener(activityListener);
+            ActivitySource.AddActivityListener(activityListener);
 
             WriteResponse response = await m_session.WriteAsync(null, writeValues, CancellationToken.None).ConfigureAwait(false);
             Assert.NotNull(response);

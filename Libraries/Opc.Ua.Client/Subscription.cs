@@ -777,7 +777,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public void Create()
         {
-            using (var activity = ActivityHelper.ActivitySrc.StartActivity("Create"))
+            using (var activity = Utils.ActivitySrc.StartActivity("Create"))
             {
                 VerifySubscriptionState(false);
 
@@ -822,7 +822,7 @@ namespace Opc.Ua.Client
         /// <param name="availableSequenceNumbers">The available sequence numbers on the server.</param>
         public bool Transfer(ISession session, uint id, UInt32Collection availableSequenceNumbers)
         {
-            using (var activity = ActivityHelper.ActivitySrc.StartActivity("Transfer"))
+            using (var activity = Utils.ActivitySrc.StartActivity("Transfer"))
             {
                 if (Created)
                 {
@@ -897,7 +897,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public void Delete(bool silent)
         {
-            using (var activity = ActivityHelper.ActivitySrc.StartActivity("Delete"))
+            using (var activity = Utils.ActivitySrc.StartActivity("Delete"))
             {
                 if (!silent)
                 {
@@ -967,7 +967,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public void Modify()
         {
-            using (var activity = ActivityHelper.ActivitySrc.StartActivity("Modify"))
+            using (var activity = Utils.ActivitySrc.StartActivity("Modify"))
             {
                 VerifySubscriptionState(true);
 
@@ -1007,7 +1007,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public void SetPublishingMode(bool enabled)
         {
-            using (var activity = ActivityHelper.ActivitySrc.StartActivity("SetPublishingMode"))
+            using (var activity = Utils.ActivitySrc.StartActivity("SetPublishingMode"))
             {
                 VerifySubscriptionState(true);
 

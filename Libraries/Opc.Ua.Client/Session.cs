@@ -1244,7 +1244,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public void Reconnect(ITransportWaitingConnection connection, ITransportChannel transportChannel = null)
         {
-            using (var activity = ActivityHelper.ActivitySrc.StartActivity("Reconnect"))
+            using (var activity = Utils.ActivitySrc.StartActivity("Reconnect"))
             {
                 try
                 {
@@ -3412,7 +3412,7 @@ namespace Opc.Ua.Client
         /// <param name="subscription">The subscription to add.</param>
         public bool AddSubscription(Subscription subscription)
         {
-            using (var activity = ActivityHelper.ActivitySrc.StartActivity("AddSubscription"))
+            using (var activity = Utils.ActivitySrc.StartActivity("AddSubscription"))
             {
                 if (subscription == null) throw new ArgumentNullException(nameof(subscription));
 
@@ -3442,7 +3442,7 @@ namespace Opc.Ua.Client
         /// <param name="subscription">The subscription to remove.</param>
         public bool RemoveSubscription(Subscription subscription)
         {
-            using (var activity = ActivityHelper.ActivitySrc.StartActivity("RemoveSubscription"))
+            using (var activity = Utils.ActivitySrc.StartActivity("RemoveSubscription"))
             {
                 if (subscription == null) throw new ArgumentNullException(nameof(subscription));
 
@@ -3476,7 +3476,7 @@ namespace Opc.Ua.Client
         /// <param name="subscriptions">The list of subscriptions to remove.</param>
         public bool RemoveSubscriptions(IEnumerable<Subscription> subscriptions)
         {
-            using (var activity = ActivityHelper.ActivitySrc.StartActivity("RemoveSubscriptions"))
+            using (var activity = Utils.ActivitySrc.StartActivity("RemoveSubscriptions"))
             {
                 if (subscriptions == null) throw new ArgumentNullException(nameof(subscriptions));
 
@@ -3508,7 +3508,7 @@ namespace Opc.Ua.Client
         /// <param name="subscription">The subscription to remove.</param>
         public bool RemoveTransferredSubscription(Subscription subscription)
         {
-            using (var activity = ActivityHelper.ActivitySrc.StartActivity("RemoveTransferredSubscription"))
+            using (var activity = Utils.ActivitySrc.StartActivity("RemoveTransferredSubscription"))
             {
                 if (subscription == null) throw new ArgumentNullException(nameof(subscription));
 
@@ -3543,7 +3543,7 @@ namespace Opc.Ua.Client
             SubscriptionCollection subscriptions,
             bool sendInitialValues)
         {
-            using (var activity = ActivityHelper.ActivitySrc.StartActivity("TransferSubscriptions"))
+            using (var activity = Utils.ActivitySrc.StartActivity("TransferSubscriptions"))
             {
                 var subscriptionIds = new UInt32Collection();
                 foreach (var subscription in subscriptions)
@@ -5107,7 +5107,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public IAsyncResult BeginPublish(int timeout)
         {
-            using (var activity = ActivityHelper.ActivitySrc.StartActivity("BeginPublish"))
+            using (var activity = Utils.ActivitySrc.StartActivity("BeginPublish"))
             {
                 // do not publish if reconnecting.
                 if (m_reconnecting)
@@ -5360,7 +5360,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public bool Republish(uint subscriptionId, uint sequenceNumber)
         {
-            using (var activity = ActivityHelper.ActivitySrc.StartActivity("Republish"))
+            using (var activity = Utils.ActivitySrc.StartActivity("Republish"))
             {
                 // send publish request.
                 RequestHeader requestHeader = new RequestHeader {
