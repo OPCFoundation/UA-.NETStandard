@@ -125,6 +125,8 @@ namespace Opc.Ua.Client
                     clone.DisplayName = monitoredItem.DisplayName;
                     AddItem(clone);
                 }
+
+                m_resyncLastSequenceNumberProcessed = true;
             }
         }
 
@@ -155,7 +157,7 @@ namespace Opc.Ua.Client
             m_republishAfterTransfer = false;
             m_outstandingMessageWorkers = 0;
             m_sequentialPublishing = false;
-            m_lastSequenceNumberProcessed = 1;
+            m_lastSequenceNumberProcessed = 0;
             m_messageCache = new LinkedList<NotificationMessage>();
             m_monitoredItems = new SortedDictionary<uint, MonitoredItem>();
             m_deletedItems = new List<MonitoredItem>();
@@ -1612,6 +1614,7 @@ namespace Opc.Ua.Client
             {
                 // reset incoming state machine and clear cache
                 m_lastSequenceNumberProcessed = 0;
+                m_resyncLastSequenceNumberProcessed = true;
                 m_incomingMessages = new LinkedList<IncomingMessage>();
 
                 // save available sequence numbers
@@ -1625,6 +1628,8 @@ namespace Opc.Ua.Client
                         m_incomingMessages = new LinkedList<IncomingMessage>();
                     }
 
+                    // update last sequence number processed
+                    // available seq numbers may not be in order
                     foreach (var sequenceNumber in availableSequenceNumbers)
                     {
                         if (sequenceNumber >= m_lastSequenceNumberProcessed)
@@ -1983,11 +1988,7 @@ namespace Opc.Ua.Client
                     {
                         // update monitored items with unprocessed messages.
                         if (ii.Value.Message != null && !ii.Value.Processed &&
-                            (!m_sequentialPublishing ||
-                             // If sequential publishing is enabled, only release messages in perfect sequence. 
-                             ii.Value.SequenceNumber <= m_lastSequenceNumberProcessed + 1 ||
-                             // reconnect / transfer subscription case
-                             m_lastSequenceNumberProcessed == 0))
+                            (!m_sequentialPublishing || ValidSequentialPublishMessage(ii.Value)))
                         {
                             if (messagesToProcess == null)
                             {
@@ -2009,6 +2010,7 @@ namespace Opc.Ua.Client
                             if (ii.Value.SequenceNumber > m_lastSequenceNumberProcessed)
                             {
                                 m_lastSequenceNumberProcessed = ii.Value.SequenceNumber;
+                                m_resyncLastSequenceNumberProcessed = false;
                             }
                         }
 
@@ -2180,6 +2182,21 @@ namespace Opc.Ua.Client
             {
                 throw new ServiceResultException(StatusCodes.BadInvalidState, "Subscription has alredy been created.");
             }
+        }
+
+        /// <summary>
+        /// Validates the sequence number of the incoming publish request.
+        /// </summary>
+        private bool ValidSequentialPublishMessage(IncomingMessage message)
+        {
+            // If sequential publishing is enabled, only release messages in perfect sequence. 
+            if (message.SequenceNumber <= m_lastSequenceNumberProcessed + 1 ||
+                // reconnect / transfer subscription case
+                m_resyncLastSequenceNumberProcessed)
+            {
+                return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -2494,7 +2511,7 @@ namespace Opc.Ua.Client
 
             return entry;
         }
-        #endregion
+#endregion
 
         #region Private Fields
         private string m_displayName;
@@ -2540,6 +2557,7 @@ namespace Opc.Ua.Client
         private int m_outstandingMessageWorkers;
         private bool m_sequentialPublishing;
         private uint m_lastSequenceNumberProcessed;
+        private bool m_resyncLastSequenceNumberProcessed;
 
         /// <summary>
         /// A message received from the server cached until is processed or discarded.

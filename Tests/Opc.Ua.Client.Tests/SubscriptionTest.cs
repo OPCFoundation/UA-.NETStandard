@@ -561,7 +561,7 @@ namespace Opc.Ua.Client.Tests
                 // create subscription with static monitored items
                 var subscription = new Subscription(originSession.DefaultSubscription) {
                     PublishingInterval = 1_000,
-                    KeepAliveCount = 2,
+                    KeepAliveCount = 5,
                     PublishingEnabled = true,
                     RepublishAfterTransfer = transferType >= TransferType.DisconnectedRepublish,
                     SequentialPublishing = sequentialPublishing,
