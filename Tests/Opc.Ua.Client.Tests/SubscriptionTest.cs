@@ -915,18 +915,9 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         private void DeferSubscriptionAcknowledge(ISession session, PublishSequenceNumbersToAcknowledgeEventArgs e)
         {
-            // for testing keep the latest sequence numbers for a while
-            const int AckDelay = 4;
-            if (e.AcknowledgementsToSend.Count > 0)
-            {
-                // defer latest sequence numbers
-                var deferredItems = e.AcknowledgementsToSend.OrderByDescending(s => s.SequenceNumber).Take(AckDelay).ToList();
-                e.DeferredAcknowledgementsToSend.AddRange(deferredItems);
-                foreach (var deferredItem in deferredItems)
-                {
-                    e.AcknowledgementsToSend.Remove(deferredItem);
-                }
-            }
+            // for testing do not ack any sequence numbers
+            e.DeferredAcknowledgementsToSend.Clear();
+            e.AcknowledgementsToSend.Clear();
         }
         #endregion
     }
