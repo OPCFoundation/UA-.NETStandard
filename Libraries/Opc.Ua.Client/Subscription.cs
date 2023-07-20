@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading;
@@ -744,7 +745,7 @@ namespace Opc.Ua.Client
             {
                 lock (m_cache)
                 {
-                    return m_availableSequenceNumbers;
+                    return new List<uint>(m_availableSequenceNumbers);
                 }
             }
         }
@@ -1392,7 +1393,7 @@ namespace Opc.Ua.Client
                         {
                             if (!entry.Processed)
                             {
-                                Utils.LogWarning("Subscription {0} skipping PublishResponse Sequence Number {1}", Id, entry.SequenceNumber);
+                                Utils.LogWarning("SubscriptionId {0} skipping PublishResponse Sequence Number {1}", Id, entry.SequenceNumber);
                             }
 
                             m_lastSequenceNumberProcessed = entry.SequenceNumber;
@@ -1574,7 +1575,7 @@ namespace Opc.Ua.Client
             }
             catch (ServiceResultException sre)
             {
-                Utils.LogError(sre, "Failed to call ConditionRefresh on server");
+                Utils.LogError(sre, "SubscriptionId {0}: Failed to call ConditionRefresh on server", m_id);
             }
             return false;
         }
@@ -1593,7 +1594,7 @@ namespace Opc.Ua.Client
             }
             catch (ServiceResultException sre)
             {
-                Utils.LogError(sre, "Failed to call ResendData on server");
+                Utils.LogError(sre, "SubscriptionId {0}: Failed to call ResendData on server", m_id);
             }
             return false;
         }
@@ -1638,7 +1639,7 @@ namespace Opc.Ua.Client
                         }
                     }
 
-                    Utils.LogInfo("Subscription {0}: Republishing {1} messages, next sequencenumber {2} after transfer.",
+                    Utils.LogInfo("SubscriptionId {0}: Republishing {1} messages, next sequencenumber {2} after transfer.",
                         m_id, availableSequenceNumbers.Count, m_lastSequenceNumberProcessed);
 
                     // triggers the republish mechanism immediately,
@@ -1674,7 +1675,7 @@ namespace Opc.Ua.Client
             }
             catch (ServiceResultException sre)
             {
-                Utils.LogError(sre, "Failed to call GetMonitoredItems on server");
+                Utils.LogError(sre, "SubscriptionId {0}: Failed to call GetMonitoredItems on server", m_id);
             }
             return false;
         }
@@ -1750,7 +1751,7 @@ namespace Opc.Ua.Client
         {
             try
             {
-                Utils.LogTrace("Subscription {0} - Publish Thread {1:X8} Started.", m_id, Environment.CurrentManagedThreadId);
+                Utils.LogTrace("SubscriptionId {0} - Publish Thread {1:X8} Started.", m_id, Environment.CurrentManagedThreadId);
 
                 do
                 {
@@ -1760,7 +1761,7 @@ namespace Opc.Ua.Client
                     {
                         if (m_publishTimer == null)
                         {
-                            Utils.LogTrace("Subscription {0} - Publish Thread {1:X8} Exited Normally.", m_id, Environment.CurrentManagedThreadId);
+                            Utils.LogTrace("SubscriptionId {0} - Publish Thread {1:X8} Exited Normally.", m_id, Environment.CurrentManagedThreadId);
                             break;
                         }
                     }
@@ -1771,7 +1772,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Subscription {0} - Publish Worker Thread {1:X8} Exited Unexpectedly.", m_id, Environment.CurrentManagedThreadId);
+                Utils.LogError(e, "SubscriptionId {0} - Publish Worker Thread {1:X8} Exited Unexpectedly.", m_id, Environment.CurrentManagedThreadId);
             }
         }
 
@@ -2007,10 +2008,16 @@ namespace Opc.Ua.Client
                             ii.Value.Processed = true;
 
                             // Keep the last sequence number processed going up
-                            if (ii.Value.SequenceNumber > m_lastSequenceNumberProcessed)
+                            if (ii.Value.SequenceNumber > m_lastSequenceNumberProcessed ||
+                               (ii.Value.SequenceNumber == 1 && m_lastSequenceNumberProcessed == uint.MaxValue))
                             {
                                 m_lastSequenceNumberProcessed = ii.Value.SequenceNumber;
-                                m_resyncLastSequenceNumberProcessed = false;
+                                if (m_resyncLastSequenceNumberProcessed)
+                                {
+                                    Utils.LogInfo("SubscriptionId {0}: Resynced last sequence number processed to {1}.",
+                                        Id, m_lastSequenceNumberProcessed);
+                                    m_resyncLastSequenceNumberProcessed = false;
+                                }
                             }
                         }
 
@@ -2038,6 +2045,14 @@ namespace Opc.Ua.Client
                                 ii.Value.Republished = true;
                             }
                         }
+#if DEBUG
+                        // a message that is deferred because of a missing sequence number
+                        else if (ii.Value.Message != null && !ii.Value.Processed)
+                        {
+                            Utils.LogDebug("Subscription {0}: Delayed message with sequence number {1}, expected sequence number is {2}.",
+                                Id, ii.Value.SequenceNumber, m_lastSequenceNumberProcessed + 1);
+                        }
+#endif
                     }
 
                     session = m_session;
@@ -2190,13 +2205,11 @@ namespace Opc.Ua.Client
         private bool ValidSequentialPublishMessage(IncomingMessage message)
         {
             // If sequential publishing is enabled, only release messages in perfect sequence. 
-            if (message.SequenceNumber <= m_lastSequenceNumberProcessed + 1 ||
+            return message.SequenceNumber <= m_lastSequenceNumberProcessed + 1 ||
                 // reconnect / transfer subscription case
-                m_resyncLastSequenceNumberProcessed)
-            {
-                return true;
-            }
-            return false;
+                m_resyncLastSequenceNumberProcessed ||
+                // release the first message after wrapping around.
+                message.SequenceNumber == 1 && m_lastSequenceNumberProcessed == uint.MaxValue;
         }
 
         /// <summary>
@@ -2511,7 +2524,7 @@ namespace Opc.Ua.Client
 
             return entry;
         }
-#endregion
+        #endregion
 
         #region Private Fields
         private string m_displayName;

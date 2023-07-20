@@ -82,7 +82,7 @@ namespace Opc.Ua.Types.Utils
                     return;
                 }
             }
-            toRelease?.SetResult(true);
+            toRelease.SetResult(true);
         }
 
         /// <summary>
@@ -90,13 +90,13 @@ namespace Opc.Ua.Types.Utils
         /// </summary>
         public void SetAll()
         {
-            TaskCompletionSource<bool> toRelease = null;
             lock (m_waits)
             {
+                TaskCompletionSource<bool> toRelease;
                 while (m_waits.Count > 0)
                 {
                     toRelease = m_waits.Dequeue();
-                    toRelease?.SetResult(true);
+                    toRelease.SetResult(true);
                 }
                 m_signaled = true;
             }
