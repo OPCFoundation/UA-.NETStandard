@@ -4272,14 +4272,6 @@ namespace Opc.Ua.Client
             catch (Exception e)
             {
                 Utils.LogError("Unexpected keep alive error occurred: {0}", e.Message);
-                if (e is ServiceResultException sre)
-                {
-                    OnKeepAliveError(sre.Result);
-                }
-                else
-                {
-                    OnKeepAliveError(ServiceResult.Create(StatusCodes.BadNoCommunication, e.Message));
-                }
             }
         }
 
