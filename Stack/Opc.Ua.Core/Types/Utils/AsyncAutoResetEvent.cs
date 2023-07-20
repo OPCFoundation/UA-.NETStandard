@@ -69,7 +69,7 @@ namespace Opc.Ua.Types.Utils
         /// </summary>
         public void Set()
         {
-            TaskCompletionSource<bool> toRelease = null;
+            TaskCompletionSource<bool> toRelease;
             lock (m_waits)
             {
                 if (m_waits.Count > 0)
