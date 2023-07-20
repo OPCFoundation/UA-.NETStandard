@@ -126,8 +126,6 @@ namespace Opc.Ua.Client
                     clone.DisplayName = monitoredItem.DisplayName;
                     AddItem(clone);
                 }
-
-                m_resyncLastSequenceNumberProcessed = true;
             }
         }
 
@@ -163,6 +161,7 @@ namespace Opc.Ua.Client
             m_monitoredItems = new SortedDictionary<uint, MonitoredItem>();
             m_deletedItems = new List<MonitoredItem>();
             m_messageWorkerEvent = new AsyncAutoResetEvent();
+            m_resyncLastSequenceNumberProcessed = false;
 
             m_defaultItem = new MonitoredItem {
                 DisplayName = "MonitoredItem",
