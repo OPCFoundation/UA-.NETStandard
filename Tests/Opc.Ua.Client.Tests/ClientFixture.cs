@@ -221,9 +221,9 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         /// <param name="endpoint">The configured endpoint</param>
         /// <returns></returns>
-        public async Task<ITransportChannel> CreateChannelAsync(ConfiguredEndpoint endpoint)
+        public async Task<ITransportChannel> CreateChannelAsync(ConfiguredEndpoint endpoint, bool updateBeforeConnect = true)
         {
-            return await Session.CreateChannelAsync(Config, null, endpoint, true, false).ConfigureAwait(false);
+            return await Session.CreateChannelAsync(Config, null, endpoint, updateBeforeConnect, checkDomain: false).ConfigureAwait(false);
         }
 
         /// <summary>

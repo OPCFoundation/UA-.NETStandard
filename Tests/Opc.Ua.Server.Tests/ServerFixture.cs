@@ -103,6 +103,7 @@ namespace Opc.Ua.Server.Tests
                 });
             }
 
+            serverConfig.SetMaxMessageQueueSize(20);
             serverConfig.SetDiagnosticsEnabled(true);
             serverConfig.SetAuditingEnabled(true);
 

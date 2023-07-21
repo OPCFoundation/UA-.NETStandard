@@ -415,7 +415,10 @@ namespace Opc.Ua.Bindings
 
                 IServiceResponse output = m_callback.EndProcessRequest(result);
 
-                await WriteServiceResponseAsync(context, output, ct).ConfigureAwait(false);
+                if (!ct.IsCancellationRequested)
+                {
+                    await WriteServiceResponseAsync(context, output, ct).ConfigureAwait(false);
+                }
 
                 return;
             }
