@@ -320,7 +320,68 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.Throws<ArgumentException>(() => _ = new NodeId((object)(int)123, 123));
             Assert.Throws<ServiceResultException>(() => _ = NodeId.Create((uint)123, "urn:xyz", null));
             Assert.Throws<ServiceResultException>(() => _ = NodeId.Parse("ns="));
+            Assert.Throws<ServiceResultException>(() => _ = NodeId.Parse("nsu="));
             Assert.IsNull(NodeId.ToExpandedNodeId(null, null));
+        }
+
+        [Test]
+        public void NodeIdHashCode()
+        {
+            // ensure that the hash code is the same for the same node id
+            IList<NodeId> nodeIds = new List<NodeId>();
+
+            // Null NodeIds
+            nodeIds.Add(0);
+            nodeIds.Add("");
+            nodeIds.Add(NodeId.Null);
+            nodeIds.Add(new NodeId(0));
+            nodeIds.Add(new NodeId(Guid.Empty));
+            nodeIds.Add(new NodeId(""));
+            nodeIds.Add(new NodeId(new byte[0]));
+
+            foreach (NodeId nodeId in nodeIds)
+            {
+                Assert.IsTrue(nodeId.IsNullNodeId);
+            }
+
+            // validate the hash code of null node id compares as equal
+            foreach (NodeId nodeId in nodeIds)
+            {
+                foreach (NodeId nodeIdExpected in nodeIds)
+                {
+                    Assert.AreEqual(nodeIdExpected.GetHashCode(), nodeId.GetHashCode(), $"Expected{nodeIdExpected}!=NodeId={nodeId}");
+                }
+            }
+
+            int distinctNodes = 1;
+            nodeIds.Insert(0, new NodeId(123));
+            nodeIds.Insert(0, new NodeId(123, 0));
+            distinctNodes++;
+            Assert.AreEqual(nodeIds[0].GetHashCode(), nodeIds[1].GetHashCode());
+            Assert.AreEqual(nodeIds[0], nodeIds[1]);
+
+            nodeIds.Insert(0, new NodeId(123, 1));
+            distinctNodes++;
+            Assert.AreNotEqual(nodeIds[0].GetHashCode(), nodeIds[1].GetHashCode());
+
+            nodeIds.Insert(0, new NodeId("Test"));
+            distinctNodes++;   
+            Assert.AreNotEqual(nodeIds[0].GetHashCode(), nodeIds[2].GetHashCode());
+
+            TestContext.Out.WriteLine("NodeIds:");
+            foreach (NodeId nodeId in nodeIds)
+            {
+                TestContext.Out.WriteLine($"NodeId={nodeId}, HashCode={nodeId.GetHashCode():x8}");
+            }
+
+            TestContext.Out.WriteLine("Distinct NodeIds:");
+            var distinctNodeIds = nodeIds.Distinct();
+            foreach (NodeId nodeId in distinctNodeIds)
+            {
+                TestContext.Out.WriteLine($"NodeId={nodeId}, HashCode={nodeId.GetHashCode():x8}");
+            }
+            // all null node ids should be equal and removed
+            Assert.AreEqual(distinctNodes, distinctNodeIds.Count());
         }
 
         [Theory]
