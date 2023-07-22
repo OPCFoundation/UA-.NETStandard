@@ -79,7 +79,7 @@
     
   <PropertyGroup>
     <ZipTmp>$(BaseIntermediateOutputPath)/zipnodeset2</ZipTmp>
-    <ZipNodeset2XML>./Schema/Opc.Ua.Nodeset2.xml</ZipNodeset2XML>
+    <ZipNodeset2XML>Schema/Opc.Ua.Nodeset2.xml</ZipNodeset2XML>
   </PropertyGroup>
 
   <Target Name="ZipNodeset2" BeforeTargets="PrepareForBuild" Inputs="$(ZipNodeset2XML)" Outputs="$(ZipNodeset2XML).zip">
