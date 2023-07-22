@@ -16,7 +16,6 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
-using System.Threading;
 
 namespace Opc.Ua.Bindings
 {
@@ -340,7 +339,6 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Private Fields
-        const byte m_cookieLength = 1;
         private readonly string m_name;
         private readonly int m_maxBufferSize;
 #if TRACE_MEMORY
@@ -364,6 +362,8 @@ namespace Opc.Ua.Bindings
         private int m_allocated;
         private int m_id;
         private SortedDictionary<int, Allocation> m_allocations = new SortedDictionary<int, Allocation>();
+#else
+        const byte m_cookieLength = 1;
 #endif
         #endregion
     }
