@@ -130,7 +130,7 @@ namespace Opc.Ua
 
             try
             {
-                clientCertificate = applicationConfiguration?.SecurityConfiguration?.ApplicationCertificate?.Find(true).Result;
+                clientCertificate = applicationConfiguration?.SecurityConfiguration?.ApplicationCertificate?.Find(true).GetAwaiter().GetResult();
             }
             catch
             {

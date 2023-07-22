@@ -424,7 +424,7 @@ namespace Opc.Ua.Bindings
                         {
                             moreAddresses = false;
                         }
-                    }, cts).ConfigureAwait(false);
+                    }, cts, TaskContinuationOptions.RunContinuationsAsynchronously, TaskScheduler.Default).ConfigureAwait(false);
                 }
 
                 if (!moreAddresses || m_tcs.Task.IsCompleted)

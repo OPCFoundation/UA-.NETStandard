@@ -554,7 +554,7 @@ namespace Opc.Ua
                     }
 
                     store.Open(storePath, false);
-                    store.Add(certificate, password).Wait();
+                    store.Add(certificate, password).GetAwaiter().GetResult();
                     store.Close();
                 }
             }

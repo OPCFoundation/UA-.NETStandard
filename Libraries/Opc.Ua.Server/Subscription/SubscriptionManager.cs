@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Globalization;
 using System.Threading.Tasks;
+using Opc.Ua.Types.Utils;
 
 namespace Opc.Ua.Server
 {
@@ -71,7 +72,7 @@ namespace Opc.Ua.Server
             m_shutdownEvent = new ManualResetEvent(true);
 
             // create queue and event for condition refresh worker
-            m_conditionRefreshEvent = new ManualResetEvent(false);
+            m_conditionRefreshEvent = new AsyncManualResetEvent();
             m_conditionRefreshQueue = new Queue<ConditionRefreshTask>();
         }
         #endregion
@@ -221,15 +222,20 @@ namespace Opc.Ua.Server
             {
                 m_shutdownEvent.Reset();
 
-                Task.Factory.StartNew(() => {
+#if NET6_0_OR_GREATER
+                _ = Task.Run(async () => {
+                    await PublishSubscriptionsAsync(m_publishingResolution).ConfigureAwait(false);
+                });
+#else
+                _ = Task.Factory.StartNew(() => {
                     PublishSubscriptions(m_publishingResolution);
                 }, TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
+#endif
 
-                m_conditionRefreshEvent.Reset();
+                _ = Task.Run(async () => {
+                    await ConditionRefreshWorkerAsync().ConfigureAwait(false);
+                }).ConfigureAwait(false);
 
-                Task.Factory.StartNew(() => {
-                    ConditionRefreshWorker();
-                }, TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
             }
         }
 
@@ -1584,7 +1590,7 @@ namespace Opc.Ua.Server
                 out results,
                 out diagnosticInfos);
         }
-        #endregion
+#endregion
 
         #region Protected Methods
         /// <summary>
@@ -1761,15 +1767,25 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Periodically checks if the sessions have timed out.
         /// </summary>
+#if NET6_0_OR_GREATER
+        private async Task PublishSubscriptionsAsync(object data)
+        {
+            PeriodicTimer timer = null;
+#else
         private void PublishSubscriptions(object data)
         {
+#endif
             try
             {
                 Utils.LogInfo("Subscription - Publish Thread {0:X8} Started.", Environment.CurrentManagedThreadId);
 
                 int sleepCycle = Convert.ToInt32(data, CultureInfo.InvariantCulture);
-                int timeToWait = sleepCycle;
 
+#if NET6_0_OR_GREATER
+                timer = new PeriodicTimer(TimeSpan.FromMilliseconds(sleepCycle));
+#else
+                int timeToWait = 0;
+#endif
                 do
                 {
                     DateTime start = DateTime.UtcNow;
@@ -1840,14 +1856,19 @@ namespace Opc.Ua.Server
                         }
                     }
 
+#if NET6_0_OR_GREATER
+                    // intentionally not awaited, to block the longrunning thread.
+                    bool shutdown = !await timer.WaitForNextTickAsync().ConfigureAwait(false);
+                    if (shutdown || m_shutdownEvent.WaitOne(0))
+#else
+                    int delay = (int)(DateTime.UtcNow - start).TotalMilliseconds;
+                    timeToWait = Math.Max(0, sleepCycle - delay);
                     if (m_shutdownEvent.WaitOne(timeToWait))
+#endif
                     {
                         Utils.LogInfo("Subscription - Publish Thread {0:X8} Exited Normally.", Environment.CurrentManagedThreadId);
                         break;
                     }
-
-                    int delay = (int)(DateTime.UtcNow - start).TotalMilliseconds;
-                    timeToWait = sleepCycle;
                 }
                 while (true);
             }
@@ -1855,12 +1876,18 @@ namespace Opc.Ua.Server
             {
                 Utils.LogError(e, "Subscription - Publish Thread {0:X8} Exited Unexpectedly.", Environment.CurrentManagedThreadId);
             }
+            finally
+            {
+#if NET6_0_OR_GREATER
+                timer?.Dispose();
+#endif
+            }
         }
 
         /// <summary>
         /// A single thread to execute the condition refresh.
         /// </summary>
-        private void ConditionRefreshWorker()
+        private async Task ConditionRefreshWorkerAsync()
         {
             try
             {
@@ -1868,7 +1895,7 @@ namespace Opc.Ua.Server
 
                 do
                 {
-                    ConditionRefreshTask conditionRefreshTask = null; ;
+                    ConditionRefreshTask conditionRefreshTask = null;
 
                     lock (m_conditionRefreshLock)
                     {
@@ -1884,7 +1911,7 @@ namespace Opc.Ua.Server
 
                     if (conditionRefreshTask == null)
                     {
-                        m_conditionRefreshEvent.WaitOne();
+                        await m_conditionRefreshEvent.WaitAsync().ConfigureAwait(false);
                     }
                     else
                     {
@@ -2020,7 +2047,7 @@ namespace Opc.Ua.Server
         private Dictionary<NodeId, SessionPublishQueue> m_publishQueues;
         private ManualResetEvent m_shutdownEvent;
         private Queue<ConditionRefreshTask> m_conditionRefreshQueue;
-        private ManualResetEvent m_conditionRefreshEvent;
+        private AsyncManualResetEvent m_conditionRefreshEvent;
 
         private object m_statusMessagesLock = new object();
         private object m_eventLock = new object();

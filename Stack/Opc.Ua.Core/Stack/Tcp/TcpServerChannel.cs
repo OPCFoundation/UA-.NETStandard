@@ -1098,7 +1098,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void ResetQueuedResponses(Action<object> action)
         {
-            Task.Factory.StartNew(action, m_queuedResponses);
+            _ = Task.Factory.StartNew(action, m_queuedResponses);
             m_queuedResponses = new SortedDictionary<uint, IServiceResponse>();
         }
 
@@ -1133,7 +1133,6 @@ namespace Opc.Ua.Bindings
                 return true;
             }
         }
-
         #endregion
 
         #region Private Fields

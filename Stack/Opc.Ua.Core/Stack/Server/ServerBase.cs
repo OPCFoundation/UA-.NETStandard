@@ -1324,7 +1324,7 @@ namespace Opc.Ua
             InstanceCertificateChain = new X509Certificate2Collection(InstanceCertificate);
             var issuers = new List<CertificateIdentifier>();
             var validationErrors = new Dictionary<X509Certificate2, ServiceResultException>();
-            configuration.CertificateValidator.GetIssuersNoExceptionsOnGetIssuer(InstanceCertificateChain, issuers, validationErrors).Wait();
+            configuration.CertificateValidator.GetIssuersNoExceptionsOnGetIssuer(InstanceCertificateChain, issuers, validationErrors).GetAwaiter().GetResult();
 
             if (validationErrors.Count > 0)
             {

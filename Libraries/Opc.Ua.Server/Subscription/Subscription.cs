@@ -893,7 +893,7 @@ namespace Opc.Ua.Server
                     current = next;
                 }
 
-                // pubish the remaining notifications.
+                // publish the remaining notifications.
                 while (events.Count + datachanges.Count > 0)
                 {
                     // construct message.
