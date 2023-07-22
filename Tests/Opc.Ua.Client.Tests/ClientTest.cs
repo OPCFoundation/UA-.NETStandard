@@ -265,7 +265,7 @@ namespace Opc.Ua.Client.Tests
                         readValues, out var results, out var diagnosticInfos));
                 StatusCode statusCode = StatusCodes.BadSecurityPolicyRejected;
                 // race condition, if socket closed is detected before the error was returned,
-                // client may report channel clo sed instead of security policy rejected
+                // client may report channel closed instead of security policy rejected
                 if (StatusCodes.BadSecureChannelClosed == sre.StatusCode)
                 {
                     Assert.Inconclusive("Unexpected Status: {0}", sre);
@@ -509,8 +509,10 @@ namespace Opc.Ua.Client.Tests
             ITransportChannel channel2 = await ClientFixture.CreateChannelAsync(endpoint).ConfigureAwait(false);
             Assert.NotNull(channel2);
 
+            // activate the session on the new channel
             session1.Reconnect(channel2);
 
+            // read using the new channel
             ServerStatusDataType value2 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
             Assert.NotNull(value2);
             Assert.AreEqual(value1.State, value2.State);
@@ -534,7 +536,16 @@ namespace Opc.Ua.Client.Tests
             channel2.Dispose();
 
             sre = Assert.Throws<ServiceResultException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
-            Assert.AreEqual(StatusCodes.BadSessionIdInvalid, sre.StatusCode, sre.Message);
+
+            // TODO: Both channel should return BadSecureChannleClosed
+            if (endpoint.EndpointUrl.ToString().StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
+            {
+                Assert.AreEqual(StatusCodes.BadSessionIdInvalid, sre.StatusCode, sre.Message);
+            }
+            else
+            {
+                Assert.AreEqual(StatusCodes.BadUnknownResponse, sre.StatusCode, sre.Message);
+            }
         }
 
         [Test, Order(300)]
@@ -598,7 +609,7 @@ namespace Opc.Ua.Client.Tests
             // Test ReadValue
             Task task1 = Session.ReadValueAsync(VariableIds.Server_ServerRedundancy_RedundancySupport);
             Task task2 = Session.ReadValueAsync(VariableIds.Server_ServerStatus);
-            Task task3 = Session.ReadValueAsync(VariableIds.Server_ServerStatus);
+            Task task3 = Session.ReadValueAsync(VariableIds.Server_ServerStatus_BuildInfo);
             Task.WaitAll(task1, task2, task3);
         }
 

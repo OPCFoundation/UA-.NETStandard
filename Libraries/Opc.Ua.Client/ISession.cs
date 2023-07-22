@@ -317,7 +317,7 @@ namespace Opc.Ua.Client
         void Save(string filePath, IEnumerable<Subscription> subscriptions);
 
         /// <summary>
-        /// Load the list of subscriptions saved in a file.
+        /// Load the list of subscriptions saved in a stream.
         /// </summary>
         /// <param name="stream">The stream.</param>
         /// <param name="transferSubscriptions">Load the subscriptions for transfer after load.</param>

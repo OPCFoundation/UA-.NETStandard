@@ -1470,7 +1470,7 @@ namespace Opc.Ua
         /// Reads an encodeable object from the stream.
         /// </summary>
         /// <param name="fieldName">The encodeable object field name</param>
-        /// <param name="systemType">The system type of the encopdeable object to be read</param>
+        /// <param name="systemType">The system type of the encodeable object to be read</param>
         /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instance that will be read.</param>
         /// <returns>An <see cref="IEncodeable"/> object that was read from the stream.</returns>
         public IEncodeable ReadEncodeable(string fieldName, System.Type systemType, ExpandedNodeId encodeableTypeId = null)
@@ -1510,7 +1510,7 @@ namespace Opc.Ua
 
             if (BeginField(fieldName, true))
             {
-                XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(systemType);
+                XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(value, this.Context);
 
                 PushNamespace(xmlName.Namespace);
                 value.Decode(this);

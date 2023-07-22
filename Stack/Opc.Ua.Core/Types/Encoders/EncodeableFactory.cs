@@ -284,6 +284,28 @@ namespace Opc.Ua
 
             return new XmlQualifiedName(systemType.FullName);
         }
+
+        /// <summary>
+        /// Returns the xml qualified name for the specified object.
+        /// </summary>
+        /// <remarks>
+        /// Returns the xml qualified name for the specified object.
+        /// </remarks>
+        /// <param name="value">The object to query and return the Xml qualified name of</param>
+        /// <param name="context"></param>
+        public static XmlQualifiedName GetXmlName(object value, IServiceMessageContext context)
+        {
+            if (value is IDynamicComplexTypeInstance xmlEncodable)
+            {
+                var xmlName = xmlEncodable.GetXmlName(context);
+                if (xmlName != null)
+                {
+                    return xmlName;
+                }
+            }
+            return GetXmlName(value?.GetType());
+        }
+
         #endregion
 
         #region Public Members

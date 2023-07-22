@@ -379,11 +379,17 @@ namespace Opc.Ua.Client
                 Utils.SilentDispose(m_defaultSubscription);
                 m_defaultSubscription = null;
 
-                foreach (Subscription subscription in m_subscriptions)
+                IList<Subscription> subscriptions = null;
+                lock (SyncRoot)
+                {
+                    subscriptions = new List<Subscription>(m_subscriptions);
+                    m_subscriptions.Clear();
+                }
+
+                foreach (Subscription subscription in subscriptions)
                 {
                     Utils.SilentDispose(subscription);
                 }
-                m_subscriptions.Clear();
             }
 
             base.Dispose(disposing);
@@ -4269,6 +4275,8 @@ namespace Opc.Ua.Client
 
                 // send notification that keep alive completed.
                 OnKeepAlive((ServerState)(int)values[0].Value, responseHeader.Timestamp);
+
+                return;
             }
             catch (Exception e)
             {
@@ -5335,6 +5343,7 @@ namespace Opc.Ua.Client
                             Utils.LogInfo("PUBLISH - Too many requests, set limit to GoodPublishRequestCount={0}.", m_tooManyPublishRequests);
                         }
                         return;
+
                     case StatusCodes.BadNoSubscription:
                     case StatusCodes.BadSessionClosed:
                     case StatusCodes.BadSessionIdInvalid:
@@ -5476,7 +5485,7 @@ namespace Opc.Ua.Client
             // send notification that the server is alive.
             OnKeepAlive(m_serverState, responseHeader.Timestamp);
 
-            // collect the current set if acknowledgements.
+            // collect the current set of acknowledgements.
             lock (SyncRoot)
             {
                 // clear out acknowledgements for messages that the server does not have any more.

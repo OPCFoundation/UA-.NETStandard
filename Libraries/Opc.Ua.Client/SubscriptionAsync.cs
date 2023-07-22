@@ -56,8 +56,6 @@ namespace Opc.Ua.Client
 
             AdjustCounts(ref revisedMaxKeepAliveCount, ref revisedLifetimeCount);
 
-            ManageMessageWorkerSemaphore();
-
             var response = await m_session.CreateSubscriptionAsync(
                 null,
                 m_publishingInterval,
@@ -97,11 +95,13 @@ namespace Opc.Ua.Client
 
             try
             {
-                // stop the publish timer.
-                if (m_publishTimer != null)
+                lock (m_cache)
                 {
-                    m_publishTimer.Dispose();
+                    // stop the publish timer.
+                    Utils.SilentDispose(m_publishTimer);
                     m_publishTimer = null;
+                    m_messageWorkerEvent.Set();
+                    m_messageWorkerTask = null;
                 }
 
                 // delete the subscription.

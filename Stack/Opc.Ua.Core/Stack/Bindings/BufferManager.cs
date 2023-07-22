@@ -121,9 +121,8 @@ namespace Opc.Ua.Bindings
         /// <param name="maxBufferSize">Max size of the buffer.</param>
         public BufferManager(string name, int maxBufferSize)
         {
-            int maxArrayLength = maxBufferSize + m_cookieLength;
             m_name = name;
-            m_arrayPool = ArrayPool<byte>.Create(maxBufferSize, 32);
+            m_arrayPool = ArrayPool<byte>.Shared;
             m_maxBufferSize = maxBufferSize;
         }
         #endregion
