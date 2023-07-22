@@ -78,7 +78,7 @@
   </ItemGroup>
     
   <PropertyGroup>
-    <ZipTmp>$(TMP)/zipnodeset2</ZipTmp>
+    <ZipTmp>$(BaseIntermediateOutputPath)/zipnodeset2</ZipTmp>
     <ZipNodeset2XML>./Schema/Opc.Ua.Nodeset2.xml</ZipNodeset2XML>
   </PropertyGroup>
 
