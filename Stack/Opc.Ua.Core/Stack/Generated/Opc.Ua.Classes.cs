@@ -1161,7 +1161,7 @@ namespace Opc.Ua
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAHgAAAFNlcnZlckNhcGFiaWxpdGllc1R5cGVJbnN0YW5jZQEA3QcBAN0H" +
-           "3QcAAP////8PAAAAF2CJCgIAAAAAABIAAABTZXJ2ZXJQcm9maWxlQXJyYXkBAN4HAC4ARN4HAAAADAEA" +
+           "3QcAAP////8OAAAAF2CJCgIAAAAAABIAAABTZXJ2ZXJQcm9maWxlQXJyYXkBAN4HAC4ARN4HAAAADAEA" +
            "AAABAAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAAADQAAAExvY2FsZUlkQXJyYXkBAOAHAC4AROAHAAAB" +
            "ACcBAQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAAWAAAATWluU3VwcG9ydGVkU2FtcGxlUmF0" +
            "ZQEA4QcALgBE4QcAAAEAIgH/////AQH/////AAAAABVgiQoCAAAAAAAbAAAATWF4QnJvd3NlQ29udGlu" +
@@ -1174,17 +1174,15 @@ namespace Opc.Ua
            "AAAAFWCJCgIAAAAAABMAAABNYXhCeXRlU3RyaW5nTGVuZ3RoAQBuMgAuAERuMgAAAAf/////AQH/////" +
            "AAAAAARggAoBAAAAAAAPAAAAT3BlcmF0aW9uTGltaXRzAQAfLQAvAQAsLR8tAAD/////AAAAAARggAoB" +
            "AAAAAAAOAAAATW9kZWxsaW5nUnVsZXMBAOMHAC8APeMHAAD/////AAAAAARggAoBAAAAAAASAAAAQWdn" +
-           "cmVnYXRlRnVuY3Rpb25zAQDCCgAvAD3CCgAA/////wAAAAAVYMkKAgAAABwAAABWZW5kb3JDYXBhYmls" +
-           "aXR5X1BsYWNlaG9sZGVyAAASAAAAPFZlbmRvckNhcGFiaWxpdHk+AQAqLQAvAQBZCCotAAAAGP////8B" +
-           "Af////8AAAAABGCACgEAAAAAAAcAAABSb2xlU2V0AQCnPwAvAQD3PKc/AAD/////AgAAAARhggoEAAAA" +
-           "AAAHAAAAQWRkUm9sZQEAqD8ALwEAfT6oPwAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1" +
-           "bWVudHMBAKk/AC4ARKk/AACWAgAAAAEAKgEBFwAAAAgAAABSb2xlTmFtZQAM/////wAAAAAAAQAqAQEb" +
-           "AAAADAAAAE5hbWVzcGFjZVVyaQAM/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkK" +
-           "AgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAqj8ALgBEqj8AAJYBAAAAAQAqAQEZAAAACgAAAFJvbGVO" +
-           "b2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAoAAABSZW1v" +
-           "dmVSb2xlAQCrPwAvAQCAPqs/AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA" +
-           "rD8ALgBErD8AAJYBAAAAAQAqAQEZAAAACgAAAFJvbGVOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAA" +
-           "AAAAAAABAf////8AAAAA";
+           "cmVnYXRlRnVuY3Rpb25zAQDCCgAvAD3CCgAA/////wAAAAAEYIAKAQAAAAAABwAAAFJvbGVTZXQBAKc/" +
+           "AC8BAPc8pz8AAP////8CAAAABGGCCgQAAAAAAAcAAABBZGRSb2xlAQCoPwAvAQB9Pqg/AAABAf////8C" +
+           "AAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAqT8ALgBEqT8AAJYCAAAAAQAqAQEXAAAACAAA" +
+           "AFJvbGVOYW1lAAz/////AAAAAAABACoBARsAAAAMAAAATmFtZXNwYWNlVXJpAAz/////AAAAAAABACgB" +
+           "AQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQCqPwAuAESq" +
+           "PwAAlgEAAAABACoBARkAAAAKAAAAUm9sZU5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB" +
+           "/////wAAAAAEYYIKBAAAAAAACgAAAFJlbW92ZVJvbGUBAKs/AC8BAIA+qz8AAAEB/////wEAAAAXYKkK" +
+           "AgAAAAAADgAAAElucHV0QXJndW1lbnRzAQCsPwAuAESsPwAAlgEAAAABACoBARkAAAAKAAAAUm9sZU5v" +
+           "ZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -2272,68 +2270,10 @@ namespace Opc.Ua
         #region Initialization String
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAJgAAAFNlc3Npb25zRGlhZ25vc3RpY3NTdW1tYXJ5VHlwZUluc3RhbmNl" +
-           "AQDqBwEA6gfqBwAA/////wMAAAAXYIkKAgAAAAAAFwAAAFNlc3Npb25EaWFnbm9zdGljc0FycmF5AQDr" +
+           "AQDqBwEA6gfqBwAA/////wIAAAAXYIkKAgAAAAAAFwAAAFNlc3Npb25EaWFnbm9zdGljc0FycmF5AQDr" +
            "BwAvAQCUCOsHAAABAGEDAQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAAAfAAAAU2Vzc2lvblNl" +
            "Y3VyaXR5RGlhZ25vc3RpY3NBcnJheQEA7AcALwEAwwjsBwAAAQBkAwEAAAABAAAAAAAAAAEB/////wAA" +
-           "AAAEYMAKAQAAABYAAABDbGllbnROYW1lX1BsYWNlaG9sZGVyAAAMAAAAPENsaWVudE5hbWU+AQBBLwAv" +
-           "AQDtB0EvAAD/////AwAAABVgiQoCAAAAAAASAAAAU2Vzc2lvbkRpYWdub3N0aWNzAQBCLwAvAQCVCEIv" +
-           "AAABAGED/////wEB/////ysAAAAVYIkKAgAAAAAACQAAAFNlc3Npb25JZAEAQy8ALwA/Qy8AAAAR////" +
-           "/wEB/////wAAAAAVYIkKAgAAAAAACwAAAFNlc3Npb25OYW1lAQBELwAvAD9ELwAAAAz/////AQH/////" +
-           "AAAAABVgiQoCAAAAAAARAAAAQ2xpZW50RGVzY3JpcHRpb24BAEUvAC8AP0UvAAABADQB/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAAACQAAAFNlcnZlclVyaQEARi8ALwA/Ri8AAAAM/////wEB/////wAAAAAVYIkK" +
-           "AgAAAAAACwAAAEVuZHBvaW50VXJsAQBHLwAvAD9HLwAAAAz/////AQH/////AAAAABdgiQoCAAAAAAAJ" +
-           "AAAATG9jYWxlSWRzAQBILwAvAD9ILwAAAQAnAQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAA" +
-           "FAAAAEFjdHVhbFNlc3Npb25UaW1lb3V0AQBJLwAvAD9JLwAAAQAiAf////8BAf////8AAAAAFWCJCgIA" +
-           "AAAAABYAAABNYXhSZXNwb25zZU1lc3NhZ2VTaXplAQBKLwAvAD9KLwAAAAf/////AQH/////AAAAABVg" +
-           "iQoCAAAAAAAUAAAAQ2xpZW50Q29ubmVjdGlvblRpbWUBAEsvAC8AP0svAAABACYB/////wEB/////wAA" +
-           "AAAVYIkKAgAAAAAAFQAAAENsaWVudExhc3RDb250YWN0VGltZQEATC8ALwA/TC8AAAEAJgH/////AQH/" +
-           "////AAAAABVgiQoCAAAAAAAZAAAAQ3VycmVudFN1YnNjcmlwdGlvbnNDb3VudAEATS8ALwA/TS8AAAAH" +
-           "/////wEB/////wAAAAAVYIkKAgAAAAAAGgAAAEN1cnJlbnRNb25pdG9yZWRJdGVtc0NvdW50AQBOLwAv" +
-           "AD9OLwAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAdAAAAQ3VycmVudFB1Ymxpc2hSZXF1ZXN0c0lu" +
-           "UXVldWUBAE8vAC8AP08vAAAAB/////8BAf////8AAAAAFWCJCgIAAAAAABEAAABUb3RhbFJlcXVlc3RD" +
-           "b3VudAEAUC8ALwA/UC8AAAEAZwP/////AQH/////AAAAABVgiQoCAAAAAAAYAAAAVW5hdXRob3JpemVk" +
-           "UmVxdWVzdENvdW50AQBRLwAvAD9RLwAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAJAAAAUmVhZENv" +
-           "dW50AQBSLwAvAD9SLwAAAQBnA/////8BAf////8AAAAAFWCJCgIAAAAAABAAAABIaXN0b3J5UmVhZENv" +
-           "dW50AQBTLwAvAD9TLwAAAQBnA/////8BAf////8AAAAAFWCJCgIAAAAAAAoAAABXcml0ZUNvdW50AQBU" +
-           "LwAvAD9ULwAAAQBnA/////8BAf////8AAAAAFWCJCgIAAAAAABIAAABIaXN0b3J5VXBkYXRlQ291bnQB" +
-           "AFUvAC8AP1UvAAABAGcD/////wEB/////wAAAAAVYIkKAgAAAAAACQAAAENhbGxDb3VudAEAVi8ALwA/" +
-           "Vi8AAAEAZwP/////AQH/////AAAAABVgiQoCAAAAAAAZAAAAQ3JlYXRlTW9uaXRvcmVkSXRlbXNDb3Vu" +
-           "dAEAVy8ALwA/Vy8AAAEAZwP/////AQH/////AAAAABVgiQoCAAAAAAAZAAAATW9kaWZ5TW9uaXRvcmVk" +
-           "SXRlbXNDb3VudAEAWC8ALwA/WC8AAAEAZwP/////AQH/////AAAAABVgiQoCAAAAAAAWAAAAU2V0TW9u" +
-           "aXRvcmluZ01vZGVDb3VudAEAWS8ALwA/WS8AAAEAZwP/////AQH/////AAAAABVgiQoCAAAAAAASAAAA" +
-           "U2V0VHJpZ2dlcmluZ0NvdW50AQBaLwAvAD9aLwAAAQBnA/////8BAf////8AAAAAFWCJCgIAAAAAABkA" +
-           "AABEZWxldGVNb25pdG9yZWRJdGVtc0NvdW50AQBbLwAvAD9bLwAAAQBnA/////8BAf////8AAAAAFWCJ" +
-           "CgIAAAAAABcAAABDcmVhdGVTdWJzY3JpcHRpb25Db3VudAEAXC8ALwA/XC8AAAEAZwP/////AQH/////" +
-           "AAAAABVgiQoCAAAAAAAXAAAATW9kaWZ5U3Vic2NyaXB0aW9uQ291bnQBAF0vAC8AP10vAAABAGcD////" +
-           "/wEB/////wAAAAAVYIkKAgAAAAAAFgAAAFNldFB1Ymxpc2hpbmdNb2RlQ291bnQBAF4vAC8AP14vAAAB" +
-           "AGcD/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAFB1Ymxpc2hDb3VudAEAXy8ALwA/Xy8AAAEAZwP/" +
-           "////AQH/////AAAAABVgiQoCAAAAAAAOAAAAUmVwdWJsaXNoQ291bnQBAGAvAC8AP2AvAAABAGcD////" +
-           "/wEB/////wAAAAAVYIkKAgAAAAAAGgAAAFRyYW5zZmVyU3Vic2NyaXB0aW9uc0NvdW50AQBhLwAvAD9h" +
-           "LwAAAQBnA/////8BAf////8AAAAAFWCJCgIAAAAAABgAAABEZWxldGVTdWJzY3JpcHRpb25zQ291bnQB" +
-           "AGIvAC8AP2IvAAABAGcD/////wEB/////wAAAAAVYIkKAgAAAAAADQAAAEFkZE5vZGVzQ291bnQBAGMv" +
-           "AC8AP2MvAAABAGcD/////wEB/////wAAAAAVYIkKAgAAAAAAEgAAAEFkZFJlZmVyZW5jZXNDb3VudAEA" +
-           "ZC8ALwA/ZC8AAAEAZwP/////AQH/////AAAAABVgiQoCAAAAAAAQAAAARGVsZXRlTm9kZXNDb3VudAEA" +
-           "ZS8ALwA/ZS8AAAEAZwP/////AQH/////AAAAABVgiQoCAAAAAAAVAAAARGVsZXRlUmVmZXJlbmNlc0Nv" +
-           "dW50AQBmLwAvAD9mLwAAAQBnA/////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABCcm93c2VDb3VudAEA" +
-           "Zy8ALwA/Zy8AAAEAZwP/////AQH/////AAAAABVgiQoCAAAAAAAPAAAAQnJvd3NlTmV4dENvdW50AQBo" +
-           "LwAvAD9oLwAAAQBnA/////8BAf////8AAAAAFWCJCgIAAAAAACIAAABUcmFuc2xhdGVCcm93c2VQYXRo" +
-           "c1RvTm9kZUlkc0NvdW50AQBpLwAvAD9pLwAAAQBnA/////8BAf////8AAAAAFWCJCgIAAAAAAA8AAABR" +
-           "dWVyeUZpcnN0Q291bnQBAGovAC8AP2ovAAABAGcD/////wEB/////wAAAAAVYIkKAgAAAAAADgAAAFF1" +
-           "ZXJ5TmV4dENvdW50AQBrLwAvAD9rLwAAAQBnA/////8BAf////8AAAAAFWCJCgIAAAAAABIAAABSZWdp" +
-           "c3Rlck5vZGVzQ291bnQBAGwvAC8AP2wvAAABAGcD/////wEB/////wAAAAAVYIkKAgAAAAAAFAAAAFVu" +
-           "cmVnaXN0ZXJOb2Rlc0NvdW50AQBtLwAvAD9tLwAAAQBnA/////8BAf////8AAAAAFWCJCgIAAAAAABoA" +
-           "AABTZXNzaW9uU2VjdXJpdHlEaWFnbm9zdGljcwEAbi8ALwEAxAhuLwAAAQBkA/////8BAf////8JAAAA" +
-           "FWCJCgIAAAAAAAkAAABTZXNzaW9uSWQBAG8vAC8AP28vAAAAEf////8BAf////8AAAAAFWCJCgIAAAAA" +
-           "ABUAAABDbGllbnRVc2VySWRPZlNlc3Npb24BAHAvAC8AP3AvAAAADP////8BAf////8AAAAAF2CJCgIA" +
-           "AAAAABMAAABDbGllbnRVc2VySWRIaXN0b3J5AQBxLwAvAD9xLwAAAAwBAAAAAQAAAAAAAAABAf////8A" +
-           "AAAAFWCJCgIAAAAAABcAAABBdXRoZW50aWNhdGlvbk1lY2hhbmlzbQEAci8ALwA/ci8AAAAM/////wEB" +
-           "/////wAAAAAVYIkKAgAAAAAACAAAAEVuY29kaW5nAQBzLwAvAD9zLwAAAAz/////AQH/////AAAAABVg" +
-           "iQoCAAAAAAARAAAAVHJhbnNwb3J0UHJvdG9jb2wBAHQvAC8AP3QvAAAADP////8BAf////8AAAAAFWCJ" +
-           "CgIAAAAAAAwAAABTZWN1cml0eU1vZGUBAHUvAC8AP3UvAAABAC4B/////wEB/////wAAAAAVYIkKAgAA" +
-           "AAAAEQAAAFNlY3VyaXR5UG9saWN5VXJpAQB2LwAvAD92LwAAAAz/////AQH/////AAAAABVgiQoCAAAA" +
-           "AAARAAAAQ2xpZW50Q2VydGlmaWNhdGUBAHcvAC8AP3cvAAAAD/////8BAf////8AAAAAF2CJCgIAAAAA" +
-           "ABwAAABTdWJzY3JpcHRpb25EaWFnbm9zdGljc0FycmF5AQB4LwAvAQB7CHgvAAABAGoDAQAAAAEAAAAA" +
-           "AAAAAQH/////AAAAAA==";
+           "AAA=";
         #endregion
         #endif
         #endregion
@@ -5790,16 +5730,7 @@ namespace Opc.Ua
         #region Initialization String
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAFgAAAE5hbWVzcGFjZXNUeXBlSW5zdGFuY2UBAH0tAQB9LX0tAAD/////" +
-           "AQAAAARgwAoBAAAAHwAAAE5hbWVzcGFjZUlkZW50aWZpZXJfUGxhY2Vob2xkZXIAABUAAAA8TmFtZXNw" +
-           "YWNlSWRlbnRpZmllcj4BAH4tAC8BAGAtfi0AAP////8HAAAAFWCJCgIAAAAAAAwAAABOYW1lc3BhY2VV" +
-           "cmkBAH8tAC4ARH8tAAAADP////8BAf////8AAAAAFWCJCgIAAAAAABAAAABOYW1lc3BhY2VWZXJzaW9u" +
-           "AQCALQAuAESALQAAAAz/////AQH/////AAAAABVgiQoCAAAAAAAYAAAATmFtZXNwYWNlUHVibGljYXRp" +
-           "b25EYXRlAQCBLQAuAESBLQAAAA3/////AQH/////AAAAABVgiQoCAAAAAAARAAAASXNOYW1lc3BhY2VT" +
-           "dWJzZXQBAIItAC4ARIItAAAAAf////8BAf////8AAAAAF2CJCgIAAAAAABEAAABTdGF0aWNOb2RlSWRU" +
-           "eXBlcwEAgy0ALgBEgy0AAAEAAAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CJCgIAAAAAABgAAABTdGF0" +
-           "aWNOdW1lcmljTm9kZUlkUmFuZ2UBAIQtAC4ARIQtAAABACMBAQAAAAEAAAAAAAAAAQH/////AAAAABVg" +
-           "iQoCAAAAAAAZAAAAU3RhdGljU3RyaW5nTm9kZUlkUGF0dGVybgEAhS0ALgBEhS0AAAAM/////wEB////" +
-           "/wAAAAA=";
+           "AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -11575,12 +11506,12 @@ namespace Opc.Ua
         {
             get
             {
-                return CheckTypeBeforeCast<T>(base.Value, true);
+                return CheckTypeBeforeCast<T>(((BaseVariableState)this).Value, true);
             }
 
             set
             {
-                base.Value = value;
+                ((BaseVariableState)this).Value = value;
             }
         }
         #endregion
@@ -11594,7 +11525,7 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class ServerStatusState : BaseDataVariableState<ServerStatusDataType>
+    public partial class ServerStatusState : BaseDataVariableState<Opc.Ua.ServerStatusDataType>
     {
         #region Constructors
         /// <remarks />
@@ -12009,7 +11940,7 @@ namespace Opc.Ua
         /// <remarks />
         public ServerStatusDataType Value
         {
-            get { return m_value;  }
+            get { return m_value; }
             set { m_value = value; }
         }
         #endregion
@@ -12024,60 +11955,54 @@ namespace Opc.Ua
                 variable.Value = m_value;
 
                 variable.OnReadValue = OnReadValue;
-                variable.OnSimpleWriteValue = OnWriteValue;
+                variable.OnWriteValue = OnWriteValue;
 
                 BaseVariableState instance = null;
                 List<BaseInstanceState> updateList = new List<BaseInstanceState>();
                 updateList.Add(variable);
 
                 instance = m_variable.StartTime;
-                instance.OnReadValue = OnRead_StartTime;
-                instance.OnSimpleWriteValue = OnWrite_StartTime;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_StartTime;
+                    instance.OnWriteValue = OnWrite_StartTime;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.CurrentTime;
-                instance.OnReadValue = OnRead_CurrentTime;
-                instance.OnSimpleWriteValue = OnWrite_CurrentTime;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_CurrentTime;
+                    instance.OnWriteValue = OnWrite_CurrentTime;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.State;
-                instance.OnReadValue = OnRead_State;
-                instance.OnSimpleWriteValue = OnWrite_State;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_State;
+                    instance.OnWriteValue = OnWrite_State;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.BuildInfo;
-                instance.OnReadValue = OnRead_BuildInfo;
-                instance.OnSimpleWriteValue = OnWrite_BuildInfo;
-                updateList.Add(instance);
-                instance = m_variable.BuildInfo.ProductUri;
-                instance.OnReadValue = OnRead_BuildInfo_ProductUri;
-                instance.OnSimpleWriteValue = OnWrite_BuildInfo_ProductUri;
-                updateList.Add(instance);
-                instance = m_variable.BuildInfo.ManufacturerName;
-                instance.OnReadValue = OnRead_BuildInfo_ManufacturerName;
-                instance.OnSimpleWriteValue = OnWrite_BuildInfo_ManufacturerName;
-                updateList.Add(instance);
-                instance = m_variable.BuildInfo.ProductName;
-                instance.OnReadValue = OnRead_BuildInfo_ProductName;
-                instance.OnSimpleWriteValue = OnWrite_BuildInfo_ProductName;
-                updateList.Add(instance);
-                instance = m_variable.BuildInfo.SoftwareVersion;
-                instance.OnReadValue = OnRead_BuildInfo_SoftwareVersion;
-                instance.OnSimpleWriteValue = OnWrite_BuildInfo_SoftwareVersion;
-                updateList.Add(instance);
-                instance = m_variable.BuildInfo.BuildNumber;
-                instance.OnReadValue = OnRead_BuildInfo_BuildNumber;
-                instance.OnSimpleWriteValue = OnWrite_BuildInfo_BuildNumber;
-                updateList.Add(instance);
-                instance = m_variable.BuildInfo.BuildDate;
-                instance.OnReadValue = OnRead_BuildInfo_BuildDate;
-                instance.OnSimpleWriteValue = OnWrite_BuildInfo_BuildDate;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_BuildInfo;
+                    instance.OnWriteValue = OnWrite_BuildInfo;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.SecondsTillShutdown;
-                instance.OnReadValue = OnRead_SecondsTillShutdown;
-                instance.OnSimpleWriteValue = OnWrite_SecondsTillShutdown;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_SecondsTillShutdown;
+                    instance.OnWriteValue = OnWrite_SecondsTillShutdown;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.ShutdownReason;
-                instance.OnReadValue = OnRead_ShutdownReason;
-                instance.OnSimpleWriteValue = OnWrite_ShutdownReason;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_ShutdownReason;
+                    instance.OnWriteValue = OnWrite_ShutdownReason;
+                    updateList.Add(instance);
+                }
 
                 SetUpdateList(updateList);
             }
@@ -12106,14 +12031,65 @@ namespace Opc.Ua
             }
         }
 
-        private ServiceResult OnWriteValue(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWriteValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
-                m_value = (ServerStatusDataType)Write(value);
+                ServerStatusDataType newValue;
+                if (value is ExtensionObject extensionObject)
+                {
+                    newValue = (ServerStatusDataType)extensionObject.Body;
+                }
+                else
+                {
+                    newValue = (ServerStatusDataType)value;
+                }
+
+                if (!Utils.IsEqual(m_value, newValue))
+                {
+                    UpdateChildrenChangeMasks(context, ref newValue, ref statusCode, ref timestamp);
+                    Timestamp = timestamp;
+                    m_value = (ServerStatusDataType)Write(newValue);
+                    m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                }
             }
 
             return ServiceResult.Good;
+        }
+
+        private void UpdateChildrenChangeMasks(ISystemContext context, ref ServerStatusDataType newValue, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (!Utils.IsEqual(m_value.StartTime, newValue.StartTime)) UpdateChildVariableStatus(m_variable.StartTime, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CurrentTime, newValue.CurrentTime)) UpdateChildVariableStatus(m_variable.CurrentTime, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.State, newValue.State)) UpdateChildVariableStatus(m_variable.State, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.BuildInfo, newValue.BuildInfo)) UpdateChildVariableStatus(m_variable.BuildInfo, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SecondsTillShutdown, newValue.SecondsTillShutdown)) UpdateChildVariableStatus(m_variable.SecondsTillShutdown, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ShutdownReason, newValue.ShutdownReason)) UpdateChildVariableStatus(m_variable.ShutdownReason, ref statusCode, ref timestamp);
+        }
+
+        private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            Timestamp = timestamp;
+            m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            m_variable.ClearChangeMasks(context, false);
+        }
+
+        private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (child == null) return;
+            child.StatusCode = statusCode;
+            if (timestamp == DateTime.MinValue)
+            {
+                timestamp = DateTime.UtcNow;
+            }
+            child.Timestamp = timestamp;
         }
 
         #region StartTime Access Methods
@@ -12131,21 +12107,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.StartTime;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.StartTime;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_StartTime(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_StartTime(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.StartTime, ref statusCode, ref timestamp);
                 m_value.StartTime = (DateTime)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -12167,21 +12172,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.CurrentTime;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.CurrentTime;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_CurrentTime(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_CurrentTime(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.CurrentTime, ref statusCode, ref timestamp);
                 m_value.CurrentTime = (DateTime)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -12203,21 +12237,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.State;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.State;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_State(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_State(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.State, ref statusCode, ref timestamp);
                 m_value.State = (ServerState)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -12239,237 +12302,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.BuildInfo;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.BuildInfo;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_BuildInfo(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_BuildInfo(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.BuildInfo, ref statusCode, ref timestamp);
                 m_value.BuildInfo = (BuildInfo)Write(value);
-            }
-
-            return ServiceResult.Good;
-        }
-        #endregion
-
-        #region BuildInfo_ProductUri Access Methods
-        /// <remarks />
-        private ServiceResult OnRead_BuildInfo_ProductUri(
-            ISystemContext context,
-            NodeState node,
-            NumericRange indexRange,
-            QualifiedName dataEncoding,
-            ref object value,
-            ref StatusCode statusCode,
-            ref DateTime timestamp)
-        {
-            lock (Lock)
-            {
-                DoBeforeReadProcessing(context, node);
-
-                if (m_value != null)
-                {
-                    value = m_value.BuildInfo.ProductUri;
-                }
-
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
-            }
-        }
-
-        /// <remarks />
-        private ServiceResult OnWrite_BuildInfo_ProductUri(ISystemContext context, NodeState node, ref object value)
-        {
-            lock (Lock)
-            {
-                m_value.BuildInfo.ProductUri = (string)Write(value);
-            }
-
-            return ServiceResult.Good;
-        }
-        #endregion
-
-        #region BuildInfo_ManufacturerName Access Methods
-        /// <remarks />
-        private ServiceResult OnRead_BuildInfo_ManufacturerName(
-            ISystemContext context,
-            NodeState node,
-            NumericRange indexRange,
-            QualifiedName dataEncoding,
-            ref object value,
-            ref StatusCode statusCode,
-            ref DateTime timestamp)
-        {
-            lock (Lock)
-            {
-                DoBeforeReadProcessing(context, node);
-
-                if (m_value != null)
-                {
-                    value = m_value.BuildInfo.ManufacturerName;
-                }
-
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
-            }
-        }
-
-        /// <remarks />
-        private ServiceResult OnWrite_BuildInfo_ManufacturerName(ISystemContext context, NodeState node, ref object value)
-        {
-            lock (Lock)
-            {
-                m_value.BuildInfo.ManufacturerName = (string)Write(value);
-            }
-
-            return ServiceResult.Good;
-        }
-        #endregion
-
-        #region BuildInfo_ProductName Access Methods
-        /// <remarks />
-        private ServiceResult OnRead_BuildInfo_ProductName(
-            ISystemContext context,
-            NodeState node,
-            NumericRange indexRange,
-            QualifiedName dataEncoding,
-            ref object value,
-            ref StatusCode statusCode,
-            ref DateTime timestamp)
-        {
-            lock (Lock)
-            {
-                DoBeforeReadProcessing(context, node);
-
-                if (m_value != null)
-                {
-                    value = m_value.BuildInfo.ProductName;
-                }
-
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
-            }
-        }
-
-        /// <remarks />
-        private ServiceResult OnWrite_BuildInfo_ProductName(ISystemContext context, NodeState node, ref object value)
-        {
-            lock (Lock)
-            {
-                m_value.BuildInfo.ProductName = (string)Write(value);
-            }
-
-            return ServiceResult.Good;
-        }
-        #endregion
-
-        #region BuildInfo_SoftwareVersion Access Methods
-        /// <remarks />
-        private ServiceResult OnRead_BuildInfo_SoftwareVersion(
-            ISystemContext context,
-            NodeState node,
-            NumericRange indexRange,
-            QualifiedName dataEncoding,
-            ref object value,
-            ref StatusCode statusCode,
-            ref DateTime timestamp)
-        {
-            lock (Lock)
-            {
-                DoBeforeReadProcessing(context, node);
-
-                if (m_value != null)
-                {
-                    value = m_value.BuildInfo.SoftwareVersion;
-                }
-
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
-            }
-        }
-
-        /// <remarks />
-        private ServiceResult OnWrite_BuildInfo_SoftwareVersion(ISystemContext context, NodeState node, ref object value)
-        {
-            lock (Lock)
-            {
-                m_value.BuildInfo.SoftwareVersion = (string)Write(value);
-            }
-
-            return ServiceResult.Good;
-        }
-        #endregion
-
-        #region BuildInfo_BuildNumber Access Methods
-        /// <remarks />
-        private ServiceResult OnRead_BuildInfo_BuildNumber(
-            ISystemContext context,
-            NodeState node,
-            NumericRange indexRange,
-            QualifiedName dataEncoding,
-            ref object value,
-            ref StatusCode statusCode,
-            ref DateTime timestamp)
-        {
-            lock (Lock)
-            {
-                DoBeforeReadProcessing(context, node);
-
-                if (m_value != null)
-                {
-                    value = m_value.BuildInfo.BuildNumber;
-                }
-
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
-            }
-        }
-
-        /// <remarks />
-        private ServiceResult OnWrite_BuildInfo_BuildNumber(ISystemContext context, NodeState node, ref object value)
-        {
-            lock (Lock)
-            {
-                m_value.BuildInfo.BuildNumber = (string)Write(value);
-            }
-
-            return ServiceResult.Good;
-        }
-        #endregion
-
-        #region BuildInfo_BuildDate Access Methods
-        /// <remarks />
-        private ServiceResult OnRead_BuildInfo_BuildDate(
-            ISystemContext context,
-            NodeState node,
-            NumericRange indexRange,
-            QualifiedName dataEncoding,
-            ref object value,
-            ref StatusCode statusCode,
-            ref DateTime timestamp)
-        {
-            lock (Lock)
-            {
-                DoBeforeReadProcessing(context, node);
-
-                if (m_value != null)
-                {
-                    value = m_value.BuildInfo.BuildDate;
-                }
-
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
-            }
-        }
-
-        /// <remarks />
-        private ServiceResult OnWrite_BuildInfo_BuildDate(ISystemContext context, NodeState node, ref object value)
-        {
-            lock (Lock)
-            {
-                m_value.BuildInfo.BuildDate = (DateTime)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -12491,21 +12367,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.SecondsTillShutdown;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.SecondsTillShutdown;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_SecondsTillShutdown(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_SecondsTillShutdown(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.SecondsTillShutdown, ref statusCode, ref timestamp);
                 m_value.SecondsTillShutdown = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -12527,21 +12432,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.ShutdownReason;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.ShutdownReason;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_ShutdownReason(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_ShutdownReason(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.ShutdownReason, ref statusCode, ref timestamp);
                 m_value.ShutdownReason = (LocalizedText)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -12563,7 +12497,7 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class BuildInfoVariableState : BaseDataVariableState<BuildInfo>
+    public partial class BuildInfoVariableState : BaseDataVariableState<Opc.Ua.BuildInfo>
     {
         #region Constructors
         /// <remarks />
@@ -12973,7 +12907,7 @@ namespace Opc.Ua
         /// <remarks />
         public BuildInfo Value
         {
-            get { return m_value;  }
+            get { return m_value; }
             set { m_value = value; }
         }
         #endregion
@@ -12988,36 +12922,54 @@ namespace Opc.Ua
                 variable.Value = m_value;
 
                 variable.OnReadValue = OnReadValue;
-                variable.OnSimpleWriteValue = OnWriteValue;
+                variable.OnWriteValue = OnWriteValue;
 
                 BaseVariableState instance = null;
                 List<BaseInstanceState> updateList = new List<BaseInstanceState>();
                 updateList.Add(variable);
 
                 instance = m_variable.ProductUri;
-                instance.OnReadValue = OnRead_ProductUri;
-                instance.OnSimpleWriteValue = OnWrite_ProductUri;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_ProductUri;
+                    instance.OnWriteValue = OnWrite_ProductUri;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.ManufacturerName;
-                instance.OnReadValue = OnRead_ManufacturerName;
-                instance.OnSimpleWriteValue = OnWrite_ManufacturerName;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_ManufacturerName;
+                    instance.OnWriteValue = OnWrite_ManufacturerName;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.ProductName;
-                instance.OnReadValue = OnRead_ProductName;
-                instance.OnSimpleWriteValue = OnWrite_ProductName;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_ProductName;
+                    instance.OnWriteValue = OnWrite_ProductName;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.SoftwareVersion;
-                instance.OnReadValue = OnRead_SoftwareVersion;
-                instance.OnSimpleWriteValue = OnWrite_SoftwareVersion;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_SoftwareVersion;
+                    instance.OnWriteValue = OnWrite_SoftwareVersion;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.BuildNumber;
-                instance.OnReadValue = OnRead_BuildNumber;
-                instance.OnSimpleWriteValue = OnWrite_BuildNumber;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_BuildNumber;
+                    instance.OnWriteValue = OnWrite_BuildNumber;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.BuildDate;
-                instance.OnReadValue = OnRead_BuildDate;
-                instance.OnSimpleWriteValue = OnWrite_BuildDate;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_BuildDate;
+                    instance.OnWriteValue = OnWrite_BuildDate;
+                    updateList.Add(instance);
+                }
 
                 SetUpdateList(updateList);
             }
@@ -13046,14 +12998,65 @@ namespace Opc.Ua
             }
         }
 
-        private ServiceResult OnWriteValue(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWriteValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
-                m_value = (BuildInfo)Write(value);
+                BuildInfo newValue;
+                if (value is ExtensionObject extensionObject)
+                {
+                    newValue = (BuildInfo)extensionObject.Body;
+                }
+                else
+                {
+                    newValue = (BuildInfo)value;
+                }
+
+                if (!Utils.IsEqual(m_value, newValue))
+                {
+                    UpdateChildrenChangeMasks(context, ref newValue, ref statusCode, ref timestamp);
+                    Timestamp = timestamp;
+                    m_value = (BuildInfo)Write(newValue);
+                    m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                }
             }
 
             return ServiceResult.Good;
+        }
+
+        private void UpdateChildrenChangeMasks(ISystemContext context, ref BuildInfo newValue, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (!Utils.IsEqual(m_value.ProductUri, newValue.ProductUri)) UpdateChildVariableStatus(m_variable.ProductUri, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ManufacturerName, newValue.ManufacturerName)) UpdateChildVariableStatus(m_variable.ManufacturerName, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ProductName, newValue.ProductName)) UpdateChildVariableStatus(m_variable.ProductName, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SoftwareVersion, newValue.SoftwareVersion)) UpdateChildVariableStatus(m_variable.SoftwareVersion, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.BuildNumber, newValue.BuildNumber)) UpdateChildVariableStatus(m_variable.BuildNumber, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.BuildDate, newValue.BuildDate)) UpdateChildVariableStatus(m_variable.BuildDate, ref statusCode, ref timestamp);
+        }
+
+        private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            Timestamp = timestamp;
+            m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            m_variable.ClearChangeMasks(context, false);
+        }
+
+        private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (child == null) return;
+            child.StatusCode = statusCode;
+            if (timestamp == DateTime.MinValue)
+            {
+                timestamp = DateTime.UtcNow;
+            }
+            child.Timestamp = timestamp;
         }
 
         #region ProductUri Access Methods
@@ -13071,21 +13074,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.ProductUri;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.ProductUri;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_ProductUri(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_ProductUri(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.ProductUri, ref statusCode, ref timestamp);
                 m_value.ProductUri = (string)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -13107,21 +13139,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.ManufacturerName;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.ManufacturerName;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_ManufacturerName(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_ManufacturerName(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.ManufacturerName, ref statusCode, ref timestamp);
                 m_value.ManufacturerName = (string)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -13143,21 +13204,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.ProductName;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.ProductName;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_ProductName(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_ProductName(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.ProductName, ref statusCode, ref timestamp);
                 m_value.ProductName = (string)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -13179,21 +13269,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.SoftwareVersion;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.SoftwareVersion;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_SoftwareVersion(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_SoftwareVersion(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.SoftwareVersion, ref statusCode, ref timestamp);
                 m_value.SoftwareVersion = (string)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -13215,21 +13334,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.BuildNumber;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.BuildNumber;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_BuildNumber(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_BuildNumber(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.BuildNumber, ref statusCode, ref timestamp);
                 m_value.BuildNumber = (string)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -13251,21 +13399,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.BuildDate;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.BuildDate;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_BuildDate(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_BuildDate(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.BuildDate, ref statusCode, ref timestamp);
                 m_value.BuildDate = (DateTime)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -13287,7 +13464,7 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class ServerDiagnosticsSummaryState : BaseDataVariableState<ServerDiagnosticsSummaryDataType>
+    public partial class ServerDiagnosticsSummaryState : BaseDataVariableState<Opc.Ua.ServerDiagnosticsSummaryDataType>
     {
         #region Constructors
         /// <remarks />
@@ -13980,7 +14157,7 @@ namespace Opc.Ua
         /// <remarks />
         public ServerDiagnosticsSummaryDataType Value
         {
-            get { return m_value;  }
+            get { return m_value; }
             set { m_value = value; }
         }
         #endregion
@@ -13995,60 +14172,96 @@ namespace Opc.Ua
                 variable.Value = m_value;
 
                 variable.OnReadValue = OnReadValue;
-                variable.OnSimpleWriteValue = OnWriteValue;
+                variable.OnWriteValue = OnWriteValue;
 
                 BaseVariableState instance = null;
                 List<BaseInstanceState> updateList = new List<BaseInstanceState>();
                 updateList.Add(variable);
 
                 instance = m_variable.ServerViewCount;
-                instance.OnReadValue = OnRead_ServerViewCount;
-                instance.OnSimpleWriteValue = OnWrite_ServerViewCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_ServerViewCount;
+                    instance.OnWriteValue = OnWrite_ServerViewCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.CurrentSessionCount;
-                instance.OnReadValue = OnRead_CurrentSessionCount;
-                instance.OnSimpleWriteValue = OnWrite_CurrentSessionCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_CurrentSessionCount;
+                    instance.OnWriteValue = OnWrite_CurrentSessionCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.CumulatedSessionCount;
-                instance.OnReadValue = OnRead_CumulatedSessionCount;
-                instance.OnSimpleWriteValue = OnWrite_CumulatedSessionCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_CumulatedSessionCount;
+                    instance.OnWriteValue = OnWrite_CumulatedSessionCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.SecurityRejectedSessionCount;
-                instance.OnReadValue = OnRead_SecurityRejectedSessionCount;
-                instance.OnSimpleWriteValue = OnWrite_SecurityRejectedSessionCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_SecurityRejectedSessionCount;
+                    instance.OnWriteValue = OnWrite_SecurityRejectedSessionCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.RejectedSessionCount;
-                instance.OnReadValue = OnRead_RejectedSessionCount;
-                instance.OnSimpleWriteValue = OnWrite_RejectedSessionCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_RejectedSessionCount;
+                    instance.OnWriteValue = OnWrite_RejectedSessionCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.SessionTimeoutCount;
-                instance.OnReadValue = OnRead_SessionTimeoutCount;
-                instance.OnSimpleWriteValue = OnWrite_SessionTimeoutCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_SessionTimeoutCount;
+                    instance.OnWriteValue = OnWrite_SessionTimeoutCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.SessionAbortCount;
-                instance.OnReadValue = OnRead_SessionAbortCount;
-                instance.OnSimpleWriteValue = OnWrite_SessionAbortCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_SessionAbortCount;
+                    instance.OnWriteValue = OnWrite_SessionAbortCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.CurrentSubscriptionCount;
-                instance.OnReadValue = OnRead_CurrentSubscriptionCount;
-                instance.OnSimpleWriteValue = OnWrite_CurrentSubscriptionCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_CurrentSubscriptionCount;
+                    instance.OnWriteValue = OnWrite_CurrentSubscriptionCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.CumulatedSubscriptionCount;
-                instance.OnReadValue = OnRead_CumulatedSubscriptionCount;
-                instance.OnSimpleWriteValue = OnWrite_CumulatedSubscriptionCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_CumulatedSubscriptionCount;
+                    instance.OnWriteValue = OnWrite_CumulatedSubscriptionCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.PublishingIntervalCount;
-                instance.OnReadValue = OnRead_PublishingIntervalCount;
-                instance.OnSimpleWriteValue = OnWrite_PublishingIntervalCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_PublishingIntervalCount;
+                    instance.OnWriteValue = OnWrite_PublishingIntervalCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.SecurityRejectedRequestsCount;
-                instance.OnReadValue = OnRead_SecurityRejectedRequestsCount;
-                instance.OnSimpleWriteValue = OnWrite_SecurityRejectedRequestsCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_SecurityRejectedRequestsCount;
+                    instance.OnWriteValue = OnWrite_SecurityRejectedRequestsCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.RejectedRequestsCount;
-                instance.OnReadValue = OnRead_RejectedRequestsCount;
-                instance.OnSimpleWriteValue = OnWrite_RejectedRequestsCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_RejectedRequestsCount;
+                    instance.OnWriteValue = OnWrite_RejectedRequestsCount;
+                    updateList.Add(instance);
+                }
 
                 SetUpdateList(updateList);
             }
@@ -14077,14 +14290,71 @@ namespace Opc.Ua
             }
         }
 
-        private ServiceResult OnWriteValue(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWriteValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
-                m_value = (ServerDiagnosticsSummaryDataType)Write(value);
+                ServerDiagnosticsSummaryDataType newValue;
+                if (value is ExtensionObject extensionObject)
+                {
+                    newValue = (ServerDiagnosticsSummaryDataType)extensionObject.Body;
+                }
+                else
+                {
+                    newValue = (ServerDiagnosticsSummaryDataType)value;
+                }
+
+                if (!Utils.IsEqual(m_value, newValue))
+                {
+                    UpdateChildrenChangeMasks(context, ref newValue, ref statusCode, ref timestamp);
+                    Timestamp = timestamp;
+                    m_value = (ServerDiagnosticsSummaryDataType)Write(newValue);
+                    m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                }
             }
 
             return ServiceResult.Good;
+        }
+
+        private void UpdateChildrenChangeMasks(ISystemContext context, ref ServerDiagnosticsSummaryDataType newValue, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (!Utils.IsEqual(m_value.ServerViewCount, newValue.ServerViewCount)) UpdateChildVariableStatus(m_variable.ServerViewCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CurrentSessionCount, newValue.CurrentSessionCount)) UpdateChildVariableStatus(m_variable.CurrentSessionCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CumulatedSessionCount, newValue.CumulatedSessionCount)) UpdateChildVariableStatus(m_variable.CumulatedSessionCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SecurityRejectedSessionCount, newValue.SecurityRejectedSessionCount)) UpdateChildVariableStatus(m_variable.SecurityRejectedSessionCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.RejectedSessionCount, newValue.RejectedSessionCount)) UpdateChildVariableStatus(m_variable.RejectedSessionCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SessionTimeoutCount, newValue.SessionTimeoutCount)) UpdateChildVariableStatus(m_variable.SessionTimeoutCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SessionAbortCount, newValue.SessionAbortCount)) UpdateChildVariableStatus(m_variable.SessionAbortCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CurrentSubscriptionCount, newValue.CurrentSubscriptionCount)) UpdateChildVariableStatus(m_variable.CurrentSubscriptionCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CumulatedSubscriptionCount, newValue.CumulatedSubscriptionCount)) UpdateChildVariableStatus(m_variable.CumulatedSubscriptionCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.PublishingIntervalCount, newValue.PublishingIntervalCount)) UpdateChildVariableStatus(m_variable.PublishingIntervalCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SecurityRejectedRequestsCount, newValue.SecurityRejectedRequestsCount)) UpdateChildVariableStatus(m_variable.SecurityRejectedRequestsCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.RejectedRequestsCount, newValue.RejectedRequestsCount)) UpdateChildVariableStatus(m_variable.RejectedRequestsCount, ref statusCode, ref timestamp);
+        }
+
+        private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            Timestamp = timestamp;
+            m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            m_variable.ClearChangeMasks(context, false);
+        }
+
+        private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (child == null) return;
+            child.StatusCode = statusCode;
+            if (timestamp == DateTime.MinValue)
+            {
+                timestamp = DateTime.UtcNow;
+            }
+            child.Timestamp = timestamp;
         }
 
         #region ServerViewCount Access Methods
@@ -14102,21 +14372,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.ServerViewCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.ServerViewCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_ServerViewCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_ServerViewCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.ServerViewCount, ref statusCode, ref timestamp);
                 m_value.ServerViewCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -14138,21 +14437,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.CurrentSessionCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.CurrentSessionCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_CurrentSessionCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_CurrentSessionCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.CurrentSessionCount, ref statusCode, ref timestamp);
                 m_value.CurrentSessionCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -14174,21 +14502,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.CumulatedSessionCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.CumulatedSessionCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_CumulatedSessionCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_CumulatedSessionCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.CumulatedSessionCount, ref statusCode, ref timestamp);
                 m_value.CumulatedSessionCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -14210,21 +14567,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.SecurityRejectedSessionCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.SecurityRejectedSessionCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_SecurityRejectedSessionCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_SecurityRejectedSessionCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.SecurityRejectedSessionCount, ref statusCode, ref timestamp);
                 m_value.SecurityRejectedSessionCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -14246,21 +14632,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.RejectedSessionCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.RejectedSessionCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_RejectedSessionCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_RejectedSessionCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.RejectedSessionCount, ref statusCode, ref timestamp);
                 m_value.RejectedSessionCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -14282,21 +14697,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.SessionTimeoutCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.SessionTimeoutCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_SessionTimeoutCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_SessionTimeoutCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.SessionTimeoutCount, ref statusCode, ref timestamp);
                 m_value.SessionTimeoutCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -14318,21 +14762,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.SessionAbortCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.SessionAbortCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_SessionAbortCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_SessionAbortCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.SessionAbortCount, ref statusCode, ref timestamp);
                 m_value.SessionAbortCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -14354,21 +14827,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.CurrentSubscriptionCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.CurrentSubscriptionCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_CurrentSubscriptionCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_CurrentSubscriptionCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.CurrentSubscriptionCount, ref statusCode, ref timestamp);
                 m_value.CurrentSubscriptionCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -14390,21 +14892,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.CumulatedSubscriptionCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.CumulatedSubscriptionCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_CumulatedSubscriptionCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_CumulatedSubscriptionCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.CumulatedSubscriptionCount, ref statusCode, ref timestamp);
                 m_value.CumulatedSubscriptionCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -14426,21 +14957,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.PublishingIntervalCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.PublishingIntervalCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_PublishingIntervalCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_PublishingIntervalCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.PublishingIntervalCount, ref statusCode, ref timestamp);
                 m_value.PublishingIntervalCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -14462,21 +15022,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.SecurityRejectedRequestsCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.SecurityRejectedRequestsCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_SecurityRejectedRequestsCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_SecurityRejectedRequestsCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.SecurityRejectedRequestsCount, ref statusCode, ref timestamp);
                 m_value.SecurityRejectedRequestsCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -14498,21 +15087,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.RejectedRequestsCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.RejectedRequestsCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_RejectedRequestsCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_RejectedRequestsCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.RejectedRequestsCount, ref statusCode, ref timestamp);
                 m_value.RejectedRequestsCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -14534,7 +15152,7 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class SamplingIntervalDiagnosticsArrayState : BaseDataVariableState<SamplingIntervalDiagnosticsDataType[]>
+    public partial class SamplingIntervalDiagnosticsArrayState : BaseDataVariableState<Opc.Ua.SamplingIntervalDiagnosticsDataType[]>
     {
         #region Constructors
         /// <remarks />
@@ -14585,13 +15203,7 @@ namespace Opc.Ua
         #region Initialization String
         private const string InitializationString =
            "//////////8XYIkCAgAAAAAALAAAAFNhbXBsaW5nSW50ZXJ2YWxEaWFnbm9zdGljc0FycmF5VHlwZUlu" +
-           "c3RhbmNlAQB0CAEAdAh0CAAAAQBYAwEAAAABAAAAAAAAAAEB/////wEAAAAVYIkKAgAAAAAAGwAAAFNh" +
-           "bXBsaW5nSW50ZXJ2YWxEaWFnbm9zdGljcwEA6zEALwEAdQjrMQAAAQBYA/////8BAf////8EAAAAFWCJ" +
-           "CgIAAAAAABAAAABTYW1wbGluZ0ludGVydmFsAQDsMQAvAD/sMQAAAQAiAf////8BAf////8AAAAAFWCJ" +
-           "CgIAAAAAABoAAABTYW1wbGVkTW9uaXRvcmVkSXRlbXNDb3VudAEA7TEALwA/7TEAAAAH/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAAAHQAAAE1heFNhbXBsZWRNb25pdG9yZWRJdGVtc0NvdW50AQDuMQAvAD/uMQAA" +
-           "AAf/////AQH/////AAAAABVgiQoCAAAAAAAjAAAARGlzYWJsZWRNb25pdG9yZWRJdGVtc1NhbXBsaW5n" +
-           "Q291bnQBAO8xAC8AP+8xAAAAB/////8BAf////8AAAAA";
+           "c3RhbmNlAQB0CAEAdAh0CAAAAQBYAwEAAAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -14613,7 +15225,7 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class SamplingIntervalDiagnosticsState : BaseDataVariableState<SamplingIntervalDiagnosticsDataType>
+    public partial class SamplingIntervalDiagnosticsState : BaseDataVariableState<Opc.Ua.SamplingIntervalDiagnosticsDataType>
     {
         #region Constructors
         /// <remarks />
@@ -14930,7 +15542,7 @@ namespace Opc.Ua
         /// <remarks />
         public SamplingIntervalDiagnosticsDataType Value
         {
-            get { return m_value;  }
+            get { return m_value; }
             set { m_value = value; }
         }
         #endregion
@@ -14945,16 +15557,19 @@ namespace Opc.Ua
                 variable.Value = m_value;
 
                 variable.OnReadValue = OnReadValue;
-                variable.OnSimpleWriteValue = OnWriteValue;
+                variable.OnWriteValue = OnWriteValue;
 
                 BaseVariableState instance = null;
                 List<BaseInstanceState> updateList = new List<BaseInstanceState>();
                 updateList.Add(variable);
 
                 instance = m_variable.SamplingInterval;
-                instance.OnReadValue = OnRead_SamplingInterval;
-                instance.OnSimpleWriteValue = OnWrite_SamplingInterval;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_SamplingInterval;
+                    instance.OnWriteValue = OnWrite_SamplingInterval;
+                    updateList.Add(instance);
+                }
 
                 SetUpdateList(updateList);
             }
@@ -14983,14 +15598,60 @@ namespace Opc.Ua
             }
         }
 
-        private ServiceResult OnWriteValue(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWriteValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
-                m_value = (SamplingIntervalDiagnosticsDataType)Write(value);
+                SamplingIntervalDiagnosticsDataType newValue;
+                if (value is ExtensionObject extensionObject)
+                {
+                    newValue = (SamplingIntervalDiagnosticsDataType)extensionObject.Body;
+                }
+                else
+                {
+                    newValue = (SamplingIntervalDiagnosticsDataType)value;
+                }
+
+                if (!Utils.IsEqual(m_value, newValue))
+                {
+                    UpdateChildrenChangeMasks(context, ref newValue, ref statusCode, ref timestamp);
+                    Timestamp = timestamp;
+                    m_value = (SamplingIntervalDiagnosticsDataType)Write(newValue);
+                    m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                }
             }
 
             return ServiceResult.Good;
+        }
+
+        private void UpdateChildrenChangeMasks(ISystemContext context, ref SamplingIntervalDiagnosticsDataType newValue, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (!Utils.IsEqual(m_value.SamplingInterval, newValue.SamplingInterval)) UpdateChildVariableStatus(m_variable.SamplingInterval, ref statusCode, ref timestamp);
+        }
+
+        private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            Timestamp = timestamp;
+            m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            m_variable.ClearChangeMasks(context, false);
+        }
+
+        private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (child == null) return;
+            child.StatusCode = statusCode;
+            if (timestamp == DateTime.MinValue)
+            {
+                timestamp = DateTime.UtcNow;
+            }
+            child.Timestamp = timestamp;
         }
 
         #region SamplingInterval Access Methods
@@ -15008,21 +15669,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.SamplingInterval;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.SamplingInterval;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_SamplingInterval(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_SamplingInterval(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.SamplingInterval, ref statusCode, ref timestamp);
                 m_value.SamplingInterval = (double)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -15044,7 +15734,7 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class SubscriptionDiagnosticsArrayState : BaseDataVariableState<SubscriptionDiagnosticsDataType[]>
+    public partial class SubscriptionDiagnosticsArrayState : BaseDataVariableState<Opc.Ua.SubscriptionDiagnosticsDataType[]>
     {
         #region Constructors
         /// <remarks />
@@ -15095,40 +15785,7 @@ namespace Opc.Ua
         #region Initialization String
         private const string InitializationString =
            "//////////8XYIkCAgAAAAAAKAAAAFN1YnNjcmlwdGlvbkRpYWdub3N0aWNzQXJyYXlUeXBlSW5zdGFu" +
-           "Y2UBAHsIAQB7CHsIAAABAGoDAQAAAAEAAAAAAAAAAQH/////AQAAABVgiQoCAAAAAAAXAAAAU3Vic2Ny" +
-           "aXB0aW9uRGlhZ25vc3RpY3MBAPAxAC8BAHwI8DEAAAEAagP/////AQH/////HwAAABVgiQoCAAAAAAAJ" +
-           "AAAAU2Vzc2lvbklkAQDxMQAvAD/xMQAAABH/////AQH/////AAAAABVgiQoCAAAAAAAOAAAAU3Vic2Ny" +
-           "aXB0aW9uSWQBAPIxAC8AP/IxAAAAB/////8BAf////8AAAAAFWCJCgIAAAAAAAgAAABQcmlvcml0eQEA" +
-           "8zEALwA/8zEAAAAD/////wEB/////wAAAAAVYIkKAgAAAAAAEgAAAFB1Ymxpc2hpbmdJbnRlcnZhbAEA" +
-           "9DEALwA/9DEAAAEAIgH/////AQH/////AAAAABVgiQoCAAAAAAARAAAATWF4S2VlcEFsaXZlQ291bnQB" +
-           "APUxAC8AP/UxAAAAB/////8BAf////8AAAAAFWCJCgIAAAAAABAAAABNYXhMaWZldGltZUNvdW50AQD2" +
-           "MQAvAD/2MQAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAaAAAATWF4Tm90aWZpY2F0aW9uc1BlclB1" +
-           "Ymxpc2gBAPcxAC8AP/cxAAAAB/////8BAf////8AAAAAFWCJCgIAAAAAABEAAABQdWJsaXNoaW5nRW5h" +
-           "YmxlZAEA+DEALwA/+DEAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAACwAAAE1vZGlmeUNvdW50AQD5" +
-           "MQAvAD/5MQAAAAf/////AQH/////AAAAABVgiQoCAAAAAAALAAAARW5hYmxlQ291bnQBAPoxAC8AP/ox" +
-           "AAAAB/////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABEaXNhYmxlQ291bnQBAPsxAC8AP/sxAAAAB///" +
-           "//8BAf////8AAAAAFWCJCgIAAAAAABUAAABSZXB1Ymxpc2hSZXF1ZXN0Q291bnQBAPwxAC8AP/wxAAAA" +
-           "B/////8BAf////8AAAAAFWCJCgIAAAAAABwAAABSZXB1Ymxpc2hNZXNzYWdlUmVxdWVzdENvdW50AQD9" +
-           "MQAvAD/9MQAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAVAAAAUmVwdWJsaXNoTWVzc2FnZUNvdW50" +
-           "AQD+MQAvAD/+MQAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAUAAAAVHJhbnNmZXJSZXF1ZXN0Q291" +
-           "bnQBAP8xAC8AP/8xAAAAB/////8BAf////8AAAAAFWCJCgIAAAAAABsAAABUcmFuc2ZlcnJlZFRvQWx0" +
-           "Q2xpZW50Q291bnQBAAAyAC8APwAyAAAAB/////8BAf////8AAAAAFWCJCgIAAAAAABwAAABUcmFuc2Zl" +
-           "cnJlZFRvU2FtZUNsaWVudENvdW50AQABMgAvAD8BMgAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAT" +
-           "AAAAUHVibGlzaFJlcXVlc3RDb3VudAEAAjIALwA/AjIAAAAH/////wEB/////wAAAAAVYIkKAgAAAAAA" +
-           "HAAAAERhdGFDaGFuZ2VOb3RpZmljYXRpb25zQ291bnQBAAMyAC8APwMyAAAAB/////8BAf////8AAAAA" +
-           "FWCJCgIAAAAAABcAAABFdmVudE5vdGlmaWNhdGlvbnNDb3VudAEABDIALwA/BDIAAAAH/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAAAEgAAAE5vdGlmaWNhdGlvbnNDb3VudAEABTIALwA/BTIAAAAH/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAAAFwAAAExhdGVQdWJsaXNoUmVxdWVzdENvdW50AQAGMgAvAD8GMgAAAAf/////" +
-           "AQH/////AAAAABVgiQoCAAAAAAAVAAAAQ3VycmVudEtlZXBBbGl2ZUNvdW50AQAHMgAvAD8HMgAAAAf/" +
-           "////AQH/////AAAAABVgiQoCAAAAAAAUAAAAQ3VycmVudExpZmV0aW1lQ291bnQBAAgyAC8APwgyAAAA" +
-           "B/////8BAf////8AAAAAFWCJCgIAAAAAABoAAABVbmFja25vd2xlZGdlZE1lc3NhZ2VDb3VudAEACTIA" +
-           "LwA/CTIAAAAH/////wEB/////wAAAAAVYIkKAgAAAAAAFQAAAERpc2NhcmRlZE1lc3NhZ2VDb3VudAEA" +
-           "CjIALwA/CjIAAAAH/////wEB/////wAAAAAVYIkKAgAAAAAAEgAAAE1vbml0b3JlZEl0ZW1Db3VudAEA" +
-           "CzIALwA/CzIAAAAH/////wEB/////wAAAAAVYIkKAgAAAAAAGgAAAERpc2FibGVkTW9uaXRvcmVkSXRl" +
-           "bUNvdW50AQAMMgAvAD8MMgAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAcAAAATW9uaXRvcmluZ1F1" +
-           "ZXVlT3ZlcmZsb3dDb3VudAEADTIALwA/DTIAAAAH/////wEB/////wAAAAAVYIkKAgAAAAAAEgAAAE5l" +
-           "eHRTZXF1ZW5jZU51bWJlcgEADjIALwA/DjIAAAAH/////wEB/////wAAAAAVYIkKAgAAAAAAFwAAAEV2" +
-           "ZW50UXVldWVPdmVyZmxvd0NvdW50AQAPMgAvAD8PMgAAAAf/////AQH/////AAAAAA==";
+           "Y2UBAHsIAQB7CHsIAAABAGoDAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -15150,7 +15807,7 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class SubscriptionDiagnosticsState : BaseDataVariableState<SubscriptionDiagnosticsDataType>
+    public partial class SubscriptionDiagnosticsState : BaseDataVariableState<Opc.Ua.SubscriptionDiagnosticsDataType>
     {
         #region Constructors
         /// <remarks />
@@ -16736,7 +17393,7 @@ namespace Opc.Ua
         /// <remarks />
         public SubscriptionDiagnosticsDataType Value
         {
-            get { return m_value;  }
+            get { return m_value; }
             set { m_value = value; }
         }
         #endregion
@@ -16751,132 +17408,222 @@ namespace Opc.Ua
                 variable.Value = m_value;
 
                 variable.OnReadValue = OnReadValue;
-                variable.OnSimpleWriteValue = OnWriteValue;
+                variable.OnWriteValue = OnWriteValue;
 
                 BaseVariableState instance = null;
                 List<BaseInstanceState> updateList = new List<BaseInstanceState>();
                 updateList.Add(variable);
 
                 instance = m_variable.SessionId;
-                instance.OnReadValue = OnRead_SessionId;
-                instance.OnSimpleWriteValue = OnWrite_SessionId;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_SessionId;
+                    instance.OnWriteValue = OnWrite_SessionId;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.SubscriptionId;
-                instance.OnReadValue = OnRead_SubscriptionId;
-                instance.OnSimpleWriteValue = OnWrite_SubscriptionId;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_SubscriptionId;
+                    instance.OnWriteValue = OnWrite_SubscriptionId;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.Priority;
-                instance.OnReadValue = OnRead_Priority;
-                instance.OnSimpleWriteValue = OnWrite_Priority;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_Priority;
+                    instance.OnWriteValue = OnWrite_Priority;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.PublishingInterval;
-                instance.OnReadValue = OnRead_PublishingInterval;
-                instance.OnSimpleWriteValue = OnWrite_PublishingInterval;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_PublishingInterval;
+                    instance.OnWriteValue = OnWrite_PublishingInterval;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.MaxKeepAliveCount;
-                instance.OnReadValue = OnRead_MaxKeepAliveCount;
-                instance.OnSimpleWriteValue = OnWrite_MaxKeepAliveCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_MaxKeepAliveCount;
+                    instance.OnWriteValue = OnWrite_MaxKeepAliveCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.MaxLifetimeCount;
-                instance.OnReadValue = OnRead_MaxLifetimeCount;
-                instance.OnSimpleWriteValue = OnWrite_MaxLifetimeCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_MaxLifetimeCount;
+                    instance.OnWriteValue = OnWrite_MaxLifetimeCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.MaxNotificationsPerPublish;
-                instance.OnReadValue = OnRead_MaxNotificationsPerPublish;
-                instance.OnSimpleWriteValue = OnWrite_MaxNotificationsPerPublish;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_MaxNotificationsPerPublish;
+                    instance.OnWriteValue = OnWrite_MaxNotificationsPerPublish;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.PublishingEnabled;
-                instance.OnReadValue = OnRead_PublishingEnabled;
-                instance.OnSimpleWriteValue = OnWrite_PublishingEnabled;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_PublishingEnabled;
+                    instance.OnWriteValue = OnWrite_PublishingEnabled;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.ModifyCount;
-                instance.OnReadValue = OnRead_ModifyCount;
-                instance.OnSimpleWriteValue = OnWrite_ModifyCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_ModifyCount;
+                    instance.OnWriteValue = OnWrite_ModifyCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.EnableCount;
-                instance.OnReadValue = OnRead_EnableCount;
-                instance.OnSimpleWriteValue = OnWrite_EnableCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_EnableCount;
+                    instance.OnWriteValue = OnWrite_EnableCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.DisableCount;
-                instance.OnReadValue = OnRead_DisableCount;
-                instance.OnSimpleWriteValue = OnWrite_DisableCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_DisableCount;
+                    instance.OnWriteValue = OnWrite_DisableCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.RepublishRequestCount;
-                instance.OnReadValue = OnRead_RepublishRequestCount;
-                instance.OnSimpleWriteValue = OnWrite_RepublishRequestCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_RepublishRequestCount;
+                    instance.OnWriteValue = OnWrite_RepublishRequestCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.RepublishMessageRequestCount;
-                instance.OnReadValue = OnRead_RepublishMessageRequestCount;
-                instance.OnSimpleWriteValue = OnWrite_RepublishMessageRequestCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_RepublishMessageRequestCount;
+                    instance.OnWriteValue = OnWrite_RepublishMessageRequestCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.RepublishMessageCount;
-                instance.OnReadValue = OnRead_RepublishMessageCount;
-                instance.OnSimpleWriteValue = OnWrite_RepublishMessageCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_RepublishMessageCount;
+                    instance.OnWriteValue = OnWrite_RepublishMessageCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.TransferRequestCount;
-                instance.OnReadValue = OnRead_TransferRequestCount;
-                instance.OnSimpleWriteValue = OnWrite_TransferRequestCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_TransferRequestCount;
+                    instance.OnWriteValue = OnWrite_TransferRequestCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.TransferredToAltClientCount;
-                instance.OnReadValue = OnRead_TransferredToAltClientCount;
-                instance.OnSimpleWriteValue = OnWrite_TransferredToAltClientCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_TransferredToAltClientCount;
+                    instance.OnWriteValue = OnWrite_TransferredToAltClientCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.TransferredToSameClientCount;
-                instance.OnReadValue = OnRead_TransferredToSameClientCount;
-                instance.OnSimpleWriteValue = OnWrite_TransferredToSameClientCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_TransferredToSameClientCount;
+                    instance.OnWriteValue = OnWrite_TransferredToSameClientCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.PublishRequestCount;
-                instance.OnReadValue = OnRead_PublishRequestCount;
-                instance.OnSimpleWriteValue = OnWrite_PublishRequestCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_PublishRequestCount;
+                    instance.OnWriteValue = OnWrite_PublishRequestCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.DataChangeNotificationsCount;
-                instance.OnReadValue = OnRead_DataChangeNotificationsCount;
-                instance.OnSimpleWriteValue = OnWrite_DataChangeNotificationsCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_DataChangeNotificationsCount;
+                    instance.OnWriteValue = OnWrite_DataChangeNotificationsCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.EventNotificationsCount;
-                instance.OnReadValue = OnRead_EventNotificationsCount;
-                instance.OnSimpleWriteValue = OnWrite_EventNotificationsCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_EventNotificationsCount;
+                    instance.OnWriteValue = OnWrite_EventNotificationsCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.NotificationsCount;
-                instance.OnReadValue = OnRead_NotificationsCount;
-                instance.OnSimpleWriteValue = OnWrite_NotificationsCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_NotificationsCount;
+                    instance.OnWriteValue = OnWrite_NotificationsCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.LatePublishRequestCount;
-                instance.OnReadValue = OnRead_LatePublishRequestCount;
-                instance.OnSimpleWriteValue = OnWrite_LatePublishRequestCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_LatePublishRequestCount;
+                    instance.OnWriteValue = OnWrite_LatePublishRequestCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.CurrentKeepAliveCount;
-                instance.OnReadValue = OnRead_CurrentKeepAliveCount;
-                instance.OnSimpleWriteValue = OnWrite_CurrentKeepAliveCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_CurrentKeepAliveCount;
+                    instance.OnWriteValue = OnWrite_CurrentKeepAliveCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.CurrentLifetimeCount;
-                instance.OnReadValue = OnRead_CurrentLifetimeCount;
-                instance.OnSimpleWriteValue = OnWrite_CurrentLifetimeCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_CurrentLifetimeCount;
+                    instance.OnWriteValue = OnWrite_CurrentLifetimeCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.UnacknowledgedMessageCount;
-                instance.OnReadValue = OnRead_UnacknowledgedMessageCount;
-                instance.OnSimpleWriteValue = OnWrite_UnacknowledgedMessageCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_UnacknowledgedMessageCount;
+                    instance.OnWriteValue = OnWrite_UnacknowledgedMessageCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.DiscardedMessageCount;
-                instance.OnReadValue = OnRead_DiscardedMessageCount;
-                instance.OnSimpleWriteValue = OnWrite_DiscardedMessageCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_DiscardedMessageCount;
+                    instance.OnWriteValue = OnWrite_DiscardedMessageCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.MonitoredItemCount;
-                instance.OnReadValue = OnRead_MonitoredItemCount;
-                instance.OnSimpleWriteValue = OnWrite_MonitoredItemCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_MonitoredItemCount;
+                    instance.OnWriteValue = OnWrite_MonitoredItemCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.DisabledMonitoredItemCount;
-                instance.OnReadValue = OnRead_DisabledMonitoredItemCount;
-                instance.OnSimpleWriteValue = OnWrite_DisabledMonitoredItemCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_DisabledMonitoredItemCount;
+                    instance.OnWriteValue = OnWrite_DisabledMonitoredItemCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.MonitoringQueueOverflowCount;
-                instance.OnReadValue = OnRead_MonitoringQueueOverflowCount;
-                instance.OnSimpleWriteValue = OnWrite_MonitoringQueueOverflowCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_MonitoringQueueOverflowCount;
+                    instance.OnWriteValue = OnWrite_MonitoringQueueOverflowCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.NextSequenceNumber;
-                instance.OnReadValue = OnRead_NextSequenceNumber;
-                instance.OnSimpleWriteValue = OnWrite_NextSequenceNumber;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_NextSequenceNumber;
+                    instance.OnWriteValue = OnWrite_NextSequenceNumber;
+                    updateList.Add(instance);
+                }
 
                 SetUpdateList(updateList);
             }
@@ -16905,14 +17652,89 @@ namespace Opc.Ua
             }
         }
 
-        private ServiceResult OnWriteValue(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWriteValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
-                m_value = (SubscriptionDiagnosticsDataType)Write(value);
+                SubscriptionDiagnosticsDataType newValue;
+                if (value is ExtensionObject extensionObject)
+                {
+                    newValue = (SubscriptionDiagnosticsDataType)extensionObject.Body;
+                }
+                else
+                {
+                    newValue = (SubscriptionDiagnosticsDataType)value;
+                }
+
+                if (!Utils.IsEqual(m_value, newValue))
+                {
+                    UpdateChildrenChangeMasks(context, ref newValue, ref statusCode, ref timestamp);
+                    Timestamp = timestamp;
+                    m_value = (SubscriptionDiagnosticsDataType)Write(newValue);
+                    m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                }
             }
 
             return ServiceResult.Good;
+        }
+
+        private void UpdateChildrenChangeMasks(ISystemContext context, ref SubscriptionDiagnosticsDataType newValue, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (!Utils.IsEqual(m_value.SessionId, newValue.SessionId)) UpdateChildVariableStatus(m_variable.SessionId, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SubscriptionId, newValue.SubscriptionId)) UpdateChildVariableStatus(m_variable.SubscriptionId, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.Priority, newValue.Priority)) UpdateChildVariableStatus(m_variable.Priority, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.PublishingInterval, newValue.PublishingInterval)) UpdateChildVariableStatus(m_variable.PublishingInterval, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.MaxKeepAliveCount, newValue.MaxKeepAliveCount)) UpdateChildVariableStatus(m_variable.MaxKeepAliveCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.MaxLifetimeCount, newValue.MaxLifetimeCount)) UpdateChildVariableStatus(m_variable.MaxLifetimeCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.MaxNotificationsPerPublish, newValue.MaxNotificationsPerPublish)) UpdateChildVariableStatus(m_variable.MaxNotificationsPerPublish, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.PublishingEnabled, newValue.PublishingEnabled)) UpdateChildVariableStatus(m_variable.PublishingEnabled, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ModifyCount, newValue.ModifyCount)) UpdateChildVariableStatus(m_variable.ModifyCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.EnableCount, newValue.EnableCount)) UpdateChildVariableStatus(m_variable.EnableCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.DisableCount, newValue.DisableCount)) UpdateChildVariableStatus(m_variable.DisableCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.RepublishRequestCount, newValue.RepublishRequestCount)) UpdateChildVariableStatus(m_variable.RepublishRequestCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.RepublishMessageRequestCount, newValue.RepublishMessageRequestCount)) UpdateChildVariableStatus(m_variable.RepublishMessageRequestCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.RepublishMessageCount, newValue.RepublishMessageCount)) UpdateChildVariableStatus(m_variable.RepublishMessageCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.TransferRequestCount, newValue.TransferRequestCount)) UpdateChildVariableStatus(m_variable.TransferRequestCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.TransferredToAltClientCount, newValue.TransferredToAltClientCount)) UpdateChildVariableStatus(m_variable.TransferredToAltClientCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.TransferredToSameClientCount, newValue.TransferredToSameClientCount)) UpdateChildVariableStatus(m_variable.TransferredToSameClientCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.PublishRequestCount, newValue.PublishRequestCount)) UpdateChildVariableStatus(m_variable.PublishRequestCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.DataChangeNotificationsCount, newValue.DataChangeNotificationsCount)) UpdateChildVariableStatus(m_variable.DataChangeNotificationsCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.EventNotificationsCount, newValue.EventNotificationsCount)) UpdateChildVariableStatus(m_variable.EventNotificationsCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.NotificationsCount, newValue.NotificationsCount)) UpdateChildVariableStatus(m_variable.NotificationsCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LatePublishRequestCount, newValue.LatePublishRequestCount)) UpdateChildVariableStatus(m_variable.LatePublishRequestCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CurrentKeepAliveCount, newValue.CurrentKeepAliveCount)) UpdateChildVariableStatus(m_variable.CurrentKeepAliveCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CurrentLifetimeCount, newValue.CurrentLifetimeCount)) UpdateChildVariableStatus(m_variable.CurrentLifetimeCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.UnacknowledgedMessageCount, newValue.UnacknowledgedMessageCount)) UpdateChildVariableStatus(m_variable.UnacknowledgedMessageCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.DiscardedMessageCount, newValue.DiscardedMessageCount)) UpdateChildVariableStatus(m_variable.DiscardedMessageCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.MonitoredItemCount, newValue.MonitoredItemCount)) UpdateChildVariableStatus(m_variable.MonitoredItemCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.DisabledMonitoredItemCount, newValue.DisabledMonitoredItemCount)) UpdateChildVariableStatus(m_variable.DisabledMonitoredItemCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.MonitoringQueueOverflowCount, newValue.MonitoringQueueOverflowCount)) UpdateChildVariableStatus(m_variable.MonitoringQueueOverflowCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.NextSequenceNumber, newValue.NextSequenceNumber)) UpdateChildVariableStatus(m_variable.NextSequenceNumber, ref statusCode, ref timestamp);
+        }
+
+        private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            Timestamp = timestamp;
+            m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            m_variable.ClearChangeMasks(context, false);
+        }
+
+        private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (child == null) return;
+            child.StatusCode = statusCode;
+            if (timestamp == DateTime.MinValue)
+            {
+                timestamp = DateTime.UtcNow;
+            }
+            child.Timestamp = timestamp;
         }
 
         #region SessionId Access Methods
@@ -16930,21 +17752,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.SessionId;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.SessionId;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_SessionId(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_SessionId(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.SessionId, ref statusCode, ref timestamp);
                 m_value.SessionId = (NodeId)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -16966,21 +17817,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.SubscriptionId;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.SubscriptionId;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_SubscriptionId(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_SubscriptionId(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.SubscriptionId, ref statusCode, ref timestamp);
                 m_value.SubscriptionId = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17002,21 +17882,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.Priority;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.Priority;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_Priority(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_Priority(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.Priority, ref statusCode, ref timestamp);
                 m_value.Priority = (byte)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17038,21 +17947,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.PublishingInterval;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.PublishingInterval;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_PublishingInterval(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_PublishingInterval(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.PublishingInterval, ref statusCode, ref timestamp);
                 m_value.PublishingInterval = (double)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17074,21 +18012,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.MaxKeepAliveCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.MaxKeepAliveCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_MaxKeepAliveCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_MaxKeepAliveCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.MaxKeepAliveCount, ref statusCode, ref timestamp);
                 m_value.MaxKeepAliveCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17110,21 +18077,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.MaxLifetimeCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.MaxLifetimeCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_MaxLifetimeCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_MaxLifetimeCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.MaxLifetimeCount, ref statusCode, ref timestamp);
                 m_value.MaxLifetimeCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17146,21 +18142,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.MaxNotificationsPerPublish;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.MaxNotificationsPerPublish;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_MaxNotificationsPerPublish(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_MaxNotificationsPerPublish(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.MaxNotificationsPerPublish, ref statusCode, ref timestamp);
                 m_value.MaxNotificationsPerPublish = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17182,21 +18207,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.PublishingEnabled;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.PublishingEnabled;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_PublishingEnabled(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_PublishingEnabled(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.PublishingEnabled, ref statusCode, ref timestamp);
                 m_value.PublishingEnabled = (bool)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17218,21 +18272,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.ModifyCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.ModifyCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_ModifyCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_ModifyCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.ModifyCount, ref statusCode, ref timestamp);
                 m_value.ModifyCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17254,21 +18337,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.EnableCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.EnableCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_EnableCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_EnableCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.EnableCount, ref statusCode, ref timestamp);
                 m_value.EnableCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17290,21 +18402,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.DisableCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.DisableCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_DisableCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_DisableCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.DisableCount, ref statusCode, ref timestamp);
                 m_value.DisableCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17326,21 +18467,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.RepublishRequestCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.RepublishRequestCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_RepublishRequestCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_RepublishRequestCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.RepublishRequestCount, ref statusCode, ref timestamp);
                 m_value.RepublishRequestCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17362,21 +18532,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.RepublishMessageRequestCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.RepublishMessageRequestCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_RepublishMessageRequestCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_RepublishMessageRequestCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.RepublishMessageRequestCount, ref statusCode, ref timestamp);
                 m_value.RepublishMessageRequestCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17398,21 +18597,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.RepublishMessageCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.RepublishMessageCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_RepublishMessageCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_RepublishMessageCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.RepublishMessageCount, ref statusCode, ref timestamp);
                 m_value.RepublishMessageCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17434,21 +18662,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.TransferRequestCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.TransferRequestCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_TransferRequestCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_TransferRequestCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.TransferRequestCount, ref statusCode, ref timestamp);
                 m_value.TransferRequestCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17470,21 +18727,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.TransferredToAltClientCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.TransferredToAltClientCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_TransferredToAltClientCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_TransferredToAltClientCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.TransferredToAltClientCount, ref statusCode, ref timestamp);
                 m_value.TransferredToAltClientCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17506,21 +18792,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.TransferredToSameClientCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.TransferredToSameClientCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_TransferredToSameClientCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_TransferredToSameClientCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.TransferredToSameClientCount, ref statusCode, ref timestamp);
                 m_value.TransferredToSameClientCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17542,21 +18857,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.PublishRequestCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.PublishRequestCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_PublishRequestCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_PublishRequestCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.PublishRequestCount, ref statusCode, ref timestamp);
                 m_value.PublishRequestCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17578,21 +18922,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.DataChangeNotificationsCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.DataChangeNotificationsCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_DataChangeNotificationsCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_DataChangeNotificationsCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.DataChangeNotificationsCount, ref statusCode, ref timestamp);
                 m_value.DataChangeNotificationsCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17614,21 +18987,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.EventNotificationsCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.EventNotificationsCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_EventNotificationsCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_EventNotificationsCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.EventNotificationsCount, ref statusCode, ref timestamp);
                 m_value.EventNotificationsCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17650,21 +19052,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.NotificationsCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.NotificationsCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_NotificationsCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_NotificationsCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.NotificationsCount, ref statusCode, ref timestamp);
                 m_value.NotificationsCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17686,21 +19117,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.LatePublishRequestCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.LatePublishRequestCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_LatePublishRequestCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_LatePublishRequestCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.LatePublishRequestCount, ref statusCode, ref timestamp);
                 m_value.LatePublishRequestCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17722,21 +19182,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.CurrentKeepAliveCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.CurrentKeepAliveCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_CurrentKeepAliveCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_CurrentKeepAliveCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.CurrentKeepAliveCount, ref statusCode, ref timestamp);
                 m_value.CurrentKeepAliveCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17758,21 +19247,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.CurrentLifetimeCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.CurrentLifetimeCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_CurrentLifetimeCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_CurrentLifetimeCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.CurrentLifetimeCount, ref statusCode, ref timestamp);
                 m_value.CurrentLifetimeCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17794,21 +19312,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.UnacknowledgedMessageCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.UnacknowledgedMessageCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_UnacknowledgedMessageCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_UnacknowledgedMessageCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.UnacknowledgedMessageCount, ref statusCode, ref timestamp);
                 m_value.UnacknowledgedMessageCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17830,21 +19377,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.DiscardedMessageCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.DiscardedMessageCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_DiscardedMessageCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_DiscardedMessageCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.DiscardedMessageCount, ref statusCode, ref timestamp);
                 m_value.DiscardedMessageCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17866,21 +19442,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.MonitoredItemCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.MonitoredItemCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_MonitoredItemCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_MonitoredItemCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.MonitoredItemCount, ref statusCode, ref timestamp);
                 m_value.MonitoredItemCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17902,21 +19507,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.DisabledMonitoredItemCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.DisabledMonitoredItemCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_DisabledMonitoredItemCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_DisabledMonitoredItemCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.DisabledMonitoredItemCount, ref statusCode, ref timestamp);
                 m_value.DisabledMonitoredItemCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17938,21 +19572,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.MonitoringQueueOverflowCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.MonitoringQueueOverflowCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_MonitoringQueueOverflowCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_MonitoringQueueOverflowCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.MonitoringQueueOverflowCount, ref statusCode, ref timestamp);
                 m_value.MonitoringQueueOverflowCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -17974,21 +19637,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.NextSequenceNumber;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.NextSequenceNumber;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_NextSequenceNumber(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_NextSequenceNumber(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.NextSequenceNumber, ref statusCode, ref timestamp);
                 m_value.NextSequenceNumber = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -18010,7 +19702,7 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class SessionDiagnosticsArrayState : BaseDataVariableState<SessionDiagnosticsDataType[]>
+    public partial class SessionDiagnosticsArrayState : BaseDataVariableState<Opc.Ua.SessionDiagnosticsDataType[]>
     {
         #region Constructors
         /// <remarks />
@@ -18061,53 +19753,7 @@ namespace Opc.Ua
         #region Initialization String
         private const string InitializationString =
            "//////////8XYIkCAgAAAAAAIwAAAFNlc3Npb25EaWFnbm9zdGljc0FycmF5VHlwZUluc3RhbmNlAQCU" +
-           "CAEAlAiUCAAAAQBhAwEAAAABAAAAAAAAAAEB/////wEAAAAVYIkKAgAAAAAAEgAAAFNlc3Npb25EaWFn" +
-           "bm9zdGljcwEAEDIALwEAlQgQMgAAAQBhA/////8BAf////8rAAAAFWCJCgIAAAAAAAkAAABTZXNzaW9u" +
-           "SWQBABEyAC8APxEyAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABTZXNzaW9uTmFtZQEAEjIA" +
-           "LwA/EjIAAAAM/////wEB/////wAAAAAVYIkKAgAAAAAAEQAAAENsaWVudERlc2NyaXB0aW9uAQATMgAv" +
-           "AD8TMgAAAQA0Af////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABTZXJ2ZXJVcmkBABQyAC8APxQyAAAA" +
-           "DP////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABFbmRwb2ludFVybAEAFTIALwA/FTIAAAAM/////wEB" +
-           "/////wAAAAAXYIkKAgAAAAAACQAAAExvY2FsZUlkcwEAFjIALwA/FjIAAAEAJwEBAAAAAQAAAAAAAAAB" +
-           "Af////8AAAAAFWCJCgIAAAAAABQAAABBY3R1YWxTZXNzaW9uVGltZW91dAEAFzIALwA/FzIAAAEAIgH/" +
-           "////AQH/////AAAAABVgiQoCAAAAAAAWAAAATWF4UmVzcG9uc2VNZXNzYWdlU2l6ZQEAGDIALwA/GDIA" +
-           "AAAH/////wEB/////wAAAAAVYIkKAgAAAAAAFAAAAENsaWVudENvbm5lY3Rpb25UaW1lAQAZMgAvAD8Z" +
-           "MgAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAABUAAABDbGllbnRMYXN0Q29udGFjdFRpbWUBABoy" +
-           "AC8APxoyAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAAGQAAAEN1cnJlbnRTdWJzY3JpcHRpb25z" +
-           "Q291bnQBABsyAC8APxsyAAAAB/////8BAf////8AAAAAFWCJCgIAAAAAABoAAABDdXJyZW50TW9uaXRv" +
-           "cmVkSXRlbXNDb3VudAEAHDIALwA/HDIAAAAH/////wEB/////wAAAAAVYIkKAgAAAAAAHQAAAEN1cnJl" +
-           "bnRQdWJsaXNoUmVxdWVzdHNJblF1ZXVlAQAdMgAvAD8dMgAAAAf/////AQH/////AAAAABVgiQoCAAAA" +
-           "AAARAAAAVG90YWxSZXF1ZXN0Q291bnQBAB4yAC8APx4yAAABAGcD/////wEB/////wAAAAAVYIkKAgAA" +
-           "AAAAGAAAAFVuYXV0aG9yaXplZFJlcXVlc3RDb3VudAEAHzIALwA/HzIAAAAH/////wEB/////wAAAAAV" +
-           "YIkKAgAAAAAACQAAAFJlYWRDb3VudAEAIDIALwA/IDIAAAEAZwP/////AQH/////AAAAABVgiQoCAAAA" +
-           "AAAQAAAASGlzdG9yeVJlYWRDb3VudAEAITIALwA/ITIAAAEAZwP/////AQH/////AAAAABVgiQoCAAAA" +
-           "AAAKAAAAV3JpdGVDb3VudAEAIjIALwA/IjIAAAEAZwP/////AQH/////AAAAABVgiQoCAAAAAAASAAAA" +
-           "SGlzdG9yeVVwZGF0ZUNvdW50AQAjMgAvAD8jMgAAAQBnA/////8BAf////8AAAAAFWCJCgIAAAAAAAkA" +
-           "AABDYWxsQ291bnQBACQyAC8APyQyAAABAGcD/////wEB/////wAAAAAVYIkKAgAAAAAAGQAAAENyZWF0" +
-           "ZU1vbml0b3JlZEl0ZW1zQ291bnQBACUyAC8APyUyAAABAGcD/////wEB/////wAAAAAVYIkKAgAAAAAA" +
-           "GQAAAE1vZGlmeU1vbml0b3JlZEl0ZW1zQ291bnQBACYyAC8APyYyAAABAGcD/////wEB/////wAAAAAV" +
-           "YIkKAgAAAAAAFgAAAFNldE1vbml0b3JpbmdNb2RlQ291bnQBACcyAC8APycyAAABAGcD/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAAAEgAAAFNldFRyaWdnZXJpbmdDb3VudAEAKDIALwA/KDIAAAEAZwP/////AQH/" +
-           "////AAAAABVgiQoCAAAAAAAZAAAARGVsZXRlTW9uaXRvcmVkSXRlbXNDb3VudAEAKTIALwA/KTIAAAEA" +
-           "ZwP/////AQH/////AAAAABVgiQoCAAAAAAAXAAAAQ3JlYXRlU3Vic2NyaXB0aW9uQ291bnQBACoyAC8A" +
-           "PyoyAAABAGcD/////wEB/////wAAAAAVYIkKAgAAAAAAFwAAAE1vZGlmeVN1YnNjcmlwdGlvbkNvdW50" +
-           "AQArMgAvAD8rMgAAAQBnA/////8BAf////8AAAAAFWCJCgIAAAAAABYAAABTZXRQdWJsaXNoaW5nTW9k" +
-           "ZUNvdW50AQAsMgAvAD8sMgAAAQBnA/////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABQdWJsaXNoQ291" +
-           "bnQBAC0yAC8APy0yAAABAGcD/////wEB/////wAAAAAVYIkKAgAAAAAADgAAAFJlcHVibGlzaENvdW50" +
-           "AQAuMgAvAD8uMgAAAQBnA/////8BAf////8AAAAAFWCJCgIAAAAAABoAAABUcmFuc2ZlclN1YnNjcmlw" +
-           "dGlvbnNDb3VudAEALzIALwA/LzIAAAEAZwP/////AQH/////AAAAABVgiQoCAAAAAAAYAAAARGVsZXRl" +
-           "U3Vic2NyaXB0aW9uc0NvdW50AQAwMgAvAD8wMgAAAQBnA/////8BAf////8AAAAAFWCJCgIAAAAAAA0A" +
-           "AABBZGROb2Rlc0NvdW50AQAxMgAvAD8xMgAAAQBnA/////8BAf////8AAAAAFWCJCgIAAAAAABIAAABB" +
-           "ZGRSZWZlcmVuY2VzQ291bnQBADIyAC8APzIyAAABAGcD/////wEB/////wAAAAAVYIkKAgAAAAAAEAAA" +
-           "AERlbGV0ZU5vZGVzQ291bnQBADMyAC8APzMyAAABAGcD/////wEB/////wAAAAAVYIkKAgAAAAAAFQAA" +
-           "AERlbGV0ZVJlZmVyZW5jZXNDb3VudAEANDIALwA/NDIAAAEAZwP/////AQH/////AAAAABVgiQoCAAAA" +
-           "AAALAAAAQnJvd3NlQ291bnQBADUyAC8APzUyAAABAGcD/////wEB/////wAAAAAVYIkKAgAAAAAADwAA" +
-           "AEJyb3dzZU5leHRDb3VudAEANjIALwA/NjIAAAEAZwP/////AQH/////AAAAABVgiQoCAAAAAAAiAAAA" +
-           "VHJhbnNsYXRlQnJvd3NlUGF0aHNUb05vZGVJZHNDb3VudAEANzIALwA/NzIAAAEAZwP/////AQH/////" +
-           "AAAAABVgiQoCAAAAAAAPAAAAUXVlcnlGaXJzdENvdW50AQA4MgAvAD84MgAAAQBnA/////8BAf////8A" +
-           "AAAAFWCJCgIAAAAAAA4AAABRdWVyeU5leHRDb3VudAEAOTIALwA/OTIAAAEAZwP/////AQH/////AAAA" +
-           "ABVgiQoCAAAAAAASAAAAUmVnaXN0ZXJOb2Rlc0NvdW50AQA6MgAvAD86MgAAAQBnA/////8BAf////8A" +
-           "AAAAFWCJCgIAAAAAABQAAABVbnJlZ2lzdGVyTm9kZXNDb3VudAEAOzIALwA/OzIAAAEAZwP/////AQH/" +
-           "////AAAAAA==";
+           "CAEAlAiUCAAAAQBhAwEAAAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -18129,7 +19775,7 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class SessionDiagnosticsVariableState : BaseDataVariableState<SessionDiagnosticsDataType>
+    public partial class SessionDiagnosticsVariableState : BaseDataVariableState<Opc.Ua.SessionDiagnosticsDataType>
     {
         #region Constructors
         /// <remarks />
@@ -20279,7 +21925,7 @@ namespace Opc.Ua
         /// <remarks />
         public SessionDiagnosticsDataType Value
         {
-            get { return m_value;  }
+            get { return m_value; }
             set { m_value = value; }
         }
         #endregion
@@ -20294,184 +21940,313 @@ namespace Opc.Ua
                 variable.Value = m_value;
 
                 variable.OnReadValue = OnReadValue;
-                variable.OnSimpleWriteValue = OnWriteValue;
+                variable.OnWriteValue = OnWriteValue;
 
                 BaseVariableState instance = null;
                 List<BaseInstanceState> updateList = new List<BaseInstanceState>();
                 updateList.Add(variable);
 
                 instance = m_variable.SessionId;
-                instance.OnReadValue = OnRead_SessionId;
-                instance.OnSimpleWriteValue = OnWrite_SessionId;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_SessionId;
+                    instance.OnWriteValue = OnWrite_SessionId;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.SessionName;
-                instance.OnReadValue = OnRead_SessionName;
-                instance.OnSimpleWriteValue = OnWrite_SessionName;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_SessionName;
+                    instance.OnWriteValue = OnWrite_SessionName;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.ClientDescription;
-                instance.OnReadValue = OnRead_ClientDescription;
-                instance.OnSimpleWriteValue = OnWrite_ClientDescription;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_ClientDescription;
+                    instance.OnWriteValue = OnWrite_ClientDescription;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.ServerUri;
-                instance.OnReadValue = OnRead_ServerUri;
-                instance.OnSimpleWriteValue = OnWrite_ServerUri;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_ServerUri;
+                    instance.OnWriteValue = OnWrite_ServerUri;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.EndpointUrl;
-                instance.OnReadValue = OnRead_EndpointUrl;
-                instance.OnSimpleWriteValue = OnWrite_EndpointUrl;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_EndpointUrl;
+                    instance.OnWriteValue = OnWrite_EndpointUrl;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.LocaleIds;
-                instance.OnReadValue = OnRead_LocaleIds;
-                instance.OnSimpleWriteValue = OnWrite_LocaleIds;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_LocaleIds;
+                    instance.OnWriteValue = OnWrite_LocaleIds;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.ActualSessionTimeout;
-                instance.OnReadValue = OnRead_ActualSessionTimeout;
-                instance.OnSimpleWriteValue = OnWrite_ActualSessionTimeout;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_ActualSessionTimeout;
+                    instance.OnWriteValue = OnWrite_ActualSessionTimeout;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.MaxResponseMessageSize;
-                instance.OnReadValue = OnRead_MaxResponseMessageSize;
-                instance.OnSimpleWriteValue = OnWrite_MaxResponseMessageSize;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_MaxResponseMessageSize;
+                    instance.OnWriteValue = OnWrite_MaxResponseMessageSize;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.ClientConnectionTime;
-                instance.OnReadValue = OnRead_ClientConnectionTime;
-                instance.OnSimpleWriteValue = OnWrite_ClientConnectionTime;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_ClientConnectionTime;
+                    instance.OnWriteValue = OnWrite_ClientConnectionTime;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.ClientLastContactTime;
-                instance.OnReadValue = OnRead_ClientLastContactTime;
-                instance.OnSimpleWriteValue = OnWrite_ClientLastContactTime;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_ClientLastContactTime;
+                    instance.OnWriteValue = OnWrite_ClientLastContactTime;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.CurrentSubscriptionsCount;
-                instance.OnReadValue = OnRead_CurrentSubscriptionsCount;
-                instance.OnSimpleWriteValue = OnWrite_CurrentSubscriptionsCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_CurrentSubscriptionsCount;
+                    instance.OnWriteValue = OnWrite_CurrentSubscriptionsCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.CurrentMonitoredItemsCount;
-                instance.OnReadValue = OnRead_CurrentMonitoredItemsCount;
-                instance.OnSimpleWriteValue = OnWrite_CurrentMonitoredItemsCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_CurrentMonitoredItemsCount;
+                    instance.OnWriteValue = OnWrite_CurrentMonitoredItemsCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.CurrentPublishRequestsInQueue;
-                instance.OnReadValue = OnRead_CurrentPublishRequestsInQueue;
-                instance.OnSimpleWriteValue = OnWrite_CurrentPublishRequestsInQueue;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_CurrentPublishRequestsInQueue;
+                    instance.OnWriteValue = OnWrite_CurrentPublishRequestsInQueue;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.TotalRequestCount;
-                instance.OnReadValue = OnRead_TotalRequestCount;
-                instance.OnSimpleWriteValue = OnWrite_TotalRequestCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_TotalRequestCount;
+                    instance.OnWriteValue = OnWrite_TotalRequestCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.UnauthorizedRequestCount;
-                instance.OnReadValue = OnRead_UnauthorizedRequestCount;
-                instance.OnSimpleWriteValue = OnWrite_UnauthorizedRequestCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_UnauthorizedRequestCount;
+                    instance.OnWriteValue = OnWrite_UnauthorizedRequestCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.ReadCount;
-                instance.OnReadValue = OnRead_ReadCount;
-                instance.OnSimpleWriteValue = OnWrite_ReadCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_ReadCount;
+                    instance.OnWriteValue = OnWrite_ReadCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.HistoryReadCount;
-                instance.OnReadValue = OnRead_HistoryReadCount;
-                instance.OnSimpleWriteValue = OnWrite_HistoryReadCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_HistoryReadCount;
+                    instance.OnWriteValue = OnWrite_HistoryReadCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.WriteCount;
-                instance.OnReadValue = OnRead_WriteCount;
-                instance.OnSimpleWriteValue = OnWrite_WriteCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_WriteCount;
+                    instance.OnWriteValue = OnWrite_WriteCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.HistoryUpdateCount;
-                instance.OnReadValue = OnRead_HistoryUpdateCount;
-                instance.OnSimpleWriteValue = OnWrite_HistoryUpdateCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_HistoryUpdateCount;
+                    instance.OnWriteValue = OnWrite_HistoryUpdateCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.CallCount;
-                instance.OnReadValue = OnRead_CallCount;
-                instance.OnSimpleWriteValue = OnWrite_CallCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_CallCount;
+                    instance.OnWriteValue = OnWrite_CallCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.CreateMonitoredItemsCount;
-                instance.OnReadValue = OnRead_CreateMonitoredItemsCount;
-                instance.OnSimpleWriteValue = OnWrite_CreateMonitoredItemsCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_CreateMonitoredItemsCount;
+                    instance.OnWriteValue = OnWrite_CreateMonitoredItemsCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.ModifyMonitoredItemsCount;
-                instance.OnReadValue = OnRead_ModifyMonitoredItemsCount;
-                instance.OnSimpleWriteValue = OnWrite_ModifyMonitoredItemsCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_ModifyMonitoredItemsCount;
+                    instance.OnWriteValue = OnWrite_ModifyMonitoredItemsCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.SetMonitoringModeCount;
-                instance.OnReadValue = OnRead_SetMonitoringModeCount;
-                instance.OnSimpleWriteValue = OnWrite_SetMonitoringModeCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_SetMonitoringModeCount;
+                    instance.OnWriteValue = OnWrite_SetMonitoringModeCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.SetTriggeringCount;
-                instance.OnReadValue = OnRead_SetTriggeringCount;
-                instance.OnSimpleWriteValue = OnWrite_SetTriggeringCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_SetTriggeringCount;
+                    instance.OnWriteValue = OnWrite_SetTriggeringCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.DeleteMonitoredItemsCount;
-                instance.OnReadValue = OnRead_DeleteMonitoredItemsCount;
-                instance.OnSimpleWriteValue = OnWrite_DeleteMonitoredItemsCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_DeleteMonitoredItemsCount;
+                    instance.OnWriteValue = OnWrite_DeleteMonitoredItemsCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.CreateSubscriptionCount;
-                instance.OnReadValue = OnRead_CreateSubscriptionCount;
-                instance.OnSimpleWriteValue = OnWrite_CreateSubscriptionCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_CreateSubscriptionCount;
+                    instance.OnWriteValue = OnWrite_CreateSubscriptionCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.ModifySubscriptionCount;
-                instance.OnReadValue = OnRead_ModifySubscriptionCount;
-                instance.OnSimpleWriteValue = OnWrite_ModifySubscriptionCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_ModifySubscriptionCount;
+                    instance.OnWriteValue = OnWrite_ModifySubscriptionCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.SetPublishingModeCount;
-                instance.OnReadValue = OnRead_SetPublishingModeCount;
-                instance.OnSimpleWriteValue = OnWrite_SetPublishingModeCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_SetPublishingModeCount;
+                    instance.OnWriteValue = OnWrite_SetPublishingModeCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.PublishCount;
-                instance.OnReadValue = OnRead_PublishCount;
-                instance.OnSimpleWriteValue = OnWrite_PublishCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_PublishCount;
+                    instance.OnWriteValue = OnWrite_PublishCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.RepublishCount;
-                instance.OnReadValue = OnRead_RepublishCount;
-                instance.OnSimpleWriteValue = OnWrite_RepublishCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_RepublishCount;
+                    instance.OnWriteValue = OnWrite_RepublishCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.TransferSubscriptionsCount;
-                instance.OnReadValue = OnRead_TransferSubscriptionsCount;
-                instance.OnSimpleWriteValue = OnWrite_TransferSubscriptionsCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_TransferSubscriptionsCount;
+                    instance.OnWriteValue = OnWrite_TransferSubscriptionsCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.DeleteSubscriptionsCount;
-                instance.OnReadValue = OnRead_DeleteSubscriptionsCount;
-                instance.OnSimpleWriteValue = OnWrite_DeleteSubscriptionsCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_DeleteSubscriptionsCount;
+                    instance.OnWriteValue = OnWrite_DeleteSubscriptionsCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.AddNodesCount;
-                instance.OnReadValue = OnRead_AddNodesCount;
-                instance.OnSimpleWriteValue = OnWrite_AddNodesCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_AddNodesCount;
+                    instance.OnWriteValue = OnWrite_AddNodesCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.AddReferencesCount;
-                instance.OnReadValue = OnRead_AddReferencesCount;
-                instance.OnSimpleWriteValue = OnWrite_AddReferencesCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_AddReferencesCount;
+                    instance.OnWriteValue = OnWrite_AddReferencesCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.DeleteNodesCount;
-                instance.OnReadValue = OnRead_DeleteNodesCount;
-                instance.OnSimpleWriteValue = OnWrite_DeleteNodesCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_DeleteNodesCount;
+                    instance.OnWriteValue = OnWrite_DeleteNodesCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.DeleteReferencesCount;
-                instance.OnReadValue = OnRead_DeleteReferencesCount;
-                instance.OnSimpleWriteValue = OnWrite_DeleteReferencesCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_DeleteReferencesCount;
+                    instance.OnWriteValue = OnWrite_DeleteReferencesCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.BrowseCount;
-                instance.OnReadValue = OnRead_BrowseCount;
-                instance.OnSimpleWriteValue = OnWrite_BrowseCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_BrowseCount;
+                    instance.OnWriteValue = OnWrite_BrowseCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.BrowseNextCount;
-                instance.OnReadValue = OnRead_BrowseNextCount;
-                instance.OnSimpleWriteValue = OnWrite_BrowseNextCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_BrowseNextCount;
+                    instance.OnWriteValue = OnWrite_BrowseNextCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.TranslateBrowsePathsToNodeIdsCount;
-                instance.OnReadValue = OnRead_TranslateBrowsePathsToNodeIdsCount;
-                instance.OnSimpleWriteValue = OnWrite_TranslateBrowsePathsToNodeIdsCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_TranslateBrowsePathsToNodeIdsCount;
+                    instance.OnWriteValue = OnWrite_TranslateBrowsePathsToNodeIdsCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.QueryFirstCount;
-                instance.OnReadValue = OnRead_QueryFirstCount;
-                instance.OnSimpleWriteValue = OnWrite_QueryFirstCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_QueryFirstCount;
+                    instance.OnWriteValue = OnWrite_QueryFirstCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.QueryNextCount;
-                instance.OnReadValue = OnRead_QueryNextCount;
-                instance.OnSimpleWriteValue = OnWrite_QueryNextCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_QueryNextCount;
+                    instance.OnWriteValue = OnWrite_QueryNextCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.RegisterNodesCount;
-                instance.OnReadValue = OnRead_RegisterNodesCount;
-                instance.OnSimpleWriteValue = OnWrite_RegisterNodesCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_RegisterNodesCount;
+                    instance.OnWriteValue = OnWrite_RegisterNodesCount;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.UnregisterNodesCount;
-                instance.OnReadValue = OnRead_UnregisterNodesCount;
-                instance.OnSimpleWriteValue = OnWrite_UnregisterNodesCount;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_UnregisterNodesCount;
+                    instance.OnWriteValue = OnWrite_UnregisterNodesCount;
+                    updateList.Add(instance);
+                }
 
                 SetUpdateList(updateList);
             }
@@ -20500,14 +22275,102 @@ namespace Opc.Ua
             }
         }
 
-        private ServiceResult OnWriteValue(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWriteValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
-                m_value = (SessionDiagnosticsDataType)Write(value);
+                SessionDiagnosticsDataType newValue;
+                if (value is ExtensionObject extensionObject)
+                {
+                    newValue = (SessionDiagnosticsDataType)extensionObject.Body;
+                }
+                else
+                {
+                    newValue = (SessionDiagnosticsDataType)value;
+                }
+
+                if (!Utils.IsEqual(m_value, newValue))
+                {
+                    UpdateChildrenChangeMasks(context, ref newValue, ref statusCode, ref timestamp);
+                    Timestamp = timestamp;
+                    m_value = (SessionDiagnosticsDataType)Write(newValue);
+                    m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                }
             }
 
             return ServiceResult.Good;
+        }
+
+        private void UpdateChildrenChangeMasks(ISystemContext context, ref SessionDiagnosticsDataType newValue, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (!Utils.IsEqual(m_value.SessionId, newValue.SessionId)) UpdateChildVariableStatus(m_variable.SessionId, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SessionName, newValue.SessionName)) UpdateChildVariableStatus(m_variable.SessionName, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ClientDescription, newValue.ClientDescription)) UpdateChildVariableStatus(m_variable.ClientDescription, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ServerUri, newValue.ServerUri)) UpdateChildVariableStatus(m_variable.ServerUri, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.EndpointUrl, newValue.EndpointUrl)) UpdateChildVariableStatus(m_variable.EndpointUrl, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LocaleIds, newValue.LocaleIds)) UpdateChildVariableStatus(m_variable.LocaleIds, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ActualSessionTimeout, newValue.ActualSessionTimeout)) UpdateChildVariableStatus(m_variable.ActualSessionTimeout, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.MaxResponseMessageSize, newValue.MaxResponseMessageSize)) UpdateChildVariableStatus(m_variable.MaxResponseMessageSize, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ClientConnectionTime, newValue.ClientConnectionTime)) UpdateChildVariableStatus(m_variable.ClientConnectionTime, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ClientLastContactTime, newValue.ClientLastContactTime)) UpdateChildVariableStatus(m_variable.ClientLastContactTime, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CurrentSubscriptionsCount, newValue.CurrentSubscriptionsCount)) UpdateChildVariableStatus(m_variable.CurrentSubscriptionsCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CurrentMonitoredItemsCount, newValue.CurrentMonitoredItemsCount)) UpdateChildVariableStatus(m_variable.CurrentMonitoredItemsCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CurrentPublishRequestsInQueue, newValue.CurrentPublishRequestsInQueue)) UpdateChildVariableStatus(m_variable.CurrentPublishRequestsInQueue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.TotalRequestCount, newValue.TotalRequestCount)) UpdateChildVariableStatus(m_variable.TotalRequestCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.UnauthorizedRequestCount, newValue.UnauthorizedRequestCount)) UpdateChildVariableStatus(m_variable.UnauthorizedRequestCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ReadCount, newValue.ReadCount)) UpdateChildVariableStatus(m_variable.ReadCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.HistoryReadCount, newValue.HistoryReadCount)) UpdateChildVariableStatus(m_variable.HistoryReadCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.WriteCount, newValue.WriteCount)) UpdateChildVariableStatus(m_variable.WriteCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.HistoryUpdateCount, newValue.HistoryUpdateCount)) UpdateChildVariableStatus(m_variable.HistoryUpdateCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CallCount, newValue.CallCount)) UpdateChildVariableStatus(m_variable.CallCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CreateMonitoredItemsCount, newValue.CreateMonitoredItemsCount)) UpdateChildVariableStatus(m_variable.CreateMonitoredItemsCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ModifyMonitoredItemsCount, newValue.ModifyMonitoredItemsCount)) UpdateChildVariableStatus(m_variable.ModifyMonitoredItemsCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SetMonitoringModeCount, newValue.SetMonitoringModeCount)) UpdateChildVariableStatus(m_variable.SetMonitoringModeCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SetTriggeringCount, newValue.SetTriggeringCount)) UpdateChildVariableStatus(m_variable.SetTriggeringCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.DeleteMonitoredItemsCount, newValue.DeleteMonitoredItemsCount)) UpdateChildVariableStatus(m_variable.DeleteMonitoredItemsCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CreateSubscriptionCount, newValue.CreateSubscriptionCount)) UpdateChildVariableStatus(m_variable.CreateSubscriptionCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ModifySubscriptionCount, newValue.ModifySubscriptionCount)) UpdateChildVariableStatus(m_variable.ModifySubscriptionCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SetPublishingModeCount, newValue.SetPublishingModeCount)) UpdateChildVariableStatus(m_variable.SetPublishingModeCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.PublishCount, newValue.PublishCount)) UpdateChildVariableStatus(m_variable.PublishCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.RepublishCount, newValue.RepublishCount)) UpdateChildVariableStatus(m_variable.RepublishCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.TransferSubscriptionsCount, newValue.TransferSubscriptionsCount)) UpdateChildVariableStatus(m_variable.TransferSubscriptionsCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.DeleteSubscriptionsCount, newValue.DeleteSubscriptionsCount)) UpdateChildVariableStatus(m_variable.DeleteSubscriptionsCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.AddNodesCount, newValue.AddNodesCount)) UpdateChildVariableStatus(m_variable.AddNodesCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.AddReferencesCount, newValue.AddReferencesCount)) UpdateChildVariableStatus(m_variable.AddReferencesCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.DeleteNodesCount, newValue.DeleteNodesCount)) UpdateChildVariableStatus(m_variable.DeleteNodesCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.DeleteReferencesCount, newValue.DeleteReferencesCount)) UpdateChildVariableStatus(m_variable.DeleteReferencesCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.BrowseCount, newValue.BrowseCount)) UpdateChildVariableStatus(m_variable.BrowseCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.BrowseNextCount, newValue.BrowseNextCount)) UpdateChildVariableStatus(m_variable.BrowseNextCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.TranslateBrowsePathsToNodeIdsCount, newValue.TranslateBrowsePathsToNodeIdsCount)) UpdateChildVariableStatus(m_variable.TranslateBrowsePathsToNodeIdsCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.QueryFirstCount, newValue.QueryFirstCount)) UpdateChildVariableStatus(m_variable.QueryFirstCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.QueryNextCount, newValue.QueryNextCount)) UpdateChildVariableStatus(m_variable.QueryNextCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.RegisterNodesCount, newValue.RegisterNodesCount)) UpdateChildVariableStatus(m_variable.RegisterNodesCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.UnregisterNodesCount, newValue.UnregisterNodesCount)) UpdateChildVariableStatus(m_variable.UnregisterNodesCount, ref statusCode, ref timestamp);
+        }
+
+        private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            Timestamp = timestamp;
+            m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            m_variable.ClearChangeMasks(context, false);
+        }
+
+        private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (child == null) return;
+            child.StatusCode = statusCode;
+            if (timestamp == DateTime.MinValue)
+            {
+                timestamp = DateTime.UtcNow;
+            }
+            child.Timestamp = timestamp;
         }
 
         #region SessionId Access Methods
@@ -20525,21 +22388,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.SessionId;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.SessionId;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_SessionId(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_SessionId(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.SessionId, ref statusCode, ref timestamp);
                 m_value.SessionId = (NodeId)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -20561,21 +22453,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.SessionName;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.SessionName;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_SessionName(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_SessionName(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.SessionName, ref statusCode, ref timestamp);
                 m_value.SessionName = (string)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -20597,21 +22518,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.ClientDescription;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.ClientDescription;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_ClientDescription(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_ClientDescription(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.ClientDescription, ref statusCode, ref timestamp);
                 m_value.ClientDescription = (ApplicationDescription)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -20633,21 +22583,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.ServerUri;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.ServerUri;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_ServerUri(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_ServerUri(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.ServerUri, ref statusCode, ref timestamp);
                 m_value.ServerUri = (string)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -20669,21 +22648,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.EndpointUrl;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.EndpointUrl;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_EndpointUrl(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_EndpointUrl(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.EndpointUrl, ref statusCode, ref timestamp);
                 m_value.EndpointUrl = (string)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -20705,21 +22713,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.LocaleIds;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.LocaleIds;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_LocaleIds(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_LocaleIds(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.LocaleIds, ref statusCode, ref timestamp);
                 m_value.LocaleIds = (StringCollection)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -20741,21 +22778,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.ActualSessionTimeout;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.ActualSessionTimeout;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_ActualSessionTimeout(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_ActualSessionTimeout(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.ActualSessionTimeout, ref statusCode, ref timestamp);
                 m_value.ActualSessionTimeout = (double)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -20777,21 +22843,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.MaxResponseMessageSize;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.MaxResponseMessageSize;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_MaxResponseMessageSize(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_MaxResponseMessageSize(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.MaxResponseMessageSize, ref statusCode, ref timestamp);
                 m_value.MaxResponseMessageSize = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -20813,21 +22908,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.ClientConnectionTime;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.ClientConnectionTime;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_ClientConnectionTime(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_ClientConnectionTime(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.ClientConnectionTime, ref statusCode, ref timestamp);
                 m_value.ClientConnectionTime = (DateTime)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -20849,21 +22973,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.ClientLastContactTime;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.ClientLastContactTime;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_ClientLastContactTime(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_ClientLastContactTime(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.ClientLastContactTime, ref statusCode, ref timestamp);
                 m_value.ClientLastContactTime = (DateTime)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -20885,21 +23038,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.CurrentSubscriptionsCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.CurrentSubscriptionsCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_CurrentSubscriptionsCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_CurrentSubscriptionsCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.CurrentSubscriptionsCount, ref statusCode, ref timestamp);
                 m_value.CurrentSubscriptionsCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -20921,21 +23103,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.CurrentMonitoredItemsCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.CurrentMonitoredItemsCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_CurrentMonitoredItemsCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_CurrentMonitoredItemsCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.CurrentMonitoredItemsCount, ref statusCode, ref timestamp);
                 m_value.CurrentMonitoredItemsCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -20957,21 +23168,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.CurrentPublishRequestsInQueue;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.CurrentPublishRequestsInQueue;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_CurrentPublishRequestsInQueue(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_CurrentPublishRequestsInQueue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.CurrentPublishRequestsInQueue, ref statusCode, ref timestamp);
                 m_value.CurrentPublishRequestsInQueue = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -20993,21 +23233,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.TotalRequestCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.TotalRequestCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_TotalRequestCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_TotalRequestCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.TotalRequestCount, ref statusCode, ref timestamp);
                 m_value.TotalRequestCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21029,21 +23298,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.UnauthorizedRequestCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.UnauthorizedRequestCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_UnauthorizedRequestCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_UnauthorizedRequestCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.UnauthorizedRequestCount, ref statusCode, ref timestamp);
                 m_value.UnauthorizedRequestCount = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21065,21 +23363,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.ReadCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.ReadCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_ReadCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_ReadCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.ReadCount, ref statusCode, ref timestamp);
                 m_value.ReadCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21101,21 +23428,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.HistoryReadCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.HistoryReadCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_HistoryReadCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_HistoryReadCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.HistoryReadCount, ref statusCode, ref timestamp);
                 m_value.HistoryReadCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21137,21 +23493,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.WriteCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.WriteCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_WriteCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_WriteCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.WriteCount, ref statusCode, ref timestamp);
                 m_value.WriteCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21173,21 +23558,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.HistoryUpdateCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.HistoryUpdateCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_HistoryUpdateCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_HistoryUpdateCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.HistoryUpdateCount, ref statusCode, ref timestamp);
                 m_value.HistoryUpdateCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21209,21 +23623,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.CallCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.CallCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_CallCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_CallCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.CallCount, ref statusCode, ref timestamp);
                 m_value.CallCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21245,21 +23688,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.CreateMonitoredItemsCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.CreateMonitoredItemsCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_CreateMonitoredItemsCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_CreateMonitoredItemsCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.CreateMonitoredItemsCount, ref statusCode, ref timestamp);
                 m_value.CreateMonitoredItemsCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21281,21 +23753,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.ModifyMonitoredItemsCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.ModifyMonitoredItemsCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_ModifyMonitoredItemsCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_ModifyMonitoredItemsCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.ModifyMonitoredItemsCount, ref statusCode, ref timestamp);
                 m_value.ModifyMonitoredItemsCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21317,21 +23818,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.SetMonitoringModeCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.SetMonitoringModeCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_SetMonitoringModeCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_SetMonitoringModeCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.SetMonitoringModeCount, ref statusCode, ref timestamp);
                 m_value.SetMonitoringModeCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21353,21 +23883,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.SetTriggeringCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.SetTriggeringCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_SetTriggeringCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_SetTriggeringCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.SetTriggeringCount, ref statusCode, ref timestamp);
                 m_value.SetTriggeringCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21389,21 +23948,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.DeleteMonitoredItemsCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.DeleteMonitoredItemsCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_DeleteMonitoredItemsCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_DeleteMonitoredItemsCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.DeleteMonitoredItemsCount, ref statusCode, ref timestamp);
                 m_value.DeleteMonitoredItemsCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21425,21 +24013,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.CreateSubscriptionCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.CreateSubscriptionCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_CreateSubscriptionCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_CreateSubscriptionCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.CreateSubscriptionCount, ref statusCode, ref timestamp);
                 m_value.CreateSubscriptionCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21461,21 +24078,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.ModifySubscriptionCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.ModifySubscriptionCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_ModifySubscriptionCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_ModifySubscriptionCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.ModifySubscriptionCount, ref statusCode, ref timestamp);
                 m_value.ModifySubscriptionCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21497,21 +24143,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.SetPublishingModeCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.SetPublishingModeCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_SetPublishingModeCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_SetPublishingModeCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.SetPublishingModeCount, ref statusCode, ref timestamp);
                 m_value.SetPublishingModeCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21533,21 +24208,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.PublishCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.PublishCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_PublishCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_PublishCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.PublishCount, ref statusCode, ref timestamp);
                 m_value.PublishCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21569,21 +24273,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.RepublishCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.RepublishCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_RepublishCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_RepublishCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.RepublishCount, ref statusCode, ref timestamp);
                 m_value.RepublishCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21605,21 +24338,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.TransferSubscriptionsCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.TransferSubscriptionsCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_TransferSubscriptionsCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_TransferSubscriptionsCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.TransferSubscriptionsCount, ref statusCode, ref timestamp);
                 m_value.TransferSubscriptionsCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21641,21 +24403,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.DeleteSubscriptionsCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.DeleteSubscriptionsCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_DeleteSubscriptionsCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_DeleteSubscriptionsCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.DeleteSubscriptionsCount, ref statusCode, ref timestamp);
                 m_value.DeleteSubscriptionsCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21677,21 +24468,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.AddNodesCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.AddNodesCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_AddNodesCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_AddNodesCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.AddNodesCount, ref statusCode, ref timestamp);
                 m_value.AddNodesCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21713,21 +24533,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.AddReferencesCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.AddReferencesCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_AddReferencesCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_AddReferencesCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.AddReferencesCount, ref statusCode, ref timestamp);
                 m_value.AddReferencesCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21749,21 +24598,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.DeleteNodesCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.DeleteNodesCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_DeleteNodesCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_DeleteNodesCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.DeleteNodesCount, ref statusCode, ref timestamp);
                 m_value.DeleteNodesCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21785,21 +24663,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.DeleteReferencesCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.DeleteReferencesCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_DeleteReferencesCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_DeleteReferencesCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.DeleteReferencesCount, ref statusCode, ref timestamp);
                 m_value.DeleteReferencesCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21821,21 +24728,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.BrowseCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.BrowseCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_BrowseCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_BrowseCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.BrowseCount, ref statusCode, ref timestamp);
                 m_value.BrowseCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21857,21 +24793,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.BrowseNextCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.BrowseNextCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_BrowseNextCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_BrowseNextCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.BrowseNextCount, ref statusCode, ref timestamp);
                 m_value.BrowseNextCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21893,21 +24858,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.TranslateBrowsePathsToNodeIdsCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.TranslateBrowsePathsToNodeIdsCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_TranslateBrowsePathsToNodeIdsCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_TranslateBrowsePathsToNodeIdsCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.TranslateBrowsePathsToNodeIdsCount, ref statusCode, ref timestamp);
                 m_value.TranslateBrowsePathsToNodeIdsCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21929,21 +24923,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.QueryFirstCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.QueryFirstCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_QueryFirstCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_QueryFirstCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.QueryFirstCount, ref statusCode, ref timestamp);
                 m_value.QueryFirstCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -21965,21 +24988,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.QueryNextCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.QueryNextCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_QueryNextCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_QueryNextCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.QueryNextCount, ref statusCode, ref timestamp);
                 m_value.QueryNextCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -22001,21 +25053,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.RegisterNodesCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.RegisterNodesCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_RegisterNodesCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_RegisterNodesCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.RegisterNodesCount, ref statusCode, ref timestamp);
                 m_value.RegisterNodesCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -22037,21 +25118,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.UnregisterNodesCount;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.UnregisterNodesCount;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_UnregisterNodesCount(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_UnregisterNodesCount(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.UnregisterNodesCount, ref statusCode, ref timestamp);
                 m_value.UnregisterNodesCount = (ServiceCounterDataType)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -22073,7 +25183,7 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class SessionSecurityDiagnosticsArrayState : BaseDataVariableState<SessionSecurityDiagnosticsDataType[]>
+    public partial class SessionSecurityDiagnosticsArrayState : BaseDataVariableState<Opc.Ua.SessionSecurityDiagnosticsDataType[]>
     {
         #region Constructors
         /// <remarks />
@@ -22124,17 +25234,7 @@ namespace Opc.Ua
         #region Initialization String
         private const string InitializationString =
            "//////////8XYIkCAgAAAAAAKwAAAFNlc3Npb25TZWN1cml0eURpYWdub3N0aWNzQXJyYXlUeXBlSW5z" +
-           "dGFuY2UBAMMIAQDDCMMIAAABAGQDAQAAAAEAAAAAAAAAAQH/////AQAAABVgiQoCAAAAAAAaAAAAU2Vz" +
-           "c2lvblNlY3VyaXR5RGlhZ25vc3RpY3MBADwyAC8BAMQIPDIAAAEAZAP/////AQH/////CQAAABVgiQoC" +
-           "AAAAAAAJAAAAU2Vzc2lvbklkAQA9MgAvAD89MgAAABH/////AQH/////AAAAABVgiQoCAAAAAAAVAAAA" +
-           "Q2xpZW50VXNlcklkT2ZTZXNzaW9uAQA+MgAvAD8+MgAAAAz/////AQH/////AAAAABdgiQoCAAAAAAAT" +
-           "AAAAQ2xpZW50VXNlcklkSGlzdG9yeQEAPzIALwA/PzIAAAAMAQAAAAEAAAAAAAAAAQH/////AAAAABVg" +
-           "iQoCAAAAAAAXAAAAQXV0aGVudGljYXRpb25NZWNoYW5pc20BAEAyAC8AP0AyAAAADP////8BAf////8A" +
-           "AAAAFWCJCgIAAAAAAAgAAABFbmNvZGluZwEAQTIALwA/QTIAAAAM/////wEB/////wAAAAAVYIkKAgAA" +
-           "AAAAEQAAAFRyYW5zcG9ydFByb3RvY29sAQBCMgAvAD9CMgAAAAz/////AQH/////AAAAABVgiQoCAAAA" +
-           "AAAMAAAAU2VjdXJpdHlNb2RlAQBDMgAvAD9DMgAAAQAuAf////8BAf////8AAAAAFWCJCgIAAAAAABEA" +
-           "AABTZWN1cml0eVBvbGljeVVyaQEARDIALwA/RDIAAAAM/////wEB/////wAAAAAVYIkKAgAAAAAAEQAA" +
-           "AENsaWVudENlcnRpZmljYXRlAQBFMgAvAD9FMgAAAA//////AQH/////AAAAAA==";
+           "dGFuY2UBAMMIAQDDCMMIAAABAGQDAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -22156,7 +25256,7 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class SessionSecurityDiagnosticsState : BaseDataVariableState<SessionSecurityDiagnosticsDataType>
+    public partial class SessionSecurityDiagnosticsState : BaseDataVariableState<Opc.Ua.SessionSecurityDiagnosticsDataType>
     {
         #region Constructors
         /// <remarks />
@@ -22707,7 +25807,7 @@ namespace Opc.Ua
         /// <remarks />
         public SessionSecurityDiagnosticsDataType Value
         {
-            get { return m_value;  }
+            get { return m_value; }
             set { m_value = value; }
         }
         #endregion
@@ -22722,48 +25822,75 @@ namespace Opc.Ua
                 variable.Value = m_value;
 
                 variable.OnReadValue = OnReadValue;
-                variable.OnSimpleWriteValue = OnWriteValue;
+                variable.OnWriteValue = OnWriteValue;
 
                 BaseVariableState instance = null;
                 List<BaseInstanceState> updateList = new List<BaseInstanceState>();
                 updateList.Add(variable);
 
                 instance = m_variable.SessionId;
-                instance.OnReadValue = OnRead_SessionId;
-                instance.OnSimpleWriteValue = OnWrite_SessionId;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_SessionId;
+                    instance.OnWriteValue = OnWrite_SessionId;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.ClientUserIdOfSession;
-                instance.OnReadValue = OnRead_ClientUserIdOfSession;
-                instance.OnSimpleWriteValue = OnWrite_ClientUserIdOfSession;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_ClientUserIdOfSession;
+                    instance.OnWriteValue = OnWrite_ClientUserIdOfSession;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.ClientUserIdHistory;
-                instance.OnReadValue = OnRead_ClientUserIdHistory;
-                instance.OnSimpleWriteValue = OnWrite_ClientUserIdHistory;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_ClientUserIdHistory;
+                    instance.OnWriteValue = OnWrite_ClientUserIdHistory;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.AuthenticationMechanism;
-                instance.OnReadValue = OnRead_AuthenticationMechanism;
-                instance.OnSimpleWriteValue = OnWrite_AuthenticationMechanism;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_AuthenticationMechanism;
+                    instance.OnWriteValue = OnWrite_AuthenticationMechanism;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.Encoding;
-                instance.OnReadValue = OnRead_Encoding;
-                instance.OnSimpleWriteValue = OnWrite_Encoding;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_Encoding;
+                    instance.OnWriteValue = OnWrite_Encoding;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.TransportProtocol;
-                instance.OnReadValue = OnRead_TransportProtocol;
-                instance.OnSimpleWriteValue = OnWrite_TransportProtocol;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_TransportProtocol;
+                    instance.OnWriteValue = OnWrite_TransportProtocol;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.SecurityMode;
-                instance.OnReadValue = OnRead_SecurityMode;
-                instance.OnSimpleWriteValue = OnWrite_SecurityMode;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_SecurityMode;
+                    instance.OnWriteValue = OnWrite_SecurityMode;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.SecurityPolicyUri;
-                instance.OnReadValue = OnRead_SecurityPolicyUri;
-                instance.OnSimpleWriteValue = OnWrite_SecurityPolicyUri;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_SecurityPolicyUri;
+                    instance.OnWriteValue = OnWrite_SecurityPolicyUri;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.ClientCertificate;
-                instance.OnReadValue = OnRead_ClientCertificate;
-                instance.OnSimpleWriteValue = OnWrite_ClientCertificate;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_ClientCertificate;
+                    instance.OnWriteValue = OnWrite_ClientCertificate;
+                    updateList.Add(instance);
+                }
 
                 SetUpdateList(updateList);
             }
@@ -22792,14 +25919,68 @@ namespace Opc.Ua
             }
         }
 
-        private ServiceResult OnWriteValue(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWriteValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
-                m_value = (SessionSecurityDiagnosticsDataType)Write(value);
+                SessionSecurityDiagnosticsDataType newValue;
+                if (value is ExtensionObject extensionObject)
+                {
+                    newValue = (SessionSecurityDiagnosticsDataType)extensionObject.Body;
+                }
+                else
+                {
+                    newValue = (SessionSecurityDiagnosticsDataType)value;
+                }
+
+                if (!Utils.IsEqual(m_value, newValue))
+                {
+                    UpdateChildrenChangeMasks(context, ref newValue, ref statusCode, ref timestamp);
+                    Timestamp = timestamp;
+                    m_value = (SessionSecurityDiagnosticsDataType)Write(newValue);
+                    m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                }
             }
 
             return ServiceResult.Good;
+        }
+
+        private void UpdateChildrenChangeMasks(ISystemContext context, ref SessionSecurityDiagnosticsDataType newValue, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (!Utils.IsEqual(m_value.SessionId, newValue.SessionId)) UpdateChildVariableStatus(m_variable.SessionId, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ClientUserIdOfSession, newValue.ClientUserIdOfSession)) UpdateChildVariableStatus(m_variable.ClientUserIdOfSession, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ClientUserIdHistory, newValue.ClientUserIdHistory)) UpdateChildVariableStatus(m_variable.ClientUserIdHistory, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.AuthenticationMechanism, newValue.AuthenticationMechanism)) UpdateChildVariableStatus(m_variable.AuthenticationMechanism, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.Encoding, newValue.Encoding)) UpdateChildVariableStatus(m_variable.Encoding, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.TransportProtocol, newValue.TransportProtocol)) UpdateChildVariableStatus(m_variable.TransportProtocol, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SecurityMode, newValue.SecurityMode)) UpdateChildVariableStatus(m_variable.SecurityMode, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SecurityPolicyUri, newValue.SecurityPolicyUri)) UpdateChildVariableStatus(m_variable.SecurityPolicyUri, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ClientCertificate, newValue.ClientCertificate)) UpdateChildVariableStatus(m_variable.ClientCertificate, ref statusCode, ref timestamp);
+        }
+
+        private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            Timestamp = timestamp;
+            m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            m_variable.ClearChangeMasks(context, false);
+        }
+
+        private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (child == null) return;
+            child.StatusCode = statusCode;
+            if (timestamp == DateTime.MinValue)
+            {
+                timestamp = DateTime.UtcNow;
+            }
+            child.Timestamp = timestamp;
         }
 
         #region SessionId Access Methods
@@ -22817,21 +25998,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.SessionId;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.SessionId;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_SessionId(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_SessionId(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.SessionId, ref statusCode, ref timestamp);
                 m_value.SessionId = (NodeId)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -22853,21 +26063,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.ClientUserIdOfSession;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.ClientUserIdOfSession;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_ClientUserIdOfSession(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_ClientUserIdOfSession(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.ClientUserIdOfSession, ref statusCode, ref timestamp);
                 m_value.ClientUserIdOfSession = (string)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -22889,21 +26128,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.ClientUserIdHistory;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.ClientUserIdHistory;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_ClientUserIdHistory(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_ClientUserIdHistory(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.ClientUserIdHistory, ref statusCode, ref timestamp);
                 m_value.ClientUserIdHistory = (StringCollection)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -22925,21 +26193,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.AuthenticationMechanism;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.AuthenticationMechanism;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_AuthenticationMechanism(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_AuthenticationMechanism(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.AuthenticationMechanism, ref statusCode, ref timestamp);
                 m_value.AuthenticationMechanism = (string)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -22961,21 +26258,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.Encoding;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.Encoding;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_Encoding(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_Encoding(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.Encoding, ref statusCode, ref timestamp);
                 m_value.Encoding = (string)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -22997,21 +26323,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.TransportProtocol;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.TransportProtocol;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_TransportProtocol(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_TransportProtocol(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.TransportProtocol, ref statusCode, ref timestamp);
                 m_value.TransportProtocol = (string)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -23033,21 +26388,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.SecurityMode;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.SecurityMode;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_SecurityMode(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_SecurityMode(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.SecurityMode, ref statusCode, ref timestamp);
                 m_value.SecurityMode = (MessageSecurityMode)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -23069,21 +26453,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.SecurityPolicyUri;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.SecurityPolicyUri;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_SecurityPolicyUri(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_SecurityPolicyUri(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.SecurityPolicyUri, ref statusCode, ref timestamp);
                 m_value.SecurityPolicyUri = (string)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -23105,21 +26518,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.ClientCertificate;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.ClientCertificate;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_ClientCertificate(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_ClientCertificate(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.ClientCertificate, ref statusCode, ref timestamp);
                 m_value.ClientCertificate = (byte[])Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -23378,12 +26820,12 @@ namespace Opc.Ua
         {
             get
             {
-                return CheckTypeBeforeCast<T>(base.Value, true);
+                return CheckTypeBeforeCast<T>(((BaseVariableState)this).Value, true);
             }
 
             set
             {
-                base.Value = value;
+                ((BaseVariableState)this).Value = value;
             }
         }
         #endregion
@@ -23690,12 +27132,12 @@ namespace Opc.Ua
         {
             get
             {
-                return CheckTypeBeforeCast<T>(base.Value, true);
+                return CheckTypeBeforeCast<T>(((BaseVariableState)this).Value, true);
             }
 
             set
             {
-                base.Value = value;
+                ((BaseVariableState)this).Value = value;
             }
         }
         #endregion
@@ -24039,7 +27481,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             uint subscriptionId = (uint)_inputArguments[0];
 
@@ -24048,7 +27490,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -24060,7 +27502,7 @@ namespace Opc.Ua
             _outputArguments[0] = serverHandles;
             _outputArguments[1] = clientHandles;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -24144,20 +27586,20 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             uint subscriptionId = (uint)_inputArguments[0];
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
                     subscriptionId);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -24242,7 +27684,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             uint subscriptionId = (uint)_inputArguments[0];
             uint lifetimeInHours = (uint)_inputArguments[1];
@@ -24251,7 +27693,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -24262,7 +27704,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = revisedLifetimeInHours;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -24349,7 +27791,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             ServerState state = (ServerState)_inputArguments[0];
             DateTime estimatedReturnTime = (DateTime)_inputArguments[1];
@@ -24359,7 +27801,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -24370,7 +27812,7 @@ namespace Opc.Ua
                     restart);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -26517,7 +29959,7 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class RationalNumberState : BaseDataVariableState<RationalNumber>
+    public partial class RationalNumberState : BaseDataVariableState<Opc.Ua.RationalNumber>
     {
         #region Constructors
         /// <remarks />
@@ -26739,7 +30181,7 @@ namespace Opc.Ua
         /// <remarks />
         public RationalNumber Value
         {
-            get { return m_value;  }
+            get { return m_value; }
             set { m_value = value; }
         }
         #endregion
@@ -26754,20 +30196,26 @@ namespace Opc.Ua
                 variable.Value = m_value;
 
                 variable.OnReadValue = OnReadValue;
-                variable.OnSimpleWriteValue = OnWriteValue;
+                variable.OnWriteValue = OnWriteValue;
 
                 BaseVariableState instance = null;
                 List<BaseInstanceState> updateList = new List<BaseInstanceState>();
                 updateList.Add(variable);
 
                 instance = m_variable.Numerator;
-                instance.OnReadValue = OnRead_Numerator;
-                instance.OnSimpleWriteValue = OnWrite_Numerator;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_Numerator;
+                    instance.OnWriteValue = OnWrite_Numerator;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.Denominator;
-                instance.OnReadValue = OnRead_Denominator;
-                instance.OnSimpleWriteValue = OnWrite_Denominator;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_Denominator;
+                    instance.OnWriteValue = OnWrite_Denominator;
+                    updateList.Add(instance);
+                }
 
                 SetUpdateList(updateList);
             }
@@ -26796,14 +30244,61 @@ namespace Opc.Ua
             }
         }
 
-        private ServiceResult OnWriteValue(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWriteValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
-                m_value = (RationalNumber)Write(value);
+                RationalNumber newValue;
+                if (value is ExtensionObject extensionObject)
+                {
+                    newValue = (RationalNumber)extensionObject.Body;
+                }
+                else
+                {
+                    newValue = (RationalNumber)value;
+                }
+
+                if (!Utils.IsEqual(m_value, newValue))
+                {
+                    UpdateChildrenChangeMasks(context, ref newValue, ref statusCode, ref timestamp);
+                    Timestamp = timestamp;
+                    m_value = (RationalNumber)Write(newValue);
+                    m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                }
             }
 
             return ServiceResult.Good;
+        }
+
+        private void UpdateChildrenChangeMasks(ISystemContext context, ref RationalNumber newValue, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (!Utils.IsEqual(m_value.Numerator, newValue.Numerator)) UpdateChildVariableStatus(m_variable.Numerator, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.Denominator, newValue.Denominator)) UpdateChildVariableStatus(m_variable.Denominator, ref statusCode, ref timestamp);
+        }
+
+        private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            Timestamp = timestamp;
+            m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            m_variable.ClearChangeMasks(context, false);
+        }
+
+        private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (child == null) return;
+            child.StatusCode = statusCode;
+            if (timestamp == DateTime.MinValue)
+            {
+                timestamp = DateTime.UtcNow;
+            }
+            child.Timestamp = timestamp;
         }
 
         #region Numerator Access Methods
@@ -26821,21 +30316,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.Numerator;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.Numerator;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_Numerator(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_Numerator(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.Numerator, ref statusCode, ref timestamp);
                 m_value.Numerator = (int)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -26857,21 +30381,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.Denominator;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.Denominator;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_Denominator(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_Denominator(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.Denominator, ref statusCode, ref timestamp);
                 m_value.Denominator = (uint)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -26893,7 +30446,7 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class VectorState : BaseDataVariableState<Vector>
+    public partial class VectorState : BaseDataVariableState<Opc.Ua.Vector>
     {
         #region Constructors
         /// <remarks />
@@ -27321,7 +30874,7 @@ namespace Opc.Ua
         /// <remarks />
         public ThreeDVector Value
         {
-            get { return m_value;  }
+            get { return m_value; }
             set { m_value = value; }
         }
         #endregion
@@ -27336,24 +30889,33 @@ namespace Opc.Ua
                 variable.Value = m_value;
 
                 variable.OnReadValue = OnReadValue;
-                variable.OnSimpleWriteValue = OnWriteValue;
+                variable.OnWriteValue = OnWriteValue;
 
                 BaseVariableState instance = null;
                 List<BaseInstanceState> updateList = new List<BaseInstanceState>();
                 updateList.Add(variable);
 
                 instance = m_variable.X;
-                instance.OnReadValue = OnRead_X;
-                instance.OnSimpleWriteValue = OnWrite_X;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_X;
+                    instance.OnWriteValue = OnWrite_X;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.Y;
-                instance.OnReadValue = OnRead_Y;
-                instance.OnSimpleWriteValue = OnWrite_Y;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_Y;
+                    instance.OnWriteValue = OnWrite_Y;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.Z;
-                instance.OnReadValue = OnRead_Z;
-                instance.OnSimpleWriteValue = OnWrite_Z;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_Z;
+                    instance.OnWriteValue = OnWrite_Z;
+                    updateList.Add(instance);
+                }
 
                 SetUpdateList(updateList);
             }
@@ -27382,14 +30944,62 @@ namespace Opc.Ua
             }
         }
 
-        private ServiceResult OnWriteValue(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWriteValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
-                m_value = (ThreeDVector)Write(value);
+                ThreeDVector newValue;
+                if (value is ExtensionObject extensionObject)
+                {
+                    newValue = (ThreeDVector)extensionObject.Body;
+                }
+                else
+                {
+                    newValue = (ThreeDVector)value;
+                }
+
+                if (!Utils.IsEqual(m_value, newValue))
+                {
+                    UpdateChildrenChangeMasks(context, ref newValue, ref statusCode, ref timestamp);
+                    Timestamp = timestamp;
+                    m_value = (ThreeDVector)Write(newValue);
+                    m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                }
             }
 
             return ServiceResult.Good;
+        }
+
+        private void UpdateChildrenChangeMasks(ISystemContext context, ref ThreeDVector newValue, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (!Utils.IsEqual(m_value.X, newValue.X)) UpdateChildVariableStatus(m_variable.X, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.Y, newValue.Y)) UpdateChildVariableStatus(m_variable.Y, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.Z, newValue.Z)) UpdateChildVariableStatus(m_variable.Z, ref statusCode, ref timestamp);
+        }
+
+        private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            Timestamp = timestamp;
+            m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            m_variable.ClearChangeMasks(context, false);
+        }
+
+        private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (child == null) return;
+            child.StatusCode = statusCode;
+            if (timestamp == DateTime.MinValue)
+            {
+                timestamp = DateTime.UtcNow;
+            }
+            child.Timestamp = timestamp;
         }
 
         #region X Access Methods
@@ -27407,21 +31017,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.X;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.X;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_X(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_X(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.X, ref statusCode, ref timestamp);
                 m_value.X = (double)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -27443,21 +31082,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.Y;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.Y;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_Y(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_Y(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.Y, ref statusCode, ref timestamp);
                 m_value.Y = (double)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -27479,21 +31147,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.Z;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.Z;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_Z(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_Z(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.Z, ref statusCode, ref timestamp);
                 m_value.Z = (double)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -27515,7 +31212,7 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class CartesianCoordinatesState : BaseDataVariableState<CartesianCoordinates>
+    public partial class CartesianCoordinatesState : BaseDataVariableState<Opc.Ua.CartesianCoordinates>
     {
         #region Constructors
         /// <remarks />
@@ -27943,7 +31640,7 @@ namespace Opc.Ua
         /// <remarks />
         public ThreeDCartesianCoordinates Value
         {
-            get { return m_value;  }
+            get { return m_value; }
             set { m_value = value; }
         }
         #endregion
@@ -27958,24 +31655,33 @@ namespace Opc.Ua
                 variable.Value = m_value;
 
                 variable.OnReadValue = OnReadValue;
-                variable.OnSimpleWriteValue = OnWriteValue;
+                variable.OnWriteValue = OnWriteValue;
 
                 BaseVariableState instance = null;
                 List<BaseInstanceState> updateList = new List<BaseInstanceState>();
                 updateList.Add(variable);
 
                 instance = m_variable.X;
-                instance.OnReadValue = OnRead_X;
-                instance.OnSimpleWriteValue = OnWrite_X;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_X;
+                    instance.OnWriteValue = OnWrite_X;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.Y;
-                instance.OnReadValue = OnRead_Y;
-                instance.OnSimpleWriteValue = OnWrite_Y;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_Y;
+                    instance.OnWriteValue = OnWrite_Y;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.Z;
-                instance.OnReadValue = OnRead_Z;
-                instance.OnSimpleWriteValue = OnWrite_Z;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_Z;
+                    instance.OnWriteValue = OnWrite_Z;
+                    updateList.Add(instance);
+                }
 
                 SetUpdateList(updateList);
             }
@@ -28004,14 +31710,62 @@ namespace Opc.Ua
             }
         }
 
-        private ServiceResult OnWriteValue(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWriteValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
-                m_value = (ThreeDCartesianCoordinates)Write(value);
+                ThreeDCartesianCoordinates newValue;
+                if (value is ExtensionObject extensionObject)
+                {
+                    newValue = (ThreeDCartesianCoordinates)extensionObject.Body;
+                }
+                else
+                {
+                    newValue = (ThreeDCartesianCoordinates)value;
+                }
+
+                if (!Utils.IsEqual(m_value, newValue))
+                {
+                    UpdateChildrenChangeMasks(context, ref newValue, ref statusCode, ref timestamp);
+                    Timestamp = timestamp;
+                    m_value = (ThreeDCartesianCoordinates)Write(newValue);
+                    m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                }
             }
 
             return ServiceResult.Good;
+        }
+
+        private void UpdateChildrenChangeMasks(ISystemContext context, ref ThreeDCartesianCoordinates newValue, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (!Utils.IsEqual(m_value.X, newValue.X)) UpdateChildVariableStatus(m_variable.X, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.Y, newValue.Y)) UpdateChildVariableStatus(m_variable.Y, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.Z, newValue.Z)) UpdateChildVariableStatus(m_variable.Z, ref statusCode, ref timestamp);
+        }
+
+        private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            Timestamp = timestamp;
+            m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            m_variable.ClearChangeMasks(context, false);
+        }
+
+        private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (child == null) return;
+            child.StatusCode = statusCode;
+            if (timestamp == DateTime.MinValue)
+            {
+                timestamp = DateTime.UtcNow;
+            }
+            child.Timestamp = timestamp;
         }
 
         #region X Access Methods
@@ -28029,21 +31783,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.X;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.X;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_X(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_X(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.X, ref statusCode, ref timestamp);
                 m_value.X = (double)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -28065,21 +31848,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.Y;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.Y;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_Y(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_Y(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.Y, ref statusCode, ref timestamp);
                 m_value.Y = (double)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -28101,21 +31913,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.Z;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.Z;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_Z(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_Z(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.Z, ref statusCode, ref timestamp);
                 m_value.Z = (double)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -28137,7 +31978,7 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class OrientationState : BaseDataVariableState<Orientation>
+    public partial class OrientationState : BaseDataVariableState<Opc.Ua.Orientation>
     {
         #region Constructors
         /// <remarks />
@@ -28565,7 +32406,7 @@ namespace Opc.Ua
         /// <remarks />
         public ThreeDOrientation Value
         {
-            get { return m_value;  }
+            get { return m_value; }
             set { m_value = value; }
         }
         #endregion
@@ -28580,24 +32421,33 @@ namespace Opc.Ua
                 variable.Value = m_value;
 
                 variable.OnReadValue = OnReadValue;
-                variable.OnSimpleWriteValue = OnWriteValue;
+                variable.OnWriteValue = OnWriteValue;
 
                 BaseVariableState instance = null;
                 List<BaseInstanceState> updateList = new List<BaseInstanceState>();
                 updateList.Add(variable);
 
                 instance = m_variable.A;
-                instance.OnReadValue = OnRead_A;
-                instance.OnSimpleWriteValue = OnWrite_A;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_A;
+                    instance.OnWriteValue = OnWrite_A;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.B;
-                instance.OnReadValue = OnRead_B;
-                instance.OnSimpleWriteValue = OnWrite_B;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_B;
+                    instance.OnWriteValue = OnWrite_B;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.C;
-                instance.OnReadValue = OnRead_C;
-                instance.OnSimpleWriteValue = OnWrite_C;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_C;
+                    instance.OnWriteValue = OnWrite_C;
+                    updateList.Add(instance);
+                }
 
                 SetUpdateList(updateList);
             }
@@ -28626,14 +32476,62 @@ namespace Opc.Ua
             }
         }
 
-        private ServiceResult OnWriteValue(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWriteValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
-                m_value = (ThreeDOrientation)Write(value);
+                ThreeDOrientation newValue;
+                if (value is ExtensionObject extensionObject)
+                {
+                    newValue = (ThreeDOrientation)extensionObject.Body;
+                }
+                else
+                {
+                    newValue = (ThreeDOrientation)value;
+                }
+
+                if (!Utils.IsEqual(m_value, newValue))
+                {
+                    UpdateChildrenChangeMasks(context, ref newValue, ref statusCode, ref timestamp);
+                    Timestamp = timestamp;
+                    m_value = (ThreeDOrientation)Write(newValue);
+                    m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                }
             }
 
             return ServiceResult.Good;
+        }
+
+        private void UpdateChildrenChangeMasks(ISystemContext context, ref ThreeDOrientation newValue, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (!Utils.IsEqual(m_value.A, newValue.A)) UpdateChildVariableStatus(m_variable.A, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.B, newValue.B)) UpdateChildVariableStatus(m_variable.B, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.C, newValue.C)) UpdateChildVariableStatus(m_variable.C, ref statusCode, ref timestamp);
+        }
+
+        private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            Timestamp = timestamp;
+            m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            m_variable.ClearChangeMasks(context, false);
+        }
+
+        private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (child == null) return;
+            child.StatusCode = statusCode;
+            if (timestamp == DateTime.MinValue)
+            {
+                timestamp = DateTime.UtcNow;
+            }
+            child.Timestamp = timestamp;
         }
 
         #region A Access Methods
@@ -28651,21 +32549,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.A;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.A;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_A(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_A(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.A, ref statusCode, ref timestamp);
                 m_value.A = (double)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -28687,21 +32614,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.B;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.B;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_B(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_B(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.B, ref statusCode, ref timestamp);
                 m_value.B = (double)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -28723,21 +32679,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.C;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.C;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_C(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_C(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.C, ref statusCode, ref timestamp);
                 m_value.C = (double)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -28759,7 +32744,7 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class FrameState : BaseDataVariableState<Frame>
+    public partial class FrameState : BaseDataVariableState<Opc.Ua.Frame>
     {
         #region Constructors
         /// <remarks />
@@ -29312,7 +33297,7 @@ namespace Opc.Ua
         /// <remarks />
         public ThreeDFrame Value
         {
-            get { return m_value;  }
+            get { return m_value; }
             set { m_value = value; }
         }
         #endregion
@@ -29327,44 +33312,26 @@ namespace Opc.Ua
                 variable.Value = m_value;
 
                 variable.OnReadValue = OnReadValue;
-                variable.OnSimpleWriteValue = OnWriteValue;
+                variable.OnWriteValue = OnWriteValue;
 
                 BaseVariableState instance = null;
                 List<BaseInstanceState> updateList = new List<BaseInstanceState>();
                 updateList.Add(variable);
 
                 instance = m_variable.CartesianCoordinates;
-                instance.OnReadValue = OnRead_CartesianCoordinates;
-                instance.OnSimpleWriteValue = OnWrite_CartesianCoordinates;
-                updateList.Add(instance);
-                instance = m_variable.CartesianCoordinates.X;
-                instance.OnReadValue = OnRead_CartesianCoordinates_X;
-                instance.OnSimpleWriteValue = OnWrite_CartesianCoordinates_X;
-                updateList.Add(instance);
-                instance = m_variable.CartesianCoordinates.Y;
-                instance.OnReadValue = OnRead_CartesianCoordinates_Y;
-                instance.OnSimpleWriteValue = OnWrite_CartesianCoordinates_Y;
-                updateList.Add(instance);
-                instance = m_variable.CartesianCoordinates.Z;
-                instance.OnReadValue = OnRead_CartesianCoordinates_Z;
-                instance.OnSimpleWriteValue = OnWrite_CartesianCoordinates_Z;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_CartesianCoordinates;
+                    instance.OnWriteValue = OnWrite_CartesianCoordinates;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.Orientation;
-                instance.OnReadValue = OnRead_Orientation;
-                instance.OnSimpleWriteValue = OnWrite_Orientation;
-                updateList.Add(instance);
-                instance = m_variable.Orientation.A;
-                instance.OnReadValue = OnRead_Orientation_A;
-                instance.OnSimpleWriteValue = OnWrite_Orientation_A;
-                updateList.Add(instance);
-                instance = m_variable.Orientation.B;
-                instance.OnReadValue = OnRead_Orientation_B;
-                instance.OnSimpleWriteValue = OnWrite_Orientation_B;
-                updateList.Add(instance);
-                instance = m_variable.Orientation.C;
-                instance.OnReadValue = OnRead_Orientation_C;
-                instance.OnSimpleWriteValue = OnWrite_Orientation_C;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_Orientation;
+                    instance.OnWriteValue = OnWrite_Orientation;
+                    updateList.Add(instance);
+                }
 
                 SetUpdateList(updateList);
             }
@@ -29393,14 +33360,61 @@ namespace Opc.Ua
             }
         }
 
-        private ServiceResult OnWriteValue(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWriteValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
-                m_value = (ThreeDFrame)Write(value);
+                ThreeDFrame newValue;
+                if (value is ExtensionObject extensionObject)
+                {
+                    newValue = (ThreeDFrame)extensionObject.Body;
+                }
+                else
+                {
+                    newValue = (ThreeDFrame)value;
+                }
+
+                if (!Utils.IsEqual(m_value, newValue))
+                {
+                    UpdateChildrenChangeMasks(context, ref newValue, ref statusCode, ref timestamp);
+                    Timestamp = timestamp;
+                    m_value = (ThreeDFrame)Write(newValue);
+                    m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                }
             }
 
             return ServiceResult.Good;
+        }
+
+        private void UpdateChildrenChangeMasks(ISystemContext context, ref ThreeDFrame newValue, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (!Utils.IsEqual(m_value.CartesianCoordinates, newValue.CartesianCoordinates)) UpdateChildVariableStatus(m_variable.CartesianCoordinates, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.Orientation, newValue.Orientation)) UpdateChildVariableStatus(m_variable.Orientation, ref statusCode, ref timestamp);
+        }
+
+        private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            Timestamp = timestamp;
+            m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            m_variable.ClearChangeMasks(context, false);
+        }
+
+        private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (child == null) return;
+            child.StatusCode = statusCode;
+            if (timestamp == DateTime.MinValue)
+            {
+                timestamp = DateTime.UtcNow;
+            }
+            child.Timestamp = timestamp;
         }
 
         #region CartesianCoordinates Access Methods
@@ -29418,129 +33432,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.CartesianCoordinates;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.CartesianCoordinates;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_CartesianCoordinates(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_CartesianCoordinates(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.CartesianCoordinates, ref statusCode, ref timestamp);
                 m_value.CartesianCoordinates = (ThreeDCartesianCoordinates)Write(value);
-            }
-
-            return ServiceResult.Good;
-        }
-        #endregion
-
-        #region CartesianCoordinates_X Access Methods
-        /// <remarks />
-        private ServiceResult OnRead_CartesianCoordinates_X(
-            ISystemContext context,
-            NodeState node,
-            NumericRange indexRange,
-            QualifiedName dataEncoding,
-            ref object value,
-            ref StatusCode statusCode,
-            ref DateTime timestamp)
-        {
-            lock (Lock)
-            {
-                DoBeforeReadProcessing(context, node);
-
-                if (m_value != null)
-                {
-                    value = m_value.CartesianCoordinates.X;
-                }
-
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
-            }
-        }
-
-        /// <remarks />
-        private ServiceResult OnWrite_CartesianCoordinates_X(ISystemContext context, NodeState node, ref object value)
-        {
-            lock (Lock)
-            {
-                m_value.CartesianCoordinates.X = (double)Write(value);
-            }
-
-            return ServiceResult.Good;
-        }
-        #endregion
-
-        #region CartesianCoordinates_Y Access Methods
-        /// <remarks />
-        private ServiceResult OnRead_CartesianCoordinates_Y(
-            ISystemContext context,
-            NodeState node,
-            NumericRange indexRange,
-            QualifiedName dataEncoding,
-            ref object value,
-            ref StatusCode statusCode,
-            ref DateTime timestamp)
-        {
-            lock (Lock)
-            {
-                DoBeforeReadProcessing(context, node);
-
-                if (m_value != null)
-                {
-                    value = m_value.CartesianCoordinates.Y;
-                }
-
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
-            }
-        }
-
-        /// <remarks />
-        private ServiceResult OnWrite_CartesianCoordinates_Y(ISystemContext context, NodeState node, ref object value)
-        {
-            lock (Lock)
-            {
-                m_value.CartesianCoordinates.Y = (double)Write(value);
-            }
-
-            return ServiceResult.Good;
-        }
-        #endregion
-
-        #region CartesianCoordinates_Z Access Methods
-        /// <remarks />
-        private ServiceResult OnRead_CartesianCoordinates_Z(
-            ISystemContext context,
-            NodeState node,
-            NumericRange indexRange,
-            QualifiedName dataEncoding,
-            ref object value,
-            ref StatusCode statusCode,
-            ref DateTime timestamp)
-        {
-            lock (Lock)
-            {
-                DoBeforeReadProcessing(context, node);
-
-                if (m_value != null)
-                {
-                    value = m_value.CartesianCoordinates.Z;
-                }
-
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
-            }
-        }
-
-        /// <remarks />
-        private ServiceResult OnWrite_CartesianCoordinates_Z(ISystemContext context, NodeState node, ref object value)
-        {
-            lock (Lock)
-            {
-                m_value.CartesianCoordinates.Z = (double)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -29562,129 +33497,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.Orientation;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.Orientation;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_Orientation(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_Orientation(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.Orientation, ref statusCode, ref timestamp);
                 m_value.Orientation = (ThreeDOrientation)Write(value);
-            }
-
-            return ServiceResult.Good;
-        }
-        #endregion
-
-        #region Orientation_A Access Methods
-        /// <remarks />
-        private ServiceResult OnRead_Orientation_A(
-            ISystemContext context,
-            NodeState node,
-            NumericRange indexRange,
-            QualifiedName dataEncoding,
-            ref object value,
-            ref StatusCode statusCode,
-            ref DateTime timestamp)
-        {
-            lock (Lock)
-            {
-                DoBeforeReadProcessing(context, node);
-
-                if (m_value != null)
-                {
-                    value = m_value.Orientation.A;
-                }
-
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
-            }
-        }
-
-        /// <remarks />
-        private ServiceResult OnWrite_Orientation_A(ISystemContext context, NodeState node, ref object value)
-        {
-            lock (Lock)
-            {
-                m_value.Orientation.A = (double)Write(value);
-            }
-
-            return ServiceResult.Good;
-        }
-        #endregion
-
-        #region Orientation_B Access Methods
-        /// <remarks />
-        private ServiceResult OnRead_Orientation_B(
-            ISystemContext context,
-            NodeState node,
-            NumericRange indexRange,
-            QualifiedName dataEncoding,
-            ref object value,
-            ref StatusCode statusCode,
-            ref DateTime timestamp)
-        {
-            lock (Lock)
-            {
-                DoBeforeReadProcessing(context, node);
-
-                if (m_value != null)
-                {
-                    value = m_value.Orientation.B;
-                }
-
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
-            }
-        }
-
-        /// <remarks />
-        private ServiceResult OnWrite_Orientation_B(ISystemContext context, NodeState node, ref object value)
-        {
-            lock (Lock)
-            {
-                m_value.Orientation.B = (double)Write(value);
-            }
-
-            return ServiceResult.Good;
-        }
-        #endregion
-
-        #region Orientation_C Access Methods
-        /// <remarks />
-        private ServiceResult OnRead_Orientation_C(
-            ISystemContext context,
-            NodeState node,
-            NumericRange indexRange,
-            QualifiedName dataEncoding,
-            ref object value,
-            ref StatusCode statusCode,
-            ref DateTime timestamp)
-        {
-            lock (Lock)
-            {
-                DoBeforeReadProcessing(context, node);
-
-                if (m_value != null)
-                {
-                    value = m_value.Orientation.C;
-                }
-
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
-            }
-        }
-
-        /// <remarks />
-        private ServiceResult OnWrite_Orientation_C(ISystemContext context, NodeState node, ref object value)
-        {
-            lock (Lock)
-            {
-                m_value.Orientation.C = (double)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -30207,7 +34063,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             byte mode = (byte)_inputArguments[0];
 
@@ -30215,7 +34071,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -30225,7 +34081,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = fileHandle;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -30308,20 +34164,20 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             uint fileHandle = (uint)_inputArguments[0];
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
                     fileHandle);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -30405,7 +34261,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             uint fileHandle = (uint)_inputArguments[0];
             int length = (int)_inputArguments[1];
@@ -30414,7 +34270,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -30425,7 +34281,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = data;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -30510,14 +34366,14 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             uint fileHandle = (uint)_inputArguments[0];
             byte[] data = (byte[])_inputArguments[1];
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -30525,7 +34381,7 @@ namespace Opc.Ua
                     data);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -30610,7 +34466,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             uint fileHandle = (uint)_inputArguments[0];
 
@@ -30618,7 +34474,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -30628,7 +34484,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = position;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -30712,14 +34568,14 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             uint fileHandle = (uint)_inputArguments[0];
             ulong position = (ulong)_inputArguments[1];
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -30727,7 +34583,7 @@ namespace Opc.Ua
                     position);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -30790,72 +34646,26 @@ namespace Opc.Ua
         #region Initialization String
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAGQAAAEZpbGVEaXJlY3RvcnlUeXBlSW5zdGFuY2UBACk0AQApNCk0AAD/" +
-           "////BgAAAARgwAoBAAAAHQAAAEZpbGVEaXJlY3RvcnlOYW1lX1BsYWNlaG9sZGVyAAATAAAAPEZpbGVE" +
-           "aXJlY3RvcnlOYW1lPgEAKjQAIwEAKTQqNAAA/////wQAAAAEYYIKBAAAAAAADwAAAENyZWF0ZURpcmVj" +
-           "dG9yeQEAKzQALwEASzQrNAAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBACw0" +
-           "AC4ARCw0AACWAQAAAAEAKgEBHAAAAA0AAABEaXJlY3RvcnlOYW1lAAz/////AAAAAAABACgBAQAAAAEA" +
-           "AAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQAtNAAuAEQtNAAAlgEA" +
-           "AAABACoBAR4AAAAPAAAARGlyZWN0b3J5Tm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/" +
-           "////AAAAAARhggoEAAAAAAAKAAAAQ3JlYXRlRmlsZQEALjQALwEATjQuNAAAAQH/////AgAAABdgqQoC" +
-           "AAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAC80AC4ARC80AACWAgAAAAEAKgEBFwAAAAgAAABGaWxlTmFt" +
-           "ZQAM/////wAAAAAAAQAqAQEeAAAADwAAAFJlcXVlc3RGaWxlT3BlbgAB/////wAAAAAAAQAoAQEAAAAB" +
-           "AAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAMDQALgBEMDQAAJYC" +
-           "AAAAAQAqAQEZAAAACgAAAEZpbGVOb2RlSWQAEf////8AAAAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxl" +
-           "AAf/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhwgoEAAAAFgAAAERlbGV0ZUZpbGVT" +
-           "eXN0ZW1PYmplY3QAAAYAAABEZWxldGUBADZFAC8BAFE0NkUAAAEB/////wEAAAAXYKkKAgAAAAAADgAA" +
-           "AElucHV0QXJndW1lbnRzAQA3RQAuAEQ3RQAAlgEAAAABACoBAR0AAAAOAAAAT2JqZWN0VG9EZWxldGUA" +
-           "Ef////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAoAAABNb3ZlT3JDb3B5" +
-           "AQAzNAAvAQBTNDM0AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEANDQALgBE" +
-           "NDQAAJYEAAAAAQAqAQEhAAAAEgAAAE9iamVjdFRvTW92ZU9yQ29weQAR/////wAAAAAAAQAqAQEeAAAA" +
-           "DwAAAFRhcmdldERpcmVjdG9yeQAR/////wAAAAAAAQAqAQEZAAAACgAAAENyZWF0ZUNvcHkAAf////8A" +
-           "AAAAAAEAKgEBFgAAAAcAAABOZXdOYW1lAAz/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAA" +
-           "ABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQA1NAAuAEQ1NAAAlgEAAAABACoBARgAAAAJAAAA" +
-           "TmV3Tm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARgwAoBAAAAFAAAAEZp" +
-           "bGVOYW1lX1BsYWNlaG9sZGVyAAAKAAAAPEZpbGVOYW1lPgEANjQAIwEANy02NAAA/////woAAAAVYIkK" +
-           "AgAAAAAABAAAAFNpemUBADc0AC4ARDc0AAAACf////8BAf////8AAAAAFWCJCgIAAAAAAAgAAABXcml0" +
-           "YWJsZQEAODQALgBEODQAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAFVzZXJXcml0YWJsZQEA" +
-           "OTQALgBEOTQAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAACQAAAE9wZW5Db3VudAEAOjQALgBEOjQA" +
-           "AAAF/////wEB/////wAAAAAEYYIKBAAAAAAABAAAAE9wZW4BADw0AC8BADwtPDQAAAEB/////wIAAAAX" +
-           "YKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQA9NAAuAEQ9NAAAlgEAAAABACoBARMAAAAEAAAATW9k" +
-           "ZQAD/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFy" +
-           "Z3VtZW50cwEAPjQALgBEPjQAAJYBAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEA" +
-           "KAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAUAAABDbG9zZQEAPzQALwEAPy0/NAAAAQH/" +
-           "////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAEA0AC4AREA0AACWAQAAAAEAKgEBGQAA" +
-           "AAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAA" +
-           "AAAEAAAAUmVhZAEAQTQALwEAQS1BNAAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVu" +
-           "dHMBAEI0AC4AREI0AACWAgAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACoBARUA" +
-           "AAAGAAAATGVuZ3RoAAb/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAP" +
-           "AAAAT3V0cHV0QXJndW1lbnRzAQBDNAAuAERDNAAAlgEAAAABACoBARMAAAAEAAAARGF0YQAP/////wAA" +
-           "AAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAABQAAAFdyaXRlAQBENAAvAQBELUQ0" +
-           "AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEARTQALgBERTQAAJYCAAAAAQAq" +
-           "AQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKgEBEwAAAAQAAABEYXRhAA//////AAAAAAAB" +
-           "ACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAALAAAAR2V0UG9zaXRpb24BAEY0AC8BAEYt" +
-           "RjQAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBHNAAuAERHNAAAlgEAAAAB" +
-           "ACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAX" +
-           "YKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEASDQALgBESDQAAJYBAAAAAQAqAQEXAAAACAAAAFBv" +
-           "c2l0aW9uAAn/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAALAAAAU2V0" +
-           "UG9zaXRpb24BAEk0AC8BAEktSTQAAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRz" +
-           "AQBKNAAuAERKNAAAlgIAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAqAQEXAAAA" +
-           "CAAAAFBvc2l0aW9uAAn/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAAP" +
-           "AAAAQ3JlYXRlRGlyZWN0b3J5AQBLNAAvAQBLNEs0AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1" +
-           "dEFyZ3VtZW50cwEATDQALgBETDQAAJYBAAAAAQAqAQEcAAAADQAAAERpcmVjdG9yeU5hbWUADP////8A" +
-           "AAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMB" +
-           "AE00AC4ARE00AACWAQAAAAEAKgEBHgAAAA8AAABEaXJlY3RvcnlOb2RlSWQAEf////8AAAAAAAEAKAEB" +
-           "AAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAoAAABDcmVhdGVGaWxlAQBONAAvAQBONE40AAAB" +
-           "Af////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEATzQALgBETzQAAJYCAAAAAQAqAQEX" +
-           "AAAACAAAAEZpbGVOYW1lAAz/////AAAAAAABACoBAR4AAAAPAAAAUmVxdWVzdEZpbGVPcGVuAAH/////" +
-           "AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRz" +
-           "AQBQNAAuAERQNAAAlgIAAAABACoBARkAAAAKAAAARmlsZU5vZGVJZAAR/////wAAAAAAAQAqAQEZAAAA" +
-           "CgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGHCCgQAAAAW" +
-           "AAAARGVsZXRlRmlsZVN5c3RlbU9iamVjdAAABgAAAERlbGV0ZQEAUTQALwEAUTRRNAAAAQH/////AQAA" +
-           "ABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAFI0AC4ARFI0AACWAQAAAAEAKgEBHQAAAA4AAABP" +
-           "YmplY3RUb0RlbGV0ZQAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAA" +
-           "CgAAAE1vdmVPckNvcHkBAFM0AC8BAFM0UzQAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJn" +
-           "dW1lbnRzAQBUNAAuAERUNAAAlgQAAAABACoBASEAAAASAAAAT2JqZWN0VG9Nb3ZlT3JDb3B5ABH/////" +
-           "AAAAAAABACoBAR4AAAAPAAAAVGFyZ2V0RGlyZWN0b3J5ABH/////AAAAAAABACoBARkAAAAKAAAAQ3Jl" +
-           "YXRlQ29weQAB/////wAAAAAAAQAqAQEWAAAABwAAAE5ld05hbWUADP////8AAAAAAAEAKAEBAAAAAQAA" +
-           "AAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAFU0AC4ARFU0AACWAQAA" +
-           "AAEAKgEBGAAAAAkAAABOZXdOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "////BAAAAARhggoEAAAAAAAPAAAAQ3JlYXRlRGlyZWN0b3J5AQBLNAAvAQBLNEs0AAABAf////8CAAAA" +
+           "F2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEATDQALgBETDQAAJYBAAAAAQAqAQEcAAAADQAAAERp" +
+           "cmVjdG9yeU5hbWUADP////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8A" +
+           "AABPdXRwdXRBcmd1bWVudHMBAE00AC4ARE00AACWAQAAAAEAKgEBHgAAAA8AAABEaXJlY3RvcnlOb2Rl" +
+           "SWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAoAAABDcmVhdGVG" +
+           "aWxlAQBONAAvAQBONE40AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEATzQA" +
+           "LgBETzQAAJYCAAAAAQAqAQEXAAAACAAAAEZpbGVOYW1lAAz/////AAAAAAABACoBAR4AAAAPAAAAUmVx" +
+           "dWVzdEZpbGVPcGVuAAH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAP" +
+           "AAAAT3V0cHV0QXJndW1lbnRzAQBQNAAuAERQNAAAlgIAAAABACoBARkAAAAKAAAARmlsZU5vZGVJZAAR" +
+           "/////wAAAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAAB" +
+           "Af////8AAAAABGHCCgQAAAAWAAAARGVsZXRlRmlsZVN5c3RlbU9iamVjdAAABgAAAERlbGV0ZQEAUTQA" +
+           "LwEAUTRRNAAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAFI0AC4ARFI0AACW" +
+           "AQAAAAEAKgEBHQAAAA4AAABPYmplY3RUb0RlbGV0ZQAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB" +
+           "/////wAAAAAEYYIKBAAAAAAACgAAAE1vdmVPckNvcHkBAFM0AC8BAFM0UzQAAAEB/////wIAAAAXYKkK" +
+           "AgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBUNAAuAERUNAAAlgQAAAABACoBASEAAAASAAAAT2JqZWN0" +
+           "VG9Nb3ZlT3JDb3B5ABH/////AAAAAAABACoBAR4AAAAPAAAAVGFyZ2V0RGlyZWN0b3J5ABH/////AAAA" +
+           "AAABACoBARkAAAAKAAAAQ3JlYXRlQ29weQAB/////wAAAAAAAQAqAQEWAAAABwAAAE5ld05hbWUADP//" +
+           "//8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVu" +
+           "dHMBAFU0AC4ARFU0AACWAQAAAAEAKgEBGAAAAAkAAABOZXdOb2RlSWQAEf////8AAAAAAAEAKAEBAAAA" +
+           "AQAAAAAAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -31153,7 +34963,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             string directoryName = (string)_inputArguments[0];
 
@@ -31161,7 +34971,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -31171,7 +34981,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = directoryNodeId;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -31257,7 +35067,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             string fileName = (string)_inputArguments[0];
             bool requestFileOpen = (bool)_inputArguments[1];
@@ -31267,7 +35077,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -31280,7 +35090,7 @@ namespace Opc.Ua
             _outputArguments[0] = fileNodeId;
             _outputArguments[1] = fileHandle;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -31365,20 +35175,20 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             NodeId objectToDelete = (NodeId)_inputArguments[0];
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
                     objectToDelete);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -31464,7 +35274,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             NodeId objectToMoveOrCopy = (NodeId)_inputArguments[0];
             NodeId targetDirectory = (NodeId)_inputArguments[1];
@@ -31475,7 +35285,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -31488,7 +35298,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = newNodeId;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -31554,7 +35364,7 @@ namespace Opc.Ua
         #region Initialization String
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAIQAAAFRlbXBvcmFyeUZpbGVUcmFuc2ZlclR5cGVJbnN0YW5jZQEAgD0B" +
-           "AIA9gD0AAP////8FAAAAFWCJCgIAAAAAABcAAABDbGllbnRQcm9jZXNzaW5nVGltZW91dAEAgT0ALgBE" +
+           "AIA9gD0AAP////8EAAAAFWCJCgIAAAAAABcAAABDbGllbnRQcm9jZXNzaW5nVGltZW91dAEAgT0ALgBE" +
            "gT0AAAEAIgH/////AQH/////AAAAAARhggoEAAAAAAATAAAAR2VuZXJhdGVGaWxlRm9yUmVhZAEAgj0A" +
            "LwEAgj2CPQAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAIM9AC4ARIM9AACW" +
            "AQAAAAEAKgEBHgAAAA8AAABHZW5lcmF0ZU9wdGlvbnMAGP////8AAAAAAAEAKAEBAAAAAQAAAAAAAAAB" +
@@ -31570,11 +35380,7 @@ namespace Opc.Ua
            "PYc9AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAiD0ALgBEiD0AAJYBAAAA" +
            "AQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA" +
            "F2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAIk9AC4ARIk9AACWAQAAAAEAKgEBJQAAABYAAABD" +
-           "b21wbGV0aW9uU3RhdGVNYWNoaW5lABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARg" +
-           "wAoBAAAAGQAAAFRyYW5zZmVyU3RhdGVfUGxhY2Vob2xkZXIAAA8AAAA8VHJhbnNmZXJTdGF0ZT4BAIo9" +
-           "AC8BALs9ij0AAP////8CAAAAFWCJCgIAAAAAAAwAAABDdXJyZW50U3RhdGUBAIs9AC8BAMgKiz0AAAAV" +
-           "/////wEB/////wEAAAAVYIkKAgAAAAAAAgAAAElkAQCMPQAuAESMPQAAABH/////AQH/////AAAAAARh" +
-           "ggoEAAAAAAAFAAAAUmVzZXQBALI9AC8BAOM9sj0AAAEB/////wAAAAA=";
+           "b21wbGV0aW9uU3RhdGVNYWNoaW5lABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -31874,7 +35680,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             object generateOptions = (object)_inputArguments[0];
 
@@ -31884,7 +35690,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -31898,7 +35704,7 @@ namespace Opc.Ua
             _outputArguments[1] = fileHandle;
             _outputArguments[2] = completionStateMachine;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -31986,7 +35792,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             object generateOptions = (object)_inputArguments[0];
 
@@ -31995,7 +35801,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -32007,7 +35813,7 @@ namespace Opc.Ua
             _outputArguments[0] = fileNodeId;
             _outputArguments[1] = fileHandle;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -32093,7 +35899,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             uint fileHandle = (uint)_inputArguments[0];
 
@@ -32101,7 +35907,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -32111,7 +35917,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = completionStateMachine;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -32174,40 +35980,9 @@ namespace Opc.Ua
         #region Initialization String
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAJAAAAEZpbGVUcmFuc2ZlclN0YXRlTWFjaGluZVR5cGVJbnN0YW5jZQEA" +
-           "uz0BALs9uz0AAP////8QAAAAFWCJCgIAAAAAAAwAAABDdXJyZW50U3RhdGUBALw9AC8BAMgKvD0AAAAV" +
-           "/////wEB/////wEAAAAVYIkKAgAAAAAAAgAAAElkAQC9PQAuAES9PQAAABH/////AQH/////AAAAAARg" +
-           "gAoBAAAAAAAEAAAASWRsZQEAxz0ALwEABQnHPQAABQAAAAAzAQEA0T0ANAEBANU9ADMBAQDXPQA0AQEA" +
-           "2T0ANAEBAOE9AQAAABVgqQoCAAAAAAALAAAAU3RhdGVOdW1iZXIBAMg9AC4ARMg9AAAHAQAAAAAH////" +
-           "/wEB/////wAAAAAEYIAKAQAAAAAACwAAAFJlYWRQcmVwYXJlAQDJPQAvAQADCck9AAADAAAAADQBAQDR" +
-           "PQAzAQEA0z0AMwEBANs9AQAAABVgqQoCAAAAAAALAAAAU3RhdGVOdW1iZXIBAMo9AC4ARMo9AAAHAgAA" +
-           "AAAH/////wEB/////wAAAAAEYIAKAQAAAAAADAAAAFJlYWRUcmFuc2ZlcgEAyz0ALwEAAwnLPQAAAwAA" +
-           "AAA0AQEA0z0AMwEBANU9ADMBAQDdPQEAAAAVYKkKAgAAAAAACwAAAFN0YXRlTnVtYmVyAQDMPQAuAETM" +
-           "PQAABwMAAAAAB/////8BAf////8AAAAABGCACgEAAAAAAAoAAABBcHBseVdyaXRlAQDNPQAvAQADCc09" +
-           "AAADAAAAADQBAQDXPQAzAQEA2T0AMwEBAN89AQAAABVgqQoCAAAAAAALAAAAU3RhdGVOdW1iZXIBAM49" +
-           "AC4ARM49AAAHBAAAAAAH/////wEB/////wAAAAAEYIAKAQAAAAAABQAAAEVycm9yAQDPPQAvAQADCc89" +
-           "AAAEAAAAADQBAQDbPQA0AQEA3T0ANAEBAN89ADMBAQDhPQEAAAAVYKkKAgAAAAAACwAAAFN0YXRlTnVt" +
-           "YmVyAQDQPQAuAETQPQAABwUAAAAAB/////8BAf////8AAAAABGCACgEAAAAAABEAAABJZGxlVG9SZWFk" +
-           "UHJlcGFyZQEA0T0ALwEABgnRPQAAAwAAAAAzAAEAxz0ANAABAMk9ADYAAQAHCQEAAAAVYKkKAgAAAAAA" +
-           "EAAAAFRyYW5zaXRpb25OdW1iZXIBANI9AC4ARNI9AAAHDAAAAAAH/////wEB/////wAAAAAEYIAKAQAA" +
-           "AAAAGQAAAFJlYWRQcmVwYXJlVG9SZWFkVHJhbnNmZXIBANM9AC8BAAYJ0z0AAAMAAAAAMwABAMk9ADQA" +
-           "AQDLPQA2AAEABwkBAAAAFWCpCgIAAAAAABAAAABUcmFuc2l0aW9uTnVtYmVyAQDUPQAuAETUPQAABxcA" +
-           "AAAAB/////8BAf////8AAAAABGCACgEAAAAAABIAAABSZWFkVHJhbnNmZXJUb0lkbGUBANU9AC8BAAYJ" +
-           "1T0AAAMAAAAAMwABAMs9ADQAAQDHPQA2AAEABwkBAAAAFWCpCgIAAAAAABAAAABUcmFuc2l0aW9uTnVt" +
-           "YmVyAQDWPQAuAETWPQAABx8AAAAAB/////8BAf////8AAAAABGCACgEAAAAAABAAAABJZGxlVG9BcHBs" +
-           "eVdyaXRlAQDXPQAvAQAGCdc9AAADAAAAADMAAQDHPQA0AAEAzT0ANgABAAcJAQAAABVgqQoCAAAAAAAQ" +
-           "AAAAVHJhbnNpdGlvbk51bWJlcgEA2D0ALgBE2D0AAAcOAAAAAAf/////AQH/////AAAAAARggAoBAAAA" +
-           "AAAQAAAAQXBwbHlXcml0ZVRvSWRsZQEA2T0ALwEABgnZPQAAAwAAAAAzAAEAzT0ANAABAMc9ADYAAQAH" +
-           "CQEAAAAVYKkKAgAAAAAAEAAAAFRyYW5zaXRpb25OdW1iZXIBANo9AC4ARNo9AAAHKQAAAAAH/////wEB" +
-           "/////wAAAAAEYIAKAQAAAAAAEgAAAFJlYWRQcmVwYXJlVG9FcnJvcgEA2z0ALwEABgnbPQAAAwAAAAAz" +
-           "AAEAyT0ANAABAM89ADYAAQAHCQEAAAAVYKkKAgAAAAAAEAAAAFRyYW5zaXRpb25OdW1iZXIBANw9AC4A" +
-           "RNw9AAAHGQAAAAAH/////wEB/////wAAAAAEYIAKAQAAAAAAEwAAAFJlYWRUcmFuc2ZlclRvRXJyb3IB" +
-           "AN09AC8BAAYJ3T0AAAMAAAAAMwABAMs9ADQAAQDPPQA2AAEABwkBAAAAFWCpCgIAAAAAABAAAABUcmFu" +
-           "c2l0aW9uTnVtYmVyAQDePQAuAETePQAAByMAAAAAB/////8BAf////8AAAAABGCACgEAAAAAABEAAABB" +
-           "cHBseVdyaXRlVG9FcnJvcgEA3z0ALwEABgnfPQAAAwAAAAAzAAEAzT0ANAABAM89ADYAAQAHCQEAAAAV" +
-           "YKkKAgAAAAAAEAAAAFRyYW5zaXRpb25OdW1iZXIBAOA9AC4AROA9AAAHLQAAAAAH/////wEB/////wAA" +
-           "AAAEYIAKAQAAAAAACwAAAEVycm9yVG9JZGxlAQDhPQAvAQAGCeE9AAADAAAAADMAAQDPPQA0AAEAxz0A" +
-           "NgABAAcJAQAAABVgqQoCAAAAAAAQAAAAVHJhbnNpdGlvbk51bWJlcgEA4j0ALgBE4j0AAAczAAAAAAf/" +
-           "////AQH/////AAAAAARhggoEAAAAAAAFAAAAUmVzZXQBAOM9AC8BAOM94z0AAAEB/////wAAAAA=";
+           "uz0BALs9uz0AAP////8CAAAAFWCJCgIAAAAAAAwAAABDdXJyZW50U3RhdGUBALw9AC8BAMgKvD0AAAAV" +
+           "/////wEB/////wEAAAAVYIkKAgAAAAAAAgAAAElkAQC9PQAuAES9PQAAABH/////AQH/////AAAAAARh" +
+           "ggoEAAAAAAAFAAAAUmVzZXQBAOM9AC8BAOM94z0AAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -32344,17 +36119,15 @@ namespace Opc.Ua
 
         #region Initialization String
         private const string InitializationString =
-           "//////////8EYIACAQAAAAAAEwAAAFJvbGVTZXRUeXBlSW5zdGFuY2UBAPc8AQD3PPc8AAD/////AwAA" +
-           "AARgwAoBAAAAFAAAAFJvbGVOYW1lX1BsYWNlaG9sZGVyAAAKAAAAPFJvbGVOYW1lPgEA+DwALwEABD34" +
-           "PAAA/////wEAAAAXYIkKAgAAAAAACgAAAElkZW50aXRpZXMBACI/AC4ARCI/AAABABI9AQAAAAEAAAAA" +
-           "AAAAAQH/////AAAAAARhggoEAAAAAAAHAAAAQWRkUm9sZQEAfT4ALwEAfT59PgAAAQH/////AgAAABdg" +
-           "qQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAH4+AC4ARH4+AACWAgAAAAEAKgEBFwAAAAgAAABSb2xl" +
-           "TmFtZQAM/////wAAAAAAAQAqAQEbAAAADAAAAE5hbWVzcGFjZVVyaQAM/////wAAAAAAAQAoAQEAAAAB" +
-           "AAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAfz4ALgBEfz4AAJYB" +
-           "AAAAAQAqAQEZAAAACgAAAFJvbGVOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8A" +
-           "AAAABGGCCgQAAAAAAAoAAABSZW1vdmVSb2xlAQCAPgAvAQCAPoA+AAABAf////8BAAAAF2CpCgIAAAAA" +
-           "AA4AAABJbnB1dEFyZ3VtZW50cwEAgT4ALgBEgT4AAJYBAAAAAQAqAQEZAAAACgAAAFJvbGVOb2RlSWQA" +
-           "Ef////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "//////////8EYIACAQAAAAAAEwAAAFJvbGVTZXRUeXBlSW5zdGFuY2UBAPc8AQD3PPc8AAD/////AgAA" +
+           "AARhggoEAAAAAAAHAAAAQWRkUm9sZQEAfT4ALwEAfT59PgAAAQH/////AgAAABdgqQoCAAAAAAAOAAAA" +
+           "SW5wdXRBcmd1bWVudHMBAH4+AC4ARH4+AACWAgAAAAEAKgEBFwAAAAgAAABSb2xlTmFtZQAM/////wAA" +
+           "AAAAAQAqAQEbAAAADAAAAE5hbWVzcGFjZVVyaQAM/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB////" +
+           "/wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAfz4ALgBEfz4AAJYBAAAAAQAqAQEZAAAA" +
+           "CgAAAFJvbGVOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAA" +
+           "AAoAAABSZW1vdmVSb2xlAQCAPgAvAQCAPoA+AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFy" +
+           "Z3VtZW50cwEAgT4ALgBEgT4AAJYBAAAAAQAqAQEZAAAACgAAAFJvbGVOb2RlSWQAEf////8AAAAAAAEA" +
+           "KAEBAAAAAQAAAAAAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -32561,7 +36334,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             string roleName = (string)_inputArguments[0];
             string namespaceUri = (string)_inputArguments[1];
@@ -32570,7 +36343,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -32581,7 +36354,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = roleNodeId;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -32665,20 +36438,20 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             NodeId roleNodeId = (NodeId)_inputArguments[0];
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
                     roleNodeId);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -33474,20 +37247,20 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             IdentityMappingRuleType rule = (IdentityMappingRuleType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
                     rule);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -33569,20 +37342,20 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             IdentityMappingRuleType rule = (IdentityMappingRuleType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
                     rule);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -33664,20 +37437,20 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             string applicationUri = (string)_inputArguments[0];
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
                     applicationUri);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -33760,20 +37533,20 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             string applicationUri = (string)_inputArguments[0];
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
                     applicationUri);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -33855,20 +37628,20 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             EndpointType endpoint = (EndpointType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
                     endpoint);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -33950,20 +37723,20 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             EndpointType endpoint = (EndpointType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
                     endpoint);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -34099,8 +37872,7 @@ namespace Opc.Ua
         #region Initialization String
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAGwAAAERpY3Rpb25hcnlFbnRyeVR5cGVJbnN0YW5jZQEAtUQBALVEtUQA" +
-           "AP////8BAAAABGDACgEAAAAfAAAARGljdGlvbmFyeUVudHJ5TmFtZV9QbGFjZWhvbGRlcgAAFQAAADxE" +
-           "aWN0aW9uYXJ5RW50cnlOYW1lPgEAtkQALwEAtUS2RAAA/////wAAAAA=";
+           "AP////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -34161,10 +37933,7 @@ namespace Opc.Ua
         #region Initialization String
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAHAAAAERpY3Rpb25hcnlGb2xkZXJUeXBlSW5zdGFuY2UBALdEAQC3RLdE" +
-           "AAD/////AgAAAARgwAoBAAAAIAAAAERpY3Rpb25hcnlGb2xkZXJOYW1lX1BsYWNlaG9sZGVyAAAWAAAA" +
-           "PERpY3Rpb25hcnlGb2xkZXJOYW1lPgEAuEQALwEAt0S4RAAA/////wAAAAAEYMAKAQAAAB8AAABEaWN0" +
-           "aW9uYXJ5RW50cnlOYW1lX1BsYWNlaG9sZGVyAAAVAAAAPERpY3Rpb25hcnlFbnRyeU5hbWU+AQC5RAAv" +
-           "AQC1RLlEAAD/////AAAAAA==";
+           "AAD/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -34556,10 +38325,8 @@ namespace Opc.Ua
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAFwAAAE9yZGVyZWRMaXN0VHlwZUluc3RhbmNlAQDeWwEA3lveWwAAAQAA" +
-           "AAApAAEAVQgCAAAABGDACgEAAAAZAAAAT3JkZXJlZE9iamVjdF9QbGFjZWhvbGRlcgAADwAAADxPcmRl" +
-           "cmVkT2JqZWN0PgEA31sAMQA631sAAAEAAAABAMNEAAEA2VsBAAAAFWCJCgIAAAAAAAwAAABOdW1iZXJJ" +
-           "bkxpc3QBAOFbAC4AROFbAAAAGv////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABOb2RlVmVyc2lvbgEA" +
-           "5VsALgBE5VsAAAAM/////wEB/////wAAAAA=";
+           "AAApAAEAVQgBAAAAFWCJCgIAAAAAAAsAAABOb2RlVmVyc2lvbgEA5VsALgBE5VsAAAAM/////wEB////" +
+           "/wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -34902,12 +38669,12 @@ namespace Opc.Ua
         {
             get
             {
-                return CheckTypeBeforeCast<T>(base.Value, true);
+                return CheckTypeBeforeCast<T>(((BaseVariableState)this).Value, true);
             }
 
             set
             {
-                base.Value = value;
+                ((BaseVariableState)this).Value = value;
             }
         }
         #endregion
@@ -35221,12 +38988,12 @@ namespace Opc.Ua
         {
             get
             {
-                return CheckTypeBeforeCast<T>(base.Value, true);
+                return CheckTypeBeforeCast<T>(((BaseVariableState)this).Value, true);
             }
 
             set
             {
-                base.Value = value;
+                ((BaseVariableState)this).Value = value;
             }
         }
         #endregion
@@ -35343,12 +39110,12 @@ namespace Opc.Ua
         {
             get
             {
-                return CheckTypeBeforeCast<T>(base.Value, true);
+                return CheckTypeBeforeCast<T>(((BaseVariableState)this).Value, true);
             }
 
             set
             {
-                base.Value = value;
+                ((BaseVariableState)this).Value = value;
             }
         }
         #endregion
@@ -35466,12 +39233,12 @@ namespace Opc.Ua
         {
             get
             {
-                return CheckTypeBeforeCast<T>(base.Value, true);
+                return CheckTypeBeforeCast<T>(((BaseVariableState)this).Value, true);
             }
 
             set
             {
-                base.Value = value;
+                ((BaseVariableState)this).Value = value;
             }
         }
         #endregion
@@ -35590,12 +39357,12 @@ namespace Opc.Ua
         {
             get
             {
-                return CheckTypeBeforeCast<T>(base.Value, true);
+                return CheckTypeBeforeCast<T>(((BaseVariableState)this).Value, true);
             }
 
             set
             {
-                base.Value = value;
+                ((BaseVariableState)this).Value = value;
             }
         }
         #endregion
@@ -35712,12 +39479,12 @@ namespace Opc.Ua
         {
             get
             {
-                return CheckTypeBeforeCast<T>(base.Value, true);
+                return CheckTypeBeforeCast<T>(((BaseVariableState)this).Value, true);
             }
 
             set
             {
-                base.Value = value;
+                ((BaseVariableState)this).Value = value;
             }
         }
         #endregion
@@ -36032,12 +39799,12 @@ namespace Opc.Ua
         {
             get
             {
-                return CheckTypeBeforeCast<T>(base.Value, true);
+                return CheckTypeBeforeCast<T>(((BaseVariableState)this).Value, true);
             }
 
             set
             {
-                base.Value = value;
+                ((BaseVariableState)this).Value = value;
             }
         }
         #endregion
@@ -36279,12 +40046,12 @@ namespace Opc.Ua
         {
             get
             {
-                return CheckTypeBeforeCast<T>(base.Value, true);
+                return CheckTypeBeforeCast<T>(((BaseVariableState)this).Value, true);
             }
 
             set
             {
-                base.Value = value;
+                ((BaseVariableState)this).Value = value;
             }
         }
         #endregion
@@ -36675,12 +40442,12 @@ namespace Opc.Ua
         {
             get
             {
-                return CheckTypeBeforeCast<T>(base.Value, true);
+                return CheckTypeBeforeCast<T>(((BaseVariableState)this).Value, true);
             }
 
             set
             {
-                base.Value = value;
+                ((BaseVariableState)this).Value = value;
             }
         }
         #endregion
@@ -36878,12 +40645,12 @@ namespace Opc.Ua
         {
             get
             {
-                return CheckTypeBeforeCast<T>(base.Value, true);
+                return CheckTypeBeforeCast<T>(((BaseVariableState)this).Value, true);
             }
 
             set
             {
-                base.Value = value;
+                ((BaseVariableState)this).Value = value;
             }
         }
         #endregion
@@ -36897,7 +40664,7 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class XYArrayItemState : ArrayItemState<XVType[]>
+    public partial class XYArrayItemState : ArrayItemState
     {
         #region Constructors
         /// <remarks />
@@ -37043,6 +40810,55 @@ namespace Opc.Ua
         private PropertyState<AxisInformation> m_xAxisDefinition;
         #endregion
     }
+
+    #region XYArrayItemState<T> Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    public class XYArrayItemState<T> : XYArrayItemState
+    {
+        #region Constructors
+        /// <remarks />
+        public XYArrayItemState(NodeState parent) : base(parent)
+        {
+            Value = default(T);
+        }
+
+        /// <remarks />
+        protected override void Initialize(ISystemContext context)
+        {
+            base.Initialize(context);
+
+            Value = default(T);
+            DataType = TypeInfo.GetDataTypeId(typeof(T));
+            ValueRank = TypeInfo.GetValueRank(typeof(T));
+        }
+
+        /// <remarks />
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+        #endregion
+
+        #region Public Members
+        /// <remarks />
+        public new T Value
+        {
+            get
+            {
+                return CheckTypeBeforeCast<T>(((BaseVariableState)this).Value, true);
+            }
+
+            set
+            {
+                ((BaseVariableState)this).Value = value;
+            }
+        }
+        #endregion
+    }
+    #endregion
     #endif
     #endregion
 
@@ -37282,12 +41098,12 @@ namespace Opc.Ua
         {
             get
             {
-                return CheckTypeBeforeCast<T>(base.Value, true);
+                return CheckTypeBeforeCast<T>(((BaseVariableState)this).Value, true);
             }
 
             set
             {
-                base.Value = value;
+                ((BaseVariableState)this).Value = value;
             }
         }
         #endregion
@@ -37579,12 +41395,12 @@ namespace Opc.Ua
         {
             get
             {
-                return CheckTypeBeforeCast<T>(base.Value, true);
+                return CheckTypeBeforeCast<T>(((BaseVariableState)this).Value, true);
             }
 
             set
             {
-                base.Value = value;
+                ((BaseVariableState)this).Value = value;
             }
         }
         #endregion
@@ -37783,12 +41599,12 @@ namespace Opc.Ua
         {
             get
             {
-                return CheckTypeBeforeCast<T>(base.Value, true);
+                return CheckTypeBeforeCast<T>(((BaseVariableState)this).Value, true);
             }
 
             set
             {
-                base.Value = value;
+                ((BaseVariableState)this).Value = value;
             }
         }
         #endregion
@@ -38337,12 +42153,12 @@ namespace Opc.Ua
         {
             get
             {
-                return CheckTypeBeforeCast<T>(base.Value, true);
+                return CheckTypeBeforeCast<T>(((BaseVariableState)this).Value, true);
             }
 
             set
             {
-                base.Value = value;
+                ((BaseVariableState)this).Value = value;
             }
         }
         #endregion
@@ -38412,7 +42228,7 @@ namespace Opc.Ua
            "AAEAAAAAAAAAAQH/////AAAAAA==";
 
         private const string InitializationString =
-           "//////////8EYIACAQAAAAAAFQAAAENvbmRpdGlvblR5cGVJbnN0YW5jZQEA3goBAN4K3goAAP////8Z" +
+           "//////////8EYIACAQAAAAAAFQAAAENvbmRpdGlvblR5cGVJbnN0YW5jZQEA3goBAN4K3goAAP////8X" +
            "AAAAFWCJCgIAAAAAAAcAAABFdmVudElkAQAZDwAuAEQZDwAAAA//////AQH/////AAAAABVgiQoCAAAA" +
            "AAAJAAAARXZlbnRUeXBlAQAaDwAuAEQaDwAAABH/////AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291" +
            "cmNlTm9kZQEAGw8ALgBEGw8AAAAR/////wEB/////wAAAAAVYIkKAgAAAAAACgAAAFNvdXJjZU5hbWUB" +
@@ -38446,17 +42262,7 @@ namespace Opc.Ua
            "AAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBGIwAuAERGIwAAlgIAAAABACoBAUYAAAAHAAAA" +
            "RXZlbnRJZAAP/////wAAAAADAAAAACgAAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIGV2ZW50IHRvIGNv" +
            "bW1lbnQuAQAqAQFCAAAABwAAAENvbW1lbnQAFf////8AAAAAAwAAAAAkAAAAVGhlIGNvbW1lbnQgdG8g" +
-           "YWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAAEAAA" +
-           "AENvbmRpdGlvblJlZnJlc2gBACMPAC8BACMPIw8AAAEBAgAAAAEA+QsAAQDjCgEA+QsAAQDkCgEAAAAX" +
-           "YKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQAkDwAuAEQkDwAAlgEAAAABACoBAVYAAAAOAAAAU3Vi" +
-           "c2NyaXB0aW9uSWQBACAB/////wAAAAADAAAAAC8AAABUaGUgaWRlbnRpZmllciBmb3IgdGhlIHN1YnNj" +
-           "cmlwdGlvbiB0byByZWZyZXNoLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAABEAAABD" +
-           "b25kaXRpb25SZWZyZXNoMgEAcDIALwEAcDJwMgAAAQECAAAAAQD5CwABAOMKAQD5CwABAOQKAQAAABdg" +
-           "qQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAHEyAC4ARHEyAACWAgAAAAEAKgEBVgAAAA4AAABTdWJz" +
-           "Y3JpcHRpb25JZAEAIAH/////AAAAAAMAAAAALwAAAFRoZSBpZGVudGlmaWVyIGZvciB0aGUgc3Vic2Ny" +
-           "aXB0aW9uIHRvIHJlZnJlc2guAQAqAQFZAAAADwAAAE1vbml0b3JlZEl0ZW1JZAEAIAH/////AAAAAAMA" +
-           "AAAAMQAAAFRoZSBpZGVudGlmaWVyIGZvciB0aGUgbW9uaXRvcmVkIGl0ZW0gdG8gcmVmcmVzaC4BACgB" +
-           "AQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "YWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -39261,14 +43067,14 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             uint subscriptionId = (uint)_inputArguments[0];
             uint monitoredItemId = (uint)_inputArguments[1];
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -39276,7 +43082,7 @@ namespace Opc.Ua
                     monitoredItemId);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -39360,20 +43166,20 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             uint subscriptionId = (uint)_inputArguments[0];
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
                     subscriptionId);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -39457,14 +43263,14 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             byte[] eventId = (byte[])_inputArguments[0];
             LocalizedText comment = (LocalizedText)_inputArguments[1];
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -39472,7 +43278,7 @@ namespace Opc.Ua
                     comment);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -40056,20 +43862,20 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             int selectedResponse = (int)_inputArguments[0];
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
                     selectedResponse);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -40681,7 +44487,7 @@ namespace Opc.Ua
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAGgAAAEFsYXJtQ29uZGl0aW9uVHlwZUluc3RhbmNlAQBjCwEAYwtjCwAA" +
-           "/////y8AAAAVYIkKAgAAAAAABwAAAEV2ZW50SWQBAKQVAC4ARKQVAAAAD/////8BAf////8AAAAAFWCJ" +
+           "/////y4AAAAVYIkKAgAAAAAABwAAAEV2ZW50SWQBAKQVAC4ARKQVAAAAD/////8BAf////8AAAAAFWCJ" +
            "CgIAAAAAAAkAAABFdmVudFR5cGUBAKUVAC4ARKUVAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAoA" +
            "AABTb3VyY2VOb2RlAQCmFQAuAESmFQAAABH/////AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291cmNl" +
            "TmFtZQEApxUALgBEpxUAAAAM/////wEB/////wAAAAAVYIkKAgAAAAAABAAAAFRpbWUBAKgVAC4ARKgV" +
@@ -40762,16 +44568,15 @@ namespace Opc.Ua
            "AgAAAElkAQAPRwAuAEQPRwAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAOAAAAVHJhbnNpdGlvblRp" +
            "bWUBABNHAC4ARBNHAAABACYB/////wEB/////wAAAAAVYKkKAgAAAAAACQAAAFRydWVTdGF0ZQEAFUcA" +
            "LgBEFUcAABUDAgAAAGVuBwAAAExhdGNoZWQAFf////8BAf////8AAAAAFWCpCgIAAAAAAAoAAABGYWxz" +
-           "ZVN0YXRlAQAWRwAuAEQWRwAAFQMCAAAAZW4JAAAAVW5sYXRjaGVkABX/////AQH/////AAAAAARgwAoB" +
-           "AAAAFgAAAEFsYXJtR3JvdXBfUGxhY2Vob2xkZXIAAAwAAAA8QWxhcm1Hcm91cD4BAA9AAQDpPwEAFUAP" +
-           "QAAA/////wAAAAAVYIkKAgAAAAAACwAAAFJlQWxhcm1UaW1lAQAQQAAuAEQQQAAAAQAiAf////8BAf//" +
-           "//8AAAAAFWCJCgIAAAAAABIAAABSZUFsYXJtUmVwZWF0Q291bnQBABFAAC8APxFAAAAABP////8BAf//" +
-           "//8AAAAABGGCCgQAAAAAAAcAAABTaWxlbmNlAQASQAAvAQASQBJAAAABAQEAAAABAPkLAAEAWkMAAAAA" +
-           "BGGCCgQAAAAAAAgAAABTdXBwcmVzcwEAE0AALwEAE0ATQAAAAQEBAAAAAQD5CwABAElDAAAAAARhggoE" +
-           "AAAAAAAKAAAAVW5zdXBwcmVzcwEAzEUALwEAzEXMRQAAAQEBAAAAAQD5CwABAElDAAAAAARhggoEAAAA" +
-           "AAARAAAAUmVtb3ZlRnJvbVNlcnZpY2UBAM1FAC8BAM1FzUUAAAEBAQAAAAEA+QsAAQBrQwAAAAAEYYIK" +
-           "BAAAAAAADgAAAFBsYWNlSW5TZXJ2aWNlAQDORQAvAQDORc5FAAABAQEAAAABAPkLAAEAa0MAAAAABGGC" +
-           "CgQAAAAAAAUAAABSZXNldAEAF0cALwEAF0cXRwAAAQEBAAAAAQD5CwABAKU6AAAAAA==";
+           "ZVN0YXRlAQAWRwAuAEQWRwAAFQMCAAAAZW4JAAAAVW5sYXRjaGVkABX/////AQH/////AAAAABVgiQoC" +
+           "AAAAAAALAAAAUmVBbGFybVRpbWUBABBAAC4ARBBAAAABACIB/////wEB/////wAAAAAVYIkKAgAAAAAA" +
+           "EgAAAFJlQWxhcm1SZXBlYXRDb3VudAEAEUAALwA/EUAAAAAE/////wEB/////wAAAAAEYYIKBAAAAAAA" +
+           "BwAAAFNpbGVuY2UBABJAAC8BABJAEkAAAAEBAQAAAAEA+QsAAQBaQwAAAAAEYYIKBAAAAAAACAAAAFN1" +
+           "cHByZXNzAQATQAAvAQATQBNAAAABAQEAAAABAPkLAAEASUMAAAAABGGCCgQAAAAAAAoAAABVbnN1cHBy" +
+           "ZXNzAQDMRQAvAQDMRcxFAAABAQEAAAABAPkLAAEASUMAAAAABGGCCgQAAAAAABEAAABSZW1vdmVGcm9t" +
+           "U2VydmljZQEAzUUALwEAzUXNRQAAAQEBAAAAAQD5CwABAGtDAAAAAARhggoEAAAAAAAOAAAAUGxhY2VJ" +
+           "blNlcnZpY2UBAM5FAC8BAM5FzkUAAAEBAQAAAAEA+QsAAQBrQwAAAAAEYYIKBAAAAAAABQAAAFJlc2V0" +
+           "AQAXRwAvAQAXRxdHAAABAQEAAAABAPkLAAEApToAAAAA";
         #endregion
         #endif
         #endregion
@@ -41921,45 +45726,7 @@ namespace Opc.Ua
         #region Initialization String
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAFgAAAEFsYXJtR3JvdXBUeXBlSW5zdGFuY2UBABVAAQAVQBVAAAD/////" +
-           "AQAAAARgwAoBAAAAIgAAAEFsYXJtQ29uZGl0aW9uSW5zdGFuY2VfUGxhY2Vob2xkZXIAABgAAAA8QWxh" +
-           "cm1Db25kaXRpb25JbnN0YW5jZT4BABZAAQDqPwEAYwsWQAAA/////xoAAAAVYIkKAgAAAAAABwAAAEV2" +
-           "ZW50SWQBABdAAC4ARBdAAAAAD/////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABFdmVudFR5cGUBABhA" +
-           "AC4ARBhAAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAAAoAAABTb3VyY2VOb2RlAQAZQAAuAEQZQAAA" +
-           "ABH/////AQH/////AAAAABVgiQoCAAAAAAAKAAAAU291cmNlTmFtZQEAGkAALgBEGkAAAAAM/////wEB" +
-           "/////wAAAAAVYIkKAgAAAAAABAAAAFRpbWUBABtAAC4ARBtAAAABACYB/////wEB/////wAAAAAVYIkK" +
-           "AgAAAAAACwAAAFJlY2VpdmVUaW1lAQAcQAAuAEQcQAAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAA" +
-           "AAcAAABNZXNzYWdlAQAeQAAuAEQeQAAAABX/////AQH/////AAAAABVgiQoCAAAAAAAIAAAAU2V2ZXJp" +
-           "dHkBAB9AAC4ARB9AAAAABf////8BAf////8AAAAAFWCJCgIAAAAAABAAAABDb25kaXRpb25DbGFzc0lk" +
-           "AQAgQAAuAEQgQAAAABH/////AQH/////AAAAABVgiQoCAAAAAAASAAAAQ29uZGl0aW9uQ2xhc3NOYW1l" +
-           "AQAhQAAuAEQhQAAAABX/////AQH/////AAAAABVgiQoCAAAAAAANAAAAQ29uZGl0aW9uTmFtZQEAJEAA" +
-           "LgBEJEAAAAAM/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAEJyYW5jaElkAQAlQAAuAEQlQAAAABH/" +
-           "////AQH/////AAAAABVgiQoCAAAAAAAGAAAAUmV0YWluAQAmQAAuAEQmQAAAAAH/////AQH/////AAAA" +
-           "ABVgiQoCAAAAAAAMAAAARW5hYmxlZFN0YXRlAQAnQAAvAQAjIydAAAAAFf////8BAQUAAAABACwjAAEA" +
-           "O0ABACwjAAEAREABACwjAAEAUUABACwjAAEAW0ABACwjAAEAdkABAAAAFWCJCgIAAAAAAAIAAABJZAEA" +
-           "KEAALgBEKEAAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAFF1YWxpdHkBADBAAC8BACojMEAA" +
-           "AAAT/////wEB/////wEAAAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEAMUAALgBEMUAAAAEA" +
-           "JgH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAATGFzdFNldmVyaXR5AQAyQAAvAQAqIzJAAAAABf//" +
-           "//8BAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1lc3RhbXABADNAAC4ARDNAAAABACYB////" +
-           "/wEB/////wAAAAAVYIkKAgAAAAAABwAAAENvbW1lbnQBADRAAC8BACojNEAAAAAV/////wEB/////wEA" +
-           "AAAVYIkKAgAAAAAADwAAAFNvdXJjZVRpbWVzdGFtcAEANUAALgBENUAAAAEAJgH/////AQH/////AAAA" +
-           "ABVgiQoCAAAAAAAMAAAAQ2xpZW50VXNlcklkAQA2QAAuAEQ2QAAAAAz/////AQH/////AAAAAARhggoE" +
-           "AAAAAAAHAAAARGlzYWJsZQEAN0AALwEARCM3QAAAAQEBAAAAAQD5CwABAPMKAAAAAARhggoEAAAAAAAG" +
-           "AAAARW5hYmxlAQA4QAAvAQBDIzhAAAABAQEAAAABAPkLAAEA8woAAAAABGGCCgQAAAAAAAoAAABBZGRD" +
-           "b21tZW50AQA5QAAvAQBFIzlAAAABAQEAAAABAPkLAAEADQsBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFy" +
-           "Z3VtZW50cwEAOkAALgBEOkAAAJYCAAAAAQAqAQFGAAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAAAAAo" +
-           "AAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVudCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABDb21t" +
-           "ZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEA" +
-           "KAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAAoAAABBY2tlZFN0YXRlAQA7QAAvAQAjIztA" +
-           "AAAAFf////8BAQEAAAABACwjAQEAJ0ABAAAAFWCJCgIAAAAAAAIAAABJZAEAPEAALgBEPEAAAAAB////" +
-           "/wEB/////wAAAAAEYYIKBAAAAAAACwAAAEFja25vd2xlZGdlAQBNQAAvAQCXI01AAAABAQEAAAABAPkL" +
-           "AAEA8CIBAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEATkAALgBETkAAAJYCAAAAAQAqAQFG" +
-           "AAAABwAAAEV2ZW50SWQAD/////8AAAAAAwAAAAAoAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBldmVu" +
-           "dCB0byBjb21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21t" +
-           "ZW50IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIA" +
-           "AAAAAAsAAABBY3RpdmVTdGF0ZQEAUUAALwEAIyNRQAAAABX/////AQEBAAAAAQAsIwEBACdAAQAAABVg" +
-           "iQoCAAAAAAACAAAASWQBAFJAAC4ARFJAAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAkAAABJbnB1" +
-           "dE5vZGUBAFpAAC4ARFpAAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAABMAAABTdXBwcmVzc2VkT3JT" +
-           "aGVsdmVkAQCHQAAuAESHQAAAAAH/////AQH/////AAAAAA==";
+           "AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -42020,38 +45787,16 @@ namespace Opc.Ua
         #region Initialization String
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAHwAAAFNoZWx2ZWRTdGF0ZU1hY2hpbmVUeXBlSW5zdGFuY2UBAHELAQBx" +
-           "C3ELAAD/////DgAAABVgiQoCAAAAAAAMAAAAQ3VycmVudFN0YXRlAQDIFwAvAQDICsgXAAAAFf////8B" +
+           "C3ELAAD/////BQAAABVgiQoCAAAAAAAMAAAAQ3VycmVudFN0YXRlAQDIFwAvAQDICsgXAAAAFf////8B" +
            "Af////8BAAAAFWCJCgIAAAAAAAIAAABJZAEAyRcALgBEyRcAAAAR/////wEB/////wAAAAAVYIkKAgAA" +
-           "AAAADAAAAFVuc2hlbHZlVGltZQEAmyMALgBEmyMAAAEAIgH/////AQH/////AAAAAARggAoBAAAAAAAJ" +
-           "AAAAVW5zaGVsdmVkAQByCwAvAQADCXILAAAEAAAAADMBAQB3CwAzAQEAeAsANAEBAHwLADQBAQB/CwEA" +
-           "AAAVYKkKAgAAAAAACwAAAFN0YXRlTnVtYmVyAQDSFwAuAETSFwAABwEAAAAAB/////8BAf////8AAAAA" +
-           "BGCACgEAAAAAAAwAAABUaW1lZFNoZWx2ZWQBAHQLAC8BAAMJdAsAAAQAAAAANAEBAHcLADMBAQB8CwAz" +
-           "AQEAfgsANAEBAIELAQAAABVgqQoCAAAAAAALAAAAU3RhdGVOdW1iZXIBANQXAC4ARNQXAAAHAgAAAAAH" +
-           "/////wEB/////wAAAAAEYIAKAQAAAAAADgAAAE9uZVNob3RTaGVsdmVkAQB1CwAvAQADCXULAAAEAAAA" +
-           "ADQBAQB4CwA0AQEAfgsAMwEBAH8LADMBAQCBCwEAAAAVYKkKAgAAAAAACwAAAFN0YXRlTnVtYmVyAQDV" +
-           "FwAuAETVFwAABwMAAAAAB/////8BAf////8AAAAABGCACgEAAAAAABcAAABVbnNoZWx2ZWRUb1RpbWVk" +
-           "U2hlbHZlZAEAdwsALwEABgl3CwAABAAAAAAzAAEAcgsANAABAHQLADYAAQBjCwA1AAEAhQsBAAAAFWCp" +
-           "CgIAAAAAABAAAABUcmFuc2l0aW9uTnVtYmVyAQA6LAAuAEQ6LAAABwwAAAAAB/////8BAf////8AAAAA" +
-           "BGCACgEAAAAAABkAAABVbnNoZWx2ZWRUb09uZVNob3RTaGVsdmVkAQB4CwAvAQAGCXgLAAAEAAAAADMA" +
-           "AQByCwA0AAEAdQsANgABAGMLADUAAQCECwEAAAAVYKkKAgAAAAAAEAAAAFRyYW5zaXRpb25OdW1iZXIB" +
-           "ADssAC4ARDssAAAHDQAAAAAH/////wEB/////wAAAAAEYIAKAQAAAAAAFwAAAFRpbWVkU2hlbHZlZFRv" +
-           "VW5zaGVsdmVkAQB8CwAvAQAGCXwLAAAEAAAAADMAAQB0CwA0AAEAcgsANgABAGMLADUAAQCDCwEAAAAV" +
-           "YKkKAgAAAAAAEAAAAFRyYW5zaXRpb25OdW1iZXIBADwsAC4ARDwsAAAHFQAAAAAH/////wEB/////wAA" +
-           "AAAEYIAKAQAAAAAAHAAAAFRpbWVkU2hlbHZlZFRvT25lU2hvdFNoZWx2ZWQBAH4LAC8BAAYJfgsAAAQA" +
-           "AAAAMwABAHQLADQAAQB1CwA2AAEAYwsANQABAIQLAQAAABVgqQoCAAAAAAAQAAAAVHJhbnNpdGlvbk51" +
-           "bWJlcgEAPSwALgBEPSwAAAcXAAAAAAf/////AQH/////AAAAAARggAoBAAAAAAAZAAAAT25lU2hvdFNo" +
-           "ZWx2ZWRUb1Vuc2hlbHZlZAEAfwsALwEABgl/CwAABAAAAAAzAAEAdQsANAABAHILADYAAQBjCwA1AAEA" +
-           "gwsBAAAAFWCpCgIAAAAAABAAAABUcmFuc2l0aW9uTnVtYmVyAQA+LAAuAEQ+LAAABx8AAAAAB/////8B" +
-           "Af////8AAAAABGCACgEAAAAAABwAAABPbmVTaG90U2hlbHZlZFRvVGltZWRTaGVsdmVkAQCBCwAvAQAG" +
-           "CYELAAAEAAAAADMAAQB1CwA0AAEAdAsANgABAGMLADUAAQCFCwEAAAAVYKkKAgAAAAAAEAAAAFRyYW5z" +
-           "aXRpb25OdW1iZXIBAD8sAC4ARD8sAAAHIAAAAAAH/////wEB/////wAAAAAEYYIKBAAAAAAACwAAAFRp" +
-           "bWVkU2hlbHZlAQCFCwAvAQCFC4ULAAABAQMAAAAANQEBAHcLADUBAQCBCwEA+QsAAQBVKwEAAAAXYKkK" +
-           "AgAAAAAADgAAAElucHV0QXJndW1lbnRzAQCvCwAuAESvCwAAlgEAAAABACoBAXoAAAAMAAAAU2hlbHZp" +
-           "bmdUaW1lAQAiAf////8AAAAAAwAAAABVAAAASWYgbm90IDAsIHRoaXMgcGFyYW1ldGVyIHNwZWNpZmll" +
-           "cyBhIGZpeGVkIHRpbWUgZm9yIHdoaWNoIHRoZSBBbGFybSBpcyB0byBiZSBzaGVsdmVkLgEAKAEBAAAA" +
-           "AQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAgAAABVbnNoZWx2ZQEAgwsALwEAgwuDCwAAAQEDAAAA" +
-           "ADUBAQB8CwA1AQEAfwsBAPkLAAEAVSsAAAAABGGCCgQAAAAAAA0AAABPbmVTaG90U2hlbHZlAQCECwAv" +
-           "AQCEC4QLAAABAQMAAAAANQEBAHgLADUBAQB+CwEA+QsAAQBVKwAAAAA=";
+           "AAAADAAAAFVuc2hlbHZlVGltZQEAmyMALgBEmyMAAAEAIgH/////AQH/////AAAAAARhggoEAAAAAAAL" +
+           "AAAAVGltZWRTaGVsdmUBAIULAC8BAIULhQsAAAEBAwAAAAA1AQEAdwsANQEBAIELAQD5CwABAFUrAQAA" +
+           "ABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAK8LAC4ARK8LAACWAQAAAAEAKgEBegAAAAwAAABT" +
+           "aGVsdmluZ1RpbWUBACIB/////wAAAAADAAAAAFUAAABJZiBub3QgMCwgdGhpcyBwYXJhbWV0ZXIgc3Bl" +
+           "Y2lmaWVzIGEgZml4ZWQgdGltZSBmb3Igd2hpY2ggdGhlIEFsYXJtIGlzIHRvIGJlIHNoZWx2ZWQuAQAo" +
+           "AQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAACAAAAFVuc2hlbHZlAQCDCwAvAQCDC4MLAAAB" +
+           "AQMAAAAANQEBAHwLADUBAQB/CwEA+QsAAQBVKwAAAAAEYYIKBAAAAAAADQAAAE9uZVNob3RTaGVsdmUB" +
+           "AIQLAC8BAIQLhAsAAAEBAwAAAAA1AQEAeAsANQEBAH4LAQD5CwABAFUrAAAAAA==";
         #endregion
         #endif
         #endregion
@@ -42349,20 +46094,20 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             double shelvingTime = (double)_inputArguments[0];
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
                     shelvingTime);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -42998,24 +46743,8 @@ namespace Opc.Ua
         #region Initialization String
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAJgAAAEV4Y2x1c2l2ZUxpbWl0U3RhdGVNYWNoaW5lVHlwZUluc3RhbmNl" +
-           "AQBmJAEAZiRmJAAA/////wkAAAAVYIkKAgAAAAAADAAAAEN1cnJlbnRTdGF0ZQEAZyQALwEAyApnJAAA" +
-           "ABX/////AQH/////AQAAABVgiQoCAAAAAAACAAAASWQBAGgkAC4ARGgkAAAAEf////8BAf////8AAAAA" +
-           "BGCACgEAAAAAAAgAAABIaWdoSGlnaAEAcSQALwEAAwlxJAAAAgAAAAAzAQEAeyQANAEBAHwkAQAAABVg" +
-           "qQoCAAAAAAALAAAAU3RhdGVOdW1iZXIBAHIkAC4ARHIkAAAHAQAAAAAH/////wEB/////wAAAAAEYIAK" +
-           "AQAAAAAABAAAAEhpZ2gBAHMkAC8BAAMJcyQAAAIAAAAANAEBAHskADMBAQB8JAEAAAAVYKkKAgAAAAAA" +
-           "CwAAAFN0YXRlTnVtYmVyAQB0JAAuAER0JAAABwIAAAAAB/////8BAf////8AAAAABGCACgEAAAAAAAMA" +
-           "AABMb3cBAHUkAC8BAAMJdSQAAAIAAAAANAEBAHkkADMBAQB6JAEAAAAVYKkKAgAAAAAACwAAAFN0YXRl" +
-           "TnVtYmVyAQB2JAAuAER2JAAABwMAAAAAB/////8BAf////8AAAAABGCACgEAAAAAAAYAAABMb3dMb3cB" +
-           "AHckAC8BAAMJdyQAAAIAAAAAMwEBAHkkADQBAQB6JAEAAAAVYKkKAgAAAAAACwAAAFN0YXRlTnVtYmVy" +
-           "AQB4JAAuAER4JAAABwQAAAAAB/////8BAf////8AAAAABGCACgEAAAAAAAsAAABMb3dMb3dUb0xvdwEA" +
-           "eSQALwEABgl5JAAAAgAAAAAzAAEAdyQANAABAHUkAQAAABVgqQoCAAAAAAAQAAAAVHJhbnNpdGlvbk51" +
-           "bWJlcgEATCwALgBETCwAAAcrAAAAAAf/////AQH/////AAAAAARggAoBAAAAAAALAAAATG93VG9Mb3dM" +
-           "b3cBAHokAC8BAAYJeiQAAAIAAAAAMwABAHUkADQAAQB3JAEAAAAVYKkKAgAAAAAAEAAAAFRyYW5zaXRp" +
-           "b25OdW1iZXIBAE0sAC4ARE0sAAAHIgAAAAAH/////wEB/////wAAAAAEYIAKAQAAAAAADgAAAEhpZ2hI" +
-           "aWdoVG9IaWdoAQB7JAAvAQAGCXskAAACAAAAADMAAQBxJAA0AAEAcyQBAAAAFWCpCgIAAAAAABAAAABU" +
-           "cmFuc2l0aW9uTnVtYmVyAQBOLAAuAEROLAAABwwAAAAAB/////8BAf////8AAAAABGCACgEAAAAAAA4A" +
-           "AABIaWdoVG9IaWdoSGlnaAEAfCQALwEABgl8JAAAAgAAAAAzAAEAcyQANAABAHEkAQAAABVgqQoCAAAA" +
-           "AAAQAAAAVHJhbnNpdGlvbk51bWJlcgEATywALgBETywAAAcVAAAAAAf/////AQH/////AAAAAA==";
+           "AQBmJAEAZiRmJAAA/////wEAAAAVYIkKAgAAAAAADAAAAEN1cnJlbnRTdGF0ZQEAZyQALwEAyApnJAAA" +
+           "ABX/////AQH/////AQAAABVgiQoCAAAAAAACAAAASWQBAGgkAC4ARGgkAAAAEf////8BAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -48747,68 +52476,30 @@ namespace Opc.Ua
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAHwAAAFByb2dyYW1TdGF0ZU1hY2hpbmVUeXBlSW5zdGFuY2UBAFcJAQBX" +
-           "CVcJAAD/////HQAAABVgiQoCAAAAAAAMAAAAQ3VycmVudFN0YXRlAQD2DgAvAQDICvYOAAAAFf////8B" +
+           "CVcJAAD/////BwAAABVgiQoCAAAAAAAMAAAAQ3VycmVudFN0YXRlAQD2DgAvAQDICvYOAAAAFf////8B" +
            "Af////8CAAAAFWCJCgIAAAAAAAIAAABJZAEA9w4ALgBE9w4AAAAR/////wEB/////wAAAAAVYIkKAgAA" +
            "AAAABgAAAE51bWJlcgEA+Q4ALgBE+Q4AAAAH/////wEB/////wAAAAAVYIkKAgAAAAAADgAAAExhc3RU" +
            "cmFuc2l0aW9uAQD7DgAvAQDPCvsOAAAAFf////8BAf////8DAAAAFWCJCgIAAAAAAAIAAABJZAEA/A4A" +
            "LgBE/A4AAAAR/////wEB/////wAAAAAVYIkKAgAAAAAABgAAAE51bWJlcgEA/g4ALgBE/g4AAAAH////" +
            "/wEB/////wAAAAAVYIkKAgAAAAAADgAAAFRyYW5zaXRpb25UaW1lAQD/DgAuAET/DgAAAQAmAf////8B" +
-           "Af////8AAAAAFWCJCgIAAAAAAAkAAABDcmVhdGFibGUBAFgJAC4ARFgJAAAAAf////8BAf////8AAAAA" +
-           "FWCJCgIAAAAAAAkAAABEZWxldGFibGUBAFkJAC4ARFkJAAAAAf////8BAf////8AAAAAFWCJCgIAAAAA" +
-           "AAoAAABBdXRvRGVsZXRlAQBaCQAuAERaCQAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAAUmVj" +
-           "eWNsZUNvdW50AQBbCQAuAERbCQAAAAb/////AQH/////AAAAABVgiQoCAAAAAAANAAAASW5zdGFuY2VD" +
-           "b3VudAEAXAkALgBEXAkAAAAH/////wEB/////wAAAAAVYIkKAgAAAAAAEAAAAE1heEluc3RhbmNlQ291" +
-           "bnQBAF0JAC4ARF0JAAAAB/////8BAf////8AAAAAFWCJCgIAAAAAAA8AAABNYXhSZWN5Y2xlQ291bnQB" +
-           "AF4JAC4ARF4JAAAAB/////8BAf////8AAAAAFWCJCgIAAAAAABEAAABQcm9ncmFtRGlhZ25vc3RpYwEA" +
-           "XwkALwEAFzxfCQAAAQDhXf////8BAf////8MAAAAFWCJCgIAAAAAAA8AAABDcmVhdGVTZXNzaW9uSWQB" +
-           "AAAPAC8APwAPAAAAEf////8BAf////8AAAAAFWCJCgIAAAAAABAAAABDcmVhdGVDbGllbnROYW1lAQAB" +
-           "DwAvAD8BDwAAAAz/////AQH/////AAAAABVgiQoCAAAAAAAWAAAASW52b2NhdGlvbkNyZWF0aW9uVGlt" +
-           "ZQEAAg8ALwA/Ag8AAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAASAAAATGFzdFRyYW5zaXRpb25U" +
-           "aW1lAQADDwAuAEQDDwAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAAA4AAABMYXN0TWV0aG9kQ2Fs" +
-           "bAEABA8ALwA/BA8AAAAM/////wEB/////wAAAAAVYIkKAgAAAAAAEwAAAExhc3RNZXRob2RTZXNzaW9u" +
-           "SWQBAAUPAC8APwUPAAAAEf////8BAf////8AAAAAF2CJCgIAAAAAABgAAABMYXN0TWV0aG9kSW5wdXRB" +
-           "cmd1bWVudHMBAAYPAC8APwYPAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAAAZAAAA" +
-           "TGFzdE1ldGhvZE91dHB1dEFyZ3VtZW50cwEABw8ALwA/Bw8AAAEAKAEBAAAAAQAAAAAAAAABAf////8A" +
-           "AAAAF2CJCgIAAAAAABUAAABMYXN0TWV0aG9kSW5wdXRWYWx1ZXMBAL46AC8AP746AAAAGAEAAAABAAAA" +
-           "AAAAAAEB/////wAAAAAXYIkKAgAAAAAAFgAAAExhc3RNZXRob2RPdXRwdXRWYWx1ZXMBAMA6AC8AP8A6" +
-           "AAAAGAEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAAEgAAAExhc3RNZXRob2RDYWxsVGltZQEA" +
-           "CA8ALwA/CA8AAAEAJgH/////AQH/////AAAAABVgiQoCAAAAAAAWAAAATGFzdE1ldGhvZFJldHVyblN0" +
-           "YXR1cwEACQ8ALwA/CQ8AAAAT/////wEB/////wAAAAAEYIAKAQAAAAAADwAAAEZpbmFsUmVzdWx0RGF0" +
-           "YQEACg8ALwA6Cg8AAP////8AAAAABGCACgEAAAAAAAYAAABIYWx0ZWQBAGYJAC8BAAMJZgkAAAQAAAAA" +
-           "MwEBAGgJADQBAQBsCQA0AQEAdAkANAEBAHgJAQAAABVgqQoCAAAAAAALAAAAU3RhdGVOdW1iZXIBAGcJ" +
-           "AC4ARGcJAAAHCwAAAAAH/////wEB/////wAAAAAEYIAKAQAAAAAABQAAAFJlYWR5AQBgCQAvAQADCWAJ" +
-           "AAAFAAAAADQBAQBoCQAzAQEAagkANAEBAG4JADQBAQB2CQAzAQEAeAkBAAAAFWCpCgIAAAAAAAsAAABT" +
-           "dGF0ZU51bWJlcgEAYQkALgBEYQkAAAcMAAAAAAf/////AQH/////AAAAAARggAoBAAAAAAAHAAAAUnVu" +
-           "bmluZwEAYgkALwEAAwliCQAABQAAAAA0AQEAagkAMwEBAGwJADMBAQBuCQAzAQEAcAkANAEBAHIJAQAA" +
-           "ABVgqQoCAAAAAAALAAAAU3RhdGVOdW1iZXIBAGMJAC4ARGMJAAAHDQAAAAAH/////wEB/////wAAAAAE" +
-           "YIAKAQAAAAAACQAAAFN1c3BlbmRlZAEAZAkALwEAAwlkCQAABAAAAAA0AQEAcAkAMwEBAHIJADMBAQB0" +
-           "CQAzAQEAdgkBAAAAFWCpCgIAAAAAAAsAAABTdGF0ZU51bWJlcgEAZQkALgBEZQkAAAcOAAAAAAf/////" +
-           "AQH/////AAAAAARggAoBAAAAAAANAAAASGFsdGVkVG9SZWFkeQEAaAkALwEABgloCQAABAAAAAAzAAEA" +
-           "ZgkANAABAGAJADUAAQB+CQA2AAEASgkBAAAAFWCpCgIAAAAAABAAAABUcmFuc2l0aW9uTnVtYmVyAQBp" +
-           "CQAuAERpCQAABwEAAAAAB/////8BAf////8AAAAABGCACgEAAAAAAA4AAABSZWFkeVRvUnVubmluZwEA" +
-           "agkALwEABglqCQAABAAAAAAzAAEAYAkANAABAGIJADUAAQB6CQA2AAEASgkBAAAAFWCpCgIAAAAAABAA" +
-           "AABUcmFuc2l0aW9uTnVtYmVyAQBrCQAuAERrCQAABwIAAAAAB/////8BAf////8AAAAABGCACgEAAAAA" +
-           "AA8AAABSdW5uaW5nVG9IYWx0ZWQBAGwJAC8BAAYJbAkAAAQAAAAAMwABAGIJADQAAQBmCQA1AAEAfQkA" +
-           "NgABAEoJAQAAABVgqQoCAAAAAAAQAAAAVHJhbnNpdGlvbk51bWJlcgEAbQkALgBEbQkAAAcDAAAAAAf/" +
-           "////AQH/////AAAAAARggAoBAAAAAAAOAAAAUnVubmluZ1RvUmVhZHkBAG4JAC8BAAYJbgkAAAMAAAAA" +
-           "MwABAGIJADQAAQBgCQA2AAEASgkBAAAAFWCpCgIAAAAAABAAAABUcmFuc2l0aW9uTnVtYmVyAQBvCQAu" +
-           "AERvCQAABwQAAAAAB/////8BAf////8AAAAABGCACgEAAAAAABIAAABSdW5uaW5nVG9TdXNwZW5kZWQB" +
-           "AHAJAC8BAAYJcAkAAAQAAAAAMwABAGIJADQAAQBkCQA1AAEAewkANgABAEoJAQAAABVgqQoCAAAAAAAQ" +
-           "AAAAVHJhbnNpdGlvbk51bWJlcgEAcQkALgBEcQkAAAcFAAAAAAf/////AQH/////AAAAAARggAoBAAAA" +
-           "AAASAAAAU3VzcGVuZGVkVG9SdW5uaW5nAQByCQAvAQAGCXIJAAAEAAAAADMAAQBkCQA0AAEAYgkANQAB" +
-           "AHwJADYAAQBKCQEAAAAVYKkKAgAAAAAAEAAAAFRyYW5zaXRpb25OdW1iZXIBAHMJAC4ARHMJAAAHBgAA" +
-           "AAAH/////wEB/////wAAAAAEYIAKAQAAAAAAEQAAAFN1c3BlbmRlZFRvSGFsdGVkAQB0CQAvAQAGCXQJ" +
-           "AAAEAAAAADMAAQBkCQA0AAEAZgkANQABAH0JADYAAQBKCQEAAAAVYKkKAgAAAAAAEAAAAFRyYW5zaXRp" +
-           "b25OdW1iZXIBAHUJAC4ARHUJAAAHBwAAAAAH/////wEB/////wAAAAAEYIAKAQAAAAAAEAAAAFN1c3Bl" +
-           "bmRlZFRvUmVhZHkBAHYJAC8BAAYJdgkAAAMAAAAAMwABAGQJADQAAQBgCQA2AAEASgkBAAAAFWCpCgIA" +
-           "AAAAABAAAABUcmFuc2l0aW9uTnVtYmVyAQB3CQAuAER3CQAABwgAAAAAB/////8BAf////8AAAAABGCA" +
-           "CgEAAAAAAA0AAABSZWFkeVRvSGFsdGVkAQB4CQAvAQAGCXgJAAAEAAAAADMAAQBgCQA0AAEAZgkANQAB" +
-           "AH0JADYAAQBKCQEAAAAVYKkKAgAAAAAAEAAAAFRyYW5zaXRpb25OdW1iZXIBAHkJAC4ARHkJAAAHCQAA" +
-           "AAAH/////wEB/////wAAAAAEYYIKBAAAAAAABQAAAFN0YXJ0AQB6CQAvAQB6CXoJAAABAQEAAAAANQEB" +
-           "AGoJAAAAAARhggoEAAAAAAAHAAAAU3VzcGVuZAEAewkALwEAewl7CQAAAQEBAAAAADUBAQBwCQAAAAAE" +
-           "YYIKBAAAAAAABgAAAFJlc3VtZQEAfAkALwEAfAl8CQAAAQEBAAAAADUBAQByCQAAAAAEYYIKBAAAAAAA" +
-           "BAAAAEhhbHQBAH0JAC8BAH0JfQkAAAEBAwAAAAA1AQEAbAkANQEBAHQJADUBAQB4CQAAAAAEYYIKBAAA" +
-           "AAAABQAAAFJlc2V0AQB+CQAvAQB+CX4JAAABAQEAAAAANQEBAGgJAAAAAA==";
+           "Af////8AAAAAFWCJCgIAAAAAAAkAAABEZWxldGFibGUBAFkJAC4ARFkJAAAAAf////8BAf////8AAAAA" +
+           "FWCJCgIAAAAAAAoAAABBdXRvRGVsZXRlAQBaCQAuAERaCQAAAAH/////AQH/////AAAAABVgiQoCAAAA" +
+           "AAAMAAAAUmVjeWNsZUNvdW50AQBbCQAuAERbCQAAAAb/////AQH/////AAAAABVgiQoCAAAAAAARAAAA" +
+           "UHJvZ3JhbURpYWdub3N0aWMBAF8JAC8BABc8XwkAAAEA4V3/////AQH/////DAAAABVgiQoCAAAAAAAP" +
+           "AAAAQ3JlYXRlU2Vzc2lvbklkAQAADwAvAD8ADwAAABH/////AQH/////AAAAABVgiQoCAAAAAAAQAAAA" +
+           "Q3JlYXRlQ2xpZW50TmFtZQEAAQ8ALwA/AQ8AAAAM/////wEB/////wAAAAAVYIkKAgAAAAAAFgAAAElu" +
+           "dm9jYXRpb25DcmVhdGlvblRpbWUBAAIPAC8APwIPAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAA" +
+           "EgAAAExhc3RUcmFuc2l0aW9uVGltZQEAAw8ALgBEAw8AAAEAJgH/////AQH/////AAAAABVgiQoCAAAA" +
+           "AAAOAAAATGFzdE1ldGhvZENhbGwBAAQPAC8APwQPAAAADP////8BAf////8AAAAAFWCJCgIAAAAAABMA" +
+           "AABMYXN0TWV0aG9kU2Vzc2lvbklkAQAFDwAvAD8FDwAAABH/////AQH/////AAAAABdgiQoCAAAAAAAY" +
+           "AAAATGFzdE1ldGhvZElucHV0QXJndW1lbnRzAQAGDwAvAD8GDwAAAQAoAQEAAAABAAAAAAAAAAEB////" +
+           "/wAAAAAXYIkKAgAAAAAAGQAAAExhc3RNZXRob2RPdXRwdXRBcmd1bWVudHMBAAcPAC8APwcPAAABACgB" +
+           "AQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAAAVAAAATGFzdE1ldGhvZElucHV0VmFsdWVzAQC+" +
+           "OgAvAD++OgAAABgBAAAAAQAAAAAAAAABAf////8AAAAAF2CJCgIAAAAAABYAAABMYXN0TWV0aG9kT3V0" +
+           "cHV0VmFsdWVzAQDAOgAvAD/AOgAAABgBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAABIAAABM" +
+           "YXN0TWV0aG9kQ2FsbFRpbWUBAAgPAC8APwgPAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAAFgAA" +
+           "AExhc3RNZXRob2RSZXR1cm5TdGF0dXMBAAkPAC8APwkPAAAAE/////8BAf////8AAAAABGCACgEAAAAA" +
+           "AA8AAABGaW5hbFJlc3VsdERhdGEBAAoPAC8AOgoPAAD/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -49549,7 +53240,7 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class ProgramDiagnosticState : BaseDataVariableState<ProgramDiagnosticDataType>
+    public partial class ProgramDiagnosticState : BaseDataVariableState<Opc.Ua.ProgramDiagnosticDataType>
     {
         #region Constructors
         /// <remarks />
@@ -50147,7 +53838,7 @@ namespace Opc.Ua
         /// <remarks />
         public ProgramDiagnosticDataType Value
         {
-            get { return m_value;  }
+            get { return m_value; }
             set { m_value = value; }
         }
         #endregion
@@ -50162,52 +53853,82 @@ namespace Opc.Ua
                 variable.Value = m_value;
 
                 variable.OnReadValue = OnReadValue;
-                variable.OnSimpleWriteValue = OnWriteValue;
+                variable.OnWriteValue = OnWriteValue;
 
                 BaseVariableState instance = null;
                 List<BaseInstanceState> updateList = new List<BaseInstanceState>();
                 updateList.Add(variable);
 
                 instance = m_variable.CreateSessionId;
-                instance.OnReadValue = OnRead_CreateSessionId;
-                instance.OnSimpleWriteValue = OnWrite_CreateSessionId;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_CreateSessionId;
+                    instance.OnWriteValue = OnWrite_CreateSessionId;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.CreateClientName;
-                instance.OnReadValue = OnRead_CreateClientName;
-                instance.OnSimpleWriteValue = OnWrite_CreateClientName;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_CreateClientName;
+                    instance.OnWriteValue = OnWrite_CreateClientName;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.InvocationCreationTime;
-                instance.OnReadValue = OnRead_InvocationCreationTime;
-                instance.OnSimpleWriteValue = OnWrite_InvocationCreationTime;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_InvocationCreationTime;
+                    instance.OnWriteValue = OnWrite_InvocationCreationTime;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.LastTransitionTime;
-                instance.OnReadValue = OnRead_LastTransitionTime;
-                instance.OnSimpleWriteValue = OnWrite_LastTransitionTime;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_LastTransitionTime;
+                    instance.OnWriteValue = OnWrite_LastTransitionTime;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.LastMethodCall;
-                instance.OnReadValue = OnRead_LastMethodCall;
-                instance.OnSimpleWriteValue = OnWrite_LastMethodCall;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_LastMethodCall;
+                    instance.OnWriteValue = OnWrite_LastMethodCall;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.LastMethodSessionId;
-                instance.OnReadValue = OnRead_LastMethodSessionId;
-                instance.OnSimpleWriteValue = OnWrite_LastMethodSessionId;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_LastMethodSessionId;
+                    instance.OnWriteValue = OnWrite_LastMethodSessionId;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.LastMethodInputArguments;
-                instance.OnReadValue = OnRead_LastMethodInputArguments;
-                instance.OnSimpleWriteValue = OnWrite_LastMethodInputArguments;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_LastMethodInputArguments;
+                    instance.OnWriteValue = OnWrite_LastMethodInputArguments;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.LastMethodOutputArguments;
-                instance.OnReadValue = OnRead_LastMethodOutputArguments;
-                instance.OnSimpleWriteValue = OnWrite_LastMethodOutputArguments;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_LastMethodOutputArguments;
+                    instance.OnWriteValue = OnWrite_LastMethodOutputArguments;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.LastMethodCallTime;
-                instance.OnReadValue = OnRead_LastMethodCallTime;
-                instance.OnSimpleWriteValue = OnWrite_LastMethodCallTime;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_LastMethodCallTime;
+                    instance.OnWriteValue = OnWrite_LastMethodCallTime;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.LastMethodReturnStatus;
-                instance.OnReadValue = OnRead_LastMethodReturnStatus;
-                instance.OnSimpleWriteValue = OnWrite_LastMethodReturnStatus;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_LastMethodReturnStatus;
+                    instance.OnWriteValue = OnWrite_LastMethodReturnStatus;
+                    updateList.Add(instance);
+                }
 
                 SetUpdateList(updateList);
             }
@@ -50236,14 +53957,69 @@ namespace Opc.Ua
             }
         }
 
-        private ServiceResult OnWriteValue(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWriteValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
-                m_value = (ProgramDiagnosticDataType)Write(value);
+                ProgramDiagnosticDataType newValue;
+                if (value is ExtensionObject extensionObject)
+                {
+                    newValue = (ProgramDiagnosticDataType)extensionObject.Body;
+                }
+                else
+                {
+                    newValue = (ProgramDiagnosticDataType)value;
+                }
+
+                if (!Utils.IsEqual(m_value, newValue))
+                {
+                    UpdateChildrenChangeMasks(context, ref newValue, ref statusCode, ref timestamp);
+                    Timestamp = timestamp;
+                    m_value = (ProgramDiagnosticDataType)Write(newValue);
+                    m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                }
             }
 
             return ServiceResult.Good;
+        }
+
+        private void UpdateChildrenChangeMasks(ISystemContext context, ref ProgramDiagnosticDataType newValue, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (!Utils.IsEqual(m_value.CreateSessionId, newValue.CreateSessionId)) UpdateChildVariableStatus(m_variable.CreateSessionId, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CreateClientName, newValue.CreateClientName)) UpdateChildVariableStatus(m_variable.CreateClientName, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.InvocationCreationTime, newValue.InvocationCreationTime)) UpdateChildVariableStatus(m_variable.InvocationCreationTime, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastTransitionTime, newValue.LastTransitionTime)) UpdateChildVariableStatus(m_variable.LastTransitionTime, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodCall, newValue.LastMethodCall)) UpdateChildVariableStatus(m_variable.LastMethodCall, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodSessionId, newValue.LastMethodSessionId)) UpdateChildVariableStatus(m_variable.LastMethodSessionId, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodInputArguments, newValue.LastMethodInputArguments)) UpdateChildVariableStatus(m_variable.LastMethodInputArguments, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodOutputArguments, newValue.LastMethodOutputArguments)) UpdateChildVariableStatus(m_variable.LastMethodOutputArguments, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodCallTime, newValue.LastMethodCallTime)) UpdateChildVariableStatus(m_variable.LastMethodCallTime, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodReturnStatus, newValue.LastMethodReturnStatus)) UpdateChildVariableStatus(m_variable.LastMethodReturnStatus, ref statusCode, ref timestamp);
+        }
+
+        private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            Timestamp = timestamp;
+            m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            m_variable.ClearChangeMasks(context, false);
+        }
+
+        private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (child == null) return;
+            child.StatusCode = statusCode;
+            if (timestamp == DateTime.MinValue)
+            {
+                timestamp = DateTime.UtcNow;
+            }
+            child.Timestamp = timestamp;
         }
 
         #region CreateSessionId Access Methods
@@ -50261,21 +54037,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.CreateSessionId;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.CreateSessionId;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_CreateSessionId(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_CreateSessionId(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.CreateSessionId, ref statusCode, ref timestamp);
                 m_value.CreateSessionId = (NodeId)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -50297,21 +54102,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.CreateClientName;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.CreateClientName;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_CreateClientName(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_CreateClientName(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.CreateClientName, ref statusCode, ref timestamp);
                 m_value.CreateClientName = (string)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -50333,21 +54167,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.InvocationCreationTime;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.InvocationCreationTime;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_InvocationCreationTime(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_InvocationCreationTime(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.InvocationCreationTime, ref statusCode, ref timestamp);
                 m_value.InvocationCreationTime = (DateTime)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -50369,21 +54232,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.LastTransitionTime;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.LastTransitionTime;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_LastTransitionTime(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_LastTransitionTime(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.LastTransitionTime, ref statusCode, ref timestamp);
                 m_value.LastTransitionTime = (DateTime)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -50405,21 +54297,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.LastMethodCall;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.LastMethodCall;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_LastMethodCall(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_LastMethodCall(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.LastMethodCall, ref statusCode, ref timestamp);
                 m_value.LastMethodCall = (string)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -50441,21 +54362,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.LastMethodSessionId;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.LastMethodSessionId;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_LastMethodSessionId(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_LastMethodSessionId(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.LastMethodSessionId, ref statusCode, ref timestamp);
                 m_value.LastMethodSessionId = (NodeId)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -50477,21 +54427,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.LastMethodInputArguments;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.LastMethodInputArguments;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_LastMethodInputArguments(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_LastMethodInputArguments(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.LastMethodInputArguments, ref statusCode, ref timestamp);
                 m_value.LastMethodInputArguments = (ArgumentCollection)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -50513,21 +54492,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.LastMethodOutputArguments;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.LastMethodOutputArguments;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_LastMethodOutputArguments(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_LastMethodOutputArguments(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.LastMethodOutputArguments, ref statusCode, ref timestamp);
                 m_value.LastMethodOutputArguments = (ArgumentCollection)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -50549,21 +54557,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.LastMethodCallTime;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.LastMethodCallTime;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_LastMethodCallTime(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_LastMethodCallTime(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.LastMethodCallTime, ref statusCode, ref timestamp);
                 m_value.LastMethodCallTime = (DateTime)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -50585,21 +54622,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.LastMethodReturnStatus;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.LastMethodReturnStatus;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_LastMethodReturnStatus(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_LastMethodReturnStatus(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.LastMethodReturnStatus, ref statusCode, ref timestamp);
                 m_value.LastMethodReturnStatus = (StatusResult)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -50621,7 +54687,7 @@ namespace Opc.Ua
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class ProgramDiagnostic2State : BaseDataVariableState<ProgramDiagnostic2DataType>
+    public partial class ProgramDiagnostic2State : BaseDataVariableState<Opc.Ua.ProgramDiagnostic2DataType>
     {
         #region Constructors
         /// <remarks />
@@ -51314,7 +55380,7 @@ namespace Opc.Ua
         /// <remarks />
         public ProgramDiagnostic2DataType Value
         {
-            get { return m_value;  }
+            get { return m_value; }
             set { m_value = value; }
         }
         #endregion
@@ -51329,60 +55395,96 @@ namespace Opc.Ua
                 variable.Value = m_value;
 
                 variable.OnReadValue = OnReadValue;
-                variable.OnSimpleWriteValue = OnWriteValue;
+                variable.OnWriteValue = OnWriteValue;
 
                 BaseVariableState instance = null;
                 List<BaseInstanceState> updateList = new List<BaseInstanceState>();
                 updateList.Add(variable);
 
                 instance = m_variable.CreateSessionId;
-                instance.OnReadValue = OnRead_CreateSessionId;
-                instance.OnSimpleWriteValue = OnWrite_CreateSessionId;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_CreateSessionId;
+                    instance.OnWriteValue = OnWrite_CreateSessionId;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.CreateClientName;
-                instance.OnReadValue = OnRead_CreateClientName;
-                instance.OnSimpleWriteValue = OnWrite_CreateClientName;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_CreateClientName;
+                    instance.OnWriteValue = OnWrite_CreateClientName;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.InvocationCreationTime;
-                instance.OnReadValue = OnRead_InvocationCreationTime;
-                instance.OnSimpleWriteValue = OnWrite_InvocationCreationTime;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_InvocationCreationTime;
+                    instance.OnWriteValue = OnWrite_InvocationCreationTime;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.LastTransitionTime;
-                instance.OnReadValue = OnRead_LastTransitionTime;
-                instance.OnSimpleWriteValue = OnWrite_LastTransitionTime;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_LastTransitionTime;
+                    instance.OnWriteValue = OnWrite_LastTransitionTime;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.LastMethodCall;
-                instance.OnReadValue = OnRead_LastMethodCall;
-                instance.OnSimpleWriteValue = OnWrite_LastMethodCall;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_LastMethodCall;
+                    instance.OnWriteValue = OnWrite_LastMethodCall;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.LastMethodSessionId;
-                instance.OnReadValue = OnRead_LastMethodSessionId;
-                instance.OnSimpleWriteValue = OnWrite_LastMethodSessionId;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_LastMethodSessionId;
+                    instance.OnWriteValue = OnWrite_LastMethodSessionId;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.LastMethodInputArguments;
-                instance.OnReadValue = OnRead_LastMethodInputArguments;
-                instance.OnSimpleWriteValue = OnWrite_LastMethodInputArguments;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_LastMethodInputArguments;
+                    instance.OnWriteValue = OnWrite_LastMethodInputArguments;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.LastMethodOutputArguments;
-                instance.OnReadValue = OnRead_LastMethodOutputArguments;
-                instance.OnSimpleWriteValue = OnWrite_LastMethodOutputArguments;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_LastMethodOutputArguments;
+                    instance.OnWriteValue = OnWrite_LastMethodOutputArguments;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.LastMethodInputValues;
-                instance.OnReadValue = OnRead_LastMethodInputValues;
-                instance.OnSimpleWriteValue = OnWrite_LastMethodInputValues;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_LastMethodInputValues;
+                    instance.OnWriteValue = OnWrite_LastMethodInputValues;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.LastMethodOutputValues;
-                instance.OnReadValue = OnRead_LastMethodOutputValues;
-                instance.OnSimpleWriteValue = OnWrite_LastMethodOutputValues;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_LastMethodOutputValues;
+                    instance.OnWriteValue = OnWrite_LastMethodOutputValues;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.LastMethodCallTime;
-                instance.OnReadValue = OnRead_LastMethodCallTime;
-                instance.OnSimpleWriteValue = OnWrite_LastMethodCallTime;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_LastMethodCallTime;
+                    instance.OnWriteValue = OnWrite_LastMethodCallTime;
+                    updateList.Add(instance);
+                }
                 instance = m_variable.LastMethodReturnStatus;
-                instance.OnReadValue = OnRead_LastMethodReturnStatus;
-                instance.OnSimpleWriteValue = OnWrite_LastMethodReturnStatus;
-                updateList.Add(instance);
+                if (instance != null)
+                {
+                    instance.OnReadValue = OnRead_LastMethodReturnStatus;
+                    instance.OnWriteValue = OnWrite_LastMethodReturnStatus;
+                    updateList.Add(instance);
+                }
 
                 SetUpdateList(updateList);
             }
@@ -51411,14 +55513,71 @@ namespace Opc.Ua
             }
         }
 
-        private ServiceResult OnWriteValue(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWriteValue(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
-                m_value = (ProgramDiagnostic2DataType)Write(value);
+                ProgramDiagnostic2DataType newValue;
+                if (value is ExtensionObject extensionObject)
+                {
+                    newValue = (ProgramDiagnostic2DataType)extensionObject.Body;
+                }
+                else
+                {
+                    newValue = (ProgramDiagnostic2DataType)value;
+                }
+
+                if (!Utils.IsEqual(m_value, newValue))
+                {
+                    UpdateChildrenChangeMasks(context, ref newValue, ref statusCode, ref timestamp);
+                    Timestamp = timestamp;
+                    m_value = (ProgramDiagnostic2DataType)Write(newValue);
+                    m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                }
             }
 
             return ServiceResult.Good;
+        }
+
+        private void UpdateChildrenChangeMasks(ISystemContext context, ref ProgramDiagnostic2DataType newValue, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (!Utils.IsEqual(m_value.CreateSessionId, newValue.CreateSessionId)) UpdateChildVariableStatus(m_variable.CreateSessionId, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CreateClientName, newValue.CreateClientName)) UpdateChildVariableStatus(m_variable.CreateClientName, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.InvocationCreationTime, newValue.InvocationCreationTime)) UpdateChildVariableStatus(m_variable.InvocationCreationTime, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastTransitionTime, newValue.LastTransitionTime)) UpdateChildVariableStatus(m_variable.LastTransitionTime, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodCall, newValue.LastMethodCall)) UpdateChildVariableStatus(m_variable.LastMethodCall, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodSessionId, newValue.LastMethodSessionId)) UpdateChildVariableStatus(m_variable.LastMethodSessionId, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodInputArguments, newValue.LastMethodInputArguments)) UpdateChildVariableStatus(m_variable.LastMethodInputArguments, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodOutputArguments, newValue.LastMethodOutputArguments)) UpdateChildVariableStatus(m_variable.LastMethodOutputArguments, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodInputValues, newValue.LastMethodInputValues)) UpdateChildVariableStatus(m_variable.LastMethodInputValues, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodOutputValues, newValue.LastMethodOutputValues)) UpdateChildVariableStatus(m_variable.LastMethodOutputValues, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodCallTime, newValue.LastMethodCallTime)) UpdateChildVariableStatus(m_variable.LastMethodCallTime, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodReturnStatus, newValue.LastMethodReturnStatus)) UpdateChildVariableStatus(m_variable.LastMethodReturnStatus, ref statusCode, ref timestamp);
+        }
+
+        private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            Timestamp = timestamp;
+            m_variable.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            m_variable.ClearChangeMasks(context, false);
+        }
+
+        private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
+        {
+            if (child == null) return;
+            child.StatusCode = statusCode;
+            if (timestamp == DateTime.MinValue)
+            {
+                timestamp = DateTime.UtcNow;
+            }
+            child.Timestamp = timestamp;
         }
 
         #region CreateSessionId Access Methods
@@ -51436,21 +55595,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.CreateSessionId;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.CreateSessionId;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_CreateSessionId(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_CreateSessionId(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.CreateSessionId, ref statusCode, ref timestamp);
                 m_value.CreateSessionId = (NodeId)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -51472,21 +55660,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.CreateClientName;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.CreateClientName;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_CreateClientName(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_CreateClientName(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.CreateClientName, ref statusCode, ref timestamp);
                 m_value.CreateClientName = (string)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -51508,21 +55725,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.InvocationCreationTime;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.InvocationCreationTime;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_InvocationCreationTime(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_InvocationCreationTime(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.InvocationCreationTime, ref statusCode, ref timestamp);
                 m_value.InvocationCreationTime = (DateTime)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -51544,21 +55790,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.LastTransitionTime;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.LastTransitionTime;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_LastTransitionTime(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_LastTransitionTime(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.LastTransitionTime, ref statusCode, ref timestamp);
                 m_value.LastTransitionTime = (DateTime)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -51580,21 +55855,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.LastMethodCall;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.LastMethodCall;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_LastMethodCall(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_LastMethodCall(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.LastMethodCall, ref statusCode, ref timestamp);
                 m_value.LastMethodCall = (string)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -51616,21 +55920,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.LastMethodSessionId;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.LastMethodSessionId;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_LastMethodSessionId(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_LastMethodSessionId(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.LastMethodSessionId, ref statusCode, ref timestamp);
                 m_value.LastMethodSessionId = (NodeId)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -51652,21 +55985,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.LastMethodInputArguments;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.LastMethodInputArguments;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_LastMethodInputArguments(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_LastMethodInputArguments(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.LastMethodInputArguments, ref statusCode, ref timestamp);
                 m_value.LastMethodInputArguments = (ArgumentCollection)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -51688,21 +56050,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.LastMethodOutputArguments;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.LastMethodOutputArguments;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_LastMethodOutputArguments(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_LastMethodOutputArguments(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.LastMethodOutputArguments, ref statusCode, ref timestamp);
                 m_value.LastMethodOutputArguments = (ArgumentCollection)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -51724,21 +56115,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.LastMethodInputValues;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.LastMethodInputValues;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_LastMethodInputValues(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_LastMethodInputValues(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.LastMethodInputValues, ref statusCode, ref timestamp);
                 m_value.LastMethodInputValues = (VariantCollection)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -51760,21 +56180,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.LastMethodOutputValues;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.LastMethodOutputValues;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_LastMethodOutputValues(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_LastMethodOutputValues(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.LastMethodOutputValues, ref statusCode, ref timestamp);
                 m_value.LastMethodOutputValues = (VariantCollection)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -51796,21 +56245,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.LastMethodCallTime;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.LastMethodCallTime;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_LastMethodCallTime(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_LastMethodCallTime(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.LastMethodCallTime, ref statusCode, ref timestamp);
                 m_value.LastMethodCallTime = (DateTime)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -51832,21 +56310,50 @@ namespace Opc.Ua
             {
                 DoBeforeReadProcessing(context, node);
 
+                var childVariable = m_variable?.LastMethodReturnStatus;
+                if (childVariable != null && StatusCode.IsBad(childVariable.StatusCode))
+                {
+                    value = null;
+                    statusCode = childVariable.StatusCode;
+                    return new ServiceResult(statusCode);
+                }
+
                 if (m_value != null)
                 {
                     value = m_value.LastMethodReturnStatus;
                 }
 
-                return Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+                var result = Read(context, node, indexRange, dataEncoding, ref value, ref statusCode, ref timestamp);
+
+                if (childVariable != null && ServiceResult.IsNotBad(result))
+                {
+                    timestamp = childVariable.Timestamp;
+                    if (statusCode != childVariable.StatusCode)
+                    {
+                        statusCode = childVariable.StatusCode;
+                        result = new ServiceResult(statusCode);
+                    }
+                }
+
+                return result;
             }
         }
 
         /// <remarks />
-        private ServiceResult OnWrite_LastMethodReturnStatus(ISystemContext context, NodeState node, ref object value)
+        private ServiceResult OnWrite_LastMethodReturnStatus(
+            ISystemContext context,
+            NodeState node,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref object value,
+            ref StatusCode statusCode,
+            ref DateTime timestamp)
         {
             lock (Lock)
             {
+                UpdateChildVariableStatus(m_variable.LastMethodReturnStatus, ref statusCode, ref timestamp);
                 m_value.LastMethodReturnStatus = (StatusCode)Write(value);
+                UpdateParent(context, ref statusCode, ref timestamp);
             }
 
             return ServiceResult.Good;
@@ -55184,7 +59691,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             uint masks = (uint)_inputArguments[0];
 
@@ -55192,7 +59699,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -55202,7 +59709,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = fileHandle;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -55287,7 +59794,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             uint fileHandle = (uint)_inputArguments[0];
 
@@ -55295,7 +59802,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -55305,7 +59812,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = applyChangesRequired;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -55389,14 +59896,14 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             byte[] certificate = (byte[])_inputArguments[0];
             bool isTrustedCertificate = (bool)_inputArguments[1];
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -55404,7 +59911,7 @@ namespace Opc.Ua
                     isTrustedCertificate);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -55488,14 +59995,14 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             string thumbprint = (string)_inputArguments[0];
             bool isTrustedCertificate = (bool)_inputArguments[1];
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -55503,7 +60010,7 @@ namespace Opc.Ua
                     isTrustedCertificate);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -56917,7 +61424,7 @@ namespace Opc.Ua
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAIgAAAENlcnRpZmljYXRlR3JvdXBGb2xkZXJUeXBlSW5zdGFuY2UBAPU1" +
-           "AQD1NfU1AAD/////BAAAAARggAoBAAAAAAAXAAAARGVmYXVsdEFwcGxpY2F0aW9uR3JvdXABAPY1AC8B" +
+           "AQD1NfU1AAD/////AwAAAARggAoBAAAAAAAXAAAARGVmYXVsdEFwcGxpY2F0aW9uR3JvdXABAPY1AC8B" +
            "AAsx9jUAAP////8CAAAABGCACgEAAAAAAAkAAABUcnVzdExpc3QBAPc1AC8BAOow9zUAAP////8MAAAA" +
            "FWCJCgIAAAAAAAQAAABTaXplAQD4NQAuAET4NQAAAAn/////AQH/////AAAAABVgiQoCAAAAAAAIAAAA" +
            "V3JpdGFibGUBAPk1AC4ARPk1AAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABVc2VyV3JpdGFi" +
@@ -57016,40 +61523,7 @@ namespace Opc.Ua
            "AQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQBTNgAuAERTNgAAlgEAAAABACoB" +
            "ARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYIkK" +
            "AgAAAAAAEAAAAENlcnRpZmljYXRlVHlwZXMBAFs2AC4ARFs2AAAAEQEAAAABAAAAAAAAAAEB/////wAA" +
-           "AAAEYMAKAQAAABsAAABBZGRpdGlvbmFsR3JvdXBfUGxhY2Vob2xkZXIAABEAAAA8QWRkaXRpb25hbEdy" +
-           "b3VwPgEAXDYAIwEACzFcNgAA/////wIAAAAEYIAKAQAAAAAACQAAAFRydXN0TGlzdAEAXTYALwEA6jBd" +
-           "NgAA/////wwAAAAVYIkKAgAAAAAABAAAAFNpemUBAF42AC4ARF42AAAACf////8BAf////8AAAAAFWCJ" +
-           "CgIAAAAAAAgAAABXcml0YWJsZQEAXzYALgBEXzYAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAADAAA" +
-           "AFVzZXJXcml0YWJsZQEAYDYALgBEYDYAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAACQAAAE9wZW5D" +
-           "b3VudAEAYTYALgBEYTYAAAAF/////wEB/////wAAAAAEYYIKBAAAAAAABAAAAE9wZW4BAGM2AC8BADwt" +
-           "YzYAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBkNgAuAERkNgAAlgEAAAAB" +
-           "ACoBARMAAAAEAAAATW9kZQAD/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAA" +
-           "AAAADwAAAE91dHB1dEFyZ3VtZW50cwEAZTYALgBEZTYAAJYBAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5k" +
-           "bGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAAUAAABDbG9zZQEA" +
-           "ZjYALwEAPy1mNgAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAGc2AC4ARGc2" +
-           "AACWAQAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/" +
-           "////AAAAAARhggoEAAAAAAAEAAAAUmVhZAEAaDYALwEAQS1oNgAAAQH/////AgAAABdgqQoCAAAAAAAO" +
-           "AAAASW5wdXRBcmd1bWVudHMBAGk2AC4ARGk2AACWAgAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/" +
-           "////AAAAAAABACoBARUAAAAGAAAATGVuZ3RoAAb/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////" +
-           "AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQBqNgAuAERqNgAAlgEAAAABACoBARMAAAAE" +
-           "AAAARGF0YQAP/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAABQAAAFdy" +
-           "aXRlAQBrNgAvAQBELWs2AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAbDYA" +
-           "LgBEbDYAAJYCAAAAAQAqAQEZAAAACgAAAEZpbGVIYW5kbGUAB/////8AAAAAAAEAKgEBEwAAAAQAAABE" +
-           "YXRhAA//////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAALAAAAR2V0UG9z" +
-           "aXRpb24BAG02AC8BAEYtbTYAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBu" +
-           "NgAuAERuNgAAlgEAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAoAQEAAAABAAAA" +
-           "AAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAbzYALgBEbzYAAJYBAAAA" +
-           "AQAqAQEXAAAACAAAAFBvc2l0aW9uAAn/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARh" +
-           "ggoEAAAAAAALAAAAU2V0UG9zaXRpb24BAHA2AC8BAEktcDYAAAEB/////wEAAAAXYKkKAgAAAAAADgAA" +
-           "AElucHV0QXJndW1lbnRzAQBxNgAuAERxNgAAlgIAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH////" +
-           "/wAAAAAAAQAqAQEXAAAACAAAAFBvc2l0aW9uAAn/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////" +
-           "AAAAABVgiQoCAAAAAAAOAAAATGFzdFVwZGF0ZVRpbWUBAHI2AC4ARHI2AAABACYB/////wEB/////wAA" +
-           "AAAEYYIKBAAAAAAADQAAAE9wZW5XaXRoTWFza3MBAHM2AC8BAP8wczYAAAEB/////wIAAAAXYKkKAgAA" +
-           "AAAADgAAAElucHV0QXJndW1lbnRzAQB0NgAuAER0NgAAlgEAAAABACoBARQAAAAFAAAATWFza3MAB///" +
-           "//8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVu" +
-           "dHMBAHU2AC4ARHU2AACWAQAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACgBAQAA" +
-           "AAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAAAQAAAAQ2VydGlmaWNhdGVUeXBlcwEAfTYALgBEfTYA" +
-           "AAARAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "AAA=";
         #endregion
         #endif
         #endregion
@@ -58172,7 +62646,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             NodeId certificateGroupId = (NodeId)_inputArguments[0];
             NodeId certificateTypeId = (NodeId)_inputArguments[1];
@@ -58185,7 +62659,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -58200,7 +62674,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = applyChangesRequired;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -58293,7 +62767,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             NodeId certificateGroupId = (NodeId)_inputArguments[0];
             NodeId certificateTypeId = (NodeId)_inputArguments[1];
@@ -58305,7 +62779,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -58319,7 +62793,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = certificateRequest;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -58407,13 +62881,13 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             byte[][] certificates = (byte[][])_outputArguments[0];
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -58422,7 +62896,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = certificates;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -59270,7 +63744,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             string resourceUri = (string)_inputArguments[0];
             string profileUri = (string)_inputArguments[1];
@@ -59280,7 +63754,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -59292,7 +63766,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = credentialNodeId;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -59370,16 +63844,13 @@ namespace Opc.Ua
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAALAAAAEtleUNyZWRlbnRpYWxDb25maWd1cmF0aW9uRm9sZGVyVHlwZUlu" +
-           "c3RhbmNlAQBYRAEAWERYRAAA/////wIAAAAEYMAKAQAAABcAAABTZXJ2aWNlTmFtZV9QbGFjZWhvbGRl" +
-           "cgAADQAAADxTZXJ2aWNlTmFtZT4BAGdEAC8BAFFGZ0QAAP////8CAAAAFWCJCgIAAAAAAAsAAABSZXNv" +
-           "dXJjZVVyaQEAaEQALgBEaEQAAAAM/////wEB/////wAAAAAVYIkKAgAAAAAACgAAAFByb2ZpbGVVcmkB" +
-           "AGlEAC4ARGlEAAAADP////8BAf////8AAAAABGGCCgQAAAAAABAAAABDcmVhdGVDcmVkZW50aWFsAQBy" +
-           "RAAvAQByRHJEAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAc0QALgBEc0QA" +
-           "AJYDAAAAAQAqAQEaAAAACwAAAFJlc291cmNlVXJpAAz/////AAAAAAABACoBARkAAAAKAAAAUHJvZmls" +
-           "ZVVyaQAM/////wAAAAAAAQAqAQEfAAAADAAAAEVuZHBvaW50VXJscwAMAQAAAAEAAAAAAAAAAAEAKAEB" +
-           "AAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAHREAC4ARHRE" +
-           "AACWAQAAAAEAKgEBHwAAABAAAABDcmVkZW50aWFsTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAAA" +
-           "AAAAAQH/////AAAAAA==";
+           "c3RhbmNlAQBYRAEAWERYRAAA/////wEAAAAEYYIKBAAAAAAAEAAAAENyZWF0ZUNyZWRlbnRpYWwBAHJE" +
+           "AC8BAHJEckQAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBzRAAuAERzRAAA" +
+           "lgMAAAABACoBARoAAAALAAAAUmVzb3VyY2VVcmkADP////8AAAAAAAEAKgEBGQAAAAoAAABQcm9maWxl" +
+           "VXJpAAz/////AAAAAAABACoBAR8AAAAMAAAARW5kcG9pbnRVcmxzAAwBAAAAAQAAAAAAAAAAAQAoAQEA" +
+           "AAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAdEQALgBEdEQA" +
+           "AJYBAAAAAQAqAQEfAAAAEAAAAENyZWRlbnRpYWxOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAA" +
+           "AAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -59541,7 +64012,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             string credentialId = (string)_inputArguments[0];
             string requestedSecurityPolicyUri = (string)_inputArguments[1];
@@ -59551,7 +64022,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -59564,7 +64035,7 @@ namespace Opc.Ua
             _outputArguments[0] = publicKey;
             _outputArguments[1] = revisedSecurityPolicyUri;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -60134,7 +64605,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             string credentialId = (string)_inputArguments[0];
             byte[] credentialSecret = (byte[])_inputArguments[1];
@@ -60143,7 +64614,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -60153,7 +64624,7 @@ namespace Opc.Ua
                     securityPolicyUri);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -60520,11 +64991,7 @@ namespace Opc.Ua
         #region Initialization String
         private const string InitializationString =
            "//////////8EYIACAQAAAAAANAAAAEF1dGhvcml6YXRpb25TZXJ2aWNlc0NvbmZpZ3VyYXRpb25Gb2xk" +
-           "ZXJUeXBlSW5zdGFuY2UBAARcAQAEXARcAAD/////AQAAAARgwAoBAAAAFwAAAFNlcnZpY2VOYW1lX1Bs" +
-           "YWNlaG9sZGVyAAANAAAAPFNlcnZpY2VOYW1lPgEABVwAIwEAvEUFXAAA/////wMAAAAVYIkKAgAAAAAA" +
-           "CgAAAFNlcnZpY2VVcmkBAAZcAC4ARAZcAAAADP////8BAf////8AAAAAFWCJCgIAAAAAABIAAABTZXJ2" +
-           "aWNlQ2VydGlmaWNhdGUBAAdcAC4ARAdcAAAAD/////8BAf////8AAAAAFWCJCgIAAAAAABEAAABJc3N1" +
-           "ZXJFbmRwb2ludFVybAEACFwALgBECFwAAAAM/////wEB/////wAAAAA=";
+           "ZXJUeXBlSW5zdGFuY2UBAARcAQAEXARcAAD/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -61425,7 +65892,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             string securityGroupId = (string)_inputArguments[0];
             uint startingTokenId = (uint)_inputArguments[1];
@@ -61439,7 +65906,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -61459,7 +65926,7 @@ namespace Opc.Ua
             _outputArguments[3] = timeToNextKey;
             _outputArguments[4] = keyLifetime;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -61550,7 +66017,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             string securityGroupId = (string)_inputArguments[0];
 
@@ -61558,7 +66025,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -61568,7 +66035,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = securityGroupNodeId;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -61657,7 +66124,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             string securityGroupName = (string)_inputArguments[0];
             double keyLifetime = (double)_inputArguments[1];
@@ -61670,7 +66137,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -61686,7 +66153,7 @@ namespace Opc.Ua
             _outputArguments[0] = securityGroupId;
             _outputArguments[1] = securityGroupNodeId;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -61775,20 +66242,20 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             NodeId securityGroupNodeId = (NodeId)_inputArguments[0];
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
                     securityGroupNodeId);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -61850,36 +66317,18 @@ namespace Opc.Ua
         #region Initialization String
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAHwAAAFNlY3VyaXR5R3JvdXBGb2xkZXJUeXBlSW5zdGFuY2UBAFw8AQBc" +
-           "PFw8AAD/////BAAAAARgwAoBAAAAIwAAAFNlY3VyaXR5R3JvdXBGb2xkZXJOYW1lX1BsYWNlaG9sZGVy" +
-           "AAAZAAAAPFNlY3VyaXR5R3JvdXBGb2xkZXJOYW1lPgEAXTwAIwEAXDxdPAAA/////wIAAAAEYYIKBAAA" +
-           "AAAAEAAAAEFkZFNlY3VyaXR5R3JvdXABAF48AC8BAGU8XjwAAAEB/////wIAAAAXYKkKAgAAAAAADgAA" +
-           "AElucHV0QXJndW1lbnRzAQBfPAAuAERfPAAAlgUAAAABACoBASAAAAARAAAAU2VjdXJpdHlHcm91cE5h" +
-           "bWUADP////8AAAAAAAEAKgEBHAAAAAsAAABLZXlMaWZldGltZQEAIgH/////AAAAAAABACoBASAAAAAR" +
-           "AAAAU2VjdXJpdHlQb2xpY3lVcmkADP////8AAAAAAAEAKgEBIAAAABEAAABNYXhGdXR1cmVLZXlDb3Vu" +
-           "dAAH/////wAAAAAAAQAqAQEeAAAADwAAAE1heFBhc3RLZXlDb3VudAAH/////wAAAAAAAQAoAQEAAAAB" +
-           "AAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAYDwALgBEYDwAAJYC" +
-           "AAAAAQAqAQEeAAAADwAAAFNlY3VyaXR5R3JvdXBJZAAM/////wAAAAAAAQAqAQEiAAAAEwAAAFNlY3Vy" +
-           "aXR5R3JvdXBOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAA" +
-           "ABMAAABSZW1vdmVTZWN1cml0eUdyb3VwAQBhPAAvAQBoPGE8AAABAf////8BAAAAF2CpCgIAAAAAAA4A" +
-           "AABJbnB1dEFyZ3VtZW50cwEAYjwALgBEYjwAAJYBAAAAAQAqAQEiAAAAEwAAAFNlY3VyaXR5R3JvdXBO" +
-           "b2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGDACgEAAAAdAAAAU2VjdXJp" +
-           "dHlHcm91cE5hbWVfUGxhY2Vob2xkZXIAABMAAAA8U2VjdXJpdHlHcm91cE5hbWU+AQBjPAAvAQBvPGM8" +
-           "AAD/////BQAAABVgiQoCAAAAAAAPAAAAU2VjdXJpdHlHcm91cElkAQBkPAAuAERkPAAAAAz/////AQH/" +
-           "////AAAAABVgiQoCAAAAAAALAAAAS2V5TGlmZXRpbWUBAKI6AC4ARKI6AAABACIB/////wEB/////wAA" +
-           "AAAVYIkKAgAAAAAAEQAAAFNlY3VyaXR5UG9saWN5VXJpAQCjOgAuAESjOgAAAAz/////AQH/////AAAA" +
-           "ABVgiQoCAAAAAAARAAAATWF4RnV0dXJlS2V5Q291bnQBAKQ6AC4ARKQ6AAAAB/////8BAf////8AAAAA" +
-           "FWCJCgIAAAAAAA8AAABNYXhQYXN0S2V5Q291bnQBAMM6AC4ARMM6AAAAB/////8BAf////8AAAAABGGC" +
-           "CgQAAAAAABAAAABBZGRTZWN1cml0eUdyb3VwAQBlPAAvAQBlPGU8AAABAf////8CAAAAF2CpCgIAAAAA" +
-           "AA4AAABJbnB1dEFyZ3VtZW50cwEAZjwALgBEZjwAAJYFAAAAAQAqAQEgAAAAEQAAAFNlY3VyaXR5R3Jv" +
-           "dXBOYW1lAAz/////AAAAAAABACoBARwAAAALAAAAS2V5TGlmZXRpbWUBACIB/////wAAAAAAAQAqAQEg" +
-           "AAAAEQAAAFNlY3VyaXR5UG9saWN5VXJpAAz/////AAAAAAABACoBASAAAAARAAAATWF4RnV0dXJlS2V5" +
-           "Q291bnQAB/////8AAAAAAAEAKgEBHgAAAA8AAABNYXhQYXN0S2V5Q291bnQAB/////8AAAAAAAEAKAEB" +
-           "AAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAGc8AC4ARGc8" +
-           "AACWAgAAAAEAKgEBHgAAAA8AAABTZWN1cml0eUdyb3VwSWQADP////8AAAAAAAEAKgEBIgAAABMAAABT" +
-           "ZWN1cml0eUdyb3VwTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoE" +
-           "AAAAAAATAAAAUmVtb3ZlU2VjdXJpdHlHcm91cAEAaDwALwEAaDxoPAAAAQH/////AQAAABdgqQoCAAAA" +
-           "AAAOAAAASW5wdXRBcmd1bWVudHMBAGk8AC4ARGk8AACWAQAAAAEAKgEBIgAAABMAAABTZWN1cml0eUdy" +
-           "b3VwTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "PFw8AAD/////AgAAAARhggoEAAAAAAAQAAAAQWRkU2VjdXJpdHlHcm91cAEAZTwALwEAZTxlPAAAAQH/" +
+           "////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAGY8AC4ARGY8AACWBQAAAAEAKgEBIAAA" +
+           "ABEAAABTZWN1cml0eUdyb3VwTmFtZQAM/////wAAAAAAAQAqAQEcAAAACwAAAEtleUxpZmV0aW1lAQAi" +
+           "Af////8AAAAAAAEAKgEBIAAAABEAAABTZWN1cml0eVBvbGljeVVyaQAM/////wAAAAAAAQAqAQEgAAAA" +
+           "EQAAAE1heEZ1dHVyZUtleUNvdW50AAf/////AAAAAAABACoBAR4AAAAPAAAATWF4UGFzdEtleUNvdW50" +
+           "AAf/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJn" +
+           "dW1lbnRzAQBnPAAuAERnPAAAlgIAAAABACoBAR4AAAAPAAAAU2VjdXJpdHlHcm91cElkAAz/////AAAA" +
+           "AAABACoBASIAAAATAAAAU2VjdXJpdHlHcm91cE5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAA" +
+           "AAEB/////wAAAAAEYYIKBAAAAAAAEwAAAFJlbW92ZVNlY3VyaXR5R3JvdXABAGg8AC8BAGg8aDwAAAEB" +
+           "/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBpPAAuAERpPAAAlgEAAAABACoBASIA" +
+           "AAATAAAAU2VjdXJpdHlHcm91cE5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAA" +
+           "AAA=";
         #endregion
         #endif
         #endregion
@@ -62478,79 +66927,69 @@ namespace Opc.Ua
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAHAAAAFB1Ymxpc2hTdWJzY3JpYmVUeXBlSW5zdGFuY2UBAFA4AQBQOFA4" +
-           "AAD/////CAAAAARgwAoBAAAAGgAAAENvbm5lY3Rpb25OYW1lX1BsYWNlaG9sZGVyAAAQAAAAPENvbm5l" +
-           "Y3Rpb25OYW1lPgEAUTgBAIw4AQCBN1E4AAD/////BQAAABVgiQoCAAAAAAALAAAAUHVibGlzaGVySWQB" +
-           "AFI4AC4ARFI4AAAAGP////8BAf////8AAAAAFWCJCgIAAAAAABMAAABUcmFuc3BvcnRQcm9maWxlVXJp" +
-           "AQCMQwAvAQC1P4xDAAAADP////8BAf////8BAAAAF2CJCgIAAAAAAAoAAABTZWxlY3Rpb25zAQAqRQAu" +
-           "AEQqRQAAABgBAAAAAQAAAAAAAAABAf////8AAAAAF2CJCgIAAAAAABQAAABDb25uZWN0aW9uUHJvcGVy" +
-           "dGllcwEARkQALgBERkQAAAEAxTgBAAAAAQAAAAAAAAABAf////8AAAAABGCACgEAAAAAAAcAAABBZGRy" +
-           "ZXNzAQBXOAAvAQCZUlc4AAD/////AQAAABVgiQoCAAAAAAAQAAAATmV0d29ya0ludGVyZmFjZQEArTwA" +
-           "LwEAtT+tPAAAAAz/////AQH/////AQAAABdgiQoCAAAAAAAKAAAAU2VsZWN0aW9ucwEAX0QALgBEX0QA" +
-           "AAAYAQAAAAEAAAAAAAAAAQH/////AAAAAARggAoBAAAAAAAGAAAAU3RhdHVzAQBTOAAvAQAzOVM4AAD/" +
-           "////AQAAABVgiQoCAAAAAAAFAAAAU3RhdGUBAFQ4AC8AP1Q4AAABADc5/////wEB/////wAAAAAEYYIK" +
-           "BAAAAAAADwAAAFNldFNlY3VyaXR5S2V5cwEAkEMALwEAkEOQQwAAAQH/////AQAAABdgqQoCAAAAAAAO" +
-           "AAAASW5wdXRBcmd1bWVudHMBAJFDAC4ARJFDAACWBwAAAAEAKgEBHgAAAA8AAABTZWN1cml0eUdyb3Vw" +
-           "SWQADP////8AAAAAAAEAKgEBIAAAABEAAABTZWN1cml0eVBvbGljeVVyaQAM/////wAAAAAAAQAqAQEf" +
-           "AAAADgAAAEN1cnJlbnRUb2tlbklkAQAgAf////8AAAAAAAEAKgEBGQAAAAoAAABDdXJyZW50S2V5AA//" +
-           "////AAAAAAABACoBAR0AAAAKAAAARnV0dXJlS2V5cwAPAQAAAAEAAAAAAAAAAAEAKgEBHgAAAA0AAABU" +
-           "aW1lVG9OZXh0S2V5AQAiAf////8AAAAAAAEAKgEBHAAAAAsAAABLZXlMaWZldGltZQEAIgH/////AAAA" +
-           "AAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAANAAAAQWRkQ29ubmVjdGlvbgEA1kAA" +
-           "LwEA1kDWQAAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBANdAAC4ARNdAAACW" +
-           "AQAAAAEAKgEBHgAAAA0AAABDb25maWd1cmF0aW9uAQABPf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAAB" +
-           "Af////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBANhAAC4ARNhAAACWAQAAAAEAKgEB" +
-           "GwAAAAwAAABDb25uZWN0aW9uSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGC" +
-           "CgQAAAAAABAAAABSZW1vdmVDb25uZWN0aW9uAQBgOAAvAQBgOGA4AAABAf////8BAAAAF2CpCgIAAAAA" +
-           "AA4AAABJbnB1dEFyZ3VtZW50cwEAYTgALgBEYTgAAJYBAAAAAQAqAQEbAAAADAAAAENvbm5lY3Rpb25J" +
-           "ZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYIAKAQAAAAAAEQAAAFB1Ymxpc2hl" +
-           "ZERhdGFTZXRzAQBiOAAvAQCNOGI4AAD/////AAAAAARggAoBAAAAAAAGAAAAU3RhdHVzAQDkPQAvAQAz" +
-           "OeQ9AAD/////AQAAABVgiQoCAAAAAAAFAAAAU3RhdGUBAOU9AC8AP+U9AAABADc5/////wEB/////wAA" +
-           "AAAEYIAKAQAAAAAACwAAAERpYWdub3N0aWNzAQAbSQAvAQAUTRtJAAD/////BwAAABVgiQoCAAAAAAAQ" +
-           "AAAARGlhZ25vc3RpY3NMZXZlbAEAHEkALwA/HEkAAAEAC03/////AQH/////AAAAABVgiQoCAAAAAAAQ" +
-           "AAAAVG90YWxJbmZvcm1hdGlvbgEAHUkALwEADU0dSQAAAAf/////AQH/////AwAAABVgiQoCAAAAAAAG" +
-           "AAAAQWN0aXZlAQAeSQAuAEQeSQAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAOAAAAQ2xhc3NpZmlj" +
-           "YXRpb24BAB9JAC4ARB9JAAABABJN/////wEB/////wAAAAAVYIkKAgAAAAAAEAAAAERpYWdub3N0aWNz" +
-           "TGV2ZWwBACBJAC4ARCBJAAABAAtN/////wEB/////wAAAAAVYIkKAgAAAAAACgAAAFRvdGFsRXJyb3IB" +
-           "ACJJAC8BAA1NIkkAAAAH/////wEB/////wMAAAAVYIkKAgAAAAAABgAAAEFjdGl2ZQEAI0kALgBEI0kA" +
-           "AAAB/////wEB/////wAAAAAVYIkKAgAAAAAADgAAAENsYXNzaWZpY2F0aW9uAQAkSQAuAEQkSQAAAQAS" +
-           "Tf////8BAf////8AAAAAFWCJCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQAlSQAuAEQlSQAAAQAL" +
-           "Tf////8BAf////8AAAAABGGCCgQAAAAAAAUAAABSZXNldAEAJ0kALwEA6UwnSQAAAQH/////AAAAABVg" +
-           "iQoCAAAAAAAIAAAAU3ViRXJyb3IBAChJAC8APyhJAAAAAf////8BAf////8AAAAABGCACgEAAAAAAAgA" +
-           "AABDb3VudGVycwEAKUkALwA6KUkAAP////8GAAAAFWCJCgIAAAAAAAoAAABTdGF0ZUVycm9yAQAqSQAv" +
-           "AQANTSpJAAAAB/////8BAf////8DAAAAFWCJCgIAAAAAAAYAAABBY3RpdmUBACtJAC4ARCtJAAAAAf//" +
-           "//8BAf////8AAAAAFWCpCgIAAAAAAA4AAABDbGFzc2lmaWNhdGlvbgEALEkALgBELEkAAAYBAAAAAQAS" +
-           "Tf////8BAf////8AAAAAFWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQAtSQAuAEQtSQAABgAA" +
-           "AAABAAtN/////wEB/////wAAAAAVYIkKAgAAAAAAGAAAAFN0YXRlT3BlcmF0aW9uYWxCeU1ldGhvZAEA" +
-           "L0kALwEADU0vSQAAAAf/////AQH/////AwAAABVgiQoCAAAAAAAGAAAAQWN0aXZlAQAwSQAuAEQwSQAA" +
-           "AAH/////AQH/////AAAAABVgqQoCAAAAAAAOAAAAQ2xhc3NpZmljYXRpb24BADFJAC4ARDFJAAAGAAAA" +
-           "AAEAEk3/////AQH/////AAAAABVgqQoCAAAAAAAQAAAARGlhZ25vc3RpY3NMZXZlbAEAMkkALgBEMkkA" +
-           "AAYAAAAAAQALTf////8BAf////8AAAAAFWCJCgIAAAAAABgAAABTdGF0ZU9wZXJhdGlvbmFsQnlQYXJl" +
-           "bnQBADRJAC8BAA1NNEkAAAAH/////wEB/////wMAAAAVYIkKAgAAAAAABgAAAEFjdGl2ZQEANUkALgBE" +
-           "NUkAAAAB/////wEB/////wAAAAAVYKkKAgAAAAAADgAAAENsYXNzaWZpY2F0aW9uAQA2SQAuAEQ2SQAA" +
-           "BgAAAAABABJN/////wEB/////wAAAAAVYKkKAgAAAAAAEAAAAERpYWdub3N0aWNzTGV2ZWwBADdJAC4A" +
-           "RDdJAAAGAAAAAAEAC03/////AQH/////AAAAABVgiQoCAAAAAAAZAAAAU3RhdGVPcGVyYXRpb25hbEZy" +
-           "b21FcnJvcgEAOUkALwEADU05SQAAAAf/////AQH/////AwAAABVgiQoCAAAAAAAGAAAAQWN0aXZlAQA6" +
-           "SQAuAEQ6SQAAAAH/////AQH/////AAAAABVgqQoCAAAAAAAOAAAAQ2xhc3NpZmljYXRpb24BADtJAC4A" +
-           "RDtJAAAGAAAAAAEAEk3/////AQH/////AAAAABVgqQoCAAAAAAAQAAAARGlhZ25vc3RpY3NMZXZlbAEA" +
-           "PEkALgBEPEkAAAYAAAAAAQALTf////8BAf////8AAAAAFWCJCgIAAAAAABMAAABTdGF0ZVBhdXNlZEJ5" +
-           "UGFyZW50AQA+SQAvAQANTT5JAAAAB/////8BAf////8DAAAAFWCJCgIAAAAAAAYAAABBY3RpdmUBAD9J" +
-           "AC4ARD9JAAAAAf////8BAf////8AAAAAFWCpCgIAAAAAAA4AAABDbGFzc2lmaWNhdGlvbgEAQEkALgBE" +
-           "QEkAAAYAAAAAAQASTf////8BAf////8AAAAAFWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQBB" +
-           "SQAuAERBSQAABgAAAAABAAtN/////wEB/////wAAAAAVYIkKAgAAAAAAFQAAAFN0YXRlRGlzYWJsZWRC" +
-           "eU1ldGhvZAEAQ0kALwEADU1DSQAAAAf/////AQH/////AwAAABVgiQoCAAAAAAAGAAAAQWN0aXZlAQBE" +
-           "SQAuAERESQAAAAH/////AQH/////AAAAABVgqQoCAAAAAAAOAAAAQ2xhc3NpZmljYXRpb24BAEVJAC4A" +
-           "REVJAAAGAAAAAAEAEk3/////AQH/////AAAAABVgqQoCAAAAAAAQAAAARGlhZ25vc3RpY3NMZXZlbAEA" +
-           "RkkALgBERkkAAAYAAAAAAQALTf////8BAf////8AAAAABGCACgEAAAAAAAoAAABMaXZlVmFsdWVzAQBI" +
-           "SQAvADpISQAA/////wQAAAAVYIkKAgAAAAAAGAAAAENvbmZpZ3VyZWREYXRhU2V0V3JpdGVycwEASUkA" +
-           "LwA/SUkAAAAF/////wEB/////wEAAAAVYKkKAgAAAAAAEAAAAERpYWdub3N0aWNzTGV2ZWwBAEpJAC4A" +
-           "REpJAAAGAAAAAAEAC03/////AQH/////AAAAABVgiQoCAAAAAAAYAAAAQ29uZmlndXJlZERhdGFTZXRS" +
-           "ZWFkZXJzAQBLSQAvAD9LSQAAAAX/////AQH/////AQAAABVgqQoCAAAAAAAQAAAARGlhZ25vc3RpY3NM" +
-           "ZXZlbAEATEkALgBETEkAAAYAAAAAAQALTf////8BAf////8AAAAAFWCJCgIAAAAAABkAAABPcGVyYXRp" +
-           "b25hbERhdGFTZXRXcml0ZXJzAQBNSQAvAD9NSQAAAAX/////AQH/////AQAAABVgqQoCAAAAAAAQAAAA" +
-           "RGlhZ25vc3RpY3NMZXZlbAEATkkALgBETkkAAAYAAAAAAQALTf////8BAf////8AAAAAFWCJCgIAAAAA" +
-           "ABkAAABPcGVyYXRpb25hbERhdGFTZXRSZWFkZXJzAQBPSQAvAD9PSQAAAAX/////AQH/////AQAAABVg" +
-           "qQoCAAAAAAAQAAAARGlhZ25vc3RpY3NMZXZlbAEAUEkALgBEUEkAAAYAAAAAAQALTf////8BAf////8A" +
-           "AAAAF2CJCgIAAAAAABoAAABTdXBwb3J0ZWRUcmFuc3BvcnRQcm9maWxlcwEAR0QALgBER0QAAAAMAQAA" +
-           "AAEAAAAAAAAAAQH/////AAAAAA==";
+           "AAD/////BwAAAARhggoEAAAAAAAPAAAAU2V0U2VjdXJpdHlLZXlzAQCQQwAvAQCQQ5BDAAABAf////8B" +
+           "AAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAkUMALgBEkUMAAJYHAAAAAQAqAQEeAAAADwAA" +
+           "AFNlY3VyaXR5R3JvdXBJZAAM/////wAAAAAAAQAqAQEgAAAAEQAAAFNlY3VyaXR5UG9saWN5VXJpAAz/" +
+           "////AAAAAAABACoBAR8AAAAOAAAAQ3VycmVudFRva2VuSWQBACAB/////wAAAAAAAQAqAQEZAAAACgAA" +
+           "AEN1cnJlbnRLZXkAD/////8AAAAAAAEAKgEBHQAAAAoAAABGdXR1cmVLZXlzAA8BAAAAAQAAAAAAAAAA" +
+           "AQAqAQEeAAAADQAAAFRpbWVUb05leHRLZXkBACIB/////wAAAAAAAQAqAQEcAAAACwAAAEtleUxpZmV0" +
+           "aW1lAQAiAf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAA0AAABBZGRD" +
+           "b25uZWN0aW9uAQDWQAAvAQDWQNZAAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50" +
+           "cwEA10AALgBE10AAAJYBAAAAAQAqAQEeAAAADQAAAENvbmZpZ3VyYXRpb24BAAE9/////wAAAAAAAQAo" +
+           "AQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEA2EAALgBE" +
+           "2EAAAJYBAAAAAQAqAQEbAAAADAAAAENvbm5lY3Rpb25JZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAA" +
+           "AAEB/////wAAAAAEYYIKBAAAAAAAEAAAAFJlbW92ZUNvbm5lY3Rpb24BAGA4AC8BAGA4YDgAAAEB////" +
+           "/wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBhOAAuAERhOAAAlgEAAAABACoBARsAAAAM" +
+           "AAAAQ29ubmVjdGlvbklkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARggAoBAAAA" +
+           "AAARAAAAUHVibGlzaGVkRGF0YVNldHMBAGI4AC8BAI04YjgAAP////8AAAAABGCACgEAAAAAAAYAAABT" +
+           "dGF0dXMBAOQ9AC8BADM55D0AAP////8BAAAAFWCJCgIAAAAAAAUAAABTdGF0ZQEA5T0ALwA/5T0AAAEA" +
+           "Nzn/////AQH/////AAAAAARggAoBAAAAAAALAAAARGlhZ25vc3RpY3MBABtJAC8BABRNG0kAAP////8H" +
+           "AAAAFWCJCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQAcSQAvAD8cSQAAAQALTf////8BAf////8A" +
+           "AAAAFWCJCgIAAAAAABAAAABUb3RhbEluZm9ybWF0aW9uAQAdSQAvAQANTR1JAAAAB/////8BAf////8D" +
+           "AAAAFWCJCgIAAAAAAAYAAABBY3RpdmUBAB5JAC4ARB5JAAAAAf////8BAf////8AAAAAFWCJCgIAAAAA" +
+           "AA4AAABDbGFzc2lmaWNhdGlvbgEAH0kALgBEH0kAAAEAEk3/////AQH/////AAAAABVgiQoCAAAAAAAQ" +
+           "AAAARGlhZ25vc3RpY3NMZXZlbAEAIEkALgBEIEkAAAEAC03/////AQH/////AAAAABVgiQoCAAAAAAAK" +
+           "AAAAVG90YWxFcnJvcgEAIkkALwEADU0iSQAAAAf/////AQH/////AwAAABVgiQoCAAAAAAAGAAAAQWN0" +
+           "aXZlAQAjSQAuAEQjSQAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAOAAAAQ2xhc3NpZmljYXRpb24B" +
+           "ACRJAC4ARCRJAAABABJN/////wEB/////wAAAAAVYIkKAgAAAAAAEAAAAERpYWdub3N0aWNzTGV2ZWwB" +
+           "ACVJAC4ARCVJAAABAAtN/////wEB/////wAAAAAEYYIKBAAAAAAABQAAAFJlc2V0AQAnSQAvAQDpTCdJ" +
+           "AAABAf////8AAAAAFWCJCgIAAAAAAAgAAABTdWJFcnJvcgEAKEkALwA/KEkAAAAB/////wEB/////wAA" +
+           "AAAEYIAKAQAAAAAACAAAAENvdW50ZXJzAQApSQAvADopSQAA/////wYAAAAVYIkKAgAAAAAACgAAAFN0" +
+           "YXRlRXJyb3IBACpJAC8BAA1NKkkAAAAH/////wEB/////wMAAAAVYIkKAgAAAAAABgAAAEFjdGl2ZQEA" +
+           "K0kALgBEK0kAAAAB/////wEB/////wAAAAAVYKkKAgAAAAAADgAAAENsYXNzaWZpY2F0aW9uAQAsSQAu" +
+           "AEQsSQAABgEAAAABABJN/////wEB/////wAAAAAVYKkKAgAAAAAAEAAAAERpYWdub3N0aWNzTGV2ZWwB" +
+           "AC1JAC4ARC1JAAAGAAAAAAEAC03/////AQH/////AAAAABVgiQoCAAAAAAAYAAAAU3RhdGVPcGVyYXRp" +
+           "b25hbEJ5TWV0aG9kAQAvSQAvAQANTS9JAAAAB/////8BAf////8DAAAAFWCJCgIAAAAAAAYAAABBY3Rp" +
+           "dmUBADBJAC4ARDBJAAAAAf////8BAf////8AAAAAFWCpCgIAAAAAAA4AAABDbGFzc2lmaWNhdGlvbgEA" +
+           "MUkALgBEMUkAAAYAAAAAAQASTf////8BAf////8AAAAAFWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xl" +
+           "dmVsAQAySQAuAEQySQAABgAAAAABAAtN/////wEB/////wAAAAAVYIkKAgAAAAAAGAAAAFN0YXRlT3Bl" +
+           "cmF0aW9uYWxCeVBhcmVudAEANEkALwEADU00SQAAAAf/////AQH/////AwAAABVgiQoCAAAAAAAGAAAA" +
+           "QWN0aXZlAQA1SQAuAEQ1SQAAAAH/////AQH/////AAAAABVgqQoCAAAAAAAOAAAAQ2xhc3NpZmljYXRp" +
+           "b24BADZJAC4ARDZJAAAGAAAAAAEAEk3/////AQH/////AAAAABVgqQoCAAAAAAAQAAAARGlhZ25vc3Rp" +
+           "Y3NMZXZlbAEAN0kALgBEN0kAAAYAAAAAAQALTf////8BAf////8AAAAAFWCJCgIAAAAAABkAAABTdGF0" +
+           "ZU9wZXJhdGlvbmFsRnJvbUVycm9yAQA5SQAvAQANTTlJAAAAB/////8BAf////8DAAAAFWCJCgIAAAAA" +
+           "AAYAAABBY3RpdmUBADpJAC4ARDpJAAAAAf////8BAf////8AAAAAFWCpCgIAAAAAAA4AAABDbGFzc2lm" +
+           "aWNhdGlvbgEAO0kALgBEO0kAAAYAAAAAAQASTf////8BAf////8AAAAAFWCpCgIAAAAAABAAAABEaWFn" +
+           "bm9zdGljc0xldmVsAQA8SQAuAEQ8SQAABgAAAAABAAtN/////wEB/////wAAAAAVYIkKAgAAAAAAEwAA" +
+           "AFN0YXRlUGF1c2VkQnlQYXJlbnQBAD5JAC8BAA1NPkkAAAAH/////wEB/////wMAAAAVYIkKAgAAAAAA" +
+           "BgAAAEFjdGl2ZQEAP0kALgBEP0kAAAAB/////wEB/////wAAAAAVYKkKAgAAAAAADgAAAENsYXNzaWZp" +
+           "Y2F0aW9uAQBASQAuAERASQAABgAAAAABABJN/////wEB/////wAAAAAVYKkKAgAAAAAAEAAAAERpYWdu" +
+           "b3N0aWNzTGV2ZWwBAEFJAC4AREFJAAAGAAAAAAEAC03/////AQH/////AAAAABVgiQoCAAAAAAAVAAAA" +
+           "U3RhdGVEaXNhYmxlZEJ5TWV0aG9kAQBDSQAvAQANTUNJAAAAB/////8BAf////8DAAAAFWCJCgIAAAAA" +
+           "AAYAAABBY3RpdmUBAERJAC4ARERJAAAAAf////8BAf////8AAAAAFWCpCgIAAAAAAA4AAABDbGFzc2lm" +
+           "aWNhdGlvbgEARUkALgBERUkAAAYAAAAAAQASTf////8BAf////8AAAAAFWCpCgIAAAAAABAAAABEaWFn" +
+           "bm9zdGljc0xldmVsAQBGSQAuAERGSQAABgAAAAABAAtN/////wEB/////wAAAAAEYIAKAQAAAAAACgAA" +
+           "AExpdmVWYWx1ZXMBAEhJAC8AOkhJAAD/////BAAAABVgiQoCAAAAAAAYAAAAQ29uZmlndXJlZERhdGFT" +
+           "ZXRXcml0ZXJzAQBJSQAvAD9JSQAAAAX/////AQH/////AQAAABVgqQoCAAAAAAAQAAAARGlhZ25vc3Rp" +
+           "Y3NMZXZlbAEASkkALgBESkkAAAYAAAAAAQALTf////8BAf////8AAAAAFWCJCgIAAAAAABgAAABDb25m" +
+           "aWd1cmVkRGF0YVNldFJlYWRlcnMBAEtJAC8AP0tJAAAABf////8BAf////8BAAAAFWCpCgIAAAAAABAA" +
+           "AABEaWFnbm9zdGljc0xldmVsAQBMSQAuAERMSQAABgAAAAABAAtN/////wEB/////wAAAAAVYIkKAgAA" +
+           "AAAAGQAAAE9wZXJhdGlvbmFsRGF0YVNldFdyaXRlcnMBAE1JAC8AP01JAAAABf////8BAf////8BAAAA" +
+           "FWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQBOSQAuAEROSQAABgAAAAABAAtN/////wEB////" +
+           "/wAAAAAVYIkKAgAAAAAAGQAAAE9wZXJhdGlvbmFsRGF0YVNldFJlYWRlcnMBAE9JAC8AP09JAAAABf//" +
+           "//8BAf////8BAAAAFWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQBQSQAuAERQSQAABgAAAAAB" +
+           "AAtN/////wEB/////wAAAAAXYIkKAgAAAAAAGgAAAFN1cHBvcnRlZFRyYW5zcG9ydFByb2ZpbGVzAQBH" +
+           "RAAuAERHRAAAAAwBAAAAAQAAAAAAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -62988,7 +67427,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             string securityGroupId = (string)_inputArguments[0];
             string securityPolicyUri = (string)_inputArguments[1];
@@ -63000,7 +67439,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -63013,7 +67452,7 @@ namespace Opc.Ua
                     keyLifetime);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -63103,7 +67542,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             PubSubConnectionDataType configuration = (PubSubConnectionDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
 
@@ -63111,7 +67550,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -63121,7 +67560,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = connectionId;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -63204,20 +67643,20 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             NodeId connectionId = (NodeId)_inputArguments[0];
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
                     connectionId);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -63304,24 +67743,18 @@ namespace Opc.Ua
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAHAAAAFB1Ymxpc2hlZERhdGFTZXRUeXBlSW5zdGFuY2UBAK04AQCtOK04" +
-           "AAD/////BQAAAARgwAoBAAAAHQAAAERhdGFTZXRXcml0ZXJOYW1lX1BsYWNlaG9sZGVyAAATAAAAPERh" +
-           "dGFTZXRXcml0ZXJOYW1lPgEAdjsBAFg6AQDCO3Y7AAD/////BAAAABVgiQoCAAAAAAAPAAAARGF0YVNl" +
-           "dFdyaXRlcklkAQBQQQAuAERQQQAAAAX/////AQH/////AAAAABVgiQoCAAAAAAAXAAAARGF0YVNldEZp" +
-           "ZWxkQ29udGVudE1hc2sBAFFBAC4ARFFBAAABAN88/////wEB/////wAAAAAXYIkKAgAAAAAAFwAAAERh" +
-           "dGFTZXRXcml0ZXJQcm9wZXJ0aWVzAQBKRAAuAERKRAAAAQDFOAEAAAABAAAAAAAAAAEB/////wAAAAAE" +
-           "YIAKAQAAAAAABgAAAFN0YXR1cwEAdzsALwEAMzl3OwAA/////wEAAAAVYIkKAgAAAAAABQAAAFN0YXRl" +
-           "AQB4OwAvAD94OwAAAQA3Of////8BAf////8AAAAAFWCJCgIAAAAAABQAAABDb25maWd1cmF0aW9uVmVy" +
-           "c2lvbgEAtzgALgBEtzgAAAEAATn/////AQH/////AAAAABVgiQoCAAAAAAAPAAAARGF0YVNldE1ldGFE" +
-           "YXRhAQB9OwAuAER9OwAAAQC7OP////8BAf////8AAAAAFWCJCgIAAAAAAA4AAABEYXRhU2V0Q2xhc3NJ" +
-           "ZAEAd0EALgBEd0EAAAAO/////wEB/////wAAAAAEYIAKAQAAAAAADwAAAEV4dGVuc2lvbkZpZWxkcwEA" +
-           "eTwALwEAgTx5PAAA/////wIAAAAEYYIKBAAAAAAAEQAAAEFkZEV4dGVuc2lvbkZpZWxkAQB6PAAvAQCD" +
-           "PHo8AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAezwALgBEezwAAJYCAAAA" +
-           "AQAqAQEYAAAACQAAAEZpZWxkTmFtZQAU/////wAAAAAAAQAqAQEZAAAACgAAAEZpZWxkVmFsdWUAGP7/" +
-           "//8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVu" +
-           "dHMBAHw8AC4ARHw8AACWAQAAAAEAKgEBFgAAAAcAAABGaWVsZElkABH/////AAAAAAABACgBAQAAAAEA" +
-           "AAAAAAAAAQH/////AAAAAARhggoEAAAAAAAUAAAAUmVtb3ZlRXh0ZW5zaW9uRmllbGQBAH08AC8BAIY8" +
-           "fTwAAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQB+PAAuAER+PAAAlgEAAAAB" +
-           "ACoBARYAAAAHAAAARmllbGRJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
+           "AAD/////BAAAABVgiQoCAAAAAAAUAAAAQ29uZmlndXJhdGlvblZlcnNpb24BALc4AC4ARLc4AAABAAE5" +
+           "/////wEB/////wAAAAAVYIkKAgAAAAAADwAAAERhdGFTZXRNZXRhRGF0YQEAfTsALgBEfTsAAAEAuzj/" +
+           "////AQH/////AAAAABVgiQoCAAAAAAAOAAAARGF0YVNldENsYXNzSWQBAHdBAC4ARHdBAAAADv////8B" +
+           "Af////8AAAAABGCACgEAAAAAAA8AAABFeHRlbnNpb25GaWVsZHMBAHk8AC8BAIE8eTwAAP////8CAAAA" +
+           "BGGCCgQAAAAAABEAAABBZGRFeHRlbnNpb25GaWVsZAEAejwALwEAgzx6PAAAAQH/////AgAAABdgqQoC" +
+           "AAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAHs8AC4ARHs8AACWAgAAAAEAKgEBGAAAAAkAAABGaWVsZE5h" +
+           "bWUAFP////8AAAAAAAEAKgEBGQAAAAoAAABGaWVsZFZhbHVlABj+////AAAAAAABACgBAQAAAAEAAAAA" +
+           "AAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQB8PAAuAER8PAAAlgEAAAAB" +
+           "ACoBARYAAAAHAAAARmllbGRJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIK" +
+           "BAAAAAAAFAAAAFJlbW92ZUV4dGVuc2lvbkZpZWxkAQB9PAAvAQCGPH08AAABAf////8BAAAAF2CpCgIA" +
+           "AAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAfjwALgBEfjwAAJYBAAAAAQAqAQEWAAAABwAAAEZpZWxkSWQA" +
+           "Ef////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -63597,16 +68030,14 @@ namespace Opc.Ua
         #region Initialization String
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAGwAAAEV4dGVuc2lvbkZpZWxkc1R5cGVJbnN0YW5jZQEAgTwBAIE8gTwA" +
-           "AP////8DAAAAFWDJCgIAAAAeAAAARXh0ZW5zaW9uRmllbGROYW1lX1BsYWNlaG9sZGVyAAAUAAAAPEV4" +
-           "dGVuc2lvbkZpZWxkTmFtZT4BAII8AC4ARII8AAAAGP////8BAf////8AAAAABGGCCgQAAAAAABEAAABB" +
-           "ZGRFeHRlbnNpb25GaWVsZAEAgzwALwEAgzyDPAAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRB" +
-           "cmd1bWVudHMBAIQ8AC4ARIQ8AACWAgAAAAEAKgEBGAAAAAkAAABGaWVsZE5hbWUAFP////8AAAAAAAEA" +
-           "KgEBGQAAAAoAAABGaWVsZFZhbHVlABj+////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdg" +
-           "qQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQCFPAAuAESFPAAAlgEAAAABACoBARYAAAAHAAAARmll" +
-           "bGRJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAAFAAAAFJlbW92" +
-           "ZUV4dGVuc2lvbkZpZWxkAQCGPAAvAQCGPIY8AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFy" +
-           "Z3VtZW50cwEAhzwALgBEhzwAAJYBAAAAAQAqAQEWAAAABwAAAEZpZWxkSWQAEf////8AAAAAAAEAKAEB" +
-           "AAAAAQAAAAAAAAABAf////8AAAAA";
+           "AP////8CAAAABGGCCgQAAAAAABEAAABBZGRFeHRlbnNpb25GaWVsZAEAgzwALwEAgzyDPAAAAQH/////" +
+           "AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAIQ8AC4ARIQ8AACWAgAAAAEAKgEBGAAAAAkA" +
+           "AABGaWVsZE5hbWUAFP////8AAAAAAAEAKgEBGQAAAAoAAABGaWVsZFZhbHVlABj+////AAAAAAABACgB" +
+           "AQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQCFPAAuAESF" +
+           "PAAAlgEAAAABACoBARYAAAAHAAAARmllbGRJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB////" +
+           "/wAAAAAEYYIKBAAAAAAAFAAAAFJlbW92ZUV4dGVuc2lvbkZpZWxkAQCGPAAvAQCGPIY8AAABAf////8B" +
+           "AAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAhzwALgBEhzwAAJYBAAAAAQAqAQEWAAAABwAA" +
+           "AEZpZWxkSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -63813,7 +68244,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             QualifiedName fieldName = (QualifiedName)_inputArguments[0];
             object fieldValue = (object)_inputArguments[1];
@@ -63822,7 +68253,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -63833,7 +68264,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = fieldId;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -63917,20 +68348,20 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             NodeId fieldId = (NodeId)_inputArguments[0];
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
                     fieldId);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -64294,7 +68725,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             ConfigurationVersionDataType configurationVersion = (ConfigurationVersionDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
             string[] fieldNameAliases = (string[])_inputArguments[1];
@@ -64306,7 +68737,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -64321,7 +68752,7 @@ namespace Opc.Ua
             _outputArguments[0] = newConfigurationVersion;
             _outputArguments[1] = addResults;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -64412,7 +68843,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             ConfigurationVersionDataType configurationVersion = (ConfigurationVersionDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
             uint[] variablesToRemove = (uint[])_inputArguments[1];
@@ -64422,7 +68853,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -64435,7 +68866,7 @@ namespace Opc.Ua
             _outputArguments[0] = newConfigurationVersion;
             _outputArguments[1] = removeResults;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -64828,7 +69259,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             ConfigurationVersionDataType configurationVersion = (ConfigurationVersionDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
             string[] fieldNameAliases = (string[])_inputArguments[1];
@@ -64839,7 +69270,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -64852,7 +69283,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = newConfigurationVersion;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -65011,92 +69442,47 @@ namespace Opc.Ua
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAGQAAAERhdGFTZXRGb2xkZXJUeXBlSW5zdGFuY2UBAI04AQCNOI04AAD/" +
-           "////CQAAAARgwAoBAAAAHQAAAERhdGFTZXRGb2xkZXJOYW1lX1BsYWNlaG9sZGVyAAATAAAAPERhdGFT" +
-           "ZXRGb2xkZXJOYW1lPgEAjjgAIwEAjTiOOAAA/////wcAAAAEYYIKBAAAAAAAFQAAAEFkZFB1Ymxpc2hl" +
-           "ZERhdGFJdGVtcwEAjzgALwEAnTiPOAAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVu" +
-           "dHMBAJA4AC4ARJA4AACWBAAAAAEAKgEBEwAAAAQAAABOYW1lAAz/////AAAAAAABACoBASMAAAAQAAAA" +
-           "RmllbGROYW1lQWxpYXNlcwAMAQAAAAEAAAAAAAAAAAEAKgEBHwAAAAoAAABGaWVsZEZsYWdzAQAgPgEA" +
-           "AAABAAAAAAAAAAABACoBASMAAAAOAAAAVmFyaWFibGVzVG9BZGQBAME3AQAAAAEAAAAAAAAAAAEAKAEB" +
-           "AAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAJE4AC4ARJE4" +
-           "AACWAwAAAAEAKgEBHAAAAA0AAABEYXRhU2V0Tm9kZUlkABH/////AAAAAAABACoBASUAAAAUAAAAQ29u" +
-           "ZmlndXJhdGlvblZlcnNpb24BAAE5/////wAAAAAAAQAqAQEdAAAACgAAAEFkZFJlc3VsdHMAEwEAAAAB" +
-           "AAAAAAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAASAAAAQWRkUHVibGlzaGVk" +
-           "RXZlbnRzAQCSOAAvAQCgOJI4AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA" +
-           "kzgALgBEkzgAAJYGAAAAAQAqAQETAAAABAAAAE5hbWUADP////8AAAAAAAEAKgEBHAAAAA0AAABFdmVu" +
-           "dE5vdGlmaWVyABH/////AAAAAAABACoBASMAAAAQAAAARmllbGROYW1lQWxpYXNlcwAMAQAAAAEAAAAA" +
-           "AAAAAAEAKgEBHwAAAAoAAABGaWVsZEZsYWdzAQAgPgEAAAABAAAAAAAAAAABACoBASMAAAAOAAAAU2Vs" +
-           "ZWN0ZWRGaWVsZHMBAFkCAQAAAAEAAAAAAAAAAAEAKgEBFwAAAAYAAABGaWx0ZXIBAEoC/////wAAAAAA" +
-           "AQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAlDgA" +
-           "LgBElDgAAJYCAAAAAQAqAQElAAAAFAAAAENvbmZpZ3VyYXRpb25WZXJzaW9uAQABOf////8AAAAAAAEA" +
-           "KgEBHAAAAA0AAABEYXRhU2V0Tm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAA" +
-           "AARhggoEAAAAAAAdAAAAQWRkUHVibGlzaGVkRGF0YUl0ZW1zVGVtcGxhdGUBAMpBAC8BACdCykEAAAEB" +
-           "/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQDLQQAuAETLQQAAlgMAAAABACoBARMA" +
-           "AAAEAAAATmFtZQAM/////wAAAAAAAQAqAQEgAAAADwAAAERhdGFTZXRNZXRhRGF0YQEAuzj/////AAAA" +
-           "AAABACoBASMAAAAOAAAAVmFyaWFibGVzVG9BZGQBAME3AQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAAA" +
-           "AAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBANVBAC4ARNVBAACWAgAAAAEA" +
-           "KgEBHAAAAA0AAABEYXRhU2V0Tm9kZUlkABH/////AAAAAAABACoBAR0AAAAKAAAAQWRkUmVzdWx0cwAT" +
-           "AQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAABoAAABBZGRQdWJs" +
-           "aXNoZWRFdmVudHNUZW1wbGF0ZQEA8UEALwEAQELxQQAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5w" +
-           "dXRBcmd1bWVudHMBAPJBAC4ARPJBAACWBQAAAAEAKgEBEwAAAAQAAABOYW1lAAz/////AAAAAAABACoB" +
-           "ASAAAAAPAAAARGF0YVNldE1ldGFEYXRhAQC7OP////8AAAAAAAEAKgEBHAAAAA0AAABFdmVudE5vdGlm" +
-           "aWVyABH/////AAAAAAABACoBASMAAAAOAAAAU2VsZWN0ZWRGaWVsZHMBAFkCAQAAAAEAAAAAAAAAAAEA" +
-           "KgEBFwAAAAYAAABGaWx0ZXIBAEoC/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkK" +
-           "AgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEA80EALgBE80EAAJYBAAAAAQAqAQEcAAAADQAAAERhdGFT" +
-           "ZXROb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAABYAAABS" +
-           "ZW1vdmVQdWJsaXNoZWREYXRhU2V0AQCVOAAvAQCjOJU4AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJ" +
-           "bnB1dEFyZ3VtZW50cwEAljgALgBEljgAAJYBAAAAAQAqAQEcAAAADQAAAERhdGFTZXROb2RlSWQAEf//" +
-           "//8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAABAAAABBZGREYXRhU2V0Rm9s" +
-           "ZGVyAQD0QQAvAQBiQvRBAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA/kEA" +
-           "LgBE/kEAAJYBAAAAAQAqAQETAAAABAAAAE5hbWUADP////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf//" +
-           "//8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBABpCAC4ARBpCAACWAQAAAAEAKgEBIgAA" +
-           "ABMAAABEYXRhU2V0Rm9sZGVyTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAA" +
-           "AARhggoEAAAAAAATAAAAUmVtb3ZlRGF0YVNldEZvbGRlcgEAG0IALwEAZUIbQgAAAQH/////AQAAABdg" +
-           "qQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBABxCAC4ARBxCAACWAQAAAAEAKgEBIgAAABMAAABEYXRh" +
-           "U2V0Rm9sZGVyTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARgwAoBAAAA" +
-           "IAAAAFB1Ymxpc2hlZERhdGFTZXROYW1lX1BsYWNlaG9sZGVyAAAWAAAAPFB1Ymxpc2hlZERhdGFTZXRO" +
-           "YW1lPgEAlzgALwEArTiXOAAA/////wIAAAAVYIkKAgAAAAAAFAAAAENvbmZpZ3VyYXRpb25WZXJzaW9u" +
-           "AQCZOAAuAESZOAAAAQABOf////8BAf////8AAAAAFWCJCgIAAAAAAA8AAABEYXRhU2V0TWV0YURhdGEB" +
-           "AHU7AC4ARHU7AAABALs4/////wEB/////wAAAAAEYYIKBAAAAAAAFQAAAEFkZFB1Ymxpc2hlZERhdGFJ" +
-           "dGVtcwEAnTgALwEAnTidOAAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAJ44" +
-           "AC4ARJ44AACWBAAAAAEAKgEBEwAAAAQAAABOYW1lAAz/////AAAAAAABACoBASMAAAAQAAAARmllbGRO" +
-           "YW1lQWxpYXNlcwAMAQAAAAEAAAAAAAAAAAEAKgEBHwAAAAoAAABGaWVsZEZsYWdzAQAgPgEAAAABAAAA" +
-           "AAAAAAABACoBASMAAAAOAAAAVmFyaWFibGVzVG9BZGQBAME3AQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAA" +
-           "AAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAJ84AC4ARJ84AACWAwAA" +
-           "AAEAKgEBHAAAAA0AAABEYXRhU2V0Tm9kZUlkABH/////AAAAAAABACoBASUAAAAUAAAAQ29uZmlndXJh" +
-           "dGlvblZlcnNpb24BAAE5/////wAAAAAAAQAqAQEdAAAACgAAAEFkZFJlc3VsdHMAEwEAAAABAAAAAAAA" +
-           "AAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAASAAAAQWRkUHVibGlzaGVkRXZlbnRz" +
-           "AQCgOAAvAQCgOKA4AAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAoTgALgBE" +
-           "oTgAAJYGAAAAAQAqAQETAAAABAAAAE5hbWUADP////8AAAAAAAEAKgEBHAAAAA0AAABFdmVudE5vdGlm" +
-           "aWVyABH/////AAAAAAABACoBASMAAAAQAAAARmllbGROYW1lQWxpYXNlcwAMAQAAAAEAAAAAAAAAAAEA" +
-           "KgEBHwAAAAoAAABGaWVsZEZsYWdzAQAgPgEAAAABAAAAAAAAAAABACoBASMAAAAOAAAAU2VsZWN0ZWRG" +
-           "aWVsZHMBAFkCAQAAAAEAAAAAAAAAAAEAKgEBFwAAAAYAAABGaWx0ZXIBAEoC/////wAAAAAAAQAoAQEA" +
-           "AAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAojgALgBEojgA" +
-           "AJYCAAAAAQAqAQElAAAAFAAAAENvbmZpZ3VyYXRpb25WZXJzaW9uAQABOf////8AAAAAAAEAKgEBHAAA" +
-           "AA0AAABEYXRhU2V0Tm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoE" +
-           "AAAAAAAdAAAAQWRkUHVibGlzaGVkRGF0YUl0ZW1zVGVtcGxhdGUBACdCAC8BACdCJ0IAAAEB/////wIA" +
-           "AAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQA+QgAuAEQ+QgAAlgMAAAABACoBARMAAAAEAAAA" +
-           "TmFtZQAM/////wAAAAAAAQAqAQEgAAAADwAAAERhdGFTZXRNZXRhRGF0YQEAuzj/////AAAAAAABACoB" +
-           "ASMAAAAOAAAAVmFyaWFibGVzVG9BZGQBAME3AQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAAAAAABAf//" +
-           "//8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAD9CAC4ARD9CAACWAgAAAAEAKgEBHAAA" +
-           "AA0AAABEYXRhU2V0Tm9kZUlkABH/////AAAAAAABACoBAR0AAAAKAAAAQWRkUmVzdWx0cwATAQAAAAEA" +
-           "AAAAAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAABoAAABBZGRQdWJsaXNoZWRF" +
-           "dmVudHNUZW1wbGF0ZQEAQEIALwEAQEJAQgAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1" +
-           "bWVudHMBAEFCAC4AREFCAACWBQAAAAEAKgEBEwAAAAQAAABOYW1lAAz/////AAAAAAABACoBASAAAAAP" +
-           "AAAARGF0YVNldE1ldGFEYXRhAQC7OP////8AAAAAAAEAKgEBHAAAAA0AAABFdmVudE5vdGlmaWVyABH/" +
-           "////AAAAAAABACoBASMAAAAOAAAAU2VsZWN0ZWRGaWVsZHMBAFkCAQAAAAEAAAAAAAAAAAEAKgEBFwAA" +
-           "AAYAAABGaWx0ZXIBAEoC/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAA" +
-           "DwAAAE91dHB1dEFyZ3VtZW50cwEAS0IALgBES0IAAJYBAAAAAQAqAQEcAAAADQAAAERhdGFTZXROb2Rl" +
-           "SWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAABYAAABSZW1vdmVQ" +
-           "dWJsaXNoZWREYXRhU2V0AQCjOAAvAQCjOKM4AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFy" +
-           "Z3VtZW50cwEApDgALgBEpDgAAJYBAAAAAQAqAQEcAAAADQAAAERhdGFTZXROb2RlSWQAEf////8AAAAA" +
-           "AAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAABAAAABBZGREYXRhU2V0Rm9sZGVyAQBi" +
-           "QgAvAQBiQmJCAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAY0IALgBEY0IA" +
-           "AJYBAAAAAQAqAQETAAAABAAAAE5hbWUADP////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA" +
-           "F2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAGRCAC4ARGRCAACWAQAAAAEAKgEBIgAAABMAAABE" +
-           "YXRhU2V0Rm9sZGVyTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoE" +
-           "AAAAAAATAAAAUmVtb3ZlRGF0YVNldEZvbGRlcgEAZUIALwEAZUJlQgAAAQH/////AQAAABdgqQoCAAAA" +
-           "AAAOAAAASW5wdXRBcmd1bWVudHMBAG9CAC4ARG9CAACWAQAAAAEAKgEBIgAAABMAAABEYXRhU2V0Rm9s" +
-           "ZGVyTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "////BwAAAARhggoEAAAAAAAVAAAAQWRkUHVibGlzaGVkRGF0YUl0ZW1zAQCdOAAvAQCdOJ04AAABAf//" +
+           "//8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAnjgALgBEnjgAAJYEAAAAAQAqAQETAAAA" +
+           "BAAAAE5hbWUADP////8AAAAAAAEAKgEBIwAAABAAAABGaWVsZE5hbWVBbGlhc2VzAAwBAAAAAQAAAAAA" +
+           "AAAAAQAqAQEfAAAACgAAAEZpZWxkRmxhZ3MBACA+AQAAAAEAAAAAAAAAAAEAKgEBIwAAAA4AAABWYXJp" +
+           "YWJsZXNUb0FkZAEAwTcBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAA" +
+           "AAAADwAAAE91dHB1dEFyZ3VtZW50cwEAnzgALgBEnzgAAJYDAAAAAQAqAQEcAAAADQAAAERhdGFTZXRO" +
+           "b2RlSWQAEf////8AAAAAAAEAKgEBJQAAABQAAABDb25maWd1cmF0aW9uVmVyc2lvbgEAATn/////AAAA" +
+           "AAABACoBAR0AAAAKAAAAQWRkUmVzdWx0cwATAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAAAAAABAf//" +
+           "//8AAAAABGGCCgQAAAAAABIAAABBZGRQdWJsaXNoZWRFdmVudHMBAKA4AC8BAKA4oDgAAAEB/////wIA" +
+           "AAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQChOAAuAEShOAAAlgYAAAABACoBARMAAAAEAAAA" +
+           "TmFtZQAM/////wAAAAAAAQAqAQEcAAAADQAAAEV2ZW50Tm90aWZpZXIAEf////8AAAAAAAEAKgEBIwAA" +
+           "ABAAAABGaWVsZE5hbWVBbGlhc2VzAAwBAAAAAQAAAAAAAAAAAQAqAQEfAAAACgAAAEZpZWxkRmxhZ3MB" +
+           "ACA+AQAAAAEAAAAAAAAAAAEAKgEBIwAAAA4AAABTZWxlY3RlZEZpZWxkcwEAWQIBAAAAAQAAAAAAAAAA" +
+           "AQAqAQEXAAAABgAAAEZpbHRlcgEASgL/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdg" +
+           "qQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQCiOAAuAESiOAAAlgIAAAABACoBASUAAAAUAAAAQ29u" +
+           "ZmlndXJhdGlvblZlcnNpb24BAAE5/////wAAAAAAAQAqAQEcAAAADQAAAERhdGFTZXROb2RlSWQAEf//" +
+           "//8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAAB0AAABBZGRQdWJsaXNoZWRE" +
+           "YXRhSXRlbXNUZW1wbGF0ZQEAJ0IALwEAJ0InQgAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRB" +
+           "cmd1bWVudHMBAD5CAC4ARD5CAACWAwAAAAEAKgEBEwAAAAQAAABOYW1lAAz/////AAAAAAABACoBASAA" +
+           "AAAPAAAARGF0YVNldE1ldGFEYXRhAQC7OP////8AAAAAAAEAKgEBIwAAAA4AAABWYXJpYWJsZXNUb0Fk" +
+           "ZAEAwTcBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91" +
+           "dHB1dEFyZ3VtZW50cwEAP0IALgBEP0IAAJYCAAAAAQAqAQEcAAAADQAAAERhdGFTZXROb2RlSWQAEf//" +
+           "//8AAAAAAAEAKgEBHQAAAAoAAABBZGRSZXN1bHRzABMBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAA" +
+           "AAEB/////wAAAAAEYYIKBAAAAAAAGgAAAEFkZFB1Ymxpc2hlZEV2ZW50c1RlbXBsYXRlAQBAQgAvAQBA" +
+           "QkBCAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAQUIALgBEQUIAAJYFAAAA" +
+           "AQAqAQETAAAABAAAAE5hbWUADP////8AAAAAAAEAKgEBIAAAAA8AAABEYXRhU2V0TWV0YURhdGEBALs4" +
+           "/////wAAAAAAAQAqAQEcAAAADQAAAEV2ZW50Tm90aWZpZXIAEf////8AAAAAAAEAKgEBIwAAAA4AAABT" +
+           "ZWxlY3RlZEZpZWxkcwEAWQIBAAAAAQAAAAAAAAAAAQAqAQEXAAAABgAAAEZpbHRlcgEASgL/////AAAA" +
+           "AAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQBL" +
+           "QgAuAERLQgAAlgEAAAABACoBARwAAAANAAAARGF0YVNldE5vZGVJZAAR/////wAAAAAAAQAoAQEAAAAB" +
+           "AAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAAFgAAAFJlbW92ZVB1Ymxpc2hlZERhdGFTZXQBAKM4AC8B" +
+           "AKM4ozgAAAEB/////wEAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQCkOAAuAESkOAAAlgEA" +
+           "AAABACoBARwAAAANAAAARGF0YVNldE5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB////" +
+           "/wAAAAAEYYIKBAAAAAAAEAAAAEFkZERhdGFTZXRGb2xkZXIBAGJCAC8BAGJCYkIAAAEB/////wIAAAAX" +
+           "YKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBjQgAuAERjQgAAlgEAAAABACoBARMAAAAEAAAATmFt" +
+           "ZQAM/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFy" +
+           "Z3VtZW50cwEAZEIALgBEZEIAAJYBAAAAAQAqAQEiAAAAEwAAAERhdGFTZXRGb2xkZXJOb2RlSWQAEf//" +
+           "//8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAABMAAABSZW1vdmVEYXRhU2V0" +
+           "Rm9sZGVyAQBlQgAvAQBlQmVCAAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA" +
+           "b0IALgBEb0IAAJYBAAAAAQAqAQEiAAAAEwAAAERhdGFTZXRGb2xkZXJOb2RlSWQAEf////8AAAAAAAEA" +
+           "KAEBAAAAAQAAAAAAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -65536,7 +69922,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             string name = (string)_inputArguments[0];
             string[] fieldNameAliases = (string[])_inputArguments[1];
@@ -65549,7 +69935,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -65566,7 +69952,7 @@ namespace Opc.Ua
             _outputArguments[1] = configurationVersion;
             _outputArguments[2] = addResults;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -65660,7 +70046,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             string name = (string)_inputArguments[0];
             NodeId eventNotifier = (NodeId)_inputArguments[1];
@@ -65674,7 +70060,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -65691,7 +70077,7 @@ namespace Opc.Ua
             _outputArguments[0] = configurationVersion;
             _outputArguments[1] = dataSetNodeId;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -65784,7 +70170,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             string name = (string)_inputArguments[0];
             DataSetMetaDataType dataSetMetaData = (DataSetMetaDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[1]);
@@ -65795,7 +70181,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -65809,7 +70195,7 @@ namespace Opc.Ua
             _outputArguments[0] = dataSetNodeId;
             _outputArguments[1] = addResults;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -65900,7 +70286,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             string name = (string)_inputArguments[0];
             DataSetMetaDataType dataSetMetaData = (DataSetMetaDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[1]);
@@ -65912,7 +70298,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -65926,7 +70312,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = dataSetNodeId;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -66014,20 +70400,20 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             NodeId dataSetNodeId = (NodeId)_inputArguments[0];
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
                     dataSetNodeId);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -66111,7 +70497,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             string name = (string)_inputArguments[0];
 
@@ -66119,7 +70505,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -66129,7 +70515,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = dataSetFolderNodeId;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -66213,20 +70599,20 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             NodeId dataSetFolderNodeId = (NodeId)_inputArguments[0];
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
                     dataSetFolderNodeId);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -66377,83 +70763,66 @@ namespace Opc.Ua
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAHAAAAFB1YlN1YkNvbm5lY3Rpb25UeXBlSW5zdGFuY2UBAIE3AQCBN4E3" +
-           "AAD/////DAAAABVgiQoCAAAAAAALAAAAUHVibGlzaGVySWQBAAM5AC4ARAM5AAAAGP////8BAf////8A" +
+           "AAD/////CgAAABVgiQoCAAAAAAALAAAAUHVibGlzaGVySWQBAAM5AC4ARAM5AAAAGP////8BAf////8A" +
            "AAAAFWCJCgIAAAAAABMAAABUcmFuc3BvcnRQcm9maWxlVXJpAQCaQwAvAQC1P5pDAAAADP////8BAf//" +
            "//8BAAAAF2CJCgIAAAAAAAoAAABTZWxlY3Rpb25zAQAuRQAuAEQuRQAAABgBAAAAAQAAAAAAAAABAf//" +
            "//8AAAAAF2CJCgIAAAAAABQAAABDb25uZWN0aW9uUHJvcGVydGllcwEATUQALgBETUQAAAEAxTgBAAAA" +
            "AQAAAAAAAAABAf////8AAAAABGCACgEAAAAAAAcAAABBZGRyZXNzAQCNNwAvAQCZUo03AAD/////AQAA" +
            "ABVgiQoCAAAAAAAQAAAATmV0d29ya0ludGVyZmFjZQEAMkMALwEAtT8yQwAAAAz/////AQH/////AQAA" +
            "ABdgiQoCAAAAAAAKAAAAU2VsZWN0aW9ucwEAqEQALgBEqEQAAAAYAQAAAAEAAAAAAAAAAQH/////AAAA" +
-           "AARggAoBAAAAAAARAAAAVHJhbnNwb3J0U2V0dGluZ3MBADNDAC8BADlFM0MAAP////8AAAAABGDACgEA" +
-           "AAAbAAAAV3JpdGVyR3JvdXBOYW1lX1BsYWNlaG9sZGVyAAARAAAAPFdyaXRlckdyb3VwTmFtZT4BAJ5D" +
-           "AQB0SQEAPUWeQwAA/////woAAAAVYIkKAgAAAAAADAAAAFNlY3VyaXR5TW9kZQEAn0MALgBEn0MAAAEA" +
-           "LgH/////AQH/////AAAAABVgiQoCAAAAAAAVAAAATWF4TmV0d29ya01lc3NhZ2VTaXplAQA0QwAuAEQ0" +
-           "QwAAAAf/////AQH/////AAAAABdgiQoCAAAAAAAPAAAAR3JvdXBQcm9wZXJ0aWVzAQBORAAuAERORAAA" +
-           "AQDFOAEAAAABAAAAAAAAAAEB/////wAAAAAEYIAKAQAAAAAABgAAAFN0YXR1cwEAokMALwEAMzmiQwAA" +
-           "/////wEAAAAVYIkKAgAAAAAABQAAAFN0YXRlAQCjQwAvAD+jQwAAAQA3Of////8BAf////8AAAAAFWCJ" +
-           "CgIAAAAAAA0AAABXcml0ZXJHcm91cElkAQA+QwAuAEQ+QwAAAAX/////AQH/////AAAAABVgiQoCAAAA" +
-           "AAASAAAAUHVibGlzaGluZ0ludGVydmFsAQCmQwAuAESmQwAAAQAiAf////8BAf////8AAAAAFWCJCgIA" +
-           "AAAAAA0AAABLZWVwQWxpdmVUaW1lAQCnQwAuAESnQwAAAQAiAf////8BAf////8AAAAAFWCJCgIAAAAA" +
-           "AAgAAABQcmlvcml0eQEAqUMALgBEqUMAAAAD/////wEB/////wAAAAAXYIkKAgAAAAAACQAAAExvY2Fs" +
-           "ZUlkcwEAqkMALgBEqkMAAAEAJwEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAA8AAABIZWFk" +
-           "ZXJMYXlvdXRVcmkBAJZEAC4ARJZEAAAADP////8BAf////8AAAAABGDACgEAAAAbAAAAUmVhZGVyR3Jv" +
-           "dXBOYW1lX1BsYWNlaG9sZGVyAAARAAAAPFJlYWRlckdyb3VwTmFtZT4BAK1DAQB1SQEAT0atQwAA////" +
-           "/wQAAAAVYIkKAgAAAAAADAAAAFNlY3VyaXR5TW9kZQEArkMALgBErkMAAAEALgH/////AQH/////AAAA" +
-           "ABVgiQoCAAAAAAAVAAAATWF4TmV0d29ya01lc3NhZ2VTaXplAQCWQwAuAESWQwAAAAf/////AQH/////" +
-           "AAAAABdgiQoCAAAAAAAPAAAAR3JvdXBQcm9wZXJ0aWVzAQBPRAAuAERPRAAAAQDFOAEAAAABAAAAAAAA" +
-           "AAEB/////wAAAAAEYIAKAQAAAAAABgAAAFN0YXR1cwEAsUMALwEAMzmxQwAA/////wEAAAAVYIkKAgAA" +
-           "AAAABQAAAFN0YXRlAQCyQwAvAD+yQwAAAQA3Of////8BAf////8AAAAABGCACgEAAAAAAAYAAABTdGF0" +
-           "dXMBAAg5AC8BADM5CDkAAP////8BAAAAFWCJCgIAAAAAAAUAAABTdGF0ZQEACTkALwA/CTkAAAEANzn/" +
-           "////AQH/////AAAAAARggAoBAAAAAAALAAAARGlhZ25vc3RpY3MBAClLAC8BAEpNKUsAAP////8HAAAA" +
-           "FWCJCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQAqSwAvAD8qSwAAAQALTf////8BAf////8AAAAA" +
-           "FWCJCgIAAAAAABAAAABUb3RhbEluZm9ybWF0aW9uAQArSwAvAQANTStLAAAAB/////8BAf////8DAAAA" +
-           "FWCJCgIAAAAAAAYAAABBY3RpdmUBACxLAC4ARCxLAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAA4A" +
-           "AABDbGFzc2lmaWNhdGlvbgEALUsALgBELUsAAAEAEk3/////AQH/////AAAAABVgiQoCAAAAAAAQAAAA" +
-           "RGlhZ25vc3RpY3NMZXZlbAEALksALgBELksAAAEAC03/////AQH/////AAAAABVgiQoCAAAAAAAKAAAA" +
-           "VG90YWxFcnJvcgEAMEsALwEADU0wSwAAAAf/////AQH/////AwAAABVgiQoCAAAAAAAGAAAAQWN0aXZl" +
-           "AQAxSwAuAEQxSwAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAOAAAAQ2xhc3NpZmljYXRpb24BADJL" +
-           "AC4ARDJLAAABABJN/////wEB/////wAAAAAVYIkKAgAAAAAAEAAAAERpYWdub3N0aWNzTGV2ZWwBADNL" +
-           "AC4ARDNLAAABAAtN/////wEB/////wAAAAAEYYIKBAAAAAAABQAAAFJlc2V0AQA1SwAvAQDpTDVLAAAB" +
-           "Af////8AAAAAFWCJCgIAAAAAAAgAAABTdWJFcnJvcgEANksALwA/NksAAAAB/////wEB/////wAAAAAE" +
-           "YIAKAQAAAAAACAAAAENvdW50ZXJzAQA3SwAvADo3SwAA/////wYAAAAVYIkKAgAAAAAACgAAAFN0YXRl" +
-           "RXJyb3IBADhLAC8BAA1NOEsAAAAH/////wEB/////wMAAAAVYIkKAgAAAAAABgAAAEFjdGl2ZQEAOUsA" +
-           "LgBEOUsAAAAB/////wEB/////wAAAAAVYKkKAgAAAAAADgAAAENsYXNzaWZpY2F0aW9uAQA6SwAuAEQ6" +
-           "SwAABgEAAAABABJN/////wEB/////wAAAAAVYKkKAgAAAAAAEAAAAERpYWdub3N0aWNzTGV2ZWwBADtL" +
-           "AC4ARDtLAAAGAAAAAAEAC03/////AQH/////AAAAABVgiQoCAAAAAAAYAAAAU3RhdGVPcGVyYXRpb25h" +
-           "bEJ5TWV0aG9kAQA9SwAvAQANTT1LAAAAB/////8BAf////8DAAAAFWCJCgIAAAAAAAYAAABBY3RpdmUB" +
-           "AD5LAC4ARD5LAAAAAf////8BAf////8AAAAAFWCpCgIAAAAAAA4AAABDbGFzc2lmaWNhdGlvbgEAP0sA" +
-           "LgBEP0sAAAYAAAAAAQASTf////8BAf////8AAAAAFWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVs" +
-           "AQBASwAuAERASwAABgAAAAABAAtN/////wEB/////wAAAAAVYIkKAgAAAAAAGAAAAFN0YXRlT3BlcmF0" +
-           "aW9uYWxCeVBhcmVudAEAQksALwEADU1CSwAAAAf/////AQH/////AwAAABVgiQoCAAAAAAAGAAAAQWN0" +
-           "aXZlAQBDSwAuAERDSwAAAAH/////AQH/////AAAAABVgqQoCAAAAAAAOAAAAQ2xhc3NpZmljYXRpb24B" +
-           "AERLAC4ARERLAAAGAAAAAAEAEk3/////AQH/////AAAAABVgqQoCAAAAAAAQAAAARGlhZ25vc3RpY3NM" +
-           "ZXZlbAEARUsALgBERUsAAAYAAAAAAQALTf////8BAf////8AAAAAFWCJCgIAAAAAABkAAABTdGF0ZU9w" +
-           "ZXJhdGlvbmFsRnJvbUVycm9yAQBHSwAvAQANTUdLAAAAB/////8BAf////8DAAAAFWCJCgIAAAAAAAYA" +
-           "AABBY3RpdmUBAEhLAC4AREhLAAAAAf////8BAf////8AAAAAFWCpCgIAAAAAAA4AAABDbGFzc2lmaWNh" +
-           "dGlvbgEASUsALgBESUsAAAYAAAAAAQASTf////8BAf////8AAAAAFWCpCgIAAAAAABAAAABEaWFnbm9z" +
-           "dGljc0xldmVsAQBKSwAuAERKSwAABgAAAAABAAtN/////wEB/////wAAAAAVYIkKAgAAAAAAEwAAAFN0" +
-           "YXRlUGF1c2VkQnlQYXJlbnQBAExLAC8BAA1NTEsAAAAH/////wEB/////wMAAAAVYIkKAgAAAAAABgAA" +
-           "AEFjdGl2ZQEATUsALgBETUsAAAAB/////wEB/////wAAAAAVYKkKAgAAAAAADgAAAENsYXNzaWZpY2F0" +
-           "aW9uAQBOSwAuAEROSwAABgAAAAABABJN/////wEB/////wAAAAAVYKkKAgAAAAAAEAAAAERpYWdub3N0" +
-           "aWNzTGV2ZWwBAE9LAC4ARE9LAAAGAAAAAAEAC03/////AQH/////AAAAABVgiQoCAAAAAAAVAAAAU3Rh" +
-           "dGVEaXNhYmxlZEJ5TWV0aG9kAQBRSwAvAQANTVFLAAAAB/////8BAf////8DAAAAFWCJCgIAAAAAAAYA" +
-           "AABBY3RpdmUBAFJLAC4ARFJLAAAAAf////8BAf////8AAAAAFWCpCgIAAAAAAA4AAABDbGFzc2lmaWNh" +
-           "dGlvbgEAU0sALgBEU0sAAAYAAAAAAQASTf////8BAf////8AAAAAFWCpCgIAAAAAABAAAABEaWFnbm9z" +
-           "dGljc0xldmVsAQBUSwAuAERUSwAABgAAAAABAAtN/////wEB/////wAAAAAEYIAKAQAAAAAACgAAAExp" +
-           "dmVWYWx1ZXMBAFZLAC8AOlZLAAD/////AQAAABVgiQoCAAAAAAAPAAAAUmVzb2x2ZWRBZGRyZXNzAQBX" +
-           "SwAvAD9XSwAAAAz/////AQH/////AQAAABVgqQoCAAAAAAAQAAAARGlhZ25vc3RpY3NMZXZlbAEAWEsA" +
-           "LgBEWEsAAAYAAAAAAQALTf////8BAf////8AAAAABGGCCgQAAAAAAA4AAABBZGRXcml0ZXJHcm91cAEA" +
-           "E0QALwEAE0QTRAAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBABREAC4ARBRE" +
-           "AACWAQAAAAEAKgEBHgAAAA0AAABDb25maWd1cmF0aW9uAQB4PP////8AAAAAAAEAKAEBAAAAAQAAAAAA" +
-           "AAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBADBEAC4ARDBEAACWAQAAAAEA" +
-           "KgEBFgAAAAcAAABHcm91cElkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoE" +
-           "AAAAAAAOAAAAQWRkUmVhZGVyR3JvdXABADlEAC8BADlEOUQAAAEB/////wIAAAAXYKkKAgAAAAAADgAA" +
-           "AElucHV0QXJndW1lbnRzAQBjRAAuAERjRAAAlgEAAAABACoBAR4AAAANAAAAQ29uZmlndXJhdGlvbgEA" +
-           "oDz/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJn" +
-           "dW1lbnRzAQBkRAAuAERkRAAAlgEAAAABACoBARYAAAAHAAAAR3JvdXBJZAAR/////wAAAAAAAQAoAQEA" +
-           "AAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAACwAAAFJlbW92ZUdyb3VwAQCRNwAvAQCRN5E3AAAB" +
-           "Af////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAkjcALgBEkjcAAJYBAAAAAQAqAQEW" +
-           "AAAABwAAAEdyb3VwSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "AARggAoBAAAAAAARAAAAVHJhbnNwb3J0U2V0dGluZ3MBADNDAC8BADlFM0MAAP////8AAAAABGCACgEA" +
+           "AAAAAAYAAABTdGF0dXMBAAg5AC8BADM5CDkAAP////8BAAAAFWCJCgIAAAAAAAUAAABTdGF0ZQEACTkA" +
+           "LwA/CTkAAAEANzn/////AQH/////AAAAAARggAoBAAAAAAALAAAARGlhZ25vc3RpY3MBAClLAC8BAEpN" +
+           "KUsAAP////8HAAAAFWCJCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQAqSwAvAD8qSwAAAQALTf//" +
+           "//8BAf////8AAAAAFWCJCgIAAAAAABAAAABUb3RhbEluZm9ybWF0aW9uAQArSwAvAQANTStLAAAAB///" +
+           "//8BAf////8DAAAAFWCJCgIAAAAAAAYAAABBY3RpdmUBACxLAC4ARCxLAAAAAf////8BAf////8AAAAA" +
+           "FWCJCgIAAAAAAA4AAABDbGFzc2lmaWNhdGlvbgEALUsALgBELUsAAAEAEk3/////AQH/////AAAAABVg" +
+           "iQoCAAAAAAAQAAAARGlhZ25vc3RpY3NMZXZlbAEALksALgBELksAAAEAC03/////AQH/////AAAAABVg" +
+           "iQoCAAAAAAAKAAAAVG90YWxFcnJvcgEAMEsALwEADU0wSwAAAAf/////AQH/////AwAAABVgiQoCAAAA" +
+           "AAAGAAAAQWN0aXZlAQAxSwAuAEQxSwAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAOAAAAQ2xhc3Np" +
+           "ZmljYXRpb24BADJLAC4ARDJLAAABABJN/////wEB/////wAAAAAVYIkKAgAAAAAAEAAAAERpYWdub3N0" +
+           "aWNzTGV2ZWwBADNLAC4ARDNLAAABAAtN/////wEB/////wAAAAAEYYIKBAAAAAAABQAAAFJlc2V0AQA1" +
+           "SwAvAQDpTDVLAAABAf////8AAAAAFWCJCgIAAAAAAAgAAABTdWJFcnJvcgEANksALwA/NksAAAAB////" +
+           "/wEB/////wAAAAAEYIAKAQAAAAAACAAAAENvdW50ZXJzAQA3SwAvADo3SwAA/////wYAAAAVYIkKAgAA" +
+           "AAAACgAAAFN0YXRlRXJyb3IBADhLAC8BAA1NOEsAAAAH/////wEB/////wMAAAAVYIkKAgAAAAAABgAA" +
+           "AEFjdGl2ZQEAOUsALgBEOUsAAAAB/////wEB/////wAAAAAVYKkKAgAAAAAADgAAAENsYXNzaWZpY2F0" +
+           "aW9uAQA6SwAuAEQ6SwAABgEAAAABABJN/////wEB/////wAAAAAVYKkKAgAAAAAAEAAAAERpYWdub3N0" +
+           "aWNzTGV2ZWwBADtLAC4ARDtLAAAGAAAAAAEAC03/////AQH/////AAAAABVgiQoCAAAAAAAYAAAAU3Rh" +
+           "dGVPcGVyYXRpb25hbEJ5TWV0aG9kAQA9SwAvAQANTT1LAAAAB/////8BAf////8DAAAAFWCJCgIAAAAA" +
+           "AAYAAABBY3RpdmUBAD5LAC4ARD5LAAAAAf////8BAf////8AAAAAFWCpCgIAAAAAAA4AAABDbGFzc2lm" +
+           "aWNhdGlvbgEAP0sALgBEP0sAAAYAAAAAAQASTf////8BAf////8AAAAAFWCpCgIAAAAAABAAAABEaWFn" +
+           "bm9zdGljc0xldmVsAQBASwAuAERASwAABgAAAAABAAtN/////wEB/////wAAAAAVYIkKAgAAAAAAGAAA" +
+           "AFN0YXRlT3BlcmF0aW9uYWxCeVBhcmVudAEAQksALwEADU1CSwAAAAf/////AQH/////AwAAABVgiQoC" +
+           "AAAAAAAGAAAAQWN0aXZlAQBDSwAuAERDSwAAAAH/////AQH/////AAAAABVgqQoCAAAAAAAOAAAAQ2xh" +
+           "c3NpZmljYXRpb24BAERLAC4ARERLAAAGAAAAAAEAEk3/////AQH/////AAAAABVgqQoCAAAAAAAQAAAA" +
+           "RGlhZ25vc3RpY3NMZXZlbAEARUsALgBERUsAAAYAAAAAAQALTf////8BAf////8AAAAAFWCJCgIAAAAA" +
+           "ABkAAABTdGF0ZU9wZXJhdGlvbmFsRnJvbUVycm9yAQBHSwAvAQANTUdLAAAAB/////8BAf////8DAAAA" +
+           "FWCJCgIAAAAAAAYAAABBY3RpdmUBAEhLAC4AREhLAAAAAf////8BAf////8AAAAAFWCpCgIAAAAAAA4A" +
+           "AABDbGFzc2lmaWNhdGlvbgEASUsALgBESUsAAAYAAAAAAQASTf////8BAf////8AAAAAFWCpCgIAAAAA" +
+           "ABAAAABEaWFnbm9zdGljc0xldmVsAQBKSwAuAERKSwAABgAAAAABAAtN/////wEB/////wAAAAAVYIkK" +
+           "AgAAAAAAEwAAAFN0YXRlUGF1c2VkQnlQYXJlbnQBAExLAC8BAA1NTEsAAAAH/////wEB/////wMAAAAV" +
+           "YIkKAgAAAAAABgAAAEFjdGl2ZQEATUsALgBETUsAAAAB/////wEB/////wAAAAAVYKkKAgAAAAAADgAA" +
+           "AENsYXNzaWZpY2F0aW9uAQBOSwAuAEROSwAABgAAAAABABJN/////wEB/////wAAAAAVYKkKAgAAAAAA" +
+           "EAAAAERpYWdub3N0aWNzTGV2ZWwBAE9LAC4ARE9LAAAGAAAAAAEAC03/////AQH/////AAAAABVgiQoC" +
+           "AAAAAAAVAAAAU3RhdGVEaXNhYmxlZEJ5TWV0aG9kAQBRSwAvAQANTVFLAAAAB/////8BAf////8DAAAA" +
+           "FWCJCgIAAAAAAAYAAABBY3RpdmUBAFJLAC4ARFJLAAAAAf////8BAf////8AAAAAFWCpCgIAAAAAAA4A" +
+           "AABDbGFzc2lmaWNhdGlvbgEAU0sALgBEU0sAAAYAAAAAAQASTf////8BAf////8AAAAAFWCpCgIAAAAA" +
+           "ABAAAABEaWFnbm9zdGljc0xldmVsAQBUSwAuAERUSwAABgAAAAABAAtN/////wEB/////wAAAAAEYIAK" +
+           "AQAAAAAACgAAAExpdmVWYWx1ZXMBAFZLAC8AOlZLAAD/////AQAAABVgiQoCAAAAAAAPAAAAUmVzb2x2" +
+           "ZWRBZGRyZXNzAQBXSwAvAD9XSwAAAAz/////AQH/////AQAAABVgqQoCAAAAAAAQAAAARGlhZ25vc3Rp" +
+           "Y3NMZXZlbAEAWEsALgBEWEsAAAYAAAAAAQALTf////8BAf////8AAAAABGGCCgQAAAAAAA4AAABBZGRX" +
+           "cml0ZXJHcm91cAEAE0QALwEAE0QTRAAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVu" +
+           "dHMBABREAC4ARBREAACWAQAAAAEAKgEBHgAAAA0AAABDb25maWd1cmF0aW9uAQB4PP////8AAAAAAAEA" +
+           "KAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBADBEAC4A" +
+           "RDBEAACWAQAAAAEAKgEBFgAAAAcAAABHcm91cElkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/" +
+           "////AAAAAARhggoEAAAAAAAOAAAAQWRkUmVhZGVyR3JvdXABADlEAC8BADlEOUQAAAEB/////wIAAAAX" +
+           "YKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBjRAAuAERjRAAAlgEAAAABACoBAR4AAAANAAAAQ29u" +
+           "ZmlndXJhdGlvbgEAoDz/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAABdgqQoCAAAAAAAP" +
+           "AAAAT3V0cHV0QXJndW1lbnRzAQBkRAAuAERkRAAAlgEAAAABACoBARYAAAAHAAAAR3JvdXBJZAAR////" +
+           "/wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAEYYIKBAAAAAAACwAAAFJlbW92ZUdyb3VwAQCR" +
+           "NwAvAQCRN5E3AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAkjcALgBEkjcA" +
+           "AJYBAAAAAQAqAQEWAAAABwAAAEdyb3VwSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8A" +
+           "AAAA";
         #endregion
         #endif
         #endregion
@@ -67028,7 +71397,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             WriterGroupDataType configuration = (WriterGroupDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
 
@@ -67036,7 +71405,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -67046,7 +71415,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = groupId;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -67132,7 +71501,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             ReaderGroupDataType configuration = (ReaderGroupDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
 
@@ -67140,7 +71509,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -67150,7 +71519,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = groupId;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -67234,20 +71603,20 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             NodeId groupId = (NodeId)_inputArguments[0];
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
                     groupId);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -67861,7 +72230,7 @@ namespace Opc.Ua
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAFwAAAFdyaXRlckdyb3VwVHlwZUluc3RhbmNlAQA9RQEAPUU9RQAA////" +
-           "/xAAAAAVYIkKAgAAAAAADAAAAFNlY3VyaXR5TW9kZQEAPkUALgBEPkUAAAEALgH/////AQH/////AAAA" +
+           "/w8AAAAVYIkKAgAAAAAADAAAAFNlY3VyaXR5TW9kZQEAPkUALgBEPkUAAAEALgH/////AQH/////AAAA" +
            "ABVgiQoCAAAAAAAVAAAATWF4TmV0d29ya01lc3NhZ2VTaXplAQBBRQAuAERBRQAAAAf/////AQH/////" +
            "AAAAABdgiQoCAAAAAAAPAAAAR3JvdXBQcm9wZXJ0aWVzAQBRRAAuAERRRAAAAQDFOAEAAAABAAAAAAAA" +
            "AAEB/////wAAAAAEYIAKAQAAAAAABgAAAFN0YXR1cwEAQkUALwEAMzlCRQAA/////wEAAAAVYIkKAgAA" +
@@ -67873,73 +72242,67 @@ namespace Opc.Ua
            "AAEAJwEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAA8AAABIZWFkZXJMYXlvdXRVcmkBAJdE" +
            "AC4ARJdEAAAADP////8BAf////8AAAAABGCACgEAAAAAABEAAABUcmFuc3BvcnRTZXR0aW5ncwEATUUA" +
            "LwEATUZNRQAA/////wAAAAAEYIAKAQAAAAAADwAAAE1lc3NhZ2VTZXR0aW5ncwEATkUALwEATkZORQAA" +
-           "/////wAAAAAEYMAKAQAAAB0AAABEYXRhU2V0V3JpdGVyTmFtZV9QbGFjZWhvbGRlcgAAEwAAADxEYXRh" +
-           "U2V0V3JpdGVyTmFtZT4BAE9FAQDAOwEAwjtPRQAA/////wQAAAAVYIkKAgAAAAAADwAAAERhdGFTZXRX" +
-           "cml0ZXJJZAEAUEUALgBEUEUAAAAF/////wEB/////wAAAAAVYIkKAgAAAAAAFwAAAERhdGFTZXRGaWVs" +
-           "ZENvbnRlbnRNYXNrAQBRRQAuAERRRQAAAQDfPP////8BAf////8AAAAAF2CJCgIAAAAAABcAAABEYXRh" +
-           "U2V0V3JpdGVyUHJvcGVydGllcwEAUkQALgBEUkQAAAEAxTgBAAAAAQAAAAAAAAABAf////8AAAAABGCA" +
-           "CgEAAAAAAAYAAABTdGF0dXMBAFVFAC8BADM5VUUAAP////8BAAAAFWCJCgIAAAAAAAUAAABTdGF0ZQEA" +
-           "VkUALwA/VkUAAAEANzn/////AQH/////AAAAAARggAoBAAAAAAALAAAARGlhZ25vc3RpY3MBAJRFAC8B" +
-           "AHpNlEUAAP////8HAAAAFWCJCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQCVRQAvAD+VRQAAAQAL" +
-           "Tf////8BAf////8AAAAAFWCJCgIAAAAAABAAAABUb3RhbEluZm9ybWF0aW9uAQCWRQAvAQANTZZFAAAA" +
-           "B/////8BAf////8DAAAAFWCJCgIAAAAAAAYAAABBY3RpdmUBAJdFAC4ARJdFAAAAAf////8BAf////8A" +
-           "AAAAFWCJCgIAAAAAAA4AAABDbGFzc2lmaWNhdGlvbgEAmEUALgBEmEUAAAEAEk3/////AQH/////AAAA" +
-           "ABVgiQoCAAAAAAAQAAAARGlhZ25vc3RpY3NMZXZlbAEAmUUALgBEmUUAAAEAC03/////AQH/////AAAA" +
-           "ABVgiQoCAAAAAAAKAAAAVG90YWxFcnJvcgEAm0UALwEADU2bRQAAAAf/////AQH/////AwAAABVgiQoC" +
-           "AAAAAAAGAAAAQWN0aXZlAQCcRQAuAEScRQAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAOAAAAQ2xh" +
-           "c3NpZmljYXRpb24BAJ1FAC4ARJ1FAAABABJN/////wEB/////wAAAAAVYIkKAgAAAAAAEAAAAERpYWdu" +
-           "b3N0aWNzTGV2ZWwBAJ5FAC4ARJ5FAAABAAtN/////wEB/////wAAAAAEYYIKBAAAAAAABQAAAFJlc2V0" +
-           "AQCgRQAvAQDpTKBFAAABAf////8AAAAAFWCJCgIAAAAAAAgAAABTdWJFcnJvcgEAoUUALwA/oUUAAAAB" +
-           "/////wEB/////wAAAAAEYIAKAQAAAAAACAAAAENvdW50ZXJzAQCiRQAvADqiRQAA/////wkAAAAVYIkK" +
-           "AgAAAAAACgAAAFN0YXRlRXJyb3IBAKNFAC8BAA1No0UAAAAH/////wEB/////wMAAAAVYIkKAgAAAAAA" +
-           "BgAAAEFjdGl2ZQEApEUALgBEpEUAAAAB/////wEB/////wAAAAAVYKkKAgAAAAAADgAAAENsYXNzaWZp" +
-           "Y2F0aW9uAQClRQAuAESlRQAABgEAAAABABJN/////wEB/////wAAAAAVYKkKAgAAAAAAEAAAAERpYWdu" +
-           "b3N0aWNzTGV2ZWwBAKZFAC4ARKZFAAAGAAAAAAEAC03/////AQH/////AAAAABVgiQoCAAAAAAAYAAAA" +
-           "U3RhdGVPcGVyYXRpb25hbEJ5TWV0aG9kAQCoRQAvAQANTahFAAAAB/////8BAf////8DAAAAFWCJCgIA" +
-           "AAAAAAYAAABBY3RpdmUBAKlFAC4ARKlFAAAAAf////8BAf////8AAAAAFWCpCgIAAAAAAA4AAABDbGFz" +
-           "c2lmaWNhdGlvbgEAqkUALgBEqkUAAAYAAAAAAQASTf////8BAf////8AAAAAFWCpCgIAAAAAABAAAABE" +
-           "aWFnbm9zdGljc0xldmVsAQCrRQAuAESrRQAABgAAAAABAAtN/////wEB/////wAAAAAVYIkKAgAAAAAA" +
-           "GAAAAFN0YXRlT3BlcmF0aW9uYWxCeVBhcmVudAEArUUALwEADU2tRQAAAAf/////AQH/////AwAAABVg" +
-           "iQoCAAAAAAAGAAAAQWN0aXZlAQCuRQAuAESuRQAAAAH/////AQH/////AAAAABVgqQoCAAAAAAAOAAAA" +
-           "Q2xhc3NpZmljYXRpb24BAK9FAC4ARK9FAAAGAAAAAAEAEk3/////AQH/////AAAAABVgqQoCAAAAAAAQ" +
-           "AAAARGlhZ25vc3RpY3NMZXZlbAEAsEUALgBEsEUAAAYAAAAAAQALTf////8BAf////8AAAAAFWCJCgIA" +
-           "AAAAABkAAABTdGF0ZU9wZXJhdGlvbmFsRnJvbUVycm9yAQCyRQAvAQANTbJFAAAAB/////8BAf////8D" +
-           "AAAAFWCJCgIAAAAAAAYAAABBY3RpdmUBALNFAC4ARLNFAAAAAf////8BAf////8AAAAAFWCpCgIAAAAA" +
-           "AA4AAABDbGFzc2lmaWNhdGlvbgEAtEUALgBEtEUAAAYAAAAAAQASTf////8BAf////8AAAAAFWCpCgIA" +
-           "AAAAABAAAABEaWFnbm9zdGljc0xldmVsAQC1RQAuAES1RQAABgAAAAABAAtN/////wEB/////wAAAAAV" +
-           "YIkKAgAAAAAAEwAAAFN0YXRlUGF1c2VkQnlQYXJlbnQBALdFAC8BAA1Nt0UAAAAH/////wEB/////wMA" +
-           "AAAVYIkKAgAAAAAABgAAAEFjdGl2ZQEAuEUALgBEuEUAAAAB/////wEB/////wAAAAAVYKkKAgAAAAAA" +
-           "DgAAAENsYXNzaWZpY2F0aW9uAQC5RQAuAES5RQAABgAAAAABABJN/////wEB/////wAAAAAVYKkKAgAA" +
-           "AAAAEAAAAERpYWdub3N0aWNzTGV2ZWwBALpFAC4ARLpFAAAGAAAAAAEAC03/////AQH/////AAAAABVg" +
-           "iQoCAAAAAAAVAAAAU3RhdGVEaXNhYmxlZEJ5TWV0aG9kAQC9RQAvAQANTb1FAAAAB/////8BAf////8D" +
-           "AAAAFWCJCgIAAAAAAAYAAABBY3RpdmUBAL5FAC4ARL5FAAAAAf////8BAf////8AAAAAFWCpCgIAAAAA" +
-           "AA4AAABDbGFzc2lmaWNhdGlvbgEAv0UALgBEv0UAAAYAAAAAAQASTf////8BAf////8AAAAAFWCpCgIA" +
-           "AAAAABAAAABEaWFnbm9zdGljc0xldmVsAQDARQAuAETARQAABgAAAAABAAtN/////wEB/////wAAAAAV" +
-           "YIkKAgAAAAAAEwAAAFNlbnROZXR3b3JrTWVzc2FnZXMBAMNFAC8BAA1Nw0UAAAAH/////wEB/////wMA" +
-           "AAAVYIkKAgAAAAAABgAAAEFjdGl2ZQEAyEUALgBEyEUAAAAB/////wEB/////wAAAAAVYKkKAgAAAAAA" +
-           "DgAAAENsYXNzaWZpY2F0aW9uAQDPRQAuAETPRQAABgAAAAABABJN/////wEB/////wAAAAAVYKkKAgAA" +
-           "AAAAEAAAAERpYWdub3N0aWNzTGV2ZWwBANBFAC4ARNBFAAAGAAAAAAEAC03/////AQH/////AAAAABVg" +
-           "iQoCAAAAAAATAAAARmFpbGVkVHJhbnNtaXNzaW9ucwEA0kUALwEADU3SRQAAAAf/////AQH/////AwAA" +
-           "ABVgiQoCAAAAAAAGAAAAQWN0aXZlAQDWRQAuAETWRQAAAAH/////AQH/////AAAAABVgqQoCAAAAAAAO" +
-           "AAAAQ2xhc3NpZmljYXRpb24BAN1FAC4ARN1FAAAGAQAAAAEAEk3/////AQH/////AAAAABVgqQoCAAAA" +
-           "AAAQAAAARGlhZ25vc3RpY3NMZXZlbAEA5EUALgBE5EUAAAYAAAAAAQALTf////8BAf////8AAAAAFWCJ" +
-           "CgIAAAAAABAAAABFbmNyeXB0aW9uRXJyb3JzAQDsRQAvAQANTexFAAAAB/////8BAf////8DAAAAFWCJ" +
-           "CgIAAAAAAAYAAABBY3RpdmUBAO1FAC4ARO1FAAAAAf////8BAf////8AAAAAFWCpCgIAAAAAAA4AAABD" +
-           "bGFzc2lmaWNhdGlvbgEA7kUALgBE7kUAAAYBAAAAAQASTf////8BAf////8AAAAAFWCpCgIAAAAAABAA" +
-           "AABEaWFnbm9zdGljc0xldmVsAQDvRQAuAETvRQAABgEAAAABAAtN/////wEB/////wAAAAAEYIAKAQAA" +
-           "AAAACgAAAExpdmVWYWx1ZXMBAMJFAC8AOsJFAAD/////AgAAABVgiQoCAAAAAAAYAAAAQ29uZmlndXJl" +
-           "ZERhdGFTZXRXcml0ZXJzAQD5RQAvAD/5RQAAAAX/////AQH/////AQAAABVgqQoCAAAAAAAQAAAARGlh" +
-           "Z25vc3RpY3NMZXZlbAEAAEYALgBEAEYAAAYAAAAAAQALTf////8BAf////8AAAAAFWCJCgIAAAAAABkA" +
-           "AABPcGVyYXRpb25hbERhdGFTZXRXcml0ZXJzAQAHRgAvAD8HRgAAAAX/////AQH/////AQAAABVgqQoC" +
-           "AAAAAAAQAAAARGlhZ25vc3RpY3NMZXZlbAEADkYALgBEDkYAAAYAAAAAAQALTf////8BAf////8AAAAA" +
-           "BGGCCgQAAAAAABAAAABBZGREYXRhU2V0V3JpdGVyAQAxRgAvAQAxRjFGAAABAf////8CAAAAF2CpCgIA" +
-           "AAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAOEYALgBEOEYAAJYBAAAAAQAqAQEeAAAADQAAAENvbmZpZ3Vy" +
-           "YXRpb24BAO08/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91" +
-           "dHB1dEFyZ3VtZW50cwEAQ0YALgBEQ0YAAJYBAAAAAQAqAQEiAAAAEwAAAERhdGFTZXRXcml0ZXJOb2Rl" +
-           "SWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAABGGCCgQAAAAAABMAAABSZW1vdmVE" +
-           "YXRhU2V0V3JpdGVyAQBIRgAvAQBIRkhGAAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3Vt" +
-           "ZW50cwEASUYALgBESUYAAJYBAAAAAQAqAQEiAAAAEwAAAERhdGFTZXRXcml0ZXJOb2RlSWQAEf////8A" +
-           "AAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "/////wAAAAAEYIAKAQAAAAAACwAAAERpYWdub3N0aWNzAQCURQAvAQB6TZRFAAD/////BwAAABVgiQoC" +
+           "AAAAAAAQAAAARGlhZ25vc3RpY3NMZXZlbAEAlUUALwA/lUUAAAEAC03/////AQH/////AAAAABVgiQoC" +
+           "AAAAAAAQAAAAVG90YWxJbmZvcm1hdGlvbgEAlkUALwEADU2WRQAAAAf/////AQH/////AwAAABVgiQoC" +
+           "AAAAAAAGAAAAQWN0aXZlAQCXRQAuAESXRQAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAOAAAAQ2xh" +
+           "c3NpZmljYXRpb24BAJhFAC4ARJhFAAABABJN/////wEB/////wAAAAAVYIkKAgAAAAAAEAAAAERpYWdu" +
+           "b3N0aWNzTGV2ZWwBAJlFAC4ARJlFAAABAAtN/////wEB/////wAAAAAVYIkKAgAAAAAACgAAAFRvdGFs" +
+           "RXJyb3IBAJtFAC8BAA1Nm0UAAAAH/////wEB/////wMAAAAVYIkKAgAAAAAABgAAAEFjdGl2ZQEAnEUA" +
+           "LgBEnEUAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAADgAAAENsYXNzaWZpY2F0aW9uAQCdRQAuAESd" +
+           "RQAAAQASTf////8BAf////8AAAAAFWCJCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQCeRQAuAESe" +
+           "RQAAAQALTf////8BAf////8AAAAABGGCCgQAAAAAAAUAAABSZXNldAEAoEUALwEA6UygRQAAAQH/////" +
+           "AAAAABVgiQoCAAAAAAAIAAAAU3ViRXJyb3IBAKFFAC8AP6FFAAAAAf////8BAf////8AAAAABGCACgEA" +
+           "AAAAAAgAAABDb3VudGVycwEAokUALwA6okUAAP////8JAAAAFWCJCgIAAAAAAAoAAABTdGF0ZUVycm9y" +
+           "AQCjRQAvAQANTaNFAAAAB/////8BAf////8DAAAAFWCJCgIAAAAAAAYAAABBY3RpdmUBAKRFAC4ARKRF" +
+           "AAAAAf////8BAf////8AAAAAFWCpCgIAAAAAAA4AAABDbGFzc2lmaWNhdGlvbgEApUUALgBEpUUAAAYB" +
+           "AAAAAQASTf////8BAf////8AAAAAFWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQCmRQAuAESm" +
+           "RQAABgAAAAABAAtN/////wEB/////wAAAAAVYIkKAgAAAAAAGAAAAFN0YXRlT3BlcmF0aW9uYWxCeU1l" +
+           "dGhvZAEAqEUALwEADU2oRQAAAAf/////AQH/////AwAAABVgiQoCAAAAAAAGAAAAQWN0aXZlAQCpRQAu" +
+           "AESpRQAAAAH/////AQH/////AAAAABVgqQoCAAAAAAAOAAAAQ2xhc3NpZmljYXRpb24BAKpFAC4ARKpF" +
+           "AAAGAAAAAAEAEk3/////AQH/////AAAAABVgqQoCAAAAAAAQAAAARGlhZ25vc3RpY3NMZXZlbAEAq0UA" +
+           "LgBEq0UAAAYAAAAAAQALTf////8BAf////8AAAAAFWCJCgIAAAAAABgAAABTdGF0ZU9wZXJhdGlvbmFs" +
+           "QnlQYXJlbnQBAK1FAC8BAA1NrUUAAAAH/////wEB/////wMAAAAVYIkKAgAAAAAABgAAAEFjdGl2ZQEA" +
+           "rkUALgBErkUAAAAB/////wEB/////wAAAAAVYKkKAgAAAAAADgAAAENsYXNzaWZpY2F0aW9uAQCvRQAu" +
+           "AESvRQAABgAAAAABABJN/////wEB/////wAAAAAVYKkKAgAAAAAAEAAAAERpYWdub3N0aWNzTGV2ZWwB" +
+           "ALBFAC4ARLBFAAAGAAAAAAEAC03/////AQH/////AAAAABVgiQoCAAAAAAAZAAAAU3RhdGVPcGVyYXRp" +
+           "b25hbEZyb21FcnJvcgEAskUALwEADU2yRQAAAAf/////AQH/////AwAAABVgiQoCAAAAAAAGAAAAQWN0" +
+           "aXZlAQCzRQAuAESzRQAAAAH/////AQH/////AAAAABVgqQoCAAAAAAAOAAAAQ2xhc3NpZmljYXRpb24B" +
+           "ALRFAC4ARLRFAAAGAAAAAAEAEk3/////AQH/////AAAAABVgqQoCAAAAAAAQAAAARGlhZ25vc3RpY3NM" +
+           "ZXZlbAEAtUUALgBEtUUAAAYAAAAAAQALTf////8BAf////8AAAAAFWCJCgIAAAAAABMAAABTdGF0ZVBh" +
+           "dXNlZEJ5UGFyZW50AQC3RQAvAQANTbdFAAAAB/////8BAf////8DAAAAFWCJCgIAAAAAAAYAAABBY3Rp" +
+           "dmUBALhFAC4ARLhFAAAAAf////8BAf////8AAAAAFWCpCgIAAAAAAA4AAABDbGFzc2lmaWNhdGlvbgEA" +
+           "uUUALgBEuUUAAAYAAAAAAQASTf////8BAf////8AAAAAFWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xl" +
+           "dmVsAQC6RQAuAES6RQAABgAAAAABAAtN/////wEB/////wAAAAAVYIkKAgAAAAAAFQAAAFN0YXRlRGlz" +
+           "YWJsZWRCeU1ldGhvZAEAvUUALwEADU29RQAAAAf/////AQH/////AwAAABVgiQoCAAAAAAAGAAAAQWN0" +
+           "aXZlAQC+RQAuAES+RQAAAAH/////AQH/////AAAAABVgqQoCAAAAAAAOAAAAQ2xhc3NpZmljYXRpb24B" +
+           "AL9FAC4ARL9FAAAGAAAAAAEAEk3/////AQH/////AAAAABVgqQoCAAAAAAAQAAAARGlhZ25vc3RpY3NM" +
+           "ZXZlbAEAwEUALgBEwEUAAAYAAAAAAQALTf////8BAf////8AAAAAFWCJCgIAAAAAABMAAABTZW50TmV0" +
+           "d29ya01lc3NhZ2VzAQDDRQAvAQANTcNFAAAAB/////8BAf////8DAAAAFWCJCgIAAAAAAAYAAABBY3Rp" +
+           "dmUBAMhFAC4ARMhFAAAAAf////8BAf////8AAAAAFWCpCgIAAAAAAA4AAABDbGFzc2lmaWNhdGlvbgEA" +
+           "z0UALgBEz0UAAAYAAAAAAQASTf////8BAf////8AAAAAFWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xl" +
+           "dmVsAQDQRQAuAETQRQAABgAAAAABAAtN/////wEB/////wAAAAAVYIkKAgAAAAAAEwAAAEZhaWxlZFRy" +
+           "YW5zbWlzc2lvbnMBANJFAC8BAA1N0kUAAAAH/////wEB/////wMAAAAVYIkKAgAAAAAABgAAAEFjdGl2" +
+           "ZQEA1kUALgBE1kUAAAAB/////wEB/////wAAAAAVYKkKAgAAAAAADgAAAENsYXNzaWZpY2F0aW9uAQDd" +
+           "RQAuAETdRQAABgEAAAABABJN/////wEB/////wAAAAAVYKkKAgAAAAAAEAAAAERpYWdub3N0aWNzTGV2" +
+           "ZWwBAORFAC4ARORFAAAGAAAAAAEAC03/////AQH/////AAAAABVgiQoCAAAAAAAQAAAARW5jcnlwdGlv" +
+           "bkVycm9ycwEA7EUALwEADU3sRQAAAAf/////AQH/////AwAAABVgiQoCAAAAAAAGAAAAQWN0aXZlAQDt" +
+           "RQAuAETtRQAAAAH/////AQH/////AAAAABVgqQoCAAAAAAAOAAAAQ2xhc3NpZmljYXRpb24BAO5FAC4A" +
+           "RO5FAAAGAQAAAAEAEk3/////AQH/////AAAAABVgqQoCAAAAAAAQAAAARGlhZ25vc3RpY3NMZXZlbAEA" +
+           "70UALgBE70UAAAYBAAAAAQALTf////8BAf////8AAAAABGCACgEAAAAAAAoAAABMaXZlVmFsdWVzAQDC" +
+           "RQAvADrCRQAA/////wIAAAAVYIkKAgAAAAAAGAAAAENvbmZpZ3VyZWREYXRhU2V0V3JpdGVycwEA+UUA" +
+           "LwA/+UUAAAAF/////wEB/////wEAAAAVYKkKAgAAAAAAEAAAAERpYWdub3N0aWNzTGV2ZWwBAABGAC4A" +
+           "RABGAAAGAAAAAAEAC03/////AQH/////AAAAABVgiQoCAAAAAAAZAAAAT3BlcmF0aW9uYWxEYXRhU2V0" +
+           "V3JpdGVycwEAB0YALwA/B0YAAAAF/////wEB/////wEAAAAVYKkKAgAAAAAAEAAAAERpYWdub3N0aWNz" +
+           "TGV2ZWwBAA5GAC4ARA5GAAAGAAAAAAEAC03/////AQH/////AAAAAARhggoEAAAAAAAQAAAAQWRkRGF0" +
+           "YVNldFdyaXRlcgEAMUYALwEAMUYxRgAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVu" +
+           "dHMBADhGAC4ARDhGAACWAQAAAAEAKgEBHgAAAA0AAABDb25maWd1cmF0aW9uAQDtPP////8AAAAAAAEA" +
+           "KAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAENGAC4A" +
+           "RENGAACWAQAAAAEAKgEBIgAAABMAAABEYXRhU2V0V3JpdGVyTm9kZUlkABH/////AAAAAAABACgBAQAA" +
+           "AAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAATAAAAUmVtb3ZlRGF0YVNldFdyaXRlcgEASEYALwEA" +
+           "SEZIRgAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAElGAC4ARElGAACWAQAA" +
+           "AAEAKgEBIgAAABMAAABEYXRhU2V0V3JpdGVyTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAA" +
+           "AQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -68560,7 +72923,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             DataSetWriterDataType configuration = (DataSetWriterDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
 
@@ -68568,7 +72931,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -68578,7 +72941,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = dataSetWriterNodeId;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -68662,20 +73025,20 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             NodeId dataSetWriterNodeId = (NodeId)_inputArguments[0];
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
                     dataSetWriterNodeId);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -68950,78 +73313,65 @@ namespace Opc.Ua
 
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAFwAAAFJlYWRlckdyb3VwVHlwZUluc3RhbmNlAQBPRgEAT0ZPRgAA////" +
-           "/woAAAAVYIkKAgAAAAAADAAAAFNlY3VyaXR5TW9kZQEAUEYALgBEUEYAAAEALgH/////AQH/////AAAA" +
+           "/wkAAAAVYIkKAgAAAAAADAAAAFNlY3VyaXR5TW9kZQEAUEYALgBEUEYAAAEALgH/////AQH/////AAAA" +
            "ABVgiQoCAAAAAAAVAAAATWF4TmV0d29ya01lc3NhZ2VTaXplAQCRRgAuAESRRgAAAAf/////AQH/////" +
            "AAAAABdgiQoCAAAAAAAPAAAAR3JvdXBQcm9wZXJ0aWVzAQBTRAAuAERTRAAAAQDFOAEAAAABAAAAAAAA" +
            "AAEB/////wAAAAAEYIAKAQAAAAAABgAAAFN0YXR1cwEAk0YALwEAMzmTRgAA/////wEAAAAVYIkKAgAA" +
-           "AAAABQAAAFN0YXRlAQCURgAvAD+URgAAAQA3Of////8BAf////8AAAAABGDACgEAAAAdAAAARGF0YVNl" +
-           "dFJlYWRlck5hbWVfUGxhY2Vob2xkZXIAABMAAAA8RGF0YVNldFJlYWRlck5hbWU+AQCcRgEAwTsBAMo7" +
-           "nEYAAP////8LAAAAFWCJCgIAAAAAAAsAAABQdWJsaXNoZXJJZAEAnUYALgBEnUYAAAAY/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAAADQAAAFdyaXRlckdyb3VwSWQBAJ5GAC4ARJ5GAAAABf////8BAf////8AAAAA" +
-           "FWCJCgIAAAAAAA8AAABEYXRhU2V0V3JpdGVySWQBAJ9GAC4ARJ9GAAAABf////8BAf////8AAAAAFWCJ" +
-           "CgIAAAAAAA8AAABEYXRhU2V0TWV0YURhdGEBAKBGAC4ARKBGAAABALs4/////wEB/////wAAAAAVYIkK" +
-           "AgAAAAAAFwAAAERhdGFTZXRGaWVsZENvbnRlbnRNYXNrAQChRgAuAEShRgAAAQDfPP////8BAf////8A" +
-           "AAAAFWCJCgIAAAAAABUAAABNZXNzYWdlUmVjZWl2ZVRpbWVvdXQBAKJGAC4ARKJGAAABACIB/////wEB" +
-           "/////wAAAAAVYIkKAgAAAAAADQAAAEtleUZyYW1lQ291bnQBAJhEAC4ARJhEAAAAB/////8BAf////8A" +
-           "AAAAFWCJCgIAAAAAAA8AAABIZWFkZXJMYXlvdXRVcmkBAJpEAC4ARJpEAAAADP////8BAf////8AAAAA" +
-           "F2CJCgIAAAAAABcAAABEYXRhU2V0UmVhZGVyUHJvcGVydGllcwEAVEQALgBEVEQAAAEAxTgBAAAAAQAA" +
-           "AAAAAAABAf////8AAAAABGCACgEAAAAAAAYAAABTdGF0dXMBAKhGAC8BADM5qEYAAP////8BAAAAFWCJ" +
-           "CgIAAAAAAAUAAABTdGF0ZQEAqUYALwA/qUYAAAEANzn/////AQH/////AAAAAARggAoBAAAAAAARAAAA" +
-           "U3Vic2NyaWJlZERhdGFTZXQBAA5SAC8BAAQ7DlIAAP////8AAAAABGCACgEAAAAAAAsAAABEaWFnbm9z" +
-           "dGljcwEAF1IALwEAv00XUgAA/////wcAAAAVYIkKAgAAAAAAEAAAAERpYWdub3N0aWNzTGV2ZWwBABhS" +
-           "AC8APxhSAAABAAtN/////wEB/////wAAAAAVYIkKAgAAAAAAEAAAAFRvdGFsSW5mb3JtYXRpb24BABlS" +
-           "AC8BAA1NGVIAAAAH/////wEB/////wMAAAAVYIkKAgAAAAAABgAAAEFjdGl2ZQEAGlIALgBEGlIAAAAB" +
-           "/////wEB/////wAAAAAVYIkKAgAAAAAADgAAAENsYXNzaWZpY2F0aW9uAQAbUgAuAEQbUgAAAQASTf//" +
-           "//8BAf////8AAAAAFWCJCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQAcUgAuAEQcUgAAAQALTf//" +
-           "//8BAf////8AAAAAFWCJCgIAAAAAAAoAAABUb3RhbEVycm9yAQAeUgAvAQANTR5SAAAAB/////8BAf//" +
-           "//8DAAAAFWCJCgIAAAAAAAYAAABBY3RpdmUBAB9SAC4ARB9SAAAAAf////8BAf////8AAAAAFWCJCgIA" +
-           "AAAAAA4AAABDbGFzc2lmaWNhdGlvbgEAIFIALgBEIFIAAAEAEk3/////AQH/////AAAAABVgiQoCAAAA" +
-           "AAAQAAAARGlhZ25vc3RpY3NMZXZlbAEAIVIALgBEIVIAAAEAC03/////AQH/////AAAAAARhggoEAAAA" +
-           "AAAFAAAAUmVzZXQBACNSAC8BAOlMI1IAAAEB/////wAAAAAVYIkKAgAAAAAACAAAAFN1YkVycm9yAQAk" +
-           "UgAvAD8kUgAAAAH/////AQH/////AAAAAARggAoBAAAAAAAIAAAAQ291bnRlcnMBACVSAC8AOiVSAAD/" +
-           "////BwAAABVgiQoCAAAAAAAKAAAAU3RhdGVFcnJvcgEAJlIALwEADU0mUgAAAAf/////AQH/////AwAA" +
-           "ABVgiQoCAAAAAAAGAAAAQWN0aXZlAQAnUgAuAEQnUgAAAAH/////AQH/////AAAAABVgqQoCAAAAAAAO" +
-           "AAAAQ2xhc3NpZmljYXRpb24BAChSAC4ARChSAAAGAQAAAAEAEk3/////AQH/////AAAAABVgqQoCAAAA" +
-           "AAAQAAAARGlhZ25vc3RpY3NMZXZlbAEAKVIALgBEKVIAAAYAAAAAAQALTf////8BAf////8AAAAAFWCJ" +
-           "CgIAAAAAABgAAABTdGF0ZU9wZXJhdGlvbmFsQnlNZXRob2QBACtSAC8BAA1NK1IAAAAH/////wEB////" +
-           "/wMAAAAVYIkKAgAAAAAABgAAAEFjdGl2ZQEALFIALgBELFIAAAAB/////wEB/////wAAAAAVYKkKAgAA" +
-           "AAAADgAAAENsYXNzaWZpY2F0aW9uAQAtUgAuAEQtUgAABgAAAAABABJN/////wEB/////wAAAAAVYKkK" +
-           "AgAAAAAAEAAAAERpYWdub3N0aWNzTGV2ZWwBAC5SAC4ARC5SAAAGAAAAAAEAC03/////AQH/////AAAA" +
-           "ABVgiQoCAAAAAAAYAAAAU3RhdGVPcGVyYXRpb25hbEJ5UGFyZW50AQAwUgAvAQANTTBSAAAAB/////8B" +
-           "Af////8DAAAAFWCJCgIAAAAAAAYAAABBY3RpdmUBADFSAC4ARDFSAAAAAf////8BAf////8AAAAAFWCp" +
-           "CgIAAAAAAA4AAABDbGFzc2lmaWNhdGlvbgEAMlIALgBEMlIAAAYAAAAAAQASTf////8BAf////8AAAAA" +
-           "FWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQAzUgAuAEQzUgAABgAAAAABAAtN/////wEB////" +
-           "/wAAAAAVYIkKAgAAAAAAGQAAAFN0YXRlT3BlcmF0aW9uYWxGcm9tRXJyb3IBADVSAC8BAA1NNVIAAAAH" +
-           "/////wEB/////wMAAAAVYIkKAgAAAAAABgAAAEFjdGl2ZQEANlIALgBENlIAAAAB/////wEB/////wAA" +
-           "AAAVYKkKAgAAAAAADgAAAENsYXNzaWZpY2F0aW9uAQA3UgAuAEQ3UgAABgAAAAABABJN/////wEB////" +
-           "/wAAAAAVYKkKAgAAAAAAEAAAAERpYWdub3N0aWNzTGV2ZWwBADhSAC4ARDhSAAAGAAAAAAEAC03/////" +
-           "AQH/////AAAAABVgiQoCAAAAAAATAAAAU3RhdGVQYXVzZWRCeVBhcmVudAEAOlIALwEADU06UgAAAAf/" +
-           "////AQH/////AwAAABVgiQoCAAAAAAAGAAAAQWN0aXZlAQA7UgAuAEQ7UgAAAAH/////AQH/////AAAA" +
-           "ABVgqQoCAAAAAAAOAAAAQ2xhc3NpZmljYXRpb24BADxSAC4ARDxSAAAGAAAAAAEAEk3/////AQH/////" +
-           "AAAAABVgqQoCAAAAAAAQAAAARGlhZ25vc3RpY3NMZXZlbAEAPVIALgBEPVIAAAYAAAAAAQALTf////8B" +
-           "Af////8AAAAAFWCJCgIAAAAAABUAAABTdGF0ZURpc2FibGVkQnlNZXRob2QBAD9SAC8BAA1NP1IAAAAH" +
-           "/////wEB/////wMAAAAVYIkKAgAAAAAABgAAAEFjdGl2ZQEAQFIALgBEQFIAAAAB/////wEB/////wAA" +
-           "AAAVYKkKAgAAAAAADgAAAENsYXNzaWZpY2F0aW9uAQBBUgAuAERBUgAABgAAAAABABJN/////wEB////" +
-           "/wAAAAAVYKkKAgAAAAAAEAAAAERpYWdub3N0aWNzTGV2ZWwBAEJSAC4AREJSAAAGAAAAAAEAC03/////" +
-           "AQH/////AAAAABVgiQoCAAAAAAAXAAAAUmVjZWl2ZWROZXR3b3JrTWVzc2FnZXMBAEVSAC8BAA1NRVIA" +
-           "AAAH/////wEB/////wMAAAAVYIkKAgAAAAAABgAAAEFjdGl2ZQEARlIALgBERlIAAAAB/////wEB////" +
-           "/wAAAAAVYKkKAgAAAAAADgAAAENsYXNzaWZpY2F0aW9uAQBHUgAuAERHUgAABgAAAAABABJN/////wEB" +
-           "/////wAAAAAVYKkKAgAAAAAAEAAAAERpYWdub3N0aWNzTGV2ZWwBAEhSAC4AREhSAAAGAAAAAAEAC03/" +
-           "////AQH/////AAAAAARggAoBAAAAAAAKAAAATGl2ZVZhbHVlcwEARFIALwA6RFIAAP////8CAAAAFWCJ" +
-           "CgIAAAAAABgAAABDb25maWd1cmVkRGF0YVNldFJlYWRlcnMBAFRSAC8AP1RSAAAABf////8BAf////8B" +
-           "AAAAFWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQBVUgAuAERVUgAABgAAAAABAAtN/////wEB" +
-           "/////wAAAAAVYIkKAgAAAAAAGQAAAE9wZXJhdGlvbmFsRGF0YVNldFJlYWRlcnMBAFZSAC8AP1ZSAAAA" +
-           "Bf////8BAf////8BAAAAFWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQBXUgAuAERXUgAABgAA" +
-           "AAABAAtN/////wEB/////wAAAAAEYIAKAQAAAAAAEQAAAFRyYW5zcG9ydFNldHRpbmdzAQBYUgAvAQBi" +
-           "UlhSAAD/////AAAAAARggAoBAAAAAAAPAAAATWVzc2FnZVNldHRpbmdzAQBZUgAvAQBjUllSAAD/////" +
-           "AAAAAARhggoEAAAAAAAQAAAAQWRkRGF0YVNldFJlYWRlcgEAWlIALwEAWlJaUgAAAQH/////AgAAABdg" +
-           "qQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAFtSAC4ARFtSAACWAQAAAAEAKgEBHgAAAA0AAABDb25m" +
-           "aWd1cmF0aW9uAQAHPf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8A" +
-           "AABPdXRwdXRBcmd1bWVudHMBAFxSAC4ARFxSAACWAQAAAAEAKgEBIgAAABMAAABEYXRhU2V0UmVhZGVy" +
-           "Tm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAATAAAAUmVt" +
-           "b3ZlRGF0YVNldFJlYWRlcgEAXVIALwEAXVJdUgAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRB" +
-           "cmd1bWVudHMBAF5SAC4ARF5SAACWAQAAAAEAKgEBIgAAABMAAABEYXRhU2V0UmVhZGVyTm9kZUlkABH/" +
-           "////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "AAAABQAAAFN0YXRlAQCURgAvAD+URgAAAQA3Of////8BAf////8AAAAABGCACgEAAAAAAAsAAABEaWFn" +
+           "bm9zdGljcwEAF1IALwEAv00XUgAA/////wcAAAAVYIkKAgAAAAAAEAAAAERpYWdub3N0aWNzTGV2ZWwB" +
+           "ABhSAC8APxhSAAABAAtN/////wEB/////wAAAAAVYIkKAgAAAAAAEAAAAFRvdGFsSW5mb3JtYXRpb24B" +
+           "ABlSAC8BAA1NGVIAAAAH/////wEB/////wMAAAAVYIkKAgAAAAAABgAAAEFjdGl2ZQEAGlIALgBEGlIA" +
+           "AAAB/////wEB/////wAAAAAVYIkKAgAAAAAADgAAAENsYXNzaWZpY2F0aW9uAQAbUgAuAEQbUgAAAQAS" +
+           "Tf////8BAf////8AAAAAFWCJCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQAcUgAuAEQcUgAAAQAL" +
+           "Tf////8BAf////8AAAAAFWCJCgIAAAAAAAoAAABUb3RhbEVycm9yAQAeUgAvAQANTR5SAAAAB/////8B" +
+           "Af////8DAAAAFWCJCgIAAAAAAAYAAABBY3RpdmUBAB9SAC4ARB9SAAAAAf////8BAf////8AAAAAFWCJ" +
+           "CgIAAAAAAA4AAABDbGFzc2lmaWNhdGlvbgEAIFIALgBEIFIAAAEAEk3/////AQH/////AAAAABVgiQoC" +
+           "AAAAAAAQAAAARGlhZ25vc3RpY3NMZXZlbAEAIVIALgBEIVIAAAEAC03/////AQH/////AAAAAARhggoE" +
+           "AAAAAAAFAAAAUmVzZXQBACNSAC8BAOlMI1IAAAEB/////wAAAAAVYIkKAgAAAAAACAAAAFN1YkVycm9y" +
+           "AQAkUgAvAD8kUgAAAAH/////AQH/////AAAAAARggAoBAAAAAAAIAAAAQ291bnRlcnMBACVSAC8AOiVS" +
+           "AAD/////BwAAABVgiQoCAAAAAAAKAAAAU3RhdGVFcnJvcgEAJlIALwEADU0mUgAAAAf/////AQH/////" +
+           "AwAAABVgiQoCAAAAAAAGAAAAQWN0aXZlAQAnUgAuAEQnUgAAAAH/////AQH/////AAAAABVgqQoCAAAA" +
+           "AAAOAAAAQ2xhc3NpZmljYXRpb24BAChSAC4ARChSAAAGAQAAAAEAEk3/////AQH/////AAAAABVgqQoC" +
+           "AAAAAAAQAAAARGlhZ25vc3RpY3NMZXZlbAEAKVIALgBEKVIAAAYAAAAAAQALTf////8BAf////8AAAAA" +
+           "FWCJCgIAAAAAABgAAABTdGF0ZU9wZXJhdGlvbmFsQnlNZXRob2QBACtSAC8BAA1NK1IAAAAH/////wEB" +
+           "/////wMAAAAVYIkKAgAAAAAABgAAAEFjdGl2ZQEALFIALgBELFIAAAAB/////wEB/////wAAAAAVYKkK" +
+           "AgAAAAAADgAAAENsYXNzaWZpY2F0aW9uAQAtUgAuAEQtUgAABgAAAAABABJN/////wEB/////wAAAAAV" +
+           "YKkKAgAAAAAAEAAAAERpYWdub3N0aWNzTGV2ZWwBAC5SAC4ARC5SAAAGAAAAAAEAC03/////AQH/////" +
+           "AAAAABVgiQoCAAAAAAAYAAAAU3RhdGVPcGVyYXRpb25hbEJ5UGFyZW50AQAwUgAvAQANTTBSAAAAB///" +
+           "//8BAf////8DAAAAFWCJCgIAAAAAAAYAAABBY3RpdmUBADFSAC4ARDFSAAAAAf////8BAf////8AAAAA" +
+           "FWCpCgIAAAAAAA4AAABDbGFzc2lmaWNhdGlvbgEAMlIALgBEMlIAAAYAAAAAAQASTf////8BAf////8A" +
+           "AAAAFWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQAzUgAuAEQzUgAABgAAAAABAAtN/////wEB" +
+           "/////wAAAAAVYIkKAgAAAAAAGQAAAFN0YXRlT3BlcmF0aW9uYWxGcm9tRXJyb3IBADVSAC8BAA1NNVIA" +
+           "AAAH/////wEB/////wMAAAAVYIkKAgAAAAAABgAAAEFjdGl2ZQEANlIALgBENlIAAAAB/////wEB////" +
+           "/wAAAAAVYKkKAgAAAAAADgAAAENsYXNzaWZpY2F0aW9uAQA3UgAuAEQ3UgAABgAAAAABABJN/////wEB" +
+           "/////wAAAAAVYKkKAgAAAAAAEAAAAERpYWdub3N0aWNzTGV2ZWwBADhSAC4ARDhSAAAGAAAAAAEAC03/" +
+           "////AQH/////AAAAABVgiQoCAAAAAAATAAAAU3RhdGVQYXVzZWRCeVBhcmVudAEAOlIALwEADU06UgAA" +
+           "AAf/////AQH/////AwAAABVgiQoCAAAAAAAGAAAAQWN0aXZlAQA7UgAuAEQ7UgAAAAH/////AQH/////" +
+           "AAAAABVgqQoCAAAAAAAOAAAAQ2xhc3NpZmljYXRpb24BADxSAC4ARDxSAAAGAAAAAAEAEk3/////AQH/" +
+           "////AAAAABVgqQoCAAAAAAAQAAAARGlhZ25vc3RpY3NMZXZlbAEAPVIALgBEPVIAAAYAAAAAAQALTf//" +
+           "//8BAf////8AAAAAFWCJCgIAAAAAABUAAABTdGF0ZURpc2FibGVkQnlNZXRob2QBAD9SAC8BAA1NP1IA" +
+           "AAAH/////wEB/////wMAAAAVYIkKAgAAAAAABgAAAEFjdGl2ZQEAQFIALgBEQFIAAAAB/////wEB////" +
+           "/wAAAAAVYKkKAgAAAAAADgAAAENsYXNzaWZpY2F0aW9uAQBBUgAuAERBUgAABgAAAAABABJN/////wEB" +
+           "/////wAAAAAVYKkKAgAAAAAAEAAAAERpYWdub3N0aWNzTGV2ZWwBAEJSAC4AREJSAAAGAAAAAAEAC03/" +
+           "////AQH/////AAAAABVgiQoCAAAAAAAXAAAAUmVjZWl2ZWROZXR3b3JrTWVzc2FnZXMBAEVSAC8BAA1N" +
+           "RVIAAAAH/////wEB/////wMAAAAVYIkKAgAAAAAABgAAAEFjdGl2ZQEARlIALgBERlIAAAAB/////wEB" +
+           "/////wAAAAAVYKkKAgAAAAAADgAAAENsYXNzaWZpY2F0aW9uAQBHUgAuAERHUgAABgAAAAABABJN////" +
+           "/wEB/////wAAAAAVYKkKAgAAAAAAEAAAAERpYWdub3N0aWNzTGV2ZWwBAEhSAC4AREhSAAAGAAAAAAEA" +
+           "C03/////AQH/////AAAAAARggAoBAAAAAAAKAAAATGl2ZVZhbHVlcwEARFIALwA6RFIAAP////8CAAAA" +
+           "FWCJCgIAAAAAABgAAABDb25maWd1cmVkRGF0YVNldFJlYWRlcnMBAFRSAC8AP1RSAAAABf////8BAf//" +
+           "//8BAAAAFWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQBVUgAuAERVUgAABgAAAAABAAtN////" +
+           "/wEB/////wAAAAAVYIkKAgAAAAAAGQAAAE9wZXJhdGlvbmFsRGF0YVNldFJlYWRlcnMBAFZSAC8AP1ZS" +
+           "AAAABf////8BAf////8BAAAAFWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQBXUgAuAERXUgAA" +
+           "BgAAAAABAAtN/////wEB/////wAAAAAEYIAKAQAAAAAAEQAAAFRyYW5zcG9ydFNldHRpbmdzAQBYUgAv" +
+           "AQBiUlhSAAD/////AAAAAARggAoBAAAAAAAPAAAATWVzc2FnZVNldHRpbmdzAQBZUgAvAQBjUllSAAD/" +
+           "////AAAAAARhggoEAAAAAAAQAAAAQWRkRGF0YVNldFJlYWRlcgEAWlIALwEAWlJaUgAAAQH/////AgAA" +
+           "ABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAFtSAC4ARFtSAACWAQAAAAEAKgEBHgAAAA0AAABD" +
+           "b25maWd1cmF0aW9uAQAHPf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAA" +
+           "AA8AAABPdXRwdXRBcmd1bWVudHMBAFxSAC4ARFxSAACWAQAAAAEAKgEBIgAAABMAAABEYXRhU2V0UmVh" +
+           "ZGVyTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAARhggoEAAAAAAATAAAA" +
+           "UmVtb3ZlRGF0YVNldFJlYWRlcgEAXVIALwEAXVJdUgAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5w" +
+           "dXRBcmd1bWVudHMBAF5SAC4ARF5SAACWAQAAAAEAKgEBIgAAABMAAABEYXRhU2V0UmVhZGVyTm9kZUlk" +
+           "ABH/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -69366,7 +73716,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             DataSetReaderDataType configuration = (DataSetReaderDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
 
@@ -69374,7 +73724,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -69384,7 +73734,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = dataSetReaderNodeId;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -69468,20 +73818,20 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             NodeId dataSetReaderNodeId = (NodeId)_inputArguments[0];
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
                     dataSetReaderNodeId);
             }
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -71665,7 +76015,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             ConfigurationVersionDataType configurationVersion = (ConfigurationVersionDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
             FieldTargetDataType[] targetVariablesToAdd = (FieldTargetDataType[])ExtensionObject.ToArray(_inputArguments[1], typeof(FieldTargetDataType));
@@ -71674,7 +76024,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -71685,7 +76035,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = addResults;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -71772,7 +76122,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             string parentNodeName = (string)_inputArguments[0];
             RolePermissionType[] rolePermissions = (RolePermissionType[])ExtensionObject.ToArray(_inputArguments[1], typeof(RolePermissionType));
@@ -71781,7 +76131,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -71792,7 +76142,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = parentNodeId;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -72209,7 +76559,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             ConfigurationVersionDataType configurationVersion = (ConfigurationVersionDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
             FieldTargetDataType[] targetVariablesToAdd = (FieldTargetDataType[])ExtensionObject.ToArray(_inputArguments[1], typeof(FieldTargetDataType));
@@ -72218,7 +76568,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -72229,7 +76579,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = addResults;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -72317,7 +76667,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             ConfigurationVersionDataType configurationVersion = (ConfigurationVersionDataType)ExtensionObject.ToEncodeable((ExtensionObject)_inputArguments[0]);
             uint[] targetsToRemove = (uint[])_inputArguments[1];
@@ -72326,7 +76676,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -72337,7 +76687,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = removeResults;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -78147,20 +82497,12 @@ namespace Opc.Ua
         #region Initialization String
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAHQAAAEFsaWFzTmFtZUNhdGVnb3J5VHlwZUluc3RhbmNlAQCgWwEAoFug" +
-           "WwAA/////wMAAAAEYMAKAQAAABEAAABBbGlhc19QbGFjZWhvbGRlcgAABwAAADxBbGlhcz4BAKFbACMB" +
-           "AJ9boVsAAP////8AAAAABGDACgEAAAAiAAAAU3ViQWxpYXNOYW1lQ2F0ZWdvcmllc19QbGFjZWhvbGRl" +
-           "cgAAGAAAADxTdWJBbGlhc05hbWVDYXRlZ29yaWVzPgEAolsAIwEAoFuiWwAA/////wEAAAAEYYIKBAAA" +
-           "AAAACQAAAEZpbmRBbGlhcwEAo1sALwEAplujWwAAAQH/////AgAAABdgqQoCAAAAAAAOAAAASW5wdXRB" +
-           "cmd1bWVudHMBAKRbAC4ARKRbAACWAgAAAAEAKgEBJQAAABYAAABBbGlhc05hbWVTZWFyY2hQYXR0ZXJu" +
-           "AAz/////AAAAAAABACoBASIAAAATAAAAUmVmZXJlbmNlVHlwZUZpbHRlcgAR/////wAAAAAAAQAoAQEA" +
-           "AAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEApVsALgBEpVsA" +
-           "AJYBAAAAAQAqAQEiAAAADQAAAEFsaWFzTm9kZUxpc3QBAKxbAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAA" +
-           "AAAAAAABAf////8AAAAABGGCCgQAAAAAAAkAAABGaW5kQWxpYXMBAKZbAC8BAKZbplsAAAEB/////wIA" +
-           "AAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQCnWwAuAESnWwAAlgIAAAABACoBASUAAAAWAAAA" +
-           "QWxpYXNOYW1lU2VhcmNoUGF0dGVybgAM/////wAAAAAAAQAqAQEiAAAAEwAAAFJlZmVyZW5jZVR5cGVG" +
-           "aWx0ZXIAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRw" +
-           "dXRBcmd1bWVudHMBAKhbAC4ARKhbAACWAQAAAAEAKgEBIgAAAA0AAABBbGlhc05vZGVMaXN0AQCsWwEA" +
-           "AAABAAAAAAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "WwAA/////wEAAAAEYYIKBAAAAAAACQAAAEZpbmRBbGlhcwEAplsALwEAplumWwAAAQH/////AgAAABdg" +
+           "qQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAKdbAC4ARKdbAACWAgAAAAEAKgEBJQAAABYAAABBbGlh" +
+           "c05hbWVTZWFyY2hQYXR0ZXJuAAz/////AAAAAAABACoBASIAAAATAAAAUmVmZXJlbmNlVHlwZUZpbHRl" +
+           "cgAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFy" +
+           "Z3VtZW50cwEAqFsALgBEqFsAAJYBAAAAAQAqAQEiAAAADQAAAEFsaWFzTm9kZUxpc3QBAKxbAQAAAAEA" +
+           "AAAAAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -78321,7 +82663,7 @@ namespace Opc.Ua
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
             }
 
-            ServiceResult result = null;
+            ServiceResult _result = null;
 
             string aliasNameSearchPattern = (string)_inputArguments[0];
             NodeId referenceTypeFilter = (NodeId)_inputArguments[1];
@@ -78330,7 +82672,7 @@ namespace Opc.Ua
 
             if (OnCall != null)
             {
-                result = OnCall(
+                _result = OnCall(
                     _context,
                     this,
                     _objectId,
@@ -78341,7 +82683,7 @@ namespace Opc.Ua
 
             _outputArguments[0] = aliasNodeList;
 
-            return result;
+            return _result;
         }
         #endregion
 
@@ -78437,7 +82779,7 @@ namespace Opc.Ua
 
         #region Public Properties
         /// <remarks />
-        public PropertyState<Variant> EnumDictionaryEntries
+        public PropertyState EnumDictionaryEntries
         {
             get
             {
@@ -78518,11 +82860,11 @@ namespace Opc.Ua
                         {
                             if (replacement == null)
                             {
-                                EnumDictionaryEntries = new PropertyState<Variant>(this);
+                                EnumDictionaryEntries = new PropertyState(this);
                             }
                             else
                             {
-                                EnumDictionaryEntries = (PropertyState<Variant>)replacement;
+                                EnumDictionaryEntries = (PropertyState)replacement;
                             }
                         }
                     }
@@ -78563,7 +82905,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private PropertyState<Variant> m_enumDictionaryEntries;
+        private PropertyState m_enumDictionaryEntries;
         private PropertyState<NodeId[]> m_valueAsDictionaryEntries;
         #endregion
     }
@@ -78605,12 +82947,12 @@ namespace Opc.Ua
         {
             get
             {
-                return CheckTypeBeforeCast<T>(base.Value, true);
+                return CheckTypeBeforeCast<T>(((BaseVariableState)this).Value, true);
             }
 
             set
             {
-                base.Value = value;
+                ((BaseVariableState)this).Value = value;
             }
         }
         #endregion
@@ -78731,12 +83073,12 @@ namespace Opc.Ua
         {
             get
             {
-                return CheckTypeBeforeCast<T>(base.Value, true);
+                return CheckTypeBeforeCast<T>(((BaseVariableState)this).Value, true);
             }
 
             set
             {
-                base.Value = value;
+                ((BaseVariableState)this).Value = value;
             }
         }
         #endregion
@@ -80487,7 +84829,7 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public BaseDataVariableState<Variant> FailureSystemIdentifier
+        public BaseDataVariableState FailureSystemIdentifier
         {
             get
             {
@@ -80622,11 +84964,11 @@ namespace Opc.Ua
                         {
                             if (replacement == null)
                             {
-                                FailureSystemIdentifier = new BaseDataVariableState<Variant>(this);
+                                FailureSystemIdentifier = new BaseDataVariableState(this);
                             }
                             else
                             {
-                                FailureSystemIdentifier = (BaseDataVariableState<Variant>)replacement;
+                                FailureSystemIdentifier = (BaseDataVariableState)replacement;
                             }
                         }
                     }
@@ -80649,7 +84991,7 @@ namespace Opc.Ua
         private BaseDataVariableState<TsnTalkerStatus> m_talkerStatus;
         private BaseDataVariableState<TsnListenerStatus> m_listenerStatus;
         private BaseDataVariableState<TsnFailureCode> m_failureCode;
-        private BaseDataVariableState<Variant> m_failureSystemIdentifier;
+        private BaseDataVariableState m_failureSystemIdentifier;
         #endregion
     }
     #endif

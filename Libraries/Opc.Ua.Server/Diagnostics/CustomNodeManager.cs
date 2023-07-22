@@ -1896,25 +1896,48 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    // check if the node is AnalogItem and the value is outside the InstrumentRange.
+                    // check if the node is AnalogItem and the values are outside the InstrumentRange.
                     AnalogItemState analogItemState = handle.Node as AnalogItemState;
                     if (analogItemState != null && analogItemState.InstrumentRange != null)
                     {
                         try
                         {
-                            double newValue = System.Convert.ToDouble(nodeToWrite.Value.Value);
-
-                            if (newValue > analogItemState.InstrumentRange.Value.High ||
-                                newValue < analogItemState.InstrumentRange.Value.Low)
+                            if (nodeToWrite.Value.Value is Array array)
                             {
-                                errors[ii] = StatusCodes.BadOutOfRange;
-                                continue;
+                                bool isOutOfRange = false;
+                                foreach (var arrayValue in array)
+                                {
+                                    double newValue = Convert.ToDouble(arrayValue);
+                                    if (newValue > analogItemState.InstrumentRange.Value.High ||
+                                        newValue < analogItemState.InstrumentRange.Value.Low)
+                                    {
+                                        isOutOfRange = true;
+                                        break;
+                                    }
+                                }
+                                if (isOutOfRange)
+                                {
+                                    errors[ii] = StatusCodes.BadOutOfRange;
+                                    continue;
+                                }
+                            }
+                            else
+                            {
+                                double newValue = Convert.ToDouble(nodeToWrite.Value.Value);
+
+                                if (newValue > analogItemState.InstrumentRange.Value.High ||
+                                    newValue < analogItemState.InstrumentRange.Value.Low)
+                                {
+                                    errors[ii] = StatusCodes.BadOutOfRange;
+                                    continue;
+                                }
                             }
                         }
                         catch
                         {
                             //skip the InstrumentRange check if the transformation isn't possible.
                         }
+
                     }
 
 #if DEBUG
@@ -1979,7 +2002,7 @@ namespace Opc.Ua.Server
                     }
 
                     // updates to source finished - report changes to monitored items.
-                    handle.Node.ClearChangeMasks(systemContext, false);
+                    handle.Node.ClearChangeMasks(systemContext, true);
                 }
 
                 // check for nothing to do.
@@ -3313,6 +3336,13 @@ namespace Opc.Ua.Server
             if (!MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
             {
                 MonitoredNodes[source.NodeId] = monitoredNode = new MonitoredNode2(this, source);
+            }
+
+            if (monitoredNode.EventMonitoredItems != null)
+            {
+                // remove existing monitored items with the same Id prior to insertion inorder to avoid duplicates
+                // this is necessary since the SubscribeToEvents method is called also from ModifyMonitoredItemsForEvents
+                monitoredNode.EventMonitoredItems.RemoveAll(e => e.Id == monitoredItem.Id);
             }
 
             // this links the node to specified monitored item and ensures all events

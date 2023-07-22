@@ -166,6 +166,7 @@
     <xs:attribute name="XmlSchemaUri" type="xs:string" use="optional" />
     <xs:attribute name="Version" type="xs:string" />
     <xs:attribute name="PublicationDate" type="xs:dateTime" />
+    <xs:attribute name="ModelVersion" type="ModelVersion" use="optional" />
     <xs:attribute name="AccessRestrictions" type="AccessRestriction" default="0" />
   </xs:complexType>
 
@@ -174,7 +175,7 @@
       <xs:element name="Model" type="ModelTableEntry" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
   </xs:complexType>
-
+  
   <xs:simpleType name="ModelVersion">
     <xs:restriction base="xs:token">
       <xs:pattern value="^(0|[1-9]+[0-9]*)\.(0|[1-9]+[0-9]*)\.(0|[1-9]+[0-9]*)(-(0|[1-9A-Za-z-][0-9A-Za-z-]*)(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$" />

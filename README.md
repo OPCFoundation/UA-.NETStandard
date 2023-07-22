@@ -58,7 +58,6 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 ### Build Status
 [![Azure DevOps](https://opcfoundation.visualstudio.com/opcua-netstandard/_apis/build/status/OPCFoundation.UA-.NETStandard?branchName=master)](https://opcfoundation.visualstudio.com/opcua-netstandard/_build/latest?definitionId=14&branchName=master)
 [![Github Actions](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/buildandtest.yml/badge.svg)](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/buildandtest.yml)
-[![Build Status](https://img.shields.io/appveyor/build/opcfoundation-org/ua-netstandardlibrary/master?label=Appveyor)](https://ci.appveyor.com/project/opcfoundation-org/ua-netstandardlibrary)
 
 ### Code Quality
 [![Test Status](https://img.shields.io/azure-devops/tests/opcfoundation/opcua-netstandard/14?style=plastic)](https://opcfoundation.visualstudio.com/opcua-netstandard/_test/analytics?definitionId=14&contextType=build)
@@ -71,9 +70,9 @@ All the tools you need for .NET Standard come with the .NET Core tools. See [Get
 ## How to build and run the reference samples in Visual Studio on Windows
 
 Note: Since .NET Core 2.1 is end of life, 
-- VS 2017 has only limited support for .NET 4.6.2. 
-- VS 2019 is fully supported with .NET 4.6.2 and up to .NET Core 3.1 (LTS). 
-- VS 2022 is the current supported version, including .NET 6.0. 
+- VS 2017 has only limited support for .NET 4.8. 
+- VS 2019 is fully supported with .NET 4.8 and up to .NET Core 3.1 (end of life). 
+- VS 2022 is the current supported version, including .NET 6.0 (LTS). 
 
 1. Open the UA Reference.sln solution file using Visual Studio. 
 2. Choose a project in the Solution Explorer and set it with a right click as `Startup Project`.

@@ -30,15 +30,12 @@ namespace Opc.Ua
     /// <br/></para>
     /// </remarks>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class DiagnosticInfo : IFormattable
+    public class DiagnosticInfo : ICloneable, IFormattable
     {
         #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with default values.
-        /// </remarks>
         public DiagnosticInfo()
         {
             Initialize();
@@ -72,9 +69,6 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with specific values.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with specific values.
-        /// </remarks>
         /// <param name="symbolicId">The symbolic ID</param>
         /// <param name="namespaceUri">The namespace URI applicable</param>
         /// <param name="locale">The locale for the localized text value</param>
@@ -97,9 +91,6 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with an exception.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with an exception.
-        /// </remarks>
         /// <param name="diagnosticsMask">The bitmask describing the diagnostic data</param>
         /// <param name="result">The overall transaction result</param>
         /// <param name="serviceLevel">The service level</param>
@@ -125,9 +116,6 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with an exception.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with an exception.
-        /// </remarks>
         /// <param name="diagnosticsMask">A bitmask describing the type of diagnostic data</param>
         /// <param name="exception">The exception to associated with the diagnostic data</param>
         /// <param name="serviceLevel">The service level</param>
@@ -153,9 +141,6 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object during deserialization.
-        /// </remarks>
         /// <param name="context">The context information of an underlying data-stream</param>
         [OnDeserializing()]
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "context")]
@@ -184,9 +169,6 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a service result.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with a service result.
-        /// </remarks>
         /// <param name="diagnosticsMask">The bitmask describing the type of diagnostic data</param>
         /// <param name="result">The transaction result</param>
         /// <param name="stringTable">An array of strings that may be used to provide additional diagnostic details</param>
@@ -197,13 +179,7 @@ namespace Opc.Ua
         {
             if (stringTable == null) throw new ArgumentNullException(nameof(stringTable));
 
-            m_symbolicId = -1;
-            m_namespaceUri = -1;
-            m_locale = -1;
-            m_localizedText = -1;
-            m_additionalInfo = null;
-            m_innerStatusCode = StatusCodes.Good;
-            m_innerDiagnosticInfo = null;
+            Initialize();
 
             if ((DiagnosticsMasks.ServiceSymbolicId & diagnosticsMask) != 0)
             {
@@ -258,7 +234,8 @@ namespace Opc.Ua
                 }
             }
 
-            if ((DiagnosticsMasks.ServiceAdditionalInfo & diagnosticsMask) != 0)
+            if ((DiagnosticsMasks.ServiceAdditionalInfo & diagnosticsMask) != 0 &&
+                (DiagnosticsMasks.UserPermissionAdditionalInfo & diagnosticsMask) != 0)
             {
                 m_additionalInfo = result.AdditionalInfo;
             }
@@ -287,9 +264,6 @@ namespace Opc.Ua
         /// <summary>
         /// The index of the symbolic id in the string table.
         /// </summary>
-        /// <remarks>
-        /// The index of the symbolic id in the string table.
-        /// </remarks>
         [DataMember(Order = 1, IsRequired = false)]
         public int SymbolicId
         {
@@ -300,9 +274,6 @@ namespace Opc.Ua
         /// <summary>
         /// The index of the namespace uri in the string table.
         /// </summary>
-        /// <remarks>
-        /// The index of the namespace uri in the string table.
-        /// </remarks>
         [DataMember(Order = 2, IsRequired = false)]
         public int NamespaceUri
         {
@@ -333,9 +304,6 @@ namespace Opc.Ua
         /// <summary>
         /// The additional debugging or trace information.
         /// </summary>
-        /// <remarks>
-        /// The additional debugging or trace information.
-        /// </remarks>
         [DataMember(Order = 5, IsRequired = false, EmitDefaultValue = false)]
         public string AdditionalInfo
         {
@@ -346,9 +314,6 @@ namespace Opc.Ua
         /// <summary>
         /// The status code returned from an underlying system.
         /// </summary>
-        /// <remarks>
-        /// The status code returned from an underlying system.
-        /// </remarks>
         [DataMember(Order = 6, IsRequired = false)]
         public StatusCode InnerStatusCode
         {
@@ -359,14 +324,32 @@ namespace Opc.Ua
         /// <summary>
         /// The diagnostic info returned from a underlying system.
         /// </summary>
-        /// <remarks>
-        /// The diagnostic info returned from a underlying system.
-        /// </remarks>
         [DataMember(Order = 7, IsRequired = false, EmitDefaultValue = false)]
         public DiagnosticInfo InnerDiagnosticInfo
         {
             get { return m_innerDiagnosticInfo; }
             set { m_innerDiagnosticInfo = value; }
+        }
+
+        /// <summary>
+        /// Whether the object represents a Null DiagnosticInfo.
+        /// </summary>
+        public bool IsNullDiagnosticInfo
+        {
+            get
+            {
+                if (m_symbolicId == -1 &&
+                    m_locale == -1 &&
+                    m_localizedText == -1 &&
+                    m_namespaceUri == -1 &&
+                    m_additionalInfo == null &&
+                    m_innerDiagnosticInfo == null &&
+                    m_innerStatusCode == StatusCodes.Good)
+                {
+                    return true;
+                }
+                return false;
+            }
         }
         #endregion
 
@@ -374,12 +357,14 @@ namespace Opc.Ua
         /// <summary>
         /// Determines if the specified object is equal to the object.
         /// </summary>
-        /// <remarks>
-        /// Determines if the specified object is equal to the object.
-        /// </remarks>
         public override bool Equals(object obj)
         {
             if (Object.ReferenceEquals(this, obj))
+            {
+                return true;
+            }
+
+            if (obj == null && IsNullDiagnosticInfo)
             {
                 return true;
             }
@@ -388,6 +373,7 @@ namespace Opc.Ua
 
             if (value != null)
             {
+
                 if (this.m_symbolicId != value.m_symbolicId)
                 {
                     return false;
@@ -432,31 +418,27 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a unique hashcode for the object.
         /// </summary>
-        /// <remarks>
-        /// Returns a unique hashcode for the object.
-        /// </remarks>
         public override int GetHashCode()
         {
-            int hash = 0;
-
-            hash ^= this.m_symbolicId.GetHashCode();
-            hash ^= this.m_namespaceUri.GetHashCode();
-            hash ^= this.m_locale.GetHashCode();
-            hash ^= this.m_localizedText.GetHashCode();
+            var hash = new HashCode();
+            hash.Add(this.m_symbolicId);
+            hash.Add(this.m_namespaceUri);
+            hash.Add(this.m_locale);
+            hash.Add(this.m_localizedText);
 
             if (this.m_additionalInfo != null)
             {
-                hash ^= this.m_additionalInfo.GetHashCode();
+                hash.Add(this.m_additionalInfo);
             }
 
-            hash ^= this.m_innerStatusCode.GetHashCode();
+            hash.Add(this.m_innerStatusCode);
 
             if (this.m_innerDiagnosticInfo != null)
             {
-                hash ^= this.m_innerDiagnosticInfo.GetHashCode();
+                hash.Add(this.m_innerDiagnosticInfo);
             }
 
-            return 0;
+            return hash.ToHashCode();
         }
 
         /// <summary>
@@ -493,12 +475,15 @@ namespace Opc.Ua
         #endregion
 
         #region ICloneable Members
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Makes a deep copy of the object.
         /// </summary>
-        /// <remarks>
-        /// Makes a deep copy of this object.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             return new DiagnosticInfo(this);
@@ -524,7 +509,7 @@ namespace Opc.Ua
     /// A strongly-typed collection of DiagnosticInfo objects.
     /// </remarks>
     [CollectionDataContract(Name = "ListOfDiagnosticInfo", Namespace = Namespaces.OpcUaXsd, ItemName = "DiagnosticInfo")]
-    public partial class DiagnosticInfoCollection : List<DiagnosticInfo>
+    public partial class DiagnosticInfoCollection : List<DiagnosticInfo>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
@@ -581,6 +566,13 @@ namespace Opc.Ua
             return ToDiagnosticInfoCollection(values);
         }
 
+        #region ICloneable
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
@@ -598,6 +590,8 @@ namespace Opc.Ua
 
             return clone;
         }
+        #endregion
+
     }//class
     #endregion
 

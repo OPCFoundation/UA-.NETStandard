@@ -22,7 +22,7 @@ namespace Opc.Ua
     /// <summary>
     /// Writes objects to a JSON stream.
     /// </summary>
-    public class JsonEncoder : IEncoder, IDisposable
+    public class JsonEncoder : IJsonEncoder, IDisposable
     {
         #region Private Fields
         private const int kStreamWriterBufferSize = 1024;
@@ -311,6 +311,7 @@ namespace Opc.Ua
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -328,58 +329,8 @@ namespace Opc.Ua
         }
         #endregion
 
-        #region IEncoder Members
-        /// <summary>
-        /// The type of encoding being used.
-        /// </summary>
-        public EncodingType EncodingType => EncodingType.Json;
-
-        /// <summary>
-        /// The message context associated with the encoder.
-        /// </summary>
-        public IServiceMessageContext Context => m_context;
-
-        /// <summary>
-        /// The Json encoder reversible encoding option
-        /// </summary>
-        public bool UseReversibleEncoding { get; private set; }
-
-        /// <summary>
-        /// The Json encoder to encoder namespace URI instead of
-        /// namespace Index in NodeIds.
-        /// </summary>
-        public bool ForceNamespaceUri { get; set; }
-
-        /// <summary>
-        /// The Json encoder default value option.
-        /// </summary>
-        public bool IncludeDefaultValues { get; set; }
-
-        /// <summary>
-        /// The Json encoder default value option.
-        /// </summary>
-        public bool IncludeDefaultNumberValues { get; set; }
-
-        /// <summary>
-        /// Pushes a namespace onto the namespace stack.
-        /// </summary>
-        public void PushNamespace(string namespaceUri)
-        {
-            m_namespaces.Push(namespaceUri);
-        }
-
-        /// <summary>
-        /// Pops a namespace from the namespace stack.
-        /// </summary>
-        public void PopNamespace()
-        {
-            m_namespaces.Pop();
-        }
-
-        /// <summary>
-        /// Push the begin of a structure on the decoder stack.
-        /// </summary>
-        /// <param name="fieldName">The name of the structure field.</param>
+        #region IJsonEncodeable Members
+        /// <inheritdoc/>
         public void PushStructure(string fieldName)
         {
             m_nestingLevel++;
@@ -408,10 +359,7 @@ namespace Opc.Ua
             m_writer.Write("{");
         }
 
-        /// <summary>
-        /// Push the begin of an array on the decoder stack.
-        /// </summary>
-        /// <param name="fieldName">The name of the array field.</param>
+        /// <inheritdoc/>
         public void PushArray(string fieldName)
         {
             m_nestingLevel++;
@@ -440,9 +388,7 @@ namespace Opc.Ua
             m_writer.Write("[");
         }
 
-        /// <summary>
-        /// Pop the structure from the decoder stack.
-        /// </summary>
+        /// <inheritdoc/>
         public void PopStructure()
         {
             if (m_nestingLevel > 1 || m_topLevelIsArray ||
@@ -455,9 +401,7 @@ namespace Opc.Ua
             m_nestingLevel--;
         }
 
-        /// <summary>
-        /// Pop the array from the decoder stack.
-        /// </summary>
+        /// <inheritdoc/>
         public void PopArray()
         {
             if (m_nestingLevel > 1 || m_topLevelIsArray ||
@@ -468,6 +412,76 @@ namespace Opc.Ua
             }
 
             m_nestingLevel--;
+        }
+
+        /// <inheritdoc/>
+        public void UsingReversibleEncoding<T>(Action<string, T> action, string fieldName, T value, bool useReversibleEncoding)
+        {
+            bool currentValue = UseReversibleEncoding;
+            try
+            {
+                UseReversibleEncoding = useReversibleEncoding;
+                action(fieldName, value);
+            }
+            finally
+            {
+                UseReversibleEncoding = currentValue;
+            }
+        }
+        #endregion
+
+        #region IEncoder Members
+        /// <summary>
+        /// The type of encoding being used.
+        /// </summary>
+        public EncodingType EncodingType => EncodingType.Json;
+
+        /// <summary>
+        /// The message context associated with the encoder.
+        /// </summary>
+        public IServiceMessageContext Context => m_context;
+
+        /// <summary>
+        /// The Json encoder reversible encoding option
+        /// </summary>
+        public bool UseReversibleEncoding { get; private set; }
+
+        /// <summary>
+        /// The Json encoder to encoder namespace URI instead of
+        /// namespace Index in NodeIds.
+        /// </summary>
+        public bool ForceNamespaceUri { get; set; }
+
+        /// <summary>
+        /// The Json encoder to encode namespace URI for all
+        /// namespaces
+        /// </summary>
+        public bool ForceNamespaceUriForIndex1 { get; set; }
+
+        /// <summary>
+        /// The Json encoder default value option.
+        /// </summary>
+        public bool IncludeDefaultValues { get; set; }
+
+        /// <summary>
+        /// The Json encoder default value option.
+        /// </summary>
+        public bool IncludeDefaultNumberValues { get; set; }
+
+        /// <summary>
+        /// Pushes a namespace onto the namespace stack.
+        /// </summary>
+        public void PushNamespace(string namespaceUri)
+        {
+            m_namespaces.Push(namespaceUri);
+        }
+
+        /// <summary>
+        /// Pops a namespace from the namespace stack.
+        /// </summary>
+        public void PopNamespace()
+        {
+            m_namespaces.Pop();
         }
 
         private static readonly char[] m_specialChars = new char[] { '"', '\\', '\n', '\r', '\t', '\b', '\f', };
@@ -854,7 +868,8 @@ namespace Opc.Ua
                 return;
             }
 
-            if (!UseReversibleEncoding && namespaceIndex > 1)
+            if ((!UseReversibleEncoding || ForceNamespaceUri) && namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
+                
             {
                 var uri = m_context.NamespaceUris.GetString(namespaceIndex);
                 if (!String.IsNullOrEmpty(uri))
@@ -935,7 +950,7 @@ namespace Opc.Ua
             PushStructure(fieldName);
 
             ushort namespaceIndex = value.NamespaceIndex;
-            if (ForceNamespaceUri && namespaceIndex > 1)
+            if (ForceNamespaceUri && namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
             {
                 string namespaceUri = Context.NamespaceUris.GetString(namespaceIndex);
                 WriteNodeIdContents(value, namespaceUri);
@@ -963,7 +978,7 @@ namespace Opc.Ua
 
             string namespaceUri = value.NamespaceUri;
             ushort namespaceIndex = value.InnerNodeId.NamespaceIndex;
-            if (ForceNamespaceUri && namespaceUri == null && namespaceIndex > 1)
+            if (ForceNamespaceUri && namespaceUri == null && namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
             {
                 namespaceUri = Context.NamespaceUris.GetString(namespaceIndex);
             }
@@ -1138,24 +1153,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Writes an Variant to the stream with the especified reversible encoding parameter
-        /// </summary>
-        public void WriteVariant(string fieldName, Variant value, bool useReversibleEncoding)
-        {
-            bool currentValue = UseReversibleEncoding;
-
-            try
-            {
-                UseReversibleEncoding = useReversibleEncoding;
-                WriteVariant(fieldName, value);
-            }
-            finally
-            {
-                UseReversibleEncoding = currentValue;
-            }
-        }
-
-        /// <summary>
         /// Writes an Variant to the stream.
         /// </summary>
         public void WriteVariant(string fieldName, Variant value)
@@ -1220,24 +1217,6 @@ namespace Opc.Ua
             }
 
             m_nestingLevel--;
-        }
-
-        /// <summary>
-        /// Writes an DataValue array to the stream.
-        /// </summary>
-        public void WriteDataValue(string fieldName, DataValue value, bool useReversibleEncoding)
-        {
-            bool currentValue = UseReversibleEncoding;
-
-            try
-            {
-                UseReversibleEncoding = useReversibleEncoding;
-                WriteDataValue(fieldName, value);
-            }
-            finally
-            {
-                UseReversibleEncoding = currentValue;
-            }
         }
 
         /// <summary>

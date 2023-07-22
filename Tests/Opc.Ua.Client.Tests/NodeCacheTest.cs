@@ -48,6 +48,8 @@ namespace Opc.Ua.Client.Tests
     [DisassemblyDiagnoser]
     public class NodeCacheTest : ClientTestFramework
     {
+        private const int kTestSetSize = 100;
+
         public NodeCacheTest(string uriScheme = Utils.UriSchemeOpcTcp) :
             base(uriScheme)
         {
@@ -182,7 +184,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Browse all variables in the objects folder.
         /// </summary>
-        [Test, Order(100)]
+        [Test, Order(200)]
         public void NodeCache_BrowseAllVariables_MultipleNodes()
         {
             var result = new List<INode>();
@@ -346,7 +348,8 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(910)]
         public void FetchAllReferenceTypes()
         {
-            var bindingFlags = BindingFlags.Instance |
+            var bindingFlags =
+                BindingFlags.Instance |
                 BindingFlags.Static |
                 BindingFlags.Public;
             var fieldValues = typeof(ReferenceTypeIds)
@@ -354,6 +357,189 @@ namespace Opc.Ua.Client.Tests
                 .Select(field => NodeId.ToExpandedNodeId((NodeId)field.GetValue(null), Session.NamespaceUris));
 
             Session.FetchTypeTree(new ExpandedNodeIdCollection(fieldValues));
+        }
+
+        /// <summary>
+        /// Test concurrent access of FetchNodes.
+        /// </summary>
+        [Test, Order(1000)]
+        public void NodeCacheFetchNodesConcurrent()
+        {
+            if (ReferenceDescriptions == null)
+            {
+                BrowseFullAddressSpace();
+            }
+
+            Random random = new Random(62541);
+            var testSet = ReferenceDescriptions.OrderBy(o => random.Next()).Take(kTestSetSize).Select(r => r.NodeId).ToList();
+            var taskList = new List<Task>();
+
+            // test concurrent access of FetchNodes
+            for (int i = 0; i < 10; i++)
+            {
+                Task t = Task.Run(
+                    () => {
+                        IList<Node> nodeCollection = Session.NodeCache.FetchNodes(testSet);
+                    }
+                    );
+                taskList.Add(t);
+            }
+            Task.WaitAll(taskList.ToArray());
+        }
+
+        /// <summary>
+        /// Test concurrent access of Find.
+        /// </summary>
+        [Test, Order(1100)]
+        public void NodeCacheFindNodesConcurrent()
+        {
+            if (ReferenceDescriptions == null)
+            {
+                BrowseFullAddressSpace();
+            }
+
+            Random random = new Random(62541);
+            var testSet = ReferenceDescriptions.OrderBy(o => random.Next()).Take(kTestSetSize).Select(r => r.NodeId).ToList();
+            var taskList = new List<Task>();
+
+            // test concurrent access of FetchNodes
+            for (int i = 0; i < 10; i++)
+            {
+                Task t = Task.Run(() => {
+                    IList<INode> nodeCollection = Session.NodeCache.Find(testSet);
+                });
+                taskList.Add(t);
+            }
+            Task.WaitAll(taskList.ToArray());
+        }
+
+        /// <summary>
+        /// Test concurrent access of FindReferences.
+        /// </summary>
+        [Test, Order(1200)]
+        public void NodeCacheFindReferencesConcurrent()
+        {
+            if (ReferenceDescriptions == null)
+            {
+                BrowseFullAddressSpace();
+            }
+
+            Random random = new Random(62541);
+            var testSet = ReferenceDescriptions.OrderBy(o => random.Next()).Take(kTestSetSize).Select(r => r.NodeId).ToList();
+            var taskList = new List<Task>();
+            var refTypeIds = new List<NodeId>() { ReferenceTypeIds.HierarchicalReferences };
+            FetchAllReferenceTypes();
+
+            // test concurrent access of FetchNodes
+            for (int i = 0; i < 10; i++)
+            {
+                Task t = Task.Run(() => {
+                    IList<INode> nodeCollection = Session.NodeCache.FindReferences(testSet, refTypeIds, false, true);
+                });
+                taskList.Add(t);
+            }
+            Task.WaitAll(taskList.ToArray());
+        }
+
+        /// <summary>
+        /// Test concurrent access of many methods in INodecache interface
+        /// </summary>
+        [Test, Order(1300)]
+        public void NodeCacheTestAllMethodsConcurrently()
+        {
+            const int testCases = 10;
+            const int testCaseRunTime = 5_000;
+
+            if (ReferenceDescriptions == null)
+            {
+                BrowseFullAddressSpace();
+            }
+
+            Random random = new Random(62541);
+            var testSetAll = ReferenceDescriptions.OrderBy(o => random.Next()).Where(r=>r.NodeClass == NodeClass.Variable).Select(r => r.NodeId).ToList();
+            var testSet1 = testSetAll.Take(kTestSetSize).ToList();
+            var testSet2 = testSetAll.Skip(kTestSetSize).Take(kTestSetSize).ToList();
+            var testSet3 = testSetAll.Skip(kTestSetSize * 2).Take(kTestSetSize).ToList();
+
+            var taskList = new List<Task>();
+            var refTypeIds = new List<NodeId>() { ReferenceTypeIds.HierarchicalReferences };
+
+            // test concurrent access of many methods in INodecache interface
+            for (int i = 0; i < testCases; i++)
+            {
+                int iteration = i;
+                Task t = Task.Run(() => {
+                    DateTime start = DateTime.UtcNow;
+                    do
+                    {
+                        switch (iteration)
+                        {
+                            case 0:
+                                FetchAllReferenceTypes();
+                                IList<INode> result = Session.NodeCache.FindReferences(testSet1, refTypeIds, false, true);
+                                break;
+                            case 1:
+                                IList<INode> result1 = Session.NodeCache.Find(testSet2);
+                                break;
+                            case 2:
+                                IList<Node> result2 = Session.NodeCache.FetchNodes(testSet3);
+                                string displayText = Session.NodeCache.GetDisplayText(result2[0]);
+                                break;
+                            case 3:
+                                IList<INode> result3 = Session.NodeCache.FindReferences(testSet1[0], refTypeIds[0], false, true);
+                                break;
+                            case 4:
+                                INode result4 = Session.NodeCache.Find(testSet2[0]);
+                                Assert.NotNull(result4);
+                                Assert.True(result4 is VariableNode);
+                                break;
+                            case 5:
+                                Node result5 = Session.NodeCache.FetchNode(testSet3[0]);
+                                Assert.NotNull(result5);
+                                Assert.True(result5 is VariableNode);
+                                Session.NodeCache.FetchSuperTypes(result5.NodeId);
+                                break;
+                            case 6:
+                                string text = Session.NodeCache.GetDisplayText(testSet2[0]);
+                                Assert.NotNull(text);
+                                break;
+                            case 7:
+                                NodeId number = new NodeId((int)BuiltInType.Number);
+                                bool isKnown = Session.NodeCache.IsKnown(new ExpandedNodeId((int)BuiltInType.Int64));
+                                Assert.True(isKnown);
+                                bool isKnown2 = Session.NodeCache.IsKnown(TestData.DataTypeIds.ScalarStructureDataType);
+                                Assert.True(isKnown2);
+                                NodeId nodeId = Session.NodeCache.FindSuperType(TestData.DataTypeIds.Vector);
+                                Assert.AreEqual(DataTypeIds.Structure, nodeId);
+                                NodeId nodeId2 = Session.NodeCache.FindSuperType(ExpandedNodeId.ToNodeId(TestData.DataTypeIds.Vector, Session.NamespaceUris));
+                                Assert.AreEqual(DataTypeIds.Structure, nodeId2);
+                                IList<NodeId> subTypes = Session.NodeCache.FindSubTypes(new ExpandedNodeId((int)BuiltInType.Number));
+                                bool isTypeOf = Session.NodeCache.IsTypeOf(new ExpandedNodeId((int)BuiltInType.Int32), new ExpandedNodeId((int)BuiltInType.Number));
+                                bool isTypeOf2 = Session.NodeCache.IsTypeOf(new NodeId((int)BuiltInType.UInt32), number);
+                                break;
+                            case 8:
+                                bool isEncodingOf = Session.NodeCache.IsEncodingOf(new ExpandedNodeId((int)BuiltInType.Int32), DataTypeIds.Structure);
+                                Assert.False(isEncodingOf);
+                                bool isEncodingFor = Session.NodeCache.IsEncodingFor(DataTypeIds.Structure,
+                                    new TestData.ScalarStructureDataType());
+                                Assert.True(isEncodingFor);
+                                bool isEncodingFor2 = Session.NodeCache.IsEncodingFor(new NodeId((int)BuiltInType.UInt32), new NodeId((int)BuiltInType.UInteger));
+                                Assert.False(isEncodingFor2);
+                                break;
+                            case 9:
+                                NodeId findDataTypeId = Session.NodeCache.FindDataTypeId(new ExpandedNodeId((int)Objects.DataTypeAttributes_Encoding_DefaultBinary));
+                                NodeId findDataTypeId2 = Session.NodeCache.FindDataTypeId((int)Objects.DataTypeAttributes_Encoding_DefaultBinary);
+                                break;
+                            default:
+                                Assert.Fail("Invalid test case");
+                                break;
+                        }
+                    } while ((DateTime.UtcNow - start).TotalMilliseconds < testCaseRunTime);
+
+                });
+                taskList.Add(t);
+            }
+            Task.WaitAll(taskList.ToArray());
         }
         #endregion
 

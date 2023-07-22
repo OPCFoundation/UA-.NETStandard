@@ -38,33 +38,25 @@ namespace Boiler
 {
     #region GenericControllerState Class
     #if (!OPCUA_EXCLUDE_GenericControllerState)
-    /// <summary>
-    /// Stores an instance of the GenericControllerType ObjectType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class GenericControllerState : BaseObjectState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public GenericControllerState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.GenericControllerType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -72,18 +64,14 @@ namespace Boiler
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -92,10 +80,10 @@ namespace Boiler
         #region Initialization String
         private const string InitializationString =
            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAHQAA" +
-           "AEdlbmVyaWNDb250cm9sbGVyVHlwZUluc3RhbmNlAQHSAAEB0gDSAAAA/////wMAAAAVYIkKAgAAAAEA" +
-           "CwAAAE1lYXN1cmVtZW50AQHcAwAuAETcAwAAAAv/////AQH/////AAAAABVgiQoCAAAAAQAIAAAAU2V0" +
-           "UG9pbnQBAd0DAC4ARN0DAAAAC/////8DA/////8AAAAAFWCJCgIAAAABAAoAAABDb250cm9sT3V0AQHe" +
-           "AwAuAETeAwAAAAv/////AQH/////AAAAAA==";
+           "AEdlbmVyaWNDb250cm9sbGVyVHlwZUluc3RhbmNlAQHsAwEB7APsAwAA/////wMAAAAVYIkKAgAAAAEA" +
+           "CwAAAE1lYXN1cmVtZW50AQHtAwAuAETtAwAAAAv/////AQH/////AAAAABVgiQoCAAAAAQAIAAAAU2V0" +
+           "UG9pbnQBAe4DAC4ARO4DAAAAC/////8DA/////8AAAAAFWCJCgIAAAABAAoAAABDb250cm9sT3V0AQHv" +
+           "AwAuAETvAwAAAAv/////AQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -160,11 +148,7 @@ namespace Boiler
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
+        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -186,10 +170,8 @@ namespace Boiler
 
             base.GetChildren(context, children);
         }
-
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
+            
+        /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,
@@ -289,33 +271,25 @@ namespace Boiler
 
     #region GenericSensorState Class
     #if (!OPCUA_EXCLUDE_GenericSensorState)
-    /// <summary>
-    /// Stores an instance of the GenericSensorType ObjectType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class GenericSensorState : BaseObjectState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public GenericSensorState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.GenericSensorType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -323,18 +297,14 @@ namespace Boiler
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -343,9 +313,9 @@ namespace Boiler
         #region Initialization String
         private const string InitializationString =
            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAGQAA" +
-           "AEdlbmVyaWNTZW5zb3JUeXBlSW5zdGFuY2UBAd8DAQHfA98DAAD/////AQAAABVgiQoCAAAAAQAGAAAA" +
-           "T3V0cHV0AQHgAwAvAQBACeADAAAAC/////8BAf////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQHj" +
-           "AwAuAETjAwAAAQB0A/////8BAf////8AAAAA";
+           "AEdlbmVyaWNTZW5zb3JUeXBlSW5zdGFuY2UBAfADAQHwA/ADAAD/////AQAAABVgiQoCAAAAAQAGAAAA" +
+           "T3V0cHV0AQHxAwAvAQBACfEDAAAAC/////8BAf////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQH1" +
+           "AwAuAET1AwAAAQB0A/////8BAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -372,11 +342,7 @@ namespace Boiler
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
+        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -388,10 +354,8 @@ namespace Boiler
 
             base.GetChildren(context, children);
         }
-
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
+            
+        /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,
@@ -447,33 +411,25 @@ namespace Boiler
 
     #region GenericActuatorState Class
     #if (!OPCUA_EXCLUDE_GenericActuatorState)
-    /// <summary>
-    /// Stores an instance of the GenericActuatorType ObjectType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class GenericActuatorState : BaseObjectState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public GenericActuatorState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.GenericActuatorType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -481,18 +437,14 @@ namespace Boiler
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -501,9 +453,9 @@ namespace Boiler
         #region Initialization String
         private const string InitializationString =
            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAGwAA" +
-           "AEdlbmVyaWNBY3R1YXRvclR5cGVJbnN0YW5jZQEB5gMBAeYD5gMAAP////8BAAAAFWCJCgIAAAABAAUA" +
-           "AABJbnB1dAEB5wMALwEAQAnnAwAAAAv/////AgL/////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEB" +
-           "6gMALgBE6gMAAAEAdAP/////AQH/////AAAAAA==";
+           "AEdlbmVyaWNBY3R1YXRvclR5cGVJbnN0YW5jZQEB9wMBAfcD9wMAAP////8BAAAAFWCJCgIAAAABAAUA" +
+           "AABJbnB1dAEB+AMALwEAQAn4AwAAAAv/////AgL/////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEB" +
+           "/AMALgBE/AMAAAEAdAP/////AQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -530,11 +482,7 @@ namespace Boiler
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
+        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -546,10 +494,8 @@ namespace Boiler
 
             base.GetChildren(context, children);
         }
-
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
+            
+        /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,
@@ -605,33 +551,25 @@ namespace Boiler
 
     #region CustomControllerState Class
     #if (!OPCUA_EXCLUDE_CustomControllerState)
-    /// <summary>
-    /// Stores an instance of the CustomControllerType ObjectType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class CustomControllerState : BaseObjectState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public CustomControllerState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.CustomControllerType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -639,18 +577,14 @@ namespace Boiler
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -659,11 +593,11 @@ namespace Boiler
         #region Initialization String
         private const string InitializationString =
            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAHAAA" +
-           "AEN1c3RvbUNvbnRyb2xsZXJUeXBlSW5zdGFuY2UBAQECAQEBAgECAAD/////BQAAABVgiQoCAAAAAQAG" +
-           "AAAASW5wdXQxAQHtAwAuAETtAwAAAAv/////AgL/////AAAAABVgiQoCAAAAAQAGAAAASW5wdXQyAQHu" +
-           "AwAuAETuAwAAAAv/////AgL/////AAAAABVgiQoCAAAAAQAGAAAASW5wdXQzAQHvAwAuAETvAwAAAAv/" +
-           "////AgL/////AAAAABVgiQoCAAAAAQAKAAAAQ29udHJvbE91dAEB8AMALgBE8AMAAAAL/////wEB////" +
-           "/wAAAAAVYMkKAgAAAAwAAABEZXNjcmlwdGlvblgBAAsAAABEZXNjcmlwdGlvbgEB8QMALgBE8QMAAAAV" +
+           "AEN1c3RvbUNvbnRyb2xsZXJUeXBlSW5zdGFuY2UBAf4DAQH+A/4DAAD/////BQAAABVgiQoCAAAAAQAG" +
+           "AAAASW5wdXQxAQH/AwAuAET/AwAAAAv/////AgL/////AAAAABVgiQoCAAAAAQAGAAAASW5wdXQyAQEA" +
+           "BAAuAEQABAAAAAv/////AgL/////AAAAABVgiQoCAAAAAQAGAAAASW5wdXQzAQEBBAAuAEQBBAAAAAv/" +
+           "////AgL/////AAAAABVgiQoCAAAAAQAKAAAAQ29udHJvbE91dAEBAgQALgBEAgQAAAAL/////wEB////" +
+           "/wAAAAAVYMkKAgAAAAwAAABEZXNjcmlwdGlvblgBAAsAAABEZXNjcmlwdGlvbgEBAwQALgBEAwQAAAAV" +
            "/////wEB/////wAAAAA=";
         #endregion
         #endif
@@ -767,11 +701,7 @@ namespace Boiler
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
+        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -803,10 +733,8 @@ namespace Boiler
 
             base.GetChildren(context, children);
         }
-
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
+            
+        /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,
@@ -950,33 +878,25 @@ namespace Boiler
 
     #region ValveState Class
     #if (!OPCUA_EXCLUDE_ValveState)
-    /// <summary>
-    /// Stores an instance of the ValveType ObjectType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class ValveState : GenericActuatorState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public ValveState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.ValveType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -984,18 +904,14 @@ namespace Boiler
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -1004,8 +920,8 @@ namespace Boiler
         #region Initialization String
         private const string InitializationString =
            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAEQAA" +
-           "AFZhbHZlVHlwZUluc3RhbmNlAQHyAwEB8gPyAwAA/////wEAAAAVYIkKAgAAAAEABQAAAElucHV0AQHz" +
-           "AwAvAQBACfMDAAAAC/////8CAv////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQH2AwAuAET2AwAA" +
+           "AFZhbHZlVHlwZUluc3RhbmNlAQEEBAEBBAQEBAAA/////wEAAAAVYIkKAgAAAAEABQAAAElucHV0AQEF" +
+           "BAAvAQBACQUEAAAAC/////8CAv////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQEJBAAuAEQJBAAA" +
            "AQB0A/////8BAf////8AAAAA";
         #endregion
         #endif
@@ -1025,33 +941,25 @@ namespace Boiler
 
     #region LevelControllerState Class
     #if (!OPCUA_EXCLUDE_LevelControllerState)
-    /// <summary>
-    /// Stores an instance of the LevelControllerType ObjectType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class LevelControllerState : GenericControllerState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public LevelControllerState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.LevelControllerType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -1059,18 +967,14 @@ namespace Boiler
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -1079,10 +983,10 @@ namespace Boiler
         #region Initialization String
         private const string InitializationString =
            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAGwAA" +
-           "AExldmVsQ29udHJvbGxlclR5cGVJbnN0YW5jZQEB+QMBAfkD+QMAAP////8DAAAAFWCJCgIAAAABAAsA" +
-           "AABNZWFzdXJlbWVudAEB+gMALgBE+gMAAAAL/////wEB/////wAAAAAVYIkKAgAAAAEACAAAAFNldFBv" +
-           "aW50AQH7AwAuAET7AwAAAAv/////AwP/////AAAAABVgiQoCAAAAAQAKAAAAQ29udHJvbE91dAEB/AMA" +
-           "LgBE/AMAAAAL/////wEB/////wAAAAA=";
+           "AExldmVsQ29udHJvbGxlclR5cGVJbnN0YW5jZQEBCwQBAQsECwQAAP////8DAAAAFWCJCgIAAAABAAsA" +
+           "AABNZWFzdXJlbWVudAEBDAQALgBEDAQAAAAL/////wEB/////wAAAAAVYIkKAgAAAAEACAAAAFNldFBv" +
+           "aW50AQENBAAuAEQNBAAAAAv/////AwP/////AAAAABVgiQoCAAAAAQAKAAAAQ29udHJvbE91dAEBDgQA" +
+           "LgBEDgQAAAAL/////wEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -1101,33 +1005,25 @@ namespace Boiler
 
     #region FlowControllerState Class
     #if (!OPCUA_EXCLUDE_FlowControllerState)
-    /// <summary>
-    /// Stores an instance of the FlowControllerType ObjectType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class FlowControllerState : GenericControllerState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public FlowControllerState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.FlowControllerType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -1135,18 +1031,14 @@ namespace Boiler
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -1155,10 +1047,10 @@ namespace Boiler
         #region Initialization String
         private const string InitializationString =
            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAGgAA" +
-           "AEZsb3dDb250cm9sbGVyVHlwZUluc3RhbmNlAQH9AwEB/QP9AwAA/////wMAAAAVYIkKAgAAAAEACwAA" +
-           "AE1lYXN1cmVtZW50AQH+AwAuAET+AwAAAAv/////AQH/////AAAAABVgiQoCAAAAAQAIAAAAU2V0UG9p" +
-           "bnQBAf8DAC4ARP8DAAAAC/////8DA/////8AAAAAFWCJCgIAAAABAAoAAABDb250cm9sT3V0AQEABAAu" +
-           "AEQABAAAAAv/////AQH/////AAAAAA==";
+           "AEZsb3dDb250cm9sbGVyVHlwZUluc3RhbmNlAQEPBAEBDwQPBAAA/////wMAAAAVYIkKAgAAAAEACwAA" +
+           "AE1lYXN1cmVtZW50AQEQBAAuAEQQBAAAAAv/////AQH/////AAAAABVgiQoCAAAAAQAIAAAAU2V0UG9p" +
+           "bnQBAREEAC4ARBEEAAAAC/////8DA/////8AAAAAFWCJCgIAAAABAAoAAABDb250cm9sT3V0AQESBAAu" +
+           "AEQSBAAAAAv/////AQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -1177,33 +1069,25 @@ namespace Boiler
 
     #region LevelIndicatorState Class
     #if (!OPCUA_EXCLUDE_LevelIndicatorState)
-    /// <summary>
-    /// Stores an instance of the LevelIndicatorType ObjectType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class LevelIndicatorState : GenericSensorState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public LevelIndicatorState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.LevelIndicatorType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -1211,18 +1095,14 @@ namespace Boiler
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -1231,9 +1111,9 @@ namespace Boiler
         #region Initialization String
         private const string InitializationString =
            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAGgAA" +
-           "AExldmVsSW5kaWNhdG9yVHlwZUluc3RhbmNlAQEBBAEBAQQBBAAA/////wEAAAAVYIkKAgAAAAEABgAA" +
-           "AE91dHB1dAEBAgQALwEAQAkCBAAAAAv/////AQH/////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEB" +
-           "BQQALgBEBQQAAAEAdAP/////AQH/////AAAAAA==";
+           "AExldmVsSW5kaWNhdG9yVHlwZUluc3RhbmNlAQETBAEBEwQTBAAA/////wEAAAAVYIkKAgAAAAEABgAA" +
+           "AE91dHB1dAEBFAQALwEAQAkUBAAAAAv/////AQH/////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEB" +
+           "GAQALgBEGAQAAAEAdAP/////AQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -1252,33 +1132,25 @@ namespace Boiler
 
     #region FlowTransmitterState Class
     #if (!OPCUA_EXCLUDE_FlowTransmitterState)
-    /// <summary>
-    /// Stores an instance of the FlowTransmitterType ObjectType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class FlowTransmitterState : GenericSensorState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public FlowTransmitterState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.FlowTransmitterType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -1286,18 +1158,14 @@ namespace Boiler
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -1306,9 +1174,9 @@ namespace Boiler
         #region Initialization String
         private const string InitializationString =
            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAGwAA" +
-           "AEZsb3dUcmFuc21pdHRlclR5cGVJbnN0YW5jZQEBCAQBAQgECAQAAP////8BAAAAFWCJCgIAAAABAAYA" +
-           "AABPdXRwdXQBAQkEAC8BAEAJCQQAAAAL/////wEB/////wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UB" +
-           "AQwEAC4ARAwEAAABAHQD/////wEB/////wAAAAA=";
+           "AEZsb3dUcmFuc21pdHRlclR5cGVJbnN0YW5jZQEBGgQBARoEGgQAAP////8BAAAAFWCJCgIAAAABAAYA" +
+           "AABPdXRwdXQBARsEAC8BAEAJGwQAAAAL/////wEB/////wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UB" +
+           "AR8EAC4ARB8EAAABAHQD/////wEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -1327,33 +1195,25 @@ namespace Boiler
 
     #region BoilerStateMachineState Class
     #if (!OPCUA_EXCLUDE_BoilerStateMachineState)
-    /// <summary>
-    /// Stores an instance of the BoilerStateMachineType ObjectType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class BoilerStateMachineState : ProgramStateMachineState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public BoilerStateMachineState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.BoilerStateMachineType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -1361,18 +1221,14 @@ namespace Boiler
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -1381,29 +1237,29 @@ namespace Boiler
         #region Initialization String
         private const string InitializationString =
            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAHgAA" +
-           "AEJvaWxlclN0YXRlTWFjaGluZVR5cGVJbnN0YW5jZQEBDwQBAQ8EDwQAAP////8LAAAAFWCJCgIAAAAA" +
-           "AAwAAABDdXJyZW50U3RhdGUBARAEAC8BAMgKEAQAAAAV/////wEB/////wIAAAAVYIkKAgAAAAAAAgAA" +
-           "AElkAQERBAAuAEQRBAAAABH/////AQH/////AAAAABVgiQoCAAAAAAAGAAAATnVtYmVyAQETBAAuAEQT" +
-           "BAAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAOAAAATGFzdFRyYW5zaXRpb24BARUEAC8BAM8KFQQA" +
-           "AAAV/////wEB/////wMAAAAVYIkKAgAAAAAAAgAAAElkAQEWBAAuAEQWBAAAABH/////AQH/////AAAA" +
-           "ABVgiQoCAAAAAAAGAAAATnVtYmVyAQEYBAAuAEQYBAAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAO" +
-           "AAAAVHJhbnNpdGlvblRpbWUBARkEAC4ARBkEAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAACQAA" +
-           "AERlbGV0YWJsZQEBGwQALgBEGwQAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAACgAAAEF1dG9EZWxl" +
-           "dGUBARwEAC4ARBwEAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABSZWN5Y2xlQ291bnQBAR0E" +
-           "AC4ARB0EAAAABv////8BAf////8AAAAAJGGCCgQAAAABAAUAAABTdGFydAEBRwQDAAAAAEsAAABDYXVz" +
+           "AEJvaWxlclN0YXRlTWFjaGluZVR5cGVJbnN0YW5jZQEBIQQBASEEIQQAAP////8LAAAAFWCJCgIAAAAA" +
+           "AAwAAABDdXJyZW50U3RhdGUBASIEAC8BAMgKIgQAAAAV/////wEB/////wIAAAAVYIkKAgAAAAAAAgAA" +
+           "AElkAQEjBAAuAEQjBAAAABH/////AQH/////AAAAABVgiQoCAAAAAAAGAAAATnVtYmVyAQElBAAuAEQl" +
+           "BAAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAOAAAATGFzdFRyYW5zaXRpb24BAScEAC8BAM8KJwQA" +
+           "AAAV/////wEB/////wMAAAAVYIkKAgAAAAAAAgAAAElkAQEoBAAuAEQoBAAAABH/////AQH/////AAAA" +
+           "ABVgiQoCAAAAAAAGAAAATnVtYmVyAQEqBAAuAEQqBAAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAO" +
+           "AAAAVHJhbnNpdGlvblRpbWUBASsEAC4ARCsEAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAACQAA" +
+           "AERlbGV0YWJsZQEBMAQALgBEMAQAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAACgAAAEF1dG9EZWxl" +
+           "dGUBATEEAC4ARDEEAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABSZWN5Y2xlQ291bnQBATIE" +
+           "AC4ARDIEAAAABv////8BAf////8AAAAAJGGCCgQAAAABAAUAAABTdGFydAEBXgQDAAAAAEsAAABDYXVz" +
            "ZXMgdGhlIFByb2dyYW0gdG8gdHJhbnNpdGlvbiBmcm9tIHRoZSBSZWFkeSBzdGF0ZSB0byB0aGUgUnVu" +
-           "bmluZyBzdGF0ZS4ALwEAeglHBAAAAQEBAAAAADUBAQE3BAAAAAAkYYIKBAAAAAEABwAAAFN1c3BlbmQB" +
-           "AUgEAwAAAABPAAAAQ2F1c2VzIHRoZSBQcm9ncmFtIHRvIHRyYW5zaXRpb24gZnJvbSB0aGUgUnVubmlu" +
-           "ZyBzdGF0ZSB0byB0aGUgU3VzcGVuZGVkIHN0YXRlLgAvAQB7CUgEAAABAQEAAAAANQEBAT0EAAAAACRh" +
-           "ggoEAAAAAQAGAAAAUmVzdW1lAQFJBAMAAAAATwAAAENhdXNlcyB0aGUgUHJvZ3JhbSB0byB0cmFuc2l0" +
-           "aW9uIGZyb20gdGhlIFN1c3BlbmRlZCBzdGF0ZSB0byB0aGUgUnVubmluZyBzdGF0ZS4ALwEAfAlJBAAA" +
-           "AQEBAAAAADUBAQE/BAAAAAAkYYIKBAAAAAEABAAAAEhhbHQBAUoEAwAAAABgAAAAQ2F1c2VzIHRoZSBQ" +
+           "bmluZyBzdGF0ZS4ALwEAegleBAAAAQEBAAAAADUBAQFOBAAAAAAkYYIKBAAAAAEABwAAAFN1c3BlbmQB" +
+           "AV8EAwAAAABPAAAAQ2F1c2VzIHRoZSBQcm9ncmFtIHRvIHRyYW5zaXRpb24gZnJvbSB0aGUgUnVubmlu" +
+           "ZyBzdGF0ZSB0byB0aGUgU3VzcGVuZGVkIHN0YXRlLgAvAQB7CV8EAAABAQEAAAAANQEBAVQEAAAAACRh" +
+           "ggoEAAAAAQAGAAAAUmVzdW1lAQFgBAMAAAAATwAAAENhdXNlcyB0aGUgUHJvZ3JhbSB0byB0cmFuc2l0" +
+           "aW9uIGZyb20gdGhlIFN1c3BlbmRlZCBzdGF0ZSB0byB0aGUgUnVubmluZyBzdGF0ZS4ALwEAfAlgBAAA" +
+           "AQEBAAAAADUBAQFWBAAAAAAkYYIKBAAAAAEABAAAAEhhbHQBAWEEAwAAAABgAAAAQ2F1c2VzIHRoZSBQ" +
            "cm9ncmFtIHRvIHRyYW5zaXRpb24gZnJvbSB0aGUgUmVhZHksIFJ1bm5pbmcgb3IgU3VzcGVuZGVkIHN0" +
-           "YXRlIHRvIHRoZSBIYWx0ZWQgc3RhdGUuAC8BAH0JSgQAAAEBAwAAAAA1AQEBOQQANQEBAUEEADUBAQFF" +
-           "BAAAAAAkYYIKBAAAAAEABQAAAFJlc2V0AQFLBAMAAAAASgAAAENhdXNlcyB0aGUgUHJvZ3JhbSB0byB0" +
-           "cmFuc2l0aW9uIGZyb20gdGhlIEhhbHRlZCBzdGF0ZSB0byB0aGUgUmVhZHkgc3RhdGUuAC8BAH4JSwQA" +
-           "AAEBAQAAAAA1AQEBNQQAAAAANWCJCgIAAAABAAoAAABVcGRhdGVSYXRlAQFMBAMAAAAAJgAAAFRoZSBy" +
-           "YXRlIGF0IHdoaWNoIHRoZSBzaW11bGF0aW9uIHJ1bnMuAC4AREwEAAAAB/////8DA/////8AAAAA";
+           "YXRlIHRvIHRoZSBIYWx0ZWQgc3RhdGUuAC8BAH0JYQQAAAEBAwAAAAA1AQEBUAQANQEBAVgEADUBAQFc" +
+           "BAAAAAAkYYIKBAAAAAEABQAAAFJlc2V0AQFiBAMAAAAASgAAAENhdXNlcyB0aGUgUHJvZ3JhbSB0byB0" +
+           "cmFuc2l0aW9uIGZyb20gdGhlIEhhbHRlZCBzdGF0ZSB0byB0aGUgUmVhZHkgc3RhdGUuAC8BAH4JYgQA" +
+           "AAEBAQAAAAA1AQEBTAQAAAAANWCJCgIAAAABAAoAAABVcGRhdGVSYXRlAQFjBAMAAAAAJgAAAFRoZSBy" +
+           "YXRlIGF0IHdoaWNoIHRoZSBzaW11bGF0aW9uIHJ1bnMuAC4ARGMEAAAAB/////8DA/////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -1525,11 +1381,7 @@ namespace Boiler
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
+        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -1566,10 +1418,8 @@ namespace Boiler
 
             base.GetChildren(context, children);
         }
-
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
+            
+        /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,
@@ -1735,33 +1585,25 @@ namespace Boiler
 
     #region BoilerInputPipeState Class
     #if (!OPCUA_EXCLUDE_BoilerInputPipeState)
-    /// <summary>
-    /// Stores an instance of the BoilerInputPipeType ObjectType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class BoilerInputPipeState : FolderState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public BoilerInputPipeState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.BoilerInputPipeType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -1769,18 +1611,14 @@ namespace Boiler
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -1789,12 +1627,12 @@ namespace Boiler
         #region Initialization String
         private const string InitializationString =
            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAGwAA" +
-           "AEJvaWxlcklucHV0UGlwZVR5cGVJbnN0YW5jZQEBTQQBAU0ETQQAAAEAAAAAMAABAU4EAgAAAIRgwAoB" +
-           "AAAAEAAAAEZsb3dUcmFuc21pdHRlcjEBAAYAAABGVFgwMDEBAU4EAC8BAQgETgQAAAEBAAAAADABAQFN" +
-           "BAEAAAAVYIkKAgAAAAEABgAAAE91dHB1dAEBTwQALwEAQAlPBAAAAAv/////AQH/////AQAAABVgiQoC" +
-           "AAAAAAAHAAAARVVSYW5nZQEBUgQALgBEUgQAAAEAdAP/////AQH/////AAAAAIRgwAoBAAAABQAAAFZh" +
-           "bHZlAQAJAAAAVmFsdmVYMDAxAQFVBAAvAQHyA1UEAAAB/////wEAAAAVYIkKAgAAAAEABQAAAElucHV0" +
-           "AQFWBAAvAQBACVYEAAAAC/////8CAv////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQFZBAAuAERZ" +
+           "AEJvaWxlcklucHV0UGlwZVR5cGVJbnN0YW5jZQEBZAQBAWQEZAQAAAEAAAAAMAABAWUEAgAAAIRgwAoB" +
+           "AAAAEAAAAEZsb3dUcmFuc21pdHRlcjEBAAYAAABGVFgwMDEBAWUEAC8BARoEZQQAAAEBAAAAADABAQFk" +
+           "BAEAAAAVYIkKAgAAAAEABgAAAE91dHB1dAEBZgQALwEAQAlmBAAAAAv/////AQH/////AQAAABVgiQoC" +
+           "AAAAAAAHAAAARVVSYW5nZQEBagQALgBEagQAAAEAdAP/////AQH/////AAAAAIRgwAoBAAAABQAAAFZh" +
+           "bHZlAQAJAAAAVmFsdmVYMDAxAQFsBAAvAQEEBGwEAAAB/////wEAAAAVYIkKAgAAAAEABQAAAElucHV0" +
+           "AQFtBAAvAQBACW0EAAAAC/////8CAv////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQFxBAAuAERx" +
            "BAAAAQB0A/////8BAf////8AAAAA";
         #endregion
         #endif
@@ -1841,11 +1679,7 @@ namespace Boiler
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
+        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -1862,10 +1696,8 @@ namespace Boiler
 
             base.GetChildren(context, children);
         }
-
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
+            
+        /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,
@@ -1943,33 +1775,25 @@ namespace Boiler
 
     #region BoilerDrumState Class
     #if (!OPCUA_EXCLUDE_BoilerDrumState)
-    /// <summary>
-    /// Stores an instance of the BoilerDrumType ObjectType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class BoilerDrumState : FolderState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public BoilerDrumState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.BoilerDrumType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -1977,18 +1801,14 @@ namespace Boiler
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -1997,10 +1817,10 @@ namespace Boiler
         #region Initialization String
         private const string InitializationString =
            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAFgAA" +
-           "AEJvaWxlckRydW1UeXBlSW5zdGFuY2UBAVwEAQFcBFwEAAABAAAAADAAAQFdBAEAAACEYMAKAQAAAA4A" +
-           "AABMZXZlbEluZGljYXRvcgEABgAAAExJWDAwMQEBXQQALwEBAQRdBAAAAQEAAAAAMAEBAVwEAQAAABVg" +
-           "iQoCAAAAAQAGAAAAT3V0cHV0AQFeBAAvAQBACV4EAAAAC/////8BAf////8BAAAAFWCJCgIAAAAAAAcA" +
-           "AABFVVJhbmdlAQFhBAAuAERhBAAAAQB0A/////8BAf////8AAAAA";
+           "AEJvaWxlckRydW1UeXBlSW5zdGFuY2UBAXMEAQFzBHMEAAABAAAAADAAAQF0BAEAAACEYMAKAQAAAA4A" +
+           "AABMZXZlbEluZGljYXRvcgEABgAAAExJWDAwMQEBdAQALwEBEwR0BAAAAQEAAAAAMAEBAXMEAQAAABVg" +
+           "iQoCAAAAAQAGAAAAT3V0cHV0AQF1BAAvAQBACXUEAAAAC/////8BAf////8BAAAAFWCJCgIAAAAAAAcA" +
+           "AABFVVJhbmdlAQF5BAAuAER5BAAAAQB0A/////8BAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -2027,11 +1847,7 @@ namespace Boiler
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
+        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -2043,10 +1859,8 @@ namespace Boiler
 
             base.GetChildren(context, children);
         }
-
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
+            
+        /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,
@@ -2102,33 +1916,25 @@ namespace Boiler
 
     #region BoilerOutputPipeState Class
     #if (!OPCUA_EXCLUDE_BoilerOutputPipeState)
-    /// <summary>
-    /// Stores an instance of the BoilerOutputPipeType ObjectType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class BoilerOutputPipeState : FolderState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public BoilerOutputPipeState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.BoilerOutputPipeType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -2136,18 +1942,14 @@ namespace Boiler
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -2156,10 +1958,10 @@ namespace Boiler
         #region Initialization String
         private const string InitializationString =
            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////8EYIACAQAAAAEAHAAA" +
-           "AEJvaWxlck91dHB1dFBpcGVUeXBlSW5zdGFuY2UBAWQEAQFkBGQEAAABAAAAADAAAQFlBAEAAACEYMAK" +
-           "AQAAABAAAABGbG93VHJhbnNtaXR0ZXIyAQAGAAAARlRYMDAyAQFlBAAvAQEIBGUEAAABAQAAAAAwAQEB" +
-           "ZAQBAAAAFWCJCgIAAAABAAYAAABPdXRwdXQBAWYEAC8BAEAJZgQAAAAL/////wEB/////wEAAAAVYIkK" +
-           "AgAAAAAABwAAAEVVUmFuZ2UBAWkEAC4ARGkEAAABAHQD/////wEB/////wAAAAA=";
+           "AEJvaWxlck91dHB1dFBpcGVUeXBlSW5zdGFuY2UBAXsEAQF7BHsEAAABAAAAADAAAQF8BAEAAACEYMAK" +
+           "AQAAABAAAABGbG93VHJhbnNtaXR0ZXIyAQAGAAAARlRYMDAyAQF8BAAvAQEaBHwEAAABAQAAAAAwAQEB" +
+           "ewQBAAAAFWCJCgIAAAABAAYAAABPdXRwdXQBAX0EAC8BAEAJfQQAAAAL/////wEB/////wEAAAAVYIkK" +
+           "AgAAAAAABwAAAEVVUmFuZ2UBAYEEAC4ARIEEAAABAHQD/////wEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -2186,11 +1988,7 @@ namespace Boiler
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
+        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -2202,10 +2000,8 @@ namespace Boiler
 
             base.GetChildren(context, children);
         }
-
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
+            
+        /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,
@@ -2261,33 +2057,25 @@ namespace Boiler
 
     #region BoilerState Class
     #if (!OPCUA_EXCLUDE_BoilerState)
-    /// <summary>
-    /// Stores an instance of the BoilerType ObjectType.
-    /// </summary>
+    /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class BoilerState : BaseObjectState
     {
         #region Constructors
-        /// <summary>
-        /// Initializes the type with its default attribute values.
-        /// </summary>
+        /// <remarks />
         public BoilerState(NodeState parent) : base(parent)
         {
         }
 
-        /// <summary>
-        /// Returns the id of the default type definition node for the instance.
-        /// </summary>
+        /// <remarks />
         protected override NodeId GetDefaultTypeDefinitionId(NamespaceTable namespaceUris)
         {
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.BoilerType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
-        /// <summary>
-        /// Initializes the instance.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
             base.Initialize(context);
@@ -2295,18 +2083,14 @@ namespace Boiler
             InitializeOptionalChildren(context);
         }
 
-        /// <summary>
-        /// Initializes the instance with a node.
-        /// </summary>
+        /// <remarks />
         protected override void Initialize(ISystemContext context, NodeState source)
         {
             InitializeOptionalChildren(context);
             base.Initialize(context, source);
         }
 
-        /// <summary>
-        /// Initializes the any option children defined for the instance.
-        /// </summary>
+        /// <remarks />
         protected override void InitializeOptionalChildren(ISystemContext context)
         {
             base.InitializeOptionalChildren(context);
@@ -2315,60 +2099,60 @@ namespace Boiler
         #region Initialization String
         private const string InitializationString =
            "AQAAACMAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvQm9pbGVyL/////+EYIACAQAAAAEAEgAA" +
-           "AEJvaWxlclR5cGVJbnN0YW5jZQEBbAQBAWwEbAQAAAEEAAAAADAAAQFtBAAwAAEBfAQAMAABAYQEACQA" +
-           "AQGaBAcAAACEYMAKAQAAAAkAAABJbnB1dFBpcGUBAAgAAABQaXBlWDAwMQEBbQQALwEBTQRtBAAAAQMA" +
-           "AAAAMAEBAWwEADAAAQFuBAEB2QMAAQF8BAIAAACEYMAKAQAAABAAAABGbG93VHJhbnNtaXR0ZXIxAQAG" +
-           "AAAARlRYMDAxAQFuBAAvAQEIBG4EAAABAQAAAAAwAQEBbQQBAAAAFWCJCgIAAAABAAYAAABPdXRwdXQB" +
-           "AW8EAC8BAEAJbwQAAAAL/////wEBAgAAAAEB2wMAAQGNBAEB2wMAAQGWBAEAAAAVYIkKAgAAAAAABwAA" +
-           "AEVVUmFuZ2UBAXIEAC4ARHIEAAABAHQD/////wEB/////wAAAACEYMAKAQAAAAUAAABWYWx2ZQEACQAA" +
-           "AFZhbHZlWDAwMQEBdQQALwEB8gN1BAAAAf////8BAAAAFWCJCgIAAAABAAUAAABJbnB1dAEBdgQALwEA" +
-           "QAl2BAAAAAv/////AgIBAAAAAQHbAwEBAY8EAQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBeQQALgBE" +
-           "eQQAAAEAdAP/////AQH/////AAAAAIRgwAoBAAAABAAAAERydW0BAAgAAABEcnVtWDAwMQEBfAQALwEB" +
-           "XAR8BAAAAQQAAAAAMAEBAWwEAQHZAwEBAW0EADAAAQF9BAEB2gMAAQGEBAEAAACEYMAKAQAAAA4AAABM" +
-           "ZXZlbEluZGljYXRvcgEABgAAAExJWDAwMQEBfQQALwEBAQR9BAAAAQEAAAAAMAEBAXwEAQAAABVgiQoC" +
-           "AAAAAQAGAAAAT3V0cHV0AQF+BAAvAQBACX4EAAAAGv////8BAQEAAAABAdsDAAEBkQQBAAAAFWCJCgIA" +
-           "AAAAAAcAAABFVVJhbmdlAQGBBAAuAESBBAAAAQB0A/////8BAf////8AAAAAhGDACgEAAAAKAAAAT3V0" +
-           "cHV0UGlwZQEACAAAAFBpcGVYMDAyAQGEBAAvAQFkBIQEAAABAwAAAAAwAQEBbAQBAdoDAQEBfAQAMAAB" +
-           "AYUEAQAAAIRgwAoBAAAAEAAAAEZsb3dUcmFuc21pdHRlcjIBAAYAAABGVFgwMDIBAYUEAC8BAQgEhQQA" +
-           "AAEBAAAAADABAQGEBAEAAAAVYIkKAgAAAAEABgAAAE91dHB1dAEBhgQALwEAQAmGBAAAAAv/////AQEB" +
-           "AAAAAQHbAwABAZcEAQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBiQQALgBEiQQAAAEAdAP/////AQH/" +
-           "////AAAAAARgwAoBAAAADgAAAEZsb3dDb250cm9sbGVyAQAGAAAARkNYMDAxAQGMBAAvAQH9A4wEAAD/" +
-           "////AwAAABVgiQoCAAAAAQALAAAATWVhc3VyZW1lbnQBAY0EAC4ARI0EAAAAC/////8BAQEAAAABAdsD" +
-           "AQEBbwQAAAAAFWCJCgIAAAABAAgAAABTZXRQb2ludAEBjgQALgBEjgQAAAAL/////wMDAQAAAAEB2wMB" +
-           "AQGYBAAAAAAVYIkKAgAAAAEACgAAAENvbnRyb2xPdXQBAY8EAC4ARI8EAAAAC/////8BAQEAAAABAdsD" +
-           "AAEBdgQAAAAABGDACgEAAAAPAAAATGV2ZWxDb250cm9sbGVyAQAGAAAATENYMDAxAQGQBAAvAQH5A5AE" +
-           "AAD/////AwAAABVgiQoCAAAAAQALAAAATWVhc3VyZW1lbnQBAZEEAC4ARJEEAAAAC/////8BAQEAAAAB" +
-           "AdsDAQEBfgQAAAAAFWCJCgIAAAABAAgAAABTZXRQb2ludAEBkgQALgBEkgQAAAAL/////wMD/////wAA" +
-           "AAAVYIkKAgAAAAEACgAAAENvbnRyb2xPdXQBAZMEAC4ARJMEAAAAC/////8BAQEAAAABAdsDAAEBlQQA" +
-           "AAAABGDACgEAAAAQAAAAQ3VzdG9tQ29udHJvbGxlcgEABgAAAENDWDAwMQEBlAQALwEBAQKUBAAA////" +
-           "/wUAAAAVYIkKAgAAAAEABgAAAElucHV0MQEBlQQALgBElQQAAAAL/////wICAQAAAAEB2wMBAQGTBAAA" +
-           "AAAVYIkKAgAAAAEABgAAAElucHV0MgEBlgQALgBElgQAAAAL/////wICAQAAAAEB2wMBAQFvBAAAAAAV" +
-           "YIkKAgAAAAEABgAAAElucHV0MwEBlwQALgBElwQAAAAL/////wICAQAAAAEB2wMBAQGGBAAAAAAVYIkK" +
-           "AgAAAAEACgAAAENvbnRyb2xPdXQBAZgEAC4ARJgEAAAAC/////8BAQEAAAABAdsDAAEBjgQAAAAAFWDJ" +
-           "CgIAAAAMAAAARGVzY3JpcHRpb25YAQALAAAARGVzY3JpcHRpb24BAZkEAC4ARJkEAAAAFf////8BAf//" +
-           "//8AAAAAhGCACgEAAAABAAoAAABTaW11bGF0aW9uAQGaBAAvAQEPBJoEAAABAQAAAAAkAQEBbAQLAAAA" +
-           "FWCJCgIAAAAAAAwAAABDdXJyZW50U3RhdGUBAZsEAC8BAMgKmwQAAAAV/////wEB/////wIAAAAVYIkK" +
-           "AgAAAAAAAgAAAElkAQGcBAAuAEScBAAAABH/////AQH/////AAAAABVgiQoCAAAAAAAGAAAATnVtYmVy" +
-           "AQGeBAAuAESeBAAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAOAAAATGFzdFRyYW5zaXRpb24BAaAE" +
-           "AC8BAM8KoAQAAAAV/////wEB/////wMAAAAVYIkKAgAAAAAAAgAAAElkAQGhBAAuAEShBAAAABH/////" +
-           "AQH/////AAAAABVgiQoCAAAAAAAGAAAATnVtYmVyAQGjBAAuAESjBAAAAAf/////AQH/////AAAAABVg" +
-           "iQoCAAAAAAAOAAAAVHJhbnNpdGlvblRpbWUBAaQEAC4ARKQEAAABACYB/////wEB/////wAAAAAVYIkK" +
-           "AgAAAAAACQAAAERlbGV0YWJsZQEBpgQALgBEpgQAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAACgAA" +
-           "AEF1dG9EZWxldGUBAacEAC4ARKcEAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABSZWN5Y2xl" +
-           "Q291bnQBAagEAC4ARKgEAAAABv////8BAf////8AAAAANWCJCgIAAAABAAoAAABVcGRhdGVSYXRlAQHX" +
-           "BAMAAAAAJgAAAFRoZSByYXRlIGF0IHdoaWNoIHRoZSBzaW11bGF0aW9uIHJ1bnMuAC4ARNcEAAAAB///" +
-           "//8DA/////8AAAAAJGGCCgQAAAABAAUAAABTdGFydAEBpToDAAAAAEsAAABDYXVzZXMgdGhlIFByb2dy" +
+           "AEJvaWxlclR5cGVJbnN0YW5jZQEBgwQBAYMEgwQAAAEEAAAAADAAAQGEBAAwAAEBkwQAMAABAZsEACQA" +
+           "AQGxBAcAAACEYMAKAQAAAAkAAABJbnB1dFBpcGUBAAgAAABQaXBlWDAwMQEBhAQALwEBZASEBAAAAQMA" +
+           "AAAAMAEBAYMEADAAAQGFBAEB6QMAAQGTBAIAAACEYMAKAQAAABAAAABGbG93VHJhbnNtaXR0ZXIxAQAG" +
+           "AAAARlRYMDAxAQGFBAAvAQEaBIUEAAABAQAAAAAwAQEBhAQBAAAAFWCJCgIAAAABAAYAAABPdXRwdXQB" +
+           "AYYEAC8BAEAJhgQAAAAL/////wEBAgAAAAEB6wMAAQGkBAEB6wMAAQGtBAEAAAAVYIkKAgAAAAAABwAA" +
+           "AEVVUmFuZ2UBAYoEAC4ARIoEAAABAHQD/////wEB/////wAAAACEYMAKAQAAAAUAAABWYWx2ZQEACQAA" +
+           "AFZhbHZlWDAwMQEBjAQALwEBBASMBAAAAf////8BAAAAFWCJCgIAAAABAAUAAABJbnB1dAEBjQQALwEA" +
+           "QAmNBAAAAAv/////AgIBAAAAAQHrAwEBAaYEAQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBkQQALgBE" +
+           "kQQAAAEAdAP/////AQH/////AAAAAIRgwAoBAAAABAAAAERydW0BAAgAAABEcnVtWDAwMQEBkwQALwEB" +
+           "cwSTBAAAAQQAAAAAMAEBAYMEAQHpAwEBAYQEADAAAQGUBAEB6gMAAQGbBAEAAACEYMAKAQAAAA4AAABM" +
+           "ZXZlbEluZGljYXRvcgEABgAAAExJWDAwMQEBlAQALwEBEwSUBAAAAQEAAAAAMAEBAZMEAQAAABVgiQoC" +
+           "AAAAAQAGAAAAT3V0cHV0AQGVBAAvAQBACZUEAAAAGv////8BAQEAAAABAesDAAEBqAQBAAAAFWCJCgIA" +
+           "AAAAAAcAAABFVVJhbmdlAQGZBAAuAESZBAAAAQB0A/////8BAf////8AAAAAhGDACgEAAAAKAAAAT3V0" +
+           "cHV0UGlwZQEACAAAAFBpcGVYMDAyAQGbBAAvAQF7BJsEAAABAwAAAAAwAQEBgwQBAeoDAQEBkwQAMAAB" +
+           "AZwEAQAAAIRgwAoBAAAAEAAAAEZsb3dUcmFuc21pdHRlcjIBAAYAAABGVFgwMDIBAZwEAC8BARoEnAQA" +
+           "AAEBAAAAADABAQGbBAEAAAAVYIkKAgAAAAEABgAAAE91dHB1dAEBnQQALwEAQAmdBAAAAAv/////AQEB" +
+           "AAAAAQHrAwABAa4EAQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEBoQQALgBEoQQAAAEAdAP/////AQH/" +
+           "////AAAAAARgwAoBAAAADgAAAEZsb3dDb250cm9sbGVyAQAGAAAARkNYMDAxAQGjBAAvAQEPBKMEAAD/" +
+           "////AwAAABVgiQoCAAAAAQALAAAATWVhc3VyZW1lbnQBAaQEAC4ARKQEAAAAC/////8BAQEAAAABAesD" +
+           "AQEBhgQAAAAAFWCJCgIAAAABAAgAAABTZXRQb2ludAEBpQQALgBEpQQAAAAL/////wMDAQAAAAEB6wMB" +
+           "AQGvBAAAAAAVYIkKAgAAAAEACgAAAENvbnRyb2xPdXQBAaYEAC4ARKYEAAAAC/////8BAQEAAAABAesD" +
+           "AAEBjQQAAAAABGDACgEAAAAPAAAATGV2ZWxDb250cm9sbGVyAQAGAAAATENYMDAxAQGnBAAvAQELBKcE" +
+           "AAD/////AwAAABVgiQoCAAAAAQALAAAATWVhc3VyZW1lbnQBAagEAC4ARKgEAAAAC/////8BAQEAAAAB" +
+           "AesDAQEBlQQAAAAAFWCJCgIAAAABAAgAAABTZXRQb2ludAEBqQQALgBEqQQAAAAL/////wMD/////wAA" +
+           "AAAVYIkKAgAAAAEACgAAAENvbnRyb2xPdXQBAaoEAC4ARKoEAAAAC/////8BAQEAAAABAesDAAEBrAQA" +
+           "AAAABGDACgEAAAAQAAAAQ3VzdG9tQ29udHJvbGxlcgEABgAAAENDWDAwMQEBqwQALwEB/gOrBAAA////" +
+           "/wUAAAAVYIkKAgAAAAEABgAAAElucHV0MQEBrAQALgBErAQAAAAL/////wICAQAAAAEB6wMBAQGqBAAA" +
+           "AAAVYIkKAgAAAAEABgAAAElucHV0MgEBrQQALgBErQQAAAAL/////wICAQAAAAEB6wMBAQGGBAAAAAAV" +
+           "YIkKAgAAAAEABgAAAElucHV0MwEBrgQALgBErgQAAAAL/////wICAQAAAAEB6wMBAQGdBAAAAAAVYIkK" +
+           "AgAAAAEACgAAAENvbnRyb2xPdXQBAa8EAC4ARK8EAAAAC/////8BAQEAAAABAesDAAEBpQQAAAAAFWDJ" +
+           "CgIAAAAMAAAARGVzY3JpcHRpb25YAQALAAAARGVzY3JpcHRpb24BAbAEAC4ARLAEAAAAFf////8BAf//" +
+           "//8AAAAAhGCACgEAAAABAAoAAABTaW11bGF0aW9uAQGxBAAvAQEhBLEEAAABAQAAAAAkAQEBgwQLAAAA" +
+           "FWCJCgIAAAAAAAwAAABDdXJyZW50U3RhdGUBAbIEAC8BAMgKsgQAAAAV/////wEB/////wIAAAAVYIkK" +
+           "AgAAAAAAAgAAAElkAQGzBAAuAESzBAAAABH/////AQH/////AAAAABVgiQoCAAAAAAAGAAAATnVtYmVy" +
+           "AQG1BAAuAES1BAAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAOAAAATGFzdFRyYW5zaXRpb24BAbcE" +
+           "AC8BAM8KtwQAAAAV/////wEB/////wMAAAAVYIkKAgAAAAAAAgAAAElkAQG4BAAuAES4BAAAABH/////" +
+           "AQH/////AAAAABVgiQoCAAAAAAAGAAAATnVtYmVyAQG6BAAuAES6BAAAAAf/////AQH/////AAAAABVg" +
+           "iQoCAAAAAAAOAAAAVHJhbnNpdGlvblRpbWUBAbsEAC4ARLsEAAABACYB/////wEB/////wAAAAAVYIkK" +
+           "AgAAAAAACQAAAERlbGV0YWJsZQEBvwQALgBEvwQAAAAB/////wEB/////wAAAAAVYIkKAgAAAAAACgAA" +
+           "AEF1dG9EZWxldGUBAcAEAC4ARMAEAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAAwAAABSZWN5Y2xl" +
+           "Q291bnQBAcEEAC4ARMEEAAAABv////8BAf////8AAAAANWCJCgIAAAABAAoAAABVcGRhdGVSYXRlAQHQ" +
+           "BAMAAAAAJgAAAFRoZSByYXRlIGF0IHdoaWNoIHRoZSBzaW11bGF0aW9uIHJ1bnMuAC4ARNAEAAAAB///" +
+           "//8DA/////8AAAAAJGGCCgQAAAABAAUAAABTdGFydAEB0QQDAAAAAEsAAABDYXVzZXMgdGhlIFByb2dy" +
            "YW0gdG8gdHJhbnNpdGlvbiBmcm9tIHRoZSBSZWFkeSBzdGF0ZSB0byB0aGUgUnVubmluZyBzdGF0ZS4A" +
-           "LwEBRwSlOgAAAQH/////AAAAACRhggoEAAAAAQAHAAAAU3VzcGVuZAEBpjoDAAAAAE8AAABDYXVzZXMg" +
+           "LwEBXgTRBAAAAQH/////AAAAACRhggoEAAAAAQAHAAAAU3VzcGVuZAEB0gQDAAAAAE8AAABDYXVzZXMg" +
            "dGhlIFByb2dyYW0gdG8gdHJhbnNpdGlvbiBmcm9tIHRoZSBSdW5uaW5nIHN0YXRlIHRvIHRoZSBTdXNw" +
-           "ZW5kZWQgc3RhdGUuAC8BAUgEpjoAAAEB/////wAAAAAkYYIKBAAAAAEABgAAAFJlc3VtZQEBpzoDAAAA" +
+           "ZW5kZWQgc3RhdGUuAC8BAV8E0gQAAAEB/////wAAAAAkYYIKBAAAAAEABgAAAFJlc3VtZQEB0wQDAAAA" +
            "AE8AAABDYXVzZXMgdGhlIFByb2dyYW0gdG8gdHJhbnNpdGlvbiBmcm9tIHRoZSBTdXNwZW5kZWQgc3Rh" +
-           "dGUgdG8gdGhlIFJ1bm5pbmcgc3RhdGUuAC8BAUkEpzoAAAEB/////wAAAAAkYYIKBAAAAAEABAAAAEhh" +
-           "bHQBAag6AwAAAABgAAAAQ2F1c2VzIHRoZSBQcm9ncmFtIHRvIHRyYW5zaXRpb24gZnJvbSB0aGUgUmVh" +
-           "ZHksIFJ1bm5pbmcgb3IgU3VzcGVuZGVkIHN0YXRlIHRvIHRoZSBIYWx0ZWQgc3RhdGUuAC8BAUoEqDoA" +
-           "AAEB/////wAAAAAkYYIKBAAAAAEABQAAAFJlc2V0AQGpOgMAAAAASgAAAENhdXNlcyB0aGUgUHJvZ3Jh" +
+           "dGUgdG8gdGhlIFJ1bm5pbmcgc3RhdGUuAC8BAWAE0wQAAAEB/////wAAAAAkYYIKBAAAAAEABAAAAEhh" +
+           "bHQBAdQEAwAAAABgAAAAQ2F1c2VzIHRoZSBQcm9ncmFtIHRvIHRyYW5zaXRpb24gZnJvbSB0aGUgUmVh" +
+           "ZHksIFJ1bm5pbmcgb3IgU3VzcGVuZGVkIHN0YXRlIHRvIHRoZSBIYWx0ZWQgc3RhdGUuAC8BAWEE1AQA" +
+           "AAEB/////wAAAAAkYYIKBAAAAAEABQAAAFJlc2V0AQHVBAMAAAAASgAAAENhdXNlcyB0aGUgUHJvZ3Jh" +
            "bSB0byB0cmFuc2l0aW9uIGZyb20gdGhlIEhhbHRlZCBzdGF0ZSB0byB0aGUgUmVhZHkgc3RhdGUuAC8B" +
-           "AUsEqToAAAEB/////wAAAAA=";
+           "AWIE1QQAAAEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -2509,11 +2293,7 @@ namespace Boiler
         #endregion
 
         #region Overridden Methods
-        /// <summary>
-        /// Populates a list with the children that belong to the node.
-        /// </summary>
-        /// <param name="context">The context for the system being accessed.</param>
-        /// <param name="children">The list of children to populate.</param>
+        /// <remarks />
         public override void GetChildren(
             ISystemContext context,
             IList<BaseInstanceState> children)
@@ -2555,10 +2335,8 @@ namespace Boiler
 
             base.GetChildren(context, children);
         }
-
-        /// <summary>
-        /// Finds the child with the specified browse name.
-        /// </summary>
+            
+        /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
             QualifiedName browseName,

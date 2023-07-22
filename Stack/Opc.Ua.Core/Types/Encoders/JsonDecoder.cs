@@ -24,7 +24,7 @@ namespace Opc.Ua
     /// <summary>
     /// Reads objects from a JSON stream.
     /// </summary>
-    public class JsonDecoder : IDecoder, IDisposable
+    public class JsonDecoder : IJsonDecoder, IDisposable
     {
         #region Public Fields
         /// <summary>
@@ -1099,42 +1099,50 @@ namespace Opc.Ua
 
                 DiagnosticInfo di = new DiagnosticInfo();
 
+                bool hasDiagnosticInfo = false;
                 if (value.ContainsKey("SymbolicId"))
                 {
                     di.SymbolicId = ReadInt32("SymbolicId");
+                    hasDiagnosticInfo = true;
                 }
 
                 if (value.ContainsKey("NamespaceUri"))
                 {
                     di.NamespaceUri = ReadInt32("NamespaceUri");
+                    hasDiagnosticInfo = true;
                 }
 
                 if (value.ContainsKey("Locale"))
                 {
                     di.Locale = ReadInt32("Locale");
+                    hasDiagnosticInfo = true;
                 }
 
                 if (value.ContainsKey("LocalizedText"))
                 {
                     di.LocalizedText = ReadInt32("LocalizedText");
+                    hasDiagnosticInfo = true;
                 }
 
                 if (value.ContainsKey("AdditionalInfo"))
                 {
                     di.AdditionalInfo = ReadString("AdditionalInfo");
+                    hasDiagnosticInfo = true;
                 }
 
                 if (value.ContainsKey("InnerStatusCode"))
                 {
                     di.InnerStatusCode = ReadStatusCode("InnerStatusCode");
+                    hasDiagnosticInfo = true;
                 }
 
                 if (value.ContainsKey("InnerDiagnosticInfo"))
                 {
                     di.InnerDiagnosticInfo = ReadDiagnosticInfo("InnerDiagnosticInfo");
+                    hasDiagnosticInfo = true;
                 }
 
-                return di;
+                return hasDiagnosticInfo ? di : null;
             }
             finally
             {
@@ -1445,11 +1453,14 @@ namespace Opc.Ua
                     return new ExtensionObject(typeId, encodeable);
                 }
 
-                var ostrm = new MemoryStream();
-                using (var stream = new StreamWriter(ostrm))
-                using (JsonTextWriter writer = new JsonTextWriter(stream))
+                using (var ostrm = new MemoryStream())
                 {
-                    EncodeAsJson(writer, token);
+                    using (var stream = new StreamWriter(ostrm))
+                    using (JsonTextWriter writer = new JsonTextWriter(stream))
+                    {
+                        EncodeAsJson(writer, token);
+                    }
+                    // Close the writer before retrieving the data
                     return new ExtensionObject(typeId, ostrm.ToArray());
                 }
             }
@@ -1463,7 +1474,7 @@ namespace Opc.Ua
         /// Reads an encodeable object from the stream.
         /// </summary>
         /// <param name="fieldName">The encodeable object field name</param>
-        /// <param name="systemType">The system type of the encopdeable object to be read</param>
+        /// <param name="systemType">The system type of the encodeable object to be read</param>
         /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instance that will be read.</param>
         /// <returns>An <see cref="IEncodeable"/> object that was read from the stream.</returns>
         public IEncodeable ReadEncodeable(string fieldName, System.Type systemType, ExpandedNodeId encodeableTypeId = null)

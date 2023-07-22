@@ -1196,43 +1196,50 @@ namespace Opc.Ua
             m_nestingLevel++;
 
             DiagnosticInfo value = new DiagnosticInfo();
-
+            bool hasDiagnosticInfo = false;
             if (BeginField("SymbolicId", true))
             {
                 value.SymbolicId = ReadInt32(null);
                 EndField("SymbolicId");
+                hasDiagnosticInfo = true;
             }
 
             if (BeginField("NamespaceUri", true))
             {
                 value.NamespaceUri = ReadInt32(null);
                 EndField("NamespaceUri");
+                hasDiagnosticInfo = true;
             }
 
             if (BeginField("Locale", true))
             {
                 value.Locale = ReadInt32(null);
                 EndField("Locale");
+                hasDiagnosticInfo = true;
             }
 
             if (BeginField("LocalizedText", true))
             {
                 value.LocalizedText = ReadInt32(null);
                 EndField("LocalizedText");
+                hasDiagnosticInfo = true;
             }
 
             value.AdditionalInfo = ReadString("AdditionalInfo");
             value.InnerStatusCode = ReadStatusCode("InnerStatusCode");
 
+            hasDiagnosticInfo = hasDiagnosticInfo || value.AdditionalInfo != null || value.InnerStatusCode != StatusCodes.Good;
+
             if (BeginField("InnerDiagnosticInfo", true))
             {
                 value.InnerDiagnosticInfo = ReadDiagnosticInfo();
                 EndField("InnerDiagnosticInfo");
+                hasDiagnosticInfo = true;
             }
 
             m_nestingLevel--;
 
-            return value;
+            return hasDiagnosticInfo ? value : null;
         }
 
         /// <summary>
@@ -1463,7 +1470,7 @@ namespace Opc.Ua
         /// Reads an encodeable object from the stream.
         /// </summary>
         /// <param name="fieldName">The encodeable object field name</param>
-        /// <param name="systemType">The system type of the encopdeable object to be read</param>
+        /// <param name="systemType">The system type of the encodeable object to be read</param>
         /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instance that will be read.</param>
         /// <returns>An <see cref="IEncodeable"/> object that was read from the stream.</returns>
         public IEncodeable ReadEncodeable(string fieldName, System.Type systemType, ExpandedNodeId encodeableTypeId = null)
@@ -1503,7 +1510,7 @@ namespace Opc.Ua
 
             if (BeginField(fieldName, true))
             {
-                XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(systemType);
+                XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(value, this.Context);
 
                 PushNamespace(xmlName.Namespace);
                 value.Decode(this);

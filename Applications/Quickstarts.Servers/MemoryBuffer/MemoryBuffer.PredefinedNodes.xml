@@ -6,7 +6,7 @@
   <MemoryTagType xmlns="http://samples.org/UA/MemoryBuffer">
     <uax:NodeClass>VariableType_16</uax:NodeClass>
     <uax:NodeId>
-      <uax:Identifier>ns=1;i=1018</uax:Identifier>
+      <uax:Identifier>ns=1;i=1001</uax:Identifier>
     </uax:NodeId>
     <uax:BrowseName>
       <uax:NamespaceIndex>1</uax:NamespaceIndex>
@@ -22,7 +22,7 @@
   <MemoryBufferType xmlns="http://samples.org/UA/MemoryBuffer">
     <uax:NodeClass>ObjectType_8</uax:NodeClass>
     <uax:NodeId>
-      <uax:Identifier>ns=1;i=1000</uax:Identifier>
+      <uax:Identifier>ns=1;i=1002</uax:Identifier>
     </uax:NodeId>
     <uax:BrowseName>
       <uax:NamespaceIndex>1</uax:NamespaceIndex>
@@ -97,7 +97,7 @@
   <MemoryBuffers xmlns="http://samples.org/UA/MemoryBuffer">
     <uax:NodeClass>Object_1</uax:NodeClass>
     <uax:NodeId>
-      <uax:Identifier>ns=1;i=1025</uax:Identifier>
+      <uax:Identifier>ns=1;i=1005</uax:Identifier>
     </uax:NodeId>
     <uax:BrowseName>
       <uax:NamespaceIndex>1</uax:NamespaceIndex>
@@ -109,7 +109,7 @@
     <uax:TypeDefinitionId>
       <uax:Identifier>i=61</uax:Identifier>
     </uax:TypeDefinitionId>
-    <uax:NumericId>1025</uax:NumericId>
+    <uax:NumericId>1005</uax:NumericId>
     <uax:References>
       <uax:Reference>
         <uax:ReferenceTypeId>

@@ -77,6 +77,26 @@ namespace Opc.Ua
         }
         #endregion
 
+        #region ICloneable Members
+        /// <inheritdoc/>
+        public override object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
+        /// <summary>
+        /// Makes a copy of the node and all children.
+        /// </summary>
+        /// <returns>
+        /// A new object that is a copy of this instance.
+        /// </returns>
+        public new object MemberwiseClone()
+        {
+            MethodState clone = (MethodState)Activator.CreateInstance(this.GetType(), this.Parent);
+            return CloneChildren(clone);
+        }
+        #endregion
+
         #region Public Members
         /// <summary>
         /// The identifier for the declaration of the method in the type model.

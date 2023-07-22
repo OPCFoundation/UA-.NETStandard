@@ -77,7 +77,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         /// </summary>
         protected void SetRepeatedRandomSeed()
         {
-            int randomSeed = TestContext.CurrentContext.Random.Next() + kRandomStart;
+            int randomSeed = TestContext.CurrentContext.CurrentRepeatCount + kRandomStart;
             RandomSource = new RandomSource(randomSeed);
             DataGenerator = new DataGenerator(RandomSource);
         }
@@ -234,9 +234,29 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.NotNull(collection);
             collection = new ExtensionObjectCollection(collection);
             Assert.NotNull(collection);
-            collection = (ExtensionObjectCollection)collection.MemberwiseClone();
+            collection = (ExtensionObjectCollection)Utils.Clone(collection);
             // default value is null
             Assert.Null(TypeInfo.GetDefaultValue(BuiltInType.ExtensionObject));
+        }
+
+        /// <summary>
+        /// Ensure defaults are correct.
+        /// </summary>
+        [Test]
+        public void DiagnosticInfoDefault()
+        {
+            DiagnosticInfo diagnosticInfo = new DiagnosticInfo();
+            Assert.NotNull(diagnosticInfo);
+            Assert.AreEqual(-1, diagnosticInfo.SymbolicId);
+            Assert.AreEqual(-1, diagnosticInfo.NamespaceUri);
+            Assert.AreEqual(-1, diagnosticInfo.Locale);
+            Assert.AreEqual(-1, diagnosticInfo.LocalizedText);
+            Assert.AreEqual(null, diagnosticInfo.AdditionalInfo);
+            Assert.AreEqual(ServiceResult.Good.StatusCode, diagnosticInfo.InnerStatusCode);
+            Assert.AreEqual(null, diagnosticInfo.InnerDiagnosticInfo);
+
+            Assert.IsTrue(diagnosticInfo.Equals(null));
+            Assert.IsTrue(diagnosticInfo.IsNullDiagnosticInfo);
         }
 
         /// <summary>

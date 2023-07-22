@@ -493,6 +493,10 @@ namespace Opc.Ua.Client
 
                     Utils.LogError("Session close error: " + result);
                 }
+                finally
+                {
+                    this.OperationTimeout = existingTimeout;
+                }
             }
 
             // clean up.

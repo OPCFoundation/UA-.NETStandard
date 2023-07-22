@@ -40,7 +40,7 @@ namespace Opc.Ua.Client
     [KnownType(typeof(DataChangeFilter))]
     [KnownType(typeof(EventFilter))]
     [KnownType(typeof(AggregateFilter))]
-    public class MonitoredItem
+    public class MonitoredItem : ICloneable
     {
         #region Constructors
         /// <summary>
@@ -594,6 +594,17 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Reset the notification event handler.
+        /// </summary>
+        public void DetachNotificationEventHandlers()
+        {
+            lock (m_cache)
+            {
+                m_Notification = null;
+            }
+        }
+
+        /// <summary>
         /// Saves a data change or event in the cache.
         /// </summary>
         public void SaveValueInCache(IEncodeable newValue)
@@ -662,6 +673,12 @@ namespace Opc.Ua.Client
         #endregion
 
         #region ICloneable Members
+        /// <inheritdoc/>
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
         /// <summary>
         /// Creates a deep copy of the object.
         /// </summary>

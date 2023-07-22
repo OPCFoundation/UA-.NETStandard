@@ -256,15 +256,13 @@ namespace Opc.Ua.Gds.Server
                         domainNames = domainNameList.ToArray();
                     }
                 }
-                
+
                 DateTime yesterday = DateTime.Today.AddDays(-1);
                 using (var signingKey = await LoadSigningKeyAsync(Certificate, string.Empty).ConfigureAwait(false))
                 {
-                    return CertificateFactory.CreateCertificate(
-                            application.ApplicationUri,
-                            null,
-                            info.Subject.ToString(true, (IDictionary)Org.BouncyCastle.Asn1.X509.X509Name.DefaultSymbols),
-                            domainNames)
+                    X500DistinguishedName subjectName = new X500DistinguishedName(info.Subject.GetEncoded());
+                    return CertificateBuilder.Create(subjectName)
+                        .AddExtension(new X509SubjectAltNameExtension(application.ApplicationUri, domainNames))
                         .SetNotBefore(yesterday)
                         .SetLifeTime(Configuration.DefaultCertificateLifetime)
                         .SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.DefaultCertificateHashSize))

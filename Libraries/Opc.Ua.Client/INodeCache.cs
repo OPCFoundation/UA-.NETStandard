@@ -53,6 +53,13 @@ namespace Opc.Ua.Client
         Node FetchNode(ExpandedNodeId nodeId);
 
         /// <summary>
+        /// Finds a set of nodes in the nodeset,
+        /// fetches missing nodes from server.
+        /// </summary>
+        /// <param name="nodeIds">The node identifier collection.</param>
+        IList<INode> Find(IList<ExpandedNodeId> nodeIds);
+
+        /// <summary>
         /// Fetches a node collection from the server and updates the cache.
         /// </summary>
         IList<Node> FetchNodes(IList<ExpandedNodeId> nodeIds);
