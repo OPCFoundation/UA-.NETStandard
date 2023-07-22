@@ -1234,6 +1234,15 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Public Methods
+        /// <inheritdoc/>
+        public void TransferSessionSecrets(Session template)
+        {
+            m_identity = template.Identity;
+            m_serverCertificate = template.m_serverCertificate;
+            m_serverNonce = template.m_serverNonce;
+            SessionCreated(template.SessionId, template.AuthenticationToken);
+        }
+
         /// <summary>
         /// Reconnects to the server after a network failure.
         /// </summary>
@@ -3561,7 +3570,7 @@ namespace Opc.Ua.Client
             {
                 if (subscriptionIds.Count > 0)
                 {
-                    ResponseHeader responseHeader = TransferSubscriptions(null, subscriptionIds, sendInitialValues, out var results, out var diagnosticInfos);
+                    ResponseHeader responseHeader = base.TransferSubscriptions(null, subscriptionIds, sendInitialValues, out var results, out var diagnosticInfos);
                     if (!StatusCode.IsGood(responseHeader.ServiceResult))
                     {
                         Utils.LogError("TransferSubscription failed: {0}", responseHeader.ServiceResult);

@@ -764,7 +764,7 @@ namespace Opc.Ua.Client
         {
             // ensure the global counter is not duplicating future handle ids
             Utils.LowerLimitIdentifier(ref s_globalClientHandle, clientHandle);
-            m_clientHandle = clientHandle;  
+            m_clientHandle = clientHandle;
             m_status.SetTransferResult(this);
             m_attributesModified = false;
         }
@@ -1012,6 +1012,46 @@ namespace Opc.Ua.Client
 
             return new ServiceResult(status.StatusCode, status.DiagnosticInfo, message.StringTable);
         }
+
+        /// <inheritdoc/>
+        public override bool Equals(Object obj)
+        {
+            if (ReferenceEquals(this, obj)) return true;
+
+            var other = obj as MonitoredItem;
+            if (other == null)
+            {
+                return false;
+            }
+
+            // dynamic properties
+            if (!Utils.IsEqual(m_subscription?.Id, other.m_subscription?.Id)) return false;
+
+            // persistent properties
+            if (!Utils.IsEqual(m_displayName, other.m_displayName)) return false;
+            if (!Utils.IsEqual(m_startNodeId, other.m_startNodeId)) return false;
+            if (!Utils.IsEqual(m_relativePath, other.m_relativePath)) return false;
+            if (!Utils.IsEqual(m_nodeClass, other.m_nodeClass)) return false;
+            if (!Utils.IsEqual(m_attributeId, other.m_attributeId)) return false;
+            if (!Utils.IsEqual(m_indexRange, other.m_indexRange)) return false;
+            if (!Utils.IsEqual(m_encoding, other.m_encoding)) return false;
+            if (!Utils.IsEqual(m_monitoringMode, other.m_monitoringMode)) return false;
+            if (!Utils.IsEqual(m_samplingInterval, other.m_samplingInterval)) return false;
+            if (!Utils.IsEqual(m_filter, other.m_filter)) return false;
+            if (!Utils.IsEqual(m_queueSize, other.m_queueSize)) return false;
+            if (!Utils.IsEqual(m_discardOldest, other.m_discardOldest)) return false;
+            if (!Utils.IsEqual(ServerId, other.ServerId)) return false;
+
+            return true;
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            int hashCode = HashCode.Combine(m_subscription?.Id, m_displayName, m_startNodeId, m_relativePath, m_nodeClass, m_attributeId, m_indexRange);
+            hashCode = HashCode.Combine(hashCode, m_encoding, m_monitoringMode, m_samplingInterval, m_filter, m_queueSize, m_discardOldest, ServerId);
+            return hashCode;
+        }
         #endregion
 
         #region Private Methods
@@ -1061,17 +1101,17 @@ namespace Opc.Ua.Client
         /// </summary>
         private void UseDefaultEventFilter()
         {
-            EventFilter filter = filter = new EventFilter();
+            EventFilter filter = new EventFilter();
 
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.EventId);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.EventType);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.SourceNode);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.SourceName);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.Time);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.ReceiveTime);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.LocalTime);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.Message);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.Severity);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.EventId);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.EventType);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.SourceNode);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.SourceName);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.Time);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.ReceiveTime);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.LocalTime);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.Message);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.Severity);
 
             m_filter = filter;
         }
