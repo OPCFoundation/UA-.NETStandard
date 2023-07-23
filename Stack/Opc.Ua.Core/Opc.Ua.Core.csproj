@@ -74,7 +74,7 @@
 
   <!-- Produces a zipped version of the Nodeset 2 to reduce assembly size by 2.7MB ! -->
   <ItemGroup>
-    <EmbeddedResource Include="Schema\Opc.Ua.Nodeset2.xml.zip" />
+    <EmbeddedResource Include="Schema\Opc.Ua.NodeSet2.xml.zip" />
   </ItemGroup>
     
   <PropertyGroup>
