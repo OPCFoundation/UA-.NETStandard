@@ -20,7 +20,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Schema\Opc.Ua.Nodeset2.xml.zip" />
+    <None Remove="Schema\Opc.Ua.NodeSet2.xml.zip" />
     <None Remove="Schema\Opc.Ua.Types.bsd" />
     <None Remove="Schema\Opc.Ua.Types.xsd" />
     <None Remove="Schema\UANodeSet.xsd" />

@@ -87,11 +87,11 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
         }
 
         /// <summary>
-        /// Load zipped Nodeset2 resource.
+        /// Load zipped NodeSet2 resource.
         /// </summary>
         [Test]
-        [TestCase("Opc.Ua.Nodeset2.xml")]
-        public void LoadZipNodeset2Resources(string resource)
+        [TestCase("Opc.Ua.NodeSet2.xml")]
+        public void LoadZipNodeSet2Resources(string resource)
         {
             const string schemaPrefix = "Opc.Ua.Schema.";
             const string zipExtension = ".zip";
