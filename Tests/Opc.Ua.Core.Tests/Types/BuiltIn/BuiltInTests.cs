@@ -456,6 +456,48 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
 
         [Theory]
         [TestCase(-1)]
+        [Repeat(100)]
+        public void NodeIdComparison(Opc.Ua.IdType idType)
+        {
+            NodeId nodeId = DataGenerator.GetRandomNodeId();
+            switch (idType)
+            {
+                case Opc.Ua.IdType.Numeric: nodeId = new NodeId(DataGenerator.GetRandomUInt16(), DataGenerator.GetRandomByte()); break;
+                case Opc.Ua.IdType.String: nodeId = new NodeId(DataGenerator.GetRandomString()); break;
+                case Opc.Ua.IdType.Guid: nodeId = new NodeId(DataGenerator.GetRandomGuid()); break;
+                case Opc.Ua.IdType.Opaque: nodeId = new NodeId(Utils.Nonce.CreateNonce(32)); break;
+            }
+            NodeId nodeIdClone = (NodeId)nodeId.Clone();
+            Assert.AreEqual(nodeId, nodeIdClone);
+            Assert.AreEqual(nodeId.GetHashCode(), nodeIdClone.GetHashCode());
+            Assert.AreEqual(nodeIdClone.GetHashCode(), nodeIdClone.GetHashCode());
+            Assert.AreEqual(nodeId.GetHashCode(), nodeId.GetHashCode());
+            Assert.IsTrue(nodeId.Equals(nodeIdClone));
+
+            var dictionary = new Dictionary<NodeId, string>();
+            dictionary.Add(nodeId, "Test");
+            Assert.IsTrue(dictionary.ContainsKey(nodeId));
+            Assert.IsTrue(dictionary.ContainsKey(nodeIdClone));
+            Assert.IsTrue(dictionary.ContainsKey((NodeId)nodeIdClone.Clone()));
+            Assert.IsTrue(dictionary.TryGetValue(nodeId, out string value));
+
+            Assert.Throws<ArgumentException>(() => dictionary.Add(nodeIdClone, "TestClone"));
+
+            NodeId nodeId2 = DataGenerator.GetRandomNodeId();
+            switch (idType)
+            {
+                case Opc.Ua.IdType.Numeric: nodeId2 = new NodeId(DataGenerator.GetRandomUInt16(), DataGenerator.GetRandomByte()); break;
+                case Opc.Ua.IdType.String: nodeId2 = new NodeId(DataGenerator.GetRandomString()); break;
+                case Opc.Ua.IdType.Guid: nodeId2 = new NodeId(DataGenerator.GetRandomGuid()); break;
+                case Opc.Ua.IdType.Opaque: nodeId2 = new NodeId(Utils.Nonce.CreateNonce(32)); break;
+            }
+            dictionary.Add(nodeId2, "TestClone");
+            Assert.AreEqual(2, dictionary.Distinct().ToList().Count);
+        }
+
+        [Theory]
+        [TestCase(-1)]
+        [TestCase(100)]
         public void NullIdNodeIdComparison(Opc.Ua.IdType idType)
         {
             NodeId nodeId = NodeId.Null;
@@ -464,7 +506,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 case Opc.Ua.IdType.Numeric: nodeId = new NodeId(0, 0); break;
                 case Opc.Ua.IdType.String: nodeId = new NodeId(""); break;
                 case Opc.Ua.IdType.Guid: nodeId = new NodeId(Guid.Empty); break;
-                case Opc.Ua.IdType.Opaque: nodeId = new NodeId((byte)0); break;
+                case Opc.Ua.IdType.Opaque: nodeId = new NodeId(new byte[0]); break;
+                case (Opc.Ua.IdType)100: nodeId = new NodeId((byte[])null); break;
             }
 
             Assert.IsTrue(nodeId.IsNullNodeId);
@@ -486,6 +529,9 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
 
             int comparisonResult2 = nodeId.CompareTo(dataValue);
             Assert.IsFalse(comparisonResult2 == 0); // assert fails - this is the root cause for the previous assertion failures
+
+            Assert.AreEqual(nodeIdBasedDataValue.Value, nodeId);
+            Assert.AreEqual(nodeIdBasedDataValue.Value.GetHashCode(), nodeId.GetHashCode());
         }
         #endregion
 

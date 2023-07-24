@@ -1235,29 +1235,36 @@ namespace Opc.Ua
                 return 0;
             }
 
+            var hashCode = new HashCode();
+            hashCode.Add(m_namespaceIndex);
+            hashCode.Add(m_identifierType);
             switch (m_identifierType)
             {
                 case IdType.Numeric:
-                {
-                    return HashCode.Combine(m_namespaceIndex, (uint)m_identifier);
-                }
+                    hashCode.Add((uint)m_identifier);
+                    break;
                 case IdType.String:
-                {
-                    return HashCode.Combine(m_namespaceIndex, (string)m_identifier);
-                }
+                    hashCode.Add((string)m_identifier);
+                    break;
                 case IdType.Guid:
-                {
-                    return HashCode.Combine(m_namespaceIndex, (Guid)m_identifier);
-                }
+                    hashCode.Add((Guid)m_identifier);
+                    break;
                 case IdType.Opaque:
-                {
-                    return HashCode.Combine(m_namespaceIndex, (byte[])m_identifier);
-                }
+#if NET6_0_OR_GREATER
+                    hashCode.AddBytes((byte[])m_identifier);
+#else
+                    byte[] identifier = (byte[])m_identifier;
+                    foreach (var id in identifier)
+                    {
+                        hashCode.Add(id);
+                    }
+#endif
+                    break;
                 default:
-                {
-                    return HashCode.Combine(m_namespaceIndex, m_identifierType, m_identifier);
-                }
+                    hashCode.Add(m_identifier);
+                    break;
             }
+            return hashCode.ToHashCode();
         }
         #endregion
 
