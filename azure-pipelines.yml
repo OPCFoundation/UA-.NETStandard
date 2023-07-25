@@ -108,5 +108,6 @@ stages:
   - template: .azurepipelines/testcc.yml
     parameters:
       configuration: Release
-      poolImage: 'ubuntu-20.04'
-      jobnamesuffix: netcore31
+      poolImage: 'ubuntu-22.04'
+      framework: net6.0
+      jobnamesuffix: net60cc
