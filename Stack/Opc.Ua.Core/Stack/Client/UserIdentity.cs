@@ -11,7 +11,9 @@
 */
 
 using System;
+using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
+using System.Security.Principal;
 using System.Xml;
 
 namespace Opc.Ua
@@ -19,6 +21,7 @@ namespace Opc.Ua
     /// <summary>
     /// A generic user identity class.
     /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class UserIdentity : IUserIdentity
     {
         #region Constructors
@@ -246,6 +249,12 @@ namespace Opc.Ua
     /// </summary>
     public class ImpersonationContext
     {
+        #region Public Members
+        /// <summary>
+        /// The security principal being impersonated.
+        /// </summary>
+        public IPrincipal Principal { get; set; }
+        #endregion
     }
     #endregion
 }

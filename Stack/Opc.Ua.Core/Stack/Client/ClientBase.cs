@@ -134,6 +134,11 @@ namespace Opc.Ua
 
             protected set
             {
+                if (ReferenceEquals(m_channel, value))
+                {
+                    return;
+                }
+
                 ITransportChannel channel = m_channel;
                 m_channel = null;
 

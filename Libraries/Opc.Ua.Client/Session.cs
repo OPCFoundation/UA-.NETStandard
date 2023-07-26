@@ -692,6 +692,14 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Whether the endpoint Url domain is checked in the certificate.
+        /// </summary>
+        public bool CheckDomain
+        {
+            get { return m_checkDomain; }
+        }
+
+        /// <summary>
         /// Gets or Sets the default subscription for the session.
         /// </summary>
         public Subscription DefaultSubscription
@@ -1240,13 +1248,40 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Public Methods
-        /// <inheritdoc/>
-        public void TransferSessionSecrets(Session template)
+        /// <summary>
+        /// Applies a session configuration.
+        /// With a secure channel, a session can be reconnected.
+        /// </summary>
+        public bool ApplySessionConfiguration(SessionConfiguration sessionConfiguration)
         {
-            m_identity = template.Identity;
-            m_serverCertificate = template.m_serverCertificate;
-            m_serverNonce = template.m_serverNonce;
-            SessionCreated(template.SessionId, template.AuthenticationToken);
+            if (sessionConfiguration == null) throw new ArgumentNullException(nameof(sessionConfiguration));
+
+            m_sessionName = sessionConfiguration.SessionName;
+            m_serverCertificate = new X509Certificate2(m_endpoint.Description.ServerCertificate);
+            m_identity = sessionConfiguration.Identity;
+            m_checkDomain = sessionConfiguration.CheckDomain;
+            m_serverNonce = sessionConfiguration.ServerNonce;
+            SessionCreated(sessionConfiguration.SessionId, sessionConfiguration.AuthenticationToken);
+
+            return true;
+        }
+
+        /// <inheritdoc/>
+        public SessionConfiguration SaveSessionConfiguration(Stream stream = null)
+        {
+            var sessionConfiguration = new SessionConfiguration(this, m_serverNonce, AuthenticationToken);
+            if (stream != null)
+            {
+                XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
+                using (XmlWriter writer = XmlWriter.Create(stream, settings))
+                {
+                    DataContractSerializer serializer = new DataContractSerializer(typeof(SessionConfiguration),
+                        new[] { typeof(UserIdentityToken), typeof(AnonymousIdentityToken), typeof(X509IdentityToken),
+                        typeof(IssuedIdentityToken), typeof(UserIdentity) });
+                    serializer.WriteObject(writer, sessionConfiguration);
+                }
+            }
+            return sessionConfiguration;
         }
 
         /// <summary>
@@ -3322,7 +3357,7 @@ namespace Opc.Ua.Client
                 }
             }
         }
-        #endregion
+#endregion
 
         #region Close Methods
         /// <summary>
@@ -5380,7 +5415,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public bool Republish(uint subscriptionId, uint sequenceNumber)
         {
-            // send publish request.
+            // send republish request.
             RequestHeader requestHeader = new RequestHeader {
                 TimeoutHint = (uint)OperationTimeout,
                 ReturnDiagnostics = (uint)(int)ReturnDiagnostics,

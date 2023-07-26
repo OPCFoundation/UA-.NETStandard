@@ -275,6 +275,11 @@ namespace Opc.Ua.Client
         /// be transferred after reconnect. Service must be supported by server.
         /// </remarks>   
         bool TransferSubscriptionsOnReconnect { get; set; }
+
+        /// <summary>
+        /// Whether the endpoint Url domain is checked in the certificate.
+        /// </summary>
+        bool CheckDomain { get; }
         #endregion
 
         #region Delegates and Events
@@ -331,6 +336,17 @@ namespace Opc.Ua.Client
         /// <param name="transferSubscriptions">Load the subscriptions for transfer after load.</param>
         /// <returns>The list of loaded subscriptions</returns>
         IEnumerable<Subscription> Load(string filePath, bool transferSubscriptions = false);
+
+        /// <summary>
+        /// Returns the active session configuration and writes it to a stream.
+        /// </summary>
+        SessionConfiguration SaveSessionConfiguration(Stream stream = null);
+
+        /// <summary>
+        /// Applies a session configuration.
+        /// Using a secure channel, with the session configuration a session can be reconnected.
+        /// </summary>
+        bool ApplySessionConfiguration(SessionConfiguration sessionConfiguration);
 
         /// <summary>
         /// Updates the local copy of the server's namespace uri and server uri tables.
