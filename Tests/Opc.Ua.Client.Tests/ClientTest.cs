@@ -572,15 +572,14 @@ namespace Opc.Ua.Client.Tests
         {
             ServiceResultException sre;
 
-            // the endpoint to use
-            var customServerUrl = ServerUrl;
+            IUserIdentity userIdentity = new UserIdentity("user1", "password");
 
             // the first channel determines the endpoint
             ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
             Assert.NotNull(endpoint);
 
             // the active channel
-            Session session1 = await ClientFixture.ConnectAsync(endpoint).ConfigureAwait(false) as Session;
+            Session session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity).ConfigureAwait(false) as Session;
             Assert.NotNull(session1);
 
             ServerStatusDataType value1 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
@@ -968,7 +967,10 @@ namespace Opc.Ua.Client.Tests
             }
 
             NodeIdCollection nodes = new NodeIdCollection(
-                ReferenceDescriptions.Take(MaxReferences).Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris))
+                ReferenceDescriptions
+                .Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris))
+                .Where(nodeId => nodeId.NamespaceIndex == 0)
+                .Take(MaxReadReferences)
                 );
             Session.ReadNodes(nodes, out IList<Node> nodeCollection, out IList<ServiceResult> errors);
             Assert.NotNull(nodeCollection);
