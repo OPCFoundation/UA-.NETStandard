@@ -296,6 +296,11 @@ namespace Opc.Ua.Client
         void Reconnect(ITransportWaitingConnection connection);
 
         /// <summary>
+        /// Reconnects to the server using a new channel.
+        /// </summary>
+        void Reconnect(ITransportChannel channel);
+
+        /// <summary>
         /// Saves all the subscriptions of the session.
         /// </summary>
         /// <param name="filePath">The file path.</param>
@@ -312,7 +317,7 @@ namespace Opc.Ua.Client
         void Save(string filePath, IEnumerable<Subscription> subscriptions);
 
         /// <summary>
-        /// Load the list of subscriptions saved in a file.
+        /// Load the list of subscriptions saved in a stream.
         /// </summary>
         /// <param name="stream">The stream.</param>
         /// <param name="transferSubscriptions">Load the subscriptions for transfer after load.</param>

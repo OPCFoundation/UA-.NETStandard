@@ -1307,7 +1307,7 @@ namespace Opc.Ua
                     else
                     {
                         // write the invalid certificate to rejected store if specified.
-                        Utils.LogCertificate(LogLevel.Error, "Certificate rejected. Reason={1}.",
+                        Utils.LogCertificate(LogLevel.Error, "Certificate rejected. Reason={0}.",
                             serverCertificate, serviceResult != null ? serviceResult.ToString() : "Unknown Error");
                         SaveCertificate(serverCertificate);
                     }

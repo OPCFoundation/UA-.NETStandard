@@ -11,12 +11,11 @@
 */
 
 //#define TRACE_MEMORY
-//#define TRACK_MEMORY 
+//#define TRACK_MEMORY
 
 using System;
 using System.Buffers;
 using System.Collections.Generic;
-using System.Threading;
 
 namespace Opc.Ua.Bindings
 {
@@ -121,9 +120,10 @@ namespace Opc.Ua.Bindings
         /// <param name="maxBufferSize">Max size of the buffer.</param>
         public BufferManager(string name, int maxBufferSize)
         {
-            int maxArrayLength = maxBufferSize + m_cookieLength;
             m_name = name;
-            m_arrayPool = ArrayPool<byte>.Create(maxBufferSize, 32);
+            m_arrayPool = maxBufferSize <= 1024 * 1024
+                ? ArrayPool<byte>.Shared
+                : ArrayPool<byte>.Create(maxBufferSize + m_cookieLength, 4);
             m_maxBufferSize = maxBufferSize;
         }
         #endregion
