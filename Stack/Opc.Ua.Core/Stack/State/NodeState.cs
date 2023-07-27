@@ -458,7 +458,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets or sets the extensions of the node set. Property used when importing nodeset2.xml files.
+        /// Gets or sets the extensions of the node set. Property used when importing NodeSet2.xml files.
         /// </summary>
         /// <value>
         /// The extensions.
