@@ -566,13 +566,16 @@ namespace Opc.Ua.Client.Tests
         /// the same session on a new channel with saved session secrets
         /// </summary>
         [Test, Order(260)]
-        [TestCase(SecurityPolicies.None)]
-        [TestCase(SecurityPolicies.Basic256Sha256)]
-        public async Task ReconnectSessionOnAlternateChannelWithSavedSessionSecrets(string securityPolicy)
+        [TestCase(SecurityPolicies.None, true)]
+        [TestCase(SecurityPolicies.None, false)]
+        [TestCase(SecurityPolicies.Basic256Sha256, true)]
+        [TestCase(SecurityPolicies.Basic256Sha256, false)]
+        public async Task ReconnectSessionOnAlternateChannelWithSavedSessionSecrets(string securityPolicy, bool anonymous)
         {
             ServiceResultException sre;
 
             IUserIdentity userIdentity = new UserIdentity("user1", "password");
+            IUserIdentity userIdentity = anonymous ? new UserIdentity() : new UserIdentity("user1", "password");
 
             // the first channel determines the endpoint
             ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
@@ -970,7 +973,7 @@ namespace Opc.Ua.Client.Tests
                 ReferenceDescriptions
                 .Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris))
                 .Where(nodeId => nodeId.NamespaceIndex == 0)
-                .Take(MaxReadReferences)
+                .Take(MaxReferences)
                 );
             Session.ReadNodes(nodes, out IList<Node> nodeCollection, out IList<ServiceResult> errors);
             Assert.NotNull(nodeCollection);
