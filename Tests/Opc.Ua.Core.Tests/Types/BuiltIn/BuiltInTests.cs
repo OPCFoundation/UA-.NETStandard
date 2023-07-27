@@ -311,46 +311,93 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             _ = nodeIdText == nodeId2;
             _ = nodeIdText > nodeId2;
 
-            _ = new NodeId((object)(uint)123, 123);
-            _ = new NodeId((object)"Test", 123);
-            _ = new NodeId((object)id2, 123);
-            _ = new NodeId((object)null, 123);
-            _ = new NodeId((object)id1, 123);
+            NodeId id;
+            id = new NodeId((object)(uint)123, 123);
+            Assert.AreEqual(123, id.NamespaceIndex);
+            Assert.AreEqual(123, id.Identifier);
+            id = new NodeId((object)"Test", 123);
+            Assert.AreEqual(123, id.NamespaceIndex);
+            Assert.AreEqual("Test", id.Identifier);
+            id = new NodeId((object)id2, 123);
+            Assert.AreEqual(123, id.NamespaceIndex);
+            Assert.AreEqual(id2, id.Identifier);
+            id = new NodeId((object)null, 123);
+            Assert.AreEqual(123, id.NamespaceIndex);
+            Assert.AreEqual(null, id.Identifier);
+            id = new NodeId((object)id1, 123);
+            Assert.AreEqual(123, id.NamespaceIndex);
+            Assert.AreEqual(id1, id.Identifier);
+
+            id.SetIdentifier("Test", IdType.Opaque);
 
             Assert.Throws<ArgumentException>(() => _ = new NodeId((object)(int)123, 123));
             Assert.Throws<ServiceResultException>(() => _ = NodeId.Create((uint)123, "urn:xyz", null));
             Assert.Throws<ServiceResultException>(() => _ = NodeId.Parse("ns="));
-            Assert.Throws<ServiceResultException>(() => _ = NodeId.Parse("nsu="));
-            Assert.Throws<ServiceResultException>(() => _ = NodeId.Parse("nsu=http://opcfoundation.org/Tests;s=Test"));
-            Assert.Throws<ServiceResultException>(() => { NodeId test = "nsu=http://opcfoundation.org/Tests;s=Test"; });
+            Assert.Throws<ArgumentException>(() => _ = NodeId.Parse("nsu="));
+            Assert.Throws<ArgumentException>(() => _ = NodeId.Parse("Test"));
+            Assert.Throws<ArgumentException>(() => { NodeId _ = "Test"; });
+            Assert.Throws<ArgumentException>(() => _ = NodeId.Parse("nsu=http://opcfoundation.org/Tests;s=Test"));
+            Assert.Throws<ArgumentException>(() => { NodeId _ = "nsu=http://opcfoundation.org/Tests;s=Test"; });
             Assert.IsNull(NodeId.ToExpandedNodeId(null, null));
+
+            // IsNull
+            Assert.True(NodeId.IsNull((ExpandedNodeId)null));
+            Assert.True(NodeId.IsNull(new ExpandedNodeId(Guid.Empty)));
+            Assert.True(NodeId.IsNull(ExpandedNodeId.Null));
+            Assert.True(NodeId.IsNull(new ExpandedNodeId(new byte[0])));
+            Assert.True(NodeId.IsNull(new ExpandedNodeId("", 0)));
+            Assert.True(NodeId.IsNull(new ExpandedNodeId(0)));
+            Assert.False(NodeId.IsNull(new ExpandedNodeId(1)));
+
+            string[] testStrings = new string[] {
+                "i=1234", "s=HelloWorld", "g=af469096-f02a-4563-940b-603958363b81", "b=01020304",
+                "ns=2;s=HelloWorld", "ns=2;i=1234", "ns=2;g=af469096-f02a-4563-940b-603958363b82", "ns=2;b=04030201"
+            };
+
+            foreach (var testString in testStrings)
+            {
+                NodeId nodeId = NodeId.Parse(testString);
+                Assert.AreEqual(testString, nodeId.ToString());
+                nodeId = testString;
+                Assert.AreEqual(testString, nodeId.ToString());
+            }
         }
 
         [Test]
         public void ExpandedNodeIdConstructor()
         {
-            Guid id1 = Guid.NewGuid();
-            ExpandedNodeId nodeId1 = new ExpandedNodeId(id1);
+            ExpandedNodeId id;
+
+            // Guid
+            Guid guid1 = Guid.NewGuid();
+            ExpandedNodeId nodeId1 = new ExpandedNodeId(guid1);
+
             // implicit conversion;
-            ExpandedNodeId inodeId1 = id1;
+            ExpandedNodeId inodeId1 = guid1;
             Assert.AreEqual(nodeId1, inodeId1);
 
-            byte[] id2 = new byte[] { 65, 66, 67, 68, 69 };
-            ExpandedNodeId nodeId2 = new ExpandedNodeId(id2);
+            // byte[]
+            byte[] byteid2 = new byte[] { 65, 66, 67, 68, 69 };
+            ExpandedNodeId nodeId2 = new ExpandedNodeId(byteid2);
+
             // implicit conversion;
-            ExpandedNodeId inodeId2 = id2;
+            ExpandedNodeId inodeId2 = byteid2;
             Assert.AreEqual(nodeId2, inodeId2);
 
+            Assert.AreEqual(nodeId1.GetHashCode(), inodeId1.GetHashCode());
             Assert.False(nodeId2 < inodeId2);
             Assert.True(nodeId2 == inodeId2);
             Assert.False(nodeId2 > inodeId2);
 
+            // string
             string text = "i=123";
             ExpandedNodeId nodeIdText = new ExpandedNodeId(text);
             Assert.AreEqual(123, nodeIdText.Identifier);
+
             // implicit conversion;
             ExpandedNodeId inodeIdText = text;
             Assert.AreEqual(nodeIdText, inodeIdText);
+
             // implicit conversion;
             ExpandedNodeId inodeIdText2 = 123;
             Assert.AreEqual(inodeIdText2, inodeIdText);
@@ -360,25 +407,45 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.True(nodeIdText == inodeIdText2);
             Assert.False(nodeIdText > inodeIdText);
 
-            _ = nodeIdText < nodeId2;
-            _ = nodeIdText == nodeId2;
-            _ = nodeIdText > nodeId2;
+            Assert.True(nodeIdText < nodeId2);
+            Assert.False(nodeIdText == nodeId2);
+            Assert.False(nodeIdText > nodeId2);
 
             _ = new ExpandedNodeId((uint)123, 123);
             _ = new ExpandedNodeId("Test", 123);
-            _ = new ExpandedNodeId(id2, 123);
+            _ = new ExpandedNodeId(byteid2, 123);
             _ = new ExpandedNodeId(0, 123);
-            _ = new ExpandedNodeId(id1, 123);
+            _ = new ExpandedNodeId(guid1, 123);
+
+            id = "ns=1;s=Test";
             ExpandedNodeId nodeId = NodeId.Parse("ns=1;s=Test");
             Assert.AreEqual(1, nodeId.NamespaceIndex);
             Assert.AreEqual("Test", nodeId.Identifier);
+            Assert.AreEqual("ns=1;s=Test", nodeId.ToString());
+            Assert.AreEqual(nodeId, id);
+            Assert.True(nodeId == id);
+
+            id = "s=Test";
+            nodeId = NodeId.Parse("s=Test");
+            Assert.AreEqual(0, nodeId.NamespaceIndex);
+            Assert.AreEqual("Test", nodeId.Identifier);
+            Assert.AreEqual("s=Test", nodeId.ToString());
+            Assert.AreEqual(nodeId, id);
+            Assert.True(nodeId == id);
 
             string namespaceUri = "http://opcfoundation.org/Namespace";
-            _ = new ExpandedNodeId((object)(uint)123, 123, namespaceUri, 2);
-            _ = new ExpandedNodeId((object)"Test", 123, namespaceUri, 1);
-            nodeId = new ExpandedNodeId((object)id2, 123, namespaceUri, 0);
+
+            id = new ExpandedNodeId((object)(uint)123, 321, namespaceUri, 2);
+            Assert.AreEqual(2, id.ServerIndex);
+            Assert.AreEqual(123, (uint)id.Identifier);
+            Assert.AreEqual(321, id.NamespaceIndex);
+            Assert.AreEqual(namespaceUri, id.NamespaceUri);
+            Assert.AreEqual($"svr=2;nsu={namespaceUri};ns=321;i=123", id.ToString());
+
+            id = new ExpandedNodeId((object)"Test", 123, namespaceUri, 1);
+            nodeId = new ExpandedNodeId((object)byteid2, 123, namespaceUri, 0);
             _ = new ExpandedNodeId((object)null, 123, namespaceUri, 1);
-            nodeId2 = new ExpandedNodeId((object)id1, 123, namespaceUri, 1);
+            nodeId2 = new ExpandedNodeId((object)guid1, 123, namespaceUri, 1);
             Assert.AreNotEqual(nodeId, nodeId2);
             Assert.AreNotEqual(nodeId.GetHashCode(), nodeId2.GetHashCode());
 
@@ -391,7 +458,21 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.Throws<ArgumentException>(() => _ = new ExpandedNodeId((object)(int)123, 123, namespaceUri, 1));
             Assert.Throws<ServiceResultException>(() => _ = ExpandedNodeId.Parse("ns="));
             Assert.Throws<ServiceResultException>(() => _ = ExpandedNodeId.Parse("nsu="));
+            Assert.Throws<ArgumentException>(() => id = "Test");
             Assert.IsNull(NodeId.ToExpandedNodeId(null, null));
+
+            string[] testStrings = new string[] {
+                "i=1234", "s=HelloWorld", "g=af469096-f02a-4563-940b-603958363b81", "b=01020304",
+                "ns=2;s=HelloWorld", "ns=2;i=1234", "ns=2;g=af469096-f02a-4563-940b-603958363b82", "ns=2;b=04030201"
+            };
+
+            foreach (var testString in testStrings)
+            {
+                id = ExpandedNodeId.Parse(testString);
+                Assert.AreEqual(testString, id.ToString());
+                id = testString;
+                Assert.AreEqual(testString, id.ToString());
+            }
         }
 
         [Test]
@@ -434,7 +515,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             distinctNodes++;
             Assert.AreNotEqual(nodeIds[0].GetHashCode(), nodeIds[1].GetHashCode());
 
-            nodeIds.Insert(0, new NodeId("Test"));
+            nodeIds.Insert(0, new NodeId("Test", 0));
             distinctNodes++;
             Assert.AreNotEqual(nodeIds[0].GetHashCode(), nodeIds[2].GetHashCode());
 
@@ -463,7 +544,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             switch (idType)
             {
                 case Opc.Ua.IdType.Numeric: nodeId = new NodeId(DataGenerator.GetRandomUInt16(), DataGenerator.GetRandomByte()); break;
-                case Opc.Ua.IdType.String: nodeId = new NodeId(DataGenerator.GetRandomString()); break;
+                case Opc.Ua.IdType.String: nodeId = new NodeId(DataGenerator.GetRandomString(), 0); break;
                 case Opc.Ua.IdType.Guid: nodeId = new NodeId(DataGenerator.GetRandomGuid()); break;
                 case Opc.Ua.IdType.Opaque: nodeId = new NodeId(Utils.Nonce.CreateNonce(32)); break;
             }
@@ -473,6 +554,10 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.AreEqual(nodeIdClone.GetHashCode(), nodeIdClone.GetHashCode());
             Assert.AreEqual(nodeId.GetHashCode(), nodeId.GetHashCode());
             Assert.IsTrue(nodeId.Equals(nodeIdClone));
+            NodeId id = nodeId;
+            Assert.False(id < nodeId);
+            Assert.False(id > nodeId);
+            Assert.True(id == nodeId);
 
             var dictionary = new Dictionary<NodeId, string>();
             dictionary.Add(nodeId, "Test");
@@ -487,7 +572,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             switch (idType)
             {
                 case Opc.Ua.IdType.Numeric: nodeId2 = new NodeId(DataGenerator.GetRandomUInt16(), DataGenerator.GetRandomByte()); break;
-                case Opc.Ua.IdType.String: nodeId2 = new NodeId(DataGenerator.GetRandomString()); break;
+                case Opc.Ua.IdType.String: nodeId2 = new NodeId(DataGenerator.GetRandomString(), 0); break;
                 case Opc.Ua.IdType.Guid: nodeId2 = new NodeId(DataGenerator.GetRandomGuid()); break;
                 case Opc.Ua.IdType.Opaque: nodeId2 = new NodeId(Utils.Nonce.CreateNonce(32)); break;
             }

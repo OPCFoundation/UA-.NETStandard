@@ -605,17 +605,34 @@ namespace Opc.Ua
         }
         #endregion
 
-        #region public static NodeId Parse(string text)
+        #region Public Static NodeId Parse(string text)
         /// <summary>
         /// Parses a node id string and returns a node id object.
         /// </summary>
         /// <remarks>
-        /// Parses a NodeId String and returns a NodeId object
+        /// Parses a NodeId String and returns a NodeId object.
+        /// Valid NodeId strings are of the form:
+        ///     "i=1234", "s=HelloWorld", "g=AF469096-F02A-4563-940B-603958363B81", "b=01020304",
+        ///     "ns=2;s=HelloWorld", "ns=2;i=1234", "ns=2;g=AF469096-F02A-4563-940B-603958363B81", "ns=2;b=01020304"
+        /// Invalid NodeId strings will throw an exception, e.g.
+        ///     "HelloWorld", "nsu=http://opcfoundation.org/UA/;i=1234"
         /// </remarks>
         /// <param name="text">The NodeId value as a string.</param>
         /// <exception cref="ServiceResultException">Thrown under a variety of circumstances, each time with a specific message.</exception>
+        /// <exception cref="ArgumentException">Thrown due to invalid text, each time with a specific message.</exception>
         public static NodeId Parse(string text)
         {
+            return InternalParse(text, false);
+        }
+
+        /// <summary>
+        /// Internal parse method.
+        /// </summary>
+        /// <param name="text">The NodeId value as string.</param>
+        /// <param name="namespaceSet">If the namespaceUri was already set.</param>
+        internal static NodeId InternalParse(string text, bool namespaceSet)
+        {
+            ArgumentException argumentException = null;
             try
             {
                 if (String.IsNullOrEmpty(text))
@@ -636,6 +653,7 @@ namespace Opc.Ua
                     }
 
                     namespaceIndex = Convert.ToUInt16(text.Substring(3, index - 3), CultureInfo.InvariantCulture);
+                    namespaceSet = true;
 
                     text = text.Substring(index + 1);
                 }
@@ -667,17 +685,18 @@ namespace Opc.Ua
                 // parse the namespace index if present.
                 if (text.StartsWith("nsu=", StringComparison.Ordinal))
                 {
-                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, "Invalid namespace definition as Uri for NodeId.");
+                    argumentException = new ArgumentException("Invalid namespace Uri ('nsu=') for a NodeId.");
                 }
-
-                // treat as a string identifier if a namespace was specified.
-                if (namespaceIndex != 0)
+                else
                 {
-                    return new NodeId(text, namespaceIndex);
-                }
+                    // treat as a string identifier if a namespace was specified.
+                    if (namespaceSet)
+                    {
+                        return new NodeId(text, namespaceIndex);
+                    }
 
-                // treat as URI identifier.
-                return new NodeId(text, 0);
+                    argumentException = new ArgumentException("Invalid string NodeId without namespace index ('ns=').");
+                }
             }
             catch (Exception e)
             {
@@ -686,6 +705,8 @@ namespace Opc.Ua
                     Utils.Format("Cannot parse node id text: '{0}'", text),
                     e);
             }
+
+            throw argumentException;
         }
         #endregion
 

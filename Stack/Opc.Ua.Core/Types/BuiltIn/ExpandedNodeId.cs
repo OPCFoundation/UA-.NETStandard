@@ -1165,10 +1165,10 @@ namespace Opc.Ua
         /// <param name="text">The ExpandedNodeId value as a string.</param>
         private void InternalParse(string text)
         {
+            uint serverIndex = 0;
+            string namespaceUri = null;
             try
             {
-                uint serverIndex = 0;
-
                 // parse the server index if present.
                 if (text.StartsWith("svr=", StringComparison.Ordinal))
                 {
@@ -1183,8 +1183,6 @@ namespace Opc.Ua
 
                     text = text.Substring(index + 1);
                 }
-
-                string namespaceUri = null;
 
                 // parse the namespace uri if present.
                 if (text.StartsWith("nsu=", StringComparison.Ordinal))
@@ -1202,14 +1200,6 @@ namespace Opc.Ua
                     namespaceUri = buffer.ToString();
                     text = text.Substring(index + 1);
                 }
-
-                // parse the node id.
-                NodeId nodeId = NodeId.Parse(text);
-
-                // set the properties.
-                m_nodeId = nodeId;
-                m_namespaceUri = namespaceUri;
-                m_serverIndex = serverIndex;
             }
             catch (Exception e)
             {
@@ -1218,6 +1208,14 @@ namespace Opc.Ua
                     Utils.Format("Cannot parse expanded node id text: '{0}'", text),
                     e);
             }
+
+            // parse the node id.
+            NodeId nodeId = NodeId.InternalParse(text, serverIndex != 0 || !string.IsNullOrEmpty(namespaceUri));
+
+            // set the properties.
+            m_nodeId = nodeId;
+            m_namespaceUri = namespaceUri;
+            m_serverIndex = serverIndex;
         }
         #endregion
 
