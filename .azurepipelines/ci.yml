@@ -3,14 +3,14 @@
 #
 parameters:
   buildoption: ''
-  framework: netcoreapp3.1
+  framework: net6.0
   jobnamesuffix: ''
   agents: '@{}'
 jobs:
 - job: buildprep${{ parameters.jobnamesuffix }}
   displayName: Prepare Build Jobs
   pool:
-    vmImage: 'windows-2019'
+    vmImage: 'windows-2022'
   variables:
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
