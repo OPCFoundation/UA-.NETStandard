@@ -51,7 +51,7 @@ namespace Opc.Ua.Client.Controls
         public SubscribeDataListViewCtrl()
         {
             InitializeComponent();
-            m_PublishStatusChanged = new EventHandler(OnPublishStatusChanged);
+            m_PublishStatusChanged = new PublishStateChangedEventHandler(OnPublishStatusChanged);
             ResultsDV.AutoGenerateColumns = false;
             ImageList = new ClientUtils().ImageList;
             
@@ -86,7 +86,7 @@ namespace Opc.Ua.Client.Controls
         private Subscription m_subscription;
         private DisplayState m_state;
         private EditComplexValueDlg m_EditComplexValueDlg;
-        private EventHandler m_PublishStatusChanged;
+        private PublishStateChangedEventHandler m_PublishStatusChanged;
         #endregion
 
         #region Stage Enum
@@ -451,7 +451,7 @@ namespace Opc.Ua.Client.Controls
         #endregion
 
         #region Event Handlers
-        private void OnPublishStatusChanged(object sender, EventArgs e)
+        private void OnPublishStatusChanged(object sender, PublishStateChangedEventArgs e)
         {
             if (!Object.ReferenceEquals(sender, m_subscription))
             {
@@ -466,12 +466,12 @@ namespace Opc.Ua.Client.Controls
 
             try
             {
-                if (m_subscription.PublishingStopped)
+                if (e.Status == PublishStateChangedMask.Stopped)
                 {
                     SubscriptionStateTB.Text = "STOPPED";
                     SubscriptionStateTB.ForeColor = Color.Red;
                 }
-                else
+                else if (e.Status == PublishStateChangedMask.Recovered)
                 {
                     SubscriptionStateTB.Text = GetDisplayString(m_subscription);
                     SubscriptionStateTB.ForeColor = Color.Empty;

@@ -310,8 +310,11 @@ namespace Quickstarts
             bool logConsole,
             LogLevel consoleLogLevel)
         {
+            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+            TaskScheduler.UnobservedTaskException += Unobserved_TaskException;
+
             var loggerConfiguration = new LoggerConfiguration()
-                .Enrich.FromLogContext();
+                    .Enrich.FromLogContext();
 
             if (logConsole)
             {
@@ -413,6 +416,17 @@ namespace Quickstarts
             }
             return quitEvent;
         }
+
+        private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs args)
+        {
+            Utils.LogCritical("Unhandled Exception: {0} IsTerminating: {1}", args.ExceptionObject, args.IsTerminating);
+        }
+
+        private static void Unobserved_TaskException(object sender, UnobservedTaskExceptionEventArgs args)
+        {
+            Utils.LogCritical("Unobserved Exception: {0} Observed: {1}", args.Exception, args.Observed);
+        }
+
     }
 }
 
