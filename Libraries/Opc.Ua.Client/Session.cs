@@ -3357,7 +3357,7 @@ namespace Opc.Ua.Client
                 }
             }
         }
-#endregion
+        #endregion
 
         #region Close Methods
         /// <summary>
