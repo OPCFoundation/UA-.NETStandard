@@ -249,7 +249,7 @@ namespace Opc.Ua.Client.Tests
                 };
 
                 var readValueId = new ReadValueId() {
-                    NodeId = new NodeId(Guid.NewGuid().ToString()),
+                    NodeId = new NodeId(Guid.NewGuid()),
                     AttributeId = Attributes.Value
                 };
 
