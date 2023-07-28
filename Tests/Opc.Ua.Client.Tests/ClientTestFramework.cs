@@ -193,7 +193,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (Session != null)
             {
-                Session.Close();
+                await Session.CloseAsync(5000, true).ConfigureAwait(false);
                 Session.Dispose();
                 Session = null;
             }
@@ -403,6 +403,14 @@ namespace Opc.Ua.Client.Tests
                 return testSet.ToArray();
             }
             return Array.Empty<ExpandedNodeId>();
+        }
+
+        protected void Session_Closing(object sender, EventArgs e)
+        {
+            if (sender is ISession session)
+            {
+                TestContext.Out.WriteLine("Session_Closing: {0}", session.SessionId);
+            }
         }
         #endregion
     }
