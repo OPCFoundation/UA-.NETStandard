@@ -984,10 +984,10 @@ namespace Opc.Ua.Client.Tests
                 await BrowseFullAddressSpace(null).ConfigureAwait(false);
             }
 
-            NodeIdCollection nodes = ReferenceDescriptions
+            NodeIdCollection nodes = new NodeIdCollection(
+                ReferenceDescriptions
                 .Take(nodeCount)
-                .Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris))
-                );
+                .Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris)));
 
             Session.ReadNodes(nodes, out IList<Node> nodeCollection, out IList<ServiceResult> errors);
             Assert.NotNull(nodeCollection);
