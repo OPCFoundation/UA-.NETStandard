@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2023 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -29,64 +29,79 @@
 
 using System;
 using System.IO;
+using System.Text;
+using System.Threading;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server.Tests
 {
-    /// <summary>
-    /// A NUnit trace logger replacement.
-    /// </summary>
-    public class NUnitTraceLogger
+    public class NUnitTestLogger<T> : ILogger<T>
     {
-        private TextWriter m_writer;
-        private int m_traceMasks;
-
         /// <summary>
         /// Create a nunit trace logger which replaces the default logging.
         /// </summary>
-        public static NUnitTraceLogger Create(
+        public static NUnitTestLogger<T> Create(
             TextWriter writer,
             ApplicationConfiguration config,
             int traceMasks)
         {
-            var traceLogger = new NUnitTraceLogger(writer, traceMasks);
+            var traceLogger = new NUnitTestLogger<T>(writer);
 
             // disable the built in tracing, use nunit trace output
             Utils.SetTraceMask(Utils.TraceMask & Utils.TraceMasks.StackTrace);
             Utils.SetTraceOutput(Utils.TraceOutput.Off);
-            Utils.Tracing.TraceEventHandler += traceLogger.TraceEventHandler;
+            Utils.SetLogger(traceLogger);
 
             return traceLogger;
         }
 
-        public void SetWriter(TextWriter writer)
+        private NUnitTestLogger(TextWriter outputWriter)
         {
-            m_writer = writer;
+            m_outputWriter = outputWriter;
         }
 
-        /// <summary>
-        /// Ctor of trace logger.
-        /// </summary>
-        private NUnitTraceLogger(TextWriter writer, int traceMasks)
+        public LogLevel MinimumLogLevel { get; set; } = LogLevel.Debug;
+
+        public IDisposable BeginScope<TState>(TState state)
         {
-            m_writer = writer;
-            m_traceMasks = traceMasks;
+            return null;
         }
 
-        /// <summary>
-        /// Callback for logging OPC UA stack trace output
-        /// </summary>
-        /// <param name="sender">Sender object</param>
-        /// <param name="e">The trace event args.</param>
-        public void TraceEventHandler(object sender, TraceEventArgs e)
+        public bool IsEnabled(LogLevel logLevel)
         {
-            if ((e.TraceMask & m_traceMasks) != 0)
+            return logLevel >= MinimumLogLevel;
+        }
+
+        public void SetWriter(TextWriter outputWriter)
+        {
+            Interlocked.Exchange(ref m_outputWriter, outputWriter);
+        }
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
+        {
+            if (logLevel < MinimumLogLevel)
             {
-                if (e.Exception != null)
-                {
-                    m_writer.WriteLine(e.Exception);
-                }
-                m_writer.WriteLine(string.Format(e.Format, e.Arguments ?? Array.Empty<object>()));
+                return;
+            }
+
+            try
+            {
+                var sb = new StringBuilder();
+                sb.AppendFormat("{0:yy-MM-dd HH:mm:ss.fff}: ", DateTime.UtcNow);
+                sb.Append(formatter(state, exception));
+
+                var logEntry = sb.ToString();
+
+                m_outputWriter.WriteLine(logEntry);
+            }
+            catch
+            {
+                // intentionally ignored
             }
         }
+
+        private TextWriter m_outputWriter;
     }
+
+
 }
