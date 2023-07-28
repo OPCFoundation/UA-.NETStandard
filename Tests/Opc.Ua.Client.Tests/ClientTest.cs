@@ -574,7 +574,6 @@ namespace Opc.Ua.Client.Tests
         {
             ServiceResultException sre;
 
-            IUserIdentity userIdentity = new UserIdentity("user1", "password");
             IUserIdentity userIdentity = anonymous ? new UserIdentity() : new UserIdentity("user1", "password");
 
             // the first channel determines the endpoint
