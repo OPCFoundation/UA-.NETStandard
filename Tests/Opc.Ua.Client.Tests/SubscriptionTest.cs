@@ -119,6 +119,10 @@ namespace Opc.Ua.Client.Tests
             TestContext.Out.WriteLine("MaxNotificationsPerPublish: {0}", subscription.MaxNotificationsPerPublish);
             TestContext.Out.WriteLine("MinLifetimeInterval: {0}", subscription.MinLifetimeInterval);
 
+            subscription.StateChanged += (Subscription sender, SubscriptionStateChangedEventArgs e) => {
+                TestContext.Out.WriteLine("SubscriptionStateChangedEventArgs: Id: {0} Status: {1}", subscription.Id, e.Status);
+            };
+
             subscription.AddItem(list.First());
             Assert.AreEqual(1, subscription.MonitoredItemCount);
             Assert.True(subscription.ChangesPending);
@@ -196,9 +200,14 @@ namespace Opc.Ua.Client.Tests
             });
 
             subscription = new Subscription(Session.DefaultSubscription);
+
             TestContext.Out.WriteLine("MaxMessageCount: {0}", subscription.MaxMessageCount);
             TestContext.Out.WriteLine("MaxNotificationsPerPublish: {0}", subscription.MaxNotificationsPerPublish);
             TestContext.Out.WriteLine("MinLifetimeInterval: {0}", subscription.MinLifetimeInterval);
+
+            subscription.StateChanged += (Subscription sender, SubscriptionStateChangedEventArgs e) => {
+                TestContext.Out.WriteLine("SubscriptionStateChangedEventArgs: Id: {0} Status: {1}", subscription.Id, e.Status);
+            };
 
             subscription.AddItem(list.First());
             Assert.AreEqual(1, subscription.MonitoredItemCount);

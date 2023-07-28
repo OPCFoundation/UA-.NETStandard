@@ -176,7 +176,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.NodeId, new NodeId(kNodeIdInt,kDemoServerIndex),
                 $"{{\"Id\":{kNodeIdInt},\"Namespace\":{kDemoServerIndex}}}", $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kDemoServer}\"}}" },
             {   BuiltInType.NodeId, new NodeId(kNodeIdInt,88), $"{{\"Id\":{kNodeIdInt},\"Namespace\":88}}", null},
-            {   BuiltInType.NodeId, new NodeId(kNodeIdString), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
+            {   BuiltInType.NodeId, new NodeId("ns=0;"+kNodeIdString), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
+            {   BuiltInType.NodeId, new NodeId("s="+kNodeIdString), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
+            {   BuiltInType.NodeId, new NodeId(kNodeIdString,0), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
             {   BuiltInType.NodeId, new NodeId(kNodeIdString,1), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":1}}", null },
             {   BuiltInType.NodeId, new NodeId(kNodeIdString,kDemoServerIndex),
                 $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":{kDemoServerIndex}}}",
@@ -203,7 +205,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdInt,kDemoServer2),
                 $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kDemoServer2}\"}}", $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kDemoServer2}\"}}" },
             {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdInt,88), $"{{\"Id\":{kNodeIdInt},\"Namespace\":88}}", null},
-            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdString), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
+            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId("ns=0;"+kNodeIdString), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
+            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId("s="+kNodeIdString), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
+            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdString,0), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
             {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdString,1), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":1}}", null },
             {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdString,kDemoServerIndex),
                 $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":{kDemoServerIndex}}}",
@@ -498,7 +502,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expected);
 
-            using (var encodeable = new DynamicEncodeable("FooXml", "urn:dynamic_encoder_test", "test_dyn_typeid", "test_dyn_binaryencodingid", "test_dyn_xmlencodingid", "test_dyn_jsonencodingid", new Dictionary<string, (int, string)> { { "Foo", (1, "bar_1") } }))
+            using (var encodeable = new DynamicEncodeable("FooXml", "urn:dynamic_encoder_test", "ns=2;test_dyn_typeid", "s=test_dyn_binaryencodingid", "s=test_dyn_xmlencodingid", "s=test_dyn_jsonencodingid", new Dictionary<string, (int, string)> { { "Foo", (1, "bar_1") } }))
             {
                 using (var encoder = new JsonEncoder(Context, true, false))
                 {
@@ -530,7 +534,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Expected XML:");
             expectedXml = PrettifyAndValidateXml(Encoding.UTF8.GetBytes(expectedXml));
 
-            var encodeable = new DynamicEncodeable("FooXml", "urn:dynamic_encoder_test", "test_dyn2_typeid", "test_dyn2_binaryencodingid", "test_dyn2_xmlencodingid", "test_dyn2_jsonencodingid", new Dictionary<string, (int, string)> {
+            var encodeable = new DynamicEncodeable("FooXml", "urn:dynamic_encoder_test", "s=test_dyn2_typeid", "s=test_dyn2_binaryencodingid", "s=test_dyn2_xmlencodingid", "ns=1;test_dyn2_jsonencodingid", new Dictionary<string, (int, string)> {
                 { "Foo", (1, "bar_1") },
                 { "Foo2", (2, "bar_2") },
             });

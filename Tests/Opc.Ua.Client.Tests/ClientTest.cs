@@ -249,7 +249,7 @@ namespace Opc.Ua.Client.Tests
                 };
 
                 var readValueId = new ReadValueId() {
-                    NodeId = new NodeId(Guid.NewGuid().ToString()),
+                    NodeId = new NodeId(Guid.NewGuid()),
                     AttributeId = Attributes.Value
                 };
 
@@ -317,11 +317,25 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory, Order(200)]
-        public async Task Connect(string securityPolicy)
+        public async Task ConnectAndClose(string securityPolicy)
         {
+            bool closeChannel = securityPolicy != SecurityPolicies.Aes128_Sha256_RsaOaep;
             var session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
             Assert.NotNull(session);
-            var result = session.Close();
+            Session.SessionClosing += Session_Closing;
+            var result = session.Close(5_000, closeChannel);
+            Assert.NotNull(result);
+            session.Dispose();
+        }
+
+        [Theory, Order(201)]
+        public async Task ConnectAndCloseAsync(string securityPolicy)
+        {
+            bool closeChannel = securityPolicy != SecurityPolicies.Basic128Rsa15;
+            var session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
+            Assert.NotNull(session);
+            Session.SessionClosing += Session_Closing;
+            var result = await session.CloseAsync(5_000, closeChannel).ConfigureAwait(false);
             Assert.NotNull(result);
             session.Dispose();
         }
@@ -572,7 +586,7 @@ namespace Opc.Ua.Client.Tests
         {
             TestContext.Out.WriteLine("Identity         : {0}", Session.Identity);
             TestContext.Out.WriteLine("IdentityHistory  : {0}", Session.IdentityHistory);
-            TestContext.Out.WriteLine("NamespaceUris    : {0}", Session.NamespaceUris);
+            TestContext.Out.WriteLine("NamespaceUris    : {0}", Session.NamespaceUris.ToString());
             TestContext.Out.WriteLine("ServerUris       : {0}", Session.ServerUris);
             TestContext.Out.WriteLine("SystemContext    : {0}", Session.SystemContext);
             TestContext.Out.WriteLine("Factory          : {0}", Session.Factory);
@@ -875,7 +889,9 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(560)]
-        public async Task ReadNodes()
+        [TestCase(0)]
+        [TestCase(MaxReferences)]
+        public async Task ReadNodes(int nodeCount)
         {
             if (ReferenceDescriptions == null)
             {
@@ -883,14 +899,21 @@ namespace Opc.Ua.Client.Tests
             }
 
             NodeIdCollection nodes = new NodeIdCollection(
-                ReferenceDescriptions.Take(MaxReferences).Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris))
+                ReferenceDescriptions.Take(nodeCount)
+                    .Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris))
                 );
+
             Session.ReadNodes(nodes, out IList<Node> nodeCollection, out IList<ServiceResult> errors);
             Assert.NotNull(nodeCollection);
             Assert.NotNull(errors);
             Assert.AreEqual(nodes.Count, nodeCollection.Count);
             Assert.AreEqual(nodes.Count, errors.Count);
 
+            Session.ReadNodes(nodes, NodeClass.Unspecified, out nodeCollection, out errors);
+            Assert.NotNull(nodeCollection);
+            Assert.NotNull(errors);
+            Assert.AreEqual(nodes.Count, nodeCollection.Count);
+            Assert.AreEqual(nodes.Count, errors.Count);
 
             int ii = 0;
             var variableNodes = new NodeIdCollection();
@@ -930,7 +953,9 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(570)]
-        public async Task ReadNodesAsync()
+        [TestCase(0)]
+        [TestCase(MaxReferences)]
+        public async Task ReadNodesAsync(int nodeCount)
         {
             if (ReferenceDescriptions == null)
             {
@@ -938,9 +963,19 @@ namespace Opc.Ua.Client.Tests
             }
 
             NodeIdCollection nodes = new NodeIdCollection(
-                ReferenceDescriptions.Take(MaxReferences).Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris))
+                ReferenceDescriptions
+                    .Where(reference => reference.NodeClass == NodeClass.Variable)
+                    .Take(nodeCount)
+                    .Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris))
                 );
-            (IList<Node> nodeCollection, IList<ServiceResult> errors) = await Session.ReadNodesAsync(nodes).ConfigureAwait(false);
+
+            (IList<Node> nodeCollection, IList<ServiceResult> errors) = await Session.ReadNodesAsync(nodes, true).ConfigureAwait(false);
+            Assert.NotNull(nodeCollection);
+            Assert.NotNull(errors);
+            Assert.AreEqual(nodes.Count, nodeCollection.Count);
+            Assert.AreEqual(nodes.Count, errors.Count);
+
+            (nodeCollection, errors) = await Session.ReadNodesAsync(nodes, NodeClass.Unspecified, true).ConfigureAwait(false);
             Assert.NotNull(nodeCollection);
             Assert.NotNull(errors);
             Assert.AreEqual(nodes.Count, nodeCollection.Count);
