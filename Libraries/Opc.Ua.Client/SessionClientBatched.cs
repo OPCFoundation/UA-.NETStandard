@@ -1871,9 +1871,8 @@ namespace Opc.Ua
             DiagnosticInfo diagnosticInfo,
             int stringTableOffset)
         {
-            const int MaxDepth = 10;
             int depth = 0;
-            while (diagnosticInfo != null && depth++ < MaxDepth)
+            while (diagnosticInfo != null && depth++ < DiagnosticInfo.MaxInnerDepth)
             {
                 if (diagnosticInfo.LocalizedText >= 0)
                 {

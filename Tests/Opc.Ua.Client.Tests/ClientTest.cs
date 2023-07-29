@@ -594,6 +594,12 @@ namespace Opc.Ua.Client.Tests
             ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
             Assert.NotNull(endpoint);
 
+            UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentity.TokenType, userIdentity.IssuedTokenType);
+            if (identityPolicy == null)
+            {
+                Assert.Ignore($"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
+            }
+
             // the active channel
             Session session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity).ConfigureAwait(false) as Session;
             Assert.NotNull(session1);
@@ -622,6 +628,11 @@ namespace Opc.Ua.Client.Tests
 
             // apply the saved session configuration
             bool success = session2.ApplySessionConfiguration(sessionConfiguration);
+
+            // hook callback to renew the user identity
+            session2.RenewUserIdentity += (session, identity) => {
+                return userIdentity;
+                };
 
             // activate the session from saved sesson secrets on the new channel
             session2.Reconnect(channel2);

@@ -1256,8 +1256,9 @@ namespace Opc.Ua.Client
         {
             if (sessionConfiguration == null) throw new ArgumentNullException(nameof(sessionConfiguration));
 
+            byte[] serverCertificate = m_endpoint.Description?.ServerCertificate;
             m_sessionName = sessionConfiguration.SessionName;
-            m_serverCertificate = new X509Certificate2(m_endpoint.Description.ServerCertificate);
+            m_serverCertificate = serverCertificate != null ? new X509Certificate2(serverCertificate) : null;
             m_identity = sessionConfiguration.Identity;
             m_checkDomain = sessionConfiguration.CheckDomain;
             m_serverNonce = sessionConfiguration.ServerNonce;
