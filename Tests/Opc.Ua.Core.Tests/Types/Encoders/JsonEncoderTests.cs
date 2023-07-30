@@ -242,7 +242,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.StatusCode, new StatusCode(StatusCodes.BadCertificateInvalid),
                 $"{StatusCodes.BadCertificateInvalid}", $"{{\"Code\":{StatusCodes.BadCertificateInvalid}, \"Symbol\":\"{nameof(StatusCodes.BadCertificateInvalid)}\"}}"},
 
-            {   BuiltInType.DiagnosticInfo, new DiagnosticInfo(), "{}", null},
+            {   BuiltInType.DiagnosticInfo, new DiagnosticInfo(), null, null},
+            {   BuiltInType.DiagnosticInfo, new DiagnosticInfo(-1,-1,-1,-1,null), null, null},
+            {   BuiltInType.DiagnosticInfo, new DiagnosticInfo(1,2,3,4,"AdditionalInfo"), "{\"SymbolicId\":1,\"NamespaceUri\":2,\"Locale\":3,\"LocalizedText\":4,\"AdditionalInfo\":\"AdditionalInfo\"}", null},
 
             {   BuiltInType.QualifiedName, QualifiedName.Null, null, null},
             {   BuiltInType.QualifiedName, new QualifiedName(kQualifiedName), $"{{\"Name\":\"{kQualifiedName}\"}}", null},
