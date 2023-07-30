@@ -37,7 +37,7 @@ namespace Opc.Ua.Client
     /// A session configuration stores all the information
     /// needed to reconnect a session with a new secure channel.
     /// </summary>
-    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class SessionConfiguration
     {
         /// <summary>
@@ -104,7 +104,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// If the client is configured to check the certificate domain.
         /// </summary>
-        [DataMember(IsRequired = true, Order = 60)]
+        [DataMember(IsRequired = false, Order = 60)]
         public bool CheckDomain { get; set; }
 
         /// <summary>
