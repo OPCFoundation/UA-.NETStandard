@@ -282,16 +282,23 @@ namespace Opc.Ua
                 }
 
                 // recursively append the inner diagnostics.
-                if ((DiagnosticsMasks.ServiceInnerDiagnostics & diagnosticsMask) != 0 &&
-                    depth < MaxInnerDepth)
+                if ((DiagnosticsMasks.ServiceInnerDiagnostics & diagnosticsMask) != 0)
                 {
-                    // check recursion
-                    m_innerDiagnosticInfo = new DiagnosticInfo(
-                        result.InnerResult,
-                        diagnosticsMask,
-                        true,
-                        stringTable,
-                        depth + 1);
+                    if (depth < MaxInnerDepth)
+                    {
+                        m_innerDiagnosticInfo = new DiagnosticInfo(
+                            result.InnerResult,
+                            diagnosticsMask,
+                            true,
+                            stringTable,
+                            depth + 1);
+                    }
+                    else
+                    {
+                        Utils.LogWarning(
+                            "Inner diagnostics truncated. Max depth of {0} exceeded.",
+                            MaxInnerDepth);
+                    }
                 }
             }
         }
@@ -534,10 +541,17 @@ namespace Opc.Ua
                     return false;
                 }
 
-                if (this.m_innerDiagnosticInfo != null && depth < MaxInnerDepth)
+                if (this.m_innerDiagnosticInfo != null)
                 {
-                    // check recursion
-                    return this.m_innerDiagnosticInfo.Equals(value.m_innerDiagnosticInfo, depth + 1);
+                    if (depth < MaxInnerDepth)
+                    {
+                        return this.m_innerDiagnosticInfo.Equals(value.m_innerDiagnosticInfo, depth + 1);
+                    }
+                    else
+                    {
+                        // ignore the remaining inner diagnostic info and consider it equal.
+                        return true;
+                    }
                 }
 
                 return value.m_innerDiagnosticInfo == null;

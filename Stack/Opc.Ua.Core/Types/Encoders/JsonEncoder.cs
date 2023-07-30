@@ -869,7 +869,7 @@ namespace Opc.Ua
             }
 
             if ((!UseReversibleEncoding || ForceNamespaceUri) && namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
-                
+
             {
                 var uri = m_context.NamespaceUris.GetString(namespaceIndex);
                 if (!String.IsNullOrEmpty(uri))
@@ -1039,67 +1039,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Writes an DiagnosticInfo to the stream.
+        /// Writes a DiagnosticInfo to the stream.
         /// </summary>
         public void WriteDiagnosticInfo(string fieldName, DiagnosticInfo value)
         {
-            // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
-            }
-
-            if (value == null)
-            {
-                WriteSimpleField(fieldName, null, false);
-                return;
-            }
-
-            m_nestingLevel++;
-
-            PushStructure(fieldName);
-
-            if (value.SymbolicId >= 0)
-            {
-                WriteSimpleField("SymbolicId", value.SymbolicId.ToString(CultureInfo.InvariantCulture), false);
-            }
-
-            if (value.NamespaceUri >= 0)
-            {
-                WriteSimpleField("NamespaceUri", value.NamespaceUri.ToString(CultureInfo.InvariantCulture), false);
-            }
-
-            if (value.Locale >= 0)
-            {
-                WriteSimpleField("Locale", value.Locale.ToString(CultureInfo.InvariantCulture), false);
-            }
-
-            if (value.LocalizedText >= 0)
-            {
-                WriteSimpleField("LocalizedText", value.LocalizedText.ToString(CultureInfo.InvariantCulture), false);
-            }
-
-            if (value.AdditionalInfo != null)
-            {
-                WriteSimpleField("AdditionalInfo", value.AdditionalInfo, true);
-            }
-
-            if (value.InnerStatusCode != StatusCodes.Good)
-            {
-                WriteStatusCode("InnerStatusCode", value.InnerStatusCode);
-            }
-
-            if (value.InnerDiagnosticInfo != null)
-            {
-                WriteDiagnosticInfo("InnerDiagnosticInfo", value.InnerDiagnosticInfo);
-            }
-
-            PopStructure();
-
-            m_nestingLevel--;
+            WriteDiagnosticInfo(fieldName, value, 0);
         }
 
         /// <summary>
@@ -1157,66 +1101,63 @@ namespace Opc.Ua
         /// </summary>
         public void WriteVariant(string fieldName, Variant value)
         {
-            // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
-            }
-
             if (Variant.Null == value)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
             }
 
-            m_nestingLevel++;
+            CheckAndIncrementNestingLevel();
 
-            bool isNull = (value.TypeInfo == null || value.TypeInfo.BuiltInType == BuiltInType.Null || value.Value == null);
-
-            if (UseReversibleEncoding && !isNull)
+            try
             {
-                PushStructure(fieldName);
-                // encode enums as int32.
-                byte encodingByte = (byte)value.TypeInfo.BuiltInType;
-                if (value.TypeInfo.BuiltInType == BuiltInType.Enumeration)
+
+                bool isNull = (value.TypeInfo == null || value.TypeInfo.BuiltInType == BuiltInType.Null || value.Value == null);
+
+                if (UseReversibleEncoding && !isNull)
                 {
-                    encodingByte = (byte)BuiltInType.Int32;
+                    PushStructure(fieldName);
+                    // encode enums as int32.
+                    byte encodingByte = (byte)value.TypeInfo.BuiltInType;
+                    if (value.TypeInfo.BuiltInType == BuiltInType.Enumeration)
+                    {
+                        encodingByte = (byte)BuiltInType.Int32;
+                    }
+
+                    WriteByte("Type", encodingByte);
+                    fieldName = "Body";
                 }
 
-                WriteByte("Type", encodingByte);
-                fieldName = "Body";
-            }
-
-            if (m_commaRequired)
-            {
-                m_writer.Write(",");
-            }
-
-            if (!String.IsNullOrEmpty(fieldName))
-            {
-                m_writer.Write("\"");
-                EscapeString(fieldName);
-                m_writer.Write("\":");
-            }
-
-            WriteVariantContents(value.Value, value.TypeInfo);
-
-            if (UseReversibleEncoding && !isNull)
-            {
-                Matrix matrix = value.Value as Matrix;
-
-                if (matrix != null)
+                if (m_commaRequired)
                 {
-                    WriteInt32Array("Dimensions", matrix.Dimensions);
+                    m_writer.Write(",");
                 }
 
-                PopStructure();
-            }
+                if (!String.IsNullOrEmpty(fieldName))
+                {
+                    m_writer.Write("\"");
+                    EscapeString(fieldName);
+                    m_writer.Write("\":");
+                }
 
-            m_nestingLevel--;
+                WriteVariantContents(value.Value, value.TypeInfo);
+
+                if (UseReversibleEncoding && !isNull)
+                {
+                    Matrix matrix = value.Value as Matrix;
+
+                    if (matrix != null)
+                    {
+                        WriteInt32Array("Dimensions", matrix.Dimensions);
+                    }
+
+                    PopStructure();
+                }
+            }
+            finally
+            {
+                m_nestingLevel--;
+            }
         }
 
         /// <summary>
@@ -1358,16 +1299,6 @@ namespace Opc.Ua
         /// </summary>
         public void WriteEncodeable(string fieldName, IEncodeable value, System.Type systemType)
         {
-            // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
-            }
-
-
             if (value == null)
             {
                 WriteSimpleField(fieldName, null, false);
@@ -1397,16 +1328,20 @@ namespace Opc.Ua
                 }
             }
 
-            m_nestingLevel++;
+            CheckAndIncrementNestingLevel();
 
-            PushStructure(fieldName);
+            try
+            {
+                PushStructure(fieldName);
 
-            value?.Encode(this);
+                value?.Encode(this);
 
-            PopStructure();
-
-            m_nestingLevel--;
-
+                PopStructure();
+            }
+            finally
+            {
+                m_nestingLevel--;
+            }
         }
 
         /// <summary>
@@ -2196,7 +2131,6 @@ namespace Opc.Ua
                 PopArray();
                 m_dontWriteClosing = true;
                 m_nestingLevel--;
-
             }
             else if (!string.IsNullOrWhiteSpace(fieldName) && m_nestingLevel == 0 && m_topLevelIsArray)
             {
@@ -2500,6 +2434,76 @@ namespace Opc.Ua
 
         #region Private Methods
         /// <summary>
+        /// Writes a DiagnosticInfo to the stream.
+        /// Ignores InnerDiagnosticInfo field if the nesting level
+        /// <see cref="DiagnosticInfo.MaxInnerDepth"/> is exceeded.
+        /// </summary>
+        private void WriteDiagnosticInfo(string fieldName, DiagnosticInfo value, int depth)
+        {
+            if (value == null || value.IsNullDiagnosticInfo)
+            {
+                WriteSimpleField(fieldName, null, false);
+                return;
+            }
+
+            CheckAndIncrementNestingLevel();
+
+            try
+            {
+                PushStructure(fieldName);
+
+                if (value.SymbolicId >= 0)
+                {
+                    WriteSimpleField("SymbolicId", value.SymbolicId.ToString(CultureInfo.InvariantCulture), false);
+                }
+
+                if (value.NamespaceUri >= 0)
+                {
+                    WriteSimpleField("NamespaceUri", value.NamespaceUri.ToString(CultureInfo.InvariantCulture), false);
+                }
+
+                if (value.Locale >= 0)
+                {
+                    WriteSimpleField("Locale", value.Locale.ToString(CultureInfo.InvariantCulture), false);
+                }
+
+                if (value.LocalizedText >= 0)
+                {
+                    WriteSimpleField("LocalizedText", value.LocalizedText.ToString(CultureInfo.InvariantCulture), false);
+                }
+
+                if (value.AdditionalInfo != null)
+                {
+                    WriteSimpleField("AdditionalInfo", value.AdditionalInfo, true);
+                }
+
+                if (value.InnerStatusCode != StatusCodes.Good)
+                {
+                    WriteStatusCode("InnerStatusCode", value.InnerStatusCode);
+                }
+
+                if (value.InnerDiagnosticInfo != null)
+                {
+                    if (depth < DiagnosticInfo.MaxInnerDepth)
+                    {
+                        WriteDiagnosticInfo("InnerDiagnosticInfo", value.InnerDiagnosticInfo, depth + 1);
+                    }
+                    else
+                    {
+                        Utils.LogWarning("InnerDiagnosticInfo dropped because nesting exceeds maximum of {0}.",
+                            DiagnosticInfo.MaxInnerDepth);
+                    }
+                }
+
+                PopStructure();
+            }
+            finally
+            {
+                m_nestingLevel--;
+            }
+        }
+
+        /// <summary>
         /// Write multi dimensional array in structure.
         /// </summary>
         private void WriteStructureMatrix(
@@ -2517,16 +2521,7 @@ namespace Opc.Ua
                 throw new ArgumentException("The number of elements in the matrix does not match the dimensions.");
             }
 
-            // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
-            }
-
-            m_nestingLevel++;
+            CheckAndIncrementNestingLevel();
 
             try
             {
@@ -2559,6 +2554,21 @@ namespace Opc.Ua
             {
                 m_nestingLevel--;
             }
+        }
+
+        /// <summary>
+        /// Test and increment the nesting level.
+        /// </summary>
+        private void CheckAndIncrementNestingLevel()
+        {
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
+            m_nestingLevel++;
         }
         #endregion
     }

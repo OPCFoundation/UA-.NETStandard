@@ -629,16 +629,15 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDiagnosticInfo(string fieldName, DiagnosticInfo value)
         {
-            // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
-            }
+            WriteDiagnosticInfo(fieldName, value, 0);
+        }
 
-            m_nestingLevel++;
+        /// <summary>
+        /// Writes a DiagnosticInfo to the stream.
+        /// </summary>
+        private void WriteDiagnosticInfo(string fieldName, DiagnosticInfo value, int depth)
+        {
+            CheckAndIncrementNestingLevel();
 
             if (BeginField(fieldName, value == null, true))
             {
@@ -652,7 +651,15 @@ namespace Opc.Ua
                     WriteInt32("LocalizedText", value.LocalizedText);
                     WriteString("AdditionalInfo", value.AdditionalInfo);
                     WriteStatusCode("InnerStatusCode", value.InnerStatusCode);
-                    WriteDiagnosticInfo("InnerDiagnosticInfo", value.InnerDiagnosticInfo);
+                    if (depth < DiagnosticInfo.MaxInnerDepth)
+                    {
+                        WriteDiagnosticInfo("InnerDiagnosticInfo", value.InnerDiagnosticInfo, depth + 1);
+                    }
+                    else
+                    {
+                        Utils.LogWarning("InnerDiagnosticInfo dropped because nesting exceeds maximum of {0}.",
+                            DiagnosticInfo.MaxInnerDepth);
+                    }
                 }
 
                 PopNamespace();
@@ -724,31 +731,27 @@ namespace Opc.Ua
         /// </summary>
         public void WriteVariant(string fieldName, Variant value)
         {
-            // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            CheckAndIncrementNestingLevel();
+
+            try
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
+                if (BeginField(fieldName, false, false))
+                {
+                    PushNamespace(Namespaces.OpcUaXsd);
+
+                    m_writer.WriteStartElement("Value", Namespaces.OpcUaXsd);
+                    WriteVariantContents(value.Value, value.TypeInfo);
+                    m_writer.WriteEndElement();
+
+                    PopNamespace();
+
+                    EndField(fieldName);
+                }
             }
-
-            m_nestingLevel++;
-
-            if (BeginField(fieldName, false, false))
+            finally
             {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                m_writer.WriteStartElement("Value", Namespaces.OpcUaXsd);
-                WriteVariantContents(value.Value, value.TypeInfo);
-                m_writer.WriteEndElement();
-
-                PopNamespace();
-
-                EndField(fieldName);
+                m_nestingLevel--;
             }
-
-            m_nestingLevel--;
         }
 
         /// <summary>
@@ -855,16 +858,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteEncodeable(string fieldName, IEncodeable value, System.Type systemType)
         {
-            // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
-            }
-
-            m_nestingLevel++;
+            CheckAndIncrementNestingLevel();
 
             if (BeginField(fieldName, value == null, true))
             {
@@ -1973,16 +1967,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteArray(string fieldName, object array, int valueRank, BuiltInType builtInType)
         {
-            // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
-            }
-
-            m_nestingLevel++;
+            CheckAndIncrementNestingLevel();
 
             try
             {
@@ -2148,25 +2133,15 @@ namespace Opc.Ua
                 m_nestingLevel--;
             }
         }
-
         #endregion
 
         #region Private Methods
         /// <summary>
-        /// Writes an DataValue array to the stream.
+        /// Writes a DataValue array to the stream.
         /// </summary>
         private void WriteMatrix(string fieldName, Matrix value)
         {
-            // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
-            }
-
-            m_nestingLevel++;
+            CheckAndIncrementNestingLevel();
 
             if (BeginField(fieldName, value == null, true, true))
             {
@@ -2228,6 +2203,21 @@ namespace Opc.Ua
             {
                 m_writer.WriteEndElement();
             }
+        }
+
+        /// <summary>
+        /// Test and increment the nesting level.
+        /// </summary>
+        private void CheckAndIncrementNestingLevel()
+        {
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
+            m_nestingLevel++;
         }
         #endregion
 
