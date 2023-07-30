@@ -256,7 +256,45 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.AreEqual(null, diagnosticInfo.InnerDiagnosticInfo);
 
             Assert.IsTrue(diagnosticInfo.Equals(null));
+            Assert.IsTrue(diagnosticInfo.GetHashCode() == 0);
             Assert.IsTrue(diagnosticInfo.IsNullDiagnosticInfo);
+        }
+
+        /// <summary>
+        /// Ensure nested service result is truncated.
+        /// </summary>
+        [Test]
+        public void DiagnosticInfoInnerDiagnostics()
+        {
+            StringTable stringTable = new StringTable();
+            ServiceResult serviceResult = new ServiceResult(StatusCodes.BadAggregateConfigurationRejected, "SymbolicId", Namespaces.OpcUa, new LocalizedText("The text", "en-us"), new Exception("The inner exception."));
+            DiagnosticInfo diagnosticInfo = new DiagnosticInfo(serviceResult, DiagnosticsMasks.All, true, stringTable);
+            Assert.NotNull(diagnosticInfo);
+            Assert.AreEqual(0, diagnosticInfo.SymbolicId);
+            Assert.AreEqual(1, diagnosticInfo.NamespaceUri);
+            Assert.AreEqual(2, diagnosticInfo.Locale);
+            Assert.AreEqual(3, diagnosticInfo.LocalizedText);
+
+            // recursive inner diagnostics, ensure its truncated
+            for (int ii = 0; ii < DiagnosticInfo.MaxInnerDepth + 1; ii++)
+            {
+                serviceResult = new ServiceResult(serviceResult, serviceResult);
+            }
+            diagnosticInfo = new DiagnosticInfo(serviceResult, DiagnosticsMasks.All, true, stringTable);
+            Assert.NotNull(diagnosticInfo);
+            int depth = 0;
+            DiagnosticInfo innerDiagnosticInfo = diagnosticInfo;
+            Assert.NotNull(innerDiagnosticInfo);
+            while (innerDiagnosticInfo != null)
+            {
+                depth++;
+                innerDiagnosticInfo = innerDiagnosticInfo.InnerDiagnosticInfo;
+                if (depth > DiagnosticInfo.MaxInnerDepth)
+                {
+                    Assert.Null(innerDiagnosticInfo);
+                    break;
+                }
+            }
         }
 
         /// <summary>
