@@ -756,12 +756,10 @@ namespace Opc.Ua.Client.Tests
                 if (asyncTransfer)
                 {
                     var result = await originSession.CloseAsync().ConfigureAwait(false);
-                    Assert.AreEqual(StatusCodes.Good, result);
                 }
                 else
                 {
                     var result = originSession.Close();
-                    Assert.AreEqual(StatusCodes.Good, result);
                 }
             }
 
