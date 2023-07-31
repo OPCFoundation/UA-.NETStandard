@@ -711,6 +711,7 @@ namespace Opc.Ua.Client.Tests
             var targetSubscriptionFastDataCounters = new int[kTestSubscriptions];
             var subscriptionTemplate = new Subscription(originSession.DefaultSubscription) {
                 PublishingInterval = 1_000,
+                LifetimeCount = 30,
                 KeepAliveCount = 5,
                 PublishingEnabled = true,
                 RepublishAfterTransfer = transferType >= TransferType.DisconnectedRepublish,
@@ -735,7 +736,8 @@ namespace Opc.Ua.Client.Tests
                 if (transferType == TransferType.CloseSession)
                 {
                     // graceful close
-                    originSession.Close();
+                    var result = originSession.Close();
+                    Assert.True(ServiceResult.IsGood(result));
                 }
                 else
                 {
@@ -769,6 +771,8 @@ namespace Opc.Ua.Client.Tests
             {
                 targetSession.PublishSequenceNumbersToAcknowledge += DeferSubscriptionAcknowledge;
             }
+
+            targetSession.DeleteSubscriptionsOnClose = true;
 
             // restore client state
             var transferSubscriptions = new SubscriptionCollection();
@@ -929,24 +933,24 @@ namespace Opc.Ua.Client.Tests
             {
                 // close sessions
                 var result = await targetSession.CloseAsync().ConfigureAwait(false);
-                Assert.AreEqual(StatusCodes.Good, result);
+                Assert.True(ServiceResult.IsGood(result));
 
                 if (originSessionOpen)
                 {
                     result = await originSession.CloseAsync().ConfigureAwait(false);
-                    Assert.AreEqual(StatusCodes.Good, result);
+                    Assert.True(ServiceResult.IsGood(result));
                 }
             }
             else
             {
                 // close sessions
                 var result = targetSession.Close();
-                Assert.AreEqual(StatusCodes.Good, result);
+                Assert.True(ServiceResult.IsGood(result));
 
                 if (originSessionOpen)
                 {
                     result = originSession.Close();
-                    Assert.AreEqual(StatusCodes.Good, result);
+                    Assert.True(ServiceResult.IsGood(result));
                 }
             }
 
