@@ -40,7 +40,7 @@ namespace Opc.Ua.Server.Tests
     /// <typeparam name="T">A server class T used for testing.</typeparam>
     public class ServerFixture<T> where T : ServerBase, new()
     {
-        private NUnitTraceLogger m_traceLogger;
+        private NUnitTestLogger<T> m_traceLogger;
         public ApplicationInstance Application { get; private set; }
         public ApplicationConfiguration Config { get; private set; }
         public T Server { get; private set; }
@@ -103,6 +103,7 @@ namespace Opc.Ua.Server.Tests
                 });
             }
 
+            serverConfig.SetMaxMessageQueueSize(20);
             serverConfig.SetDiagnosticsEnabled(true);
             serverConfig.SetAuditingEnabled(true);
 
@@ -185,7 +186,7 @@ namespace Opc.Ua.Server.Tests
 
             if (writer != null)
             {
-                m_traceLogger = NUnitTraceLogger.Create(writer, Config, TraceMasks);
+                m_traceLogger = NUnitTestLogger<T>.Create(writer, Config, TraceMasks);
             }
 
             // check the application certificate.

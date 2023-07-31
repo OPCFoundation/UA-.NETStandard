@@ -54,6 +54,11 @@ namespace Opc.Ua.Client
         public const int DefaultReconnectPeriod = 1000;
 
         /// <summary>
+        /// The default reconnect operation timeout in ms.
+        /// </summary>
+        public const int MinReconnectOperationTimeout = 5000;
+
+        /// <summary>
         /// The internal state of the reconnect handler.
         /// </summary>
         public enum ReconnectState
@@ -230,7 +235,7 @@ namespace Opc.Ua.Client
                     return m_state;
                 }
 
-                // if triggered, reset timer if requested reconnect period is smaller
+                // if triggered, reset timer only if requested reconnect period is shorter
                 if (m_state == ReconnectState.Triggered && reconnectPeriod < m_baseReconnectPeriod)
                 {
                     m_baseReconnectPeriod = reconnectPeriod;
@@ -344,9 +349,12 @@ namespace Opc.Ua.Client
                     }
                     else
                     {
-                        int adjustedReconnectPeriod = JitteredReconnectPeriod(m_reconnectPeriod) -
-                            (int)DateTime.UtcNow.Subtract(reconnectStart).TotalMilliseconds;
-                        m_reconnectTimer.Change(CheckedReconnectPeriod(adjustedReconnectPeriod), Timeout.Infinite);
+                        int elapsed = (int)DateTime.UtcNow.Subtract(reconnectStart).TotalMilliseconds;
+                        Utils.LogInfo("Reconnect period is {0} ms, {1} ms elapsed in reconnect.", m_reconnectPeriod, elapsed);
+                        int adjustedReconnectPeriod = CheckedReconnectPeriod(m_reconnectPeriod - elapsed);
+                        adjustedReconnectPeriod = JitteredReconnectPeriod(adjustedReconnectPeriod);
+                        m_reconnectTimer.Change(adjustedReconnectPeriod, Timeout.Infinite);
+                        Utils.LogInfo("Next adjusted reconnect scheduled in {0} ms.", adjustedReconnectPeriod);
                         m_reconnectPeriod = CheckedReconnectPeriod(m_reconnectPeriod, true);
                         m_state = ReconnectState.Triggered;
                     }
@@ -361,8 +369,7 @@ namespace Opc.Ua.Client
         {
             // helper to override operation timeout
             int operationTimeout = m_session.OperationTimeout;
-            int reconnectOperationTimeout = m_reconnectPeriod >= DefaultReconnectPeriod ?
-                m_reconnectPeriod : DefaultReconnectPeriod;
+            int reconnectOperationTimeout = Math.Max(m_reconnectPeriod, MinReconnectOperationTimeout);
 
             // try a reconnect.
             if (!m_reconnectFailed)
@@ -401,10 +408,11 @@ namespace Opc.Ua.Client
                             sre.StatusCode == StatusCodes.BadRequestTimeout ||
                             sre.StatusCode == StatusCodes.BadTimeout)
                         {
-                            // check if reconnecting is still an option.
-                            if (m_session.LastKeepAliveTime.AddMilliseconds(m_session.SessionTimeout) > DateTime.UtcNow)
+                            // check if reactivating is still an option.
+                            TimeSpan timeout = m_session.LastKeepAliveTime.AddMilliseconds(m_session.SessionTimeout) - DateTime.UtcNow;
+                            if (timeout.TotalMilliseconds > 0)
                             {
-                                Utils.LogInfo("Calling OnReconnectSession in {0} ms.", m_reconnectPeriod);
+                                Utils.LogInfo("Retry to reactivate, est. session timeout in {0} ms.", timeout.TotalMilliseconds);
                                 return false;
                             }
                         }
@@ -414,6 +422,12 @@ namespace Opc.Ua.Client
                         {
                             m_updateFromServer = true;
                             Utils.LogInfo("Reconnect failed due to security check. Request endpoint update from server. {0}", sre.Message);
+                        }
+                        else
+                        {
+                            // next attempt is to recreate session
+                            m_reconnectFailed = true;
+                            return false;
                         }
                     }
                     else

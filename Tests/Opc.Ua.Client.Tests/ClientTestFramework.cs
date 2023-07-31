@@ -72,12 +72,15 @@ namespace Opc.Ua.Client.Tests
         public Uri ServerUrl { get; private set; }
         public ExpandedNodeId[] TestSetStatic { get; private set; }
         public ExpandedNodeId[] TestSetSimulation { get; private set; }
-
+        public ExpandedNodeId[] TestSetDataSimulation { get; private set; }
+        public ExpandedNodeId[] TestSetHistory { get; private set; }
         public ClientTestFramework(string uriScheme = Utils.UriSchemeOpcTcp)
         {
             UriScheme = uriScheme;
             TestSetStatic = CommonTestWorkers.NodeIdTestSetStatic;
             TestSetSimulation = CommonTestWorkers.NodeIdTestSetSimulation;
+            TestSetDataSimulation = CommonTestWorkers.NodeIdTestSetDataSimulation;
+            TestSetHistory = CommonTestWorkers.NodeIdTestDataHistory;
         }
 
         #region DataPointSources
@@ -188,7 +191,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (Session != null)
             {
-                Session.Close();
+                await Session.CloseAsync(5000, true).ConfigureAwait(false);
                 Session.Dispose();
                 Session = null;
             }
@@ -259,6 +262,38 @@ namespace Opc.Ua.Client.Tests
         public IList<NodeId> GetTestSetSimulation(NamespaceTable namespaceUris)
         {
             return TestSetSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null).ToList();
+        }
+
+        /// <summary>
+        /// Return a test set of nodes all nodes with simulated values.
+        /// </summary>
+        /// <param name="namespaceUris">The namesapce table used in the session.</param>
+        /// <returns>The list of simulated test nodes.</returns>
+        public IList<NodeId> GetTestSetFullSimulation(NamespaceTable namespaceUris)
+        {
+            var simulation = TestSetSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null).ToList();
+            simulation.AddRange(TestSetDataSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null));
+            return simulation;
+        }
+
+        /// <summary>
+        /// Return a test data set of nodes with simulated values.
+        /// </summary>
+        /// <param name="namespaceUris">The namesapce table used in the session.</param>
+        /// <returns>The list of simulated test nodes.</returns>
+        public IList<NodeId> GetTestSetDataSimulation(NamespaceTable namespaceUris)
+        {
+            return TestSetDataSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null).ToList();
+        }
+
+        /// <summary>
+        /// Return a test set of nodes with history values.
+        /// </summary>
+        /// <param name="namespaceUris">The namesapce table used in the session.</param>
+        /// <returns>The list of test nodes.</returns>
+        public IList<NodeId> GetTestSetHistory(NamespaceTable namespaceUris)
+        {
+            return TestSetHistory.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null).ToList();
         }
         #endregion
 
@@ -366,6 +401,14 @@ namespace Opc.Ua.Client.Tests
                 return testSet.ToArray();
             }
             return Array.Empty<ExpandedNodeId>();
+        }
+
+        protected void Session_Closing(object sender, EventArgs e)
+        {
+            if (sender is ISession session)
+            {
+                TestContext.Out.WriteLine("Session_Closing: {0}", session.SessionId);
+            }
         }
         #endregion
     }

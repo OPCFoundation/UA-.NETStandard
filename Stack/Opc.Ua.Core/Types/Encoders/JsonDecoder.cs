@@ -24,7 +24,7 @@ namespace Opc.Ua
     /// <summary>
     /// Reads objects from a JSON stream.
     /// </summary>
-    public class JsonDecoder : IDecoder, IDisposable
+    public class JsonDecoder : IJsonDecoder, IDisposable
     {
         #region Public Fields
         /// <summary>
@@ -1099,42 +1099,50 @@ namespace Opc.Ua
 
                 DiagnosticInfo di = new DiagnosticInfo();
 
+                bool hasDiagnosticInfo = false;
                 if (value.ContainsKey("SymbolicId"))
                 {
                     di.SymbolicId = ReadInt32("SymbolicId");
+                    hasDiagnosticInfo = true;
                 }
 
                 if (value.ContainsKey("NamespaceUri"))
                 {
                     di.NamespaceUri = ReadInt32("NamespaceUri");
+                    hasDiagnosticInfo = true;
                 }
 
                 if (value.ContainsKey("Locale"))
                 {
                     di.Locale = ReadInt32("Locale");
+                    hasDiagnosticInfo = true;
                 }
 
                 if (value.ContainsKey("LocalizedText"))
                 {
                     di.LocalizedText = ReadInt32("LocalizedText");
+                    hasDiagnosticInfo = true;
                 }
 
                 if (value.ContainsKey("AdditionalInfo"))
                 {
                     di.AdditionalInfo = ReadString("AdditionalInfo");
+                    hasDiagnosticInfo = true;
                 }
 
                 if (value.ContainsKey("InnerStatusCode"))
                 {
                     di.InnerStatusCode = ReadStatusCode("InnerStatusCode");
+                    hasDiagnosticInfo = true;
                 }
 
                 if (value.ContainsKey("InnerDiagnosticInfo"))
                 {
                     di.InnerDiagnosticInfo = ReadDiagnosticInfo("InnerDiagnosticInfo");
+                    hasDiagnosticInfo = true;
                 }
 
-                return di;
+                return hasDiagnosticInfo ? di : null;
             }
             finally
             {

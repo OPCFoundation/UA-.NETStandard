@@ -381,14 +381,31 @@ namespace Opc.Ua.Client
                 Utils.SilentDispose(m_defaultSubscription);
                 m_defaultSubscription = null;
 
-                foreach (Subscription subscription in m_subscriptions)
+                IList<Subscription> subscriptions = null;
+                lock (SyncRoot)
+                {
+                    subscriptions = new List<Subscription>(m_subscriptions);
+                    m_subscriptions.Clear();
+                }
+
+                foreach (Subscription subscription in subscriptions)
                 {
                     Utils.SilentDispose(subscription);
                 }
-                m_subscriptions.Clear();
             }
 
             base.Dispose(disposing);
+
+            if (disposing)
+            {
+                // suppress spurious events
+                m_KeepAlive = null;
+                m_Publish = null;
+                m_PublishError = null;
+                m_PublishSequenceNumbersToAcknowledge = null;
+                m_SubscriptionsChanged = null;
+                m_SessionClosing = null;
+            }
         }
         #endregion
 
@@ -1238,6 +1255,12 @@ namespace Opc.Ua.Client
         /// </summary>
         public void Reconnect(ITransportWaitingConnection connection)
             => Reconnect(connection, null);
+
+        /// <summary>
+        /// Reconnects to the server using a new channel.
+        /// </summary>
+        public void Reconnect(ITransportChannel channel)
+            => Reconnect(null, channel);
 
         /// <summary>
         /// Reconnects to the server after a network failure using a waiting connection.
@@ -4263,6 +4286,8 @@ namespace Opc.Ua.Client
 
                 // send notification that keep alive completed.
                 OnKeepAlive((ServerState)(int)values[0].Value, responseHeader.Timestamp);
+
+                return;
             }
             catch (Exception e)
             {
@@ -5320,7 +5345,8 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                // don't send another publish for these errors.
+                // don't send another publish for these errors,
+                // or throttle to avoid server overload.
                 switch (error.Code)
                 {
                     case StatusCodes.BadTooManyPublishRequests:
@@ -5331,6 +5357,7 @@ namespace Opc.Ua.Client
                             Utils.LogInfo("PUBLISH - Too many requests, set limit to GoodPublishRequestCount={0}.", m_tooManyPublishRequests);
                         }
                         return;
+
                     case StatusCodes.BadNoSubscription:
                     case StatusCodes.BadSessionClosed:
                     case StatusCodes.BadSessionIdInvalid:
@@ -5338,6 +5365,13 @@ namespace Opc.Ua.Client
                     case StatusCodes.BadSecureChannelClosed:
                     case StatusCodes.BadServerHalted:
                         return;
+
+                    // Servers may return this error when overloaded
+                    case StatusCodes.BadTooManyOperations:
+                    case StatusCodes.BadTcpServerTooBusy:
+                        // throttle the resend to reduce server load
+                        Thread.Sleep(100);
+                        break;
                 }
 
                 Utils.LogError(e, "PUBLISH #{0} - Unhandled error {1} during Publish.", requestHeader.RequestHandle, error.StatusCode);
@@ -5468,7 +5502,7 @@ namespace Opc.Ua.Client
             // send notification that the server is alive.
             OnKeepAlive(m_serverState, responseHeader.Timestamp);
 
-            // collect the current set if acknowledgements.
+            // collect the current set of acknowledgements.
             lock (SyncRoot)
             {
                 // clear out acknowledgements for messages that the server does not have any more.

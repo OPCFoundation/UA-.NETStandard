@@ -1896,25 +1896,48 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    // check if the node is AnalogItem and the value is outside the InstrumentRange.
+                    // check if the node is AnalogItem and the values are outside the InstrumentRange.
                     AnalogItemState analogItemState = handle.Node as AnalogItemState;
                     if (analogItemState != null && analogItemState.InstrumentRange != null)
                     {
                         try
                         {
-                            double newValue = System.Convert.ToDouble(nodeToWrite.Value.Value);
-
-                            if (newValue > analogItemState.InstrumentRange.Value.High ||
-                                newValue < analogItemState.InstrumentRange.Value.Low)
+                            if (nodeToWrite.Value.Value is Array array)
                             {
-                                errors[ii] = StatusCodes.BadOutOfRange;
-                                continue;
+                                bool isOutOfRange = false;
+                                foreach (var arrayValue in array)
+                                {
+                                    double newValue = Convert.ToDouble(arrayValue);
+                                    if (newValue > analogItemState.InstrumentRange.Value.High ||
+                                        newValue < analogItemState.InstrumentRange.Value.Low)
+                                    {
+                                        isOutOfRange = true;
+                                        break;
+                                    }
+                                }
+                                if (isOutOfRange)
+                                {
+                                    errors[ii] = StatusCodes.BadOutOfRange;
+                                    continue;
+                                }
+                            }
+                            else
+                            {
+                                double newValue = Convert.ToDouble(nodeToWrite.Value.Value);
+
+                                if (newValue > analogItemState.InstrumentRange.Value.High ||
+                                    newValue < analogItemState.InstrumentRange.Value.Low)
+                                {
+                                    errors[ii] = StatusCodes.BadOutOfRange;
+                                    continue;
+                                }
                             }
                         }
                         catch
                         {
                             //skip the InstrumentRange check if the transformation isn't possible.
                         }
+
                     }
 
 #if DEBUG

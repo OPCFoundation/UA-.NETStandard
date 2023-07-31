@@ -33,6 +33,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Xml;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 
@@ -175,7 +176,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.NodeId, new NodeId(kNodeIdInt,kDemoServerIndex),
                 $"{{\"Id\":{kNodeIdInt},\"Namespace\":{kDemoServerIndex}}}", $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kDemoServer}\"}}" },
             {   BuiltInType.NodeId, new NodeId(kNodeIdInt,88), $"{{\"Id\":{kNodeIdInt},\"Namespace\":88}}", null},
-            {   BuiltInType.NodeId, new NodeId(kNodeIdString), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
+            {   BuiltInType.NodeId, new NodeId("ns=0;"+kNodeIdString), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
+            {   BuiltInType.NodeId, new NodeId("s="+kNodeIdString), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
+            {   BuiltInType.NodeId, new NodeId(kNodeIdString,0), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
             {   BuiltInType.NodeId, new NodeId(kNodeIdString,1), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":1}}", null },
             {   BuiltInType.NodeId, new NodeId(kNodeIdString,kDemoServerIndex),
                 $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":{kDemoServerIndex}}}",
@@ -202,7 +205,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdInt,kDemoServer2),
                 $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kDemoServer2}\"}}", $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kDemoServer2}\"}}" },
             {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdInt,88), $"{{\"Id\":{kNodeIdInt},\"Namespace\":88}}", null},
-            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdString), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
+            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId("ns=0;"+kNodeIdString), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
+            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId("s="+kNodeIdString), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
+            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdString,0), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
             {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdString,1), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":1}}", null },
             {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdString,kDemoServerIndex),
                 $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":{kDemoServerIndex}}}",
@@ -486,6 +491,124 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }
             }
         }
+
+        /// <summary>
+        /// A single dynamic encodeable 
+        /// </summary>
+        [Test]
+        public void Test_WriteSingleDynamicEncodeableWithName()
+        {
+            var expected = "{\"bar_1\":{\"Foo\":\"bar_1\"}}";
+            TestContext.Out.WriteLine("Expected:");
+            _ = PrettifyAndValidateJson(expected);
+
+            using (var encodeable = new DynamicEncodeable("FooXml", "urn:dynamic_encoder_test", "ns=2;test_dyn_typeid", "s=test_dyn_binaryencodingid", "s=test_dyn_xmlencodingid", "s=test_dyn_jsonencodingid", new Dictionary<string, (int, string)> { { "Foo", (1, "bar_1") } }))
+            {
+                using (var encoder = new JsonEncoder(Context, true, false))
+                {
+                    encoder.WriteEncodeable("bar_1", encodeable, typeof(DynamicEncodeable));
+
+                    var encoded = encoder.CloseAndReturnText();
+
+                    TestContext.Out.WriteLine("Encoded:");
+                    TestContext.Out.WriteLine(encoded);
+
+                    TestContext.Out.WriteLine("Formatted Encoded:");
+                    _ = PrettifyAndValidateJson(encoded);
+
+                    Assert.That(encoded, Is.EqualTo(expected));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Extension object with dynamic encodeable encoded to and from Json and xml
+        /// </summary>
+        [Test]
+        public void Test_ExtensionObjectWithDynamicEncodeable()
+        {
+            var expectedJson = "{\"TypeId\":{\"IdType\":1,\"Id\":\"test_dyn2_typeid\"},\"Body\":{\"Foo\":\"bar_1\",\"Foo2\":\"bar_2\"}}";
+            var expectedXml = "<uax:ExtensionObject xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">"
+                + "  <uax:TypeId><uax:Identifier>s=test_dyn2_xmlencodingid</uax:Identifier></uax:TypeId>"
+                + "  <uax:Body><FooXml  xmlns=\"urn:dynamic_encoder_test\"><Foo>bar_1</Foo><Foo2>bar_2</Foo2></FooXml></uax:Body></uax:ExtensionObject>";
+            TestContext.Out.WriteLine("Expected XML:");
+            expectedXml = PrettifyAndValidateXml(Encoding.UTF8.GetBytes(expectedXml));
+
+            var encodeable = new DynamicEncodeable("FooXml", "urn:dynamic_encoder_test", "s=test_dyn2_typeid", "s=test_dyn2_binaryencodingid", "s=test_dyn2_xmlencodingid", "ns=1;test_dyn2_jsonencodingid", new Dictionary<string, (int, string)> {
+                { "Foo", (1, "bar_1") },
+                { "Foo2", (2, "bar_2") },
+            });
+
+            // Register in the context's Factory, make it a custom factory so the dynamic type can look up its type information when instantiated during encoding/decoding
+            var dynamicContext = new ServiceMessageContext { Factory = new DynamicEncodeableFactory(Context.Factory), NamespaceUris = Context.NamespaceUris };
+            (dynamicContext.Factory as DynamicEncodeableFactory).AddDynamicEncodeable(encodeable);
+
+            // Encode to XML: invokes IDynamicComplexTypeInstance.GetXmlName
+            string encodedXml;
+            using (var ms = new MemoryStream())
+            {
+                using (var xmlWriter = new XmlTextWriter(ms, Encoding.UTF8))
+                {
+                    using (var encoder = new XmlEncoder(new System.Xml.XmlQualifiedName("uax:ExtensionObject", null), xmlWriter, Context))
+                    {
+                        var extensionObject = new ExtensionObject(encodeable);
+                        encoder.WriteExtensionObject(null, extensionObject);
+                        xmlWriter.Flush();
+                    }
+                    TestContext.Out.WriteLine("Formatted Encoded:");
+                    encodedXml = PrettifyAndValidateXml(ms.ToArray());
+                }
+            }
+            Assert.That(encodedXml, Is.EqualTo(expectedXml));
+
+            // Decode from XML
+            ExtensionObject extensionObjectFromXml;
+            using (var ms2 = new MemoryStream(Encoding.UTF8.GetBytes(expectedXml)))
+            {
+                var xmlDoc = new XmlDocument();
+                var r = XmlReader.Create(ms2, new XmlReaderSettings { DtdProcessing = DtdProcessing.Ignore });
+                xmlDoc.Load(r);
+
+                using (var decoder = new XmlDecoder((xmlDoc.FirstChild as XmlElement), dynamicContext))
+                {
+                    decoder.PushNamespace(Namespaces.OpcUaXsd);
+                    extensionObjectFromXml = decoder.ReadExtensionObject("ExtensionObject");
+                    decoder.PopNamespace();
+                }
+            }
+            Assert.That(encodeable.IsEqual(extensionObjectFromXml.Body as IEncodeable), Is.True);
+
+            // Encode to JSON
+            string encodedJson;
+            using (var encoder = new JsonEncoder(Context, true, false))
+            {
+                encoder.WriteExtensionObject(null, extensionObjectFromXml);
+
+                encodedJson = encoder.CloseAndReturnText();
+
+                TestContext.Out.WriteLine("Expected Json:");
+                _ = PrettifyAndValidateJson(expectedJson);
+
+
+                TestContext.Out.WriteLine("Encoded Json:");
+                TestContext.Out.WriteLine(encodedJson);
+
+                TestContext.Out.WriteLine("Formatted Encoded Json:");
+                _ = PrettifyAndValidateJson(encodedJson);
+
+            }
+            Assert.That(encodedJson, Is.EqualTo(expectedJson));
+
+            // Decode from JSON: requires custom context
+            ExtensionObject extensionObjectFromJson;
+            using (var decoder = new JsonDecoder(encodedJson, dynamicContext))
+            {
+                extensionObjectFromJson = decoder.ReadExtensionObject(null);
+
+            }
+            Assert.That(encodeable.IsEqual(extensionObjectFromJson.Body as IEncodeable), Is.True);
+        }
+
 
         /// <summary>
         /// A single encodeable in an array cannot have a fieldname.
