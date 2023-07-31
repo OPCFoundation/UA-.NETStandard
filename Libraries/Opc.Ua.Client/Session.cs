@@ -3588,46 +3588,83 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Reactivates a list of Subscriptions from a reconnected session
+        /// for which the subscriptions may still be active.
+        /// </summary>
+        public bool ReactivateSubscriptions(
+            SubscriptionCollection subscriptions,
+            bool sendInitialValues)
+        {
+            UInt32Collection subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
+
+            if (subscriptionIds.Count > 0)
+            {
+                if (sendInitialValues)
+                {
+                    if (ResendData(subscriptions, out var resendResults))
+                    {
+                        // TODO: check for unknown subscriptionIds
+                    }
+                    else
+                    {
+                        Utils.LogError("Failed to call resend data for subscriptions.");
+                    }
+                }
+
+                var failedSubscriptionIds = new UInt32Collection();
+                for (int ii = 0; ii < subscriptions.Count; ii++)
+                {
+                    if (!subscriptions[ii].Transfer(this, subscriptionIds[ii], new UInt32Collection()))
+                    {
+                        Utils.LogError("SubscriptionId {0} failed to reactivate.", subscriptionIds[ii]);
+                        failedSubscriptionIds.Add(subscriptions[ii].TransferId);
+                    }
+                }
+
+                if (failedSubscriptionIds.Count > 0)
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                Utils.LogInfo("No subscriptions. Transfersubscription skipped.");
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// Transfers a list of Subscriptions from another session.
         /// </summary>
         public bool TransferSubscriptions(
             SubscriptionCollection subscriptions,
             bool sendInitialValues)
         {
-            var subscriptionIds = new UInt32Collection();
-            foreach (var subscription in subscriptions)
-            {
-                if (subscription.Created && SessionId.Equals(subscription.Session.SessionId))
-                {
-                    throw new ServiceResultException(StatusCodes.BadInvalidState, Utils.Format("The subscriptionId {0} is already created.", subscription.Id));
-                }
-                if (subscription.TransferId == 0)
-                {
-                    throw new ServiceResultException(StatusCodes.BadInvalidState, Utils.Format("A subscription can not be transferred due to missing transfer Id."));
-                }
-                subscriptionIds.Add(subscription.TransferId);
-            }
+            UInt32Collection subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
 
-            lock (SyncRoot)
+            if (subscriptionIds.Count > 0)
             {
-                if (subscriptionIds.Count > 0)
+                ResponseHeader responseHeader = base.TransferSubscriptions(null, subscriptionIds, sendInitialValues,
+                    out TransferResultCollection results, out DiagnosticInfoCollection diagnosticInfos);
+                if (!StatusCode.IsGood(responseHeader.ServiceResult))
                 {
-                    ResponseHeader responseHeader = base.TransferSubscriptions(null, subscriptionIds, sendInitialValues, out var results, out var diagnosticInfos);
-                    if (!StatusCode.IsGood(responseHeader.ServiceResult))
-                    {
-                        Utils.LogError("TransferSubscription failed: {0}", responseHeader.ServiceResult);
-                        return false;
-                    }
-                    ClientBase.ValidateResponse(results, subscriptionIds);
-                    ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
-                    var failedSubscriptionIds = new UInt32Collection();
+                    Utils.LogError("TransferSubscription failed: {0}", responseHeader.ServiceResult);
+                    return false;
+                }
+                ClientBase.ValidateResponse(results, subscriptionIds);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
 
-                    for (int ii = 0; ii < subscriptions.Count; ii++)
+                var failedSubscriptionIds = new UInt32Collection();
+                for (int ii = 0; ii < subscriptions.Count; ii++)
+                {
+                    if (StatusCode.IsGood(results[ii].StatusCode))
                     {
-                        if (StatusCode.IsGood(results[ii].StatusCode))
+                        if (subscriptions[ii].Transfer(this, subscriptionIds[ii], results[ii].AvailableSequenceNumbers))
                         {
-                            if (subscriptions[ii].Transfer(this, subscriptionIds[ii], results[ii].AvailableSequenceNumbers))
-                            {   // create ack for available sequence numbers
+                            lock (SyncRoot)
+                            {
+                                // create ack for available sequence numbers
                                 foreach (var sequenceNumber in results[ii].AvailableSequenceNumbers)
                                 {
                                     var ack = new SubscriptionAcknowledgement() {
@@ -3638,21 +3675,26 @@ namespace Opc.Ua.Client
                                 }
                             }
                         }
-                        else
-                        {
-                            Utils.LogError("SubscriptionId {0} failed to transfer, StatusCode={1}", subscriptionIds[ii], results[ii].StatusCode);
-                            failedSubscriptionIds.Add(subscriptions[ii].TransferId);
-                        }
                     }
-                    if (failedSubscriptionIds.Count > 0)
+                    else if (results[ii].StatusCode == StatusCodes.BadNothingToDo)
                     {
-                        return false;
+                        Utils.LogInfo("SubscriptionId {0} is already member of the session.", subscriptionIds[ii]);
+                    }
+                    else
+                    {
+                        Utils.LogError("SubscriptionId {0} failed to transfer, StatusCode={1}", subscriptionIds[ii], results[ii].StatusCode);
+                        failedSubscriptionIds.Add(subscriptions[ii].TransferId);
                     }
                 }
-                else
+
+                if (failedSubscriptionIds.Count > 0)
                 {
-                    Utils.LogInfo("No subscriptions. Transfersubscription skipped.");
+                    return false;
                 }
+            }
+            else
+            {
+                Utils.LogInfo("No subscriptions. Transfersubscription skipped.");
             }
 
             return true;
@@ -5506,6 +5548,50 @@ namespace Opc.Ua.Client
             }
         }
 
+        /// <inheritdoc/>
+        public bool ResendData(IEnumerable<Subscription> subscriptions, out IList<ServiceResult> errors)
+        {
+            CallMethodRequestCollection requests = CreateCallRequestsForResendData(subscriptions);
+
+            errors = new List<ServiceResult>(requests.Count);
+
+            CallMethodResultCollection results;
+            DiagnosticInfoCollection diagnosticInfos;
+            try
+            {
+                ResponseHeader responseHeader = Call(
+                    null,
+                    requests,
+                    out results,
+                    out diagnosticInfos);
+
+                ClientBase.ValidateResponse(results, requests);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, requests);
+
+                int ii = 0;
+                foreach (var value in results)
+                {
+                    ServiceResult result = ServiceResult.Good;
+                    if (StatusCode.IsNotGood(value.StatusCode))
+                    {
+                        result = ClientBase.GetResult(value.StatusCode, ii, diagnosticInfos, responseHeader);
+                    }
+                    errors.Add(result);
+                    ii++;
+                }
+
+                return true;
+            }
+            catch (ServiceResultException sre)
+            {
+                Utils.LogError(sre, "Failed to call ResendData on server.");
+            }
+
+            return false;
+        }
+        #endregion
+
+        #region Private Methods
         /// <summary>
         /// Processes the response from a publish request.
         /// </summary>
@@ -5862,6 +5948,58 @@ namespace Opc.Ua.Client
                 }
                 return Math.Max(m_subscriptions.Count, m_minPublishRequestCount);
             }
+        }
+
+        /// <summary>
+        /// Creates resend data call requests for the subscriptions.
+        /// </summary>
+        /// <param name="subscriptions">The subscriptions to call resend data.</param>
+        private CallMethodRequestCollection CreateCallRequestsForResendData(IEnumerable<Subscription> subscriptions)
+        {
+            CallMethodRequestCollection requests = new CallMethodRequestCollection();
+
+            foreach (Subscription subscription in subscriptions)
+            {
+                VariantCollection inputArguments = new VariantCollection {
+                    new Variant(subscription.Id)
+                };
+
+                var request = new CallMethodRequest {
+                    ObjectId = ObjectIds.Server,
+                    MethodId = MethodIds.Server_ResendData,
+                    InputArguments = inputArguments
+                };
+
+                requests.Add(request);
+            }
+            return requests;
+        }
+
+        /// <summary>
+        /// Creates and validates the subscription ids for a transfer.
+        /// </summary>
+        /// <param name="subscriptions">The subscriptions to transfer.</param>
+        /// <returns>The subscription ids for the transfer.</returns>
+        /// <exception cref="ServiceResultException">Thrown if a subscription is in invalid state.</exception>
+        private UInt32Collection CreateSubscriptionIdsForTransfer(SubscriptionCollection subscriptions)
+        {
+            var subscriptionIds = new UInt32Collection();
+            lock (SyncRoot)
+            {
+                foreach (var subscription in subscriptions)
+                {
+                    if (subscription.Created && SessionId.Equals(subscription.Session.SessionId))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadInvalidState, Utils.Format("The subscriptionId {0} is already created.", subscription.Id));
+                    }
+                    if (subscription.TransferId == 0)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadInvalidState, Utils.Format("A subscription can not be transferred due to missing transfer Id."));
+                    }
+                    subscriptionIds.Add(subscription.TransferId);
+                }
+            }
+            return subscriptionIds;
         }
         #endregion
 

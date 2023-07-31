@@ -847,10 +847,7 @@ namespace Opc.Ua.Client
 
                 // remove default subscription template which was copied in Session.Create()
                 var subscriptionsToRemove = session.Subscriptions.Where(s => !s.Created && s.TransferId == this.Id).ToList();
-                foreach (var subscription in subscriptionsToRemove)
-                {
-                    session.RemoveSubscription(subscription);
-                }
+                session.RemoveSubscriptions(subscriptionsToRemove);
 
                 // add transferred subscription to session
                 if (!session.AddSubscription(this))
@@ -896,6 +893,85 @@ namespace Opc.Ua.Client
 
             return true;
         }
+
+#if CLIENT_ASYNC
+        /// <summary>
+        /// Called after the subscription was transferred.
+        /// </summary>
+        /// <param name="session">The session to which the subscription is transferred.</param>
+        /// <param name="id">Id of the transferred subscription.</param>
+        /// <param name="availableSequenceNumbers">The available sequence numbers on the server.</param>
+        /// <param name="ct">The cancellation token.</param>
+        public async Task<bool> TransferAsync(ISession session, uint id, UInt32Collection availableSequenceNumbers, CancellationToken ct = default)
+        {
+            if (Created)
+            {
+                // handle the case when the client has the subscription template and reconnects
+                if (id != m_id)
+                {
+                    return false;
+                }
+
+                // remove the subscription from disconnected session
+                if (m_session?.RemoveTransferredSubscription(this) != true)
+                {
+                    Utils.LogError("SubscriptionId {0}: Failed to remove transferred subscription from owner SessionId={1}.", Id, m_session?.SessionId);
+                    return false;
+                }
+
+                // remove default subscription template which was copied in Session.Create()
+                var subscriptionsToRemove = session.Subscriptions.Where(s => !s.Created && s.TransferId == this.Id).ToList();
+                await session.RemoveSubscriptionsAsync(subscriptionsToRemove, ct).ConfigureAwait(false);
+
+                // add transferred subscription to session
+                if (!session.AddSubscription(this))
+                {
+                    Utils.LogError("SubscriptionId {0}: Failed to add transferred subscription to SessionId={1}.", Id, session.SessionId);
+                    return false;
+                }
+            }
+            else
+            {
+                // handle the case when the client restarts and loads the saved subscriptions from storage
+                bool success;
+                UInt32Collection serverHandles;
+                UInt32Collection clientHandles;
+                (success, serverHandles, clientHandles) = await GetMonitoredItemsAsync(ct).ConfigureAwait(false);
+                if (!success)
+                {
+                    Utils.LogError("SubscriptionId {0}: The server failed to respond to GetMonitoredItems after transfer.", Id);
+                    return false;
+                }
+
+                if (serverHandles.Count != m_monitoredItems.Count ||
+                    clientHandles.Count != m_monitoredItems.Count)
+                {
+                    // invalid state
+                    Utils.LogError("SubscriptionId {0}: Number of Monitored Items on client and server do not match after transfer {1}!={2}",
+                        Id, serverHandles.Count, m_monitoredItems.Count);
+                    return false;
+                }
+
+                // sets state to 'Created'
+                m_id = id;
+                TransferItems(serverHandles, clientHandles, out IList<MonitoredItem> itemsToModify);
+
+                await ModifyItemsAsync(ct).ConfigureAwait(false);
+            }
+
+            // add available sequence numbers to incoming 
+            ProcessTransferredSequenceNumbers(availableSequenceNumbers);
+
+            m_changeMask |= SubscriptionChangeMask.Transferred;
+            ChangesCompleted();
+
+            StartKeepAliveTimer();
+
+            TraceState("TRANSFERRED");
+
+            return true;
+        }
+#endif
 
         /// <summary>
         /// Deletes a subscription on the server.
@@ -1678,6 +1754,32 @@ namespace Opc.Ua.Client
             }
             return false;
         }
+
+#if CLIENT_ASYNC
+        /// <summary>
+        /// Call the GetMonitoredItems method on the server.
+        /// </summary>
+        private async Task<(bool, UInt32Collection, UInt32Collection)> GetMonitoredItemsAsync(CancellationToken ct = default)
+        {
+            var serverHandles = new UInt32Collection();
+            var clientHandles = new UInt32Collection();
+            try
+            {
+                var outputArguments = await m_session.CallAsync(ObjectIds.Server, MethodIds.Server_GetMonitoredItems, ct, m_transferId).ConfigureAwait(false);
+                if (outputArguments != null && outputArguments.Count == 2)
+                {
+                    serverHandles.AddRange((uint[])outputArguments[0]);
+                    clientHandles.AddRange((uint[])outputArguments[1]);
+                    return (true, serverHandles, clientHandles);
+                }
+            }
+            catch (ServiceResultException sre)
+            {
+                Utils.LogError(sre, "SubscriptionId {0}: Failed to call GetMonitoredItems on server", m_id);
+            }
+            return (false, serverHandles, clientHandles);
+        }
+#endif
 
         /// <summary>
         /// Starts a timer to ensure publish requests are sent frequently enough to detect network interruptions.
