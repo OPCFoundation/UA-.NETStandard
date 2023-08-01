@@ -59,6 +59,86 @@ namespace Opc.Ua.Client.Tests
             SupportsExternalServerUrl = true;
             // create a new session for every test
             SingleSession = false;
+
+            // Set the default ID format to W3C and force it to be the default
+            Activity.DefaultIdFormat = ActivityIdFormat.W3C;
+            Activity.ForceDefaultIdFormat = true;
+
+            // Create an instance of ActivityListener and configure its properties
+            ActivityListener activityListener = new ActivityListener() {
+                // Set ShouldListenTo property to true for all activity sources
+                ShouldListenTo = (source) => true,
+
+                // Sample all data and recorded activities
+                Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
+
+                // Write "Started" message when an activity starts
+                ActivityStarted = activity => Console.WriteLine("Started: {0,-15} {1,-60}", activity.OperationName, activity.Id),
+
+                // Write "Stopped" message along with OperationName, Id, and Duration when an activity stops
+                ActivityStopped = activity => {
+                    // Console.WriteLine(activity.OperationName + " : " + activity.Id + " : " + activity.Duration);
+
+                    switch (activity.OperationName)
+                    {
+                        case "Reconnect":
+                            Console.WriteLine("Duration of Reconnect(): " + activity.Duration);
+                            break;
+                        case "BeginPublish":
+                            Console.WriteLine("Duration of BeginPublish(): " + activity.Duration);
+                            break;
+                        case "Republish":
+                            Console.WriteLine("Duration of Republish(): " + activity.Duration);
+                            break;
+                        case "TransferSubscriptions":
+                            Console.WriteLine("Duration of TransferSubscriptions(): " + activity.Duration);
+                            break;
+                        case "RemoveSubscriptions":
+                            Console.WriteLine("Duration of RemoveSubscriptions(): " + activity.Duration);
+                            break;
+                        case "RemoveSubscription":
+                            Console.WriteLine("Duration of RemoveSubscription(): " + activity.Duration);
+                            break;
+                        case "AddSubscription":
+                            Console.WriteLine("Duration of AddSubscription(): " + activity.Duration);
+                            break;
+                        case "Create":
+                            Console.WriteLine("Duration of Create(): " + activity.Duration);
+                            break;
+                        case "Transfer":
+                            Console.WriteLine("Duration of Transfer(): " + activity.Duration);
+                            break;
+                        case "Delete":
+                            Console.WriteLine("Duration of Delete(): " + activity.Duration);
+                            break;
+                        case "Modify":
+                            Console.WriteLine("Duration of Modify(): " + activity.Duration);
+                            break;
+                        case "SetPublishingMode":
+                            Console.WriteLine("Duration of SetPublishingMode(): " + activity.Duration);
+                            break;
+                        case "ReadAsync":
+                            Console.WriteLine("Duration of ReadAsync(): " + activity.Duration);
+                            break;
+                        case "ReadValueAsync":
+                            Console.WriteLine("Duration of ReadValueAsync(): " + activity.Duration);
+                            break;
+                        case "WriteAsync":
+                            Console.WriteLine("Duration of WriteAsync(): " + activity.Duration);
+                            break;
+                        case "CallAsync":
+                            Console.WriteLine("Duration of CallAsync(): " + activity.Duration);
+                            break;
+                        default:
+                            Console.WriteLine("Unknown operation: " + activity.OperationName);
+                            break;
+                    }
+
+                }
+            };
+
+            ActivitySource.AddActivityListener(activityListener);
+
             return base.OneTimeSetUpAsync(null);
         }
 

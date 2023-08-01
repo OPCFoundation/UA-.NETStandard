@@ -55,7 +55,13 @@ namespace Opc.Ua.Client.Tests
         public int OperationTimeout { get; set; } = 10000;
         public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.StackTrace | Utils.TraceMasks.Security | Utils.TraceMasks.Information;
 
-        public ISessionFactory SessionFactory { get; } = new DefaultSessionFactory();
+#if  NET6_0_OR_GREATER
+        public bool activitysource { get; set; } = true;
+
+        public ISessionFactory SessionFactory => activitysource ? new DefaultActivitySessionFactory() : new DefaultSessionFactory();
+#else
+        public ISessionFactory SessionFactory {get;} = new DefaultSessionFactory();
+#endif
 
         #region Public Methods
         /// <summary>

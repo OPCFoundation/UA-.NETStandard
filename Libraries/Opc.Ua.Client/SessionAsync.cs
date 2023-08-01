@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- *
+ * 
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- *
+ * 
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -313,39 +313,36 @@ namespace Opc.Ua.Client
             NodeId nodeId,
             CancellationToken ct = default)
         {
-            using (var activity = Utils.ActivitySrc.StartActivity("ReadValueAsync"))
-            {
-                ReadValueId itemToRead = new ReadValueId {
-                    NodeId = nodeId,
-                    AttributeId = Attributes.Value
-                };
+            ReadValueId itemToRead = new ReadValueId {
+                NodeId = nodeId,
+                AttributeId = Attributes.Value
+            };
 
-                ReadValueIdCollection itemsToRead = new ReadValueIdCollection {
+            ReadValueIdCollection itemsToRead = new ReadValueIdCollection {
                 itemToRead
             };
 
-                // read from server.
-                ReadResponse readResponse = await ReadAsync(
-                    null,
-                    0,
-                    TimestampsToReturn.Both,
-                    itemsToRead,
-                    ct).ConfigureAwait(false);
+            // read from server.
+            ReadResponse readResponse = await ReadAsync(
+                null,
+                0,
+                TimestampsToReturn.Both,
+                itemsToRead,
+                ct).ConfigureAwait(false);
 
-                DataValueCollection values = readResponse.Results;
-                DiagnosticInfoCollection diagnosticInfos = readResponse.DiagnosticInfos;
+            DataValueCollection values = readResponse.Results;
+            DiagnosticInfoCollection diagnosticInfos = readResponse.DiagnosticInfos;
 
-                ClientBase.ValidateResponse(values, itemsToRead);
-                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
+            ClientBase.ValidateResponse(values, itemsToRead);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
 
-                if (StatusCode.IsBad(values[0].StatusCode))
-                {
-                    ServiceResult result = ClientBase.GetResult(values[0].StatusCode, 0, diagnosticInfos, readResponse.ResponseHeader);
-                    throw new ServiceResultException(result);
-                }
-
-                return values[0];
+            if (StatusCode.IsBad(values[0].StatusCode))
+            {
+                ServiceResult result = ClientBase.GetResult(values[0].StatusCode, 0, diagnosticInfos, readResponse.ResponseHeader);
+                throw new ServiceResultException(result);
             }
+
+            return values[0];
         }
 
 

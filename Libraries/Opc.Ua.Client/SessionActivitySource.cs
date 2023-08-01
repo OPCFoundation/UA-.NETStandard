@@ -1,3 +1,5 @@
+#if  NET6_0_OR_GREATER
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -7,21 +9,19 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-#if NET6_0_OR_GREATER
-
 namespace Opc.Ua.Client
 {
     /// <summary>
     /// Manages a session with a server.
     /// </summary>
-    public class SessionActivitySource : ISession  // Isession to check TODO:
+    public class SessionActivitySource : ISession
     {
         #region Constructors
         /// <summary>
         /// Constructs a new instance of the <see cref="Session"/> class.
         /// </summary>
         /// <param name="session"></param>
-        public SessionActivitySource(Session session)
+        public SessionActivitySource(ISession session)
         {
             m_session = session;
         }
@@ -36,25 +36,56 @@ namespace Opc.Ua.Client
         private ISession m_session;
 
         /// <inheritdoc/>
-        public event KeepAliveEventHandler KeepAlive;
+        public ISession Session => m_session;
 
         /// <inheritdoc/>
-        public event NotificationEventHandler Notification;
+        public event KeepAliveEventHandler KeepAlive
+        {
+            add => m_session.KeepAlive += value;
+            remove => m_session.KeepAlive -= value;
+        }
 
         /// <inheritdoc/>
-        public event PublishErrorEventHandler PublishError;
+        public event NotificationEventHandler Notification
+        {
+            add => m_session.Notification += value;
+            remove => m_session.Notification -= value;
+        }
 
         /// <inheritdoc/>
-        public event PublishSequenceNumbersToAcknowledgeEventHandler PublishSequenceNumbersToAcknowledge;
+        public event PublishErrorEventHandler PublishError
+        {
+            add => m_session.PublishError += value;
+            remove => m_session.PublishError -= value;
+        }
 
         /// <inheritdoc/>
-        public event EventHandler SubscriptionsChanged;
+        public event PublishSequenceNumbersToAcknowledgeEventHandler PublishSequenceNumbersToAcknowledge
+        {
+            add => m_session.PublishSequenceNumbersToAcknowledge += value;
+            remove => m_session.PublishSequenceNumbersToAcknowledge -= value;
+        }
 
         /// <inheritdoc/>
-        public event EventHandler SessionClosing;
+        public event EventHandler SubscriptionsChanged
+        {
+            add => m_session.SubscriptionsChanged += value;
+            remove => m_session.SubscriptionsChanged -= value;
+        }
 
         /// <inheritdoc/>
-        public event RenewUserIdentityEventHandler RenewUserIdentity;
+        public event EventHandler SessionClosing
+        {
+            add => m_session.SessionClosing += value;
+            remove => m_session.SessionClosing -= value;
+        }
+
+        /// <inheritdoc/>
+        public event RenewUserIdentityEventHandler RenewUserIdentity
+        {
+            add => m_session.RenewUserIdentity += value;
+            remove => m_session.RenewUserIdentity -= value;
+        }
 
         /// <summary>
         /// Activity Source
@@ -63,7 +94,7 @@ namespace Opc.Ua.Client
         public static ActivitySource ActivitySrc { get; } = new ActivitySource(OpcUaClientActivitySourceName);
 
         /// <inheritdoc/>
-        public ISessionFactory SessionFactory => throw new NotImplementedException(); // implement custom session factory for activty source
+        public ISessionFactory SessionFactory = new DefaultSessionFactory();
 
         /// <inheritdoc/>
         public ConfiguredEndpoint ConfiguredEndpoint => m_session.ConfiguredEndpoint;
@@ -204,11 +235,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public bool Disposed => m_session.Disposed;
 
+        ISessionFactory ISession.SessionFactory => new DefaultActivitySessionFactory();
+
         /// <inheritdoc/>
         public void Reconnect()
         {
             // Start an Activity.
-            using (Activity activity = ActivitySrc.StartActivity("Reconnect"))
+            using (Activity activity = ActivitySrc.StartActivity(nameof(Reconnect)))
             {
                 m_session.Reconnect();
             }
@@ -335,12 +368,12 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<DataDictionary> FindDataDictionary(NodeId descriptionId)
+        public Task<DataDictionary> FindDataDictionary(NodeId descriptionId)
         {
             // Start an Activity.
             using (Activity activity = ActivitySrc.StartActivity("FindDataDictionary"))
             {
-                return await m_session.FindDataDictionary(descriptionId).ConfigureAwait(false);
+                return m_session.FindDataDictionary(descriptionId);
             }
         }
 
@@ -539,7 +572,7 @@ namespace Opc.Ua.Client
             // Start an Activity.
             using (Activity activity = ActivitySrc.StartActivity("ReadNodesAsync"))
             {
-                return await m_session.ReadNodesAsync(nodeIds, nodeClass, optionalAttributes, ct);
+                return await m_session.ReadNodesAsync(nodeIds, nodeClass, optionalAttributes, ct).ConfigureAwait(false);
             }
         }
 
@@ -549,7 +582,7 @@ namespace Opc.Ua.Client
             // Start an Activity.
             using (Activity activity = ActivitySrc.StartActivity("ReadValueAsync"))
             {
-                return await m_session.ReadValueAsync(nodeId, ct);
+                return await m_session.ReadValueAsync(nodeId, ct).ConfigureAwait(false);
             }
         }
 
@@ -559,7 +592,7 @@ namespace Opc.Ua.Client
             // Start an Activity.
             using (Activity activity = ActivitySrc.StartActivity("ReadNodeAsync"))
             {
-                return await m_session.ReadNodeAsync(nodeId, ct);
+                return await m_session.ReadNodeAsync(nodeId, ct).ConfigureAwait(false);
             }
         }
 
@@ -569,7 +602,7 @@ namespace Opc.Ua.Client
             // Start an Activity.
             using (Activity activity = ActivitySrc.StartActivity("ReadNodeAsync"))
             {
-                return await m_session.ReadNodeAsync(nodeId, nodeClass, optionalAttributes, ct);
+                return await m_session.ReadNodeAsync(nodeId, nodeClass, optionalAttributes, ct).ConfigureAwait(false);
             }
         }
 
@@ -579,7 +612,7 @@ namespace Opc.Ua.Client
             // Start an Activity.
             using (Activity activity = ActivitySrc.StartActivity("ReadNodesAsync"))
             {
-                return await m_session.ReadNodesAsync(nodeIds, optionalAttributes, ct);
+                return await m_session.ReadNodesAsync(nodeIds, optionalAttributes, ct).ConfigureAwait(false);
             }
         }
 
@@ -589,7 +622,7 @@ namespace Opc.Ua.Client
             // Start an Activity.
             using (Activity activity = ActivitySrc.StartActivity("ReadValuesAsync"))
             {
-                return await m_session.ReadValuesAsync(nodeIds, ct);
+                return await m_session.ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
             }
         }
 
@@ -629,7 +662,7 @@ namespace Opc.Ua.Client
             // Start an Activity.
             using (Activity activity = ActivitySrc.StartActivity("CloseAsync"))
             {
-                return await m_session.CloseAsync(ct);
+                return await m_session.CloseAsync(ct).ConfigureAwait(false);
             }
         }
 
@@ -639,7 +672,7 @@ namespace Opc.Ua.Client
             // Start an Activity.
             using (Activity activity = ActivitySrc.StartActivity("CloseAsync"))
             {
-                return await m_session.CloseAsync(closeChannel, ct);
+                return await m_session.CloseAsync(closeChannel, ct).ConfigureAwait(false);
             }
         }
 
@@ -649,7 +682,7 @@ namespace Opc.Ua.Client
             // Start an Activity.
             using (Activity activity = ActivitySrc.StartActivity("CloseAsync"))
             {
-                return await m_session.CloseAsync(timeout, ct);
+                return await m_session.CloseAsync(timeout, ct).ConfigureAwait(false);
             }
         }
 
@@ -659,7 +692,7 @@ namespace Opc.Ua.Client
             // Start an Activity.
             using (Activity activity = ActivitySrc.StartActivity("CloseAsync"))
             {
-                return await m_session.CloseAsync(timeout, closeChannel, ct);
+                return await m_session.CloseAsync(timeout, closeChannel, ct).ConfigureAwait(false);
             }
         }
 
@@ -719,7 +752,7 @@ namespace Opc.Ua.Client
             // Start an Activity.
             using (Activity activity = ActivitySrc.StartActivity("RemoveSubscriptionAsync"))
             {
-                return await m_session.RemoveSubscriptionAsync(subscription);
+                return await m_session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
             }
         }
 
@@ -729,7 +762,7 @@ namespace Opc.Ua.Client
             // Start an Activity.
             using (Activity activity = ActivitySrc.StartActivity("RemoveSubscriptionsAsync"))
             {
-                return await m_session.RemoveSubscriptionsAsync(subscriptions);
+                return await m_session.RemoveSubscriptionsAsync(subscriptions).ConfigureAwait(false);
             }
         }
 
@@ -746,13 +779,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginBrowse(RequestHeader requestHeader, ViewDescription view, NodeId nodeToBrowse, uint maxResultsToReturn, BrowseDirection browseDirection, NodeId referenceTypeId, bool includeSubtypes, uint nodeClassMask, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginBrowse(requestHeader, view, nodeToBrowse, maxResultsToReturn, browseDirection, referenceTypeId, includeSubtypes, nodeClassMask, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndBrowse(IAsyncResult result, out byte[] continuationPoint, out ReferenceDescriptionCollection references)
         {
-            throw new NotImplementedException();
+            return m_session.EndBrowse(result, out continuationPoint, out references);
         }
 
         /// <inheritdoc/>
@@ -768,13 +801,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginBrowseNext(RequestHeader requestHeader, bool releaseContinuationPoint, byte[] continuationPoint, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginBrowseNext(requestHeader, releaseContinuationPoint, continuationPoint, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndBrowseNext(IAsyncResult result, out byte[] revisedContinuationPoint, out ReferenceDescriptionCollection references)
         {
-            throw new NotImplementedException();
+            return m_session.EndBrowseNext(result, out revisedContinuationPoint, out references);
         }
 
         /// <inheritdoc/>
@@ -790,7 +823,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginPublish(int timeout)
         {
-            throw new NotImplementedException();
+            return m_session.BeginPublish(timeout);
         }
 
         /// <inheritdoc/>
@@ -816,13 +849,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginCreateSession(RequestHeader requestHeader, ApplicationDescription clientDescription, string serverUri, string endpointUrl, string sessionName, byte[] clientNonce, byte[] clientCertificate, double requestedSessionTimeout, uint maxResponseMessageSize, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginCreateSession(requestHeader, clientDescription, serverUri, endpointUrl, sessionName, clientNonce, clientCertificate, requestedSessionTimeout, maxResponseMessageSize, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndCreateSession(IAsyncResult result, out NodeId sessionId, out NodeId authenticationToken, out double revisedSessionTimeout, out byte[] serverNonce, out byte[] serverCertificate, out EndpointDescriptionCollection serverEndpoints, out SignedSoftwareCertificateCollection serverSoftwareCertificates, out SignatureData serverSignature, out uint maxRequestMessageSize)
         {
-            throw new NotImplementedException();
+            return m_session.EndCreateSession(result, out sessionId, out authenticationToken, out revisedSessionTimeout, out serverNonce, out serverCertificate, out serverEndpoints, out serverSoftwareCertificates, out serverSignature, out maxRequestMessageSize);
         }
 
         /// <inheritdoc/>
@@ -831,7 +864,7 @@ namespace Opc.Ua.Client
             // Start an Activity.
             using (Activity activity = ActivitySrc.StartActivity("CreateSessionAsync"))
             {
-                return await m_session.CreateSessionAsync(requestHeader, clientDescription, serverUri, endpointUrl, sessionName, clientNonce, clientCertificate, requestedSessionTimeout, maxResponseMessageSize, ct);
+                return await m_session.CreateSessionAsync(requestHeader, clientDescription, serverUri, endpointUrl, sessionName, clientNonce, clientCertificate, requestedSessionTimeout, maxResponseMessageSize, ct).ConfigureAwait(false);
             }
         }
 
@@ -848,13 +881,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginActivateSession(RequestHeader requestHeader, SignatureData clientSignature, SignedSoftwareCertificateCollection clientSoftwareCertificates, StringCollection localeIds, ExtensionObject userIdentityToken, SignatureData userTokenSignature, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginActivateSession(requestHeader, clientSignature, clientSoftwareCertificates, localeIds, userIdentityToken, userTokenSignature, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndActivateSession(IAsyncResult result, out byte[] serverNonce, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            throw new NotImplementedException();
+            return m_session.EndActivateSession(result, out serverNonce, out results, out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -863,7 +896,7 @@ namespace Opc.Ua.Client
             // Start an Activity.
             using (Activity activity = ActivitySrc.StartActivity("ActivateSessionAsync"))
             {
-                return await m_session.ActivateSessionAsync(requestHeader, clientSignature, clientSoftwareCertificates, localeIds, userIdentityToken, userTokenSignature, ct);
+                return await m_session.ActivateSessionAsync(requestHeader, clientSignature, clientSoftwareCertificates, localeIds, userIdentityToken, userTokenSignature, ct).ConfigureAwait(false);
             }
         }
 
@@ -880,12 +913,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginCloseSession(RequestHeader requestHeader, bool deleteSubscriptions, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginCloseSession(requestHeader, deleteSubscriptions, callback, asyncState);
         }
 
+        /// <inheritdoc/>
         public ResponseHeader EndCloseSession(IAsyncResult result)
         {
-            throw new NotImplementedException();
+            return m_session.EndCloseSession(result);
         }
 
         /// <inheritdoc/>
@@ -894,7 +928,7 @@ namespace Opc.Ua.Client
             // Start an Activity.
             using (Activity activity = ActivitySrc.StartActivity("CloseSessionAsync"))
             {
-                return await m_session.CloseSessionAsync(requestHeader, deleteSubscriptions, ct);
+                return await m_session.CloseSessionAsync(requestHeader, deleteSubscriptions, ct).ConfigureAwait(false);
             }
         }
 
@@ -911,13 +945,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginCancel(RequestHeader requestHeader, uint requestHandle, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginCancel(requestHeader, requestHandle, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndCancel(IAsyncResult result, out uint cancelCount)
         {
-            throw new NotImplementedException();
+            return m_session.EndCancel(result, out cancelCount);
         }
 
         /// <inheritdoc/>
@@ -943,13 +977,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginAddNodes(RequestHeader requestHeader, AddNodesItemCollection nodesToAdd, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginAddNodes(requestHeader, nodesToAdd, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndAddNodes(IAsyncResult result, out AddNodesResultCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            throw new NotImplementedException();
+            return m_session.EndAddNodes(result, out results, out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -975,13 +1009,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginAddReferences(RequestHeader requestHeader, AddReferencesItemCollection referencesToAdd, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginAddReferences(requestHeader, referencesToAdd, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndAddReferences(IAsyncResult result, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            throw new NotImplementedException();
+            return m_session.EndAddReferences(result, out results, out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1007,13 +1041,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginDeleteNodes(RequestHeader requestHeader, DeleteNodesItemCollection nodesToDelete, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginDeleteNodes(requestHeader, nodesToDelete, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndDeleteNodes(IAsyncResult result, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            throw new NotImplementedException();
+            return m_session.EndDeleteNodes(result, out results, out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1039,13 +1073,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginDeleteReferences(RequestHeader requestHeader, DeleteReferencesItemCollection referencesToDelete, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginDeleteReferences(requestHeader, referencesToDelete, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndDeleteReferences(IAsyncResult result, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            throw new NotImplementedException();
+            return m_session.EndDeleteReferences(result, out results, out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1071,13 +1105,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginBrowse(RequestHeader requestHeader, ViewDescription view, uint requestedMaxReferencesPerNode, BrowseDescriptionCollection nodesToBrowse, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginBrowse(requestHeader, view, requestedMaxReferencesPerNode, nodesToBrowse, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndBrowse(IAsyncResult result, out BrowseResultCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            throw new NotImplementedException();
+            return m_session.EndBrowse(result, out results, out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1103,13 +1137,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginBrowseNext(RequestHeader requestHeader, bool releaseContinuationPoints, ByteStringCollection continuationPoints, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginBrowseNext(requestHeader, releaseContinuationPoints, continuationPoints, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndBrowseNext(IAsyncResult result, out BrowseResultCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            throw new NotImplementedException();
+            return m_session.EndBrowseNext(result, out results, out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1135,13 +1169,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginTranslateBrowsePathsToNodeIds(RequestHeader requestHeader, BrowsePathCollection browsePaths, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginTranslateBrowsePathsToNodeIds(requestHeader, browsePaths, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndTranslateBrowsePathsToNodeIds(IAsyncResult result, out BrowsePathResultCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            throw new NotImplementedException();
+            return m_session.EndTranslateBrowsePathsToNodeIds(result, out results, out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1167,13 +1201,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginRegisterNodes(RequestHeader requestHeader, NodeIdCollection nodesToRegister, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginRegisterNodes(requestHeader, nodesToRegister, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndRegisterNodes(IAsyncResult result, out NodeIdCollection registeredNodeIds)
         {
-            throw new NotImplementedException();
+            return m_session.EndRegisterNodes(result, out registeredNodeIds);
         }
 
         /// <inheritdoc/>
@@ -1199,13 +1233,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginUnregisterNodes(RequestHeader requestHeader, NodeIdCollection nodesToUnregister, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginUnregisterNodes(requestHeader, nodesToUnregister, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndUnregisterNodes(IAsyncResult result)
         {
-            throw new NotImplementedException();
+            return m_session.EndUnregisterNodes(result);
         }
 
         /// <inheritdoc/>
@@ -1231,13 +1265,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginQueryFirst(RequestHeader requestHeader, ViewDescription view, NodeTypeDescriptionCollection nodeTypes, ContentFilter filter, uint maxDataSetsToReturn, uint maxReferencesToReturn, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginQueryFirst(requestHeader, view, nodeTypes, filter, maxDataSetsToReturn, maxReferencesToReturn, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndQueryFirst(IAsyncResult result, out QueryDataSetCollection queryDataSets, out byte[] continuationPoint, out ParsingResultCollection parsingResults, out DiagnosticInfoCollection diagnosticInfos, out ContentFilterResult filterResult)
         {
-            throw new NotImplementedException();
+            return m_session.EndQueryFirst(result, out queryDataSets, out continuationPoint, out parsingResults, out diagnosticInfos, out filterResult);
         }
 
         /// <inheritdoc/>
@@ -1263,13 +1297,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginQueryNext(RequestHeader requestHeader, bool releaseContinuationPoint, byte[] continuationPoint, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginQueryNext(requestHeader, releaseContinuationPoint, continuationPoint, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndQueryNext(IAsyncResult result, out QueryDataSetCollection queryDataSets, out byte[] revisedContinuationPoint)
         {
-            throw new NotImplementedException();
+            return m_session.EndQueryNext(result, out queryDataSets, out revisedContinuationPoint);
         }
 
         /// <inheritdoc/>
@@ -1295,12 +1329,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginRead(RequestHeader requestHeader, double maxAge, TimestampsToReturn timestampsToReturn, ReadValueIdCollection nodesToRead, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginRead(requestHeader, maxAge, timestampsToReturn, nodesToRead, callback, asyncState);
         }
 
+        /// <inheritdoc/>
         public ResponseHeader EndRead(IAsyncResult result, out DataValueCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            throw new NotImplementedException();
+            return m_session.EndRead(result, out results, out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1326,13 +1361,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginHistoryRead(RequestHeader requestHeader, ExtensionObject historyReadDetails, TimestampsToReturn timestampsToReturn, bool releaseContinuationPoints, HistoryReadValueIdCollection nodesToRead, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginHistoryRead(requestHeader, historyReadDetails, timestampsToReturn, releaseContinuationPoints, nodesToRead, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndHistoryRead(IAsyncResult result, out HistoryReadResultCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            throw new NotImplementedException();
+            return m_session.EndHistoryRead(result, out results, out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1342,7 +1377,7 @@ namespace Opc.Ua.Client
             using (Activity activity = ActivitySrc.StartActivity("HistoryReadAsync"))
             {
                 return m_session.HistoryReadAsync(requestHeader, historyReadDetails, timestampsToReturn, releaseContinuationPoints, nodesToRead, ct);
-            } 
+            }
         }
 
         /// <inheritdoc/>
@@ -1358,13 +1393,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginWrite(RequestHeader requestHeader, WriteValueCollection nodesToWrite, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginWrite(requestHeader, nodesToWrite, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndWrite(IAsyncResult result, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            throw new NotImplementedException();
+            return m_session.EndWrite(result, out results, out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1390,13 +1425,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginHistoryUpdate(RequestHeader requestHeader, ExtensionObjectCollection historyUpdateDetails, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginHistoryUpdate(requestHeader, historyUpdateDetails, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndHistoryUpdate(IAsyncResult result, out HistoryUpdateResultCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            throw new NotImplementedException();
+            return m_session.EndHistoryUpdate(result, out results, out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1422,13 +1457,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginCall(RequestHeader requestHeader, CallMethodRequestCollection methodsToCall, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginCall(requestHeader, methodsToCall, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndCall(IAsyncResult result, out CallMethodResultCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            throw new NotImplementedException();
+            return m_session.EndCall(result, out results, out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1454,13 +1489,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginCreateMonitoredItems(RequestHeader requestHeader, uint subscriptionId, TimestampsToReturn timestampsToReturn, MonitoredItemCreateRequestCollection itemsToCreate, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginCreateMonitoredItems(requestHeader, subscriptionId, timestampsToReturn, itemsToCreate, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndCreateMonitoredItems(IAsyncResult result, out MonitoredItemCreateResultCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            throw new NotImplementedException();
+            return m_session.EndCreateMonitoredItems(result, out results, out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1486,13 +1521,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginModifyMonitoredItems(RequestHeader requestHeader, uint subscriptionId, TimestampsToReturn timestampsToReturn, MonitoredItemModifyRequestCollection itemsToModify, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginModifyMonitoredItems(requestHeader, subscriptionId, timestampsToReturn, itemsToModify, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndModifyMonitoredItems(IAsyncResult result, out MonitoredItemModifyResultCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            throw new NotImplementedException();
+            return m_session.EndModifyMonitoredItems(result, out results, out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1518,13 +1553,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginSetMonitoringMode(RequestHeader requestHeader, uint subscriptionId, MonitoringMode monitoringMode, UInt32Collection monitoredItemIds, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginSetMonitoringMode(requestHeader, subscriptionId, monitoringMode, monitoredItemIds, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndSetMonitoringMode(IAsyncResult result, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            throw new NotImplementedException();
+            return m_session.EndSetMonitoringMode(result, out results, out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1550,13 +1585,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginSetTriggering(RequestHeader requestHeader, uint subscriptionId, uint triggeringItemId, UInt32Collection linksToAdd, UInt32Collection linksToRemove, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginSetTriggering(requestHeader, subscriptionId, triggeringItemId, linksToAdd, linksToRemove, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndSetTriggering(IAsyncResult result, out StatusCodeCollection addResults, out DiagnosticInfoCollection addDiagnosticInfos, out StatusCodeCollection removeResults, out DiagnosticInfoCollection removeDiagnosticInfos)
         {
-            throw new NotImplementedException();
+            return m_session.EndSetTriggering(result, out addResults, out addDiagnosticInfos, out removeResults, out removeDiagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1582,13 +1617,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginDeleteMonitoredItems(RequestHeader requestHeader, uint subscriptionId, UInt32Collection monitoredItemIds, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginDeleteMonitoredItems(requestHeader, subscriptionId, monitoredItemIds, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndDeleteMonitoredItems(IAsyncResult result, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            throw new NotImplementedException();
+            return m_session.EndDeleteMonitoredItems(result, out results, out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1614,13 +1649,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginCreateSubscription(RequestHeader requestHeader, double requestedPublishingInterval, uint requestedLifetimeCount, uint requestedMaxKeepAliveCount, uint maxNotificationsPerPublish, bool publishingEnabled, byte priority, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginCreateSubscription(requestHeader, requestedPublishingInterval, requestedLifetimeCount, requestedMaxKeepAliveCount, maxNotificationsPerPublish, publishingEnabled, priority, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndCreateSubscription(IAsyncResult result, out uint subscriptionId, out double revisedPublishingInterval, out uint revisedLifetimeCount, out uint revisedMaxKeepAliveCount)
         {
-            throw new NotImplementedException();
+            return m_session.EndCreateSubscription(result, out subscriptionId, out revisedPublishingInterval, out revisedLifetimeCount, out revisedMaxKeepAliveCount);
         }
 
         /// <inheritdoc/>
@@ -1646,13 +1681,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginModifySubscription(RequestHeader requestHeader, uint subscriptionId, double requestedPublishingInterval, uint requestedLifetimeCount, uint requestedMaxKeepAliveCount, uint maxNotificationsPerPublish, byte priority, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginModifySubscription(requestHeader, subscriptionId, requestedPublishingInterval, requestedLifetimeCount, requestedMaxKeepAliveCount, maxNotificationsPerPublish, priority, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndModifySubscription(IAsyncResult result, out double revisedPublishingInterval, out uint revisedLifetimeCount, out uint revisedMaxKeepAliveCount)
         {
-            throw new NotImplementedException();
+            return m_session.EndModifySubscription(result, out revisedPublishingInterval, out revisedLifetimeCount, out revisedMaxKeepAliveCount);
         }
 
         /// <inheritdoc/>
@@ -1678,13 +1713,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginSetPublishingMode(RequestHeader requestHeader, bool publishingEnabled, UInt32Collection subscriptionIds, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginSetPublishingMode(requestHeader, publishingEnabled, subscriptionIds, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndSetPublishingMode(IAsyncResult result, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            throw new NotImplementedException();
+            return m_session.EndSetPublishingMode(result, out results, out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1710,13 +1745,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginPublish(RequestHeader requestHeader, SubscriptionAcknowledgementCollection subscriptionAcknowledgements, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginPublish(requestHeader, subscriptionAcknowledgements, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndPublish(IAsyncResult result, out uint subscriptionId, out UInt32Collection availableSequenceNumbers, out bool moreNotifications, out NotificationMessage notificationMessage, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            throw new NotImplementedException();
+            return m_session.EndPublish(result, out subscriptionId, out availableSequenceNumbers, out moreNotifications, out notificationMessage, out results, out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1742,13 +1777,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginRepublish(RequestHeader requestHeader, uint subscriptionId, uint retransmitSequenceNumber, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginRepublish(requestHeader, subscriptionId, retransmitSequenceNumber, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndRepublish(IAsyncResult result, out NotificationMessage notificationMessage)
         {
-            throw new NotImplementedException();
+            return m_session.EndRepublish(result, out notificationMessage);
         }
 
         /// <inheritdoc/>
@@ -1774,13 +1809,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginTransferSubscriptions(RequestHeader requestHeader, UInt32Collection subscriptionIds, bool sendInitialValues, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginTransferSubscriptions(requestHeader, subscriptionIds, sendInitialValues, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndTransferSubscriptions(IAsyncResult result, out TransferResultCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            throw new NotImplementedException();
+            return m_session.EndTransferSubscriptions(result, out results, out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1806,13 +1841,13 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IAsyncResult BeginDeleteSubscriptions(RequestHeader requestHeader, UInt32Collection subscriptionIds, AsyncCallback callback, object asyncState)
         {
-            throw new NotImplementedException();
+            return m_session.BeginDeleteSubscriptions(requestHeader, subscriptionIds, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndDeleteSubscriptions(IAsyncResult result, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            throw new NotImplementedException();
+            return m_session.EndDeleteSubscriptions(result, out results, out diagnosticInfos);
         }
 
         /// <inheritdoc/>
@@ -1892,4 +1927,5 @@ namespace Opc.Ua.Client
             GC.SuppressFinalize(this);
         }
     }
+}
 #endif
