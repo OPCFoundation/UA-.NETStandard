@@ -448,11 +448,11 @@ namespace Opc.Ua.Client.Tests
         /// the same session on a new channel with saved session secrets.
         /// </summary>
         [Test, Order(350)]
-        [TestCase(SecurityPolicies.None, true, false, true)]
-        [TestCase(SecurityPolicies.None, false, true, false)]
-        [TestCase(SecurityPolicies.Basic256Sha256, true, false, false)]
-        [TestCase(SecurityPolicies.Basic256Sha256, false, true, true)]
-        public async Task ReconnectWithSavedSessionSecrets(string securityPolicy, bool anonymous, bool sequentialPublishing, bool sendInitialValues)
+        [TestCase(SecurityPolicies.None, true, false, true, true)]
+        [TestCase(SecurityPolicies.None, false, true, false, false)]
+        [TestCase(SecurityPolicies.Basic256Sha256, true, false, false, false)]
+        [TestCase(SecurityPolicies.Basic256Sha256, false, true, true, true)]
+        public async Task ReconnectWithSavedSessionSecrets(string securityPolicy, bool anonymous, bool sequentialPublishing, bool sendInitialValues, bool asyncTest)
         {
             const int kTestSubscriptions = 5;
             const int kDelay = 2_000;
@@ -561,18 +561,55 @@ namespace Opc.Ua.Client.Tests
             // activate the session from saved sesson secrets on the new channel
             session2.Reconnect(channel2);
 
-            // transfer restored subscriptions
-            var reactivateResult = session2.ReactivateSubscriptions(restoredSubscriptions, sendInitialValues);
-            Assert.IsTrue(reactivateResult);
+            // reactivate restored subscriptions
+            if (asyncTest)
+            {
+                var reactivateResult = await session2.ReactivateSubscriptionsAsync(restoredSubscriptions, sendInitialValues).ConfigureAwait(false);
+                Assert.IsTrue(reactivateResult);
+            }
+            else
+            {
+                var reactivateResult = session2.ReactivateSubscriptions(restoredSubscriptions, sendInitialValues);
+                Assert.IsTrue(reactivateResult);
+            }
 
-            Thread.Sleep(kDelay);
+            await Task.Delay(kDelay).ConfigureAwait(false);
 
             Assert.AreEqual(session1.SessionId, session2.SessionId);
 
-            ServerStatusDataType value2 = (ServerStatusDataType)session2.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
-            Assert.NotNull(value2);
+            if (asyncTest)
+            {
+                DataValue value2 = await session2.ReadValueAsync(VariableIds.Server_ServerStatus).ConfigureAwait(false);
+                Assert.NotNull(value2);
+            }
+            else
+            {
+                ServerStatusDataType value2 = (ServerStatusDataType)session2.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+                Assert.NotNull(value2);
+            }
 
-            await Task.Delay(500).ConfigureAwait(false);
+            for (ii = 0; ii < kTestSubscriptions; ii++)
+            {
+                var monitoredItemCount = restoredSubscriptions[ii].MonitoredItemCount;
+
+                if (ii == 0 && !sendInitialValues)
+                {
+                    Assert.AreEqual(0, targetSubscriptionCounters[ii]);
+                    Assert.AreEqual(0, targetSubscriptionFastDataCounters[ii]);
+                }
+                else if (ii == 0)
+                {
+                    Assert.AreEqual(monitoredItemCount, targetSubscriptionCounters[ii]);
+                    Assert.AreEqual(1, targetSubscriptionFastDataCounters[ii]);
+                }
+                else
+                {
+                    Assert.LessOrEqual(monitoredItemCount, targetSubscriptionCounters[ii]);
+                    Assert.LessOrEqual(1, targetSubscriptionFastDataCounters[ii]);
+                }
+            }
+
+            await Task.Delay(kDelay).ConfigureAwait(false);
 
             // cannot read using a closed channel, validate the status code
             if (endpoint.EndpointUrl.ToString().StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
@@ -585,6 +622,8 @@ namespace Opc.Ua.Client.Tests
                 var result = session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
                 Assert.NotNull(result);
             }
+
+
         }
 
         [Test, Order(400)]
@@ -770,8 +809,6 @@ namespace Opc.Ua.Client.Tests
                 targetSession.PublishSequenceNumbersToAcknowledge += DeferSubscriptionAcknowledge;
             }
 
-            targetSession.DeleteSubscriptionsOnClose = true;
-
             // restore client state
             var transferSubscriptions = new SubscriptionCollection();
             if (transferType != TransferType.KeepOpen)
@@ -926,6 +963,8 @@ namespace Opc.Ua.Client.Tests
                     Assert.Less(0, testFastDataCounter[jj]);
                 }
             }
+
+            targetSession.DeleteSubscriptionsOnClose = true;
 
             if (asyncTransfer)
             {

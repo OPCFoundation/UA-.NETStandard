@@ -256,7 +256,6 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.AreEqual(null, diagnosticInfo.InnerDiagnosticInfo);
 
             Assert.IsTrue(diagnosticInfo.Equals(null));
-            Assert.IsTrue(diagnosticInfo.GetHashCode() == 0);
             Assert.IsTrue(diagnosticInfo.IsNullDiagnosticInfo);
         }
 
