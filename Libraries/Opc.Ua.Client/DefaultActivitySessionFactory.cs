@@ -16,7 +16,7 @@ namespace Opc.Ua.Client
     {
         #region Public Methods
         /// <inheritdoc/>
-        public new async Task<ISession> CreateAsync(
+        public override async Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
@@ -32,7 +32,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public new async Task<ISession> CreateAsync(
+        public override async Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
@@ -50,7 +50,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public new async Task<ISession> CreateAsync(
+        public override async Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
             ITransportWaitingConnection connection,
             ConfiguredEndpoint endpoint,
@@ -70,7 +70,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public new async Task<ISession> CreateAsync(
+        public override async Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
             ReverseConnectManager reverseConnectManager,
             ConfiguredEndpoint endpoint,
@@ -94,7 +94,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public new Task<ISession> RecreateAsync(ISession sessionTemplate)
+        public override Task<ISession> RecreateAsync(ISession sessionTemplate)
         {
             if (!(sessionTemplate is SessionActivitySource template))
             {
@@ -105,7 +105,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public new Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportWaitingConnection connection)
+        public override Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportWaitingConnection connection)
         {
             if (!(sessionTemplate is SessionActivitySource template))
             {

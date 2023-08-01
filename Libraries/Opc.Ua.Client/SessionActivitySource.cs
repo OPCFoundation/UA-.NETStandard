@@ -25,8 +25,8 @@ namespace Opc.Ua.Client
         {
             m_session = session;
         }
-
         #endregion
+
         /// <summary>
         /// Activity Source Name
         /// </summary>
@@ -94,7 +94,7 @@ namespace Opc.Ua.Client
         public static ActivitySource ActivitySrc { get; } = new ActivitySource(OpcUaClientActivitySourceName);
 
         /// <inheritdoc/>
-        public ISessionFactory SessionFactory = new DefaultSessionFactory();
+        public ISessionFactory SessionFactory = new DefaultActivitySessionFactory();
 
         /// <inheritdoc/>
         public ConfiguredEndpoint ConfiguredEndpoint => m_session.ConfiguredEndpoint;
@@ -1893,7 +1893,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public uint NewRequestHandle()
         {
-            throw new NotImplementedException();
+            return m_session.NewRequestHandle();
         }
 
         /// <inheritdoc/>
