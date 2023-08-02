@@ -30,6 +30,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -69,6 +70,8 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public async Task LoadClientConfiguration(string pkiRoot = null, string clientName = "TestClient")
         {
+            ConfigureActivityListener();
+
             ApplicationInstance application = new ApplicationInstance {
                 ApplicationName = clientName
             };
@@ -348,6 +351,34 @@ namespace Opc.Ua.Client.Tests
             {
                 session?.Dispose();
             }
+        }
+
+        private void ConfigureActivityListener()
+        {
+            // Set the default ID format to W3C and force it to be the default
+            Activity.DefaultIdFormat = ActivityIdFormat.W3C;
+            Activity.ForceDefaultIdFormat = true;
+
+            // Create an instance of ActivityListener and configure its properties
+            ActivityListener activityListener = new ActivityListener()
+            {
+                // Set ShouldListenTo property to true for all activity sources
+                ShouldListenTo = (source) => true,
+
+                // Sample all data and recorded activities
+                Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
+
+                // Write "Started" message when an activity starts
+                ActivityStarted = activity => Console.WriteLine("Started: {0,-15} {1,-60}", activity.OperationName, activity.Id),
+
+                // Write "Stopped" message along with OperationName, Id, and Duration when an activity stops
+                ActivityStopped = activity =>
+                {
+                   Console.WriteLine(activity.OperationName + " : " + activity.Id + "Duration : " + activity.Duration);
+                }
+            };
+
+            ActivitySource.AddActivityListener(activityListener);
         }
         #endregion
     }
