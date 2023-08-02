@@ -622,8 +622,6 @@ namespace Opc.Ua.Client.Tests
                 var result = session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
                 Assert.NotNull(result);
             }
-
-
         }
 
         [Test, Order(400)]
