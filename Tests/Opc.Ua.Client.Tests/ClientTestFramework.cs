@@ -102,7 +102,7 @@ namespace Opc.Ua.Client.Tests
         /// Setup a server and client fixture.
         /// </summary>
         /// <param name="writer">The test output writer.</param>
-        public async Task OneTimeSetUpAsync(TextWriter writer = null)
+        public async Task OneTimeSetUpAsync(TextWriter writer = null, bool securityNone = false)
         {
             // pki directory root for test runs.
             PkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
@@ -132,7 +132,7 @@ namespace Opc.Ua.Client.Tests
                 // start Ref server
                 ServerFixture = new ServerFixture<ReferenceServer> {
                     UriScheme = UriScheme,
-                    SecurityNone = false,
+                    SecurityNone = securityNone,
                     AutoAccept = true,
                     AllNodeManagers = true,
                     OperationLimits = true

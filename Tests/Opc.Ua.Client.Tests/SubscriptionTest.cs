@@ -60,7 +60,7 @@ namespace Opc.Ua.Client.Tests
             SupportsExternalServerUrl = true;
             // create a new session for every test
             SingleSession = false;
-            return base.OneTimeSetUpAsync(null);
+            return base.OneTimeSetUpAsync(null, true);
         }
 
         /// <summary>
@@ -592,15 +592,11 @@ namespace Opc.Ua.Client.Tests
             {
                 var monitoredItemCount = restoredSubscriptions[ii].MonitoredItemCount;
 
-                if (ii == 0 && !sendInitialValues)
+                // the static subscription doesn't resend data until there is a data change
+                if (ii == 0)
                 {
                     Assert.AreEqual(0, targetSubscriptionCounters[ii]);
                     Assert.AreEqual(0, targetSubscriptionFastDataCounters[ii]);
-                }
-                else if (ii == 0)
-                {
-                    Assert.AreEqual(monitoredItemCount, targetSubscriptionCounters[ii]);
-                    Assert.AreEqual(1, targetSubscriptionFastDataCounters[ii]);
                 }
                 else
                 {

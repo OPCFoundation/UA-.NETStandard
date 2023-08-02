@@ -273,6 +273,8 @@ namespace Opc.Ua.Client
             m_sessionName = "";
             m_deleteSubscriptionsOnClose = true;
             m_transferSubscriptionsOnReconnect = false;
+            m_reconnecting = false;
+            m_reconnectLock = new SemaphoreSlim(1, 1);
 
             m_defaultSubscription = new Subscription {
                 DisplayName = "Subscription",
@@ -1312,21 +1314,24 @@ namespace Opc.Ua.Client
         {
             try
             {
+                // check if already connecting.
+                if (m_reconnecting)
+                {
+                    Utils.LogWarning("Session is already attempting to reconnect.");
+
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadInvalidState,
+                        "Session is already attempting to reconnect.");
+                }
+
+                Utils.LogInfo("Session RECONNECT starting.");
+
+                m_reconnectLock.Wait();
+                m_reconnecting = true;
+                m_reconnectLock.Release();
+
                 lock (SyncRoot)
                 {
-                    // check if already connecting.
-                    if (m_reconnecting)
-                    {
-                        Utils.LogWarning("Session is already attempting to reconnect.");
-
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadInvalidState,
-                            "Session is already attempting to reconnect.");
-                    }
-
-                    Utils.LogInfo("Session RECONNECT starting.");
-                    m_reconnecting = true;
-
                     // stop keep alives.
                     Utils.SilentDispose(m_keepAliveTimer);
                     m_keepAliveTimer = null;
@@ -1470,9 +1475,12 @@ namespace Opc.Ua.Client
                     Utils.LogInfo("Session RECONNECT completed successfully.");
                     m_previousServerNonce = m_serverNonce;
                     m_serverNonce = serverNonce;
-                    m_reconnecting = false;
                     publishCount = GetMinPublishRequestCount();
                 }
+
+                m_reconnectLock.Wait();
+                m_reconnecting = false;
+                m_reconnectLock.Release();
 
                 // refill pipeline.
                 for (int ii = 0; ii < publishCount; ii++)
@@ -1484,9 +1492,11 @@ namespace Opc.Ua.Client
             }
             finally
             {
-                lock (SyncRoot)
+                if (m_reconnecting)
                 {
+                    m_reconnectLock.Wait();
                     m_reconnecting = false;
+                    m_reconnectLock.Release();
                 }
             }
         }
@@ -3595,43 +3605,55 @@ namespace Opc.Ua.Client
             SubscriptionCollection subscriptions,
             bool sendInitialValues)
         {
+            bool result = true;
             UInt32Collection subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
 
             if (subscriptionIds.Count > 0)
             {
-                if (sendInitialValues)
+                try
                 {
-                    if (ResendData(subscriptions, out var resendResults))
+                    m_reconnectLock.Wait();
+                    m_reconnecting = true;
+
+                    if (sendInitialValues)
                     {
-                        // TODO: check for unknown subscriptionIds
+                        if (!ResendData(subscriptions, out var resendResults))
+                        {
+                            Utils.LogError("Failed to call resend data for subscriptions.");
+                        }
                     }
-                    else
+
+                    var failedSubscriptionIds = new UInt32Collection();
+                    for (int ii = 0; ii < subscriptions.Count; ii++)
                     {
-                        Utils.LogError("Failed to call resend data for subscriptions.");
+                        if (!subscriptions[ii].Transfer(this, subscriptionIds[ii], new UInt32Collection()))
+                        {
+                            Utils.LogError("SubscriptionId {0} failed to reactivate.", subscriptionIds[ii]);
+                            failedSubscriptionIds.Add(subscriptions[ii].TransferId);
+                        }
                     }
+
+                    if (failedSubscriptionIds.Count > 0)
+                    {
+                        result = false;
+                    }
+
+                    Utils.LogInfo("Session REACTIVATEo of {0} subscriptions completed. {1} failed.", subscriptions.Count, failedSubscriptionIds.Count);
+                }
+                finally
+                {
+                    m_reconnecting = false;
+                    m_reconnectLock.Release();
                 }
 
-                var failedSubscriptionIds = new UInt32Collection();
-                for (int ii = 0; ii < subscriptions.Count; ii++)
-                {
-                    if (!subscriptions[ii].Transfer(this, subscriptionIds[ii], new UInt32Collection()))
-                    {
-                        Utils.LogError("SubscriptionId {0} failed to reactivate.", subscriptionIds[ii]);
-                        failedSubscriptionIds.Add(subscriptions[ii].TransferId);
-                    }
-                }
-
-                if (failedSubscriptionIds.Count > 0)
-                {
-                    return false;
-                }
+                RestartPublishing();
             }
             else
             {
                 Utils.LogInfo("No subscriptions. Transfersubscription skipped.");
             }
 
-            return true;
+            return result;
         }
 
         /// <summary>
@@ -3641,63 +3663,84 @@ namespace Opc.Ua.Client
             SubscriptionCollection subscriptions,
             bool sendInitialValues)
         {
+            bool result = true;
             UInt32Collection subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
-
             if (subscriptionIds.Count > 0)
             {
-                ResponseHeader responseHeader = base.TransferSubscriptions(null, subscriptionIds, sendInitialValues,
-                    out TransferResultCollection results, out DiagnosticInfoCollection diagnosticInfos);
-                if (!StatusCode.IsGood(responseHeader.ServiceResult))
+                if (m_reconnecting)
                 {
-                    Utils.LogError("TransferSubscription failed: {0}", responseHeader.ServiceResult);
+                    Utils.LogWarning("Already Reconnecting. Can not transfer subscriptions.");
                     return false;
                 }
-                ClientBase.ValidateResponse(results, subscriptionIds);
-                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
 
-                var failedSubscriptionIds = new UInt32Collection();
-                for (int ii = 0; ii < subscriptions.Count; ii++)
+                try
                 {
-                    if (StatusCode.IsGood(results[ii].StatusCode))
+                    m_reconnectLock.Wait();
+                    m_reconnecting = true;
+
+                    ResponseHeader responseHeader = base.TransferSubscriptions(null, subscriptionIds, sendInitialValues,
+                        out TransferResultCollection results, out DiagnosticInfoCollection diagnosticInfos);
+                    if (!StatusCode.IsGood(responseHeader.ServiceResult))
                     {
-                        if (subscriptions[ii].Transfer(this, subscriptionIds[ii], results[ii].AvailableSequenceNumbers))
+                        Utils.LogError("TransferSubscription failed: {0}", responseHeader.ServiceResult);
+                        return false;
+                    }
+                    ClientBase.ValidateResponse(results, subscriptionIds);
+                    ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
+
+                    var failedSubscriptionIds = new UInt32Collection();
+                    for (int ii = 0; ii < subscriptions.Count; ii++)
+                    {
+                        if (StatusCode.IsGood(results[ii].StatusCode))
                         {
-                            lock (SyncRoot)
+                            if (subscriptions[ii].Transfer(this, subscriptionIds[ii], results[ii].AvailableSequenceNumbers))
                             {
-                                // create ack for available sequence numbers
-                                foreach (var sequenceNumber in results[ii].AvailableSequenceNumbers)
+                                lock (SyncRoot)
                                 {
-                                    var ack = new SubscriptionAcknowledgement() {
-                                        SubscriptionId = subscriptionIds[ii],
-                                        SequenceNumber = sequenceNumber
-                                    };
-                                    m_acknowledgementsToSend.Add(ack);
+                                    // create ack for available sequence numbers
+                                    foreach (var sequenceNumber in results[ii].AvailableSequenceNumbers)
+                                    {
+                                        var ack = new SubscriptionAcknowledgement() {
+                                            SubscriptionId = subscriptionIds[ii],
+                                            SequenceNumber = sequenceNumber
+                                        };
+                                        m_acknowledgementsToSend.Add(ack);
+                                    }
                                 }
                             }
                         }
+                        else if (results[ii].StatusCode == StatusCodes.BadNothingToDo)
+                        {
+                            Utils.LogInfo("SubscriptionId {0} is already member of the session.", subscriptionIds[ii]);
+                        }
+                        else
+                        {
+                            Utils.LogError("SubscriptionId {0} failed to transfer, StatusCode={1}", subscriptionIds[ii], results[ii].StatusCode);
+                            failedSubscriptionIds.Add(subscriptions[ii].TransferId);
+                        }
                     }
-                    else if (results[ii].StatusCode == StatusCodes.BadNothingToDo)
+
+                    if (failedSubscriptionIds.Count > 0)
                     {
-                        Utils.LogInfo("SubscriptionId {0} is already member of the session.", subscriptionIds[ii]);
+                        result = false;
                     }
-                    else
-                    {
-                        Utils.LogError("SubscriptionId {0} failed to transfer, StatusCode={1}", subscriptionIds[ii], results[ii].StatusCode);
-                        failedSubscriptionIds.Add(subscriptions[ii].TransferId);
-                    }
+
+                    Utils.LogInfo("Session TRANSFER of {0} subscriptions completed. {1} failed.", subscriptions.Count, failedSubscriptionIds.Count);
+                }
+                finally
+                {
+                    m_reconnecting = false;
+                    m_reconnectLock.Release();
                 }
 
-                if (failedSubscriptionIds.Count > 0)
-                {
-                    return false;
-                }
+                RestartPublishing();
             }
             else
             {
                 Utils.LogInfo("No subscriptions. Transfersubscription skipped.");
             }
 
-            return true;
+            return result;
         }
         #endregion
 
@@ -5299,6 +5342,11 @@ namespace Opc.Ua.Client
 
             try
             {
+                // gate entry if transfer/reactivate is busy
+                m_reconnectLock.Wait();
+                bool reconnecting = m_reconnecting;
+                m_reconnectLock.Release();
+
                 // complete publish.
                 uint subscriptionId;
                 UInt32Collection availableSequenceNumbers;
@@ -5341,7 +5389,7 @@ namespace Opc.Ua.Client
                     notificationMessage);
 
                 // nothing more to do if reconnecting.
-                if (m_reconnecting)
+                if (reconnecting)
                 {
                     Utils.LogWarning("No new publish sent because of reconnect in progress.");
                     return;
@@ -5976,6 +6024,24 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Creates a publish requests for the active subscriptions.
+        /// </summary>
+        private void RestartPublishing()
+        {
+            int publishCount = 0;
+            lock (SyncRoot)
+            {
+                publishCount = GetMinPublishRequestCount();
+            }
+
+            // refill pipeline.
+            for (int ii = 0; ii < publishCount; ii++)
+            {
+                BeginPublish(OperationTimeout);
+            }
+        }
+
+        /// <summary>
         /// Creates and validates the subscription ids for a transfer.
         /// </summary>
         /// <param name="subscriptions">The subscriptions to transfer.</param>
@@ -6078,6 +6144,7 @@ namespace Opc.Ua.Client
         private Timer m_keepAliveTimer;
         private long m_keepAliveCounter;
         private bool m_reconnecting;
+        private SemaphoreSlim m_reconnectLock;
         private const int kReconnectTimeout = 15000;
         private const int kMinPublishRequestCountMax = 100;
         private const int kDefaultPublishRequestCount = 1;
