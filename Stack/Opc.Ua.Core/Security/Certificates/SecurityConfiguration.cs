@@ -88,23 +88,23 @@ namespace Opc.Ua
             var certificateTypes = CertificateIdentifier.MapSecurityPolicyToCertificateTypes(securityPolicy);
             foreach (var certType in certificateTypes)
             {
-                CertificateIdentifier id = ApplicationCertificates.FirstOrDefault(certId => certId.CertificateType == certType);
+                CertificateIdentifier id = ListOfCertificateIdentifier.FirstOrDefault(certId => certId.CertificateType == certType);
                 if (id == null)
                 {
                     if (certType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
                     {
                         // undefined certificate type as RsaSha256
-                        id = ApplicationCertificates.FirstOrDefault(certId => certId.CertificateType == null);
+                        id = ListOfCertificateIdentifier.FirstOrDefault(certId => certId.CertificateType == null);
                     }
                     else if (certType == ObjectTypeIds.ApplicationCertificateType)
                     {
                         // first certificate
-                        id = ApplicationCertificates.FirstOrDefault();
+                        id = ListOfCertificateIdentifier.FirstOrDefault();
                     }
                     else if (certType == ObjectTypeIds.EccApplicationCertificateType)
                     {
                         // first Ecc certificate
-                        id = ApplicationCertificates.FirstOrDefault(certId => X509Utils.IsECDsaSignature(certId.Certificate));
+                        id = ListOfCertificateIdentifier.FirstOrDefault(certId => X509Utils.IsECDsaSignature(certId.Certificate));
                     }
                 }
 
@@ -201,125 +201,9 @@ namespace Opc.Ua
             return new CertificateTrustList();
         }
 
-        /// <summary>
-        /// The tags of the supported certificate types.
-        /// </summary>
-        private static Dictionary<uint, string> m_supportedCertificateTypes = new Dictionary<uint, string>() {
-            { ObjectTypes.EccNistP256ApplicationCertificateType, "NistP256"},
-            { ObjectTypes.EccNistP384ApplicationCertificateType, "NistP384"},
-            { ObjectTypes.EccBrainpoolP256r1ApplicationCertificateType, "BrainpoolP256r1"},
-            { ObjectTypes.EccBrainpoolP384r1ApplicationCertificateType, "BrainpoolP384r1"},
-            { ObjectTypes.EccCurve25519ApplicationCertificateType, "Curve25519"},
-            { ObjectTypes.EccCurve448ApplicationCertificateType, "Curve448"},
-            { ObjectTypes.RsaSha256ApplicationCertificateType, "RsaSha256"},
-            { ObjectTypes.RsaMinApplicationCertificateType, "RsaMin"},
-            { ObjectTypes.ApplicationCertificateType, "Rsa"},
-        };
 
-        /// <summary>
-        /// Encode certificate types as comma separated string.
-        /// </summary>
-        private string EncodeApplicationCertificateTypes()
-        {
-            if (m_applicationCertificates != null)
-            {
-                var result = new StringBuilder();
-                bool commaRequired = false;
-                foreach (var applicationCertificate in m_applicationCertificates)
-                {
-                    string idName = null;
-                    if (applicationCertificate.CertificateType == null)
-                    {
-                        idName = "Rsa";
-                    }
-                    else if (applicationCertificate.CertificateType.Identifier is uint identifier)
-                    {
-                        if (m_supportedCertificateTypes.TryGetValue(identifier, out idName))
-                        {
-                            idName = idName.Substring(0, idName.IndexOf(nameof(ObjectTypes.ApplicationCertificateType), StringComparison.OrdinalIgnoreCase));
-                        }
-                    }
 
-                    if (result.ToString().IndexOf(idName, StringComparison.OrdinalIgnoreCase) >= 0)
-                    {
-                        continue;
-                    }
 
-                    if (commaRequired)
-                    {
-                        result.Append(',');
-                    }
-                    result.Append(idName);
-                    commaRequired = true;
-                }
-                if (commaRequired)
-                {
-                    return result.ToString();
-                }
-            }
-            return null;
-        }
-
-        /// <summary>
-        /// Clones the default application certificate with
-        /// certificate types specified in the configuration.
-        /// </summary>
-        /// <param name="certificateTypes">
-        /// A comma separated string of certificate
-        /// types to clone from the default certificate.
-        /// </param>
-        private void DecodeApplicationCertificateTypes(string certificateTypes)
-        {
-            if (m_applicationCertificates.Count > 0)
-            {
-                // fix null certType
-                var idNull = m_applicationCertificates.FirstOrDefault(id => id.CertificateType == null);
-                if (idNull != null)
-                {
-                    idNull.CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType;
-                }
-                CertificateIdentifier template = m_applicationCertificates[0];
-                if (!String.IsNullOrWhiteSpace(certificateTypes))
-                {
-                    var result = new NodeIdDictionary<CertificateIdentifier>();
-                    var certificateTypesArray = certificateTypes.Trim().Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                    foreach (var certType in certificateTypesArray)
-                    {
-                        foreach (var profile in m_supportedCertificateTypes)
-                        {
-                            if (profile.Value.IndexOf(certType.Trim(), StringComparison.OrdinalIgnoreCase) >= 0)
-                            {
-                                var certificateType = new NodeId(profile.Key);
-                                if (Utils.IsSupportedCertificateType(certificateType))
-                                {
-                                    // no duplicates
-                                    if (m_applicationCertificates.Any(id => id.CertificateType == certificateType))
-                                    {
-                                        break;
-                                    }
-                                    m_applicationCertificates.Add(new CertificateIdentifier() {
-                                        StoreType = template.StoreType,
-                                        StorePath = template.StorePath,
-                                        SubjectName = template.SubjectName,
-                                        CertificateType = certificateType
-                                    });
-                                }
-                                else
-                                {
-                                    Utils.LogWarning("Ignoring certificateType {0} because the platform doesn't support it.",
-                                        profile.Value);
-                                }
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            else
-            {
-                throw new ServiceResultException(StatusCodes.BadConfigurationError, "Need application certificate to clone certificate types.");
-            }
-        }
         #endregion
     }
     #endregion

@@ -120,6 +120,31 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns the size of the public key of a given certificate
+        /// </summary>
+        /// <param name="certificate">The certificate</param>
+        public static int GetPublicKeySize(X509Certificate2 certificate)
+        {
+            using (RSA rsaPublicKey = certificate.GetRSAPublicKey())
+            {
+                if (rsaPublicKey != null)
+                {
+                    return rsaPublicKey.KeySize;
+                }
+            }
+
+            using (ECDsa ecdsaPublicKey = certificate.GetECDsaPublicKey())
+            {
+                if (ecdsaPublicKey != null)
+                {
+                    return ecdsaPublicKey.KeySize;
+                }
+            }
+
+            return -1;
+        }
+
+        /// <summary>
         /// Extracts the application URI specified in the certificate.
         /// </summary>
         /// <param name="certificate">The certificate.</param>

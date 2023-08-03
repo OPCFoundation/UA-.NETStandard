@@ -459,8 +459,8 @@ namespace Opc.Ua.Configuration
         /// At this time the following types are supported, if the platform OS and .NET version can handle it.
         /// Rsa,nistP256,nistP384,brainpoolP256r1,brainpoolP384r1
         /// </remarks>
-        /// <param name="types">A comma seperated list of supported types</param>
-        IApplicationConfigurationBuilderSecurityOptions SetApplicationCertificateTypes(string types);
+        /// <param name="certIdList">A list of Certificate identifiers</param>
+        IApplicationConfigurationBuilderSecurityOptions SetListOfCertificateIdentifier(CertificateIdentifierCollection certIdList);
 
         /// <summary>
         /// Whether an unknown application certificate should be accepted
@@ -517,6 +517,13 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="keySize">The minimum RSA key size to accept.</param>
         IApplicationConfigurationBuilderSecurityOptions SetMinimumCertificateKeySize(ushort keySize);
+
+        /// <summary>
+        /// The minimum ECDSA key size to accept.
+        /// By default the key size is set to <see cref="CertificateFactory.DefaultKeySize"/>.
+        /// </summary>
+        /// <param name="keySize">The minimum ECDSA key size to accept.</param>
+        IApplicationConfigurationBuilderSecurityOptions SetMinimumECCertificateKeySize(ushort keySize);
 
         /// <summary>
         /// Add a certificate password provider.

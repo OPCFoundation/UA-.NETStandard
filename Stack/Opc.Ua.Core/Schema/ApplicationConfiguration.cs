@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 
@@ -668,7 +669,7 @@ namespace Opc.Ua
             switch (policyUri)
             {
                 case SecurityPolicies.Basic128Rsa15: result = 2; break;
-                case SecurityPolicies.ECC_curve25519: 
+                case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
                 case SecurityPolicies.Basic256: result = 4; break;
                 case SecurityPolicies.Basic256Sha256: result = 6; break;
@@ -781,7 +782,7 @@ namespace Opc.Ua
             m_addAppCertToTrustedStore = true;
             m_sendCertificateChain = true;
             m_suppressNonceValidationErrors = false;
-            m_supportedSecurityPolicies = new StringCollection();
+            m_isDeprecatedConfiguration = false;
         }
 
         /// <summary>
@@ -800,7 +801,7 @@ namespace Opc.Ua
         /// This certificate must contain the application uri.
         /// For servers, URLs for each supported protocol must also be present.
         /// </remarks>
-        [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 10)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 10)]
         public CertificateIdentifier ApplicationCertificate
         {
             get
@@ -829,35 +830,47 @@ namespace Opc.Ua
                     m_applicationCertificates.Add(value);
                 }
                 SupportedSecurityPolicies = BuildSupportedSecurityPolicies();
+
+
+                m_isDeprecatedConfiguration = true;
+
             }
         }
 
         /// <summary>
         /// The application instance certificates in use for the application.
         /// </summary>
-        public CertificateIdentifierCollection ApplicationCertificates
-        {
-            get
-            {
-                return m_applicationCertificates;
-            }
-        }
-
-        /// <summary>
-        /// The supported application certificate types.
-        /// </summary>
-        /// <remarks>
-        /// The application by default only supports RSA certificates.
-        /// To use more certificate types add the types to the list,
-        /// e.g. NistP384, BrainpoolP384r1.
-        /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 15)]
-        public string ApplicationCertificateTypes
+        public CertificateIdentifierCollection ListOfCertificateIdentifier
         {
-            get { return EncodeApplicationCertificateTypes(); }
+            get => m_applicationCertificates;
             set
             {
-                DecodeApplicationCertificateTypes(value);
+                m_applicationCertificates = value ?? new CertificateIdentifierCollection();
+
+                m_isDeprecatedConfiguration = false;
+
+                // Remove any unsupported certificate types.
+                for (int i = m_applicationCertificates.Count - 1; i >= 0; i--)
+                {
+                    if (!Utils.IsSupportedCertificateType(m_applicationCertificates[i].CertificateType))
+                    {
+                        m_applicationCertificates.RemoveAt(i);
+                    }
+                }
+
+                // Remove any duplicates
+                for (int i = 0; i < m_applicationCertificates.Count; i++)
+                {
+                    for (int j = m_applicationCertificates.Count - 1; j > i; j--)
+                    {
+                        if (m_applicationCertificates[i].CertificateType == m_applicationCertificates[j].CertificateType)
+                        {
+                            m_applicationCertificates.RemoveAt(j);
+                        }
+                    }
+                }
+
                 SupportedSecurityPolicies = BuildSupportedSecurityPolicies();
             }
         }
@@ -984,6 +997,20 @@ namespace Opc.Ua
         {
             get { return m_minCertificateKeySize; }
             set { m_minCertificateKeySize = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets a value indicating which minimum certificate key strength is accepted for certificates with a ECDSA signature..
+        /// The value is ignored for certificates with a RSA signature.
+        /// </summary>
+        /// <remarks>
+        /// This value can be set to 256 or 448 by servers
+        /// </remarks>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 125)]
+        public ushort MinimumECCertificateKeySize
+        {
+            get { return m_minECCertificateKeySize; }
+            set { m_minECCertificateKeySize = value; }
         }
 
         /// <summary>
@@ -1128,9 +1155,22 @@ namespace Opc.Ua
             get { return m_suppressNonceValidationErrors; }
             set { m_suppressNonceValidationErrors = value; }
         }
+
+
         #endregion
 
-        #region Private Fields
+        #region Non-Persistent Properties
+        /// <summary>
+        /// The type of Configuration (deprecated or not)
+        /// </summary>
+        public bool IsDeprecatedConfiguration
+        {
+            get { return m_isDeprecatedConfiguration; }
+        }
+
+        #endregion
+
+        #region Private Fields       
         private CertificateIdentifierCollection m_applicationCertificates;
         private CertificateTrustList m_trustedIssuerCertificates;
         private CertificateTrustList m_trustedPeerCertificates;
@@ -1146,11 +1186,12 @@ namespace Opc.Ua
         private bool m_rejectSHA1SignedCertificates;
         private bool m_rejectUnknownRevocationStatus;
         private ushort m_minCertificateKeySize;
+        private ushort m_minECCertificateKeySize;
         private bool m_useValidatedCertificates;
         private bool m_addAppCertToTrustedStore;
         private bool m_sendCertificateChain;
         private bool m_suppressNonceValidationErrors;
-        private StringCollection m_supportedSecurityPolicies;
+        private bool m_isDeprecatedConfiguration;
         #endregion
     }
     #endregion
@@ -3269,8 +3310,12 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 80)]
         public NodeId CertificateType
         {
-            get { return m_certificateType; }
-            set { m_certificateType = value; }
+            get => m_certificateType;
+            set => m_certificateType = value;
+
+            // get { return EncodeCertificateType(m_certificateType); }
+            // set { m_certificateType = DecodeCertificateType (value); }
+
         }
         #endregion
 

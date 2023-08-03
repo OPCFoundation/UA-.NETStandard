@@ -577,7 +577,10 @@ namespace Opc.Ua
                         certificateType == ObjectTypeIds.RsaMinApplicationCertificateType ||
                         certificateType == ObjectTypeIds.ApplicationCertificateType)
                     {
-                        return true;
+                        if (X509Utils.GetRSAPublicKeySize(certificate) >= CertificateFactory.DefaultKeySize)
+                        {
+                            return true;
+                        }
                     }
                     break;
             }
@@ -641,6 +644,23 @@ namespace Opc.Ua
             Utils.SilentDispose(certificate);
         }
         #endregion
+
+        #region Private Members
+        /// <summary>
+        /// The tags of the supported certificate types.
+        /// </summary>
+        private static Dictionary<uint, string> m_supportedCertificateTypes = new Dictionary<uint, string>() {
+            { ObjectTypes.EccNistP256ApplicationCertificateType, "NistP256"},
+            { ObjectTypes.EccNistP384ApplicationCertificateType, "NistP384"},
+            { ObjectTypes.EccBrainpoolP256r1ApplicationCertificateType, "BrainpoolP256r1"},
+            { ObjectTypes.EccBrainpoolP384r1ApplicationCertificateType, "BrainpoolP384r1"},
+            { ObjectTypes.EccCurve25519ApplicationCertificateType, "Curve25519"},
+            { ObjectTypes.EccCurve448ApplicationCertificateType, "Curve448"},
+            { ObjectTypes.RsaSha256ApplicationCertificateType, "RsaSha256"},
+            { ObjectTypes.RsaMinApplicationCertificateType, "RsaMin"},
+            { ObjectTypes.ApplicationCertificateType, "Rsa"},
+        };
+#endregion
 
         #region Private Methods
         /// <summary>
@@ -711,6 +731,50 @@ namespace Opc.Ua
 
             // potentially valid.
             return true;
+        }
+
+        /// <summary>
+        /// The tags of the supported certificate types used to encode the NodeId coressponding to existing value.
+        /// </summary>
+        // TODO: remove if not used
+        private static string EncodeCertificateType(NodeId certificateType)
+        {
+            if (certificateType == null)
+            {
+                return null;
+            }
+
+            foreach (KeyValuePair<uint, string> supportedCertificateType in m_supportedCertificateTypes)
+            {
+                if (supportedCertificateType.Key == (uint)certificateType.Identifier)
+                {
+                    return supportedCertificateType.Value;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// The tags of the supported certificate types used to decode the NodeId coressponding to existing value.
+        /// </summary>
+        // TODO: remove if not used
+        private static NodeId DecodeCertificateType(string certificateType)
+        {
+            if (certificateType == null)
+            {
+                return null;
+            }
+
+            foreach (var supportedCertificateType in m_supportedCertificateTypes)
+            {
+                if (supportedCertificateType.Value == certificateType)
+                {
+                    return new NodeId(supportedCertificateType.Key);
+                }
+            }
+
+            return null;
         }
         #endregion
     }
@@ -1007,16 +1071,16 @@ namespace Opc.Ua
             var certificateTypes = CertificateIdentifier.MapSecurityPolicyToCertificateTypes(securityPolicyUri);
             foreach (var certType in certificateTypes)
             {
-                var instanceCertificate = m_securityConfiguration.ApplicationCertificates.FirstOrDefault(id => id.CertificateType == certType);
+                var instanceCertificate = m_securityConfiguration.ListOfCertificateIdentifier.FirstOrDefault(id => id.CertificateType == certType);
                 if (instanceCertificate == null &&
                     certType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
                 {
-                    instanceCertificate = m_securityConfiguration.ApplicationCertificates.FirstOrDefault(id => id.CertificateType == null);
+                    instanceCertificate = m_securityConfiguration.ListOfCertificateIdentifier.FirstOrDefault(id => id.CertificateType == null);
                 }
                 if (instanceCertificate == null &&
                     certType == ObjectTypeIds.ApplicationCertificateType)
                 {
-                    instanceCertificate = m_securityConfiguration.ApplicationCertificates.FirstOrDefault();
+                    instanceCertificate = m_securityConfiguration.ListOfCertificateIdentifier.FirstOrDefault();
                 }
                 if (instanceCertificate != null)
                 {
@@ -1035,7 +1099,7 @@ namespace Opc.Ua
         {
             foreach (var certType in certificateTypes)
             {
-                var instanceCertificate = m_securityConfiguration.ApplicationCertificates.FirstOrDefault(id => id.CertificateType == certType);
+                var instanceCertificate = m_securityConfiguration.ListOfCertificateIdentifier.FirstOrDefault(id => id.CertificateType == certType);
                 if (instanceCertificate != null)
                 {
                     return instanceCertificate.Find(privateKey);

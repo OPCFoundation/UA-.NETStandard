@@ -4,6 +4,7 @@
   xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
   xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
 > 
+<!-- xsi:schemaLocation="http://opcfoundation.org/UA/SDK/Configuration.xsd ./Configuration.xsd" -->
   <ApplicationName>Quickstart Reference Server</ApplicationName>
   <ApplicationUri>urn:localhost:UA:Quickstarts:ReferenceServer</ApplicationUri>
   <ProductUri>uri:opcfoundation.org:Quickstarts:ReferenceServer</ProductUri>
@@ -12,56 +13,44 @@
   <SecurityConfiguration>
 
     <!-- Which certificate types are supported  -->
-    <ApplicationCertificates>
-      <ApplicationCertificate>
-        <TypeId>Rsa</TypeId>
+    <ListOfCertificateIdentifier>
+      <CertificateIdentifier>
+        <StoreType>Directory</StoreType>
+        <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
         <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
-        <CertificateStore>
-          <StoreType>Directory</StoreType>
-          <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
-        </CertificateStore>
-      </ApplicationCertificate>
-      <ApplicationCertificate>
-        <TypeId>NistP256</TypeId>
+        <!-- <CertificateType>Rsa</CertificateType> -->
+        <CertificateType><ua:Identifier>i=12560</ua:Identifier></CertificateType>
+      </CertificateIdentifier>
+      <CertificateIdentifier>
+        <!-- <TypeId>NistP256</TypeId> -->
+        <StoreType>Directory</StoreType>
+        <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
         <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
-        <CertificateStore>
-          <StoreType>Directory</StoreType>
-          <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
-        </CertificateStore>
-      </ApplicationCertificate>
-      <ApplicationCertificate>
-        <TypeId>NistP384</TypeId>
+        <!-- <CertificateType>NistP256</CertificateType> -->
+        <CertificateType><ua:Identifier>i=23538</ua:Identifier></CertificateType>
+      </CertificateIdentifier>
+      <CertificateIdentifier>
+        <!-- <TypeId>NistP384</TypeId> -->
+        <StoreType>Directory</StoreType>
+        <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
         <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
-        <CertificateStore>
-          <StoreType>Directory</StoreType>
-          <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
-        </CertificateStore>
-      </ApplicationCertificate>
-      <ApplicationCertificate>
-        <TypeId>BrainpoolP256r1</TypeId>
+        <CertificateType><ua:Identifier>i=23539</ua:Identifier></CertificateType>
+      </CertificateIdentifier>
+      <CertificateIdentifier>
+        <!-- <TypeId>BrainpoolP256r1</TypeId> -->
+        <StoreType>Directory</StoreType>
+        <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
         <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
-        <CertificateStore>
-          <StoreType>Directory</StoreType>
-          <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
-        </CertificateStore>
-      </ApplicationCertificate>
-      <ApplicationCertificate>
-        <TypeId>BrainpoolP384r1</TypeId>
+        <CertificateType><ua:Identifier>i=23540</ua:Identifier></CertificateType>
+      </CertificateIdentifier>
+      <CertificateIdentifier>
+        <!-- <TypeId>BrainpoolP384r1</TypeId> -->
+        <StoreType>Directory</StoreType>
+        <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
         <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
-        <CertificateStore>
-          <StoreType>Directory</StoreType>
-          <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
-        </CertificateStore>
-      </ApplicationCertificate>
-      <ApplicationCertificate>
-        <TypeId>Rsa4096</TypeId>
-        <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
-        <CertificateStore>
-          <StoreType>Directory</StoreType>
-          <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
-        </CertificateStore>
-      </ApplicationCertificate>
-    </ApplicationCertificates>
+        <CertificateType><ua:Identifier>i=23541</ua:Identifier></CertificateType>
+      </CertificateIdentifier>
+    </ListOfCertificateIdentifier>
 
     <!-- Where the other application certificates are stored -->
 
@@ -143,7 +132,7 @@
     </AlternateBaseAddresses>
     -->
     <SecurityPolicies>
-	  <!-- the first policy is used for the https endpoint -->
+      <!-- the first policy is used for the https endpoint -->
       <ServerSecurityPolicy>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
@@ -319,7 +308,7 @@
     </SupportedPrivateKeyFormats>
     <MaxTrustListSize>0</MaxTrustListSize>
     <MultiCastDnsEnabled>false</MultiCastDnsEnabled>
-    
+
     <!--  Reverse connection parameters for aggregation server sample -->
     <!--
     <ReverseConnect>

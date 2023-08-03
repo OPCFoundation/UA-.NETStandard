@@ -28,12 +28,12 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Xml;
+
 
 namespace Opc.Ua.Configuration
 {
@@ -390,9 +390,9 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderSecurityOptions SetApplicationCertificateTypes(string types)
+        public IApplicationConfigurationBuilderSecurityOptions SetListOfCertificateIdentifier(CertificateIdentifierCollection certIdList)
         {
-            ApplicationConfiguration.SecurityConfiguration.ApplicationCertificateTypes = types;
+            ApplicationConfiguration.SecurityConfiguration.ListOfCertificateIdentifier = certIdList;
             return this;
         }
 
@@ -451,6 +451,14 @@ namespace Opc.Ua.Configuration
             ApplicationConfiguration.SecurityConfiguration.MinimumCertificateKeySize = keySize;
             return this;
         }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderSecurityOptions SetMinimumECCertificateKeySize(ushort keySize)
+        {
+            ApplicationConfiguration.SecurityConfiguration.MinimumECCertificateKeySize = keySize;
+            return this;
+        }
+
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderSecurityOptions AddCertificatePasswordProvider(ICertificatePasswordProvider certificatePasswordProvider)
