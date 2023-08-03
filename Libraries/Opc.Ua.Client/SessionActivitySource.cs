@@ -40,15 +40,14 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Manages a session with a server.
+    /// Manages a session with a server with Activity Source.
     /// </summary>
     public class SessionActivitySource : ISession
     {
         #region Constructors
         /// <summary>
-        /// Constructs a new instance of the <see cref="Session"/> class.
+        /// Initializes a new instance of the class.
         /// </summary>
-        /// <param name="session"></param>
         public SessionActivitySource(ISession session)
         {
             m_session = session;
