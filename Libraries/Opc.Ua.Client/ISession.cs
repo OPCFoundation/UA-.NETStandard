@@ -275,6 +275,11 @@ namespace Opc.Ua.Client
         /// be transferred after reconnect. Service must be supported by server.
         /// </remarks>   
         bool TransferSubscriptionsOnReconnect { get; set; }
+
+        /// <summary>
+        /// Whether the endpoint Url domain is checked in the certificate.
+        /// </summary>
+        bool CheckDomain { get; }
         #endregion
 
         #region Delegates and Events
@@ -331,6 +336,17 @@ namespace Opc.Ua.Client
         /// <param name="transferSubscriptions">Load the subscriptions for transfer after load.</param>
         /// <returns>The list of loaded subscriptions</returns>
         IEnumerable<Subscription> Load(string filePath, bool transferSubscriptions = false);
+
+        /// <summary>
+        /// Returns the active session configuration and writes it to a stream.
+        /// </summary>
+        SessionConfiguration SaveSessionConfiguration(Stream stream = null);
+
+        /// <summary>
+        /// Applies a session configuration.
+        /// Using a secure channel, with the session configuration a session can be reconnected.
+        /// </summary>
+        bool ApplySessionConfiguration(SessionConfiguration sessionConfiguration);
 
         /// <summary>
         /// Updates the local copy of the server's namespace uri and server uri tables.
@@ -641,8 +657,17 @@ namespace Opc.Ua.Client
         bool RemoveSubscriptions(IEnumerable<Subscription> subscriptions);
 
         /// <summary>
-        /// Transfers a list of Subscriptions from another session.
+        /// Reactivates a list of subscriptions loaded from storage.
         /// </summary>
+        /// <param name="subscriptions">The list of subscriptions to reactivate.</param>
+        /// <param name="sendInitialValues">Send the last value of each monitored item in the subscriptions.</param>
+        bool ReactivateSubscriptions(SubscriptionCollection subscriptions, bool sendInitialValues);
+
+        /// <summary>
+        /// Transfers a list of subscriptions from another session.
+        /// </summary>
+        /// <param name="subscriptions">The list of subscriptions to transfer.</param>
+        /// <param name="sendInitialValues">Send the last value of each monitored item in the subscriptions.</param>
         bool TransferSubscriptions(SubscriptionCollection subscriptions, bool sendInitialValues);
 
         /// <summary>
@@ -658,13 +683,31 @@ namespace Opc.Ua.Client
         /// Removes a subscription from the session.
         /// </summary>
         /// <param name="subscription">The subscription to remove.</param>
-        Task<bool> RemoveSubscriptionAsync(Subscription subscription);
+        /// <param name="ct">The cancellation token for the request.</param>
+        Task<bool> RemoveSubscriptionAsync(Subscription subscription, CancellationToken ct = default);
 
         /// <summary>
-        /// Removes a list of subscriptions from the sessiont.
+        /// Removes a list of subscriptions from the session.
         /// </summary>
         /// <param name="subscriptions">The list of subscriptions to remove.</param>
-        Task<bool> RemoveSubscriptionsAsync(IEnumerable<Subscription> subscriptions);
+        /// <param name="ct">The cancellation token for the request.</param>
+        Task<bool> RemoveSubscriptionsAsync(IEnumerable<Subscription> subscriptions, CancellationToken ct = default);
+
+        /// <summary>
+        /// Reactivates a list of subscriptions loaded from storage.
+        /// </summary>
+        /// <param name="subscriptions">The list of subscriptions to reactivate.</param>
+        /// <param name="sendInitialValues">Send the last value of each monitored item in the subscriptions.</param>
+        /// <param name="ct">The cancellation token for the request.</param>
+        Task<bool> ReactivateSubscriptionsAsync(SubscriptionCollection subscriptions, bool sendInitialValues, CancellationToken ct = default);
+
+        /// <summary>
+        /// Transfers a list of subscriptions from another session.
+        /// </summary>
+        /// <param name="subscriptions">The list of subscriptions to transfer.</param>
+        /// <param name="sendInitialValues">Send the last value of each monitored item in the subscriptions.</param>
+        /// <param name="ct">The cancellation token for the request.</param>
+        Task<bool> TransferSubscriptionsAsync(SubscriptionCollection subscriptions, bool sendInitialValues, CancellationToken ct = default);
 #endif
         #endregion
 
@@ -770,6 +813,18 @@ namespace Opc.Ua.Client
         /// <param name="args">The input arguments.</param>
         /// <returns>The list of output argument values.</returns>
         IList<object> Call(NodeId objectId, NodeId methodId, params object[] args);
+
+#if CLIENT_ASYNC
+        /// <summary>
+        /// Calls the specified method and returns the output arguments.
+        /// </summary>
+        /// <param name="objectId">The NodeId of the object that provides the method.</param>
+        /// <param name="methodId">The NodeId of the method to call.</param>
+        /// <param name="ct">The cancellation token for the request.</param>
+        /// <param name="args">The input arguments.</param>
+        /// <returns>The list of output argument values.</returns>
+        Task<IList<object>> CallAsync(NodeId objectId, NodeId methodId, CancellationToken ct = default, params object[] args);
+#endif
         #endregion
 
         #region Publish Methods
@@ -782,6 +837,18 @@ namespace Opc.Ua.Client
         /// Sends a republish request.
         /// </summary>
         bool Republish(uint subscriptionId, uint sequenceNumber);
+
+        /// <summary>
+        /// Call the ResendData method on the server for all subscriptions.
+        /// </summary>
+        bool ResendData(IEnumerable<Subscription> subscriptions, out IList<ServiceResult> errors);
+
+#if CLIENT_ASYNC
+        /// <summary>
+        /// Call the ResendData method on the server for all subscriptions.
+        /// </summary>
+        Task<(bool, IList<ServiceResult>)> ResendDataAsync(IEnumerable<Subscription> subscriptions, CancellationToken ct = default);
+#endif
         #endregion
     }
 }

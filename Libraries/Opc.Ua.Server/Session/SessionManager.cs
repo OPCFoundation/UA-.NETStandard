@@ -63,6 +63,7 @@ namespace Opc.Ua.Server
             m_minNonceLength = configuration.SecurityConfiguration.NonceLength;
 
             m_sessions = new Dictionary<NodeId, Session>();
+            m_lastSessionId = BitConverter.ToInt64(Utils.Nonce.CreateNonce(sizeof(long)), 0);
 
             // create a event to signal shutdown.
             m_shutdownEvent = new ManualResetEvent(true);
@@ -183,9 +184,9 @@ namespace Opc.Ua.Server
                         }
                     }
                 }
+
                 // can assign a simple identifier if secured.
                 authenticationToken = null;
-
                 if (!String.IsNullOrEmpty(context.ChannelContext.SecureChannelId))
                 {
                     if (context.ChannelContext.EndpointDescription.SecurityMode != MessageSecurityMode.None)

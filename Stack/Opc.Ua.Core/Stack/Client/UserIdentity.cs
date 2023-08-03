@@ -11,7 +11,9 @@
 */
 
 using System;
+using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
+using System.Security.Principal;
 using System.Xml;
 
 namespace Opc.Ua
@@ -19,6 +21,7 @@ namespace Opc.Ua
     /// <summary>
     /// A generic user identity class.
     /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class UserIdentity : IUserIdentity
     {
         #region Constructors
@@ -84,6 +87,21 @@ namespace Opc.Ua
         {
             Initialize(token);
         }
+
+        /// <summary>
+        /// Initializes the object during deserialization.
+        /// </summary>
+        /// <remarks>
+        /// The user identity encodes only the token type,
+        /// the issued token and the policy id, if available.
+        /// Hence, the default constructor
+        /// is used to initialize the token as anonymous.
+        /// </remarks>
+        [OnDeserializing()]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize(new AnonymousIdentityToken());
+        }
         #endregion
 
         #region IUserIdentity Members
@@ -93,6 +111,7 @@ namespace Opc.Ua
         /// <remarks>
         /// This value is used to initialize the UserIdentityToken object when GetIdentityToken() is called.
         /// </remarks>
+        [DataMember(Name = "PolicyId", IsRequired = false, Order = 10)]
         public string PolicyId
         {
             get { return m_token.PolicyId; }
@@ -106,15 +125,19 @@ namespace Opc.Ua
         }
 
         /// <summary cref="IUserIdentity.TokenType" />
+        [DataMember(Name = "TokenType", IsRequired = true, Order = 20)]
         public UserTokenType TokenType
         {
             get { return m_tokenType; }
+            private set { m_tokenType = value; }
         }
 
         /// <summary cref="IUserIdentity.IssuedTokenType" />
+        [DataMember(Name = "IssuedTokenType", IsRequired = false, Order = 30)]
         public XmlQualifiedName IssuedTokenType
         {
             get { return m_issuedTokenType; }
+            private set { m_issuedTokenType = value; }
         }
 
         /// <summary cref="IUserIdentity.SupportsSignatures" />
@@ -246,6 +269,12 @@ namespace Opc.Ua
     /// </summary>
     public class ImpersonationContext
     {
+        #region Public Members
+        /// <summary>
+        /// The security principal being impersonated.
+        /// </summary>
+        public IPrincipal Principal { get; set; }
+        #endregion
     }
     #endregion
 }

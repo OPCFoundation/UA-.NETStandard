@@ -44,17 +44,14 @@ namespace Opc.Ua.Client
     public partial class Session : SessionClientBatched, ISession, IDisposable
     {
         #region Subscription Async Methods
-        /// <summary>
-        /// Removes a subscription from the session.
-        /// </summary>
-        /// <param name="subscription">The subscription to remove.</param>
-        public async Task<bool> RemoveSubscriptionAsync(Subscription subscription)
+        /// <inheritdoc/>
+        public async Task<bool> RemoveSubscriptionAsync(Subscription subscription, CancellationToken ct = default)
         {
             if (subscription == null) throw new ArgumentNullException(nameof(subscription));
 
             if (subscription.Created)
             {
-                await subscription.DeleteAsync(false).ConfigureAwait(false);
+                await subscription.DeleteAsync(false, ct).ConfigureAwait(false);
             }
 
             lock (SyncRoot)
@@ -75,11 +72,8 @@ namespace Opc.Ua.Client
             return true;
         }
 
-        /// <summary>
-        /// Removes a list of subscriptions from the sessiont.
-        /// </summary>
-        /// <param name="subscriptions">The list of subscriptions to remove.</param>
-        public async Task<bool> RemoveSubscriptionsAsync(IEnumerable<Subscription> subscriptions)
+        /// <inheritdoc/>
+        public async Task<bool> RemoveSubscriptionsAsync(IEnumerable<Subscription> subscriptions, CancellationToken ct = default)
         {
             if (subscriptions == null) throw new ArgumentNullException(nameof(subscriptions));
 
@@ -89,7 +83,7 @@ namespace Opc.Ua.Client
 
             foreach (Subscription subscription in subscriptionsToDelete)
             {
-                await subscription.DeleteAsync(true).ConfigureAwait(false);
+                await subscription.DeleteAsync(true, ct).ConfigureAwait(false);
             }
 
             if (removed)
@@ -102,22 +96,190 @@ namespace Opc.Ua.Client
 
             return removed;
         }
+
+        /// <inheritdoc/>
+        public async Task<bool> ReactivateSubscriptionsAsync(
+            SubscriptionCollection subscriptions,
+            bool sendInitialValues,
+            CancellationToken ct = default)
+        {
+            UInt32Collection subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
+            int failedSubscriptions = 0;
+
+            if (subscriptionIds.Count > 0)
+            {
+                try
+                {
+                    await m_reconnectLock.WaitAsync().ConfigureAwait(false);
+                    m_reconnecting = true;
+
+                    for (int ii = 0; ii < subscriptions.Count; ii++)
+                    {
+                        if (!await subscriptions[ii].TransferAsync(this, subscriptionIds[ii], new UInt32Collection(), ct).ConfigureAwait(false))
+                        {
+                            Utils.LogError("SubscriptionId {0} failed to reactivate.", subscriptionIds[ii]);
+                            failedSubscriptions++;
+                        }
+                    }
+
+                    if (sendInitialValues)
+                    {
+                        (bool success, IList<ServiceResult> resendResults) = await ResendDataAsync(subscriptions, ct).ConfigureAwait(false);
+                        if (!success)
+                        {
+                            Utils.LogError("Failed to call resend data for subscriptions.");
+                        }
+                        else if (resendResults != null)
+                        {
+                            for (int ii = 0; ii < resendResults.Count; ii++)
+                            {
+                                // no need to try for subscriptions which do not exist
+                                if (StatusCode.IsNotGood(resendResults[ii].StatusCode))
+                                {
+                                    Utils.LogError("SubscriptionId {0} failed to resend data.", subscriptionIds[ii]);
+                                }
+                            }
+                        }
+                    }
+
+                    Utils.LogInfo("Session REACTIVATE of {0} subscriptions completed. {1} failed.", subscriptions.Count, failedSubscriptions);
+                }
+                finally
+                {
+                    m_reconnecting = false;
+                    m_reconnectLock.Release();
+                }
+
+                RestartPublishing();
+            }
+            else
+            {
+                Utils.LogInfo("No subscriptions. Transfersubscription skipped.");
+            }
+
+            return failedSubscriptions == 0;
+        }
+
+        /// <inheritdoc/>
+        public async Task<(bool, IList<ServiceResult>)> ResendDataAsync(IEnumerable<Subscription> subscriptions, CancellationToken ct)
+        {
+            CallMethodRequestCollection requests = CreateCallRequestsForResendData(subscriptions);
+
+            IList<ServiceResult> errors = new List<ServiceResult>(requests.Count);
+            try
+            {
+                CallResponse response = await CallAsync(null, requests, ct).ConfigureAwait(false);
+                CallMethodResultCollection results = response.Results;
+                DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+                ResponseHeader responseHeader = response.ResponseHeader;
+                ClientBase.ValidateResponse(results, requests);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, requests);
+
+                int ii = 0;
+                foreach (var value in results)
+                {
+                    ServiceResult result = ServiceResult.Good;
+                    if (StatusCode.IsNotGood(value.StatusCode))
+                    {
+                        result = ClientBase.GetResult(value.StatusCode, ii, diagnosticInfos, responseHeader);
+                    }
+                    errors.Add(result);
+                    ii++;
+                }
+
+                return (true, errors);
+            }
+            catch (ServiceResultException sre)
+            {
+                Utils.LogError(sre, "Failed to call ResendData on server.");
+            }
+
+            return (false, errors);
+        }
+
+        /// <inheritdoc/>
+        public async Task<bool> TransferSubscriptionsAsync(
+            SubscriptionCollection subscriptions,
+            bool sendInitialValues,
+            CancellationToken ct)
+        {
+            UInt32Collection subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
+            int failedSubscriptions = 0;
+
+            if (subscriptionIds.Count > 0)
+            {
+                try
+                {
+                    await m_reconnectLock.WaitAsync().ConfigureAwait(false);
+                    m_reconnecting = true;
+
+                    TransferSubscriptionsResponse response = await base.TransferSubscriptionsAsync(null, subscriptionIds, sendInitialValues, ct).ConfigureAwait(false);
+                    TransferResultCollection results = response.Results;
+                    DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+                    ResponseHeader responseHeader = response.ResponseHeader;
+
+                    if (!StatusCode.IsGood(responseHeader.ServiceResult))
+                    {
+                        Utils.LogError("TransferSubscription failed: {0}", responseHeader.ServiceResult);
+                        return false;
+                    }
+
+                    ClientBase.ValidateResponse(results, subscriptionIds);
+                    ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
+
+                    for (int ii = 0; ii < subscriptions.Count; ii++)
+                    {
+                        if (StatusCode.IsGood(results[ii].StatusCode))
+                        {
+                            if (await subscriptions[ii].TransferAsync(this, subscriptionIds[ii], results[ii].AvailableSequenceNumbers).ConfigureAwait(false))
+                            {
+                                lock (SyncRoot)
+                                {
+                                    // create ack for available sequence numbers
+                                    foreach (var sequenceNumber in results[ii].AvailableSequenceNumbers)
+                                    {
+                                        var ack = new SubscriptionAcknowledgement() {
+                                            SubscriptionId = subscriptionIds[ii],
+                                            SequenceNumber = sequenceNumber
+                                        };
+                                        m_acknowledgementsToSend.Add(ack);
+                                    }
+                                }
+                            }
+                        }
+                        else if (results[ii].StatusCode == StatusCodes.BadNothingToDo)
+                        {
+                            Utils.LogInfo("SubscriptionId {0} is already member of the session.", subscriptionIds[ii]);
+                            failedSubscriptions++;
+                        }
+                        else
+                        {
+                            Utils.LogError("SubscriptionId {0} failed to transfer, StatusCode={1}", subscriptionIds[ii], results[ii].StatusCode);
+                            failedSubscriptions++;
+                        }
+                    }
+
+                    Utils.LogInfo("Session TRANSFER ASYNC of {0} subscriptions completed. {1} failed.", subscriptions.Count, failedSubscriptions);
+                }
+                finally
+                {
+                    m_reconnecting = false;
+                    m_reconnectLock.Release();
+                }
+
+                RestartPublishing();
+            }
+            else
+            {
+                Utils.LogInfo("No subscriptions. Transfersubscription skipped.");
+            }
+
+            return failedSubscriptions == 0;
+        }
         #endregion
 
         #region ReadNode Async Methods
-        /// <summary>
-        /// Reads the values for the node attributes and returns a node object collection.
-        /// </summary>
-        /// <remarks>
-        /// If the nodeclass for the nodes in nodeIdCollection is already known
-        /// and passed as nodeClass, reads only values of required attributes.
-        /// Otherwise NodeClass.Unspecified should be used.
-        /// </remarks>
-        /// <param name="nodeIds">The nodeId collection to read.</param>
-        /// <param name="nodeClass">The nodeClass of all nodes in the collection. Set to <c>NodeClass.Unspecified</c> if the nodeclass is unknown.</param>
-        /// <param name="optionalAttributes">Set to <c>true</c> if optional attributes should not be omitted.</param>
-        /// <param name="ct">The cancellation token.</param>
-        /// <returns>The node collection and associated errors.</returns>
+        /// <inheritdoc/>
         public async Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(
             IList<NodeId> nodeIds,
             NodeClass nodeClass,
@@ -169,14 +331,7 @@ namespace Opc.Ua.Client
             return (nodeCollection, serviceResults);
         }
 
-        /// <summary>
-        /// Reads the values for the node attributes and returns a node object collection.
-        /// Reads the nodeclass of the nodeIds, then reads
-        /// the values for the node attributes and returns a node collection.
-        /// </summary>
-        /// <param name="nodeIds">The nodeId collection.</param>
-        /// <param name="optionalAttributes">If optional attributes to read.</param>
-        /// <param name="ct">The cancellation token.</param>
+        /// <inheritdoc/>
         public async Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(
             IList<NodeId> nodeIds,
             bool optionalAttributes = false,
@@ -246,11 +401,7 @@ namespace Opc.Ua.Client
             return (nodeCollection, serviceResults);
         }
 
-        /// <summary>
-        /// Reads the values for the node attributes and returns a node object.
-        /// </summary>
-        /// <param name="nodeId">The nodeId.</param>
-        /// <param name="ct">The cancellation token for the request.</param>
+        /// <inheritdoc/>
         public Task<Node> ReadNodeAsync(
             NodeId nodeId,
             CancellationToken ct = default)
@@ -258,16 +409,7 @@ namespace Opc.Ua.Client
             return ReadNodeAsync(nodeId, NodeClass.Unspecified, true, ct);
         }
 
-        /// <summary>
-        /// Reads the values for the node attributes and returns a node object.
-        /// </summary>
-        /// <remarks>
-        /// If the nodeclass is known, only the supported attribute values are read.
-        /// </remarks>
-        /// <param name="nodeId">The nodeId.</param>
-        /// <param name="nodeClass">The nodeclass of the node to read.</param>
-        /// <param name="optionalAttributes">Read optional attributes.</param>
-        /// <param name="ct">The cancellation token for the request.</param>
+        /// <inheritdoc/>
         public async Task<Node> ReadNodeAsync(
             NodeId nodeId,
             NodeClass nodeClass,
@@ -304,11 +446,7 @@ namespace Opc.Ua.Client
             return ProcessReadResponse(readResponse.ResponseHeader, attributes, itemsToRead, values, diagnosticInfos);
         }
 
-        /// <summary>
-        /// Reads the value for a node.
-        /// </summary>
-        /// <param name="nodeId">The node Id.</param>
-        /// <param name="ct">The cancellation token for the request.</param>
+        /// <inheritdoc/>
         public async Task<DataValue> ReadValueAsync(
             NodeId nodeId,
             CancellationToken ct = default)
@@ -346,11 +484,7 @@ namespace Opc.Ua.Client
         }
 
 
-        /// <summary>
-        /// Reads the values for a node collection. Returns diagnostic errors.
-        /// </summary>
-        /// <param name="nodeIds">The node Id.</param>
-        /// <param name="ct">The cancellation token for the request.</param>
+        /// <inheritdoc/>
         public async Task<(DataValueCollection, IList<ServiceResult>)> ReadValuesAsync(
             IList<NodeId> nodeIds,
             CancellationToken ct = default)
@@ -397,34 +531,74 @@ namespace Opc.Ua.Client
         }
         #endregion
 
+        #region Call Methods
+        /// <inheritdoc/>
+        public async Task<IList<object>> CallAsync(NodeId objectId, NodeId methodId, CancellationToken ct = default, params object[] args)
+        {
+            VariantCollection inputArguments = new VariantCollection();
+
+            if (args != null)
+            {
+                for (int ii = 0; ii < args.Length; ii++)
+                {
+                    inputArguments.Add(new Variant(args[ii]));
+                }
+            }
+
+            CallMethodRequest request = new CallMethodRequest();
+
+            request.ObjectId = objectId;
+            request.MethodId = methodId;
+            request.InputArguments = inputArguments;
+
+            CallMethodRequestCollection requests = new CallMethodRequestCollection();
+            requests.Add(request);
+
+            CallMethodResultCollection results;
+            DiagnosticInfoCollection diagnosticInfos;
+
+            CallResponse response = await base.CallAsync(null, requests, ct).ConfigureAwait(false);
+
+            results = response.Results;
+            diagnosticInfos = response.DiagnosticInfos;
+
+            ClientBase.ValidateResponse(results, requests);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, requests);
+
+            if (StatusCode.IsBad(results[0].StatusCode))
+            {
+                throw ServiceResultException.Create(results[0].StatusCode, 0, diagnosticInfos, response.ResponseHeader.StringTable);
+            }
+
+            List<object> outputArguments = new List<object>();
+
+            foreach (Variant arg in results[0].OutputArguments)
+            {
+                outputArguments.Add(arg.Value);
+            }
+
+            return outputArguments;
+        }
+        #endregion
+
         #region Close Async Methods
-        /// <summary>
-        /// Disconnects from the server and frees any network resources.
-        /// </summary>
+        /// <inheritdoc/>
         public Task<StatusCode> CloseAsync(CancellationToken ct = default)
         {
             return CloseAsync(m_keepAliveInterval, true, ct);
         }
 
-        /// <summary>
-        /// Close the session with the server and optionally closes the channel.
-        /// </summary>
-        /// <param name="closeChannel"></param>
-        /// <param name="ct">The cancellation token.</param>
+        /// <inheritdoc/>
         public Task<StatusCode> CloseAsync(bool closeChannel, CancellationToken ct = default)
         {
             return CloseAsync(m_keepAliveInterval, closeChannel, ct);
         }
 
-        /// <summary>
-        /// Disconnects from the server and frees any network resources with the specified timeout.
-        /// </summary>
+        /// <inheritdoc/>
         public Task<StatusCode> CloseAsync(int timeout, CancellationToken ct = default)
             => CloseAsync(timeout, true, ct);
 
-        /// <summary>
-        /// Disconnects from the server and frees any network resources with the specified timeout.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual async Task<StatusCode> CloseAsync(int timeout, bool closeChannel, CancellationToken ct = default)
         {
             // check if already called.

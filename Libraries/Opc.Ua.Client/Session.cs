@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -36,7 +35,6 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -273,6 +271,8 @@ namespace Opc.Ua.Client
             m_sessionName = "";
             m_deleteSubscriptionsOnClose = true;
             m_transferSubscriptionsOnReconnect = false;
+            m_reconnecting = false;
+            m_reconnectLock = new SemaphoreSlim(1, 1);
 
             m_defaultSubscription = new Subscription {
                 DisplayName = "Subscription",
@@ -689,6 +689,14 @@ namespace Opc.Ua.Client
         {
             get { return m_transferSubscriptionsOnReconnect; }
             set { m_transferSubscriptionsOnReconnect = value; }
+        }
+
+        /// <summary>
+        /// Whether the endpoint Url domain is checked in the certificate.
+        /// </summary>
+        public bool CheckDomain
+        {
+            get { return m_checkDomain; }
         }
 
         /// <summary>
@@ -1227,9 +1235,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Events
-        /// <summary>
-        /// Raised before a reconnect operation completes.
-        /// </summary>
+        /// <inheritdoc/>
         public event RenewUserIdentityEventHandler RenewUserIdentity
         {
             add { m_RenewUserIdentity += value; }
@@ -1240,48 +1246,81 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Public Methods
-        /// <summary>
-        /// Reconnects to the server after a network failure.
-        /// </summary>
+        /// <inheritdoc/>
+        public bool ApplySessionConfiguration(SessionConfiguration sessionConfiguration)
+        {
+            if (sessionConfiguration == null) throw new ArgumentNullException(nameof(sessionConfiguration));
+
+            byte[] serverCertificate = m_endpoint.Description?.ServerCertificate;
+            m_sessionName = sessionConfiguration.SessionName;
+            m_serverCertificate = serverCertificate != null ? new X509Certificate2(serverCertificate) : null;
+            m_identity = sessionConfiguration.Identity;
+            m_checkDomain = sessionConfiguration.CheckDomain;
+            m_serverNonce = sessionConfiguration.ServerNonce;
+            SessionCreated(sessionConfiguration.SessionId, sessionConfiguration.AuthenticationToken);
+
+            return true;
+        }
+
+        /// <inheritdoc/>
+        public SessionConfiguration SaveSessionConfiguration(Stream stream = null)
+        {
+            var sessionConfiguration = new SessionConfiguration(this, m_serverNonce, AuthenticationToken);
+            if (stream != null)
+            {
+                XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
+                using (XmlWriter writer = XmlWriter.Create(stream, settings))
+                {
+                    DataContractSerializer serializer = new DataContractSerializer(typeof(SessionConfiguration),
+                        new[] { typeof(UserIdentityToken), typeof(AnonymousIdentityToken), typeof(X509IdentityToken),
+                        typeof(IssuedIdentityToken), typeof(UserIdentity) });
+                    serializer.WriteObject(writer, sessionConfiguration);
+                }
+            }
+            return sessionConfiguration;
+        }
+
+        /// <inheritdoc/>
         public void Reconnect()
         {
             Reconnect(null, null);
         }
 
-        /// <summary>
-        /// Reconnects to the server after a network failure using a waiting connection.
-        /// </summary>
+        /// <inheritdoc/>
         public void Reconnect(ITransportWaitingConnection connection)
             => Reconnect(connection, null);
 
-        /// <summary>
-        /// Reconnects to the server using a new channel.
-        /// </summary>
+        /// <inheritdoc/>
         public void Reconnect(ITransportChannel channel)
             => Reconnect(null, channel);
 
         /// <summary>
         /// Reconnects to the server after a network failure using a waiting connection.
         /// </summary>
-        public void Reconnect(ITransportWaitingConnection connection, ITransportChannel transportChannel = null)
+        private void Reconnect(ITransportWaitingConnection connection, ITransportChannel transportChannel = null)
         {
+            bool resetReconnect = false;
             try
             {
+                // check if already connecting.
+                if (m_reconnecting)
+                {
+                    Utils.LogWarning("Session is already attempting to reconnect.");
+
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadInvalidState,
+                        "Session is already attempting to reconnect.");
+                }
+
+                Utils.LogInfo("Session RECONNECT starting.");
+
+                m_reconnectLock.Wait();
+                m_reconnecting = true;
+                resetReconnect = true;
+                m_reconnectLock.Release();
+
                 lock (SyncRoot)
                 {
-                    // check if already connecting.
-                    if (m_reconnecting)
-                    {
-                        Utils.LogWarning("Session is already attempting to reconnect.");
-
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadInvalidState,
-                            "Session is already attempting to reconnect.");
-                    }
-
-                    Utils.LogInfo("Session RECONNECT starting.");
-                    m_reconnecting = true;
-
                     // stop keep alives.
                     Utils.SilentDispose(m_keepAliveTimer);
                     m_keepAliveTimer = null;
@@ -1425,9 +1464,13 @@ namespace Opc.Ua.Client
                     Utils.LogInfo("Session RECONNECT completed successfully.");
                     m_previousServerNonce = m_serverNonce;
                     m_serverNonce = serverNonce;
-                    m_reconnecting = false;
-                    publishCount = GetMinPublishRequestCount();
+                    publishCount = GetMinPublishRequestCount(true);
                 }
+
+                m_reconnectLock.Wait();
+                m_reconnecting = false;
+                resetReconnect = false;
+                m_reconnectLock.Release();
 
                 // refill pipeline.
                 for (int ii = 0; ii < publishCount; ii++)
@@ -1439,25 +1482,22 @@ namespace Opc.Ua.Client
             }
             finally
             {
-                lock (SyncRoot)
+                if (resetReconnect)
                 {
+                    m_reconnectLock.Wait();
                     m_reconnecting = false;
+                    m_reconnectLock.Release();
                 }
             }
         }
 
-        /// <summary>
-        /// Saves all the subscriptions of the session.
-        /// </summary>
-        /// <param name="filePath">The file path.</param>
+        /// <inheritdoc/>
         public void Save(string filePath)
         {
             Save(filePath, Subscriptions);
         }
 
-        /// <summary>
-        /// Saves a set of subscriptions to a stream.
-        /// </summary>
+        /// <inheritdoc/>
         public void Save(Stream stream, IEnumerable<Subscription> subscriptions)
         {
             SubscriptionCollection subscriptionList = new SubscriptionCollection(subscriptions);
@@ -1470,9 +1510,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Saves a set of subscriptions to a file.
-        /// </summary>
+        /// <inheritdoc/>
         public void Save(string filePath, IEnumerable<Subscription> subscriptions)
         {
             using (FileStream stream = new FileStream(filePath, FileMode.Create))
@@ -1481,12 +1519,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Load the list of subscriptions saved in a stream.
-        /// </summary>
-        /// <param name="stream">The stream.</param>
-        /// <param name="transferSubscriptions">Load the subscriptions for transfer after load.</param>
-        /// <returns>The list of loaded subscriptions</returns>
+        /// <inheritdoc/>
         public IEnumerable<Subscription> Load(Stream stream, bool transferSubscriptions = false)
         {
             // secure settings
@@ -1514,12 +1547,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Load the list of subscriptions saved in a file.
-        /// </summary>
-        /// <param name="filePath">The file path.</param>
-        /// <param name="transferSubscriptions">Load the subscriptions for transfer after load.</param>
-        /// <returns>The list of loaded subscriptions</returns>
+        /// <inheritdoc/>
         public IEnumerable<Subscription> Load(string filePath, bool transferSubscriptions = false)
         {
             using (FileStream stream = File.OpenRead(filePath))
@@ -1528,9 +1556,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Updates the local copy of the server's namespace uri and server uri tables.
-        /// </summary>
+        /// <inheritdoc/>
         public void FetchNamespaceTables()
         {
             ReadValueIdCollection nodesToRead = new ReadValueIdCollection();
@@ -1639,12 +1665,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Updates the cache with the type and its subtypes.
-        /// </summary>
-        /// <remarks>
-        /// This method can be used to ensure the TypeTree is populated.
-        /// </remarks>
+        /// <inheritdoc/>
         public void FetchTypeTree(ExpandedNodeId typeId)
         {
             Node node = NodeCache.Find(typeId) as Node;
@@ -1663,12 +1684,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Updates the cache with the types and its subtypes.
-        /// </summary>
-        /// <remarks>
-        /// This method can be used to ensure the TypeTree is populated.
-        /// </remarks>
+        /// <inheritdoc/>
         public void FetchTypeTree(ExpandedNodeIdCollection typeIds)
         {
             var referenceTypeIds = new NodeIdCollection() { ReferenceTypeIds.HasSubtype };
@@ -1693,10 +1709,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Returns the available encodings for a node
-        /// </summary>
-        /// <param name="variableId">The variable node.</param>
+        /// <inheritdoc/>
         public ReferenceDescriptionCollection ReadAvailableEncodings(NodeId variableId)
         {
             VariableNode variable = NodeCache.Find(variableId) as VariableNode;
@@ -1753,10 +1766,7 @@ namespace Opc.Ua.Client
             return browser.Browse(variable.DataType);
         }
 
-        /// <summary>
-        /// Returns the data description for the encoding.
-        /// </summary>
-        /// <param name="encodingId">The encoding Id.</param>
+        /// <inheritdoc/>
         public ReferenceDescription FindDataDescription(NodeId encodingId)
         {
             Browser browser = new Browser(this);
@@ -1776,10 +1786,7 @@ namespace Opc.Ua.Client
             return references[0];
         }
 
-        /// <summary>
-        ///  Returns the data dictionary that contains the description.
-        /// </summary>
-        /// <param name="descriptionId">The description id.</param>
+        /// <inheritdoc/>
         public async Task<DataDictionary> FindDataDictionary(NodeId descriptionId)
         {
             // check if the dictionary has already been loaded.
@@ -1809,12 +1816,7 @@ namespace Opc.Ua.Client
             return dictionaryToLoad;
         }
 
-        /// <summary>
-        ///  Returns the data dictionary that contains the description.
-        /// </summary>
-        /// <param name="dictionaryNode">The dictionary id.</param>
-        /// <param name="forceReload"></param>
-        /// <returns>The dictionary.</returns>
+        /// <inheritdoc/>
         public async Task<DataDictionary> LoadDataDictionary(ReferenceDescription dictionaryNode, bool forceReload = false)
         {
             // check if the dictionary has already been loaded.
@@ -1833,10 +1835,7 @@ namespace Opc.Ua.Client
             return dictionaryToLoad;
         }
 
-        /// <summary>
-        /// Loads all dictionaries of the OPC binary or Xml schema type system.
-        /// </summary>
-        /// <param name="dataTypeSystem">The type system.</param>
+        /// <inheritdoc/>
         public async Task<Dictionary<NodeId, DataDictionary>> LoadDataTypeSystem(NodeId dataTypeSystem = null)
         {
             if (dataTypeSystem == null)
@@ -1931,19 +1930,7 @@ namespace Opc.Ua.Client
             return m_dictionaries;
         }
 
-        /// <summary>
-        /// Reads the values for the node attributes and returns a node object collection.
-        /// </summary>
-        /// <remarks>
-        /// If the nodeclass for the nodes in nodeIdCollection is already known,
-        /// and passed as nodeClass, reads only values of required attributes.
-        /// Otherwise NodeClass.Unspecified should be used.
-        /// </remarks>
-        /// <param name="nodeIds">The nodeId collection to read.</param>
-        /// <param name="nodeClass">The nodeClass of all nodes in the collection. Set to <c>NodeClass.Unspecified</c> if the nodeclass is unknown.</param>
-        /// <param name="nodeCollection">The node collection that is created from attributes read from the server.</param>
-        /// <param name="errors">The errors that occured reading the nodes.</param>
-        /// <param name="optionalAttributes">Set to <c>true</c> if optional attributes should not be omitted.</param>
+        /// <inheritdoc/>
         public void ReadNodes(
             IList<NodeId> nodeIds,
             NodeClass nodeClass,
@@ -1993,15 +1980,7 @@ namespace Opc.Ua.Client
                 nodeCollection, errors);
         }
 
-        /// <summary>
-        /// Reads the values for the node attributes and returns a node object.
-        /// Reads the nodeclass of the nodeIds, then reads
-        /// the values for the node attributes and returns a node object collection.
-        /// </summary>
-        /// <param name="nodeIds">The nodeId collection.</param>
-        /// <param name="nodeCollection">The node collection read from the server.</param>
-        /// <param name="errors">The errors occured reading the nodes.</param>
-        /// <param name="optionalAttributes">Set to <c>true</c> if optional attributes should not be omitted.</param>
+        /// <inheritdoc/>
         public void ReadNodes(
             IList<NodeId> nodeIds,
             out IList<Node> nodeCollection,
@@ -2083,24 +2062,13 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Reads the values for the node attributes and returns a node object.
-        /// </summary>
-        /// <param name="nodeId">The nodeId.</param>
+        /// <inheritdoc/>
         public Node ReadNode(NodeId nodeId)
         {
             return ReadNode(nodeId, NodeClass.Unspecified, true);
         }
 
-        /// <summary>
-        /// Reads the values for the node attributes and returns a node object.
-        /// </summary>
-        /// <remarks>
-        /// If the nodeclass is known, only the supported attribute values are read.
-        /// </remarks>
-        /// <param name="nodeId">The nodeId.</param>
-        /// <param name="nodeClass">The nodeclass of the node to read.</param>
-        /// <param name="optionalAttributes">Read optional attributes.</param>
+        /// <inheritdoc/>
         public Node ReadNode(
             NodeId nodeId,
             NodeClass nodeClass,
@@ -2138,10 +2106,7 @@ namespace Opc.Ua.Client
             return ProcessReadResponse(responseHeader, attributes, itemsToRead, values, diagnosticInfos);
         }
 
-        /// <summary>
-        /// Reads the value for a node.
-        /// </summary>
-        /// <param name="nodeId">The node Id.</param>
+        /// <inheritdoc/>
         public DataValue ReadValue(NodeId nodeId)
         {
             ReadValueId itemToRead = new ReadValueId {
@@ -2177,12 +2142,7 @@ namespace Opc.Ua.Client
             return values[0];
         }
 
-        /// <summary>
-        /// Reads the values for a node collection. Returns diagnostic errors.
-        /// </summary>
-        /// <param name="nodeIds">The node Id.</param>
-        /// <param name="values">The data values read from the server.</param>
-        /// <param name="errors">The errors reported by the server.</param>
+        /// <inheritdoc/>
         public void ReadValues(
             IList<NodeId> nodeIds,
             out DataValueCollection values,
@@ -2230,11 +2190,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Reads the value for a node an checks that it is the specified type.
-        /// </summary>
-        /// <param name="nodeId">The node id.</param>
-        /// <param name="expectedType">The expected type.</param>
+        /// <inheritdoc/>
         public object ReadValue(NodeId nodeId, Type expectedType)
         {
             DataValue dataValue = ReadValue(nodeId);
@@ -2262,10 +2218,7 @@ namespace Opc.Ua.Client
             return value;
         }
 
-        /// <summary>
-        /// Fetches all references for the specified node.
-        /// </summary>
-        /// <param name="nodeId">The node id.</param>
+        /// <inheritdoc/>
         public ReferenceDescriptionCollection FetchReferences(NodeId nodeId)
         {
             // browse for all references.
@@ -2305,12 +2258,7 @@ namespace Opc.Ua.Client
             return descriptions;
         }
 
-        /// <summary>
-        /// Fetches all references for the specified nodes.
-        /// </summary>
-        /// <param name="nodeIds">The node id collection.</param>
-        /// <param name="referenceDescriptions">A list of reference collections.</param>
-        /// <param name="errors">The errors reported by the server.</param>
+        /// <inheritdoc/>
         public void FetchReferences(
             IList<NodeId> nodeIds,
             out IList<ReferenceDescriptionCollection> referenceDescriptions,
@@ -2379,11 +2327,7 @@ namespace Opc.Ua.Client
             referenceDescriptions = result;
         }
 
-        /// <summary>
-        /// Establishes a session with the server.
-        /// </summary>
-        /// <param name="sessionName">The name to assign to the session.</param>
-        /// <param name="identity">The user identity.</param>
+        /// <inheritdoc/>
         public void Open(
             string sessionName,
             IUserIdentity identity)
@@ -2391,13 +2335,7 @@ namespace Opc.Ua.Client
             Open(sessionName, 0, identity, null);
         }
 
-        /// <summary>
-        /// Establishes a session with the server.
-        /// </summary>
-        /// <param name="sessionName">The name to assign to the session.</param>
-        /// <param name="sessionTimeout">The session timeout.</param>
-        /// <param name="identity">The user identity.</param>
-        /// <param name="preferredLocales">The list of preferred locales.</param>
+        /// <inheritdoc/>
         public void Open(
             string sessionName,
             uint sessionTimeout,
@@ -2407,14 +2345,7 @@ namespace Opc.Ua.Client
             Open(sessionName, sessionTimeout, identity, preferredLocales, true);
         }
 
-        /// <summary>
-        /// Establishes a session with the server.
-        /// </summary>
-        /// <param name="sessionName">The name to assign to the session.</param>
-        /// <param name="sessionTimeout">The session timeout.</param>
-        /// <param name="identity">The user identity.</param>
-        /// <param name="preferredLocales">The list of preferred locales.</param>
-        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
         public void Open(
             string sessionName,
@@ -2922,20 +2853,13 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Updates the preferred locales used for the session.
-        /// </summary>
-        /// <param name="preferredLocales">The preferred locales.</param>
+        /// <inheritdoc/>
         public void ChangePreferredLocales(StringCollection preferredLocales)
         {
             UpdateSession(Identity, preferredLocales);
         }
 
-        /// <summary>
-        /// Updates the user identity and/or locales used for the session.
-        /// </summary>
-        /// <param name="identity">The user identity.</param>
-        /// <param name="preferredLocales">The preferred locales.</param>
+        /// <inheritdoc/>
         public void UpdateSession(IUserIdentity identity, StringCollection preferredLocales)
         {
             byte[] serverNonce = null;
@@ -3052,9 +2976,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Finds the NodeIds for the components for an instance.
-        /// </summary>
+        /// <inheritdoc/>
         public void FindComponentIds(
             NodeId instanceId,
             IList<string> componentPaths,
@@ -3161,13 +3083,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Reads the values for a set of variables.
-        /// </summary>
-        /// <param name="variableIds">The variable ids.</param>
-        /// <param name="expectedTypes">The expected types.</param>
-        /// <param name="values">The list of returned values.</param>
-        /// <param name="errors">The list of returned errors.</param>
+        /// <inheritdoc/>
         public void ReadValues(
             IList<NodeId> variableIds,
             IList<Type> expectedTypes,
@@ -3250,9 +3166,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Reads the display name for a set of Nodes.
-        /// </summary>
+        /// <inheritdoc/>
         public void ReadDisplayName(
             IList<NodeId> nodeIds,
             out IList<string> displayNames,
@@ -3316,33 +3230,23 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Close Methods
-        /// <summary>
-        /// Disconnects from the server and frees any network resources.
-        /// </summary>
+        /// <inheritdoc/>
         public override StatusCode Close()
         {
             return Close(m_keepAliveInterval, true);
         }
 
-        /// <summary>
-        /// Close the session with the server and optionally closes the channel.
-        /// </summary>
-        /// <param name="closeChannel"></param>
-        /// <returns></returns>
+        /// <inheritdoc/>
         public StatusCode Close(bool closeChannel)
         {
             return Close(m_keepAliveInterval, closeChannel);
         }
 
-        /// <summary>
-        /// Disconnects from the server and frees any network resources with the specified timeout.
-        /// </summary>
+        /// <inheritdoc/>
         public StatusCode Close(int timeout)
             => Close(timeout, true);
 
-        /// <summary>
-        /// Disconnects from the server and frees any network resources with the specified timeout.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual StatusCode Close(int timeout, bool closeChannel)
         {
             // check if already called.
@@ -3424,10 +3328,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Subscription Methods
-        /// <summary>
-        /// Adds a subscription to the session.
-        /// </summary>
-        /// <param name="subscription">The subscription to add.</param>
+        /// <inheritdoc/>
         public bool AddSubscription(Subscription subscription)
         {
             if (subscription == null) throw new ArgumentNullException(nameof(subscription));
@@ -3451,10 +3352,7 @@ namespace Opc.Ua.Client
             return true;
         }
 
-        /// <summary>
-        /// Removes a subscription from the session.
-        /// </summary>
-        /// <param name="subscription">The subscription to remove.</param>
+        /// <inheritdoc/>
         public bool RemoveSubscription(Subscription subscription)
         {
             if (subscription == null) throw new ArgumentNullException(nameof(subscription));
@@ -3482,10 +3380,7 @@ namespace Opc.Ua.Client
             return true;
         }
 
-        /// <summary>
-        /// Removes a list of subscriptions from the session.
-        /// </summary>
-        /// <param name="subscriptions">The list of subscriptions to remove.</param>
+        /// <inheritdoc/>
         public bool RemoveSubscriptions(IEnumerable<Subscription> subscriptions)
         {
             if (subscriptions == null) throw new ArgumentNullException(nameof(subscriptions));
@@ -3509,12 +3404,7 @@ namespace Opc.Ua.Client
             return removed;
         }
 
-        /// <summary>
-        /// Removes a transferred subscription from the session.
-        /// Called by the session to which the subscription
-        /// is transferred to obtain ownership. Internal.
-        /// </summary>
-        /// <param name="subscription">The subscription to remove.</param>
+        /// <inheritdoc/>
         public bool RemoveTransferredSubscription(Subscription subscription)
         {
             if (subscription == null) throw new ArgumentNullException(nameof(subscription));
@@ -3542,32 +3432,90 @@ namespace Opc.Ua.Client
             return true;
         }
 
-        /// <summary>
-        /// Transfers a list of Subscriptions from another session.
-        /// </summary>
+        /// <inheritdoc/>
+        public bool ReactivateSubscriptions(
+            SubscriptionCollection subscriptions,
+            bool sendInitialValues)
+        {
+            int failedSubscriptions = 0;
+            UInt32Collection subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
+
+            if (subscriptionIds.Count > 0)
+            {
+                try
+                {
+                    m_reconnectLock.Wait();
+                    m_reconnecting = true;
+
+                    for (int ii = 0; ii < subscriptions.Count; ii++)
+                    {
+                        if (!subscriptions[ii].Transfer(this, subscriptionIds[ii], new UInt32Collection()))
+                        {
+                            Utils.LogError("SubscriptionId {0} failed to reactivate.", subscriptionIds[ii]);
+                            failedSubscriptions++;
+                        }
+                    }
+
+                    if (sendInitialValues)
+                    {
+                        if (!ResendData(subscriptions, out IList<ServiceResult> resendResults))
+                        {
+                            Utils.LogError("Failed to call resend data for subscriptions.");
+                        }
+                        else if (resendResults != null)
+                        {
+                            for (int ii = 0; ii < resendResults.Count; ii++)
+                            {
+                                // no need to try for subscriptions which do not exist
+                                if (StatusCode.IsNotGood(resendResults[ii].StatusCode))
+                                {
+                                    Utils.LogError("SubscriptionId {0} failed to resend data.", subscriptionIds[ii]);
+                                }
+                            }
+                        }
+                    }
+
+                    Utils.LogInfo("Session REACTIVATE of {0} subscriptions completed. {1} failed.", subscriptions.Count, failedSubscriptions);
+                }
+                finally
+                {
+                    m_reconnecting = false;
+                    m_reconnectLock.Release();
+                }
+
+                RestartPublishing();
+            }
+            else
+            {
+                Utils.LogInfo("No subscriptions. Transfersubscription skipped.");
+            }
+
+            return failedSubscriptions == 0;
+        }
+
+        /// <inheritdoc/>
         public bool TransferSubscriptions(
             SubscriptionCollection subscriptions,
             bool sendInitialValues)
         {
-            var subscriptionIds = new UInt32Collection();
-            foreach (var subscription in subscriptions)
-            {
-                if (subscription.Created && SessionId.Equals(subscription.Session.SessionId))
-                {
-                    throw new ServiceResultException(StatusCodes.BadInvalidState, Utils.Format("The subscriptionId {0} is already created.", subscription.Id));
-                }
-                if (subscription.TransferId == 0)
-                {
-                    throw new ServiceResultException(StatusCodes.BadInvalidState, Utils.Format("A subscription can not be transferred due to missing transfer Id."));
-                }
-                subscriptionIds.Add(subscription.TransferId);
-            }
+            int failedSubscriptions = 0;
+            UInt32Collection subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
 
-            lock (SyncRoot)
+            if (subscriptionIds.Count > 0)
             {
-                if (subscriptionIds.Count > 0)
+                if (m_reconnecting)
                 {
-                    ResponseHeader responseHeader = TransferSubscriptions(null, subscriptionIds, sendInitialValues, out var results, out var diagnosticInfos);
+                    Utils.LogWarning("Already Reconnecting. Can not transfer subscriptions.");
+                    return false;
+                }
+
+                try
+                {
+                    m_reconnectLock.Wait();
+                    m_reconnecting = true;
+
+                    ResponseHeader responseHeader = base.TransferSubscriptions(null, subscriptionIds, sendInitialValues,
+                        out TransferResultCollection results, out DiagnosticInfoCollection diagnosticInfos);
                     if (!StatusCode.IsGood(responseHeader.ServiceResult))
                     {
                         Utils.LogError("TransferSubscription failed: {0}", responseHeader.ServiceResult);
@@ -3575,59 +3523,60 @@ namespace Opc.Ua.Client
                     }
                     ClientBase.ValidateResponse(results, subscriptionIds);
                     ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
-                    var failedSubscriptionIds = new UInt32Collection();
 
                     for (int ii = 0; ii < subscriptions.Count; ii++)
                     {
                         if (StatusCode.IsGood(results[ii].StatusCode))
                         {
                             if (subscriptions[ii].Transfer(this, subscriptionIds[ii], results[ii].AvailableSequenceNumbers))
-                            {   // create ack for available sequence numbers
-                                foreach (var sequenceNumber in results[ii].AvailableSequenceNumbers)
+                            {
+                                lock (SyncRoot)
                                 {
-                                    var ack = new SubscriptionAcknowledgement() {
-                                        SubscriptionId = subscriptionIds[ii],
-                                        SequenceNumber = sequenceNumber
-                                    };
-                                    m_acknowledgementsToSend.Add(ack);
+                                    // create ack for available sequence numbers
+                                    foreach (var sequenceNumber in results[ii].AvailableSequenceNumbers)
+                                    {
+                                        var ack = new SubscriptionAcknowledgement() {
+                                            SubscriptionId = subscriptionIds[ii],
+                                            SequenceNumber = sequenceNumber
+                                        };
+                                        m_acknowledgementsToSend.Add(ack);
+                                    }
                                 }
                             }
+                        }
+                        else if (results[ii].StatusCode == StatusCodes.BadNothingToDo)
+                        {
+                            Utils.LogInfo("SubscriptionId {0} is already member of the session.", subscriptionIds[ii]);
+                            failedSubscriptions++;
                         }
                         else
                         {
                             Utils.LogError("SubscriptionId {0} failed to transfer, StatusCode={1}", subscriptionIds[ii], results[ii].StatusCode);
-                            failedSubscriptionIds.Add(subscriptions[ii].TransferId);
+                            failedSubscriptions++;
                         }
                     }
-                    if (failedSubscriptionIds.Count > 0)
-                    {
-                        return false;
-                    }
+
+                    Utils.LogInfo("Session TRANSFER of {0} subscriptions completed. {1} failed.", subscriptions.Count, failedSubscriptions);
                 }
-                else
+                finally
                 {
-                    Utils.LogInfo("No subscriptions. Transfersubscription skipped.");
+                    m_reconnecting = false;
+                    m_reconnectLock.Release();
                 }
+
+                RestartPublishing();
+            }
+            else
+            {
+                Utils.LogInfo("No subscriptions. Transfersubscription skipped.");
             }
 
-            return true;
+            return failedSubscriptions == 0;
         }
         #endregion
 
         #region Browse Methods
-        /// <summary>
-        /// Invokes the Browse service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="view">The view to browse.</param>
-        /// <param name="nodeToBrowse">The node to browse.</param>
-        /// <param name="maxResultsToReturn">The maximum number of returned values.</param>
-        /// <param name="browseDirection">The browse direction.</param>
-        /// <param name="referenceTypeId">The reference type id.</param>
-        /// <param name="includeSubtypes">If set to <c>true</c> the subtypes of the ReferenceType will be included in the browse.</param>
-        /// <param name="nodeClassMask">The node class mask.</param>
-        /// <param name="continuationPoint">The continuation point.</param>
-        /// <param name="references">The list of node references.</param>
+        /// <inheritdoc/>
         public virtual ResponseHeader Browse(
             RequestHeader requestHeader,
             ViewDescription view,
@@ -3677,20 +3626,7 @@ namespace Opc.Ua.Client
             return responseHeader;
         }
 
-        /// <summary>
-        /// Invokes the Browse service. Handles multiple nodes for browse request.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="view">The view to browse.</param>
-        /// <param name="nodesToBrowse">The nodes to browse.</param>
-        /// <param name="maxResultsToReturn">The maximum number of returned values.</param>
-        /// <param name="browseDirection">The browse direction.</param>
-        /// <param name="referenceTypeId">The reference type id.</param>
-        /// <param name="includeSubtypes">If set to <c>true</c> the subtypes of the ReferenceType will be included in the browse.</param>
-        /// <param name="nodeClassMask">The node class mask.</param>
-        /// <param name="continuationPoints">The continuation points per browse.</param>
-        /// <param name="referencesList">The list of node references collections.</param>
-        /// <param name="errors"></param>
+        /// <inheritdoc/>
         public virtual ResponseHeader Browse(
             RequestHeader requestHeader,
             ViewDescription view,
@@ -3753,19 +3689,7 @@ namespace Opc.Ua.Client
             return responseHeader;
         }
 
-        /// <summary>
-        /// Begins an asynchronous invocation of the Browse service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="view">The view to browse.</param>
-        /// <param name="nodeToBrowse">The node to browse.</param>
-        /// <param name="maxResultsToReturn">The maximum number of returned values..</param>
-        /// <param name="browseDirection">The browse direction.</param>
-        /// <param name="referenceTypeId">The reference type id.</param>
-        /// <param name="includeSubtypes">If set to <c>true</c> the subtypes of the ReferenceType will be included in the browse.</param>
-        /// <param name="nodeClassMask">The node class mask.</param>
-        /// <param name="callback">The callback.</param>
-        /// <param name="asyncState"></param>
+        /// <inheritdoc/>
         public IAsyncResult BeginBrowse(
             RequestHeader requestHeader,
             ViewDescription view,
@@ -3799,12 +3723,7 @@ namespace Opc.Ua.Client
                 asyncState);
         }
 
-        /// <summary>
-        /// Finishes an asynchronous invocation of the Browse service.
-        /// </summary>
-        /// <param name="result">The result.</param>
-        /// <param name="continuationPoint">The continuation point.</param>
-        /// <param name="references">The list of node references.</param>
+        /// <inheritdoc/>
         public ResponseHeader EndBrowse(
             IAsyncResult result,
             out byte[] continuationPoint,
@@ -3836,9 +3755,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region BrowseNext Methods
-        /// <summary>
-        /// Invokes the BrowseNext service.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual ResponseHeader BrowseNext(
             RequestHeader requestHeader,
             bool releaseContinuationPoint,
@@ -3873,9 +3790,7 @@ namespace Opc.Ua.Client
             return responseHeader;
         }
 
-        /// <summary>
-        /// Invokes the BrowseNext service. Handles multiple continuation points.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual ResponseHeader BrowseNext(
             RequestHeader requestHeader,
             bool releaseContinuationPoint,
@@ -3919,9 +3834,7 @@ namespace Opc.Ua.Client
             return responseHeader;
         }
 
-        /// <summary>
-        /// Begins an asynchronous invocation of the BrowseNext service.
-        /// </summary>
+        /// <inheritdoc/>
         public IAsyncResult BeginBrowseNext(
             RequestHeader requestHeader,
             bool releaseContinuationPoint,
@@ -3940,9 +3853,7 @@ namespace Opc.Ua.Client
                 asyncState);
         }
 
-        /// <summary>
-        /// Finishes an asynchronous invocation of the BrowseNext service.
-        /// </summary>
+        /// <inheritdoc/>
         public ResponseHeader EndBrowseNext(
             IAsyncResult result,
             out byte[] revisedContinuationPoint,
@@ -3974,13 +3885,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Call Methods
-        /// <summary>
-        /// Calls the specified method and returns the output arguments.
-        /// </summary>
-        /// <param name="objectId">The NodeId of the object that provides the method.</param>
-        /// <param name="methodId">The NodeId of the method to call.</param>
-        /// <param name="args">The input arguments.</param>
-        /// <returns>The list of output argument values.</returns>
+        /// <inheritdoc/>
         public IList<object> Call(NodeId objectId, NodeId methodId, params object[] args)
         {
             VariantCollection inputArguments = new VariantCollection();
@@ -4302,7 +4207,7 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                count = GetMinPublishRequestCount();
+                count = GetMinPublishRequestCount(false);
                 while (count-- > 0)
                 {
                     BeginPublish(OperationTimeout);
@@ -5212,6 +5117,11 @@ namespace Opc.Ua.Client
 
             try
             {
+                // gate entry if transfer/reactivate is busy
+                m_reconnectLock.Wait();
+                bool reconnecting = m_reconnecting;
+                m_reconnectLock.Release();
+
                 // complete publish.
                 uint subscriptionId;
                 UInt32Collection availableSequenceNumbers;
@@ -5254,7 +5164,7 @@ namespace Opc.Ua.Client
                     notificationMessage);
 
                 // nothing more to do if reconnecting.
-                if (m_reconnecting)
+                if (reconnecting)
                 {
                     Utils.LogWarning("No new publish sent because of reconnect in progress.");
                     return;
@@ -5355,7 +5265,7 @@ namespace Opc.Ua.Client
             }
 
             int requestCount = GoodPublishRequestCount;
-            var minPublishRequestCount = GetMinPublishRequestCount();
+            var minPublishRequestCount = GetMinPublishRequestCount(false);
             if (requestCount < minPublishRequestCount)
             {
                 BeginPublish(OperationTimeout);
@@ -5366,12 +5276,10 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Sends a republish request.
-        /// </summary>
+        /// <inheritdoc/>
         public bool Republish(uint subscriptionId, uint sequenceNumber)
         {
-            // send publish request.
+            // send republish request.
             RequestHeader requestHeader = new RequestHeader {
                 TimeoutHint = (uint)OperationTimeout,
                 ReturnDiagnostics = (uint)(int)ReturnDiagnostics,
@@ -5461,6 +5369,50 @@ namespace Opc.Ua.Client
             }
         }
 
+        /// <inheritdoc/>
+        public bool ResendData(IEnumerable<Subscription> subscriptions, out IList<ServiceResult> errors)
+        {
+            CallMethodRequestCollection requests = CreateCallRequestsForResendData(subscriptions);
+
+            errors = new List<ServiceResult>(requests.Count);
+
+            CallMethodResultCollection results;
+            DiagnosticInfoCollection diagnosticInfos;
+            try
+            {
+                ResponseHeader responseHeader = Call(
+                    null,
+                    requests,
+                    out results,
+                    out diagnosticInfos);
+
+                ClientBase.ValidateResponse(results, requests);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, requests);
+
+                int ii = 0;
+                foreach (var value in results)
+                {
+                    ServiceResult result = ServiceResult.Good;
+                    if (StatusCode.IsNotGood(value.StatusCode))
+                    {
+                        result = ClientBase.GetResult(value.StatusCode, ii, diagnosticInfos, responseHeader);
+                    }
+                    errors.Add(result);
+                    ii++;
+                }
+
+                return true;
+            }
+            catch (ServiceResultException sre)
+            {
+                Utils.LogError(sre, "Failed to call ResendData on server.");
+            }
+
+            return false;
+        }
+        #endregion
+
+        #region Private Methods
         /// <summary>
         /// Processes the response from a publish request.
         /// </summary>
@@ -5614,7 +5566,7 @@ namespace Opc.Ua.Client
             }
             else
             {
-                if (m_deleteSubscriptionsOnClose)
+                if (m_deleteSubscriptionsOnClose && !m_reconnecting)
                 {
                     // Delete abandoned subscription from server.
                     Utils.LogWarning("Received Publish Response for Unknown SubscriptionId={0}. Deleting abandoned subscription from server.", subscriptionId);
@@ -5807,7 +5759,7 @@ namespace Opc.Ua.Client
         /// <remarks>
         /// Returns 0 if there are no subscriptions.
         /// </remarks>
-        private int GetMinPublishRequestCount()
+        private int GetMinPublishRequestCount(bool createdOnly)
         {
             lock (SyncRoot)
             {
@@ -5815,8 +5767,98 @@ namespace Opc.Ua.Client
                 {
                     return 0;
                 }
+
+                if (createdOnly)
+                {
+                    int count = 0;
+                    foreach(Subscription subscription in m_subscriptions)
+                    {
+                        if (subscription.Created)
+                        {
+                            count++;
+                        }
+                    }
+
+                    if (count == 0)
+                    {
+                        return 0;
+                    }
+
+                    return Math.Max(count, m_minPublishRequestCount);
+                }
+
                 return Math.Max(m_subscriptions.Count, m_minPublishRequestCount);
             }
+        }
+
+        /// <summary>
+        /// Creates resend data call requests for the subscriptions.
+        /// </summary>
+        /// <param name="subscriptions">The subscriptions to call resend data.</param>
+        private CallMethodRequestCollection CreateCallRequestsForResendData(IEnumerable<Subscription> subscriptions)
+        {
+            CallMethodRequestCollection requests = new CallMethodRequestCollection();
+
+            foreach (Subscription subscription in subscriptions)
+            {
+                VariantCollection inputArguments = new VariantCollection {
+                    new Variant(subscription.Id)
+                };
+
+                var request = new CallMethodRequest {
+                    ObjectId = ObjectIds.Server,
+                    MethodId = MethodIds.Server_ResendData,
+                    InputArguments = inputArguments
+                };
+
+                requests.Add(request);
+            }
+            return requests;
+        }
+
+        /// <summary>
+        /// Create the publish requests for the active subscriptions.
+        /// </summary>
+        private void RestartPublishing()
+        {
+            int publishCount = 0;
+            lock (SyncRoot)
+            {
+                publishCount = GetMinPublishRequestCount(true);
+            }
+
+            // refill pipeline.
+            for (int ii = 0; ii < publishCount; ii++)
+            {
+                BeginPublish(OperationTimeout);
+            }
+        }
+
+        /// <summary>
+        /// Creates and validates the subscription ids for a transfer.
+        /// </summary>
+        /// <param name="subscriptions">The subscriptions to transfer.</param>
+        /// <returns>The subscription ids for the transfer.</returns>
+        /// <exception cref="ServiceResultException">Thrown if a subscription is in invalid state.</exception>
+        private UInt32Collection CreateSubscriptionIdsForTransfer(SubscriptionCollection subscriptions)
+        {
+            var subscriptionIds = new UInt32Collection();
+            lock (SyncRoot)
+            {
+                foreach (var subscription in subscriptions)
+                {
+                    if (subscription.Created && SessionId.Equals(subscription.Session.SessionId))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadInvalidState, Utils.Format("The subscriptionId {0} is already created.", subscription.Id));
+                    }
+                    if (subscription.TransferId == 0)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadInvalidState, Utils.Format("A subscription can not be transferred due to missing transfer Id."));
+                    }
+                    subscriptionIds.Add(subscription.TransferId);
+                }
+            }
+            return subscriptionIds;
         }
         #endregion
 
@@ -5895,6 +5937,7 @@ namespace Opc.Ua.Client
         private Timer m_keepAliveTimer;
         private long m_keepAliveCounter;
         private bool m_reconnecting;
+        private SemaphoreSlim m_reconnectLock;
         private const int kReconnectTimeout = 15000;
         private const int kMinPublishRequestCountMax = 100;
         private const int kDefaultPublishRequestCount = 1;
