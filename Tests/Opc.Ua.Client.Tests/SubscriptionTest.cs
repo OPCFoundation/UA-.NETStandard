@@ -624,6 +624,14 @@ namespace Opc.Ua.Client.Tests
                 var result = session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
                 Assert.NotNull(result);
             }
+
+            session1.DeleteSubscriptionsOnClose = true;
+            session1.Close(1000);
+            session1.Dispose();
+
+            session2.DeleteSubscriptionsOnClose = true;
+            session2.Close(1000);
+            session2.Dispose();
         }
 
         [Test, Order(400)]
