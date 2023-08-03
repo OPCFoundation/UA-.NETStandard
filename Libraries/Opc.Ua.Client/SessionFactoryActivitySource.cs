@@ -30,6 +30,7 @@
 #if NET6_0_OR_GREATER
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -40,8 +41,19 @@ namespace Opc.Ua.Client
     /// <summary>
     /// 
     /// </summary>
-    public class SessionActivitySourceFactory : DefaultSessionFactory
+    public class SessionFactoryActivitySource : DefaultSessionFactory
     {
+        /// <summary>
+        /// Activity Source Name
+        /// </summary>
+        public const string SessionFactoryActivitySourceName = "Opc.Ua.Client-SessionFactoy-ActivitySource";
+
+        /// <summary>
+        /// Activity Source
+        /// </summary>
+        ///
+        public static ActivitySource SessionFactoryActivitySrc { get; } = new ActivitySource(SessionFactoryActivitySourceName);
+
         #region Public Methods
         /// <inheritdoc/>
         public override async Task<ISession> CreateAsync(
@@ -53,10 +65,13 @@ namespace Opc.Ua.Client
             IUserIdentity identity,
             IList<string> preferredLocales)
         {
-            ISession session = await Session.Create(configuration, endpoint, updateBeforeConnect, false,
+            using (Activity activity = SessionFactoryActivitySrc.StartActivity(nameof(CreateAsync)))
+            {
+                ISession session = await Session.Create(configuration, endpoint, updateBeforeConnect, false,
                 sessionName, sessionTimeout, identity, preferredLocales).ConfigureAwait(false);
 
-            return new SessionActivitySource(session);            
+                return new SessionActivitySource(session);
+            }
         }
 
         /// <inheritdoc/>
@@ -70,11 +85,14 @@ namespace Opc.Ua.Client
             IUserIdentity identity,
             IList<string> preferredLocales)
         {
-            ISession session = await Session.Create(configuration, null, endpoint,
+            using (Activity activity = SessionFactoryActivitySrc.StartActivity(nameof(CreateAsync)))
+            {
+                ISession session = await Session.Create(configuration, null, endpoint,
                 updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
                 identity, preferredLocales).ConfigureAwait(false);
 
-            return new SessionActivitySource(session);
+                return new SessionActivitySource(session);
+            }
         }
 
         /// <inheritdoc/>
@@ -89,12 +107,15 @@ namespace Opc.Ua.Client
             IUserIdentity identity,
             IList<string> preferredLocales)
         {
-            ISession session = await Session.Create(configuration, connection, endpoint,
+            using (Activity activity = SessionFactoryActivitySrc.StartActivity(nameof(CreateAsync)))
+            {
+                ISession session = await Session.Create(configuration, connection, endpoint,
                 updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
                 identity, preferredLocales
                 ).ConfigureAwait(false);
 
-            return new SessionActivitySource(session);
+                return new SessionActivitySource(session);
+            }
         }
 
         /// <inheritdoc/>
@@ -111,14 +132,17 @@ namespace Opc.Ua.Client
             CancellationToken ct = default
             )
         {
-            ISession session = await base.CreateAsync(configuration,
+            using (Activity activity = SessionFactoryActivitySrc.StartActivity(nameof(CreateAsync)))
+            {
+                ISession session = await base.CreateAsync(configuration,
                 reverseConnectManager, endpoint,
                 updateBeforeConnect,
                 checkDomain, sessionName,
                 sessionTimeout, userIdentity,
                 preferredLocales, ct).ConfigureAwait(false);
 
-            return new SessionActivitySource(session);
+                return new SessionActivitySource(session);
+            }
         }
 
         /// <inheritdoc/>
@@ -129,7 +153,10 @@ namespace Opc.Ua.Client
                 throw new ArgumentOutOfRangeException(nameof(sessionTemplate), "The ISession provided is not of a supported type.");
             }
 
-            return base.RecreateAsync(template.Session);
+            using (Activity activity = SessionFactoryActivitySrc.StartActivity(nameof(RecreateAsync)))
+            {
+                return base.RecreateAsync(template.Session);
+            }
         }
 
         /// <inheritdoc/>
@@ -140,7 +167,10 @@ namespace Opc.Ua.Client
                 throw new ArgumentOutOfRangeException(nameof(sessionTemplate), "The ISession provided is not of a supported type");
             }
 
-            return base.RecreateAsync(template.Session, connection);
+            using (Activity activity = SessionFactoryActivitySrc.StartActivity(nameof(RecreateAsync)))
+            {
+                return base.RecreateAsync(template.Session, connection);
+            }
         }
         #endregion
     }
