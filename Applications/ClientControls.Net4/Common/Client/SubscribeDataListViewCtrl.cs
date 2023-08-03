@@ -54,7 +54,7 @@ namespace Opc.Ua.Client.Controls
             m_PublishStatusChanged = new PublishStateChangedEventHandler(OnPublishStatusChanged);
             ResultsDV.AutoGenerateColumns = false;
             ImageList = new ClientUtils().ImageList;
-            
+
             m_dataset = new DataSet();
             m_dataset.Tables.Add("Requests");
 
@@ -196,7 +196,7 @@ namespace Opc.Ua.Client.Controls
                 m_subscription.Handle = this;
             }
         }
-        
+
         /// <summary>
         /// Adds the monitored items to the subscription.
         /// </summary>
@@ -217,7 +217,7 @@ namespace Opc.Ua.Client.Controls
                     {
                         continue;
                     }
-                    
+
                     DataRow row = m_dataset.Tables[0].NewRow();
 
                     MonitoredItem monitoredItem = new MonitoredItem(m_subscription.DefaultItem);
@@ -421,7 +421,7 @@ namespace Opc.Ua.Client.Controls
 
             if (value != null)
             {
-                row[1]  = ImageList.Images[ClientUtils.GetImageIndex(Attributes.Value, value.Value)];
+                row[1] = ImageList.Images[ClientUtils.GetImageIndex(Attributes.Value, value.Value)];
                 row[12] = (value.WrappedValue.TypeInfo != null) ? value.WrappedValue.TypeInfo.ToString() : String.Empty;
                 row[13] = value.WrappedValue;
                 row[14] = value.StatusCode;
@@ -445,7 +445,7 @@ namespace Opc.Ua.Client.Controls
             buffer.Append("/");
             buffer.Append(subscription.CurrentLifetimeCount);
             buffer.Append("}");
-            
+
             return buffer.ToString();
         }
         #endregion
@@ -466,12 +466,12 @@ namespace Opc.Ua.Client.Controls
 
             try
             {
-                if (e.Status == PublishStateChangedMask.Stopped)
+                if ((e.Status & PublishStateChangedMask.Stopped) != 0)
                 {
                     SubscriptionStateTB.Text = "STOPPED";
                     SubscriptionStateTB.ForeColor = Color.Red;
                 }
-                else if (e.Status == PublishStateChangedMask.Recovered)
+                else if ((e.Status & PublishStateChangedMask.Recovered) == 0)
                 {
                     SubscriptionStateTB.Text = GetDisplayString(m_subscription);
                     SubscriptionStateTB.ForeColor = Color.Empty;
@@ -649,7 +649,7 @@ namespace Opc.Ua.Client.Controls
 
                 m_EditComplexValueDlg = new EditComplexValueDlg();
                 m_EditComplexValueDlg.Tag = monitoredItem;
-                    
+
                 m_EditComplexValueDlg.ShowDialog(
                     m_session,
                     monitoredItem.ResolvedNodeId,
@@ -706,10 +706,10 @@ namespace Opc.Ua.Client.Controls
                 MonitoringMode oldMonitoringMode = monitoredItems[0].MonitoringMode;
                 MonitoringMode newMonitoringMode = new EditMonitoredItemDlg().ShowDialog(oldMonitoringMode);
 
-                if (oldMonitoringMode != newMonitoringMode) 
+                if (oldMonitoringMode != newMonitoringMode)
                 {
                     List<MonitoredItem> itemsToModify = new List<MonitoredItem>();
-                    
+
                     foreach (MonitoredItem monitoredItem in monitoredItems)
                     {
                         DataRow row = (DataRow)monitoredItem.Handle;
@@ -723,7 +723,7 @@ namespace Opc.Ua.Client.Controls
 
                         monitoredItem.MonitoringMode = newMonitoringMode;
                     }
-                    
+
                     if (itemsToModify.Count != 0)
                     {
                         m_subscription.SetMonitoringMode(newMonitoringMode, itemsToModify);
