@@ -59,7 +59,7 @@ namespace Opc.Ua.Client.Tests
 #if  NET6_0_OR_GREATER
         public bool haveActivitySource { get; set; } = true;
 
-        public ISessionFactory SessionFactory => haveActivitySource ? new SessionActivitySourceFactory() : new DefaultSessionFactory();
+        public ISessionFactory SessionFactory => haveActivitySource ? new SessionFactoryActivitySource() : new DefaultSessionFactory();
 #else
         public ISessionFactory SessionFactory {get;} = new DefaultSessionFactory();
 #endif

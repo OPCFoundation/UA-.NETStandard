@@ -20,8 +20,6 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="OpenTelemetry" Version="1.5.1" />
-    <PackageReference Include="OpenTelemetry.Api" Version="1.5.1" />
   </ItemGroup>
 
   <ItemGroup>
