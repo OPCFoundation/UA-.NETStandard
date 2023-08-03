@@ -3447,9 +3447,10 @@ namespace Opc.Ua.Client
                     m_reconnectLock.Wait();
                     m_reconnecting = true;
 
+                    IList<ServiceResult> resendResults = null;
                     if (sendInitialValues)
                     {
-                        if (!ResendData(subscriptions, out var resendResults))
+                        if (!ResendData(subscriptions, out resendResults))
                         {
                             Utils.LogError("Failed to call resend data for subscriptions.");
                         }
@@ -3457,6 +3458,16 @@ namespace Opc.Ua.Client
 
                     for (int ii = 0; ii < subscriptions.Count; ii++)
                     {
+                        // no need to try for subscriptions which do not exist
+                        if (resendResults != null &&
+                            resendResults.Count > ii &&
+                            StatusCode.IsNotGood(resendResults[ii].StatusCode))
+                        {
+                            Utils.LogError("SubscriptionId {0} failed to resend data and is not activated.", subscriptionIds[ii]);
+                            failedSubscriptions++;
+                            continue;
+                        }
+
                         if (!subscriptions[ii].Transfer(this, subscriptionIds[ii], new UInt32Collection()))
                         {
                             Utils.LogError("SubscriptionId {0} failed to reactivate.", subscriptionIds[ii]);
