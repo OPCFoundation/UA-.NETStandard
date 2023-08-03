@@ -659,12 +659,12 @@ namespace Opc.Ua.Client.Controls
 
             try
             {
-                if (e.Status == PublishStateChangedMask.Stopped)
+                if ((e.Status & PublishStateChangedMask.Stopped) != 0)
                 {
                     SubscriptionStateTB.Text = "STOPPED";
                     SubscriptionStateTB.ForeColor = Color.Red;
                 }
-                else if (e.Status == PublishStateChangedMask.Recovered)
+                else if ((e.Status & PublishStateChangedMask.Recovered) != 0)
                 {
                     SubscriptionStateTB.Text = GetDisplayString(m_subscription);
                     SubscriptionStateTB.ForeColor = Color.Empty;

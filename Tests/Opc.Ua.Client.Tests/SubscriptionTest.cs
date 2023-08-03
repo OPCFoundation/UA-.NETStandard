@@ -1115,7 +1115,15 @@ namespace Opc.Ua.Client.Tests
                     FastDataChangeCallback = (s, n, _) => {
                         TestContext.Out.WriteLine($"FastDataChangeHandlerOrigin: {s.Id}-{n.SequenceNumber}-{n.MonitoredItems.Count}");
                         fastDataCounters[(int)s.Handle]++;
-                    }
+                    },
+                };
+
+                subscription.StateChanged += (s, e) => {
+                    TestContext.Out.WriteLine($"StateChanged: {s.Id}-{e.Status}");
+                };
+
+                subscription.PublishStatusChanged += (s, e) => {
+                    TestContext.Out.WriteLine($"PublishStatusChanged: {s.Id}-{e.Status}");
                 };
 
                 originSubscriptions.Add(subscription);
