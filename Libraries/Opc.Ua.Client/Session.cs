@@ -1464,7 +1464,7 @@ namespace Opc.Ua.Client
                     Utils.LogInfo("Session RECONNECT completed successfully.");
                     m_previousServerNonce = m_serverNonce;
                     m_serverNonce = serverNonce;
-                    publishCount = GetMinPublishRequestCount();
+                    publishCount = GetMinPublishRequestCount(true);
                 }
 
                 m_reconnectLock.Wait();
@@ -4207,7 +4207,7 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                count = GetMinPublishRequestCount();
+                count = GetMinPublishRequestCount(false);
                 while (count-- > 0)
                 {
                     BeginPublish(OperationTimeout);
@@ -5265,7 +5265,7 @@ namespace Opc.Ua.Client
             }
 
             int requestCount = GoodPublishRequestCount;
-            var minPublishRequestCount = GetMinPublishRequestCount();
+            var minPublishRequestCount = GetMinPublishRequestCount(false);
             if (requestCount < minPublishRequestCount)
             {
                 BeginPublish(OperationTimeout);
@@ -5566,7 +5566,7 @@ namespace Opc.Ua.Client
             }
             else
             {
-                if (m_deleteSubscriptionsOnClose)
+                if (m_deleteSubscriptionsOnClose && !m_reconnecting)
                 {
                     // Delete abandoned subscription from server.
                     Utils.LogWarning("Received Publish Response for Unknown SubscriptionId={0}. Deleting abandoned subscription from server.", subscriptionId);
@@ -5759,7 +5759,7 @@ namespace Opc.Ua.Client
         /// <remarks>
         /// Returns 0 if there are no subscriptions.
         /// </remarks>
-        private int GetMinPublishRequestCount()
+        private int GetMinPublishRequestCount(bool createdOnly)
         {
             lock (SyncRoot)
             {
@@ -5767,6 +5767,26 @@ namespace Opc.Ua.Client
                 {
                     return 0;
                 }
+
+                if (createdOnly)
+                {
+                    int count = 0;
+                    foreach(Subscription subscription in m_subscriptions)
+                    {
+                        if (subscription.Created)
+                        {
+                            count++;
+                        }
+                    }
+
+                    if (count == 0)
+                    {
+                        return 0;
+                    }
+
+                    return Math.Max(count, m_minPublishRequestCount);
+                }
+
                 return Math.Max(m_subscriptions.Count, m_minPublishRequestCount);
             }
         }
@@ -5804,7 +5824,7 @@ namespace Opc.Ua.Client
             int publishCount = 0;
             lock (SyncRoot)
             {
-                publishCount = GetMinPublishRequestCount();
+                publishCount = GetMinPublishRequestCount(true);
             }
 
             // refill pipeline.

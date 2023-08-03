@@ -599,7 +599,7 @@ namespace Opc.Ua.Client.Tests
                     Assert.AreEqual(0, targetSubscriptionCounters[ii]);
                     Assert.AreEqual(0, targetSubscriptionFastDataCounters[ii]);
                 }
-                else if (ii == 0 )
+                else if (ii == 0)
                 {
                     Assert.AreEqual(10, targetSubscriptionCounters[ii]);
                     Assert.AreEqual(1, targetSubscriptionFastDataCounters[ii]);
