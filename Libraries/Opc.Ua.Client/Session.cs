@@ -1302,8 +1302,6 @@ namespace Opc.Ua.Client
             bool resetReconnect = false;
             try
             {
-                m_reconnectLock.Wait();
-
                 // check if already connecting.
                 if (m_reconnecting)
                 {
@@ -1315,6 +1313,8 @@ namespace Opc.Ua.Client
                 }
 
                 Utils.LogInfo("Session RECONNECT starting.");
+
+                m_reconnectLock.Wait();
                 m_reconnecting = true;
                 resetReconnect = true;
                 m_reconnectLock.Release();
