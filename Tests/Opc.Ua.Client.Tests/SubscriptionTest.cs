@@ -447,12 +447,13 @@ namespace Opc.Ua.Client.Tests
         /// Open a session on a channel, then reconnect (activate)
         /// the same session on a new channel with saved session secrets.
         /// </summary>
-        [Test, Order(350)]
-        [TestCase(SecurityPolicies.None, true, false, true, true)]
-        [TestCase(SecurityPolicies.None, false, true, false, false)]
-        [TestCase(SecurityPolicies.Basic256Sha256, true, false, false, false)]
-        [TestCase(SecurityPolicies.Basic256Sha256, false, true, true, true)]
-        public async Task ReconnectWithSavedSessionSecrets(string securityPolicy, bool anonymous, bool sequentialPublishing, bool sendInitialValues, bool asyncTest)
+        [Test, Combinatorial, Order(350)]
+        public async Task ReconnectWithSavedSessionSecrets(
+            [Values(SecurityPolicies.None, SecurityPolicies.Basic256Sha256)] string securityPolicy,
+            [Values(true, false)] bool anonymous,
+            [Values(true, false)] bool sequentialPublishing,
+            [Values(true, false)] bool sendInitialValues,
+            [Values(true, false)] bool asyncTest)
         {
             const int kTestSubscriptions = 5;
             const int kDelay = 2_000;
@@ -564,12 +565,12 @@ namespace Opc.Ua.Client.Tests
             // reactivate restored subscriptions
             if (asyncTest)
             {
-                var reactivateResult = await session2.ReactivateSubscriptionsAsync(restoredSubscriptions, sendInitialValues).ConfigureAwait(false);
+                bool reactivateResult = await session2.ReactivateSubscriptionsAsync(restoredSubscriptions, sendInitialValues).ConfigureAwait(false);
                 Assert.IsTrue(reactivateResult);
             }
             else
             {
-                var reactivateResult = session2.ReactivateSubscriptions(restoredSubscriptions, sendInitialValues);
+                bool reactivateResult = session2.ReactivateSubscriptions(restoredSubscriptions, sendInitialValues);
                 Assert.IsTrue(reactivateResult);
             }
 
@@ -593,10 +594,15 @@ namespace Opc.Ua.Client.Tests
                 var monitoredItemCount = restoredSubscriptions[ii].MonitoredItemCount;
 
                 // the static subscription doesn't resend data until there is a data change
-                if (ii == 0)
+                if (ii == 0 && !sendInitialValues)
                 {
                     Assert.AreEqual(0, targetSubscriptionCounters[ii]);
                     Assert.AreEqual(0, targetSubscriptionFastDataCounters[ii]);
+                }
+                else if (ii == 0 )
+                {
+                    Assert.AreEqual(10, targetSubscriptionCounters[ii]);
+                    Assert.AreEqual(1, targetSubscriptionFastDataCounters[ii]);
                 }
                 else
                 {

@@ -113,33 +113,32 @@ namespace Opc.Ua.Client
                     await m_reconnectLock.WaitAsync().ConfigureAwait(false);
                     m_reconnecting = true;
 
-                    IList<ServiceResult> resendResults= null;
-                    if (sendInitialValues)
-                    {
-                        bool success;
-                        (success, resendResults) = await ResendDataAsync(subscriptions, ct).ConfigureAwait(false);
-                        if (!success)
-                        {
-                            Utils.LogError("Failed to call resend data for subscriptions.");
-                        }
-                    }
-
                     for (int ii = 0; ii < subscriptions.Count; ii++)
                     {
-                        // no need to try for subscriptions which do not exist
-                        if (resendResults != null &&
-                            resendResults.Count > ii &&
-                            StatusCode.IsNotGood(resendResults[ii].StatusCode))
-                        {
-                            Utils.LogError("SubscriptionId {0} failed to resend data and is not activated.", subscriptionIds[ii]);
-                            failedSubscriptions++;
-                            continue;
-                        }
-
                         if (!await subscriptions[ii].TransferAsync(this, subscriptionIds[ii], new UInt32Collection(), ct).ConfigureAwait(false))
                         {
                             Utils.LogError("SubscriptionId {0} failed to reactivate.", subscriptionIds[ii]);
                             failedSubscriptions++;
+                        }
+                    }
+
+                    if (sendInitialValues)
+                    {
+                        (bool success, IList<ServiceResult> resendResults) = await ResendDataAsync(subscriptions, ct).ConfigureAwait(false);
+                        if (!success)
+                        {
+                            Utils.LogError("Failed to call resend data for subscriptions.");
+                        }
+                        else if (resendResults != null)
+                        {
+                            for (int ii = 0; ii < resendResults.Count; ii++)
+                            {
+                                // no need to try for subscriptions which do not exist
+                                if (StatusCode.IsNotGood(resendResults[ii].StatusCode))
+                                {
+                                    Utils.LogError("SubscriptionId {0} failed to resend data.", subscriptionIds[ii]);
+                                }
+                            }
                         }
                     }
 
