@@ -104,7 +104,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             UInt32Collection subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
-            bool result = true;
+            int failedSubscriptions = 0;
 
             if (subscriptionIds.Count > 0)
             {
@@ -126,22 +126,16 @@ namespace Opc.Ua.Client
                         }
                     }
 
-                    var failedSubscriptionIds = new UInt32Collection();
                     for (int ii = 0; ii < subscriptions.Count; ii++)
                     {
                         if (!await subscriptions[ii].TransferAsync(this, subscriptionIds[ii], new UInt32Collection(), ct).ConfigureAwait(false))
                         {
                             Utils.LogError("SubscriptionId {0} failed to reactivate.", subscriptionIds[ii]);
-                            failedSubscriptionIds.Add(subscriptions[ii].TransferId);
+                            failedSubscriptions++;
                         }
                     }
 
-                    if (failedSubscriptionIds.Count > 0)
-                    {
-                        result = false;
-                    }
-
-                    Utils.LogInfo("Session REACTIVATE of {0} subscriptions completed. {1} failed.", subscriptions.Count, failedSubscriptionIds.Count);
+                    Utils.LogInfo("Session REACTIVATE of {0} subscriptions completed. {1} failed.", subscriptions.Count, failedSubscriptions);
                 }
                 finally
                 {
@@ -156,7 +150,7 @@ namespace Opc.Ua.Client
                 Utils.LogInfo("No subscriptions. Transfersubscription skipped.");
             }
 
-            return result;
+            return failedSubscriptions == 0;
         }
 
         /// <inheritdoc/>
@@ -202,8 +196,8 @@ namespace Opc.Ua.Client
             bool sendInitialValues,
             CancellationToken ct)
         {
-            bool result = true;
             UInt32Collection subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
+            int failedSubscriptions = 0;
 
             if (subscriptionIds.Count > 0)
             {
@@ -226,7 +220,6 @@ namespace Opc.Ua.Client
                     ClientBase.ValidateResponse(results, subscriptionIds);
                     ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
 
-                    var failedSubscriptionIds = new UInt32Collection();
                     for (int ii = 0; ii < subscriptions.Count; ii++)
                     {
                         if (StatusCode.IsGood(results[ii].StatusCode))
@@ -250,20 +243,16 @@ namespace Opc.Ua.Client
                         else if (results[ii].StatusCode == StatusCodes.BadNothingToDo)
                         {
                             Utils.LogInfo("SubscriptionId {0} is already member of the session.", subscriptionIds[ii]);
+                            failedSubscriptions++;
                         }
                         else
                         {
                             Utils.LogError("SubscriptionId {0} failed to transfer, StatusCode={1}", subscriptionIds[ii], results[ii].StatusCode);
-                            failedSubscriptionIds.Add(subscriptions[ii].TransferId);
+                            failedSubscriptions++;
                         }
                     }
 
-                    if (failedSubscriptionIds.Count > 0)
-                    {
-                        result = false;
-                    }
-
-                    Utils.LogInfo("Session TRANSFER of {0} subscriptions completed. {1} failed.", subscriptions.Count, failedSubscriptionIds.Count);
+                    Utils.LogInfo("Session TRANSFER ASYNC of {0} subscriptions completed. {1} failed.", subscriptions.Count, failedSubscriptions);
                 }
                 finally
                 {
@@ -278,7 +267,7 @@ namespace Opc.Ua.Client
                 Utils.LogInfo("No subscriptions. Transfersubscription skipped.");
             }
 
-            return result;
+            return failedSubscriptions == 0;
         }
         #endregion
 

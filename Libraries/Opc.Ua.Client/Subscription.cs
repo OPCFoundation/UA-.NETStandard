@@ -967,7 +967,7 @@ namespace Opc.Ua.Client
 
             StartKeepAliveTimer();
 
-            TraceState("TRANSFERRED");
+            TraceState("TRANSFERRED ASYNC");
 
             return true;
         }

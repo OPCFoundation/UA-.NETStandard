@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -36,7 +35,6 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -1237,9 +1235,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Events
-        /// <summary>
-        /// Raised before a reconnect operation completes.
-        /// </summary>
+        /// <inheritdoc/>
         public event RenewUserIdentityEventHandler RenewUserIdentity
         {
             add { m_RenewUserIdentity += value; }
@@ -1250,10 +1246,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Public Methods
-        /// <summary>
-        /// Applies a session configuration.
-        /// With a secure channel, a session can be reconnected.
-        /// </summary>
+        /// <inheritdoc/>
         public bool ApplySessionConfiguration(SessionConfiguration sessionConfiguration)
         {
             if (sessionConfiguration == null) throw new ArgumentNullException(nameof(sessionConfiguration));
@@ -1287,33 +1280,30 @@ namespace Opc.Ua.Client
             return sessionConfiguration;
         }
 
-        /// <summary>
-        /// Reconnects to the server after a network failure.
-        /// </summary>
+        /// <inheritdoc/>
         public void Reconnect()
         {
             Reconnect(null, null);
         }
 
-        /// <summary>
-        /// Reconnects to the server after a network failure using a waiting connection.
-        /// </summary>
+        /// <inheritdoc/>
         public void Reconnect(ITransportWaitingConnection connection)
             => Reconnect(connection, null);
 
-        /// <summary>
-        /// Reconnects to the server using a new channel.
-        /// </summary>
+        /// <inheritdoc/>
         public void Reconnect(ITransportChannel channel)
             => Reconnect(null, channel);
 
         /// <summary>
         /// Reconnects to the server after a network failure using a waiting connection.
         /// </summary>
-        public void Reconnect(ITransportWaitingConnection connection, ITransportChannel transportChannel = null)
+        private void Reconnect(ITransportWaitingConnection connection, ITransportChannel transportChannel = null)
         {
+            bool resetReconnect = false;
             try
             {
+                m_reconnectLock.Wait();
+
                 // check if already connecting.
                 if (m_reconnecting)
                 {
@@ -1325,9 +1315,8 @@ namespace Opc.Ua.Client
                 }
 
                 Utils.LogInfo("Session RECONNECT starting.");
-
-                m_reconnectLock.Wait();
                 m_reconnecting = true;
+                resetReconnect = true;
                 m_reconnectLock.Release();
 
                 lock (SyncRoot)
@@ -1480,6 +1469,7 @@ namespace Opc.Ua.Client
 
                 m_reconnectLock.Wait();
                 m_reconnecting = false;
+                resetReconnect = false;
                 m_reconnectLock.Release();
 
                 // refill pipeline.
@@ -1492,7 +1482,7 @@ namespace Opc.Ua.Client
             }
             finally
             {
-                if (m_reconnecting)
+                if (resetReconnect)
                 {
                     m_reconnectLock.Wait();
                     m_reconnecting = false;
@@ -1501,18 +1491,13 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Saves all the subscriptions of the session.
-        /// </summary>
-        /// <param name="filePath">The file path.</param>
+        /// <inheritdoc/>
         public void Save(string filePath)
         {
             Save(filePath, Subscriptions);
         }
 
-        /// <summary>
-        /// Saves a set of subscriptions to a stream.
-        /// </summary>
+        /// <inheritdoc/>
         public void Save(Stream stream, IEnumerable<Subscription> subscriptions)
         {
             SubscriptionCollection subscriptionList = new SubscriptionCollection(subscriptions);
@@ -1525,9 +1510,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Saves a set of subscriptions to a file.
-        /// </summary>
+        /// <inheritdoc/>
         public void Save(string filePath, IEnumerable<Subscription> subscriptions)
         {
             using (FileStream stream = new FileStream(filePath, FileMode.Create))
@@ -1536,12 +1519,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Load the list of subscriptions saved in a stream.
-        /// </summary>
-        /// <param name="stream">The stream.</param>
-        /// <param name="transferSubscriptions">Load the subscriptions for transfer after load.</param>
-        /// <returns>The list of loaded subscriptions</returns>
+        /// <inheritdoc/>
         public IEnumerable<Subscription> Load(Stream stream, bool transferSubscriptions = false)
         {
             // secure settings
@@ -1569,12 +1547,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Load the list of subscriptions saved in a file.
-        /// </summary>
-        /// <param name="filePath">The file path.</param>
-        /// <param name="transferSubscriptions">Load the subscriptions for transfer after load.</param>
-        /// <returns>The list of loaded subscriptions</returns>
+        /// <inheritdoc/>
         public IEnumerable<Subscription> Load(string filePath, bool transferSubscriptions = false)
         {
             using (FileStream stream = File.OpenRead(filePath))
@@ -1583,9 +1556,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Updates the local copy of the server's namespace uri and server uri tables.
-        /// </summary>
+        /// <inheritdoc/>
         public void FetchNamespaceTables()
         {
             ReadValueIdCollection nodesToRead = new ReadValueIdCollection();
@@ -1694,12 +1665,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Updates the cache with the type and its subtypes.
-        /// </summary>
-        /// <remarks>
-        /// This method can be used to ensure the TypeTree is populated.
-        /// </remarks>
+        /// <inheritdoc/>
         public void FetchTypeTree(ExpandedNodeId typeId)
         {
             Node node = NodeCache.Find(typeId) as Node;
@@ -1718,12 +1684,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Updates the cache with the types and its subtypes.
-        /// </summary>
-        /// <remarks>
-        /// This method can be used to ensure the TypeTree is populated.
-        /// </remarks>
+        /// <inheritdoc/>
         public void FetchTypeTree(ExpandedNodeIdCollection typeIds)
         {
             var referenceTypeIds = new NodeIdCollection() { ReferenceTypeIds.HasSubtype };
@@ -1748,10 +1709,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Returns the available encodings for a node
-        /// </summary>
-        /// <param name="variableId">The variable node.</param>
+        /// <inheritdoc/>
         public ReferenceDescriptionCollection ReadAvailableEncodings(NodeId variableId)
         {
             VariableNode variable = NodeCache.Find(variableId) as VariableNode;
@@ -1808,10 +1766,7 @@ namespace Opc.Ua.Client
             return browser.Browse(variable.DataType);
         }
 
-        /// <summary>
-        /// Returns the data description for the encoding.
-        /// </summary>
-        /// <param name="encodingId">The encoding Id.</param>
+        /// <inheritdoc/>
         public ReferenceDescription FindDataDescription(NodeId encodingId)
         {
             Browser browser = new Browser(this);
@@ -1831,10 +1786,7 @@ namespace Opc.Ua.Client
             return references[0];
         }
 
-        /// <summary>
-        ///  Returns the data dictionary that contains the description.
-        /// </summary>
-        /// <param name="descriptionId">The description id.</param>
+        /// <inheritdoc/>
         public async Task<DataDictionary> FindDataDictionary(NodeId descriptionId)
         {
             // check if the dictionary has already been loaded.
@@ -1864,12 +1816,7 @@ namespace Opc.Ua.Client
             return dictionaryToLoad;
         }
 
-        /// <summary>
-        ///  Returns the data dictionary that contains the description.
-        /// </summary>
-        /// <param name="dictionaryNode">The dictionary id.</param>
-        /// <param name="forceReload"></param>
-        /// <returns>The dictionary.</returns>
+        /// <inheritdoc/>
         public async Task<DataDictionary> LoadDataDictionary(ReferenceDescription dictionaryNode, bool forceReload = false)
         {
             // check if the dictionary has already been loaded.
@@ -1888,10 +1835,7 @@ namespace Opc.Ua.Client
             return dictionaryToLoad;
         }
 
-        /// <summary>
-        /// Loads all dictionaries of the OPC binary or Xml schema type system.
-        /// </summary>
-        /// <param name="dataTypeSystem">The type system.</param>
+        /// <inheritdoc/>
         public async Task<Dictionary<NodeId, DataDictionary>> LoadDataTypeSystem(NodeId dataTypeSystem = null)
         {
             if (dataTypeSystem == null)
@@ -1986,19 +1930,7 @@ namespace Opc.Ua.Client
             return m_dictionaries;
         }
 
-        /// <summary>
-        /// Reads the values for the node attributes and returns a node object collection.
-        /// </summary>
-        /// <remarks>
-        /// If the nodeclass for the nodes in nodeIdCollection is already known,
-        /// and passed as nodeClass, reads only values of required attributes.
-        /// Otherwise NodeClass.Unspecified should be used.
-        /// </remarks>
-        /// <param name="nodeIds">The nodeId collection to read.</param>
-        /// <param name="nodeClass">The nodeClass of all nodes in the collection. Set to <c>NodeClass.Unspecified</c> if the nodeclass is unknown.</param>
-        /// <param name="nodeCollection">The node collection that is created from attributes read from the server.</param>
-        /// <param name="errors">The errors that occured reading the nodes.</param>
-        /// <param name="optionalAttributes">Set to <c>true</c> if optional attributes should not be omitted.</param>
+        /// <inheritdoc/>
         public void ReadNodes(
             IList<NodeId> nodeIds,
             NodeClass nodeClass,
@@ -2048,15 +1980,7 @@ namespace Opc.Ua.Client
                 nodeCollection, errors);
         }
 
-        /// <summary>
-        /// Reads the values for the node attributes and returns a node object.
-        /// Reads the nodeclass of the nodeIds, then reads
-        /// the values for the node attributes and returns a node object collection.
-        /// </summary>
-        /// <param name="nodeIds">The nodeId collection.</param>
-        /// <param name="nodeCollection">The node collection read from the server.</param>
-        /// <param name="errors">The errors occured reading the nodes.</param>
-        /// <param name="optionalAttributes">Set to <c>true</c> if optional attributes should not be omitted.</param>
+        /// <inheritdoc/>
         public void ReadNodes(
             IList<NodeId> nodeIds,
             out IList<Node> nodeCollection,
@@ -2138,24 +2062,13 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Reads the values for the node attributes and returns a node object.
-        /// </summary>
-        /// <param name="nodeId">The nodeId.</param>
+        /// <inheritdoc/>
         public Node ReadNode(NodeId nodeId)
         {
             return ReadNode(nodeId, NodeClass.Unspecified, true);
         }
 
-        /// <summary>
-        /// Reads the values for the node attributes and returns a node object.
-        /// </summary>
-        /// <remarks>
-        /// If the nodeclass is known, only the supported attribute values are read.
-        /// </remarks>
-        /// <param name="nodeId">The nodeId.</param>
-        /// <param name="nodeClass">The nodeclass of the node to read.</param>
-        /// <param name="optionalAttributes">Read optional attributes.</param>
+        /// <inheritdoc/>
         public Node ReadNode(
             NodeId nodeId,
             NodeClass nodeClass,
@@ -2193,10 +2106,7 @@ namespace Opc.Ua.Client
             return ProcessReadResponse(responseHeader, attributes, itemsToRead, values, diagnosticInfos);
         }
 
-        /// <summary>
-        /// Reads the value for a node.
-        /// </summary>
-        /// <param name="nodeId">The node Id.</param>
+        /// <inheritdoc/>
         public DataValue ReadValue(NodeId nodeId)
         {
             ReadValueId itemToRead = new ReadValueId {
@@ -2232,12 +2142,7 @@ namespace Opc.Ua.Client
             return values[0];
         }
 
-        /// <summary>
-        /// Reads the values for a node collection. Returns diagnostic errors.
-        /// </summary>
-        /// <param name="nodeIds">The node Id.</param>
-        /// <param name="values">The data values read from the server.</param>
-        /// <param name="errors">The errors reported by the server.</param>
+        /// <inheritdoc/>
         public void ReadValues(
             IList<NodeId> nodeIds,
             out DataValueCollection values,
@@ -2285,11 +2190,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Reads the value for a node an checks that it is the specified type.
-        /// </summary>
-        /// <param name="nodeId">The node id.</param>
-        /// <param name="expectedType">The expected type.</param>
+        /// <inheritdoc/>
         public object ReadValue(NodeId nodeId, Type expectedType)
         {
             DataValue dataValue = ReadValue(nodeId);
@@ -2317,10 +2218,7 @@ namespace Opc.Ua.Client
             return value;
         }
 
-        /// <summary>
-        /// Fetches all references for the specified node.
-        /// </summary>
-        /// <param name="nodeId">The node id.</param>
+        /// <inheritdoc/>
         public ReferenceDescriptionCollection FetchReferences(NodeId nodeId)
         {
             // browse for all references.
@@ -2360,12 +2258,7 @@ namespace Opc.Ua.Client
             return descriptions;
         }
 
-        /// <summary>
-        /// Fetches all references for the specified nodes.
-        /// </summary>
-        /// <param name="nodeIds">The node id collection.</param>
-        /// <param name="referenceDescriptions">A list of reference collections.</param>
-        /// <param name="errors">The errors reported by the server.</param>
+        /// <inheritdoc/>
         public void FetchReferences(
             IList<NodeId> nodeIds,
             out IList<ReferenceDescriptionCollection> referenceDescriptions,
@@ -2434,11 +2327,7 @@ namespace Opc.Ua.Client
             referenceDescriptions = result;
         }
 
-        /// <summary>
-        /// Establishes a session with the server.
-        /// </summary>
-        /// <param name="sessionName">The name to assign to the session.</param>
-        /// <param name="identity">The user identity.</param>
+        /// <inheritdoc/>
         public void Open(
             string sessionName,
             IUserIdentity identity)
@@ -2446,13 +2335,7 @@ namespace Opc.Ua.Client
             Open(sessionName, 0, identity, null);
         }
 
-        /// <summary>
-        /// Establishes a session with the server.
-        /// </summary>
-        /// <param name="sessionName">The name to assign to the session.</param>
-        /// <param name="sessionTimeout">The session timeout.</param>
-        /// <param name="identity">The user identity.</param>
-        /// <param name="preferredLocales">The list of preferred locales.</param>
+        /// <inheritdoc/>
         public void Open(
             string sessionName,
             uint sessionTimeout,
@@ -2462,14 +2345,7 @@ namespace Opc.Ua.Client
             Open(sessionName, sessionTimeout, identity, preferredLocales, true);
         }
 
-        /// <summary>
-        /// Establishes a session with the server.
-        /// </summary>
-        /// <param name="sessionName">The name to assign to the session.</param>
-        /// <param name="sessionTimeout">The session timeout.</param>
-        /// <param name="identity">The user identity.</param>
-        /// <param name="preferredLocales">The list of preferred locales.</param>
-        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
         public void Open(
             string sessionName,
@@ -2977,20 +2853,13 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Updates the preferred locales used for the session.
-        /// </summary>
-        /// <param name="preferredLocales">The preferred locales.</param>
+        /// <inheritdoc/>
         public void ChangePreferredLocales(StringCollection preferredLocales)
         {
             UpdateSession(Identity, preferredLocales);
         }
 
-        /// <summary>
-        /// Updates the user identity and/or locales used for the session.
-        /// </summary>
-        /// <param name="identity">The user identity.</param>
-        /// <param name="preferredLocales">The preferred locales.</param>
+        /// <inheritdoc/>
         public void UpdateSession(IUserIdentity identity, StringCollection preferredLocales)
         {
             byte[] serverNonce = null;
@@ -3107,9 +2976,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Finds the NodeIds for the components for an instance.
-        /// </summary>
+        /// <inheritdoc/>
         public void FindComponentIds(
             NodeId instanceId,
             IList<string> componentPaths,
@@ -3216,13 +3083,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Reads the values for a set of variables.
-        /// </summary>
-        /// <param name="variableIds">The variable ids.</param>
-        /// <param name="expectedTypes">The expected types.</param>
-        /// <param name="values">The list of returned values.</param>
-        /// <param name="errors">The list of returned errors.</param>
+        /// <inheritdoc/>
         public void ReadValues(
             IList<NodeId> variableIds,
             IList<Type> expectedTypes,
@@ -3305,9 +3166,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Reads the display name for a set of Nodes.
-        /// </summary>
+        /// <inheritdoc/>
         public void ReadDisplayName(
             IList<NodeId> nodeIds,
             out IList<string> displayNames,
@@ -3371,33 +3230,23 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Close Methods
-        /// <summary>
-        /// Disconnects from the server and frees any network resources.
-        /// </summary>
+        /// <inheritdoc/>
         public override StatusCode Close()
         {
             return Close(m_keepAliveInterval, true);
         }
 
-        /// <summary>
-        /// Close the session with the server and optionally closes the channel.
-        /// </summary>
-        /// <param name="closeChannel"></param>
-        /// <returns></returns>
+        /// <inheritdoc/>
         public StatusCode Close(bool closeChannel)
         {
             return Close(m_keepAliveInterval, closeChannel);
         }
 
-        /// <summary>
-        /// Disconnects from the server and frees any network resources with the specified timeout.
-        /// </summary>
+        /// <inheritdoc/>
         public StatusCode Close(int timeout)
             => Close(timeout, true);
 
-        /// <summary>
-        /// Disconnects from the server and frees any network resources with the specified timeout.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual StatusCode Close(int timeout, bool closeChannel)
         {
             // check if already called.
@@ -3479,10 +3328,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Subscription Methods
-        /// <summary>
-        /// Adds a subscription to the session.
-        /// </summary>
-        /// <param name="subscription">The subscription to add.</param>
+        /// <inheritdoc/>
         public bool AddSubscription(Subscription subscription)
         {
             if (subscription == null) throw new ArgumentNullException(nameof(subscription));
@@ -3506,10 +3352,7 @@ namespace Opc.Ua.Client
             return true;
         }
 
-        /// <summary>
-        /// Removes a subscription from the session.
-        /// </summary>
-        /// <param name="subscription">The subscription to remove.</param>
+        /// <inheritdoc/>
         public bool RemoveSubscription(Subscription subscription)
         {
             if (subscription == null) throw new ArgumentNullException(nameof(subscription));
@@ -3537,10 +3380,7 @@ namespace Opc.Ua.Client
             return true;
         }
 
-        /// <summary>
-        /// Removes a list of subscriptions from the session.
-        /// </summary>
-        /// <param name="subscriptions">The list of subscriptions to remove.</param>
+        /// <inheritdoc/>
         public bool RemoveSubscriptions(IEnumerable<Subscription> subscriptions)
         {
             if (subscriptions == null) throw new ArgumentNullException(nameof(subscriptions));
@@ -3564,12 +3404,7 @@ namespace Opc.Ua.Client
             return removed;
         }
 
-        /// <summary>
-        /// Removes a transferred subscription from the session.
-        /// Called by the session to which the subscription
-        /// is transferred to obtain ownership. Internal.
-        /// </summary>
-        /// <param name="subscription">The subscription to remove.</param>
+        /// <inheritdoc/>
         public bool RemoveTransferredSubscription(Subscription subscription)
         {
             if (subscription == null) throw new ArgumentNullException(nameof(subscription));
@@ -3597,15 +3432,12 @@ namespace Opc.Ua.Client
             return true;
         }
 
-        /// <summary>
-        /// Reactivates a list of Subscriptions from a reconnected session
-        /// for which the subscriptions may still be active.
-        /// </summary>
+        /// <inheritdoc/>
         public bool ReactivateSubscriptions(
             SubscriptionCollection subscriptions,
             bool sendInitialValues)
         {
-            bool result = true;
+            int failedSubscriptions = 0;
             UInt32Collection subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
 
             if (subscriptionIds.Count > 0)
@@ -3623,22 +3455,16 @@ namespace Opc.Ua.Client
                         }
                     }
 
-                    var failedSubscriptionIds = new UInt32Collection();
                     for (int ii = 0; ii < subscriptions.Count; ii++)
                     {
                         if (!subscriptions[ii].Transfer(this, subscriptionIds[ii], new UInt32Collection()))
                         {
                             Utils.LogError("SubscriptionId {0} failed to reactivate.", subscriptionIds[ii]);
-                            failedSubscriptionIds.Add(subscriptions[ii].TransferId);
+                            failedSubscriptions++;
                         }
                     }
 
-                    if (failedSubscriptionIds.Count > 0)
-                    {
-                        result = false;
-                    }
-
-                    Utils.LogInfo("Session REACTIVATEo of {0} subscriptions completed. {1} failed.", subscriptions.Count, failedSubscriptionIds.Count);
+                    Utils.LogInfo("Session REACTIVATE of {0} subscriptions completed. {1} failed.", subscriptions.Count, failedSubscriptions);
                 }
                 finally
                 {
@@ -3653,18 +3479,17 @@ namespace Opc.Ua.Client
                 Utils.LogInfo("No subscriptions. Transfersubscription skipped.");
             }
 
-            return result;
+            return failedSubscriptions == 0;
         }
 
-        /// <summary>
-        /// Transfers a list of Subscriptions from another session.
-        /// </summary>
+        /// <inheritdoc/>
         public bool TransferSubscriptions(
             SubscriptionCollection subscriptions,
             bool sendInitialValues)
         {
-            bool result = true;
+            int failedSubscriptions = 0;
             UInt32Collection subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
+
             if (subscriptionIds.Count > 0)
             {
                 if (m_reconnecting)
@@ -3688,7 +3513,6 @@ namespace Opc.Ua.Client
                     ClientBase.ValidateResponse(results, subscriptionIds);
                     ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
 
-                    var failedSubscriptionIds = new UInt32Collection();
                     for (int ii = 0; ii < subscriptions.Count; ii++)
                     {
                         if (StatusCode.IsGood(results[ii].StatusCode))
@@ -3712,20 +3536,16 @@ namespace Opc.Ua.Client
                         else if (results[ii].StatusCode == StatusCodes.BadNothingToDo)
                         {
                             Utils.LogInfo("SubscriptionId {0} is already member of the session.", subscriptionIds[ii]);
+                            failedSubscriptions++;
                         }
                         else
                         {
                             Utils.LogError("SubscriptionId {0} failed to transfer, StatusCode={1}", subscriptionIds[ii], results[ii].StatusCode);
-                            failedSubscriptionIds.Add(subscriptions[ii].TransferId);
+                            failedSubscriptions++;
                         }
                     }
 
-                    if (failedSubscriptionIds.Count > 0)
-                    {
-                        result = false;
-                    }
-
-                    Utils.LogInfo("Session TRANSFER of {0} subscriptions completed. {1} failed.", subscriptions.Count, failedSubscriptionIds.Count);
+                    Utils.LogInfo("Session TRANSFER of {0} subscriptions completed. {1} failed.", subscriptions.Count, failedSubscriptions);
                 }
                 finally
                 {
@@ -3740,24 +3560,12 @@ namespace Opc.Ua.Client
                 Utils.LogInfo("No subscriptions. Transfersubscription skipped.");
             }
 
-            return result;
+            return failedSubscriptions == 0;
         }
         #endregion
 
         #region Browse Methods
-        /// <summary>
-        /// Invokes the Browse service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="view">The view to browse.</param>
-        /// <param name="nodeToBrowse">The node to browse.</param>
-        /// <param name="maxResultsToReturn">The maximum number of returned values.</param>
-        /// <param name="browseDirection">The browse direction.</param>
-        /// <param name="referenceTypeId">The reference type id.</param>
-        /// <param name="includeSubtypes">If set to <c>true</c> the subtypes of the ReferenceType will be included in the browse.</param>
-        /// <param name="nodeClassMask">The node class mask.</param>
-        /// <param name="continuationPoint">The continuation point.</param>
-        /// <param name="references">The list of node references.</param>
+        /// <inheritdoc/>
         public virtual ResponseHeader Browse(
             RequestHeader requestHeader,
             ViewDescription view,
@@ -3807,20 +3615,7 @@ namespace Opc.Ua.Client
             return responseHeader;
         }
 
-        /// <summary>
-        /// Invokes the Browse service. Handles multiple nodes for browse request.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="view">The view to browse.</param>
-        /// <param name="nodesToBrowse">The nodes to browse.</param>
-        /// <param name="maxResultsToReturn">The maximum number of returned values.</param>
-        /// <param name="browseDirection">The browse direction.</param>
-        /// <param name="referenceTypeId">The reference type id.</param>
-        /// <param name="includeSubtypes">If set to <c>true</c> the subtypes of the ReferenceType will be included in the browse.</param>
-        /// <param name="nodeClassMask">The node class mask.</param>
-        /// <param name="continuationPoints">The continuation points per browse.</param>
-        /// <param name="referencesList">The list of node references collections.</param>
-        /// <param name="errors"></param>
+        /// <inheritdoc/>
         public virtual ResponseHeader Browse(
             RequestHeader requestHeader,
             ViewDescription view,
@@ -3883,19 +3678,7 @@ namespace Opc.Ua.Client
             return responseHeader;
         }
 
-        /// <summary>
-        /// Begins an asynchronous invocation of the Browse service.
-        /// </summary>
-        /// <param name="requestHeader">The request header.</param>
-        /// <param name="view">The view to browse.</param>
-        /// <param name="nodeToBrowse">The node to browse.</param>
-        /// <param name="maxResultsToReturn">The maximum number of returned values..</param>
-        /// <param name="browseDirection">The browse direction.</param>
-        /// <param name="referenceTypeId">The reference type id.</param>
-        /// <param name="includeSubtypes">If set to <c>true</c> the subtypes of the ReferenceType will be included in the browse.</param>
-        /// <param name="nodeClassMask">The node class mask.</param>
-        /// <param name="callback">The callback.</param>
-        /// <param name="asyncState"></param>
+        /// <inheritdoc/>
         public IAsyncResult BeginBrowse(
             RequestHeader requestHeader,
             ViewDescription view,
@@ -3929,12 +3712,7 @@ namespace Opc.Ua.Client
                 asyncState);
         }
 
-        /// <summary>
-        /// Finishes an asynchronous invocation of the Browse service.
-        /// </summary>
-        /// <param name="result">The result.</param>
-        /// <param name="continuationPoint">The continuation point.</param>
-        /// <param name="references">The list of node references.</param>
+        /// <inheritdoc/>
         public ResponseHeader EndBrowse(
             IAsyncResult result,
             out byte[] continuationPoint,
@@ -3966,9 +3744,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region BrowseNext Methods
-        /// <summary>
-        /// Invokes the BrowseNext service.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual ResponseHeader BrowseNext(
             RequestHeader requestHeader,
             bool releaseContinuationPoint,
@@ -4003,9 +3779,7 @@ namespace Opc.Ua.Client
             return responseHeader;
         }
 
-        /// <summary>
-        /// Invokes the BrowseNext service. Handles multiple continuation points.
-        /// </summary>
+        /// <inheritdoc/>
         public virtual ResponseHeader BrowseNext(
             RequestHeader requestHeader,
             bool releaseContinuationPoint,
@@ -4049,9 +3823,7 @@ namespace Opc.Ua.Client
             return responseHeader;
         }
 
-        /// <summary>
-        /// Begins an asynchronous invocation of the BrowseNext service.
-        /// </summary>
+        /// <inheritdoc/>
         public IAsyncResult BeginBrowseNext(
             RequestHeader requestHeader,
             bool releaseContinuationPoint,
@@ -4070,9 +3842,7 @@ namespace Opc.Ua.Client
                 asyncState);
         }
 
-        /// <summary>
-        /// Finishes an asynchronous invocation of the BrowseNext service.
-        /// </summary>
+        /// <inheritdoc/>
         public ResponseHeader EndBrowseNext(
             IAsyncResult result,
             out byte[] revisedContinuationPoint,
@@ -4104,13 +3874,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Call Methods
-        /// <summary>
-        /// Calls the specified method and returns the output arguments.
-        /// </summary>
-        /// <param name="objectId">The NodeId of the object that provides the method.</param>
-        /// <param name="methodId">The NodeId of the method to call.</param>
-        /// <param name="args">The input arguments.</param>
-        /// <returns>The list of output argument values.</returns>
+        /// <inheritdoc/>
         public IList<object> Call(NodeId objectId, NodeId methodId, params object[] args)
         {
             VariantCollection inputArguments = new VariantCollection();
@@ -5501,9 +5265,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Sends a republish request.
-        /// </summary>
+        /// <inheritdoc/>
         public bool Republish(uint subscriptionId, uint sequenceNumber)
         {
             // send republish request.
@@ -6024,7 +5786,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Creates a publish requests for the active subscriptions.
+        /// Create the publish requests for the active subscriptions.
         /// </summary>
         private void RestartPublishing()
         {
