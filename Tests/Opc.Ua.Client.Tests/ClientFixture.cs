@@ -57,9 +57,9 @@ namespace Opc.Ua.Client.Tests
         public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.StackTrace | Utils.TraceMasks.Security | Utils.TraceMasks.Information;
 
 #if  NET6_0_OR_GREATER
-        public bool activitysource { get; set; } = true;
+        public bool haveActivitySource { get; set; } = true;
 
-        public ISessionFactory SessionFactory => activitysource ? new DefaultActivitySessionFactory() : new DefaultSessionFactory();
+        public ISessionFactory SessionFactory => haveActivitySource ? new SessionActivitySourceFactory() : new DefaultSessionFactory();
 #else
         public ISessionFactory SessionFactory {get;} = new DefaultSessionFactory();
 #endif
@@ -70,8 +70,9 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public async Task LoadClientConfiguration(string pkiRoot = null, string clientName = "TestClient")
         {
+#if NET6_0_OR_GREATER
             ConfigureActivityListener();
-
+#endif
             ApplicationInstance application = new ApplicationInstance {
                 ApplicationName = clientName
             };
@@ -353,12 +354,12 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
+#if NET6_0_OR_GREATER
+        /// <summary>
+        /// Configures Activity Listener.
+        /// </summary>
         private void ConfigureActivityListener()
         {
-            // Set the default ID format to W3C and force it to be the default
-            Activity.DefaultIdFormat = ActivityIdFormat.W3C;
-            Activity.ForceDefaultIdFormat = true;
-
             // Create an instance of ActivityListener and configure its properties
             ActivityListener activityListener = new ActivityListener()
             {
@@ -374,12 +375,13 @@ namespace Opc.Ua.Client.Tests
                 // Write "Stopped" message along with OperationName, Id, and Duration when an activity stops
                 ActivityStopped = activity =>
                 {
-                   Console.WriteLine(activity.OperationName + " : " + activity.Id + "Duration : " + activity.Duration);
+                   Console.WriteLine(activity.OperationName + " : " + activity.Id + ", Duration : " + activity.Duration);
                 }
             };
 
             ActivitySource.AddActivityListener(activityListener);
         }
-        #endregion
+#endif
+#endregion
     }
 }

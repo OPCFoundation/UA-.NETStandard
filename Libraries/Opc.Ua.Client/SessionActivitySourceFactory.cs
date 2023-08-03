@@ -40,7 +40,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// 
     /// </summary>
-    public class DefaultActivitySessionFactory : DefaultSessionFactory
+    public class SessionActivitySourceFactory : DefaultSessionFactory
     {
         #region Public Methods
         /// <inheritdoc/>

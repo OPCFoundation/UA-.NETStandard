@@ -121,7 +121,7 @@ namespace Opc.Ua.Client
         public static ActivitySource ActivitySrc { get; } = new ActivitySource(OpcUaClientActivitySourceName);
 
         /// <inheritdoc/>
-        public ISessionFactory SessionFactory = new DefaultActivitySessionFactory();
+        public ISessionFactory SessionFactory = new SessionActivitySourceFactory();
 
         /// <inheritdoc/>
         public ConfiguredEndpoint ConfiguredEndpoint => m_session.ConfiguredEndpoint;
@@ -262,7 +262,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public bool Disposed => m_session.Disposed;
 
-        ISessionFactory ISession.SessionFactory => new DefaultActivitySessionFactory();
+        ISessionFactory ISession.SessionFactory => new SessionActivitySourceFactory();
 
         /// <inheritdoc/>
         public void Reconnect()
