@@ -157,7 +157,7 @@ namespace Opc.Ua.Client
             m_outstandingMessageWorkers = 0;
             m_sequentialPublishing = false;
             m_lastSequenceNumberProcessed = 0;
-            m_messageCache = new ConcurrentQueue<NotificationMessage>();
+            m_messageCache = new LinkedList<NotificationMessage>();
             m_monitoredItems = new SortedDictionary<uint, MonitoredItem>();
             m_deletedItems = new List<MonitoredItem>();
             m_messageWorkerEvent = new AsyncAutoResetEvent();
@@ -639,7 +639,15 @@ namespace Opc.Ua.Client
         {
             get
             {
-                return m_messageCache.LastOrDefault()?.PublishTime ?? DateTime.MinValue;
+                lock (m_cache)
+                {
+                    if (m_messageCache.Count > 0)
+                    {
+                        return m_messageCache.Last.Value.PublishTime;
+                    }
+                }
+
+                return DateTime.MinValue;
             }
         }
 
@@ -664,7 +672,15 @@ namespace Opc.Ua.Client
         {
             get
             {
-                return m_messageCache.LastOrDefault()?.SequenceNumber ?? 0;
+                lock (m_cache)
+                {
+                    if (m_messageCache.Count > 0)
+                    {
+                        return m_messageCache.Last.Value.SequenceNumber;
+                    }
+                }
+
+                return 0;
             }
         }
 
@@ -675,7 +691,15 @@ namespace Opc.Ua.Client
         {
             get
             {
-                return (uint)(m_messageCache.LastOrDefault()?.NotificationData.Count ?? 0);
+                lock (m_cache)
+                {
+                    if (m_messageCache.Count > 0)
+                    {
+                        return (uint)m_messageCache.Last.Value.NotificationData.Count;
+                    }
+                }
+
+                return 0;
             }
         }
 
@@ -686,7 +710,15 @@ namespace Opc.Ua.Client
         {
             get
             {
-                return m_messageCache.LastOrDefault();
+                lock (m_cache)
+                {
+                    if (m_messageCache.Count > 0)
+                    {
+                        return m_messageCache.Last.Value;
+                    }
+
+                    return null;
+                }
             }
         }
 
@@ -697,8 +729,11 @@ namespace Opc.Ua.Client
         {
             get
             {
-                // make a copy to ensure the state of the last cannot change during enumeration.
-                return new List<NotificationMessage>(m_messageCache);
+                lock (m_cache)
+                {
+                    // make a copy to ensure the state of the last cannot change during enumeration.
+                    return new List<NotificationMessage>(m_messageCache);
+                }
             }
         }
 
@@ -2069,13 +2104,10 @@ namespace Opc.Ua.Client
                             // remove the oldest items.
                             while (m_messageCache.Count > m_maxMessageCount)
                             {
-                                if (!m_messageCache.TryDequeue(out _))
-                                {
-                                    break;
-                                }
+                                m_messageCache.RemoveFirst();
                             }
 
-                            m_messageCache.Enqueue(ii.Value.Message);
+                            m_messageCache.AddLast(ii.Value.Message);
                             ii.Value.Processed = true;
 
                             // Keep the last sequence number processed going up
@@ -2632,7 +2664,7 @@ namespace Opc.Ua.Client
         private event PublishStateChangedEventHandler m_publishStatusChanged;
 
         private object m_cache = new object();
-        private ConcurrentQueue<NotificationMessage> m_messageCache;
+        private LinkedList<NotificationMessage> m_messageCache;
         private IList<uint> m_availableSequenceNumbers;
         private int m_maxMessageCount;
         private bool m_republishAfterTransfer;
