@@ -59,7 +59,9 @@ namespace Opc.Ua.Client.Tests
 #if  NET6_0_OR_GREATER
         public bool haveActivitySource { get; set; } = true;
 
-        public ISessionFactory SessionFactory => haveActivitySource ? new SessionFactoryActivitySource() : new DefaultSessionFactory();
+        public ISessionFactory SessionFactory => haveActivitySource ? new TraceableSessionFactory() : new DefaultSessionFactory();
+
+        private ActivityListener activityListener;
 #else
         public ISessionFactory SessionFactory {get;} = new DefaultSessionFactory();
 #endif
@@ -343,7 +345,14 @@ namespace Opc.Ua.Client.Tests
                 m_traceLogger.SetWriter(writer);
             }
         }
-        #endregion
+
+#if NET6_0_OR_GREATER
+        public void Cleanup()
+        {
+            activityListener = null;
+        }
+#endif
+#endregion
 
         #region Private Methods
         private void Session_KeepAlive(ISession session, KeepAliveEventArgs e)
@@ -358,10 +367,10 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Configures Activity Listener.
         /// </summary>
-        private void ConfigureActivityListener()
+        private void ConfigureActivityListener(bool shouldListenToAllSources = true, bool shouldWriteStartAndStop = true)
         {
             // Create an instance of ActivityListener and configure its properties
-            ActivityListener activityListener = new ActivityListener()
+            activityListener = new ActivityListener()
             {
                 // Set ShouldListenTo property to true for all activity sources
                 ShouldListenTo = (source) => true,
@@ -370,13 +379,14 @@ namespace Opc.Ua.Client.Tests
                 Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
 
                 // Write "Started" message when an activity starts
-                ActivityStarted = activity => Console.WriteLine("Started: {0,-15} {1,-60}", activity.OperationName, activity.Id),
+                ActivityStarted = shouldWriteStartAndStop
+                ? activity => Console.WriteLine("Started: {0,-15} {1,-60}", activity.OperationName, activity.Id)
+                : (Action<Activity>)(_ => { }),
 
                 // Write "Stopped" message along with OperationName, Id, and Duration when an activity stops
-                ActivityStopped = activity =>
-                {
-                   Console.WriteLine(activity.OperationName + " : " + activity.Id + ", Duration : " + activity.Duration);
-                }
+                ActivityStopped = shouldWriteStartAndStop
+                ? activity => Console.WriteLine(activity.OperationName + " : " + activity.Id + ", Duration : " + activity.Duration)
+                : (Action<Activity>)(_ => { }),
             };
 
             ActivitySource.AddActivityListener(activityListener);
