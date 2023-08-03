@@ -458,7 +458,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets or sets the extensions of the node set. Property used when importing nodeset2.xml files.
+        /// Gets or sets the extensions of the node set. Property used when importing NodeSet2.xml files.
         /// </summary>
         /// <value>
         /// The extensions.
@@ -1827,9 +1827,9 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
-                    "Could not load child '{1}', with NodeClass {0}",
-                    nodeClass,
-                    browseName);
+                    "Could not load child '{0}', with NodeClass {1}",
+                    browseName,
+                    nodeClass);
             }
 
             // initialize the child from the stream.
@@ -1898,9 +1898,9 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
-                    "Could not load node '{1}', with NodeClass {0}",
-                    nodeClass,
-                    browseName);
+                    "Could not load node '{0}', with NodeClass {1}",
+                    browseName,
+                    nodeClass);
             }
 
             // update symbolic name.
@@ -1967,9 +1967,9 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
-                    "Could not load node '{1}', with NodeClass {0}",
-                    nodeClass,
-                    browseName);
+                    "Could not load node '{0}', with NodeClass {1}",
+                    browseName,
+                    nodeClass);
             }
 
             // update symbolic name.
@@ -2058,9 +2058,9 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
-                    "Could not load child '{1}', with NodeClass {0}",
-                    nodeClass,
-                    browseName);
+                    "Could not load child '{0}', with NodeClass {1}",
+                    browseName,
+                    nodeClass);
             }
 
             // initialize the child from the stream.

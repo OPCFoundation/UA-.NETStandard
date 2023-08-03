@@ -102,7 +102,7 @@ namespace Opc.Ua.Client.Tests
         /// Setup a server and client fixture.
         /// </summary>
         /// <param name="writer">The test output writer.</param>
-        public async Task OneTimeSetUpAsync(TextWriter writer = null)
+        public async Task OneTimeSetUpAsync(TextWriter writer = null, bool securityNone = false)
         {
             // pki directory root for test runs.
             PkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
@@ -132,7 +132,7 @@ namespace Opc.Ua.Client.Tests
                 // start Ref server
                 ServerFixture = new ServerFixture<ReferenceServer> {
                     UriScheme = UriScheme,
-                    SecurityNone = false,
+                    SecurityNone = securityNone,
                     AutoAccept = true,
                     AllNodeManagers = true,
                     OperationLimits = true
@@ -147,6 +147,8 @@ namespace Opc.Ua.Client.Tests
                 ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
                 ServerFixture.Config.TransportQuotas.MaxByteStringLength =
                 ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
+                ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName));
+                ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate));
                 ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
                     new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Opc.Ua.Profiles.JwtUserToken });
 
@@ -191,7 +193,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (Session != null)
             {
-                Session.Close();
+                await Session.CloseAsync(5000, true).ConfigureAwait(false);
                 Session.Dispose();
                 Session = null;
             }
@@ -401,6 +403,14 @@ namespace Opc.Ua.Client.Tests
                 return testSet.ToArray();
             }
             return Array.Empty<ExpandedNodeId>();
+        }
+
+        protected void Session_Closing(object sender, EventArgs e)
+        {
+            if (sender is ISession session)
+            {
+                TestContext.Out.WriteLine("Session_Closing: {0}", session.SessionId);
+            }
         }
         #endregion
     }

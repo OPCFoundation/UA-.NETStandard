@@ -1065,90 +1065,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Reads an DiagnosticInfo from the stream.
+        /// Reads a DiagnosticInfo from the stream.
         /// </summary>
         public DiagnosticInfo ReadDiagnosticInfo(string fieldName)
         {
-            object token = null;
-
-            if (!ReadField(fieldName, out token))
-            {
-                return null;
-            }
-
-            var value = token as Dictionary<string, object>;
-
-            if (value == null)
-            {
-                return null;
-            }
-
-            // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
-            }
-
-            try
-            {
-                m_nestingLevel++;
-                m_stack.Push(value);
-
-                DiagnosticInfo di = new DiagnosticInfo();
-
-                bool hasDiagnosticInfo = false;
-                if (value.ContainsKey("SymbolicId"))
-                {
-                    di.SymbolicId = ReadInt32("SymbolicId");
-                    hasDiagnosticInfo = true;
-                }
-
-                if (value.ContainsKey("NamespaceUri"))
-                {
-                    di.NamespaceUri = ReadInt32("NamespaceUri");
-                    hasDiagnosticInfo = true;
-                }
-
-                if (value.ContainsKey("Locale"))
-                {
-                    di.Locale = ReadInt32("Locale");
-                    hasDiagnosticInfo = true;
-                }
-
-                if (value.ContainsKey("LocalizedText"))
-                {
-                    di.LocalizedText = ReadInt32("LocalizedText");
-                    hasDiagnosticInfo = true;
-                }
-
-                if (value.ContainsKey("AdditionalInfo"))
-                {
-                    di.AdditionalInfo = ReadString("AdditionalInfo");
-                    hasDiagnosticInfo = true;
-                }
-
-                if (value.ContainsKey("InnerStatusCode"))
-                {
-                    di.InnerStatusCode = ReadStatusCode("InnerStatusCode");
-                    hasDiagnosticInfo = true;
-                }
-
-                if (value.ContainsKey("InnerDiagnosticInfo"))
-                {
-                    di.InnerDiagnosticInfo = ReadDiagnosticInfo("InnerDiagnosticInfo");
-                    hasDiagnosticInfo = true;
-                }
-
-                return hasDiagnosticInfo ? di : null;
-            }
-            finally
-            {
-                m_nestingLevel--;
-                m_stack.Pop();
-            }
+            return ReadDiagnosticInfo(fieldName, 0);
         }
 
         /// <summary>
@@ -1284,17 +1205,10 @@ namespace Opc.Ua
                 return Variant.Null;
             }
 
-            // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
-            }
+            CheckAndIncrementNestingLevel();
+
             try
             {
-                m_nestingLevel++;
                 m_stack.Push(value);
 
                 BuiltInType type = (BuiltInType)ReadByte("Type");
@@ -1509,16 +1423,7 @@ namespace Opc.Ua
                 }
             }
 
-            // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
-            }
-
-            m_nestingLevel++;
+            CheckAndIncrementNestingLevel();
 
             try
             {
@@ -1529,9 +1434,8 @@ namespace Opc.Ua
             finally
             {
                 m_stack.Pop();
+                m_nestingLevel--;
             }
-
-            m_nestingLevel--;
 
             return value;
         }
@@ -2703,6 +2607,93 @@ namespace Opc.Ua
 
         #region Private Methods
         /// <summary>
+        /// Reads a DiagnosticInfo from the stream.
+        /// Limits the InnerDiagnosticInfos to the specified depth.
+        /// </summary>
+        private DiagnosticInfo ReadDiagnosticInfo(string fieldName, int depth)
+        {
+            object token = null;
+
+            if (!ReadField(fieldName, out token))
+            {
+                return null;
+            }
+
+            var value = token as Dictionary<string, object>;
+
+            if (value == null)
+            {
+                return null;
+            }
+
+            if (depth >= DiagnosticInfo.MaxInnerDepth)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of InnerDiagnosticInfo was exceeded");
+            }
+
+            CheckAndIncrementNestingLevel();
+
+            try
+            {
+                m_stack.Push(value);
+
+                DiagnosticInfo di = new DiagnosticInfo();
+
+                bool hasDiagnosticInfo = false;
+                if (value.ContainsKey("SymbolicId"))
+                {
+                    di.SymbolicId = ReadInt32("SymbolicId");
+                    hasDiagnosticInfo = true;
+                }
+
+                if (value.ContainsKey("NamespaceUri"))
+                {
+                    di.NamespaceUri = ReadInt32("NamespaceUri");
+                    hasDiagnosticInfo = true;
+                }
+
+                if (value.ContainsKey("Locale"))
+                {
+                    di.Locale = ReadInt32("Locale");
+                    hasDiagnosticInfo = true;
+                }
+
+                if (value.ContainsKey("LocalizedText"))
+                {
+                    di.LocalizedText = ReadInt32("LocalizedText");
+                    hasDiagnosticInfo = true;
+                }
+
+                if (value.ContainsKey("AdditionalInfo"))
+                {
+                    di.AdditionalInfo = ReadString("AdditionalInfo");
+                    hasDiagnosticInfo = true;
+                }
+
+                if (value.ContainsKey("InnerStatusCode"))
+                {
+                    di.InnerStatusCode = ReadStatusCode("InnerStatusCode");
+                    hasDiagnosticInfo = true;
+                }
+
+                if (value.ContainsKey("InnerDiagnosticInfo") && depth < DiagnosticInfo.MaxInnerDepth)
+                {
+                    di.InnerDiagnosticInfo = ReadDiagnosticInfo("InnerDiagnosticInfo", depth + 1);
+                    hasDiagnosticInfo = true;
+                }
+
+                return hasDiagnosticInfo ? di : null;
+            }
+            finally
+            {
+                m_nestingLevel--;
+                m_stack.Pop();
+            }
+        }
+
+        /// <summary>
         /// Get the system type from the type factory if not specified by caller.
         /// </summary>
         /// <param name="systemType">The reference to the system type, or null</param>
@@ -2796,61 +2787,59 @@ namespace Opc.Ua
         /// </summary>
         private List<object> ReadArray()
         {
-            // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
-            }
-            m_nestingLevel++;
+            CheckAndIncrementNestingLevel();
 
-            List<object> elements = new List<object>();
-
-            while (m_reader.Read() && m_reader.TokenType != JsonToken.EndArray)
+            try
             {
-                switch (m_reader.TokenType)
+                List<object> elements = new List<object>();
+
+                while (m_reader.Read() && m_reader.TokenType != JsonToken.EndArray)
                 {
-                    case JsonToken.Comment:
+                    switch (m_reader.TokenType)
                     {
-                        break;
-                    }
+                        case JsonToken.Comment:
+                        {
+                            break;
+                        }
 
-                    case JsonToken.Null:
-                    {
-                        elements.Add(JTokenNullObject.Array);
-                        break;
-                    }
-                    case JsonToken.Date:
-                    case JsonToken.Boolean:
-                    case JsonToken.Integer:
-                    case JsonToken.Float:
-                    case JsonToken.String:
-                    {
-                        elements.Add(m_reader.Value);
-                        break;
-                    }
+                        case JsonToken.Null:
+                        {
+                            elements.Add(JTokenNullObject.Array);
+                            break;
+                        }
+                        case JsonToken.Date:
+                        case JsonToken.Boolean:
+                        case JsonToken.Integer:
+                        case JsonToken.Float:
+                        case JsonToken.String:
+                        {
+                            elements.Add(m_reader.Value);
+                            break;
+                        }
 
-                    case JsonToken.StartArray:
-                    {
-                        elements.Add(ReadArray());
-                        break;
-                    }
+                        case JsonToken.StartArray:
+                        {
+                            elements.Add(ReadArray());
+                            break;
+                        }
 
-                    case JsonToken.StartObject:
-                    {
-                        elements.Add(ReadObject());
-                        break;
-                    }
+                        case JsonToken.StartObject:
+                        {
+                            elements.Add(ReadObject());
+                            break;
+                        }
 
-                    default:
-                        break;
+                        default:
+                            break;
+                    }
                 }
-            }
 
-            m_nestingLevel--;
-            return elements;
+                return elements;
+            }
+            finally
+            {
+                m_nestingLevel--;
+            }
         }
 
         /// <summary>
@@ -2932,16 +2921,7 @@ namespace Opc.Ua
             Type systemType,
             ExpandedNodeId encodeableTypeId)
         {
-            // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
-            }
-
-            m_nestingLevel++;
+            CheckAndIncrementNestingLevel();
 
             try
             {
@@ -3086,6 +3066,21 @@ namespace Opc.Ua
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Test and increment the nesting level.
+        /// </summary>
+        private void CheckAndIncrementNestingLevel()
+        {
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
+            m_nestingLevel++;
         }
         #endregion
     }

@@ -338,6 +338,9 @@ namespace Opc.Ua.Bindings
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "protocolVersion")]
         private bool ProcessHelloMessage(ArraySegment<byte> messageChunk)
         {
+            const UInt32 kProtocolVersion = 0;
+            const int kResponseBufferSize = 127;
+
             // validate the channel state.
             if (State != TcpChannelState.Connecting)
             {
@@ -347,98 +350,100 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                MemoryStream istrm = new MemoryStream(messageChunk.Array, messageChunk.Offset, messageChunk.Count, false);
-                BinaryDecoder decoder = new BinaryDecoder(istrm, Quotas.MessageContext);
-                istrm.Seek(TcpMessageLimits.MessageTypeAndSize, SeekOrigin.Current);
-
-                // read requested buffer sizes.
-                uint protocolVersion = decoder.ReadUInt32(null);
-                uint receiveBufferSize = decoder.ReadUInt32(null);
-                uint sendBufferSize = decoder.ReadUInt32(null);
-                uint maxMessageSize = decoder.ReadUInt32(null);
-                uint maxChunkCount = decoder.ReadUInt32(null);
-
-                // read the endpoint url.
-                int length = decoder.ReadInt32(null);
-
-                if (length > 0)
+                using (MemoryStream istrm = new MemoryStream(messageChunk.Array, messageChunk.Offset, messageChunk.Count, false))
                 {
-                    if (length > TcpMessageLimits.MaxEndpointUrlLength)
+                    BinaryDecoder decoder = new BinaryDecoder(istrm, Quotas.MessageContext);
+                    istrm.Seek(TcpMessageLimits.MessageTypeAndSize, SeekOrigin.Current);
+
+                    // read requested buffer sizes.
+                    uint protocolVersion = decoder.ReadUInt32(null);
+                    uint receiveBufferSize = decoder.ReadUInt32(null);
+                    uint sendBufferSize = decoder.ReadUInt32(null);
+                    uint maxMessageSize = decoder.ReadUInt32(null);
+                    uint maxChunkCount = decoder.ReadUInt32(null);
+
+                    // read the endpoint url.
+                    int length = decoder.ReadInt32(null);
+
+                    if (length > 0)
                     {
-                        ForceChannelFault(StatusCodes.BadTcpEndpointUrlInvalid);
-                        return false;
+                        if (length > TcpMessageLimits.MaxEndpointUrlLength)
+                        {
+                            ForceChannelFault(StatusCodes.BadTcpEndpointUrlInvalid);
+                            return false;
+                        }
+
+                        byte[] endpointUrl = new byte[length];
+
+                        for (int ii = 0; ii < endpointUrl.Length; ii++)
+                        {
+                            endpointUrl[ii] = decoder.ReadByte(null);
+                        }
+
+                        if (!SetEndpointUrl(new UTF8Encoding().GetString(endpointUrl, 0, endpointUrl.Length)))
+                        {
+                            ForceChannelFault(StatusCodes.BadTcpEndpointUrlInvalid);
+                            return false;
+                        }
                     }
 
-                    byte[] endpointUrl = new byte[length];
+                    decoder.Close();
 
-                    for (int ii = 0; ii < endpointUrl.Length; ii++)
+                    // update receive buffer size.
+                    if (receiveBufferSize < ReceiveBufferSize)
                     {
-                        endpointUrl[ii] = decoder.ReadByte(null);
+                        ReceiveBufferSize = (int)receiveBufferSize;
                     }
 
-                    if (!SetEndpointUrl(new UTF8Encoding().GetString(endpointUrl, 0, endpointUrl.Length)))
+                    if (ReceiveBufferSize < TcpMessageLimits.MinBufferSize)
                     {
-                        ForceChannelFault(StatusCodes.BadTcpEndpointUrlInvalid);
-                        return false;
+                        ReceiveBufferSize = TcpMessageLimits.MinBufferSize;
                     }
+
+                    // update send buffer size.
+                    if (sendBufferSize < SendBufferSize)
+                    {
+                        SendBufferSize = (int)sendBufferSize;
+                    }
+
+                    if (SendBufferSize < TcpMessageLimits.MinBufferSize)
+                    {
+                        SendBufferSize = TcpMessageLimits.MinBufferSize;
+                    }
+
+                    // update the max message size.
+                    if (maxMessageSize > 0 && maxMessageSize < MaxResponseMessageSize)
+                    {
+                        MaxResponseMessageSize = (int)maxMessageSize;
+                    }
+
+                    if (MaxResponseMessageSize < SendBufferSize)
+                    {
+                        MaxResponseMessageSize = SendBufferSize;
+                    }
+
+                    // update the max chunk count.
+                    MaxResponseChunkCount = CalculateChunkCount(MaxResponseMessageSize, SendBufferSize);
+
+                    if (maxChunkCount > 0 && maxChunkCount < MaxResponseChunkCount)
+                    {
+                        MaxResponseChunkCount = (int)maxChunkCount;
+                    }
+
+                    MaxRequestChunkCount = CalculateChunkCount(MaxRequestMessageSize, ReceiveBufferSize);
                 }
-
-                decoder.Close();
-
-                // update receive buffer size.
-                if (receiveBufferSize < ReceiveBufferSize)
-                {
-                    ReceiveBufferSize = (int)receiveBufferSize;
-                }
-
-                if (ReceiveBufferSize < TcpMessageLimits.MinBufferSize)
-                {
-                    ReceiveBufferSize = TcpMessageLimits.MinBufferSize;
-                }
-
-                // update send buffer size.
-                if (sendBufferSize < SendBufferSize)
-                {
-                    SendBufferSize = (int)sendBufferSize;
-                }
-
-                if (SendBufferSize < TcpMessageLimits.MinBufferSize)
-                {
-                    SendBufferSize = TcpMessageLimits.MinBufferSize;
-                }
-
-                // update the max message size.
-                if (maxMessageSize > 0 && maxMessageSize < MaxResponseMessageSize)
-                {
-                    MaxResponseMessageSize = (int)maxMessageSize;
-                }
-
-                if (MaxResponseMessageSize < SendBufferSize)
-                {
-                    MaxResponseMessageSize = SendBufferSize;
-                }
-
-                // update the max chunk count.
-                MaxResponseChunkCount = CalculateChunkCount(MaxResponseMessageSize, SendBufferSize);
-
-                if (maxChunkCount > 0 && maxChunkCount < MaxResponseChunkCount)
-                {
-                    MaxResponseChunkCount = (int)maxChunkCount;
-                }
-
-                MaxRequestChunkCount = CalculateChunkCount(MaxRequestMessageSize, ReceiveBufferSize);
 
                 // send acknowledge.
-                byte[] buffer = BufferManager.TakeBuffer(SendBufferSize, "ProcessHelloMessage");
+                byte[] buffer = BufferManager.TakeBuffer(kResponseBufferSize, nameof(ProcessHelloMessage));
 
                 try
                 {
-                    using (MemoryStream ostrm = new MemoryStream(buffer, 0, SendBufferSize))
+                    using (MemoryStream ostrm = new MemoryStream(buffer, 0, kResponseBufferSize))
                     using (BinaryEncoder encoder = new BinaryEncoder(ostrm, Quotas.MessageContext))
                     {
                         encoder.WriteUInt32(null, TcpMessageType.Acknowledge);
                         encoder.WriteUInt32(null, 0);
-                        encoder.WriteUInt32(null, 0); // ProtocolVersion
+                        encoder.WriteUInt32(null, kProtocolVersion);
                         encoder.WriteUInt32(null, (uint)ReceiveBufferSize);
                         encoder.WriteUInt32(null, (uint)SendBufferSize);
                         encoder.WriteUInt32(null, (uint)MaxRequestMessageSize);
@@ -458,7 +463,7 @@ namespace Opc.Ua.Bindings
                 {
                     if (buffer != null)
                     {
-                        BufferManager.ReturnBuffer(buffer, "ProcessHelloMessage");
+                        BufferManager.ReturnBuffer(buffer, nameof(ProcessHelloMessage));
                     }
                 }
             }

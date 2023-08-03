@@ -47,7 +47,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
     {
         #region DataPointSource
         [DatapointSource]
-        public static readonly Nodeset2Asset[] Nodeset2AssetArray = new AssetCollection<Nodeset2Asset>(Ua.Tests.TestUtils.EnumerateTestAssets("*.NodeSet2.xml")).ToArray();
+        public static readonly NodeSet2Asset[] NodeSet2AssetArray = new AssetCollection<NodeSet2Asset>(Ua.Tests.TestUtils.EnumerateTestAssets("*.NodeSet2.xml")).ToArray();
         #endregion
 
         #region Test Setup
@@ -209,14 +209,14 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
         }
 
         /// <summary>
-        /// Test Nodeset2 import.
+        /// Test NodeSet2 import.
         /// </summary>
         [Test]
         [TestCase("Stack/Opc.Ua.Core/Schema/Opc.Ua.NodeSet2.xml")]
         [TestCase("Applications/Quickstarts.Servers/TestData/TestData.NodeSet2.xml")]
         [TestCase("Applications/Quickstarts.Servers/MemoryBuffer/MemoryBuffer.NodeSet2.xml")]
         [TestCase("Applications/Quickstarts.Servers/Boiler/Boiler.NodeSet2.xml")]
-        public void Nodeset2ValidationTest(string nodeset2File)
+        public void NodeSet2ValidationTest(string nodeset2File)
         {
             var assetPath = Utils.GetAbsoluteFilePath("../../../../../" + nodeset2File, true, false, false);
             using (var importStream = new FileStream(assetPath, FileMode.Open))
@@ -239,10 +239,10 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
         }
 
         /// <summary>
-        /// Test Nodeset2 import. Requires test assets to be in the 'Assets' folder.
+        /// Test NodeSet2 import. Requires test assets to be in the 'Assets' folder.
         /// </summary>
         [Theory]
-        public void Nodeset2ValidationTest(Nodeset2Asset nodeset2Asset)
+        public void NodeSet2ValidationTest(NodeSet2Asset nodeset2Asset)
         {
             using (var importStream = new MemoryStream(nodeset2Asset.Xml))
             {
@@ -267,11 +267,11 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
 
     #region Asset helpers
     /// <summary>
-    /// A Nodeset2 as test asset.
+    /// A NodeSet2 as test asset.
     /// </summary>
-    public class Nodeset2Asset : IAsset, IFormattable
+    public class NodeSet2Asset : IAsset, IFormattable
     {
-        public Nodeset2Asset() { }
+        public NodeSet2Asset() { }
 
         public string Path { get; private set; }
         public byte[] Xml { get; private set; }

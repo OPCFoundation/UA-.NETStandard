@@ -45,7 +45,7 @@ namespace Opc.Ua.Client.Tests
     public class ClientFixture
     {
         private const uint kDefaultOperationLimits = 5000;
-        private NUnitTraceLogger m_traceLogger;
+        private NUnitTestLogger<ClientFixture> m_traceLogger;
         public ApplicationConfiguration Config { get; private set; }
         public ConfiguredEndpoint Endpoint { get; private set; }
         public string EndpointUrl { get; private set; }
@@ -326,7 +326,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (m_traceLogger == null)
             {
-                m_traceLogger = NUnitTraceLogger.Create(writer, Config, TraceMasks);
+                m_traceLogger = NUnitTestLogger<ClientFixture>.Create(writer, Config, TraceMasks);
             }
             else
             {

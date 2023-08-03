@@ -632,106 +632,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Writes an DiagnosticInfo to the stream.
+        /// Writes a DiagnosticInfo to the stream.
         /// </summary>
         public void WriteDiagnosticInfo(string fieldName, DiagnosticInfo value)
         {
-            // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
-            }
-
-            // check for null.
-            if (value == null)
-            {
-                WriteByte(null, 0);
-                return;
-            }
-
-            m_nestingLevel++;
-
-            // calculate the encoding.
-            byte encoding = 0;
-
-            if (value.SymbolicId >= 0)
-            {
-                encoding |= (byte)DiagnosticInfoEncodingBits.SymbolicId;
-            }
-
-            if (value.NamespaceUri >= 0)
-            {
-                encoding |= (byte)DiagnosticInfoEncodingBits.NamespaceUri;
-            }
-
-            if (value.Locale >= 0)
-            {
-                encoding |= (byte)DiagnosticInfoEncodingBits.Locale;
-            }
-
-            if (value.LocalizedText >= 0)
-            {
-                encoding |= (byte)DiagnosticInfoEncodingBits.LocalizedText;
-            }
-
-            if (value.AdditionalInfo != null)
-            {
-                encoding |= (byte)DiagnosticInfoEncodingBits.AdditionalInfo;
-            }
-
-            if (value.InnerStatusCode != StatusCodes.Good)
-            {
-                encoding |= (byte)DiagnosticInfoEncodingBits.InnerStatusCode;
-            }
-
-            if (value.InnerDiagnosticInfo != null)
-            {
-                encoding |= (byte)DiagnosticInfoEncodingBits.InnerDiagnosticInfo;
-            }
-
-            // write the encoding.
-            WriteByte(null, encoding);
-
-            // write the fields of the diagnostic info structure.
-            if ((encoding & (byte)DiagnosticInfoEncodingBits.SymbolicId) != 0)
-            {
-                WriteInt32(null, value.SymbolicId);
-            }
-
-            if ((encoding & (byte)DiagnosticInfoEncodingBits.NamespaceUri) != 0)
-            {
-                WriteInt32(null, value.NamespaceUri);
-            }
-
-            if ((encoding & (byte)DiagnosticInfoEncodingBits.Locale) != 0)
-            {
-                WriteInt32(null, value.Locale);
-            }
-
-            if ((encoding & (byte)DiagnosticInfoEncodingBits.LocalizedText) != 0)
-            {
-                WriteInt32(null, value.LocalizedText);
-            }
-
-            if ((encoding & (byte)DiagnosticInfoEncodingBits.AdditionalInfo) != 0)
-            {
-                WriteString(null, value.AdditionalInfo);
-            }
-
-            if ((encoding & (byte)DiagnosticInfoEncodingBits.InnerStatusCode) != 0)
-            {
-                WriteStatusCode(null, value.InnerStatusCode);
-            }
-
-            if ((encoding & (byte)DiagnosticInfoEncodingBits.InnerDiagnosticInfo) != 0)
-            {
-                WriteDiagnosticInfo(null, value.InnerDiagnosticInfo);
-            }
-
-            m_nestingLevel--;
+            WriteDiagnosticInfo(fieldName, value, 0);
         }
 
         /// <summary>
@@ -801,20 +706,16 @@ namespace Opc.Ua
         /// </summary>
         public void WriteVariant(string fieldName, Variant value)
         {
-            // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            CheckAndIncrementNestingLevel();
+
+            try
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
+                WriteVariantValue(fieldName, value);
             }
-
-            m_nestingLevel++;
-
-            WriteVariantValue(fieldName, value);
-
-            m_nestingLevel--;
+            finally
+            {
+                m_nestingLevel--;
+            }
         }
 
         /// <summary>
@@ -1027,31 +928,27 @@ namespace Opc.Ua
         /// </summary>
         public void WriteEncodeable(string fieldName, IEncodeable value, System.Type systemType)
         {
-            // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            CheckAndIncrementNestingLevel();
+
+            try
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
-            }
+                // create a default object if a null object specified.
+                if (value == null)
+                {
+                    if (systemType == null) throw new ArgumentNullException(nameof(systemType));
+                    value = Activator.CreateInstance(systemType) as IEncodeable;
+                }
 
-            // create a default object if a null object specified.
-            if (value == null)
+                // encode the object.
+                if (value != null)
+                {
+                    value.Encode(this);
+                }
+            }
+            finally
             {
-                if (systemType == null) throw new ArgumentNullException(nameof(systemType));
-                value = Activator.CreateInstance(systemType) as IEncodeable;
+                m_nestingLevel--;
             }
-
-            m_nestingLevel++;
-
-            // encode the object.
-            if (value != null)
-            {
-                value.Encode(this);
-            }
-
-            m_nestingLevel--;
         }
 
         /// <summary>
@@ -2025,6 +1922,116 @@ namespace Opc.Ua
 
         #region Private Methods
         /// <summary>
+        /// Writes a DiagnosticInfo to the stream.
+        /// Ignores InnerDiagnosticInfo field if the nesting level
+        /// <see cref="DiagnosticInfo.MaxInnerDepth"/> is exceeded.
+        /// </summary>
+        private void WriteDiagnosticInfo(string fieldName, DiagnosticInfo value, int depth)
+        {
+
+            // check for null.
+            if (value == null)
+            {
+                WriteByte(null, 0);
+                return;
+            }
+
+            CheckAndIncrementNestingLevel();
+
+            try
+            {
+                // calculate the encoding.
+                byte encoding = 0;
+
+                if (value.SymbolicId >= 0)
+                {
+                    encoding |= (byte)DiagnosticInfoEncodingBits.SymbolicId;
+                }
+
+                if (value.NamespaceUri >= 0)
+                {
+                    encoding |= (byte)DiagnosticInfoEncodingBits.NamespaceUri;
+                }
+
+                if (value.Locale >= 0)
+                {
+                    encoding |= (byte)DiagnosticInfoEncodingBits.Locale;
+                }
+
+                if (value.LocalizedText >= 0)
+                {
+                    encoding |= (byte)DiagnosticInfoEncodingBits.LocalizedText;
+                }
+
+                if (value.AdditionalInfo != null)
+                {
+                    encoding |= (byte)DiagnosticInfoEncodingBits.AdditionalInfo;
+                }
+
+                if (value.InnerStatusCode != StatusCodes.Good)
+                {
+                    encoding |= (byte)DiagnosticInfoEncodingBits.InnerStatusCode;
+                }
+
+                if (value.InnerDiagnosticInfo != null)
+                {
+                    if (depth < DiagnosticInfo.MaxInnerDepth)
+                    {
+                        encoding |= (byte)DiagnosticInfoEncodingBits.InnerDiagnosticInfo;
+                    }
+                    else
+                    {
+                        Utils.LogWarning("InnerDiagnosticInfo dropped because nesting exceeds maximum of {0}.",
+                            DiagnosticInfo.MaxInnerDepth);
+                    }
+                }
+
+                // write the encoding.
+                WriteByte(null, encoding);
+
+                // write the fields of the diagnostic info structure.
+                if ((encoding & (byte)DiagnosticInfoEncodingBits.SymbolicId) != 0)
+                {
+                    WriteInt32(null, value.SymbolicId);
+                }
+
+                if ((encoding & (byte)DiagnosticInfoEncodingBits.NamespaceUri) != 0)
+                {
+                    WriteInt32(null, value.NamespaceUri);
+                }
+
+                if ((encoding & (byte)DiagnosticInfoEncodingBits.Locale) != 0)
+                {
+                    WriteInt32(null, value.Locale);
+                }
+
+                if ((encoding & (byte)DiagnosticInfoEncodingBits.LocalizedText) != 0)
+                {
+                    WriteInt32(null, value.LocalizedText);
+                }
+
+                if ((encoding & (byte)DiagnosticInfoEncodingBits.AdditionalInfo) != 0)
+                {
+                    WriteString(null, value.AdditionalInfo);
+                }
+
+                if ((encoding & (byte)DiagnosticInfoEncodingBits.InnerStatusCode) != 0)
+                {
+                    WriteStatusCode(null, value.InnerStatusCode);
+                }
+
+                if ((encoding & (byte)DiagnosticInfoEncodingBits.InnerDiagnosticInfo) != 0)
+                {
+                    WriteDiagnosticInfo(null, value.InnerDiagnosticInfo, depth + 1);
+                }
+            }
+            finally
+            {
+                m_nestingLevel--;
+            }
+        }
+
+        /// <summary>
         /// Writes an object array to the stream (converts to Variant first).
         /// </summary>
         private void WriteObjectArray(string fieldName, IList<object> values)
@@ -2369,6 +2376,21 @@ namespace Opc.Ua
                     WriteInt32Array(null, (int[])matrix.Dimensions);
                 }
             }
+        }
+
+        /// <summary>
+        /// Test and increment the nesting level.
+        /// </summary>
+        private void CheckAndIncrementNestingLevel()
+        {
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
+            m_nestingLevel++;
         }
         #endregion
 

@@ -43,8 +43,8 @@ if (![string]::IsNullOrEmpty($JobPrefix)) {
 if ($AgentTable -eq $null -or $AgentTable.Count -eq 0)
 {
     $agents = @{
-        windows = "windows-2019"
-        linux = "ubuntu-20.04"
+        windows = "windows-2022"
+        linux = "ubuntu-22.04"
         mac = "macOS-11"
     }
 }

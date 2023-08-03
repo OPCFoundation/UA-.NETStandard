@@ -3,10 +3,10 @@
 #
 parameters:
   configuration: 'Release'
-  framework: 'netcoreapp3.1'
+  framework: net6.0
   agent: 'linux'
-  poolImage: 'ubuntu-18.04'
-  jobnamesuffix: 'netcore31'
+  poolImage: 'ubuntu-22.04'
+  jobnamesuffix: 'net60cc'
 jobs:
 - job: testcc${{ parameters.jobnamesuffix }}
   displayName: Coverage ${{ parameters.agent }} ${{ parameters.configuration }}
