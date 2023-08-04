@@ -232,33 +232,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             TestContext.Out.WriteLine("VariableIds: {0}", variableIds.Count);
 
-            // Set the default ID format to W3C and force it to be the default
-            Activity.DefaultIdFormat = ActivityIdFormat.W3C;
-            Activity.ForceDefaultIdFormat = true;
-
-            // Create an instance of ActivityListener and configure its properties
-            ActivityListener activityListener = new ActivityListener() {
-                // Set ShouldListenTo property to true for all activity sources
-                ShouldListenTo = (source) => true,
-
-                // Sample all data and recorded activities
-                Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
-
-                // Write "Started" message when an activity starts
-                ActivityStarted = activity => Console.WriteLine("Started: {0,-15} {1,-60}", activity.OperationName, activity.Id),
-
-                // Write "Stopped" message along with OperationName, Id, and Duration when an activity stops
-                ActivityStopped = activity => {
-
-                    if (activity.OperationName == "ReadAllValuesAsync")
-                    {
-                        Console.WriteLine("Duration of ReadAllValuesAsync(): " + activity.Duration);
-                    }
-                }
-            };
-
-            ActivitySource.AddActivityListener(activityListener);
-
             (var values, var serviceResults) = await samples.ReadAllValuesAsync(this, variableIds).ConfigureAwait(false);
 
             foreach (var serviceResult in serviceResults)
@@ -320,38 +293,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     Value = dataWriteValue
                     }
                 };
-
-            // Set the default ID format to W3C and force it to be the default
-            Activity.DefaultIdFormat = ActivityIdFormat.W3C;
-            Activity.ForceDefaultIdFormat = true;
-
-            // Create an instance of ActivityListener and configure its properties
-            ActivityListener activityListener = new ActivityListener() {
-                // Set ShouldListenTo property to true for all activity sources
-                ShouldListenTo = (source) => true,
-
-                // Sample all data and recorded activities
-                Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
-
-                // Write "Started" message when an activity starts
-                ActivityStarted = activity => Console.WriteLine("Started: {0,-15} {1,-60}", activity.OperationName, activity.Id),
-
-                // Write "Stopped" message along with OperationName, Id, and Duration when an activity stops
-                ActivityStopped = activity => {
-
-                    if (activity.OperationName == "WriteAsync")
-                    {
-                        Console.WriteLine("Duration of WriteAsync(): " + activity.Duration);
-                    }
-
-                    if (activity.OperationName == "ReadValueAsync")
-                    {
-                        Console.WriteLine("Duration of ReadValueAsync(): " + activity.Duration);
-                    }
-                }
-            };
-
-            ActivitySource.AddActivityListener(activityListener);
 
             WriteResponse response = await m_session.WriteAsync(null, writeValues, CancellationToken.None).ConfigureAwait(false);
             Assert.NotNull(response);

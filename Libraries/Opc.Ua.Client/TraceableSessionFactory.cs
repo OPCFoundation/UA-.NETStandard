@@ -31,8 +31,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -43,17 +41,6 @@ namespace Opc.Ua.Client
     /// </summary>
     public class TraceableSessionFactory : DefaultSessionFactory
     {
-        /// <summary>
-        /// Activity Source Name
-        /// </summary>
-        public const string TraceableSessionFactoryActivitySourceName = "Opc.Ua.Client-TraceableSessionFactory-ActivitySource";
-
-        /// <summary>
-        /// Activity Source
-        /// </summary>
-        ///
-        public static ActivitySource TraceableSessionFactoryActivitySource { get; } = new ActivitySource(TraceableSessionFactoryActivitySourceName);
-
         #region Public Methods
         /// <inheritdoc/>
         public override async Task<ISession> CreateAsync(
@@ -65,7 +52,7 @@ namespace Opc.Ua.Client
             IUserIdentity identity,
             IList<string> preferredLocales)
         {
-            using (Activity activity = TraceableSessionFactoryActivitySource.StartActivity(nameof(CreateAsync)))
+            using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(CreateAsync)))
             {
                 ISession session = await Session.Create(configuration, endpoint, updateBeforeConnect, false,
                 sessionName, sessionTimeout, identity, preferredLocales).ConfigureAwait(false);
@@ -85,7 +72,7 @@ namespace Opc.Ua.Client
             IUserIdentity identity,
             IList<string> preferredLocales)
         {
-            using (Activity activity = TraceableSessionFactoryActivitySource.StartActivity(nameof(CreateAsync)))
+            using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(CreateAsync)))
             {
                 ISession session = await Session.Create(configuration, null, endpoint,
                 updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
@@ -107,7 +94,7 @@ namespace Opc.Ua.Client
             IUserIdentity identity,
             IList<string> preferredLocales)
         {
-            using (Activity activity = TraceableSessionFactoryActivitySource.StartActivity(nameof(CreateAsync)))
+            using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(CreateAsync)))
             {
                 ISession session = await Session.Create(configuration, connection, endpoint,
                 updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
@@ -132,14 +119,14 @@ namespace Opc.Ua.Client
             CancellationToken ct = default
             )
         {
-            using (Activity activity = TraceableSessionFactoryActivitySource.StartActivity(nameof(CreateAsync)))
+            using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(CreateAsync)))
             {
                 ISession session = await base.CreateAsync(configuration,
-                reverseConnectManager, endpoint,
-                updateBeforeConnect,
-                checkDomain, sessionName,
-                sessionTimeout, userIdentity,
-                preferredLocales, ct).ConfigureAwait(false);
+                    reverseConnectManager, endpoint,
+                    updateBeforeConnect,
+                    checkDomain, sessionName,
+                    sessionTimeout, userIdentity,
+                    preferredLocales, ct).ConfigureAwait(false);
 
                 return new TraceableSession(session);
             }
@@ -148,28 +135,42 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public override Task<ISession> RecreateAsync(ISession sessionTemplate)
         {
-            if (!(sessionTemplate is TraceableSession template))
+            if (!(sessionTemplate is Session session))
             {
-                throw new ArgumentOutOfRangeException(nameof(sessionTemplate), "The ISession provided is not of a supported type.");
+                if (sessionTemplate is TraceableSession template)
+                {
+                    session = (Session)template.Session;
+                }
+                else
+                {
+                    throw new ArgumentOutOfRangeException(nameof(sessionTemplate), "The ISession provided is not of a supported type.");
+                }
             }
 
-            using (Activity activity = TraceableSessionFactoryActivitySource.StartActivity(nameof(RecreateAsync)))
+            using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(RecreateAsync)))
             {
-                return base.RecreateAsync(template.Session);
+                return base.RecreateAsync(session);
             }
         }
 
         /// <inheritdoc/>
         public override Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportWaitingConnection connection)
         {
-            if (!(sessionTemplate is TraceableSession template))
+            if (!(sessionTemplate is Session session))
             {
-                throw new ArgumentOutOfRangeException(nameof(sessionTemplate), "The ISession provided is not of a supported type");
+                if (sessionTemplate is TraceableSession template)
+                {
+                    session = (Session)template.Session;
+                }
+                else
+                {
+                    throw new ArgumentOutOfRangeException(nameof(sessionTemplate), "The ISession provided is not of a supported type.");
+                }
             }
 
-            using (Activity activity = TraceableSessionFactoryActivitySource.StartActivity(nameof(RecreateAsync)))
+            using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(RecreateAsync)))
             {
-                return base.RecreateAsync(template.Session, connection);
+                return base.RecreateAsync(session, connection);
             }
         }
         #endregion

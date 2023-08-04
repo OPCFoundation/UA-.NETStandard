@@ -55,20 +55,28 @@ namespace Opc.Ua.Client
         #endregion
 
         /// <summary>
-        /// Activity Source Name
+        /// Activity Source Name.
         /// </summary>
-        public const string ActivitySourceName = "Opc.Ua.Client-TraceableSession-ActivitySource";
+        public static readonly string ActivitySourceName = "Opc.Ua.Client-TraceableSession-ActivitySource";
 
         /// <summary>
-        /// Activity Source
+        /// Activity Source static instance.
         /// </summary>
-        ///
-        public static ActivitySource ActivitySource { get; } = new ActivitySource(ActivitySourceName);
+        public static ActivitySource ActivitySource => s_activitySource.Value;
+        private static readonly Lazy<ActivitySource> s_activitySource = new Lazy<ActivitySource>(() => new ActivitySource(ActivitySourceName));
+        private static readonly Lazy<TraceableSessionFactory> s_sessionFactory = new Lazy<TraceableSessionFactory>(() => new TraceableSessionFactory());
 
+        /// <summary>
+        /// The ISession which is being traced.
+        /// </summary>
         private ISession m_session;
 
         /// <inheritdoc/>
         public ISession Session => m_session;
+
+        #region ISession interface
+        /// <inheritdoc/>
+        ISessionFactory ISession.SessionFactory => s_sessionFactory.Value;
 
         /// <inheritdoc/>
         public event KeepAliveEventHandler KeepAlive
@@ -261,7 +269,8 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public bool Disposed => m_session.Disposed;
 
-        ISessionFactory ISession.SessionFactory => new TraceableSessionFactory();
+        /// <inheritdoc/>
+        public bool CheckDomain => m_session.CheckDomain;
 
         /// <inheritdoc/>
         public void Reconnect()
@@ -1798,10 +1807,13 @@ namespace Opc.Ua.Client
             return m_session.NewRequestHandle();
         }
 
-        /// <inheritdoc/>
-        protected void Dispose(bool disposing)
+        /// <summary>
+        /// Disposes the session.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
         {
             m_session.Dispose();
+            m_session = null;
         }
 
         /// <inheritdoc/>
@@ -1811,6 +1823,97 @@ namespace Opc.Ua.Client
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
+
+        /// <inheritdoc/>
+        public SessionConfiguration SaveSessionConfiguration(Stream stream = null)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(SaveSessionConfiguration)))
+            {
+                return m_session.SaveSessionConfiguration(stream);
+            }
+        }
+
+        /// <inheritdoc/>
+        public bool ApplySessionConfiguration(SessionConfiguration sessionConfiguration)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(ApplySessionConfiguration)))
+            {
+                return m_session.ApplySessionConfiguration(sessionConfiguration);
+            }
+        }
+
+        /// <inheritdoc/>
+        public bool ReactivateSubscriptions(SubscriptionCollection subscriptions, bool sendInitialValues)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(ReactivateSubscriptions)))
+            {
+                return m_session.ReactivateSubscriptions(subscriptions, sendInitialValues);
+            }
+        }
+
+        /// <inheritdoc/>
+        public Task<bool> RemoveSubscriptionAsync(Subscription subscription, CancellationToken ct = default)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(RemoveSubscriptionAsync)))
+            {
+                return m_session.RemoveSubscriptionAsync(subscription, ct);
+            }
+        }
+
+        /// <inheritdoc/>
+        public Task<bool> RemoveSubscriptionsAsync(IEnumerable<Subscription> subscriptions, CancellationToken ct = default)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(RemoveSubscriptionsAsync)))
+            {
+                return m_session.RemoveSubscriptionsAsync(subscriptions, ct);
+            }
+        }
+
+        /// <inheritdoc/>
+        public Task<bool> ReactivateSubscriptionsAsync(SubscriptionCollection subscriptions, bool sendInitialValues, CancellationToken ct = default)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(ReactivateSubscriptionsAsync)))
+            {
+                return m_session.ReactivateSubscriptionsAsync(subscriptions, sendInitialValues, ct);
+            }
+        }
+
+        /// <inheritdoc/>
+        public Task<bool> TransferSubscriptionsAsync(SubscriptionCollection subscriptions, bool sendInitialValues, CancellationToken ct = default)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(TransferSubscriptionsAsync)))
+            {
+                return m_session.TransferSubscriptionsAsync(subscriptions, sendInitialValues, ct);
+            }
+        }
+
+        /// <inheritdoc/>
+        public Task<IList<object>> CallAsync(NodeId objectId, NodeId methodId, CancellationToken ct = default, params object[] args)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(CallAsync)))
+            {
+                return m_session.CallAsync(objectId, methodId, ct, args);
+            }
+        }
+
+        /// <inheritdoc/>
+        public bool ResendData(IEnumerable<Subscription> subscriptions, out IList<ServiceResult> errors)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(ResendData)))
+            {
+                return m_session.ResendData(subscriptions, out errors);
+            }
+        }
+
+        /// <inheritdoc/>
+        public Task<(bool, IList<ServiceResult>)> ResendDataAsync(IEnumerable<Subscription> subscriptions, CancellationToken ct = default)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(ResendDataAsync)))
+            {
+                return m_session.ResendDataAsync(subscriptions, ct);
+            }
+        }
+        #endregion
     }
 }
 #endif
