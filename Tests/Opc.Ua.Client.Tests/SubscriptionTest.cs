@@ -474,7 +474,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             // the active channel
-            Session session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity).ConfigureAwait(false) as Session;
+            ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity).ConfigureAwait(false);
             Assert.NotNull(session1);
 
             ServerStatusDataType value1 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
@@ -524,7 +524,7 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(channel2);
 
             // prepare the inactive session with the new channel
-            Session session2 = ClientFixture.CreateSession(channel2, sessionConfiguration.ConfiguredEndpoint);
+            ISession session2 = ClientFixture.CreateSession(channel2, sessionConfiguration.ConfiguredEndpoint);
 
             // apply the saved session configuration
             bool success = session2.ApplySessionConfiguration(sessionConfiguration);
@@ -627,11 +627,11 @@ namespace Opc.Ua.Client.Tests
 
             session1.DeleteSubscriptionsOnClose = true;
             session1.Close(1000);
-            session1.Dispose();
+            Utils.SilentDispose(session1);
 
             session2.DeleteSubscriptionsOnClose = true;
             session2.Close(1000);
-            session2.Dispose();
+            Utils.SilentDispose(session2);
         }
 
         [Test, Order(400)]

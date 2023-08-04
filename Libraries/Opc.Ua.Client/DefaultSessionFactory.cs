@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -39,6 +40,18 @@ namespace Opc.Ua.Client
     /// </summary>
     public class DefaultSessionFactory : ISessionFactory
     {
+        /// <summary>
+        /// The default instance of the factory.
+        /// </summary>
+        public static readonly DefaultSessionFactory Instance = new DefaultSessionFactory();
+
+        /// <summary>
+        /// Force use of the default instance.
+        /// </summary>
+        protected DefaultSessionFactory()
+        {
+        }
+
         #region Public Methods
         /// <inheritdoc/>
         public async virtual Task<ISession> CreateAsync(
@@ -102,7 +115,6 @@ namespace Opc.Ua.Client
             CancellationToken ct = default
             )
         {
-
             if (reverseConnectManager == null)
             {
                 return await CreateAsync(configuration, endpoint, updateBeforeConnect,
@@ -138,6 +150,24 @@ namespace Opc.Ua.Client
                 sessionTimeout,
                 userIdentity,
                 preferredLocales).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public virtual ISession Create(
+           ApplicationConfiguration configuration,
+           ITransportChannel channel,
+           ConfiguredEndpoint endpoint,
+           X509Certificate2 clientCertificate,
+           EndpointDescriptionCollection availableEndpoints = null,
+           StringCollection discoveryProfileUris = null)
+        {
+            return Session.Create(configuration, channel, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
+        }
+
+        /// <inheritdoc/>
+        public virtual Task<ITransportChannel> CreateChannelAsync(ApplicationConfiguration configuration, ITransportWaitingConnection connection, ConfiguredEndpoint endpoint, bool updateBeforeConnect, bool checkDomain)
+        {
+            return Session.CreateChannelAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain);
         }
 
         /// <inheritdoc/>

@@ -57,13 +57,13 @@ namespace Opc.Ua.Client.Tests
         public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.StackTrace | Utils.TraceMasks.Security | Utils.TraceMasks.Information;
 
 #if  NET6_0_OR_GREATER
-        public bool haveActivitySource { get; set; } = true;
+        public bool UseTracing { get; set; } = true;
 
-        public ISessionFactory SessionFactory => haveActivitySource ? new TraceableSessionFactory() : new DefaultSessionFactory();
+        public ISessionFactory SessionFactory => UseTracing ? TraceableSessionFactory.Instance : DefaultSessionFactory.Instance;
 
         private ActivityListener activityListener;
 #else
-        public ISessionFactory SessionFactory {get;} = new DefaultSessionFactory();
+        public ISessionFactory SessionFactory {get;} = DefaultSessionFactory.Instance;
 #endif
 
         #region Public Methods
@@ -235,7 +235,7 @@ namespace Opc.Ua.Client.Tests
         /// <returns></returns>
         public async Task<ITransportChannel> CreateChannelAsync(ConfiguredEndpoint endpoint, bool updateBeforeConnect = true)
         {
-            return await Session.CreateChannelAsync(Config, null, endpoint, updateBeforeConnect, checkDomain: false).ConfigureAwait(false);
+            return await SessionFactory.CreateChannelAsync(Config, null, endpoint, updateBeforeConnect, checkDomain: false).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -244,9 +244,9 @@ namespace Opc.Ua.Client.Tests
         /// <param name="channel">The channel to use</param>
         /// <param name="endpoint">The configured endpoint</param>
         /// <returns></returns>
-        public Session CreateSession(ITransportChannel channel, ConfiguredEndpoint endpoint)
+        public ISession CreateSession(ITransportChannel channel, ConfiguredEndpoint endpoint)
         {
-            return Session.Create(Config, channel, endpoint, null);
+            return SessionFactory.Create(Config, channel, endpoint, null);
         }
 
         /// <summary>

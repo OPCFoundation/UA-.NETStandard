@@ -32,15 +32,13 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Manages a session with a server with Activity Source.
+    /// Decorator class for traceable session with Activity Source.
     /// </summary>
     public class TraceableSession : ISession
     {
@@ -64,7 +62,6 @@ namespace Opc.Ua.Client
         /// </summary>
         public static ActivitySource ActivitySource => s_activitySource.Value;
         private static readonly Lazy<ActivitySource> s_activitySource = new Lazy<ActivitySource>(() => new ActivitySource(ActivitySourceName));
-        private static readonly Lazy<TraceableSessionFactory> s_sessionFactory = new Lazy<TraceableSessionFactory>(() => new TraceableSessionFactory());
 
         /// <summary>
         /// The ISession which is being traced.
@@ -75,9 +72,6 @@ namespace Opc.Ua.Client
         public ISession Session => m_session;
 
         #region ISession interface
-        /// <inheritdoc/>
-        ISessionFactory ISession.SessionFactory => s_sessionFactory.Value;
-
         /// <inheritdoc/>
         public event KeepAliveEventHandler KeepAlive
         {
@@ -128,7 +122,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public ISessionFactory SessionFactory = new TraceableSessionFactory();
+        public ISessionFactory SessionFactory => TraceableSessionFactory.Instance;
 
         /// <inheritdoc/>
         public ConfiguredEndpoint ConfiguredEndpoint => m_session.ConfiguredEndpoint;

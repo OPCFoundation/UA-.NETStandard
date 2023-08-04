@@ -251,7 +251,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void Initialize()
         {
-            m_sessionFactory = new DefaultSessionFactory();
+            m_sessionFactory = DefaultSessionFactory.Instance;
             m_sessionTimeout = 0;
             m_namespaceUris = new NamespaceTable();
             m_serverUris = new StringTable();

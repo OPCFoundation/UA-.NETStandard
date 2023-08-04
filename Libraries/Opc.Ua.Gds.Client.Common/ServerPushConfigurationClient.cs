@@ -53,7 +53,7 @@ namespace Opc.Ua.Gds.Client
         public ServerPushConfigurationClient(ApplicationConfiguration configuration, ISessionFactory sessionFactory = null)
         {
             m_configuration = configuration;
-            m_sessionFactory = sessionFactory ?? new DefaultSessionFactory();
+            m_sessionFactory = sessionFactory ?? DefaultSessionFactory.Instance;
         }
         #endregion
 

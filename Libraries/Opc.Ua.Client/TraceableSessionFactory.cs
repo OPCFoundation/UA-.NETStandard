@@ -31,6 +31,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -41,6 +42,18 @@ namespace Opc.Ua.Client
     /// </summary>
     public class TraceableSessionFactory : DefaultSessionFactory
     {
+        /// <summary>
+        /// The default instance of the factory.
+        /// </summary>
+        public new static readonly TraceableSessionFactory Instance = new TraceableSessionFactory();
+
+        /// <summary>
+        /// Force use of the default instance.
+        /// </summary>
+        protected TraceableSessionFactory()
+        {
+        }
+
         #region Public Methods
         /// <inheritdoc/>
         public override async Task<ISession> CreateAsync(
@@ -102,6 +115,30 @@ namespace Opc.Ua.Client
                 ).ConfigureAwait(false);
 
                 return new TraceableSession(session);
+            }
+        }
+
+        /// <inheritdoc/>
+        public override ISession Create(
+           ApplicationConfiguration configuration,
+           ITransportChannel channel,
+           ConfiguredEndpoint endpoint,
+           X509Certificate2 clientCertificate,
+           EndpointDescriptionCollection availableEndpoints = null,
+           StringCollection discoveryProfileUris = null)
+        {
+            using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(CreateAsync)))
+            {
+                return new TraceableSession(base.Create(configuration, channel, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris));
+            }
+        }
+
+        /// <inheritdoc/>
+        public override Task<ITransportChannel> CreateChannelAsync(ApplicationConfiguration configuration, ITransportWaitingConnection connection, ConfiguredEndpoint endpoint, bool updateBeforeConnect, bool checkDomain)
+        {
+            using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(CreateAsync)))
+            {
+                return base.CreateChannelAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain);
             }
         }
 

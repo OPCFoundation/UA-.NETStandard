@@ -58,7 +58,7 @@ namespace Opc.Ua.Gds.Client
         {
             Configuration = configuration;
             EndpointUrl = endpointUrl;
-            m_sessionFactory = sessionFactory ?? new DefaultSessionFactory();
+            m_sessionFactory = sessionFactory ?? DefaultSessionFactory.Instance;
             // preset admin 
             AdminCredentials = adminUserIdentity;
         }
