@@ -28,8 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading;
@@ -161,6 +161,7 @@ namespace Opc.Ua.Client
             m_monitoredItems = new SortedDictionary<uint, MonitoredItem>();
             m_deletedItems = new List<MonitoredItem>();
             m_messageWorkerEvent = new AsyncAutoResetEvent();
+            m_messageWorkerShutdownEvent = new ManualResetEvent(false);
             m_resyncLastSequenceNumberProcessed = false;
 
             m_defaultItem = new MonitoredItem {
@@ -192,6 +193,7 @@ namespace Opc.Ua.Client
             {
                 Utils.SilentDispose(m_publishTimer);
                 m_publishTimer = null;
+                m_messageWorkerShutdownEvent.Set();
                 m_messageWorkerEvent.Set();
                 m_messageWorkerTask = null;
             }
@@ -212,7 +214,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Raised to indicate the publishing state for the subscription has stopped or resumed (see PublishingStopped property).
         /// </summary>
-        public event EventHandler PublishStatusChanged
+        public event PublishStateChangedEventHandler PublishStatusChanged
         {
             add
             {
@@ -998,6 +1000,7 @@ namespace Opc.Ua.Client
                     // stop the publish timer.
                     Utils.SilentDispose(m_publishTimer);
                     m_publishTimer = null;
+                    m_messageWorkerShutdownEvent.Set();
                     m_messageWorkerEvent.Set();
                     m_messageWorkerTask = null;
                 }
@@ -1385,7 +1388,7 @@ namespace Opc.Ua.Client
             NotificationMessage message,
             IList<string> stringTable)
         {
-            EventHandler callback = null;
+            PublishStateChangedEventHandler callback = null;
 
             lock (m_cache)
             {
@@ -1484,12 +1487,12 @@ namespace Opc.Ua.Client
                 m_messageWorkerEvent.Set();
             }
 
-            // send notification that publishing has recovered.
+            // send notification that publishing received a keep alive or has to republish.
             if (callback != null)
             {
                 try
                 {
-                    callback(this, null);
+                    callback(this, new PublishStateChangedEventArgs(PublishStateChangedMask.Recovered));
                 }
                 catch (Exception e)
                 {
@@ -1799,6 +1802,7 @@ namespace Opc.Ua.Client
 
                 if (m_messageWorkerTask == null || m_messageWorkerTask.IsCompleted)
                 {
+                    m_messageWorkerShutdownEvent.Reset();
                     m_messageWorkerTask = Task.Run(() => PublishResponseMessageWorker());
                 }
             }
@@ -1813,7 +1817,7 @@ namespace Opc.Ua.Client
         private void OnKeepAlive(object state)
         {
             // check if a publish has arrived.
-            EventHandler callback = null;
+            PublishStateChangedEventHandler callback = null;
 
             lock (m_cache)
             {
@@ -1832,7 +1836,7 @@ namespace Opc.Ua.Client
             {
                 try
                 {
-                    callback(this, null);
+                    callback(this, new PublishStateChangedEventArgs(PublishStateChangedMask.Stopped));
                 }
                 catch (Exception e)
                 {
@@ -1858,15 +1862,11 @@ namespace Opc.Ua.Client
                 {
                     await m_messageWorkerEvent.WaitAsync().ConfigureAwait(false);
 
-                    lock (m_cache)
+                    if (m_messageWorkerShutdownEvent.WaitOne(0))
                     {
-                        if (m_publishTimer == null)
-                        {
-                            Utils.LogTrace("SubscriptionId {0} - Publish Thread {1:X8} Exited Normally.", m_id, Environment.CurrentManagedThreadId);
-                            break;
-                        }
+                        Utils.LogTrace("SubscriptionId {0} - Publish Thread {1:X8} Exited Normally.", m_id, Environment.CurrentManagedThreadId);
+                        break;
                     }
-
                     OnMessageReceived();
                 }
                 while (true);
@@ -2073,7 +2073,7 @@ namespace Opc.Ua.Client
 
                 ISession session = null;
                 uint subscriptionId = 0;
-                EventHandler callback = null;
+                PublishStateChangedEventHandler callback = null;
 
                 // list of new messages to process.
                 List<NotificationMessage> messagesToProcess = null;
@@ -2083,6 +2083,8 @@ namespace Opc.Ua.Client
 
                 // list of new messages to republish.
                 List<IncomingMessage> messagesToRepublish = null;
+
+                PublishStateChangedMask publishStateChangedMask = PublishStateChangedMask.None;
 
                 lock (m_cache)
                 {
@@ -2130,6 +2132,7 @@ namespace Opc.Ua.Client
                                 keepAliveToProcess = new List<IncomingMessage>();
                             }
                             keepAliveToProcess.Add(ii.Value);
+                            publishStateChangedMask |= PublishStateChangedMask.KeepAlive;
                         }
 
                         // check for missing messages.
@@ -2144,6 +2147,7 @@ namespace Opc.Ua.Client
 
                                 messagesToRepublish.Add(ii.Value);
                                 ii.Value.Republished = true;
+                                publishStateChangedMask |= PublishStateChangedMask.Republish;
                             }
                         }
 #if DEBUG
@@ -2163,13 +2167,16 @@ namespace Opc.Ua.Client
 
                 if (callback != null)
                 {
-                    try
+                    if (publishStateChangedMask != PublishStateChangedMask.None)
                     {
-                        callback(this, null);
-                    }
-                    catch (Exception e)
-                    {
-                        Utils.LogError(e, "Error while raising PublishStateChanged event.");
+                        try
+                        {
+                            callback(this, new PublishStateChangedEventArgs(publishStateChangedMask));
+                        }
+                        catch (Exception e)
+                        {
+                            Utils.LogError(e, "Error while raising PublishStateChanged event.");
+                        }
                     }
                 }
 
@@ -2654,7 +2661,7 @@ namespace Opc.Ua.Client
         private Timer m_publishTimer;
         private DateTime m_lastNotificationTime;
         private int m_publishLateCount;
-        private event EventHandler m_publishStatusChanged;
+        private event PublishStateChangedEventHandler m_publishStatusChanged;
 
         private object m_cache = new object();
         private LinkedList<NotificationMessage> m_messageCache;
@@ -2667,6 +2674,7 @@ namespace Opc.Ua.Client
         private FastEventNotificationEventHandler m_fastEventCallback;
         private FastKeepAliveNotificationEventHandler m_fastKeepAliveCallback;
         private AsyncAutoResetEvent m_messageWorkerEvent;
+        private ManualResetEvent m_messageWorkerShutdownEvent;
         private Task m_messageWorkerTask;
         private int m_outstandingMessageWorkers;
         private bool m_sequentialPublishing;
@@ -2744,10 +2752,44 @@ namespace Opc.Ua.Client
         ItemsModified = 0x80,
 
         /// <summary>
-        /// Subscriptions was transferred on the server.
+        /// Subscription was transferred on the server.
         /// </summary>
         Transferred = 0x100
 
+    }
+    #endregion
+
+    #region PublishStateChangeMask Enumeration
+    /// <summary>
+    /// Flags indicating what has changed in a publish state change.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1714:FlagsEnumsShouldHavePluralNames"), Flags]
+    public enum PublishStateChangedMask
+    {
+        /// <summary>
+        /// The publish state has not changed.
+        /// </summary>
+        None = 0x00,
+
+        /// <summary>
+        /// The publishing stopped.
+        /// </summary>
+        Stopped = 0x01,
+
+        /// <summary>
+        /// The publishing recovered.
+        /// </summary>
+        Recovered = 0x02,
+
+        /// <summary>
+        /// A keep alive message was received.
+        /// </summary>
+        KeepAlive = 0x04,
+
+        /// <summary>
+        /// A republish for a missing message was issued.
+        /// </summary>
+        Republish = 0x08,
     }
     #endregion
 
@@ -2798,6 +2840,40 @@ namespace Opc.Ua.Client
     /// The delegate used to receive subscription state change notifications.
     /// </summary>
     public delegate void SubscriptionStateChangedEventHandler(Subscription subscription, SubscriptionStateChangedEventArgs e);
+    #endregion
+
+    #region PublishStateChangedEventArgs Class
+    /// <summary>
+    /// The event arguments provided when the state of a subscription changes.
+    /// </summary>
+    public class PublishStateChangedEventArgs : EventArgs
+    {
+        #region Constructors
+        /// <summary>
+        /// Creates a new instance.
+        /// </summary>
+        internal PublishStateChangedEventArgs(PublishStateChangedMask changeMask)
+        {
+            m_changeMask = changeMask;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// The publish state changes.
+        /// </summary>
+        public PublishStateChangedMask Status => m_changeMask;
+        #endregion
+
+        #region Private Fields
+        private readonly PublishStateChangedMask m_changeMask;
+        #endregion
+    }
+
+    /// <summary>
+    /// The delegate used to receive publish state change notifications.
+    /// </summary>
+    public delegate void PublishStateChangedEventHandler(Subscription subscription, PublishStateChangedEventArgs e);
     #endregion
 
     /// <summary>
