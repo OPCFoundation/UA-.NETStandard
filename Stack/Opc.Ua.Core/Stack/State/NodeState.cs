@@ -1827,9 +1827,9 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
-                    "Could not load child '{1}', with NodeClass {0}",
-                    nodeClass,
-                    browseName);
+                    "Could not load child '{0}', with NodeClass {1}",
+                    browseName,
+                    nodeClass);
             }
 
             // initialize the child from the stream.
@@ -1898,9 +1898,9 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
-                    "Could not load node '{1}', with NodeClass {0}",
-                    nodeClass,
-                    browseName);
+                    "Could not load node '{0}', with NodeClass {1}",
+                    browseName,
+                    nodeClass);
             }
 
             // update symbolic name.
@@ -1967,9 +1967,9 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
-                    "Could not load node '{1}', with NodeClass {0}",
-                    nodeClass,
-                    browseName);
+                    "Could not load node '{0}', with NodeClass {1}",
+                    browseName,
+                    nodeClass);
             }
 
             // update symbolic name.
@@ -2058,9 +2058,9 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
-                    "Could not load child '{1}', with NodeClass {0}",
-                    nodeClass,
-                    browseName);
+                    "Could not load child '{0}', with NodeClass {1}",
+                    browseName,
+                    nodeClass);
             }
 
             // initialize the child from the stream.

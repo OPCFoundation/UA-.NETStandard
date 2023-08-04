@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -467,7 +468,7 @@ namespace Opc.Ua.Client.Tests
             var endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints).ConfigureAwait(false);
             Assert.NotNull(endpoint);
 
-            var channel = await ClientFixture.CreateChannelAsync(endpoint).ConfigureAwait(false);
+            var channel = await ClientFixture.CreateChannelAsync(endpoint, false).ConfigureAwait(false);
             Assert.NotNull(channel);
 
             var session1 = ClientFixture.CreateSession(channel, endpoint);
@@ -499,6 +500,8 @@ namespace Opc.Ua.Client.Tests
         public async Task ReconnectSessionOnAlternateChannel(bool closeChannel)
         {
             ServiceResultException sre;
+
+            // the endpoint to use
             var endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints).ConfigureAwait(false);
             Assert.NotNull(endpoint);
 
@@ -506,10 +509,14 @@ namespace Opc.Ua.Client.Tests
             ISession session1 = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints).ConfigureAwait(false);
             Assert.NotNull(session1);
 
+            // test by reading a value
             ServerStatusDataType value1 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
             Assert.NotNull(value1);
 
+            // save the channel to close it later
             var channel1 = session1.TransportChannel;
+
+            // test case: close the channel before reconnecting
             if (closeChannel)
             {
                 session1.DetachChannel();
@@ -520,38 +527,44 @@ namespace Opc.Ua.Client.Tests
             }
 
             // the inactive channel
-            ITransportChannel channel2 = await ClientFixture.CreateChannelAsync(endpoint).ConfigureAwait(false);
+            ITransportChannel channel2 = await ClientFixture.CreateChannelAsync(endpoint, false).ConfigureAwait(false);
             Assert.NotNull(channel2);
 
             // activate the session on the new channel
             session1.Reconnect(channel2);
 
-            // read using the new channel
+            // test by reading a value
             ServerStatusDataType value2 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
             Assert.NotNull(value2);
             Assert.AreEqual(value1.State, value2.State);
 
+            // test case: close the first channel after the session is activated on the new channel
             if (!closeChannel)
             {
                 channel1.Close();
                 channel1.Dispose();
             }
 
+            // test by reading a value
             ServerStatusDataType value3 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
             Assert.NotNull(value3);
             Assert.AreEqual(value1.State, value3.State);
 
+            // close the session, keep the channel open
             session1.Close(closeChannel: false);
 
+            // cannot read using a closed session, validate the status code
             sre = Assert.Throws<ServiceResultException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
             Assert.AreEqual(StatusCodes.BadSessionIdInvalid, sre.StatusCode, sre.Message);
 
+            // close the channel
             channel2.Close();
             channel2.Dispose();
 
+            // cannot read using a closed channel, validate the status code
             sre = Assert.Throws<ServiceResultException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
 
-            // TODO: Both channel should return BadSecureChannleClosed
+            // TODO: Both channel should return BadSecureChannelClosed
             if (endpoint.EndpointUrl.ToString().StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
             {
                 Assert.AreEqual(StatusCodes.BadSessionIdInvalid, sre.StatusCode, sre.Message);
@@ -559,6 +572,90 @@ namespace Opc.Ua.Client.Tests
             else
             {
                 Assert.AreEqual(StatusCodes.BadUnknownResponse, sre.StatusCode, sre.Message);
+            }
+        }
+
+        /// <summary>
+        /// Open a session on a channel, then reconnect (activate)
+        /// the same session on a new channel with saved session secrets
+        /// </summary>
+        [Test, Order(260)]
+        [TestCase(SecurityPolicies.None, true)]
+        [TestCase(SecurityPolicies.None, false)]
+        [TestCase(SecurityPolicies.Basic256Sha256, true)]
+        [TestCase(SecurityPolicies.Basic256Sha256, false)]
+        public async Task ReconnectSessionOnAlternateChannelWithSavedSessionSecrets(string securityPolicy, bool anonymous)
+        {
+            ServiceResultException sre;
+
+            IUserIdentity userIdentity = anonymous ? new UserIdentity() : new UserIdentity("user1", "password");
+
+            // the first channel determines the endpoint
+            ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
+            Assert.NotNull(endpoint);
+
+            UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentity.TokenType, userIdentity.IssuedTokenType);
+            if (identityPolicy == null)
+            {
+                Assert.Ignore($"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
+            }
+
+            // the active channel
+            Session session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity).ConfigureAwait(false) as Session;
+            Assert.NotNull(session1);
+
+            ServerStatusDataType value1 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+            Assert.NotNull(value1);
+
+            // save the session configuration
+            var stream = new MemoryStream();
+            session1.SaveSessionConfiguration(stream);
+
+            var streamArray = stream.ToArray();
+            TestContext.Out.WriteLine($"SessionSecrets: {stream.Length} bytes");
+            TestContext.Out.WriteLine(Encoding.UTF8.GetString(streamArray));
+
+            // read the session configuration
+            var loadStream = new MemoryStream(streamArray);
+            var sessionConfiguration = SessionConfiguration.Create(loadStream);
+
+            // create the inactive channel
+            ITransportChannel channel2 = await ClientFixture.CreateChannelAsync(sessionConfiguration.ConfiguredEndpoint, false).ConfigureAwait(false);
+            Assert.NotNull(channel2);
+
+            // prepare the inactive session with the new channel
+            Session session2 = ClientFixture.CreateSession(channel2, sessionConfiguration.ConfiguredEndpoint);
+
+            // apply the saved session configuration
+            bool success = session2.ApplySessionConfiguration(sessionConfiguration);
+
+            // hook callback to renew the user identity
+            session2.RenewUserIdentity += (session, identity) => {
+                return userIdentity;
+                };
+
+            // activate the session from saved sesson secrets on the new channel
+            session2.Reconnect(channel2);
+
+            Thread.Sleep(500);
+
+            Assert.AreEqual(session1.SessionId, session2.SessionId);
+
+            ServerStatusDataType value2 = (ServerStatusDataType)session2.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+            Assert.NotNull(value2);
+
+            await Task.Delay(500).ConfigureAwait(false);
+
+            // cannot read using a closed channel, validate the status code
+            if (endpoint.EndpointUrl.ToString().StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
+            {
+                sre = Assert.Throws<ServiceResultException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
+                Assert.AreEqual(StatusCodes.BadSecureChannelIdInvalid, sre.StatusCode, sre.Message);
+            }
+            else
+            {
+                var result = session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+                Assert.NotNull(result);
             }
         }
 
@@ -899,9 +996,9 @@ namespace Opc.Ua.Client.Tests
             }
 
             NodeIdCollection nodes = new NodeIdCollection(
-                ReferenceDescriptions.Take(nodeCount)
-                    .Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris))
-                );
+                ReferenceDescriptions
+                .Take(nodeCount)
+                .Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris)));
 
             Session.ReadNodes(nodes, out IList<Node> nodeCollection, out IList<ServiceResult> errors);
             Assert.NotNull(nodeCollection);

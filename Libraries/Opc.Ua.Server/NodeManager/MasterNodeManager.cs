@@ -834,7 +834,8 @@ namespace Opc.Ua.Server
                 {
                     DiagnosticInfo diagnosticInfo = diagnosticInfos[ii];
 
-                    while (diagnosticInfo != null)
+                    int depth = 0;
+                    while (diagnosticInfo != null && depth++ < DiagnosticInfo.MaxInnerDepth)
                     {
                         if (!String.IsNullOrEmpty(diagnosticInfo.AdditionalInfo))
                         {
