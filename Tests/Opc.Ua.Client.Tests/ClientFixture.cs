@@ -30,6 +30,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -55,7 +56,15 @@ namespace Opc.Ua.Client.Tests
         public int OperationTimeout { get; set; } = 10000;
         public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.StackTrace | Utils.TraceMasks.Security | Utils.TraceMasks.Information;
 
-        public ISessionFactory SessionFactory { get; } = new DefaultSessionFactory();
+#if  NET6_0_OR_GREATER
+        public bool UseTracing { get; set; } = true;
+
+        public ISessionFactory SessionFactory => UseTracing ? TraceableSessionFactory.Instance : DefaultSessionFactory.Instance;
+
+        private ActivityListener activityListener;
+#else
+        public ISessionFactory SessionFactory {get;} = DefaultSessionFactory.Instance;
+#endif
 
         #region Public Methods
         /// <summary>
@@ -63,6 +72,9 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public async Task LoadClientConfiguration(string pkiRoot = null, string clientName = "TestClient")
         {
+#if NET6_0_OR_GREATER
+            ConfigureActivityListener();
+#endif
             ApplicationInstance application = new ApplicationInstance {
                 ApplicationName = clientName
             };
@@ -223,7 +235,7 @@ namespace Opc.Ua.Client.Tests
         /// <returns></returns>
         public async Task<ITransportChannel> CreateChannelAsync(ConfiguredEndpoint endpoint, bool updateBeforeConnect = true)
         {
-            return await Session.CreateChannelAsync(Config, null, endpoint, updateBeforeConnect, checkDomain: false).ConfigureAwait(false);
+            return await SessionFactory.CreateChannelAsync(Config, null, endpoint, updateBeforeConnect, checkDomain: false).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -232,9 +244,9 @@ namespace Opc.Ua.Client.Tests
         /// <param name="channel">The channel to use</param>
         /// <param name="endpoint">The configured endpoint</param>
         /// <returns></returns>
-        public Session CreateSession(ITransportChannel channel, ConfiguredEndpoint endpoint)
+        public ISession CreateSession(ITransportChannel channel, ConfiguredEndpoint endpoint)
         {
-            return Session.Create(Config, channel, endpoint, null);
+            return SessionFactory.Create(Config, channel, endpoint, null);
         }
 
         /// <summary>
@@ -333,7 +345,14 @@ namespace Opc.Ua.Client.Tests
                 m_traceLogger.SetWriter(writer);
             }
         }
-        #endregion
+
+#if NET6_0_OR_GREATER
+        public void Cleanup()
+        {
+            activityListener = null;
+        }
+#endif
+#endregion
 
         #region Private Methods
         private void Session_KeepAlive(ISession session, KeepAliveEventArgs e)
@@ -343,6 +362,36 @@ namespace Opc.Ua.Client.Tests
                 session?.Dispose();
             }
         }
-        #endregion
+
+#if NET6_0_OR_GREATER
+        /// <summary>
+        /// Configures Activity Listener.
+        /// </summary>
+        private void ConfigureActivityListener(bool shouldListenToAllSources = true, bool shouldWriteStartAndStop = true)
+        {
+            // Create an instance of ActivityListener and configure its properties
+            activityListener = new ActivityListener()
+            {
+                // Set ShouldListenTo property to true for all activity sources
+                ShouldListenTo = (source) => true,
+
+                // Sample all data and recorded activities
+                Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
+
+                // Write "Started" message when an activity starts
+                ActivityStarted = shouldWriteStartAndStop
+                ? activity => Console.WriteLine("Started: {0,-15} {1,-60}", activity.OperationName, activity.Id)
+                : (Action<Activity>)(_ => { }),
+
+                // Write "Stopped" message along with OperationName, Id, and Duration when an activity stops
+                ActivityStopped = shouldWriteStartAndStop
+                ? activity => Console.WriteLine(activity.OperationName + " : " + activity.Id + ", Duration : " + activity.Duration)
+                : (Action<Activity>)(_ => { }),
+            };
+
+            ActivitySource.AddActivityListener(activityListener);
+        }
+#endif
+#endregion
     }
 }

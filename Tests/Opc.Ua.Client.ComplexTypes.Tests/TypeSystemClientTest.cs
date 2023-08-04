@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -292,6 +293,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     Value = dataWriteValue
                     }
                 };
+
             WriteResponse response = await m_session.WriteAsync(null, writeValues, CancellationToken.None).ConfigureAwait(false);
             Assert.NotNull(response);
             Assert.NotNull(response.Results);
