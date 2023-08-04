@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Xml.Linq;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -308,6 +309,7 @@ namespace FullAlarms
 
                     AddPredefinedNode(SystemContext, alarmsFolder);
                     StartTimer();
+                    Start(startMethod, 30000, false);
                     m_allowEntry = true;
 
                 }
@@ -427,41 +429,7 @@ namespace FullAlarms
             // all arguments must be provided.
             UInt32 seconds = 30000;
 
-            ServiceResult result = ServiceResult.Good;
-
-            Dictionary<string, SourceController> sourceControllers = GetUnitAlarms(node);
-            if (sourceControllers == null)
-            {
-                result = StatusCodes.BadNodeIdUnknown;
-            }
-
-            if (sourceControllers != null)
-            {
-                Utils.LogInfo("Starting up alarm group {0}", GetUnitFromNodeId(node.NodeId));
-
-                lock (m_alarms)
-                {
-                    foreach (SourceController sourceController in sourceControllers.Values)
-                    {
-                        IList<IReference> references = new List<IReference>();
-                        sourceController.Source.GetReferences(SystemContext, references, ReferenceTypes.HasCondition, false);
-                        foreach (IReference reference in references)
-                        {
-                            string identifier = (string)reference.TargetId.ToString();
-                            if (m_alarms.ContainsKey(identifier))
-                            {
-                                AlarmHolder holder = m_alarms[identifier];
-                                holder.SetBranching(false);
-                                holder.Start(seconds);
-                                bool updated = holder.Controller.Update(SystemContext);
-                                holder.Update(updated);
-                            }
-                        }
-                    }
-                }
-            }
-
-            return result;
+            return Start(node, seconds, false);
         }
 
         public ServiceResult OnStartBranch(
@@ -473,6 +441,11 @@ namespace FullAlarms
             // all arguments must be provided.
             UInt32 seconds = 120;
 
+            return Start(node, seconds, true);
+        }
+
+        private ServiceResult Start(NodeState node, uint seconds, bool branch)
+        {
             ServiceResult result = ServiceResult.Good;
 
             Dictionary<string, SourceController> sourceControllers = GetUnitAlarms(node);
@@ -497,7 +470,10 @@ namespace FullAlarms
                             if (m_alarms.ContainsKey(identifier))
                             {
                                 AlarmHolder holder = m_alarms[identifier];
-                                holder.SetBranching(true);
+                                if (branch)
+                                {
+                                    holder.SetBranching(true);
+                                }
                                 holder.Start(seconds);
                                 bool updated = holder.Controller.Update(SystemContext);
                                 holder.Update(updated);
