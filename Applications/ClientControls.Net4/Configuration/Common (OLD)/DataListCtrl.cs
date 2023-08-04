@@ -55,8 +55,8 @@ namespace Opc.Ua.Client.Controls
         /// </summary>
         public DataListCtrl()
         {
-            InitializeComponent();                        
-			SetColumns(m_ColumnNames);
+            InitializeComponent();
+            SetColumns(m_ColumnNames);
         }
 
         #region Private Fields
@@ -64,11 +64,11 @@ namespace Opc.Ua.Client.Controls
 		/// The columns to display in the control.
 		/// </summary>
 		private readonly object[][] m_ColumnNames = new object[][]
-		{
-			new object[] { "Name",  HorizontalAlignment.Left, null },  
-			new object[] { "Value", HorizontalAlignment.Left, null, 250 }, 
-			new object[] { "Type",  HorizontalAlignment.Left, null } 
-		};
+        {
+            new object[] { "Name",  HorizontalAlignment.Left, null },
+            new object[] { "Value", HorizontalAlignment.Left, null, 250 },
+            new object[] { "Type",  HorizontalAlignment.Left, null }
+        };
 
         private bool m_latestValue = true;
         private bool m_expanding;
@@ -76,11 +76,11 @@ namespace Opc.Ua.Client.Controls
         private Font m_defaultFont;
         private MonitoredItem m_monitoredItem;
 
-        private const string UnknownType  = "(unknown)";
-        private const string NullValue    = "(null)";
-        private const string ExpandIcon   = "ExpandPlus";
+        private const string UnknownType = "(unknown)";
+        private const string NullValue = "(null)";
+        private const string ExpandIcon = "ExpandPlus";
         private const string CollapseIcon = "ExpandMinus";
-		#endregion
+        #endregion
 
         #region Public Interface
         /// <summary>
@@ -88,7 +88,7 @@ namespace Opc.Ua.Client.Controls
         /// </summary>
         public bool AutoUpdate
         {
-            get { return UpdatesMI.Checked;  }
+            get { return UpdatesMI.Checked; }
             set { UpdatesMI.Checked = value; }
         }
 
@@ -97,16 +97,16 @@ namespace Opc.Ua.Client.Controls
         /// </summary>
         public bool LatestValue
         {
-            get { return m_latestValue;  }
+            get { return m_latestValue; }
             set { m_latestValue = value; }
         }
-        
+
         /// <summary>
         /// The monitored item associated with the value.
         /// </summary>
         public MonitoredItem MonitoredItem
         {
-            get { return m_monitoredItem;  }
+            get { return m_monitoredItem; }
             set { m_monitoredItem = value; }
         }
 
@@ -118,7 +118,7 @@ namespace Opc.Ua.Client.Controls
             ItemsLV.Items.Clear();
             AdjustColumns();
         }
-        
+
         /// <summary>
         /// Displays a value in the control.
         /// </summary>
@@ -142,13 +142,13 @@ namespace Opc.Ua.Client.Controls
                 m_defaultFont = new Font("Courier New", 8.25F, FontStyle.Regular, GraphicsUnit.Point, ((byte)(0)));
             }
             else
-            {            
+            {
                 m_defaultFont = ItemsLV.Font;
             }
 
             m_expanding = false;
             m_depth = 0;
-                        
+
             // show the value.
             int index = 0;
             ShowValue(ref index, ref overwrite, value);
@@ -156,8 +156,8 @@ namespace Opc.Ua.Client.Controls
             // adjust columns.
             AdjustColumns();
         }
-		#endregion
-        
+        #endregion
+
         #region Overridden Methods
         /// <summary>
         /// Enables the menu items.
@@ -165,7 +165,7 @@ namespace Opc.Ua.Client.Controls
         protected override void EnableMenuItems(ListViewItem clickedItem)
         {
             RefreshMI.Enabled = true;
-            ClearMI.Enabled   = true;
+            ClearMI.Enabled = true;
 
             if (ItemsLV.SelectedItems.Count == 1)
             {
@@ -173,8 +173,8 @@ namespace Opc.Ua.Client.Controls
                 EditMI.Enabled = IsEditableType(state.Component);
             }
         }
-		#endregion
-        
+        #endregion
+
         #region ValueState Class
         /// <summary>
         /// Stores the state associated with an item.
@@ -188,7 +188,7 @@ namespace Opc.Ua.Client.Controls
             public object ComponentId = null;
             public object ComponentIndex = null;
         }
-		#endregion
+        #endregion
 
         #region Private Members
         /// <summary>
@@ -196,20 +196,20 @@ namespace Opc.Ua.Client.Controls
         /// </summary>
         private bool IsEditableType(object value)
         {
-            if (value is bool)       return true;
-            if (value is sbyte)      return true;
-            if (value is byte)       return true;
-            if (value is short)      return true;
-            if (value is ushort)     return true;
-            if (value is int)        return true;
-            if (value is uint)       return true;
-            if (value is long)       return true;
-            if (value is ulong)      return true;
-            if (value is float)      return true;
-            if (value is double)     return true;
-            if (value is string)     return true;
-            if (value is DateTime)   return true;
-            if (value is Guid)       return true;
+            if (value is bool) return true;
+            if (value is sbyte) return true;
+            if (value is byte) return true;
+            if (value is short) return true;
+            if (value is ushort) return true;
+            if (value is int) return true;
+            if (value is uint) return true;
+            if (value is long) return true;
+            if (value is ulong) return true;
+            if (value is float) return true;
+            if (value is double) return true;
+            if (value is string) return true;
+            if (value is DateTime) return true;
+            if (value is Guid) return true;
             if (value is LocalizedText) return true;
 
             return false;
@@ -219,7 +219,7 @@ namespace Opc.Ua.Client.Controls
         /// Shows the components of a value in the control.
         /// </summary>        
         private void ShowChildren(ListViewItem listItem)
-        {            
+        {
             ValueState state = listItem.Tag as ValueState;
 
             if (state == null || !state.Expandable || state.Expanded)
@@ -228,19 +228,19 @@ namespace Opc.Ua.Client.Controls
             }
 
             m_expanding = true;
-            m_depth = listItem.IndentCount+1;
-            
+            m_depth = listItem.IndentCount + 1;
+
             state.Expanded = true;
             listItem.ImageKey = CollapseIcon;
 
-            int index = listItem.Index+1;
+            int index = listItem.Index + 1;
             bool overwrite = false;
 
             ShowValue(ref index, ref overwrite, state.Component);
 
             AdjustColumns();
         }
-        
+
         /// <summary>
         /// Hides the components of a value in the control.
         /// </summary>  
@@ -253,10 +253,10 @@ namespace Opc.Ua.Client.Controls
                 return;
             }
 
-            for (int ii = listItem.Index+1; ii < ItemsLV.Items.Count;)
+            for (int ii = listItem.Index + 1; ii < ItemsLV.Items.Count;)
             {
                 ListViewItem childItem = ItemsLV.Items[ii];
-                
+
                 if (childItem.IndentCount <= listItem.IndentCount)
                 {
                     break;
@@ -275,17 +275,17 @@ namespace Opc.Ua.Client.Controls
         private ListViewItem GetListItem(int index, ref bool overwrite, string name, string type)
         {
             ListViewItem listitem = null;
-            
+
             // switch to detail view as soon as an item is added.
             if (ItemsLV.View == View.List)
             {
-                ItemsLV.Items.Clear();                
+                ItemsLV.Items.Clear();
                 ItemsLV.View = View.Details;
             }
 
             // check if there is an item that could be re-used.
             if (!m_expanding && index < ItemsLV.Items.Count)
-            {                
+            {
                 listitem = ItemsLV.Items[index];
 
                 // check if still possible to overwrite values.
@@ -296,24 +296,24 @@ namespace Opc.Ua.Client.Controls
                         overwrite = false;
                     }
                 }
-                
+
                 listitem.SubItems[0].Text = name;
                 listitem.SubItems[2].Text = type;
 
                 return listitem;
             }
-            
+
             overwrite = false;
 
             listitem = new ListViewItem(name);
 
             listitem.SubItems.Add(String.Empty);
             listitem.SubItems.Add(type);
-            
-            listitem.Font        = m_defaultFont;
-            listitem.ImageKey    = ExpandIcon;
+
+            listitem.Font = m_defaultFont;
+            listitem.ImageKey = ExpandIcon;
             listitem.IndentCount = m_depth;
-            listitem.Tag         = new ValueState();
+            listitem.Tag = new ValueState();
 
             if (!m_expanding)
             {
@@ -323,10 +323,10 @@ namespace Opc.Ua.Client.Controls
             {
                 ItemsLV.Items.Insert(index, listitem);
             }
-                
+
             return listitem;
         }
-        
+
         /// <summary>
         /// Returns true if the type can be expanded.
         /// </summary>
@@ -343,15 +343,15 @@ namespace Opc.Ua.Client.Controls
             {
                 return IsExpandableType(((Variant)value).Value);
             }
-            
+
             // check for bytes.
             byte[] bytes = value as byte[];
 
             if (bytes != null)
             {
                 return false;
-            }           
-            
+            }
+
             // check for xml element.
             XmlElement xml = value as XmlElement;
 
@@ -363,8 +363,8 @@ namespace Opc.Ua.Client.Controls
                 }
 
                 return xml.HasChildNodes;
-            }           
-            
+            }
+
             // check for array.
             Array array = value as Array;
 
@@ -381,8 +381,8 @@ namespace Opc.Ua.Client.Controls
             if (array != null)
             {
                 return array.Length > 0;
-            }           
-            
+            }
+
             // check for list.
             IList list = value as IList;
 
@@ -390,7 +390,7 @@ namespace Opc.Ua.Client.Controls
             {
                 return list.Count > 0;
             }
-            
+
             // check for encodeable object.
             IEncodeable encodeable = value as IEncodeable;
 
@@ -401,23 +401,23 @@ namespace Opc.Ua.Client.Controls
 
             // check for extension object.
             ExtensionObject extension = value as ExtensionObject;
-            
+
             if (extension != null)
             {
                 return IsExpandableType(extension.Body);
             }
-            
+
             // check for data value.
             DataValue datavalue = value as DataValue;
-            
+
             if (datavalue != null)
             {
                 return true;
             }
-            
+
             // check for event value.
             EventFieldList eventFields = value as EventFieldList;
-            
+
             if (eventFields != null)
             {
                 return true;
@@ -437,7 +437,7 @@ namespace Opc.Ua.Client.Controls
             {
                 return "(null)";
             }
-            
+
             // format bytes.
             byte[] bytes = value as byte[];
 
@@ -447,7 +447,7 @@ namespace Opc.Ua.Client.Controls
 
                 for (int ii = 0; ii < bytes.Length; ii++)
                 {
-                    if (ii != 0 && ii%16 == 0)
+                    if (ii != 0 && ii % 16 == 0)
                     {
                         buffer.Append(" ");
                     }
@@ -456,8 +456,8 @@ namespace Opc.Ua.Client.Controls
                 }
 
                 return buffer.ToString();
-            }           
-            
+            }
+
             // format xml element.
             XmlElement xml = value as XmlElement;
 
@@ -468,7 +468,7 @@ namespace Opc.Ua.Client.Controls
                 {
                     return xml.OuterXml;
                 }
-                
+
                 // show only the start tag.
                 string text = xml.OuterXml;
 
@@ -478,10 +478,10 @@ namespace Opc.Ua.Client.Controls
                 {
                     text = text.Substring(0, index);
                 }
-                
+
                 return text;
-            }           
-            
+            }
+
             // format array.
             Array array = value as Array;
 
@@ -496,14 +496,14 @@ namespace Opc.Ua.Client.Controls
                         lenghts[i] = array.GetLength(i);
                     }
 
-                    return Utils.Format("{1}[{0}]", string.Join(",", lenghts), value.GetType().GetElementType().Name);
+                    return Utils.Format("{0}[{1}]", value.GetType().GetElementType().Name, string.Join(",", lenghts));
                 }
                 else
                 {
-                    return Utils.Format("{1}[{0}]", array.Length, value.GetType().GetElementType().Name);
+                    return Utils.Format("{0}[{1}]", value.GetType().GetElementType().Name, array.Length);
                 }
             }
-            
+
             // format list.
             IList list = value as IList;
 
@@ -520,9 +520,9 @@ namespace Opc.Ua.Client.Controls
                     type = "Object";
                 }
 
-                return Utils.Format("{1}[{0}]", list.Count, type);
+                return Utils.Format("{0}[{1}]", type, list.Count);
             }
-            
+
             // format encodeable object.
             IEncodeable encodeable = value as IEncodeable;
 
@@ -533,15 +533,15 @@ namespace Opc.Ua.Client.Controls
 
             // format extension object.
             ExtensionObject extension = value as ExtensionObject;
-            
+
             if (extension != null)
             {
                 return GetValueText(extension.Body);
             }
-            
+
             // check for event value.
             EventFieldList eventFields = value as EventFieldList;
-            
+
             if (eventFields != null)
             {
                 if (m_monitoredItem != null)
@@ -554,7 +554,7 @@ namespace Opc.Ua.Client.Controls
 
             // check for data value.
             DataValue dataValue = value as DataValue;
-            
+
             if (dataValue != null)
             {
                 StringBuilder formattedValue = new StringBuilder();
@@ -590,7 +590,7 @@ namespace Opc.Ua.Client.Controls
                 formattedValue.AppendFormat("{0}", dataValue.Value);
                 return formattedValue.ToString();
             }
-            
+
             // use default formatting.
             return Utils.Format("{0}", value);
         }
@@ -599,13 +599,13 @@ namespace Opc.Ua.Client.Controls
         /// Updates the list with the specified value.
         /// </summary>
         private void UpdateList(
-            ref int  index, 
+            ref int index,
             ref bool overwrite,
-            object   value,
-            object   componentValue,
-            object   componentId,
-            string   name,
-            string   type)
+            object value,
+            object componentValue,
+            object componentId,
+            string name,
+            string type)
         {
             // get the list item to update.
             ListViewItem listitem = GetListItem(index, ref overwrite, name, type);
@@ -617,13 +617,13 @@ namespace Opc.Ua.Client.Controls
             {
                 // update list item.
                 listitem.SubItems[1].Text = GetValueText(componentValue);
-            }            
+            }
 
             // move to next item.
             index++;
 
             ValueState state = listitem.Tag as ValueState;
-            
+
             // recursively update sub-values if item is expanded.
             if (overwrite)
             {
@@ -636,10 +636,10 @@ namespace Opc.Ua.Client.Controls
             }
 
             // update state.
-            state.Expandable     = IsExpandableType(componentValue);
-            state.Value          = value;
-            state.Component      = componentValue;
-            state.ComponentId    = componentId;
+            state.Expandable = IsExpandableType(componentValue);
+            state.Value = value;
+            state.Component = componentValue;
+            state.ComponentId = componentId;
             state.ComponentIndex = index;
 
             if (!state.Expandable)
@@ -704,7 +704,7 @@ namespace Opc.Ua.Client.Controls
         /// Shows property of an encodeable object in the control.
         /// </summary>
         private void ShowValue(ref int index, ref bool overwrite, IEncodeable value, PropertyInfo property)
-        {            
+        {
             // get the name of the property.
             string name = Utils.GetDataMemberName(property);
 
@@ -712,7 +712,7 @@ namespace Opc.Ua.Client.Controls
             {
                 return;
             }
-            
+
             // get the property value.
             object propertyValue = null;
 
@@ -726,12 +726,12 @@ namespace Opc.Ua.Client.Controls
                     break;
                 }
             }
-           
+
             if (propertyValue is Variant)
             {
                 propertyValue = ((Variant)propertyValue).Value;
             }
-            
+
             // update the list view.
             UpdateList(
                 ref index,
@@ -742,15 +742,15 @@ namespace Opc.Ua.Client.Controls
                 name,
                 property.PropertyType.Name);
         }
-        
+
         /// <summary>
         /// Shows the element of an array in the control.
         /// </summary>
         private void ShowValue(ref int index, ref bool overwrite, Array value, int element)
-        {            
+        {
             // get the name of the element.
             string name = Utils.Format("[{0}]", element);
-                      
+
             // get the element value.
             object elementValue = null;
 
@@ -794,7 +794,7 @@ namespace Opc.Ua.Client.Controls
             {
                 elementValue = value.GetValue(element);
             }
-            
+
             // get the type name.
             string type = null;
 
@@ -802,7 +802,7 @@ namespace Opc.Ua.Client.Controls
             {
                 type = elementValue.GetType().Name;
             }
-            
+
             // update the list view.
             UpdateList(
                 ref index,
@@ -849,19 +849,19 @@ namespace Opc.Ua.Client.Controls
         /// Asks for confirmation before expanding a long list.
         /// </summary>
         private bool PromptOnLongList(int length)
-        {            
+        {
             if (length < 256)
             {
                 return true;
             }
-                
+
             DialogResult result = MessageBox.Show("It may take a long time to display the list are you sure you want to continue?", "Warning", MessageBoxButtons.YesNo);
 
             if (result == DialogResult.Yes)
             {
                 return true;
             }
-                
+
             return false;
         }
 
@@ -869,13 +869,13 @@ namespace Opc.Ua.Client.Controls
         /// Shows the element of a list in the control.
         /// </summary>
         private void ShowValue(ref int index, ref bool overwrite, IList value, int element)
-        {            
+        {
             // get the name of the element.
             string name = Utils.Format("[{0}]", element);
-                      
+
             // get the element value.
             object elementValue = value[element];
-            
+
             // get the type name.
             string type = null;
 
@@ -883,7 +883,7 @@ namespace Opc.Ua.Client.Controls
             {
                 type = elementValue.GetType().Name;
             }
-                        
+
             // update the list view.
             UpdateList(
                 ref index,
@@ -894,12 +894,12 @@ namespace Opc.Ua.Client.Controls
                 name,
                 type);
         }
-        
+
         /// <summary>
         /// Shows an XML element in the control.
         /// </summary>
         private void ShowValue(ref int index, ref bool overwrite, XmlElement value, int childIndex)
-        {        
+        {
             // ignore children that are not elements.
             XmlElement child = value.ChildNodes[childIndex] as XmlElement;
 
@@ -907,13 +907,13 @@ namespace Opc.Ua.Client.Controls
             {
                 return;
             }
-            
+
             // get the name of the element.
             string name = Utils.Format("{0}", child.Name);
-            
+
             // get the type name.
             string type = value.GetType().Name;
-                        
+
             // update the list view.
             UpdateList(
                 ref index,
@@ -923,13 +923,13 @@ namespace Opc.Ua.Client.Controls
                 childIndex,
                 name,
                 type);
-        }        
-                
+        }
+
         /// <summary>
         /// Shows an event in the control.
         /// </summary>
         private void ShowValue(ref int index, ref bool overwrite, EventFieldList value, int fieldIndex)
-        {        
+        {
             // ignore children that are not elements.
             object field = value.EventFields[fieldIndex].Value;
 
@@ -937,18 +937,18 @@ namespace Opc.Ua.Client.Controls
             {
                 return;
             }
-            
+
             // get the name of the element.
             string name = null;
 
             if (m_monitoredItem != null)
-            {                
+            {
                 name = m_monitoredItem.GetFieldName(fieldIndex);
             }
-            
+
             // get the type name.
             string type = value.GetType().Name;
-                        
+
             // update the list view.
             UpdateList(
                 ref index,
@@ -958,18 +958,18 @@ namespace Opc.Ua.Client.Controls
                 fieldIndex,
                 name,
                 type);
-        }        
-        
+        }
+
         /// <summary>
         /// Shows a byte array in the control. 
         /// </summary>
         private void ShowValue(ref int index, ref bool overwrite, byte[] value, int blockStart)
-        {           
+        {
             // get the name of the element.
             string name = Utils.Format("[{0:X4}]", blockStart);
-                      
+
             int bytesLeft = value.Length - blockStart;
-            
+
             if (bytesLeft > 16)
             {
                 bytesLeft = 16;
@@ -978,10 +978,10 @@ namespace Opc.Ua.Client.Controls
             // get the element value.
             byte[] blockValue = new byte[bytesLeft];
             Array.Copy(value, blockStart, blockValue, 0, bytesLeft);
-            
+
             // get the type name.
             string type = value.GetType().Name;
-                        
+
             // update the list view.
             UpdateList(
                 ref index,
@@ -992,12 +992,12 @@ namespace Opc.Ua.Client.Controls
                 name,
                 type);
         }
-        
+
         /// <summary>
         /// Shows a data value in the control. 
         /// </summary>
         private void ShowValue(ref int index, ref bool overwrite, DataValue value, int component)
-        {      
+        {
             string name = null;
             object componentValue = null;
 
@@ -1009,7 +1009,7 @@ namespace Opc.Ua.Client.Controls
                     componentValue = value.Value;
 
                     ExtensionObject extension = componentValue as ExtensionObject;
-                    
+
                     if (extension != null)
                     {
                         componentValue = extension.Body;
@@ -1061,7 +1061,7 @@ namespace Opc.Ua.Client.Controls
             {
                 type = componentValue.GetType().Name;
             }
-           
+
             // update the list view.
             UpdateList(
                 ref index,
@@ -1077,7 +1077,7 @@ namespace Opc.Ua.Client.Controls
         /// Shows a node id in the control. 
         /// </summary>
         private void ShowValue(ref int index, ref bool overwrite, NodeId value, int component)
-        {      
+        {
             string name = null;
             object componentValue = null;
 
@@ -1118,7 +1118,7 @@ namespace Opc.Ua.Client.Controls
             {
                 type = componentValue.GetType().Name;
             }
-           
+
             // update the list view.
             UpdateList(
                 ref index,
@@ -1129,12 +1129,12 @@ namespace Opc.Ua.Client.Controls
                 name,
                 type);
         }
-        
+
         /// <summary>
         /// Shows am expanded node id in the control. 
         /// </summary>
         private void ShowValue(ref int index, ref bool overwrite, ExpandedNodeId value, int component)
-        {      
+        {
             string name = null;
             object componentValue = null;
 
@@ -1182,7 +1182,7 @@ namespace Opc.Ua.Client.Controls
             {
                 type = componentValue.GetType().Name;
             }
-           
+
             // update the list view.
             UpdateList(
                 ref index,
@@ -1193,12 +1193,12 @@ namespace Opc.Ua.Client.Controls
                 name,
                 type);
         }
-        
+
         /// <summary>
         /// Shows qualified name in the control. 
         /// </summary>
         private void ShowValue(ref int index, ref bool overwrite, QualifiedName value, int component)
-        {      
+        {
             string name = null;
             object componentValue = null;
 
@@ -1232,7 +1232,7 @@ namespace Opc.Ua.Client.Controls
             {
                 type = componentValue.GetType().Name;
             }
-           
+
             // update the list view.
             UpdateList(
                 ref index,
@@ -1243,12 +1243,12 @@ namespace Opc.Ua.Client.Controls
                 name,
                 type);
         }
-        
+
         /// <summary>
         /// Shows localized text in the control. 
         /// </summary>
         private void ShowValue(ref int index, ref bool overwrite, LocalizedText value, int component)
-        {      
+        {
             string name = null;
             object componentValue = null;
 
@@ -1282,7 +1282,7 @@ namespace Opc.Ua.Client.Controls
             {
                 type = componentValue.GetType().Name;
             }
-           
+
             // update the list view.
             UpdateList(
                 ref index,
@@ -1293,12 +1293,12 @@ namespace Opc.Ua.Client.Controls
                 name,
                 type);
         }
-        
+
         /// <summary>
         /// Shows a string in the control. 
         /// </summary>
         private void ShowValue(ref int index, ref bool overwrite, string value)
-        {      
+        {
             string name = "Value";
             object componentValue = value;
 
@@ -1315,7 +1315,7 @@ namespace Opc.Ua.Client.Controls
             {
                 type = componentValue.GetType().Name;
             }
-           
+
             // update the list view.
             UpdateList(
                 ref index,
@@ -1345,8 +1345,8 @@ namespace Opc.Ua.Client.Controls
                 m_monitoredItem = monitoredItem;
                 ShowValue(ref index, ref overwrite, monitoredItem.LastValue);
                 return;
-            }            
-            
+            }
+
             // show data changes
             MonitoredItemNotification datachange = value as MonitoredItemNotification;
 
@@ -1388,7 +1388,7 @@ namespace Opc.Ua.Client.Controls
             EventFieldList eventFields = value as EventFieldList;
 
             if (eventFields != null)
-            {                
+            {
                 for (int ii = 0; ii < eventFields.EventFields.Count; ii++)
                 {
                     ShowValue(ref index, ref overwrite, eventFields, ii);
@@ -1420,22 +1420,22 @@ namespace Opc.Ua.Client.Controls
 
                 return;
             }
-                        
+
             // show bytes.
             byte[] bytes = value as byte[];
 
             if (bytes != null)
             {
-                if (!PromptOnLongList(bytes.Length/16))
+                if (!PromptOnLongList(bytes.Length / 16))
                 {
                     return;
                 }
 
-                for (int ii = 0; ii < bytes.Length; ii+=16)
+                for (int ii = 0; ii < bytes.Length; ii += 16)
                 {
                     ShowValue(ref index, ref overwrite, bytes, ii);
                 }
-                
+
                 return;
             }
 
@@ -1445,7 +1445,7 @@ namespace Opc.Ua.Client.Controls
             if (array == null)
             {
                 Matrix matrix = value as Matrix;
-                
+
                 if (matrix != null)
                 {
                     array = matrix.ToArray();
@@ -1484,10 +1484,10 @@ namespace Opc.Ua.Client.Controls
 
                 return;
             }
-            
+
             // show xml elements
             XmlElement xml = value as XmlElement;
-            
+
             if (xml != null)
             {
                 if (!PromptOnLongList(xml.ChildNodes.Count))
@@ -1502,7 +1502,7 @@ namespace Opc.Ua.Client.Controls
 
                 return;
             }
-            
+
             // show data value.
             DataValue datavalue = value as DataValue;
 
@@ -1536,7 +1536,7 @@ namespace Opc.Ua.Client.Controls
                 ShowValue(ref index, ref overwrite, expandedNodeId, 2);
                 ShowValue(ref index, ref overwrite, expandedNodeId, 3);
                 return;
-            }            
+            }
 
             // show qualified name value.
             QualifiedName qualifiedName = value as QualifiedName;
@@ -1557,7 +1557,7 @@ namespace Opc.Ua.Client.Controls
                 ShowValue(ref index, ref overwrite, localizedText, 1);
                 return;
             }
-            
+
             // show variant.
             Variant? variant = value as Variant?;
 
@@ -1574,12 +1574,12 @@ namespace Opc.Ua.Client.Controls
         private void ItemsLV_MouseClick(object sender, MouseEventArgs e)
         {
             try
-            {                
+            {
                 if (e.Button != MouseButtons.Left)
                 {
                     return;
                 }
-                
+
                 ListViewItem listItem = ItemsLV.GetItemAt(e.X, e.Y);
 
                 if (listItem == null)
@@ -1588,12 +1588,12 @@ namespace Opc.Ua.Client.Controls
                 }
 
                 ValueState state = listItem.Tag as ValueState;
-                
+
                 if (state == null || !state.Expandable)
                 {
                     return;
                 }
-                
+
                 if (state.Expanded)
                 {
                     HideChildren(listItem);
@@ -1605,11 +1605,11 @@ namespace Opc.Ua.Client.Controls
             }
             catch (Exception exception)
             {
-				GuiUtils.HandleException(this.Text, MethodBase.GetCurrentMethod(), exception);
+                GuiUtils.HandleException(this.Text, MethodBase.GetCurrentMethod(), exception);
             }
         }
-		#endregion
-        
+        #endregion
+
         #region Event Handlers
         private void UpdatesMI_CheckedChanged(object sender, EventArgs e)
         {
@@ -1631,7 +1631,7 @@ namespace Opc.Ua.Client.Controls
             }
             catch (Exception exception)
             {
-				GuiUtils.HandleException(this.Text, MethodBase.GetCurrentMethod(), exception);
+                GuiUtils.HandleException(this.Text, MethodBase.GetCurrentMethod(), exception);
             }
         }
 
@@ -1646,7 +1646,7 @@ namespace Opc.Ua.Client.Controls
             }
             catch (Exception exception)
             {
-				GuiUtils.HandleException(this.Text, MethodBase.GetCurrentMethod(), exception);
+                GuiUtils.HandleException(this.Text, MethodBase.GetCurrentMethod(), exception);
             }
         }
 
@@ -1658,7 +1658,7 @@ namespace Opc.Ua.Client.Controls
             }
             catch (Exception exception)
             {
-				GuiUtils.HandleException(this.Text, MethodBase.GetCurrentMethod(), exception);
+                GuiUtils.HandleException(this.Text, MethodBase.GetCurrentMethod(), exception);
             }
         }
 
@@ -1700,7 +1700,7 @@ namespace Opc.Ua.Client.Controls
                 if (state.Value is IEncodeable)
                 {
                     PropertyInfo property = (PropertyInfo)state.ComponentId;
-                    
+
                     MethodInfo[] accessors = property.GetAccessors();
 
                     for (int ii = 0; ii < accessors.Length; ii++)
@@ -1713,7 +1713,7 @@ namespace Opc.Ua.Client.Controls
                         }
                     }
                 }
-                
+
                 DataValue datavalue = state.Value as DataValue;
 
                 if (datavalue != null)
@@ -1743,7 +1743,7 @@ namespace Opc.Ua.Client.Controls
                 }
 
                 bool overwrite = true;
-                ShowValue(ref index, ref overwrite, state.Value);                
+                ShowValue(ref index, ref overwrite, state.Value);
             }
             catch (Exception exception)
             {
