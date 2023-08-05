@@ -143,8 +143,6 @@ namespace Opc.Ua.Bindings
             }
 
             byte[] buffer = m_arrayPool.Rent(size + m_cookieLength);
-
-            //Utils.LogInfo("TakeBuffer( {0}, {1})", owner, buffer.Length);
 #if TRACK_MEMORY
             lock (m_lock)
             {
