@@ -687,7 +687,7 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private SecureAccess m_readAccess;
         private SecureAccess m_writeAccess;
         private NodeId m_sessionId;

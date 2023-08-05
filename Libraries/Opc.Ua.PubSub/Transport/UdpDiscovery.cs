@@ -42,7 +42,7 @@ namespace Opc.Ua.PubSub.Transport
         #region Fields
         private const string kDefaultDiscoveryUrl = "opc.udp://224.0.2.14:4840";
 
-        protected object m_lock = new object();
+        protected readonly object m_lock = new object();
         protected UdpPubSubConnection m_udpConnection;
         protected List<UdpClient> m_discoveryUdpClients;
         #endregion

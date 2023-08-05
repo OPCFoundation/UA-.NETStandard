@@ -1028,7 +1028,7 @@ namespace TestData
         }
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private ITestDataSystemCallback m_callback;
         private Opc.Ua.Test.DataGenerator m_generator;
         private int m_minimumSamplingInterval;

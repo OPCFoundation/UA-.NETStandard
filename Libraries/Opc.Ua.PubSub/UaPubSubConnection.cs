@@ -41,7 +41,7 @@ namespace Opc.Ua.PubSub
     internal abstract class UaPubSubConnection : IUaPubSubConnection
     {
         #region Fields
-        protected object m_lock = new object();
+        protected readonly object m_lock = new object();
         private bool m_isRunning;
         private readonly List<IUaPublisher> m_publishers;
         private readonly PubSubConnectionDataType m_pubSubConnectionDataType;

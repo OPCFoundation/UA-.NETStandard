@@ -624,9 +624,9 @@ namespace Opc.Ua.Bindings
 
                     return ServiceResult.Create(
                         StatusCodes.BadTcpMessageTooLarge,
-                        "Messages size {1} bytes is too large for buffer of size {0}.",
-                        m_receiveBufferSize,
-                        m_incomingMessageSize);
+                        "Messages size {0} bytes is too large for buffer of size {1}.",
+                        m_incomingMessageSize,
+                        m_receiveBufferSize);
                 }
 
                 // set up buffer for reading the message body.

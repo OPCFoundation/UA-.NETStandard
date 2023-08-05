@@ -835,7 +835,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private NamespaceTable m_namespaceUris;
         private SortedDictionary<QualifiedName, TypeInfo> m_referenceTypes;
         private NodeIdDictionary<TypeInfo> m_nodes;

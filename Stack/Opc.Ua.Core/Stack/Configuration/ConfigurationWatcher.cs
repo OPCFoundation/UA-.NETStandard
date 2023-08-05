@@ -128,7 +128,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private ApplicationConfiguration m_configuration;
         private System.Threading.Timer m_watcher;
         private DateTime m_lastWriteTime;

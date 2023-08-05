@@ -146,7 +146,7 @@ namespace TestData
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private List<HistoryEntry> m_entries;
         #endregion
     }

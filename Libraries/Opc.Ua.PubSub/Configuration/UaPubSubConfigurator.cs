@@ -49,7 +49,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// </summary>
         internal static uint InvalidId = 0;
 
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private PubSubConfigurationDataType m_pubSubConfiguration;
         private Dictionary<uint, object> m_idsToObjects;
         private Dictionary<object, uint> m_objectsToIds;

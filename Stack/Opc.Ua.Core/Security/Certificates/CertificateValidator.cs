@@ -1583,8 +1583,8 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
-        private object m_callbackLock = new object();
+        private readonly object m_lock = new object();
+        private readonly object m_callbackLock = new object();
         private Dictionary<string, X509Certificate2> m_validatedCertificates;
         private CertificateStoreIdentifier m_trustedCertificateStore;
         private CertificateIdentifierCollection m_trustedCertificateList;

@@ -2002,7 +2002,7 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private long m_lastSubscriptionId;
         private IServerInternal m_server;
         private double m_minPublishingInterval;

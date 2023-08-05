@@ -35,7 +35,7 @@ namespace Opc.Ua
         /// <summary>
         /// Limits the recursion depth for the InnerDiagnosticInfo field.
         /// </summary>
-        public const int MaxInnerDepth = 5;
+        public readonly static int MaxInnerDepth = 5;
 
         #region Constructors
         /// <summary>

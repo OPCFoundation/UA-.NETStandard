@@ -837,7 +837,7 @@ namespace Opc.Ua.Sample
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private MonitoredNode m_source;
         private ISubscription m_subscription;
         private uint m_id;

@@ -533,7 +533,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private ISession m_session;
         private ReconnectState m_state;
         private Random m_random;
