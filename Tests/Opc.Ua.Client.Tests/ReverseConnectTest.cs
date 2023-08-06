@@ -28,9 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -65,7 +63,7 @@ namespace Opc.Ua.Client.Tests
             {
                 Assert.Ignore("Reverse connect fails on mac OS.");
             }
-        
+
             // pki directory root for test runs. 
             PkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
@@ -80,9 +78,13 @@ namespace Opc.Ua.Client.Tests
 
             // create client
             ClientFixture = new ClientFixture();
+            ClientFixture.UseTracing = true;
+            ClientFixture.StartActivityListener();
+
             await ClientFixture.LoadClientConfiguration(PkiRoot).ConfigureAwait(false);
             await ClientFixture.StartReverseConnectHost().ConfigureAwait(false);
             m_endpointUrl = new Uri(Utils.ReplaceLocalhost("opc.tcp://localhost:" + ServerFixture.Port.ToString()));
+
             // start reverse connection
             ReferenceServer.AddReverseConnection(new Uri(ClientFixture.ReverseConnectUri), MaxTimeout);
         }
@@ -185,7 +187,12 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(endpoint);
 
             // connect
-            var session = await Client.Session.Create(config, connection, endpoint, false, false, "Reverse Connect Client",
+#if NET6_0_OR_GREATER
+            var sessionfactory = TraceableSessionFactory.Instance;
+#else
+            var sessionfactory = DefaultSessionFactory.Instance;
+#endif
+            var session = await sessionfactory.CreateAsync(config, connection, endpoint, false, false, "Reverse Connect Client",
                 MaxTimeout, new UserIdentity(new AnonymousIdentityToken()), null).ConfigureAwait(false);
             Assert.NotNull(session);
 
@@ -224,9 +231,14 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(endpoint);
 
             // connect
-            var session = await Client.Session.Create(config, ClientFixture.ReverseConnectManager, endpoint, updateBeforeConnect, checkDomain, "Reverse Connect Client",
+#if NET6_0_OR_GREATER
+            var sessionfactory = TraceableSessionFactory.Instance;
+#else
+            var sessionfactory = DefaultSessionFactory.Instance;
+#endif
+            var session = await sessionfactory.CreateAsync(config, ClientFixture.ReverseConnectManager, endpoint, updateBeforeConnect, checkDomain, "Reverse Connect Client",
                 MaxTimeout, new UserIdentity(new AnonymousIdentityToken()), null).ConfigureAwait(false);
-                
+
             Assert.NotNull(session);
 
             // header
