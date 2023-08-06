@@ -630,27 +630,27 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="decoder">The decoder.</param>
-        /// <param name="attibutesToLoad">The attributes to load.</param>
-        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attibutesToLoad)
+        /// <param name="attributesToLoad">The attributes to load.</param>
+        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attributesToLoad)
         {
-            base.Update(context, decoder, attibutesToLoad);
+            base.Update(context, decoder, attributesToLoad);
 
-            if ((attibutesToLoad & AttributesToSave.ReferenceTypeId) != 0)
+            if ((attributesToLoad & AttributesToSave.ReferenceTypeId) != 0)
             {
                 m_referenceTypeId = decoder.ReadNodeId(null);
             }
 
-            if ((attibutesToLoad & AttributesToSave.TypeDefinitionId) != 0)
+            if ((attributesToLoad & AttributesToSave.TypeDefinitionId) != 0)
             {
                 m_typeDefinitionId = decoder.ReadNodeId(null);
             }
 
-            if ((attibutesToLoad & AttributesToSave.ModellingRuleId) != 0)
+            if ((attributesToLoad & AttributesToSave.ModellingRuleId) != 0)
             {
                 m_modellingRuleId = decoder.ReadNodeId(null);
             }
 
-            if ((attibutesToLoad & AttributesToSave.NumericId) != 0)
+            if ((attributesToLoad & AttributesToSave.NumericId) != 0)
             {
                 m_numericId = decoder.ReadUInt32(null);
             }

@@ -519,9 +519,9 @@ namespace Opc.Ua
                     return String.Format(formatProvider, "<{0}>", ((XmlElement)m_body).Name);
                 }
 
-                if (m_body is IFormattable)
+                if (m_body is IFormattable formattable)
                 {
-                    return String.Format(formatProvider, "{0}", ((IFormattable)m_body).ToString(null, formatProvider));
+                    return String.Format(formatProvider, "{0}", formattable.ToString(null, formatProvider));
                 }
 
                 if (m_body is IEncodeable)

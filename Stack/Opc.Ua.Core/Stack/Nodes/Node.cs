@@ -110,9 +110,9 @@ namespace Opc.Ua
         /// Returns the string representation of the object.
         /// </summary>
         /// <param name="format">The format.</param>
-        /// <param name="provider">The provider.</param>
+        /// <param name="formatProvider">The provider.</param>
         /// <returns>String representation of the object.</returns>
-        public string ToString(string format, IFormatProvider provider)
+        public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
             {
@@ -401,6 +401,16 @@ namespace Opc.Ua
 
             return null;
         }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            HashCode hash = new HashCode();
+            hash.Add(m_nodeId);
+            hash.Add(m_nodeClass);
+            hash.Add(m_browseName);
+            return hash.ToHashCode();
+        }
         #endregion
 
         #region Protected Methods
@@ -501,9 +511,9 @@ namespace Opc.Ua
         /// Returns a string representation of the HierarchyBrowsePath.
         /// </summary>
         /// <param name="format">The format.</param>
-        /// <param name="provider">The provider.</param>
+        /// <param name="formatProvider">The provider.</param>
         /// <returns>A string representation of the HierarchyBrowsePath.</returns>
-        public string ToString(string format, IFormatProvider provider)
+        public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format != null)
             {
@@ -557,7 +567,11 @@ namespace Opc.Ua
         /// </returns>
         public override int GetHashCode()
         {
-            return base.GetHashCode();
+            HashCode hash = new HashCode();
+            hash.Add(m_referenceTypeId);
+            hash.Add(m_isInverse);
+            hash.Add(m_targetId);
+            return hash.ToHashCode();
         }
 
         /// <summary>

@@ -1225,9 +1225,9 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an ElementOperand to a displayable string.
         /// </summary>
-        /// <param name="table">The table.</param>
+        /// <param name="nodeTable">The table.</param>
         /// <returns>ElementOperand as a displayable string.</returns>
-        public override string ToString(INodeTable table)
+        public override string ToString(INodeTable nodeTable)
         {
             return Utils.Format("Element[{0}]", Index);
         }
@@ -1304,9 +1304,9 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an LiteralOperand to a displayable string.
         /// </summary>
-        /// <param name="table">The table.</param>
+        /// <param name="nodeTable">The table.</param>
         /// <returns>LiteralOperand as a displayable string.</returns>
-        public override string ToString(INodeTable table)
+        public override string ToString(INodeTable nodeTable)
         {
             ExpandedNodeId nodeId = Value.Value as ExpandedNodeId;
             
@@ -1317,7 +1317,7 @@ namespace Opc.Ua
 
             if (nodeId != null)
             {
-                INode node = table.Find(nodeId);
+                INode node = nodeTable.Find(nodeId);
 
                 if (node != null)
                 {

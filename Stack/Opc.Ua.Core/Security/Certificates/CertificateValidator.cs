@@ -362,9 +362,9 @@ namespace Opc.Ua
         /// certificate validator cannot rely completely on the Windows certificate store and
         /// user or machine specific CTLs (certificate trust lists).
         /// </remarks>
-        public virtual void Validate(X509Certificate2Collection chain)
+        public virtual void Validate(X509Certificate2Collection certificateChain)
         {
-            Validate(chain, null);
+            Validate(certificateChain, null);
         }
 
         /// <summary>
