@@ -765,7 +765,7 @@ namespace Opc.Ua
         /// <summary cref="IDictionary{TKey,TValue}.TryGetValue" />
         public bool TryGetValue(IReference key, out T value)
         {
-            value = default(T);
+            value = default;
 
             KeyValuePair<IReference,T> target;
 

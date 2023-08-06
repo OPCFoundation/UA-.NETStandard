@@ -509,14 +509,14 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                if (m_body is byte[])
+                if (m_body is byte[] byteString)
                 {
-                    return String.Format(formatProvider, "Byte[{0}]", ((byte[])m_body).Length);
+                    return String.Format(formatProvider, "Byte[{0}]", byteString.Length);
                 }
 
-                if (m_body is XmlElement)
+                if (m_body is XmlElement element)
                 {
-                    return String.Format(formatProvider, "<{0}>", ((XmlElement)m_body).Name);
+                    return String.Format(formatProvider, "<{0}>", element.Name);
                 }
 
                 if (m_body is IFormattable formattable)

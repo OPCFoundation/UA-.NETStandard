@@ -252,7 +252,7 @@ namespace Opc.Ua
         /// <summary cref="IDictionary{TKey,TValue}.TryGetValue" />
         public bool TryGetValue(NodeId key, out T value)
         {
-            value = default(T);
+            value = default;
 
             if (key == null)
             {

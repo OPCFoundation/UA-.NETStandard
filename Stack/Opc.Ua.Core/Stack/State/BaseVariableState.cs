@@ -141,7 +141,7 @@ namespace Opc.Ua
         {
             if (variable == null)
             {
-                return default(T);
+                return default;
             }
 
             return variable.Value;
@@ -159,7 +159,7 @@ namespace Opc.Ua
         {
             if (property == null)
             {
-                return default(T);
+                return default;
             }
 
             return property.Value;
@@ -436,7 +436,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(StatusCodes.BadTypeMismatch, "Cannot convert '{0}' to a {1}.", value, typeof(T).Name);
                 }
 
-                return default(T);
+                return default;
             }
 
             return (T)value;
@@ -2117,7 +2117,7 @@ namespace Opc.Ua
         /// </summary>
         public PropertyState(NodeState parent) : base(parent)
         {
-            Value = default(T);
+            Value = default;
             IsValueType = !typeof(T).GetTypeInfo().IsValueType;
         }
         #endregion
@@ -2130,7 +2130,7 @@ namespace Opc.Ua
         {
             base.Initialize(context);
 
-            Value = default(T);
+            Value = default;
             DataType = TypeInfo.GetDataTypeId(typeof(T));
             ValueRank = TypeInfo.GetValueRank(typeof(T));
         }
@@ -2335,7 +2335,7 @@ namespace Opc.Ua
         /// </summary>
         public BaseDataVariableState(NodeState parent) : base(parent)
         {
-            Value = default(T);
+            Value = default;
             IsValueType = !typeof(T).GetTypeInfo().IsValueType;
         }
         #endregion
@@ -2349,7 +2349,7 @@ namespace Opc.Ua
         {
             base.Initialize(context);
 
-            Value = default(T);
+            Value = default;
             DataType = TypeInfo.GetDataTypeId(typeof(T));
             ValueRank = TypeInfo.GetValueRank(typeof(T));
         }

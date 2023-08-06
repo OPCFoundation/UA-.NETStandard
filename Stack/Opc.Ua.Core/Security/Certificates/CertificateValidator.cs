@@ -119,11 +119,11 @@ namespace Opc.Ua
 
                 if (trustedStore != null)
                 {
-                    m_trustedCertificateStore = new CertificateStoreIdentifier();
-
-                    m_trustedCertificateStore.StoreType = trustedStore.StoreType;
-                    m_trustedCertificateStore.StorePath = trustedStore.StorePath;
-                    m_trustedCertificateStore.ValidationOptions = trustedStore.ValidationOptions;
+                    m_trustedCertificateStore = new CertificateStoreIdentifier {
+                        StoreType = trustedStore.StoreType,
+                        StorePath = trustedStore.StorePath,
+                        ValidationOptions = trustedStore.ValidationOptions
+                    };
 
                     if (trustedStore.TrustedCertificates != null)
                     {
@@ -137,11 +137,11 @@ namespace Opc.Ua
 
                 if (issuerStore != null)
                 {
-                    m_issuerCertificateStore = new CertificateStoreIdentifier();
-
-                    m_issuerCertificateStore.StoreType = issuerStore.StoreType;
-                    m_issuerCertificateStore.StorePath = issuerStore.StorePath;
-                    m_issuerCertificateStore.ValidationOptions = issuerStore.ValidationOptions;
+                    m_issuerCertificateStore = new CertificateStoreIdentifier {
+                        StoreType = issuerStore.StoreType,
+                        StorePath = issuerStore.StorePath,
+                        ValidationOptions = issuerStore.ValidationOptions
+                    };
 
                     if (issuerStore.TrustedCertificates != null)
                     {
@@ -569,7 +569,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the certificate information for a trusted peer certificate.
         /// </summary>
-        private async Task<CertificateIdentifier> GetTrustedCertificate(X509Certificate2 certificate)
+        private async Task<CertificateIdentifier> GetTrustedCertificateAsync(X509Certificate2 certificate)
         {
             // check if explicitly trusted.
             if (m_trustedCertificateList != null)
@@ -694,7 +694,7 @@ namespace Opc.Ua
 
                 if (validationErrors != null)
                 {
-                    (issuer, revocationStatus) = await GetIssuerNoException(certificate, m_trustedCertificateList, m_trustedCertificateStore, true).ConfigureAwait(false);
+                    (issuer, revocationStatus) = await GetIssuerNoExceptionAsync(certificate, m_trustedCertificateList, m_trustedCertificateStore, true).ConfigureAwait(false);
                 }
                 else
                 {
@@ -705,7 +705,7 @@ namespace Opc.Ua
                 {
                     if (validationErrors != null)
                     {
-                        (issuer, revocationStatus) = await GetIssuerNoException(certificate, m_issuerCertificateList, m_issuerCertificateStore, true).ConfigureAwait(false);
+                        (issuer, revocationStatus) = await GetIssuerNoExceptionAsync(certificate, m_issuerCertificateList, m_issuerCertificateStore, true).ConfigureAwait(false);
                     }
                     else
                     {
@@ -716,7 +716,7 @@ namespace Opc.Ua
                     {
                         if (validationErrors != null)
                         {
-                            (issuer, revocationStatus) = await GetIssuerNoException(certificate, untrustedCollection, null, true).ConfigureAwait(false);
+                            (issuer, revocationStatus) = await GetIssuerNoExceptionAsync(certificate, untrustedCollection, null, true).ConfigureAwait(false);
                         }
                         else
                         {
@@ -774,7 +774,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the certificate information for a trusted issuer certificate.
         /// </summary>
-        private async Task<(CertificateIdentifier, ServiceResultException)> GetIssuerNoException(
+        private async Task<(CertificateIdentifier, ServiceResultException)> GetIssuerNoExceptionAsync(
             X509Certificate2 certificate,
             CertificateIdentifierCollection explicitList,
             CertificateStoreIdentifier certificateStore,
@@ -909,7 +909,7 @@ namespace Opc.Ua
             }
 
             (CertificateIdentifier result, ServiceResultException srex) =
-                await GetIssuerNoException(certificate, explicitList, certificateStore, checkRecovationStatus
+                await GetIssuerNoExceptionAsync(certificate, explicitList, certificateStore, checkRecovationStatus
                 ).ConfigureAwait(false);
             if (srex != null)
             {
@@ -940,7 +940,7 @@ namespace Opc.Ua
                 }
             }
 
-            CertificateIdentifier trustedCertificate = await GetTrustedCertificate(certificate).ConfigureAwait(false);
+            CertificateIdentifier trustedCertificate = await GetTrustedCertificateAsync(certificate).ConfigureAwait(false);
 
             // get the issuers (checks the revocation lists if using directory stores).
             List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
@@ -1024,6 +1024,23 @@ namespace Opc.Ua
                                 chainStatus.StatusInformation);
                             sresult = new ServiceResult(result, sresult);
                             break;
+
+                        // unexpected error status
+                        case X509ChainStatusFlags.CtlNotSignatureValid:
+                        case X509ChainStatusFlags.CtlNotTimeValid:
+                        case X509ChainStatusFlags.CtlNotValidForUsage:
+                        case X509ChainStatusFlags.Cyclic:
+                        case X509ChainStatusFlags.ExplicitDistrust:
+                        case X509ChainStatusFlags.HasExcludedNameConstraint:
+                        case X509ChainStatusFlags.HasNotDefinedNameConstraint:
+                        case X509ChainStatusFlags.HasNotPermittedNameConstraint:
+                        case X509ChainStatusFlags.HasNotSupportedCriticalExtension:
+                        case X509ChainStatusFlags.HasNotSupportedNameConstraint:
+                        case X509ChainStatusFlags.HasWeakSignature:
+                        case X509ChainStatusFlags.InvalidExtension:
+                        case X509ChainStatusFlags.InvalidNameConstraints:
+                        case X509ChainStatusFlags.InvalidPolicyConstraints:
+                        case X509ChainStatusFlags.NoIssuanceChainPolicy:
 
                         // unexpected error status
                         default:
@@ -1330,7 +1347,7 @@ namespace Opc.Ua
                 case X509ChainStatusFlags.NotValidForUsage:
                 {
                     return ServiceResult.Create(
-                        (isIssuer) ? StatusCodes.BadCertificateUseNotAllowed : StatusCodes.BadCertificateIssuerUseNotAllowed,
+                        isIssuer ? StatusCodes.BadCertificateUseNotAllowed : StatusCodes.BadCertificateIssuerUseNotAllowed,
                         "Certificate may not be used as an application instance certificate. {0}: {1}",
                         status.Status,
                         status.StatusInformation);

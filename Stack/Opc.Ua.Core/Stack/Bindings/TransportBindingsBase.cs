@@ -61,7 +61,7 @@ namespace Opc.Ua.Bindings
                 TryAddDefaultTransportBindings(uriScheme);
                 if (!Bindings.TryGetValue(uriScheme, out binding))
                 {
-                    return default(T);
+                    return default;
                 }
             }
             return binding;

@@ -62,7 +62,7 @@ namespace Opc.Ua
             return ToString(null, null);
         }
         #endregion
-    
+
         /// <summary>
         /// Validates the ContentFilter.
         /// </summary>
@@ -146,18 +146,16 @@ namespace Opc.Ua
             for (int ii = 0; ii < operands.Length; ii++)
             {
                 // check if a FilterOperand was provided.
-                FilterOperand filterOperand = operands[ii] as FilterOperand;
-                
-                if (filterOperand != null)
+
+                if (operands[ii] is FilterOperand filterOperand)
                 {
                     element.FilterOperands.Add(new ExtensionObject(filterOperand));
                     continue;
                 }
-                
-                // check for reference to another ContentFilterElement.
-                ContentFilterElement existingElement = operands[ii] as ContentFilterElement;
 
-                if (existingElement != null)
+                // check for reference to another ContentFilterElement.
+
+                if (operands[ii] is ContentFilterElement existingElement)
                 {
                     int index = FindElementIndex(existingElement);
 
@@ -189,9 +187,7 @@ namespace Opc.Ua
                 {
                     if (extension != null)
                     {
-                        ElementOperand operand = extension.Body as ElementOperand;
-
-                        if (operand != null)
+                        if (extension.Body is ElementOperand operand)
                         {
                             operand.Index++;
                         }
@@ -612,12 +608,11 @@ namespace Opc.Ua
                     result.OperandResults.Add(operandResult);
                     error = true;
                     continue;
-                }            
-                
-                // check that the extension object contains a filter operand.
-                FilterOperand filterOperand = operand.Body  as FilterOperand;
+                }
 
-                if (filterOperand == null)
+                // check that the extension object contains a filter operand.
+
+                if (!(operand.Body is FilterOperand filterOperand))
                 {
                     operandResult = ServiceResult.Create(
                         StatusCodes.BadEventFilterInvalid,
@@ -671,13 +666,12 @@ namespace Opc.Ua
                     continue;
                 }
 
-                FilterOperand operand = extension.Body as FilterOperand;
 
-                if (operand == null)
+                if (!(extension.Body is FilterOperand operand))
                 {
                     continue;
                 }
-               
+
                 operands.Add(operand);
             }
 
@@ -787,9 +781,7 @@ namespace Opc.Ua
 
                     if (operands.Count > 1)
                     {
-                        LiteralOperand literalOperand = operands[1] as LiteralOperand;
-
-                        if (literalOperand != null)
+                        if (operands[1] is LiteralOperand literalOperand)
                         {
                             INode node = nodeTable.Find(literalOperand.Value.Value as NodeId);
 

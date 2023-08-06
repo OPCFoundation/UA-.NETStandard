@@ -2314,7 +2314,7 @@ namespace Opc.Ua
             // check if nothing to search for.
             if (extensions == null || extensions.Count == 0)
             {
-                return default(T);
+                return default;
             }
 
             // use the type name as the default.
@@ -2360,7 +2360,7 @@ namespace Opc.Ua
                 }
             }
 
-            return default(T);
+            return default;
         }
 
         /// <summary>
