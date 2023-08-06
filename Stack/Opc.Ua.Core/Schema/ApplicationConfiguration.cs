@@ -2840,6 +2840,7 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
+            m_lock = new object();
             m_trustedCertificates = new CertificateIdentifierCollection();
         }
 
