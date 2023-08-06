@@ -109,18 +109,12 @@ namespace Opc.Ua
             if (buffer == null) throw new ArgumentNullException(nameof(buffer));
             if (context == null) throw new ArgumentNullException(nameof(context));
 
-            JsonDecoder decoder = new JsonDecoder(UTF8Encoding.UTF8.GetString(buffer), context);
-
-            try
+            using (IJsonDecoder decoder = new JsonDecoder(UTF8Encoding.UTF8.GetString(buffer), context))
             {
                 // decode the actual message.
                 SessionLessServiceMessage message = new SessionLessServiceMessage();
                 message.Decode(decoder);
                 return message.Message;
-            }
-            finally
-            {
-                decoder.Close();
             }
         }
 
@@ -152,15 +146,9 @@ namespace Opc.Ua
                     buffer.Count);
             }
 
-            JsonDecoder decoder = new JsonDecoder(UTF8Encoding.UTF8.GetString(buffer.Array, buffer.Offset, buffer.Count), context);
-
-            try
+            using (JsonDecoder decoder = new JsonDecoder(UTF8Encoding.UTF8.GetString(buffer.Array, buffer.Offset, buffer.Count), context))
             {
                 return decoder.DecodeMessage(expectedType);
-            }
-            finally
-            {
-                decoder.Close();
             }
         }
 
