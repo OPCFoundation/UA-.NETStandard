@@ -383,6 +383,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             _ = PrettifyAndValidateJson(result1);
 
             // recycle the StreamWriter, ensure the result is equal
+            memoryStream.Position = 0;
             using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, true))
             {
                 TestEncoding(jsonEncoder);
@@ -395,6 +396,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // recycle the StreamWriter, ensure the result is equal,
             // use reflection to return result in external stream
+            memoryStream.Position = 0;
             using (IJsonEncoder jsonEncoder = new JsonEncoder(context, true, false, memoryStream, false))
             {
                 TestEncoding(jsonEncoder);

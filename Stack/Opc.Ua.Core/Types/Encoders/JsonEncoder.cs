@@ -296,10 +296,6 @@ namespace Opc.Ua
             int length = (int)m_writer.BaseStream.Position;
             m_writer.Dispose();
             m_writer = null;
-            if (m_leaveOpen)
-            {
-                m_stream.Position = 0;
-            }
             return length;
         }
         #endregion
@@ -324,6 +320,14 @@ namespace Opc.Ua
                 if (m_writer != null)
                 {
                     Close();
+                }
+
+                if (!m_leaveOpen)
+                {
+                    Utils.SilentDispose(m_memoryStream);
+                    Utils.SilentDispose(m_stream);
+                    m_memoryStream = null;
+                    m_stream = null;
                 }
             }
         }

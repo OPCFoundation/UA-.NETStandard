@@ -194,9 +194,11 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] EncodeBinary(IEncodeable encodeable, IServiceMessageContext context)
         {
-            BinaryEncoder encoder = new BinaryEncoder(context);
-            encoder.WriteEncodeable(null, encodeable, null);
-            return encoder.CloseAndReturnBuffer();
+            using (BinaryEncoder encoder = new BinaryEncoder(context))
+            {
+                encoder.WriteEncodeable(null, encodeable, null);
+                return encoder.CloseAndReturnBuffer();
+            }
         }
         #endregion
 

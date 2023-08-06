@@ -213,9 +213,7 @@ namespace Opc.Ua
             if (context == null) throw new ArgumentNullException(nameof(context));
 
             // create encoder.
-            BinaryEncoder encoder = new BinaryEncoder(stream, context);
-
-            try
+            using (BinaryEncoder encoder = new BinaryEncoder(stream, context, leaveOpen))
             {
                 long start = encoder.m_ostrm.Position;
 
@@ -240,14 +238,6 @@ namespace Opc.Ua
                         (int)(encoder.m_ostrm.Position - start));
                 }
             }
-            finally
-            {
-                // close encoder.
-                if (!leaveOpen)
-                {
-                    encoder.CloseAndReturnBuffer();
-                }
-            }
         }
 
         /// <summary>
@@ -260,15 +250,10 @@ namespace Opc.Ua
             if (context == null) throw new ArgumentNullException(nameof(context));
 
             // create encoder.
-            BinaryEncoder encoder = new BinaryEncoder(stream, context);
-
-            // encode message
-            encoder.EncodeMessage(message);
-
-            // close encoder.
-            if (!leaveOpen)
+            using (BinaryEncoder encoder = new BinaryEncoder(stream, context, leaveOpen))
             {
-                encoder.CloseAndReturnBuffer();
+                // encode message
+                encoder.EncodeMessage(message);
             }
         }
 
@@ -931,10 +916,12 @@ namespace Opc.Ua
             // must pre-encode and then write the bytes.
             else
             {
-                BinaryEncoder encoder = new BinaryEncoder(this.m_context);
-                encoder.WriteEncodeable(null, encodeable, null);
-                bytes = encoder.CloseAndReturnBuffer();
-                WriteByteString(null, bytes);
+                using (BinaryEncoder encoder = new BinaryEncoder(this.m_context))
+                {
+                    encoder.WriteEncodeable(null, encodeable, null);
+                    bytes = encoder.CloseAndReturnBuffer();
+                    WriteByteString(null, bytes);
+                }
             }
         }
 
