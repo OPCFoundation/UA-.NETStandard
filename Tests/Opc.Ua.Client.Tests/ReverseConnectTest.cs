@@ -185,7 +185,12 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(endpoint);
 
             // connect
-            var session = await Client.Session.Create(config, connection, endpoint, false, false, "Reverse Connect Client",
+#if NET6_0_OR_GREATER
+            var sessionfactory = TraceableSessionFactory.Instance;
+#else
+            var sessionfactory = DefaultSessionFactory.Instance;
+#endif
+            var session = await sessionfactory.CreateAsync(config, connection, endpoint, false, false, "Reverse Connect Client",
                 MaxTimeout, new UserIdentity(new AnonymousIdentityToken()), null).ConfigureAwait(false);
             Assert.NotNull(session);
 
@@ -224,7 +229,12 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(endpoint);
 
             // connect
-            var session = await Client.Session.Create(config, ClientFixture.ReverseConnectManager, endpoint, updateBeforeConnect, checkDomain, "Reverse Connect Client",
+#if NET6_0_OR_GREATER
+            var sessionfactory = TraceableSessionFactory.Instance;
+#else
+            var sessionfactory = DefaultSessionFactory.Instance;
+#endif
+            var session = await sessionfactory.CreateAsync(config, ClientFixture.ReverseConnectManager, endpoint, updateBeforeConnect, checkDomain, "Reverse Connect Client",
                 MaxTimeout, new UserIdentity(new AnonymousIdentityToken()), null).ConfigureAwait(false);
                 
             Assert.NotNull(session);

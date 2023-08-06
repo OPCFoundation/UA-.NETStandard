@@ -61,7 +61,8 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales)
+            IList<string> preferredLocales,
+            CancellationToken ct = default)
         {
             return await Session.Create(configuration, endpoint, updateBeforeConnect, false,
                 sessionName, sessionTimeout, identity, preferredLocales).ConfigureAwait(false);
@@ -76,11 +77,12 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales)
+            IList<string> preferredLocales,
+            CancellationToken ct = default)
         {
-            return await Session.Create(configuration, null, endpoint,
+            return await Session.Create(configuration, (ITransportWaitingConnection)null, endpoint,
                 updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
-                identity, preferredLocales).ConfigureAwait(false);
+                identity, preferredLocales, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -93,11 +95,12 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales)
+            IList<string> preferredLocales,
+            CancellationToken ct = default)
         {
             return await Session.Create(configuration, connection, endpoint,
                 updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
-                identity, preferredLocales
+                identity, preferredLocales, ct
                 ).ConfigureAwait(false);
         }
 
@@ -117,8 +120,8 @@ namespace Opc.Ua.Client
         {
             if (reverseConnectManager == null)
             {
-                return await CreateAsync(configuration, endpoint, updateBeforeConnect,
-                    checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales).ConfigureAwait(false);
+                return await this.CreateAsync(configuration, endpoint, updateBeforeConnect,
+                    checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales, ct).ConfigureAwait(false);
             }
 
             ITransportWaitingConnection connection;
@@ -134,7 +137,8 @@ namespace Opc.Ua.Client
                     await endpoint.UpdateFromServerAsync(
                         endpoint.EndpointUrl, connection,
                         endpoint.Description.SecurityMode,
-                        endpoint.Description.SecurityPolicyUri).ConfigureAwait(false);
+                        endpoint.Description.SecurityPolicyUri,
+                        ct).ConfigureAwait(false);
                     updateBeforeConnect = false;
                     connection = null;
                 }
@@ -149,7 +153,8 @@ namespace Opc.Ua.Client
                 sessionName,
                 sessionTimeout,
                 userIdentity,
-                preferredLocales).ConfigureAwait(false);
+                preferredLocales,
+                ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -165,13 +170,19 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public virtual Task<ITransportChannel> CreateChannelAsync(ApplicationConfiguration configuration, ITransportWaitingConnection connection, ConfiguredEndpoint endpoint, bool updateBeforeConnect, bool checkDomain)
+        public virtual Task<ITransportChannel> CreateChannelAsync(
+            ApplicationConfiguration configuration,
+            ITransportWaitingConnection connection,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            CancellationToken ct = default)
         {
-            return Session.CreateChannelAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain);
+            return Session.CreateChannelAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain, ct);
         }
 
         /// <inheritdoc/>
-        public virtual Task<ISession> RecreateAsync(ISession sessionTemplate)
+        public virtual Task<ISession> RecreateAsync(ISession sessionTemplate, CancellationToken ct = default)
         {
             if (!(sessionTemplate is Session template))
             {
@@ -182,7 +193,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public virtual Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportWaitingConnection connection)
+        public virtual Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportWaitingConnection connection, CancellationToken ct = default)
         {
             if (!(sessionTemplate is Session template))
             {
@@ -190,6 +201,12 @@ namespace Opc.Ua.Client
             }
 
             return Task.FromResult((ISession)Session.Recreate(template, connection));
+        }
+
+        /// <inheritdoc/>
+        public virtual Task<ISession> RecreateAsync(Session template, ITransportChannel transportChannel)
+        {
+            return Task.FromResult((ISession)Session.Recreate(template, transportChannel));
         }
         #endregion
     }

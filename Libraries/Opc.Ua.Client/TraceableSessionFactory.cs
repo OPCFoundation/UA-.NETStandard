@@ -26,7 +26,6 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-
 #if NET6_0_OR_GREATER
 using System;
 using System.Collections.Generic;
@@ -63,12 +62,13 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales)
+            IList<string> preferredLocales,
+            CancellationToken ct = default)
         {
             using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(CreateAsync)))
             {
                 ISession session = await Session.Create(configuration, endpoint, updateBeforeConnect, false,
-                sessionName, sessionTimeout, identity, preferredLocales).ConfigureAwait(false);
+                    sessionName, sessionTimeout, identity, preferredLocales, ct).ConfigureAwait(false);
 
                 return new TraceableSession(session);
             }
@@ -83,13 +83,14 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales)
+            IList<string> preferredLocales,
+            CancellationToken ct = default)
         {
             using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(CreateAsync)))
             {
-                ISession session = await Session.Create(configuration, null, endpoint,
-                updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
-                identity, preferredLocales).ConfigureAwait(false);
+                ISession session = await Session.Create(configuration, (ITransportWaitingConnection)null, endpoint,
+                    updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
+                    identity, preferredLocales, ct).ConfigureAwait(false);
 
                 return new TraceableSession(session);
             }
@@ -105,14 +106,15 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales)
+            IList<string> preferredLocales,
+            CancellationToken ct = default)
         {
             using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(CreateAsync)))
             {
                 ISession session = await Session.Create(configuration, connection, endpoint,
-                updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
-                identity, preferredLocales
-                ).ConfigureAwait(false);
+                    updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
+                    identity, preferredLocales, ct
+                    ).ConfigureAwait(false);
 
                 return new TraceableSession(session);
             }
@@ -134,11 +136,17 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public override Task<ITransportChannel> CreateChannelAsync(ApplicationConfiguration configuration, ITransportWaitingConnection connection, ConfiguredEndpoint endpoint, bool updateBeforeConnect, bool checkDomain)
+        public override Task<ITransportChannel> CreateChannelAsync(
+            ApplicationConfiguration configuration,
+            ITransportWaitingConnection connection,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            CancellationToken ct = default)
         {
             using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(CreateAsync)))
             {
-                return base.CreateChannelAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain);
+                return base.CreateChannelAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain, ct);
             }
         }
 
@@ -170,7 +178,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public override Task<ISession> RecreateAsync(ISession sessionTemplate)
+        public override Task<ISession> RecreateAsync(ISession sessionTemplate, CancellationToken ct = default)
         {
             if (!(sessionTemplate is Session session))
             {
@@ -191,7 +199,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public override Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportWaitingConnection connection)
+        public override Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportWaitingConnection connection, CancellationToken ct = default)
         {
             if (!(sessionTemplate is Session session))
             {
