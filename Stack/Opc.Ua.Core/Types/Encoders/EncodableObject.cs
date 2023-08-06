@@ -175,17 +175,18 @@ namespace Opc.Ua
         public static XmlElement EncodeXml(IEncodeable encodeable, IServiceMessageContext context)
         {
             // create encoder.
-            XmlEncoder encoder = new XmlEncoder(context);
+            using (XmlEncoder encoder = new XmlEncoder(context))
+            {
+                // write body.
+                encoder.WriteExtensionObjectBody(encodeable);
 
-            // write body.
-            encoder.WriteExtensionObjectBody(encodeable);
+                // create document from encoder.
+                XmlDocument document = new XmlDocument();
+                document.LoadInnerXml(encoder.CloseAndReturnText());
 
-            // create document from encoder.
-            XmlDocument document = new XmlDocument();
-            document.LoadInnerXml(encoder.Close());
-
-            // return root element.
-            return document.DocumentElement;
+                // return root element.
+                return document.DocumentElement;
+            }
         }
 
         /// <summary>

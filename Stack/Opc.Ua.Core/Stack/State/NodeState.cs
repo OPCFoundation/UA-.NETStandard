@@ -570,16 +570,17 @@ namespace Opc.Ua
             {
                 XmlQualifiedName root = new XmlQualifiedName(this.SymbolicName, context.NamespaceUris.GetString(this.BrowseName.NamespaceIndex));
 
-                XmlEncoder encoder = new XmlEncoder(root, writer, messageContext);
+                using (XmlEncoder encoder = new XmlEncoder(root, writer, messageContext))
+                {
+                    encoder.SaveStringTable("NamespaceUris", "NamespaceUri", context.NamespaceUris);
+                    encoder.SaveStringTable("ServerUris", "ServerUri", context.ServerUris);
 
-                encoder.SaveStringTable("NamespaceUris", "NamespaceUri", context.NamespaceUris);
-                encoder.SaveStringTable("ServerUris", "ServerUri", context.ServerUris);
+                    Save(context, encoder);
+                    SaveReferences(context, encoder);
+                    SaveChildren(context, encoder);
 
-                Save(context, encoder);
-                SaveReferences(context, encoder);
-                SaveChildren(context, encoder);
-
-                encoder.Close();
+                    encoder.Close();
+                }
             }
         }
 
@@ -596,19 +597,20 @@ namespace Opc.Ua
             messageContext.ServerUris = context.ServerUris;
             messageContext.Factory = context.EncodeableFactory;
 
-            BinaryEncoder encoder = new BinaryEncoder(ostrm, messageContext);
+            using (BinaryEncoder encoder = new BinaryEncoder(ostrm, messageContext))
+            {
+                encoder.SaveStringTable(context.NamespaceUris);
+                encoder.SaveStringTable(context.ServerUris);
 
-            encoder.SaveStringTable(context.NamespaceUris);
-            encoder.SaveStringTable(context.ServerUris);
+                AttributesToSave attributesToSave = GetAttributesToSave(context);
+                encoder.WriteUInt32(null, (uint)attributesToSave);
 
-            AttributesToSave attributesToSave = GetAttributesToSave(context);
-            encoder.WriteUInt32(null, (uint)attributesToSave);
+                Save(context, encoder, attributesToSave);
+                SaveReferences(context, encoder);
+                SaveChildren(context, encoder);
 
-            Save(context, encoder, attributesToSave);
-            SaveReferences(context, encoder);
-            SaveChildren(context, encoder);
-
-            encoder.Close();
+                encoder.Close();
+            }
         }
 
         /// <summary>

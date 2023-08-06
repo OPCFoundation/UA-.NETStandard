@@ -22,7 +22,7 @@ namespace Opc.Ua
     /// <summary>
     /// Encodes objects in a stream using the UA Binary encoding.
     /// </summary>
-    public class BinaryEncoder : IEncoder, IDisposable
+    public class BinaryEncoder : IEncoder
     {
         #region Constructor
         /// <summary>
@@ -73,6 +73,7 @@ namespace Opc.Ua
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -124,12 +125,26 @@ namespace Opc.Ua
         /// </summary>
         public byte[] CloseAndReturnBuffer()
         {
-            m_writer.Flush();
-            m_writer.Dispose();
+            Close();
 
             if (m_ostrm is MemoryStream memoryStream)
             {
                 return memoryStream.ToArray();
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Completes writing and returns the buffer as base64 encoded string.
+        /// </summary>
+        public string CloseAndReturnText()
+        {
+            Close();
+
+            if (m_ostrm is MemoryStream memoryStream)
+            {
+                return Convert.ToBase64String(memoryStream.ToArray());
             }
 
             return null;

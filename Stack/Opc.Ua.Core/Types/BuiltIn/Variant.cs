@@ -774,17 +774,18 @@ namespace Opc.Ua
             get
             {
                 // create encoder.
-                XmlEncoder encoder = new XmlEncoder(MessageContextExtension.CurrentContext);
+                using (XmlEncoder encoder = new XmlEncoder(MessageContextExtension.CurrentContext))
+                {
+                    // write value.
+                    encoder.WriteVariantContents(m_value, m_typeInfo);
 
-                // write value.
-                encoder.WriteVariantContents(m_value, m_typeInfo);
+                    // create document from encoder.
+                    XmlDocument document = new XmlDocument();
+                    document.LoadInnerXml(encoder.CloseAndReturnText());
 
-                // create document from encoder.
-                XmlDocument document = new XmlDocument();
-                document.LoadInnerXml(encoder.Close());
-
-                // return element.
-                return document.DocumentElement;
+                    // return element.
+                    return document.DocumentElement;
+                }
             }
 
             set

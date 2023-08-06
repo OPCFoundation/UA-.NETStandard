@@ -22,7 +22,7 @@ namespace Opc.Ua
     /// <summary>
     /// Writes objects to a JSON stream.
     /// </summary>
-    public class JsonEncoder : IJsonEncoder, IDisposable
+    public class JsonEncoder : IJsonEncoder
     {
         #region Private Fields
         private const int kStreamWriterBufferSize = 1024;

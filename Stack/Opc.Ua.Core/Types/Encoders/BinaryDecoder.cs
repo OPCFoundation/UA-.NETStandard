@@ -20,7 +20,7 @@ namespace Opc.Ua
     /// <summary>
     /// Decodes objects from a UA Binary encoded stream.
     /// </summary>
-    public class BinaryDecoder : IDecoder, IDisposable
+    public class BinaryDecoder : IDecoder
     {
         #region Constructor
         /// <summary>
@@ -64,6 +64,7 @@ namespace Opc.Ua
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>

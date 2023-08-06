@@ -206,22 +206,23 @@ namespace Opc.Ua
             using (XmlWriter writer = XmlWriter.Create(ostrm, settings))
             {
                 XmlQualifiedName root = new XmlQualifiedName("ListOfNodeState", Namespaces.OpcUaXsd);
-                XmlEncoder encoder = new XmlEncoder(root, writer, messageContext);
-
-                encoder.SaveStringTable("NamespaceUris", "NamespaceUri", context.NamespaceUris);
-                encoder.SaveStringTable("ServerUris", "ServerUri", context.ServerUris);
-
-                for (int ii = 0; ii < this.Count; ii++)
+                using (XmlEncoder encoder = new XmlEncoder(root, writer, messageContext))
                 {
-                    NodeState state = this[ii];
+                    encoder.SaveStringTable("NamespaceUris", "NamespaceUri", context.NamespaceUris);
+                    encoder.SaveStringTable("ServerUris", "ServerUri", context.ServerUris);
 
-                    if (state != null)
+                    for (int ii = 0; ii < this.Count; ii++)
                     {
-                        state.SaveAsXml(context, encoder);
-                    }
-                }
+                        NodeState state = this[ii];
 
-                encoder.Close();
+                        if (state != null)
+                        {
+                            state.SaveAsXml(context, encoder);
+                        }
+                    }
+
+                    encoder.Close();
+                }
             }
         }
 

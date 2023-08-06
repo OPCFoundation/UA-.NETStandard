@@ -24,7 +24,7 @@ namespace Opc.Ua
     /// <summary>
     /// Reads objects from a JSON stream.
     /// </summary>
-    public class JsonDecoder : IJsonDecoder, IDisposable
+    public class JsonDecoder : IJsonDecoder
     {
         #region Public Fields
         /// <summary>
@@ -263,6 +263,7 @@ namespace Opc.Ua
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
