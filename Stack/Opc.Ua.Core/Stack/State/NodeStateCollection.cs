@@ -237,20 +237,21 @@ namespace Opc.Ua
             messageContext.ServerUris = context.ServerUris;
             messageContext.Factory = context.EncodeableFactory;
 
-            BinaryEncoder encoder = new BinaryEncoder(ostrm, messageContext);
-
-            encoder.SaveStringTable(context.NamespaceUris);
-            encoder.SaveStringTable(context.ServerUris);
-
-            encoder.WriteInt32(null, this.Count);
-
-            for (int ii = 0; ii < this.Count; ii++)
+            using (BinaryEncoder encoder = new BinaryEncoder(ostrm, messageContext, true))
             {
-                NodeState state = this[ii];
-                state.SaveAsBinary(context, encoder);
-            }
+                encoder.SaveStringTable(context.NamespaceUris);
+                encoder.SaveStringTable(context.ServerUris);
 
-            encoder.Close();
+                encoder.WriteInt32(null, this.Count);
+
+                for (int ii = 0; ii < this.Count; ii++)
+                {
+                    NodeState state = this[ii];
+                    state.SaveAsBinary(context, encoder);
+                }
+
+                encoder.Close();
+            }
         }
 
         /// <summary>

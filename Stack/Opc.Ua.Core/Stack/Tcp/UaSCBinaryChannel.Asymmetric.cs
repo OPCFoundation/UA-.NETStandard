@@ -517,12 +517,13 @@ namespace Opc.Ua.Bindings
             BufferCollection chunksToSend = new BufferCollection();
 
             byte[] buffer = BufferManager.TakeBuffer(SendBufferSize, "WriteAsymmetricMessage");
+            BinaryEncoder encoder = null;
 
             try
             {
-                BinaryEncoder encoder = new BinaryEncoder(buffer, 0, SendBufferSize, Quotas.MessageContext);
-                int headerSize = 0;
+                encoder = new BinaryEncoder(buffer, 0, SendBufferSize, Quotas.MessageContext);
 
+                int headerSize = 0;
                 if (senderCertificateChain != null && senderCertificateChain.Count > 0)
                 {
                     int senderCertificateSize = 0;
@@ -678,9 +679,11 @@ namespace Opc.Ua.Bindings
                     // reset the encoder to write the plaintext for the next chunk into the same buffer.
                     if (bytesToWrite > 0)
                     {
+                        Utils.SilentDispose(encoder);
+                        // ostrm is disposed by the encoder.
                         MemoryStream ostrm = new MemoryStream(buffer, 0, SendBufferSize);
                         ostrm.Seek(header.Count, SeekOrigin.Current);
-                        encoder = new BinaryEncoder(ostrm, Quotas.MessageContext);
+                        encoder = new BinaryEncoder(ostrm, Quotas.MessageContext, false);
                     }
                 }
 
@@ -694,6 +697,8 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
+                Utils.SilentDispose(encoder);
+
                 BufferManager.ReturnBuffer(buffer, "WriteAsymmetricMessage");
 
                 if (!success)

@@ -564,7 +564,7 @@ namespace Opc.Ua.Server
                 Factory = context.EncodeableFactory
             };
             MemoryStream strm = new MemoryStream();
-            using (BinaryEncoder encoder = new BinaryEncoder(strm, messageContext))
+            using (BinaryEncoder encoder = new BinaryEncoder(strm, messageContext, true))
             {
                 encoder.WriteEncodeable(null, trustList, null);
             }

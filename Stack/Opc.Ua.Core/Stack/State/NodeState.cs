@@ -597,7 +597,7 @@ namespace Opc.Ua
             messageContext.ServerUris = context.ServerUris;
             messageContext.Factory = context.EncodeableFactory;
 
-            using (BinaryEncoder encoder = new BinaryEncoder(ostrm, messageContext))
+            using (BinaryEncoder encoder = new BinaryEncoder(ostrm, messageContext, true))
             {
                 encoder.SaveStringTable(context.NamespaceUris);
                 encoder.SaveStringTable(context.ServerUris);
