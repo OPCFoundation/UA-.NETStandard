@@ -690,7 +690,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex)
             {
-                throw new Exception("Could not write async message", ex);
+                throw new ServiceResultException("Could not write async message", ex);
             }
             finally
             {
