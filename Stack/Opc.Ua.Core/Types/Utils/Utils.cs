@@ -174,7 +174,7 @@ namespace Opc.Ua
 #endif
 
         private static string s_traceFileName = string.Empty;
-        private static object s_traceFileLock = new object();
+        private readonly static object s_traceFileLock = new object();
 
         /// <summary>
         /// The possible trace output mechanisms.

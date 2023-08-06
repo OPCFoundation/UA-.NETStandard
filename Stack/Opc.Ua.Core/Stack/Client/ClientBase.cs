@@ -603,7 +603,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private ITransportChannel m_channel;
         private NodeId m_authenticationToken;
         private DiagnosticsMasks m_returnDiagnostics;

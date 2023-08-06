@@ -457,7 +457,7 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private Uri m_url;
         private int m_operationTimeout;
         private TransportChannelSettings m_settings;

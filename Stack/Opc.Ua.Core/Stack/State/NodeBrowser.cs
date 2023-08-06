@@ -299,7 +299,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private ISystemContext m_context;
         private ViewDescription m_view;
         private NodeId m_referenceType;

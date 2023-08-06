@@ -189,7 +189,6 @@ namespace Opc.Ua.Client
         {
             m_state = ReverseConnectManagerState.New;
             m_registrations = new List<Registration>();
-            m_registrationsLock = new object();
             m_endpointUrls = new Dictionary<Uri, ReverseConnectInfo>();
             m_cts = new CancellationTokenSource();
         }

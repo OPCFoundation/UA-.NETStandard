@@ -374,7 +374,7 @@ namespace Quickstarts
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private ReverseConnectManager m_reverseConnectManager;
         private ApplicationConfiguration m_configuration;
         private SessionReconnectHandler m_reconnectHandler;

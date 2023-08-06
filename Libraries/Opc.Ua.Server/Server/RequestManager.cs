@@ -254,7 +254,7 @@ namespace Opc.Ua.Server
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
         private IServerInternal m_server;
         private Dictionary<uint, OperationContext> m_requests;
-        private object m_requestsLock = new object();
+        private readonly object m_requestsLock = new object();
         private Timer m_requestTimer;
         private event RequestCancelledEventHandler m_RequestCancelled;
         #endregion

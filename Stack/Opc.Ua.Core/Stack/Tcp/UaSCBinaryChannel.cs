@@ -827,7 +827,7 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private IMessageSocket m_socket;
         private BufferManager m_bufferManager;
         private ChannelQuotas m_quotas;

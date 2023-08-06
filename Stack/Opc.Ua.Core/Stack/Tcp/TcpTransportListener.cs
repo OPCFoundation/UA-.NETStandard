@@ -710,7 +710,7 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private string m_listenerId;
         private Uri m_uri;
         private EndpointDescriptionCollection m_descriptions;

@@ -342,7 +342,7 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private AsyncCallback m_callback;
         private object m_asyncState;
         private bool m_synchronous;

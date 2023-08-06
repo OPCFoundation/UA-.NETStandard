@@ -2022,9 +2022,9 @@ namespace Opc.Ua.Server
         private Queue<ConditionRefreshTask> m_conditionRefreshQueue;
         private ManualResetEvent m_conditionRefreshEvent;
 
-        private object m_statusMessagesLock = new object();
-        private object m_eventLock = new object();
-        private object m_conditionRefreshLock = new object();
+        private readonly object m_statusMessagesLock = new object();
+        private readonly object m_eventLock = new object();
+        private readonly object m_conditionRefreshLock = new object();
         private event SubscriptionEventHandler m_SubscriptionCreated;
         private event SubscriptionEventHandler m_SubscriptionDeleted;
         #endregion

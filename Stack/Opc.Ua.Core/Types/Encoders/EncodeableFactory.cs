@@ -494,7 +494,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private Dictionary<ExpandedNodeId, Type> m_encodeableTypes;
         private static EncodeableFactory s_globalFactory = new EncodeableFactory();
 
