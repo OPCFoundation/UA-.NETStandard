@@ -94,6 +94,7 @@ namespace Opc.Ua.Client.Tests
         [OneTimeTearDown]
         public new Task OneTimeTearDownAsync()
         {
+            Utils.SilentDispose(ClientFixture);
             return base.OneTimeTearDownAsync();
         }
 
