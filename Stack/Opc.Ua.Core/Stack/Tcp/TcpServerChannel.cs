@@ -436,6 +436,12 @@ namespace Opc.Ua.Bindings
                 // send acknowledge.
                 byte[] buffer = BufferManager.TakeBuffer(kResponseBufferSize, nameof(ProcessHelloMessage));
 
+                Utils.LogInfo("ProcessHelloMessage: ");
+                Utils.LogInfo("  ReceiveBufferSize    : {0}", ReceiveBufferSize);
+                Utils.LogInfo("  SendBufferSize       : {0}", SendBufferSize);
+                Utils.LogInfo("  MaxRequestMessageSize: {0}", MaxRequestMessageSize);
+                Utils.LogInfo("  MaxRequestChunkCount : {0}", MaxRequestChunkCount);
+
                 try
                 {
                     using (MemoryStream ostrm = new MemoryStream(buffer, 0, kResponseBufferSize))

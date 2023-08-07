@@ -452,7 +452,13 @@ namespace Opc.Ua.Bindings
                 decoder.Close();
             }
 
-            // valdiate buffer sizes.
+            Utils.LogInfo("ProcessAcknowledgeMessage: ");
+            Utils.LogInfo("  ReceiveBufferSize    : {0}", ReceiveBufferSize);
+            Utils.LogInfo("  SendBufferSize       : {0}", SendBufferSize);
+            Utils.LogInfo("  MaxRequestMessageSize: {0}", MaxRequestMessageSize);
+            Utils.LogInfo("  MaxRequestChunkCount : {0}", MaxRequestChunkCount);
+
+            // validate buffer sizes.
             if (ReceiveBufferSize < TcpMessageLimits.MinBufferSize)
             {
                 m_handshakeOperation.Fault(StatusCodes.BadTcpNotEnoughResources, "Server receive buffer size is too small ({0} bytes).", ReceiveBufferSize);
