@@ -234,7 +234,7 @@ namespace Opc.Ua.Export
                         encoder.WriteVariantContents(variant.Value, variant.TypeInfo);
 
                         XmlDocument document = new XmlDocument();
-                        document.LoadInnerXml(encoder.Close());
+                        document.LoadInnerXml(encoder.CloseAndReturnText());
                         value.Value = document.DocumentElement;
                     }
 
