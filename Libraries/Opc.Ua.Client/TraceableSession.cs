@@ -1805,8 +1805,12 @@ namespace Opc.Ua.Client
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            m_session.Dispose();
-            m_session = null;
+            if (disposing)
+            {
+                // note: do not null the session here,
+                // properties may still be accessed after dispose.
+                Utils.SilentDispose(m_session);
+            }
         }
 
         /// <inheritdoc/>
