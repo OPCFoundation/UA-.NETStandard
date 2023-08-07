@@ -248,29 +248,64 @@ namespace Opc.Ua
             Uri endpointUrl = Utils.ParseUri(this.Endpoint.EndpointUrl);
             if (endpointUrl != null)
             {
-                // patch discovery Url to endpoint Url used for service call
-                foreach (EndpointDescription discoveryEndPoint in endpoints)
+                // check if endpoints already contain the hostname
+                var discoveryEndPointUris = new Uri[endpoints.Count];
+                for (int ii = 0; ii < endpoints.Count; ii++)
                 {
-                    Uri discoveryEndPointUri = Utils.ParseUri(discoveryEndPoint.EndpointUrl);
-                    if (discoveryEndPointUri == null)
+                    EndpointDescription endPoint = endpoints[ii];
+                    discoveryEndPointUris[ii] = Utils.ParseUri(endPoint.EndpointUrl);
+                    if (discoveryEndPointUris[ii] == null)
                     {
-                        Utils.LogWarning("Discovery endpoint contains invalid Url: {0}", discoveryEndPoint.EndpointUrl);
+                        Utils.LogWarning("Endpoint contains invalid Url: {0}", endPoint.EndpointUrl);
                         continue;
                     }
 
+                    // there is already a matching endpoint, no patch necessary
+                    if (string.Equals(endpointUrl.DnsSafeHost, discoveryEndPointUris[ii].DnsSafeHost, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return endpoints;
+                    }
+                }
+
+                // patch discovery Url to endpoint Url used for service call
+                for (int ii = 0; ii < endpoints.Count; ii++)
+                {
+                    EndpointDescription endPoint = endpoints[ii];
+                    Uri discoveryEndPointUri = discoveryEndPointUris[ii];
                     if ((endpointUrl.Scheme == discoveryEndPointUri.Scheme) &&
                         (endpointUrl.Port == discoveryEndPointUri.Port))
                     {
                         UriBuilder builder = new UriBuilder(discoveryEndPointUri);
                         builder.Host = endpointUrl.DnsSafeHost;
-                        discoveryEndPoint.EndpointUrl = builder.Uri.OriginalString;
+                        endPoint.EndpointUrl = builder.Uri.OriginalString;
                     }
 
-                    if (discoveryEndPoint.Server != null &&
-                        discoveryEndPoint.Server.DiscoveryUrls != null)
+                    if (endPoint.Server != null &&
+                        endPoint.Server.DiscoveryUrls != null)
                     {
-                        discoveryEndPoint.Server.DiscoveryUrls.Clear();
-                        discoveryEndPoint.Server.DiscoveryUrls.Add(this.Endpoint.EndpointUrl.ToString());
+                        StringCollection discoveryUrls = new StringCollection();
+                        foreach (string discoveryUrl in endPoint.Server.DiscoveryUrls)
+                        {
+                            Uri discoveryUri = Utils.ParseUri(discoveryUrl);
+                            if (discoveryUri == null)
+                            {
+                                Utils.LogWarning("Removed invalid discoveryUrl: {0}", discoveryUrl);
+                                continue;
+                            }
+
+                            UriBuilder discoveryBuilder = new UriBuilder(discoveryUrl);
+                            discoveryBuilder.Host = endpointUrl.DnsSafeHost;
+                            if ((endpointUrl.Scheme == discoveryBuilder.Scheme) &&
+                                (endpointUrl.Port == discoveryBuilder.Port))
+                            {
+                                discoveryUrls.Add(discoveryBuilder.Uri.OriginalString);
+                            }
+                            else
+                            {
+                                discoveryUrls.Add(discoveryUrl);
+                            }
+                        }
+                        endPoint.Server.DiscoveryUrls = discoveryUrls;
                     }
                 }
             }

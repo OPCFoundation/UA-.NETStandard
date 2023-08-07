@@ -157,6 +157,9 @@ namespace Opc.Ua.Client.Tests
             }
 
             ClientFixture = new ClientFixture();
+            ClientFixture.UseTracing = true;
+            ClientFixture.StartActivityListener();
+
             await ClientFixture.LoadClientConfiguration(PkiRoot).ConfigureAwait(false);
             ClientFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
             ClientFixture.Config.TransportQuotas.MaxByteStringLength =
@@ -202,6 +205,7 @@ namespace Opc.Ua.Client.Tests
                 await ServerFixture.StopAsync().ConfigureAwait(false);
                 await Task.Delay(100).ConfigureAwait(false);
             }
+            Utils.SilentDispose(ClientFixture);
         }
 
         /// <summary>
