@@ -196,6 +196,6 @@ namespace Opc.Ua.Client
         /// <param name="transportChannel">The waiting reverse connection.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
-        Task<ISession> RecreateAsync(Session template, ITransportChannel transportChannel, CancellationToken ct = default);
+        Task<ISession> RecreateAsync(ISession template, ITransportChannel transportChannel, CancellationToken ct = default);
     }
 }
