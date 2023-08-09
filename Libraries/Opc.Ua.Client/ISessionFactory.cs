@@ -193,7 +193,7 @@ namespace Opc.Ua.Client
         /// Recreates a session based on a specified template using the provided channel.
         /// </summary>
         /// <param name="template">The Session object to use as template</param>
-        /// <param name="transportChannel">The waiting reverse connection.</param>
+        /// <param name="transportChannel">The channel to use to recreate the session.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
         Task<ISession> RecreateAsync(ISession template, ITransportChannel transportChannel, CancellationToken ct = default);
