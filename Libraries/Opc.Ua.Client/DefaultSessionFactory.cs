@@ -52,7 +52,7 @@ namespace Opc.Ua.Client
         {
         }
 
-        #region Public Methods
+        #region ISessionFactory Members
         /// <inheritdoc/>
         public async virtual Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
@@ -204,8 +204,12 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public virtual Task<ISession> RecreateAsync(Session template, ITransportChannel transportChannel)
+        public virtual Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportChannel transportChannel, CancellationToken ct = default)
         {
+            if (!(sessionTemplate is Session template))
+            {
+                throw new ArgumentOutOfRangeException(nameof(sessionTemplate), "The ISession provided is not of a supported type");
+            }
             return Task.FromResult((ISession)Session.Recreate(template, transportChannel));
         }
         #endregion

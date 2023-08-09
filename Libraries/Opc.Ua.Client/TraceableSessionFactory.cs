@@ -53,7 +53,7 @@ namespace Opc.Ua.Client
         {
         }
 
-        #region Public Methods
+        #region ISessionFactory Members
         /// <inheritdoc/>
         public override async Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
@@ -180,26 +180,36 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public override Task<ISession> RecreateAsync(ISession sessionTemplate, CancellationToken ct = default)
         {
-            if (!(sessionTemplate is Session session))
-            {
-                if (sessionTemplate is TraceableSession template)
-                {
-                    session = (Session)template.Session;
-                }
-                else
-                {
-                    throw new ArgumentOutOfRangeException(nameof(sessionTemplate), "The ISession provided is not of a supported type.");
-                }
-            }
-
+            Session session = ValidateISession(sessionTemplate);
             using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(RecreateAsync)))
             {
-                return base.RecreateAsync(session);
+                return Task.FromResult((ISession)new TraceableSession(Session.Recreate(session)));
             }
         }
 
         /// <inheritdoc/>
         public override Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportWaitingConnection connection, CancellationToken ct = default)
+        {
+            Session session = ValidateISession(sessionTemplate);
+            using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(RecreateAsync)))
+            {
+                return Task.FromResult((ISession)new TraceableSession(Session.Recreate(session, connection)));
+            }
+        }
+
+        /// <inheritdoc/>
+        public override Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportChannel channel, CancellationToken ct = default)
+        {
+            Session session = ValidateISession(sessionTemplate);
+            using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(RecreateAsync)))
+            {
+                return Task.FromResult((ISession)new TraceableSession(Session.Recreate(session, channel)));
+            }
+        }
+        #endregion
+
+        #region Private Methods
+        private Session ValidateISession(ISession sessionTemplate)
         {
             if (!(sessionTemplate is Session session))
             {
@@ -212,11 +222,7 @@ namespace Opc.Ua.Client
                     throw new ArgumentOutOfRangeException(nameof(sessionTemplate), "The ISession provided is not of a supported type.");
                 }
             }
-
-            using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(RecreateAsync)))
-            {
-                return base.RecreateAsync(session, connection);
-            }
+            return session;
         }
         #endregion
     }

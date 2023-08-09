@@ -39,7 +39,6 @@ namespace Opc.Ua.Client
     /// </summary>
     public interface ISessionFactory
     {
-        #region Public Methods
         /// <summary>
         /// Creates a new communication session with a server by invoking the CreateSession service
         /// </summary>
@@ -195,8 +194,8 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="template">The Session object to use as template</param>
         /// <param name="transportChannel">The waiting reverse connection.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
-        Task<ISession> RecreateAsync(Session template, ITransportChannel transportChannel);
-        #endregion
+        Task<ISession> RecreateAsync(Session template, ITransportChannel transportChannel, CancellationToken ct = default);
     }
 }
