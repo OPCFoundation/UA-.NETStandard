@@ -28,11 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
@@ -43,7 +40,7 @@ namespace Opc.Ua.Client.Tests
     /// <summary>
     /// Client fixture for tests.
     /// </summary>
-    public class ClientFixture
+    public class ClientFixture : IDisposable
     {
         private const uint kDefaultOperationLimits = 5000;
         private NUnitTestLogger<ClientFixture> m_traceLogger;
@@ -55,26 +52,21 @@ namespace Opc.Ua.Client.Tests
         public uint SessionTimeout { get; set; } = 10000;
         public int OperationTimeout { get; set; } = 10000;
         public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.StackTrace | Utils.TraceMasks.Security | Utils.TraceMasks.Information;
-
-#if  NET6_0_OR_GREATER
-        public bool UseTracing { get; set; } = true;
-
+        public bool UseTracing { get; set; } = false;
         public ISessionFactory SessionFactory => UseTracing ? TraceableSessionFactory.Instance : DefaultSessionFactory.Instance;
-
-        private ActivityListener activityListener;
-#else
-        public ISessionFactory SessionFactory {get;} = DefaultSessionFactory.Instance;
-#endif
+        public ActivityListener ActivityListener { get; private set; }
 
         #region Public Methods
+        public void Dispose()
+        {
+            StopActivityListener();
+        }
+
         /// <summary>
         /// Load the default client configuration.
         /// </summary>
         public async Task LoadClientConfiguration(string pkiRoot = null, string clientName = "TestClient")
         {
-#if NET6_0_OR_GREATER
-            ConfigureActivityListener();
-#endif
             ApplicationInstance application = new ApplicationInstance {
                 ApplicationName = clientName
             };
@@ -346,13 +338,40 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
-#if NET6_0_OR_GREATER
-        public void Cleanup()
+        /// <summary>
+        /// Configures Activity Listener and registers with Activity Source.
+        /// </summary>
+        public void StartActivityListener(bool shouldListenToAllSources = false, bool shouldWriteStartAndStop = true)
         {
-            activityListener = null;
+            // Create an instance of ActivityListener and configure its properties
+            ActivityListener = new ActivityListener() {
+
+                // Set ShouldListenTo property to true for all activity sources
+                ShouldListenTo = (source) => shouldListenToAllSources || source.Name.Equals(TraceableSession.ActivitySourceName),
+
+                // Sample all data and recorded activities
+                Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
+
+            };
+
+            if (shouldWriteStartAndStop)
+            {
+                ActivityListener.ActivityStarted = activity => Utils.LogInfo("Started: {0,-15} {1,-60}", activity.OperationName, activity.Id);
+                ActivityListener.ActivityStopped = activity => Utils.LogInfo("Stopped: {0,-15} {1,-60} Duration: {2}", activity.OperationName, activity.Id, activity.Duration);
+            }
+
+            ActivitySource.AddActivityListener(ActivityListener);
         }
-#endif
-#endregion
+
+        /// <summary>
+        /// Disposes Activity Listener and unregisters from Activity Source.
+        /// </summary>
+        public void StopActivityListener()
+        {
+            ActivityListener?.Dispose();
+            ActivityListener = null;
+        }
+        #endregion
 
         #region Private Methods
         private void Session_KeepAlive(ISession session, KeepAliveEventArgs e)
@@ -362,36 +381,6 @@ namespace Opc.Ua.Client.Tests
                 session?.Dispose();
             }
         }
-
-#if NET6_0_OR_GREATER
-        /// <summary>
-        /// Configures Activity Listener.
-        /// </summary>
-        private void ConfigureActivityListener(bool shouldListenToAllSources = true, bool shouldWriteStartAndStop = true)
-        {
-            // Create an instance of ActivityListener and configure its properties
-            activityListener = new ActivityListener()
-            {
-                // Set ShouldListenTo property to true for all activity sources
-                ShouldListenTo = (source) => true,
-
-                // Sample all data and recorded activities
-                Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
-
-                // Write "Started" message when an activity starts
-                ActivityStarted = shouldWriteStartAndStop
-                ? activity => Console.WriteLine("Started: {0,-15} {1,-60}", activity.OperationName, activity.Id)
-                : (Action<Activity>)(_ => { }),
-
-                // Write "Stopped" message along with OperationName, Id, and Duration when an activity stops
-                ActivityStopped = shouldWriteStartAndStop
-                ? activity => Console.WriteLine(activity.OperationName + " : " + activity.Id + ", Duration : " + activity.Duration)
-                : (Action<Activity>)(_ => { }),
-            };
-
-            ActivitySource.AddActivityListener(activityListener);
-        }
-#endif
-#endregion
+        #endregion
     }
 }
