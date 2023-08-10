@@ -855,7 +855,6 @@ namespace Opc.Ua.Gds.Client
             uint fileHandle = (uint)outputArguments[0];
             using (MemoryStream ostrm = new MemoryStream())
             {
-
                 try
                 {
                     while (true)
@@ -898,9 +897,7 @@ namespace Opc.Ua.Gds.Client
                 using (BinaryDecoder decoder = new BinaryDecoder(ostrm, Session.MessageContext))
                 {
                     trustList.Decode(decoder);
-                    decoder.Close();
                 }
-                ostrm.Close();
                 return trustList;
             }
         }
