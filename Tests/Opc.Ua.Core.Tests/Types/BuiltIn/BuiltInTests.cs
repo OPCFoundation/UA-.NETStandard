@@ -655,6 +655,17 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.AreEqual(nodeIdBasedDataValue.Value, nodeId);
             Assert.AreEqual(nodeIdBasedDataValue.Value.GetHashCode(), nodeId.GetHashCode());
         }
+
+        [Test]
+        public void ShouldNotThrow()
+        {
+            ExpandedNodeId[] expandedNodeIds1 = new ExpandedNodeId[] { new ExpandedNodeId(0), new ExpandedNodeId(0) };
+            ExpandedNodeId[] expandedNodeIds2 = new ExpandedNodeId[] { new ExpandedNodeId((byte[])null), new ExpandedNodeId((byte[])null) };
+            DataValue dv1 = new DataValue(expandedNodeIds1);
+            DataValue dv2 = new DataValue(expandedNodeIds2);
+
+            Assert.DoesNotThrow(() => dv1.Equals(dv2));
+        }
         #endregion
 
         #region ValueRanks

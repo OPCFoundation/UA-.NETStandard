@@ -977,7 +977,7 @@ namespace Opc.Ua
                         return -1;
                     }
 
-                    if (this.IsNullNodeId && expandedId.InnerNodeId.IsNullNodeId)
+                    if (this.IsNullNodeId && (expandedId.InnerNodeId != null) && expandedId.InnerNodeId.IsNullNodeId)
                     {
                         return 0;
                     }
