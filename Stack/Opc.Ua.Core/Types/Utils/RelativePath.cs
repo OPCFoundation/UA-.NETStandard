@@ -795,10 +795,31 @@ namespace Opc.Ua
                     // check for escape character.
                     if (next == '&')
                     {
-                        next = reader.Read();
-                        next = reader.Read();
-                        buffer.Append((char)next);
-                        continue;
+                        // remove '&'
+                        next = reader.Read(); 
+                        // get escaped character without removing it
+                        next = reader.Peek();
+
+                        if (next == '!' || next == ':' || next == '<' || next == '>' || next == '/' || next == '.' || next == '#' || next == '&')
+                        {
+                            // if valid, then remove it
+                            reader.Read(); 
+                            buffer.Append((char)next);
+                            continue;
+                        }
+                        else
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadSyntaxError,
+                                Utils.Format("Invalid escape character '{0}' in browse path.", next));
+                        }
+                    }
+                    // handle non-escaped '#' character
+                    else if (next == '#') 
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadSyntaxError,
+                            Utils.Format("Unexpected non-escaped character '{0}' in browse path.", next));
                     }
 
                     // append character.
