@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Runtime.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 
@@ -1112,9 +1113,9 @@ namespace Opc.Ua
         /// <summary>
         /// Updates an endpoint with information from the server's discovery endpoint.
         /// </summary>
-        public Task UpdateFromServerAsync()
+        public Task UpdateFromServerAsync(CancellationToken ct = default)
         {
-            return UpdateFromServerAsync(EndpointUrl, m_description.SecurityMode, m_description.SecurityPolicyUri);
+            return UpdateFromServerAsync(EndpointUrl, m_description.SecurityMode, m_description.SecurityPolicyUri, ct);
         }
 
         /// <summary>
@@ -1123,9 +1124,10 @@ namespace Opc.Ua
         public Task UpdateFromServerAsync(
             Uri endpointUrl,
             MessageSecurityMode securityMode,
-            string securityPolicyUri)
+            string securityPolicyUri,
+            CancellationToken ct = default)
         {
-            return UpdateFromServerAsync(endpointUrl, null, securityMode, securityPolicyUri);
+            return UpdateFromServerAsync(endpointUrl, null, securityMode, securityPolicyUri, ct);
         }
 
         /// <summary>
@@ -1135,7 +1137,8 @@ namespace Opc.Ua
             Uri endpointUrl,
             ITransportWaitingConnection connection,
             MessageSecurityMode securityMode,
-            string securityPolicyUri)
+            string securityPolicyUri,
+            CancellationToken ct = default)
         {
             // get the a discovery url.
             Uri discoveryUrl = GetDiscoveryUrl(endpointUrl);
@@ -1154,7 +1157,7 @@ namespace Opc.Ua
             try
             {
                 // get the endpoints.
-                EndpointDescriptionCollection collection = await client.GetEndpointsAsync(null).ConfigureAwait(false);
+                EndpointDescriptionCollection collection = await client.GetEndpointsAsync(null, ct).ConfigureAwait(false);
 
                 // find list of matching endpoints.
                 var matches = MatchEndpoints(

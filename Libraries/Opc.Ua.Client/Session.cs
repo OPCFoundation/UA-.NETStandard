@@ -852,6 +852,7 @@ namespace Opc.Ua.Client
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="identity">The identity.</param>
         /// <param name="preferredLocales">The user identity to associate with the session.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object</returns>
         public static Task<Session> Create(
             ApplicationConfiguration configuration,
@@ -860,9 +861,10 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales)
+            IList<string> preferredLocales,
+            CancellationToken ct = default)
         {
-            return Create(configuration, endpoint, updateBeforeConnect, false, sessionName, sessionTimeout, identity, preferredLocales);
+            return Create(configuration, endpoint, updateBeforeConnect, false, sessionName, sessionTimeout, identity, preferredLocales, ct);
         }
 
         /// <summary>
@@ -876,6 +878,7 @@ namespace Opc.Ua.Client
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="identity">The user identity to associate with the session.</param>
         /// <param name="preferredLocales">The preferred locales.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
         public static Task<Session> Create(
             ApplicationConfiguration configuration,
@@ -885,9 +888,10 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales)
+            IList<string> preferredLocales,
+            CancellationToken ct = default)
         {
-            return Create(configuration, null, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, identity, preferredLocales);
+            return Create(configuration, (ITransportWaitingConnection)null, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, identity, preferredLocales, ct);
         }
 
         /// <summary>
@@ -919,13 +923,15 @@ namespace Opc.Ua.Client
         /// <param name="endpoint">A configured endpoint to connect to.</param> 
         /// <param name="updateBeforeConnect">Update configuration based on server prior connect.</param>
         /// <param name="checkDomain">Check that the certificate specifies a valid domain (computer) name.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
         public static async Task<ITransportChannel> CreateChannelAsync(
             ApplicationConfiguration configuration,
             ITransportWaitingConnection connection,
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
-            bool checkDomain)
+            bool checkDomain,
+            CancellationToken ct = default)
         {
             endpoint.UpdateBeforeConnect = updateBeforeConnect;
 
@@ -945,7 +951,7 @@ namespace Opc.Ua.Client
             // update endpoint description using the discovery endpoint.
             if (endpoint.UpdateBeforeConnect && connection == null)
             {
-                endpoint.UpdateFromServer();
+                await endpoint.UpdateFromServerAsync(ct).ConfigureAwait(false);
                 endpointDescription = endpoint.Description;
                 endpointConfiguration = endpoint.Configuration;
             }
@@ -1008,6 +1014,7 @@ namespace Opc.Ua.Client
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="identity">The user identity to associate with the session.</param>
         /// <param name="preferredLocales">The preferred locales.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
         public static async Task<Session> Create(
             ApplicationConfiguration configuration,
@@ -1018,10 +1025,11 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales)
+            IList<string> preferredLocales,
+            CancellationToken ct = default)
         {
             // initialize the channel which will be created with the server.
-            ITransportChannel channel = await Session.CreateChannelAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain).ConfigureAwait(false);
+            ITransportChannel channel = await Session.CreateChannelAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain, ct).ConfigureAwait(false);
 
             // create the session object.
             Session session = new Session(channel, configuration, endpoint, null);
@@ -1064,7 +1072,7 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity userIdentity,
             IList<string> preferredLocales,
-            CancellationToken ct = default(CancellationToken)
+            CancellationToken ct = default
             )
         {
             if (reverseConnectManager == null)
@@ -1101,7 +1109,8 @@ namespace Opc.Ua.Client
                 sessionName,
                 sessionTimeout,
                 userIdentity,
-                preferredLocales).ConfigureAwait(false);
+                preferredLocales,
+                ct).ConfigureAwait(false);
         }
 
         /// <summary>
