@@ -28,9 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -80,6 +78,9 @@ namespace Opc.Ua.Client.Tests
 
             // create client
             ClientFixture = new ClientFixture();
+            ClientFixture.UseTracing = true;
+            ClientFixture.StartActivityListener();
+
             await ClientFixture.LoadClientConfiguration(PkiRoot).ConfigureAwait(false);
             await ClientFixture.StartReverseConnectHost().ConfigureAwait(false);
             m_endpointUrl = new Uri(Utils.ReplaceLocalhost("opc.tcp://localhost:" + ServerFixture.Port.ToString()));
@@ -93,6 +94,7 @@ namespace Opc.Ua.Client.Tests
         [OneTimeTearDown]
         public new Task OneTimeTearDownAsync()
         {
+            Utils.SilentDispose(ClientFixture);
             return base.OneTimeTearDownAsync();
         }
 

@@ -26,7 +26,7 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-#if NET6_0_OR_GREATER
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -227,4 +227,3 @@ namespace Opc.Ua.Client
         #endregion
     }
 }
-#endif

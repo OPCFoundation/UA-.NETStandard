@@ -105,6 +105,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out, m_pkiRoot).ConfigureAwait(false);
 
             m_clientFixture = new ClientFixture();
+            m_clientFixture.UseTracing = true;
+            m_clientFixture.StartActivityListener();
+
             await m_clientFixture.LoadClientConfiguration(m_pkiRoot).ConfigureAwait(false);
             m_clientFixture.Config.TransportQuotas.MaxMessageSize = 4 * 1024 * 1024;
             m_url = new Uri(m_uriScheme + "://localhost:" + m_serverFixture.Port.ToString());
@@ -131,6 +134,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 m_session = null;
             }
             await m_serverFixture.StopAsync().ConfigureAwait(false);
+            Utils.SilentDispose(m_clientFixture);
         }
 
         /// <summary>
