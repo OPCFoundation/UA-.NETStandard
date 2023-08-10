@@ -54,7 +54,10 @@ namespace Opc.Ua
         /// <summary>
         /// Creates an encoder that writes to the stream.
         /// </summary>
-        public BinaryEncoder(Stream stream, IServiceMessageContext context, bool leaveOpen = false)
+        /// <param name="stream">The stream to which the encoder writes.</param>
+        /// <param name="context">The message context to use for the encoding.</param>
+        /// <param name="leaveOpen">If the stream should be left open on dispose.</param>
+        public BinaryEncoder(Stream stream, IServiceMessageContext context, bool leaveOpen)
         {
             if (stream == null) throw new ArgumentNullException(nameof(stream));
 
@@ -207,7 +210,7 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes a session-less message to a buffer.
         /// </summary>
-        public static void EncodeSessionLessMessage(IEncodeable message, Stream stream, IServiceMessageContext context, bool leaveOpen = false)
+        public static void EncodeSessionLessMessage(IEncodeable message, Stream stream, IServiceMessageContext context, bool leaveOpen)
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
             if (context == null) throw new ArgumentNullException(nameof(context));
@@ -243,7 +246,7 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes a message in a stream.
         /// </summary>
-        public static void EncodeMessage(IEncodeable message, Stream stream, IServiceMessageContext context, bool leaveOpen = false)
+        public static void EncodeMessage(IEncodeable message, Stream stream, IServiceMessageContext context, bool leaveOpen)
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
             if (stream == null) throw new ArgumentNullException(nameof(stream));

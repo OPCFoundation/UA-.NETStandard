@@ -583,10 +583,9 @@ namespace Opc.Ua.Server
                 Factory = context.EncodeableFactory
             };
             strm.Position = 0;
-            using (BinaryDecoder decoder = new BinaryDecoder(strm, messageContext))
+            using (IDecoder decoder = new BinaryDecoder(strm, messageContext))
             {
                 trustList.Decode(decoder);
-                decoder.Close();
             }
             return trustList;
         }

@@ -441,7 +441,7 @@ namespace Opc.Ua.Bindings
                 try
                 {
                     using (MemoryStream ostrm = new MemoryStream(buffer, 0, kResponseBufferSize))
-                    using (BinaryEncoder encoder = new BinaryEncoder(ostrm, Quotas.MessageContext))
+                    using (BinaryEncoder encoder = new BinaryEncoder(ostrm, Quotas.MessageContext, false))
                     {
                         encoder.WriteUInt32(null, TcpMessageType.Acknowledge);
                         encoder.WriteUInt32(null, 0);

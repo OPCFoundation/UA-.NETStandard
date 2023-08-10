@@ -326,7 +326,7 @@ namespace Opc.Ua.Bindings
                     }
 
                     MemoryStream strm = new MemoryStream(chunkToProcess.Array, 0, SendBufferSize);
-                    BinaryEncoder encoder = new BinaryEncoder(strm, Quotas.MessageContext);
+                    BinaryEncoder encoder = new BinaryEncoder(strm, Quotas.MessageContext, false);
 
                     try
                     {
