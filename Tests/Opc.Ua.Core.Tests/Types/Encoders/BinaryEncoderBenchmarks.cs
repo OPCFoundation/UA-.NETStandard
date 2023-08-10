@@ -72,7 +72,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             using (var stream = new ArraySegmentStream(m_bufferManager, kBufferSize, 0, kBufferSize))
             {
-                using (var binaryEncoder = new BinaryEncoder(stream, m_context))
+                using (var binaryEncoder = new BinaryEncoder(stream, m_context, false))
                 {
                     TestEncoding(binaryEncoder);
                     _ = binaryEncoder.CloseAndReturnBuffer();

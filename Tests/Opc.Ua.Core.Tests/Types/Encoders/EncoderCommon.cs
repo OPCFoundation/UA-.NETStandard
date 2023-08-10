@@ -418,7 +418,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 case EncodingType.Binary:
                     Assume.That(useReversibleEncoding, "Binary encoding only supports reversible option.");
-                    return new BinaryEncoder(stream, context);
+                    return new BinaryEncoder(stream, context, false);
                 case EncodingType.Xml:
                     Assume.That(useReversibleEncoding, "Xml encoding only supports reversible option.");
                     var xmlWriter = XmlWriter.Create(stream);
