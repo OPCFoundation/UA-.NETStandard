@@ -740,7 +740,7 @@ namespace Opc.Ua
 
                 int last = reader.Peek();
 
-                for (int next = last; next != -1; next = reader.Peek(), last=next)
+                for (int next = last; next != -1; next = reader.Peek(), last = next)
                 {
                     if (!Char.IsDigit((char)next))
                     {
@@ -783,27 +783,20 @@ namespace Opc.Ua
                         }
                     }
 
-                    // check for invalid character.            
-                    if (next == '!' || next == ':' || next == '<' || next == '>' || next == '/' || next == '.')
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadSyntaxError,
-                            Utils.Format("Unexpected character '{0}' in browse path.", next));
-
-                    }
-
                     // check for escape character.
                     if (next == '&')
                     {
-                        // remove '&'
-                        next = reader.Read(); 
-                        // get escaped character without removing it
-                        next = reader.Peek();
+                        next = reader.Read();
+                        if (next == -1)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadSyntaxError,
+                                "Unexpected end after escape character '&'.");
+                        }
+                        next = reader.Read();
 
                         if (next == '!' || next == ':' || next == '<' || next == '>' || next == '/' || next == '.' || next == '#' || next == '&')
                         {
-                            // if valid, then remove it
-                            reader.Read(); 
                             buffer.Append((char)next);
                             continue;
                         }
@@ -811,15 +804,16 @@ namespace Opc.Ua
                         {
                             throw new ServiceResultException(
                                 StatusCodes.BadSyntaxError,
-                                Utils.Format("Invalid escape character '{0}' in browse path.", next));
+                                Utils.Format("Invalid escape sequence '&{0}' in browse path.", next));
                         }
                     }
-                    // handle non-escaped '#' character
-                    else if (next == '#') 
+
+                    // check for invalid character.
+                    if (next == '!' || next == ':' || next == '<' || next == '>' || next == '/' || next == '.' || next == '#' || next == '&')
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadSyntaxError,
-                            Utils.Format("Unexpected non-escaped character '{0}' in browse path.", next));
+                            Utils.Format("Unexpected character '{0}' in browse path.", next));
                     }
 
                     // append character.
@@ -833,8 +827,8 @@ namespace Opc.Ua
                     if (last != '>')
                     {
                         throw new ServiceResultException(
-                            StatusCodes.BadSyntaxError,
-                            Utils.Format("Missing file '>' for reference type name in browse path."));
+                        StatusCodes.BadSyntaxError,
+                        Utils.Format("Missing closing '>' for reference type name in browse path."));
                     }
                 }
 
