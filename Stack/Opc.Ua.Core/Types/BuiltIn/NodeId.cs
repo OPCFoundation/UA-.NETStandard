@@ -977,7 +977,7 @@ namespace Opc.Ua
                         return -1;
                     }
 
-                    if (this.IsNullNodeId && expandedId.InnerNodeId.IsNullNodeId)
+                    if (this.IsNullNodeId && (expandedId.InnerNodeId != null) && expandedId.InnerNodeId.IsNullNodeId)
                     {
                         return 0;
                     }
@@ -988,8 +988,23 @@ namespace Opc.Ua
                 }
                 else if (obj != null)
                 {
-                    // can not compare to unknown object type
-                    return -1;
+                    Guid? guid2 = obj as Guid?;
+                    Uuid? uuid2 = obj as Uuid?;
+                    if (guid2 != null || uuid2 != null)
+                    {
+                        if (namespaceIndex != 0 || idType != IdType.Guid)
+                        {
+                            return -1;
+                        }
+
+                        idType = IdType.Guid;
+                        id = m_identifier;
+                    }
+                    else
+                    {
+                        // can not compare to unknown object type
+                        return -1;
+                    }
                 }
             }
 
@@ -1103,7 +1118,7 @@ namespace Opc.Ua
 
             return CompareTo(idType, id);
         }
-        #endregion
+#endregion
 
         #region public static bool operator>(NodeId value1, NodeId value2)
         /// <summary>
@@ -1141,7 +1156,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        #endregion
+#endregion
 
         #region IFormattable Members
 
