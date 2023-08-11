@@ -709,8 +709,11 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             ExpandedNodeId[] expandedNodeIds2 = new ExpandedNodeId[] { new ExpandedNodeId((byte[])null), new ExpandedNodeId((byte[])null) };
             DataValue dv1 = new DataValue(expandedNodeIds1);
             DataValue dv2 = new DataValue(expandedNodeIds2);
-
             Assert.DoesNotThrow(() => dv1.Equals(dv2));
+
+            ExpandedNodeId byteArrayNodeId = new ExpandedNodeId((byte[])null);
+            ExpandedNodeId expandedNodeId = new ExpandedNodeId((NodeId)null);
+            Assert.DoesNotThrow(() => byteArrayNodeId.Equals(expandedNodeId));
         }
         #endregion
 
