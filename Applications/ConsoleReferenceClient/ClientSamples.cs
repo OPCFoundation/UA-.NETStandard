@@ -930,9 +930,13 @@ namespace Quickstarts
             DataValue value,
             bool jsonReversible)
         {
-            var jsonEncoder = new JsonEncoder(messageContext, jsonReversible);
-            jsonEncoder.WriteDataValue(name, value);
-            var textbuffer = jsonEncoder.CloseAndReturnText();
+            string textbuffer;
+            using (var jsonEncoder = new JsonEncoder(messageContext, jsonReversible))
+            {
+                jsonEncoder.WriteDataValue(name, value);
+                textbuffer = jsonEncoder.CloseAndReturnText();
+            }
+
             // prettify
             using (var stringWriter = new StringWriter())
             {

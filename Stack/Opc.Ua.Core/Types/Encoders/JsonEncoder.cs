@@ -22,7 +22,7 @@ namespace Opc.Ua
     /// <summary>
     /// Writes objects to a JSON stream.
     /// </summary>
-    public class JsonEncoder : IJsonEncoder, IDisposable
+    public class JsonEncoder : IJsonEncoder
     {
         #region Private Fields
         private const int kStreamWriterBufferSize = 1024;
@@ -157,7 +157,7 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes a session-less message to a buffer.
         /// </summary>
-        public static void EncodeSessionLessMessage(IEncodeable message, Stream stream, IServiceMessageContext context, bool leaveOpen = false)
+        public static void EncodeSessionLessMessage(IEncodeable message, Stream stream, IServiceMessageContext context, bool leaveOpen)
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
             if (context == null) throw new ArgumentNullException(nameof(context));
@@ -296,10 +296,6 @@ namespace Opc.Ua
             int length = (int)m_writer.BaseStream.Position;
             m_writer.Dispose();
             m_writer = null;
-            if (m_leaveOpen)
-            {
-                m_stream.Position = 0;
-            }
             return length;
         }
         #endregion
@@ -324,6 +320,14 @@ namespace Opc.Ua
                 if (m_writer != null)
                 {
                     Close();
+                }
+
+                if (!m_leaveOpen)
+                {
+                    Utils.SilentDispose(m_memoryStream);
+                    Utils.SilentDispose(m_stream);
+                    m_memoryStream = null;
+                    m_stream = null;
                 }
             }
         }

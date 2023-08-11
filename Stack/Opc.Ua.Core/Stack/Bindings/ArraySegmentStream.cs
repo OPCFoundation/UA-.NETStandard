@@ -19,7 +19,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Provides stream access to a sequence of buffers.
     /// </summary>
-    public class ArraySegmentStream : Stream
+    public class ArraySegmentStream : MemoryStream
     {
         #region Constructors
         /// <summary>
@@ -225,6 +225,8 @@ namespace Opc.Ua.Bindings
 
             int position = (int)offset;
 
+            CheckEndOfStream();
+
             for (int ii = 0; ii < m_buffers.Count; ii++)
             {
                 int length = GetBufferCount(ii);
@@ -258,7 +260,7 @@ namespace Opc.Ua.Bindings
 
                 int bytesLeft = m_currentBuffer.Count - m_currentPosition;
 
-                // copy the bytes requested.
+                // copy the byte requested.
                 if (bytesLeft >= 1)
                 {
                     m_currentBuffer.Array[m_currentBuffer.Offset + m_currentPosition] = value;
@@ -318,6 +320,32 @@ namespace Opc.Ua.Bindings
                 // move to next buffer.
                 SetCurrentBuffer(m_bufferIndex + 1);
             }
+        }
+
+        /// <summary cref="MemoryStream.ToArray()" />
+        public override byte[] ToArray()
+        {
+            int absoluteLength = GetAbsoluteLength();
+            if (absoluteLength == 0)
+            {
+                return Array.Empty<byte>();
+            }
+
+#if NET6_0_OR_GREATER
+            byte[] buffer = GC.AllocateUninitializedArray<byte>(absoluteLength);
+#else
+            byte[] buffer = new byte[absoluteLength];
+#endif
+
+            int offset = 0;
+            for (int ii = 0; ii < m_buffers.Count; ii++)
+            {
+                int length = GetBufferCount(ii);
+                Array.Copy(m_buffers[ii].Array, m_buffers[ii].Offset, buffer, offset, length);
+                offset += length;
+            }
+
+            return buffer;
         }
         #endregion
 

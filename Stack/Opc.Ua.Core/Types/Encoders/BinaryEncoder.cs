@@ -22,7 +22,7 @@ namespace Opc.Ua
     /// <summary>
     /// Encodes objects in a stream using the UA Binary encoding.
     /// </summary>
-    public class BinaryEncoder : IEncoder, IDisposable
+    public class BinaryEncoder : IEncoder
     {
         #region Constructor
         /// <summary>
@@ -54,7 +54,10 @@ namespace Opc.Ua
         /// <summary>
         /// Creates an encoder that writes to the stream.
         /// </summary>
-        public BinaryEncoder(Stream stream, IServiceMessageContext context, bool leaveOpen = false)
+        /// <param name="stream">The stream to which the encoder writes.</param>
+        /// <param name="context">The message context to use for the encoding.</param>
+        /// <param name="leaveOpen">If the stream should be left open on dispose.</param>
+        public BinaryEncoder(Stream stream, IServiceMessageContext context, bool leaveOpen)
         {
             if (stream == null) throw new ArgumentNullException(nameof(stream));
 
@@ -73,6 +76,7 @@ namespace Opc.Ua
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -124,12 +128,26 @@ namespace Opc.Ua
         /// </summary>
         public byte[] CloseAndReturnBuffer()
         {
-            m_writer.Flush();
-            m_writer.Dispose();
+            Close();
 
             if (m_ostrm is MemoryStream memoryStream)
             {
                 return memoryStream.ToArray();
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Completes writing and returns the buffer as base64 encoded string.
+        /// </summary>
+        public string CloseAndReturnText()
+        {
+            Close();
+
+            if (m_ostrm is MemoryStream memoryStream)
+            {
+                return Convert.ToBase64String(memoryStream.ToArray());
             }
 
             return null;
@@ -192,15 +210,13 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes a session-less message to a buffer.
         /// </summary>
-        public static void EncodeSessionLessMessage(IEncodeable message, Stream stream, IServiceMessageContext context, bool leaveOpen = false)
+        public static void EncodeSessionLessMessage(IEncodeable message, Stream stream, IServiceMessageContext context, bool leaveOpen)
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
             if (context == null) throw new ArgumentNullException(nameof(context));
 
             // create encoder.
-            BinaryEncoder encoder = new BinaryEncoder(stream, context);
-
-            try
+            using (BinaryEncoder encoder = new BinaryEncoder(stream, context, leaveOpen))
             {
                 long start = encoder.m_ostrm.Position;
 
@@ -225,35 +241,22 @@ namespace Opc.Ua
                         (int)(encoder.m_ostrm.Position - start));
                 }
             }
-            finally
-            {
-                // close encoder.
-                if (!leaveOpen)
-                {
-                    encoder.CloseAndReturnBuffer();
-                }
-            }
         }
 
         /// <summary>
         /// Encodes a message in a stream.
         /// </summary>
-        public static void EncodeMessage(IEncodeable message, Stream stream, IServiceMessageContext context, bool leaveOpen = false)
+        public static void EncodeMessage(IEncodeable message, Stream stream, IServiceMessageContext context, bool leaveOpen)
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
             if (stream == null) throw new ArgumentNullException(nameof(stream));
             if (context == null) throw new ArgumentNullException(nameof(context));
 
             // create encoder.
-            BinaryEncoder encoder = new BinaryEncoder(stream, context);
-
-            // encode message
-            encoder.EncodeMessage(message);
-
-            // close encoder.
-            if (!leaveOpen)
+            using (BinaryEncoder encoder = new BinaryEncoder(stream, context, leaveOpen))
             {
-                encoder.CloseAndReturnBuffer();
+                // encode message
+                encoder.EncodeMessage(message);
             }
         }
 
@@ -916,10 +919,12 @@ namespace Opc.Ua
             // must pre-encode and then write the bytes.
             else
             {
-                BinaryEncoder encoder = new BinaryEncoder(this.m_context);
-                encoder.WriteEncodeable(null, encodeable, null);
-                bytes = encoder.CloseAndReturnBuffer();
-                WriteByteString(null, bytes);
+                using (BinaryEncoder encoder = new BinaryEncoder(this.m_context))
+                {
+                    encoder.WriteEncodeable(null, encodeable, null);
+                    bytes = encoder.CloseAndReturnBuffer();
+                    WriteByteString(null, bytes);
+                }
             }
         }
 
