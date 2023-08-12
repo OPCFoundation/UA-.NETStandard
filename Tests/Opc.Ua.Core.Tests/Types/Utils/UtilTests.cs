@@ -290,6 +290,68 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.AreEqual(false, settings.CloseInput);
         }
         #endregion
+
+        #region RelativePath.Parse Escaping
+
+        /// <summary>
+        /// Parse a path containing non-escaped hash character.
+        /// </summary>
+        [Test]
+        public void RelativePathParseNonEscapedHash()
+        {
+            TypeTable typeTable = new TypeTable(new NamespaceTable());
+            string str = "/abc#def";
+            Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable).Format(typeTable));
+        }
+
+        /// <summary>
+        /// Parse a path containing correctly escaped hash character.
+        /// </summary>
+        [Test]
+        public void RelativePathParseEscapedHash()
+        {
+            TypeTable typeTable = new TypeTable(new NamespaceTable());
+            string str = "/abc&#def";
+            string expected = "/abc#def";
+            Assert.AreEqual(expected, RelativePath.Parse(str, typeTable).Format(typeTable));
+        }
+
+        /// <summary>
+        /// Parse a path containing correctly escaped hash character folowed by exclamation.
+        /// </summary>
+        [Test]
+        public void RelativePathParseEscapedHashFollowedByExclamation()
+        {
+            TypeTable typeTable = new TypeTable(new NamespaceTable());
+            string str = "/abc&#!def";
+            Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable).Format(typeTable));
+        }
+
+        /// <summary>
+        /// Parse a path containing correctly escaped hash character by exclamation within the reference type delimeters.
+        /// </summary>
+        [Test]
+        public void RelativePathParseEscapedHashFollowedByExclamationInReferenceType()
+        {
+            TypeTable typeTable = new TypeTable(new NamespaceTable());
+            string str = "<abc&#!def>";
+            Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable).Format(typeTable));
+        }
+
+        /// <summary>
+        /// Parse a path containing incorrectly escaped character sequence.
+        /// </summary>
+        [Test]
+        public void RelativePathParseInvalidEscapeSequence()
+        {
+            TypeTable typeTable = new TypeTable(new NamespaceTable());
+            string str = "/abc&$!def";
+            Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable).Format(typeTable));
+        }
+
+
+        #endregion
+
     }
 
 }
