@@ -16,6 +16,7 @@
 
 using System;
 using System.Security.Cryptography.X509Certificates;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
@@ -145,19 +146,34 @@ namespace Opc.Ua
                         (Environment.OSVersion.Platform == PlatformID.Win32NT))
                     {
                         // see https://github.com/dotnet/runtime/issues/29144
-                        var temp = X509Utils.GeneratePasscode();
-                        using (var persistable = new X509Certificate2(certificate.Export(X509ContentType.Pfx, temp), temp,
+                        var tempPass = X509Utils.GeneratePasscode();
+                        //ensure we control the temp file creation and deletion.
+                        // If you import a byte array a temp file is created and that may not be deleted.
+                        var tempFileName = Path.GetTempFileName();
+                        var tempCertificate = certificate.Export(X509ContentType.Pfx, tempPass);
+
+                        using (var tempFile = new FileStream(tempFileName, FileMode.Open))
+                        {
+                            tempFile.Write(tempCertificate,0, tempCertificate.Length);
+                        }
+
+                        using (var persistable = new X509Certificate2(tempFileName, tempPass,
                             X509KeyStorageFlags.PersistKeySet))
                         {
                             store.Add(persistable);
                         }
+                        File.Delete(tempFileName);
                     }
                     else
 #endif
                     if (certificate.HasPrivateKey && m_noPrivateKeys)
                     {
                         // ensure no private key is added to store
-                        store.Add(new X509Certificate2(certificate.RawData));
+                        // ensure the interim certificate is disposed after use
+                        using (X509Certificate2 cert = new X509Certificate2(certificate.RawData))
+                        {
+                            store.Add(cert);
+                        }
                     }
                     else
                     {

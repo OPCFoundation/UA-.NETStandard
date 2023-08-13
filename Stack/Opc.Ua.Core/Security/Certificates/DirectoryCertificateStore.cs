@@ -18,6 +18,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Types.Utils;
 
 namespace Opc.Ua
 {
@@ -49,7 +50,7 @@ namespace Opc.Ua
         public DirectoryCertificateStore(bool noSubDirs)
         {
             m_noSubDirs = noSubDirs;
-            m_certificates = new Dictionary<string, Entry>();
+            m_certificates = new DisposableDictionary<string, Entry>();
         }
 
 
@@ -74,7 +75,7 @@ namespace Opc.Ua
             {
                 lock (m_lock)
                 {
-                    m_certificates.Clear();
+                    m_certificates.Dispose();
                     m_directory = null;
                     m_certificateSubdir = null;
                     m_privateKeySubdir = null;
@@ -921,12 +922,39 @@ namespace Opc.Ua
         #endregion
 
         #region Private Class
-        private class Entry
+        private class Entry : IDisposable
         {
             public FileInfo CertificateFile;
             public X509Certificate2 Certificate;
             public FileInfo PrivateKeyFile;
             public X509Certificate2 CertificateWithPrivateKey;
+            private bool m_disposedValue;
+
+            #region IDisposable
+            protected virtual void Dispose(bool disposing)
+            {
+                if (!m_disposedValue)
+                {
+                    Certificate?.Dispose();
+                    CertificateWithPrivateKey?.Dispose();
+
+                    m_disposedValue = true;
+                }
+            }
+
+            ~Entry()
+            {
+                 // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+                 Dispose(disposing: false);
+            }
+
+            public void Dispose()
+            {
+                // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+                Dispose(disposing: true);
+                GC.SuppressFinalize(this);
+            }
+            #endregion
         }
         #endregion
 
@@ -937,7 +965,7 @@ namespace Opc.Ua
         private DirectoryInfo m_certificateSubdir;
         private DirectoryInfo m_crlSubdir;
         private DirectoryInfo m_privateKeySubdir;
-        private Dictionary<string, Entry> m_certificates;
+        private DisposableDictionary<string, Entry> m_certificates;
         private DateTime m_lastDirectoryCheck;
         #endregion
     }
