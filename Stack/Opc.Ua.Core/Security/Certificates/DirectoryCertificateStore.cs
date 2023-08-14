@@ -238,6 +238,12 @@ namespace Opc.Ua
                                 entry.CertificateFile.Delete();
                                 found = true;
                             }
+                            entry.Dispose();
+                        }
+                        if(m_certificates.ContainsKey(thumbprint))
+                        {
+                            m_certificates[thumbprint].Dispose();
+                            m_certificates.Remove(thumbprint);
                         }
                         retry = 0;
                     }
@@ -413,6 +419,8 @@ namespace Opc.Ua
                         password = password ?? String.Empty;
                         if (privateKeyFilePfx.Exists)
                         {
+                            certificate?.Dispose();
+                            certificate = null;
                             certificateFound = true;
                             foreach (var flag in storageFlags)
                             {
@@ -438,6 +446,8 @@ namespace Opc.Ua
                         // if PFX file doesn't exist, check for PEM file.
                         else if (privateKeyFilePem.Exists)
                         {
+                            certificate?.Dispose();
+                            certificate = null;
                             certificateFound = true;
                             try
                             {
