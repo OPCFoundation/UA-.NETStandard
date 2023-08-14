@@ -1111,18 +1111,6 @@ namespace Opc.Ua.Test
                 }
             }
 
-            if (value2 == null)
-            {
-                if (value1 == null || value1.GetEnumerator().MoveNext() == false)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-
             IEnumerator<T> enumerator1 = value1.GetEnumerator();
             IEnumerator<T> enumerator2 = value2.GetEnumerator();
 
