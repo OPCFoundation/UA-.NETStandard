@@ -887,7 +887,7 @@ namespace Opc.Ua
 
             if (m_userWriteMask != AttributeWriteMask.None)
             {
-                attributesToSave |= AttributesToSave.UserAccessLevel;
+                attributesToSave |= AttributesToSave.UserWriteMask;
             }
 
             return attributesToSave;
