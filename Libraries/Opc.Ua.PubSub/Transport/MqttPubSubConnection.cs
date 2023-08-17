@@ -245,7 +245,7 @@ namespace Opc.Ua.PubSub.Transport
                             {
                                 var message = new MqttApplicationMessage {
                                     Topic = queueName,
-                                    Payload = bytes,
+                                    PayloadSegment = (ArraySegment<byte>)bytes,
                                     QualityOfServiceLevel = GetMqttQualityOfServiceLevel(qos),
                                     Retain = networkMessage.IsMetaDataMessage
                                 };
@@ -548,7 +548,7 @@ namespace Opc.Ua.PubSub.Transport
             {
                 // raise RawData received event
                 RawDataReceivedEventArgs rawDataReceivedEventArgs = new RawDataReceivedEventArgs() {
-                    Message = eventArgs.ApplicationMessage.Payload,
+                    Message = eventArgs.ApplicationMessage.PayloadSegment.ToArray(),
                     Source = topic,
                     TransportProtocol = this.TransportProtocol,
                     MessageMapping = m_messageMapping,
@@ -571,7 +571,7 @@ namespace Opc.Ua.PubSub.Transport
                 // trigger message decoding
                 if (networkMessage != null)
                 {
-                    networkMessage.Decode(MessageContext, eventArgs.ApplicationMessage.Payload, dataSetReaders);
+                    networkMessage.Decode(MessageContext, eventArgs.ApplicationMessage.PayloadSegment.ToArray(), dataSetReaders);
 
                     // Handle the decoded message and raise the necessary event on UaPubSubApplication 
                     ProcessDecodedNetworkMessage(networkMessage, topic);
