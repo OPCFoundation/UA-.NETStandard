@@ -1061,7 +1061,7 @@ namespace Opc.Ua.Test
 
             if (encodeable1 != null && encodeable2 != null)
             {
-                if (encodeable1.IsEqual(encodeable1))
+                if (encodeable1.IsEqual(encodeable2))
                 {
                     return true;
                 }
