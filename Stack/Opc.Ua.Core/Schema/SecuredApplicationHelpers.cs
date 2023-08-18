@@ -424,6 +424,15 @@ namespace Opc.Ua.Security
             policy.Enabled = false;
             return policy;
         }
+
+        /// <summary>
+        ///  TODO: Holds the application certificates but should be generated and the Opc.Ua.Security namespace automatically 
+        ///  TODO: Should replace ApplicationCertificateField in the generated Opc.Ua.Security.SecuredApplication class
+        /// </summary>
+        public CertificateList ApplicationCertificates
+        {
+            get; set;
+        }
     }
 
     /// <summary>

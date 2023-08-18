@@ -1749,6 +1749,21 @@ namespace Opc.Ua
                 });
 
         /// <summary>
+        /// Dictionary of named curves and their bit sizes.
+        /// </summary>
+        private static readonly Dictionary<string, int> NamedCurveBitSizes = new Dictionary<string, int>
+        {
+            // NIST Curves
+            { "1.2.840.10045.3.1.7", 256 },    // secp256r1 or prime256v1 or NIST P-256
+            { "1.3.132.0.34", 384 },           // secp384r1 or NIST P-384
+            { "1.3.132.0.35", 521 },           // secp521r1 or NIST P-521
+
+            // Brainpool Curves
+            { "1.3.36.3.3.2.8.1.1.7", 256 },   // BrainpoolP256r1
+            { "1.3.36.3.3.2.8.1.1.11", 384 },  // BrainpoolP384r1
+        };
+
+        /// <summary>
         /// Find the domain in a certificate in the
         /// endpoint that was used to connect a session.
         /// </summary>
@@ -1823,18 +1838,43 @@ namespace Opc.Ua
 
                 ECCurve curve = ecdsa.ExportParameters(false).Curve;
 
-                int curveKeySizeInBits = curve.Order.Length * 8;
-
-                // Check if the curve key size is at least as large as the required key size
-                if (curveKeySizeInBits < requiredKeySizeInBits)
+                if (curve.IsNamed)
                 {
-                    return false;
+                    if (NamedCurveBitSizes.TryGetValue(curve.Oid.Value, out int curveSize))
+                    {
+                        return curveSize >= requiredKeySizeInBits;
+                    }
+                    throw new NotSupportedException($"Unknown named curve: {curve.Oid.Value}");
                 }
-
-                // The curve is secure enough for the profile
-                return true;
+                else
+                {
+                    throw new NotSupportedException("Unsupported curve type.");
+                }
             }
         }
+        // public static bool IsECSecureForProfile(X509Certificate2 certificate, int requiredKeySizeInBits)
+        // {
+        //     using (ECDsa ecdsa = certificate.GetECDsaPublicKey())
+        //     {
+        //         if (ecdsa == null)
+        //         {
+        //             throw new ArgumentException("Certificate does not contain an ECC public key");
+        //         }
+
+        //         ECCurve curve = ecdsa.ExportParameters(false).Curve;
+
+        //         int curveKeySizeInBits = curve.Order.Length * 8;
+
+        //         // Check if the curve key size is at least as large as the required key size
+        //         if (curveKeySizeInBits < requiredKeySizeInBits)
+        //         {
+        //             return false;
+        //         }
+
+        //         // The curve is secure enough for the profile
+        //         return true;
+        //     }
+        // }
         #endregion
 
         #region Private Enum

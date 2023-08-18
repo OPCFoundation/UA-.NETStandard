@@ -841,7 +841,7 @@ namespace Opc.Ua
         /// The application instance certificates in use for the application.
         /// </summary>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 15)]
-        public CertificateIdentifierCollection ListOfCertificateIdentifier
+        public CertificateIdentifierCollection ApplicationCertificates
         {
             get => m_applicationCertificates;
             set
@@ -1166,6 +1166,7 @@ namespace Opc.Ua
         public bool IsDeprecatedConfiguration
         {
             get { return m_isDeprecatedConfiguration; }
+            set { m_isDeprecatedConfiguration = value; }
         }
 
         #endregion
@@ -2992,7 +2993,7 @@ namespace Opc.Ua
     #endregion
 
     #region CertificateIdentifierCollection Class
-    [CollectionDataContract(Name = "ListOfCertificateIdentifier", Namespace = Namespaces.OpcUaConfig, ItemName = "CertificateIdentifier")]
+    [CollectionDataContract(Name = "ApplicationCertificates", Namespace = Namespaces.OpcUaConfig, ItemName = "CertificateIdentifier")]
     public partial class CertificateIdentifierCollection : List<CertificateIdentifier>
     {
         /// <summary>

@@ -181,18 +181,6 @@ namespace Opc.Ua.Client
                     m_instanceCertificate = clientCertificate;
                 }
 
-                // check for valid certificate.
-                if (m_instanceCertificate == null)
-                {
-#pragma warning disable CS0618 // Type or member is obsolete
-                    var cert = m_configuration.SecurityConfiguration.ApplicationCertificate;
-#pragma warning restore CS0618 // Type or member is obsolete
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadConfigurationError,
-                        "Cannot find the application instance certificate. Store={0}, SubjectName={1}, Thumbprint={2}.",
-                        cert.StorePath, cert.SubjectName, cert.Thumbprint);
-                }
-
                 // check for private key.
                 if (!m_instanceCertificate.HasPrivateKey)
                 {

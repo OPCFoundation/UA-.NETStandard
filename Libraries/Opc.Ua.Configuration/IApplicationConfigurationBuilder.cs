@@ -460,7 +460,7 @@ namespace Opc.Ua.Configuration
         /// Rsa,nistP256,nistP384,brainpoolP256r1,brainpoolP384r1
         /// </remarks>
         /// <param name="certIdList">A list of Certificate identifiers</param>
-        IApplicationConfigurationBuilderSecurityOptions SetListOfCertificateIdentifier(CertificateIdentifierCollection certIdList);
+        IApplicationConfigurationBuilderSecurityOptions SetApplicationCertificates(CertificateIdentifierCollection certIdList);
 
         /// <summary>
         /// Whether an unknown application certificate should be accepted

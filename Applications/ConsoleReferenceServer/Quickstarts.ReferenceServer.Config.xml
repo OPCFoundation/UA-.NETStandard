@@ -13,7 +13,7 @@
   <SecurityConfiguration>
 
     <!-- Which certificate types are supported  -->
-    <ListOfCertificateIdentifier>
+    <ApplicationCertificates>
       <CertificateIdentifier>
         <StoreType>Directory</StoreType>
         <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
@@ -50,7 +50,7 @@
         <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
         <CertificateType><ua:Identifier>i=23541</ua:Identifier></CertificateType>
       </CertificateIdentifier>
-    </ListOfCertificateIdentifier>
+    </ApplicationCertificates>
 
     <!-- Where the other application certificates are stored -->
 

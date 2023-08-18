@@ -408,7 +408,7 @@ namespace Opc.Ua.Configuration
         {
             // TODO: delete only selected profiles
             if (m_applicationConfiguration == null) throw new ArgumentException("Missing configuration.");
-            foreach (var id in m_applicationConfiguration.SecurityConfiguration.ListOfCertificateIdentifier)
+            foreach (var id in m_applicationConfiguration.SecurityConfiguration.ApplicationCertificates)
             {
                 await DeleteApplicationInstanceCertificate(m_applicationConfiguration, id).ConfigureAwait(false);
             }
@@ -435,13 +435,13 @@ namespace Opc.Ua.Configuration
             // find the existing certificates.
             SecurityConfiguration securityConfiguration = m_applicationConfiguration.SecurityConfiguration;
 
-            if (securityConfiguration.ListOfCertificateIdentifier.Count == 0)
+            if (securityConfiguration.ApplicationCertificates.Count == 0)
             {
                 throw new ServiceResultException(StatusCodes.BadConfigurationError, "Need at least one Application Certificate.");
             }
 
             bool result = true;
-            foreach (var certId in securityConfiguration.ListOfCertificateIdentifier)
+            foreach (var certId in securityConfiguration.ApplicationCertificates)
             {
                 bool nextResult = await CheckCertificateTypeAsync(certId, silent, minimumKeySize, lifeTimeInMonths).ConfigureAwait(false);
                 result = result && nextResult;

@@ -35,6 +35,15 @@ namespace Opc.Ua
         /// Supported values are 1024(deprecated), 2048, 3072 or 4096.
         /// </remarks>
         public static readonly ushort DefaultKeySize = 2048;
+
+        /// <summary>
+        /// The default key size for ECC certificates in bits.
+        /// </summary>
+        /// <remarks>
+        /// Supported values are 256, 384 or 521.
+        /// </remarks>
+        public static readonly ushort DefaultECCKeySize = 256;
+
         /// <summary>
         /// The default hash size for RSA certificates in bits.
         /// </summary>

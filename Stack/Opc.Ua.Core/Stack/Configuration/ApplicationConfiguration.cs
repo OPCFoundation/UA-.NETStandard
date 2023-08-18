@@ -437,7 +437,7 @@ namespace Opc.Ua
             SecurityConfiguration.Validate();
 
             // load private keys
-            foreach (var applicationCertificate in SecurityConfiguration.ListOfCertificateIdentifier)
+            foreach (var applicationCertificate in SecurityConfiguration.ApplicationCertificates)
             {
                 await applicationCertificate.LoadPrivateKeyEx(SecurityConfiguration.CertificatePasswordProvider).ConfigureAwait(false);
             }

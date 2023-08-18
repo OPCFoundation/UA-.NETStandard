@@ -33,6 +33,8 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using System.Xml;
+using Opc.Ua.Security;
+
 
 namespace Opc.Ua.Server
 {
@@ -122,15 +124,20 @@ namespace Opc.Ua.Server
             ServerCertificateGroup defaultApplicationGroup = new ServerCertificateGroup {
                 NodeId = Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
                 BrowseName = Opc.Ua.BrowseNames.DefaultApplicationGroup,
-                // TODO
-                CertificateTypes = new NodeId[] { ObjectTypeIds.RsaSha256ApplicationCertificateType },
-                // TODO
-#pragma warning disable CS0618 // Type or member is obsolete
-                ApplicationCertificate = configuration.SecurityConfiguration.ApplicationCertificate,
-#pragma warning restore CS0618 // Type or member is obsolete
+                CertificateTypes = new NodeId[]{},
+                ApplicationCertificates = new CertificateIdentifierCollection(),
                 IssuerStorePath = configuration.SecurityConfiguration.TrustedIssuerCertificates.StorePath,
                 TrustedStorePath = configuration.SecurityConfiguration.TrustedPeerCertificates.StorePath
             };
+
+            // For each certificate in ApplicationCertificates, add the certificate type to ServerConfiguration_CertificateGroups_DefaultApplicationGroup
+            // under the CertificateTypes field.
+            foreach (var cert in configuration.SecurityConfiguration.ApplicationCertificates)
+            {
+                defaultApplicationGroup.CertificateTypes = defaultApplicationGroup.CertificateTypes.Concat(new NodeId[] { cert.CertificateType }).ToArray();
+                defaultApplicationGroup.ApplicationCertificates.Add(cert);
+            }
+
             m_certificateGroups.Add(defaultApplicationGroup);
         }
         #endregion
@@ -403,6 +410,19 @@ namespace Opc.Ua.Server
                 ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(certificateGroupId, certificateTypeId);
                 certificateGroup.UpdateCertificate = null;
 
+                // identify the existing certificate to be updated
+                // it should be of the same type and same subject name as the new certificate
+                CertificateIdentifier existingCertIdentifier = certificateGroup.ApplicationCertificates.FirstOrDefault(cert => 
+                    X509Utils.CompareDistinguishedName(cert.Certificate.Subject, newCert.Subject) &&
+                    cert.CertificateType == certificateTypeId);
+
+                // if there is no such existing certificate then this is an error
+                if (existingCertIdentifier == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidArgument, "No existing certificate found for the specified certificate type and subject name.");
+                }
+
+
                 X509Certificate2Collection newIssuerCollection = new X509Certificate2Collection();
 
                 try
@@ -429,7 +449,7 @@ namespace Opc.Ua.Server
                 // TODO: An issuer may modify the subject of an issued certificate,
                 // but then the configuration must be updated too!
                 // NOTE: not a strict requirement here for ASN.1 byte compare 
-                if (!X509Utils.CompareDistinguishedName(certificateGroup.ApplicationCertificate.Certificate.Subject, newCert.Subject))
+                if (!X509Utils.CompareDistinguishedName(existingCertIdentifier.Certificate.Subject, newCert.Subject))
                 {
                     throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Subject Name of new certificate doesn't match the application.");
                 }
@@ -472,19 +492,19 @@ namespace Opc.Ua.Server
                         case null:
                         case "":
                         {
-                            X509Certificate2 certWithPrivateKey = certificateGroup.ApplicationCertificate.LoadPrivateKeyEx(passwordProvider).Result;
+                            X509Certificate2 certWithPrivateKey = existingCertIdentifier.LoadPrivateKeyEx(passwordProvider).Result;
                             updateCertificate.CertificateWithPrivateKey = CertificateFactory.CreateCertificateWithPrivateKey(newCert, certWithPrivateKey);
                             break;
                         }
                         case "PFX":
                         {
-                            X509Certificate2 certWithPrivateKey = X509Utils.CreateCertificateFromPKCS12(privateKey, passwordProvider?.GetPassword(certificateGroup.ApplicationCertificate));
+                            X509Certificate2 certWithPrivateKey = X509Utils.CreateCertificateFromPKCS12(privateKey, passwordProvider?.GetPassword(existingCertIdentifier));
                             updateCertificate.CertificateWithPrivateKey = CertificateFactory.CreateCertificateWithPrivateKey(newCert, certWithPrivateKey);
                             break;
                         }
                         case "PEM":
                         {
-                            updateCertificate.CertificateWithPrivateKey = CertificateFactory.CreateCertificateWithPEMPrivateKey(newCert, privateKey, passwordProvider?.GetPassword(certificateGroup.ApplicationCertificate));
+                            updateCertificate.CertificateWithPrivateKey = CertificateFactory.CreateCertificateWithPEMPrivateKey(newCert, privateKey, passwordProvider?.GetPassword(existingCertIdentifier));
                             break;
                         }
                     }
@@ -504,13 +524,13 @@ namespace Opc.Ua.Server
                     try
                     {
                         // TODO
-                        using (ICertificateStore appStore = certificateGroup.ApplicationCertificate.OpenStore())
+                        using (ICertificateStore appStore = existingCertIdentifier.OpenStore())
                         {
-                            Utils.LogCertificate(Utils.TraceMasks.Security, "Delete application certificate: ", certificateGroup.ApplicationCertificate.Certificate);
-                            appStore.Delete(certificateGroup.ApplicationCertificate.Thumbprint).Wait();
+                            Utils.LogCertificate(Utils.TraceMasks.Security, "Delete application certificate: ", existingCertIdentifier.Certificate);
+                            appStore.Delete(existingCertIdentifier.Thumbprint).Wait();
                             Utils.LogCertificate(Utils.TraceMasks.Security, "Add new application certificate: ", updateCertificate.CertificateWithPrivateKey);
                             var passwordProvider = m_configuration.SecurityConfiguration.CertificatePasswordProvider;
-                            appStore.Add(updateCertificate.CertificateWithPrivateKey, passwordProvider?.GetPassword(certificateGroup.ApplicationCertificate)).Wait();
+                            appStore.Add(updateCertificate.CertificateWithPrivateKey, passwordProvider?.GetPassword(existingCertIdentifier)).Wait();
                             // keep only track of cert without private key
                             var certOnly = new X509Certificate2(updateCertificate.CertificateWithPrivateKey.RawData);
                             updateCertificate.CertificateWithPrivateKey.Dispose();
@@ -568,6 +588,11 @@ namespace Opc.Ua.Server
 
             ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(certificateGroupId, certificateTypeId);
 
+            // identify the existing certificate for which to CreateSigningRequest
+            // it should be of the same type
+            CertificateIdentifier existingCertIdentifier = certificateGroup.ApplicationCertificates.FirstOrDefault(cert =>
+                cert.CertificateType == certificateTypeId);
+
             if (!String.IsNullOrEmpty(subjectName))
             {
                 throw new ArgumentNullException(nameof(subjectName));
@@ -577,7 +602,7 @@ namespace Opc.Ua.Server
             // TODO: use nonce for generating the private key
 
             var passwordProvider = m_configuration.SecurityConfiguration.CertificatePasswordProvider;
-            X509Certificate2 certWithPrivateKey = certificateGroup.ApplicationCertificate.LoadPrivateKeyEx(passwordProvider).Result;
+            X509Certificate2 certWithPrivateKey = existingCertIdentifier.LoadPrivateKeyEx(passwordProvider).Result;
             Utils.LogCertificate(Utils.TraceMasks.Security, "Create signing request: ", certWithPrivateKey);
             certificateRequest = CertificateFactory.CreateSigningRequest(certWithPrivateKey, X509Utils.GetDomainsFromCertficate(certWithPrivateKey));
             return ServiceResult.Good;
@@ -789,7 +814,7 @@ namespace Opc.Ua.Server
             public NodeId NodeId;
             public CertificateGroupState Node;
             public NodeId[] CertificateTypes;
-            public CertificateIdentifier ApplicationCertificate;
+            public CertificateIdentifierCollection ApplicationCertificates;
             public string IssuerStorePath;
             public string TrustedStorePath;
             public UpdateCertificateData UpdateCertificate;

@@ -88,23 +88,23 @@ namespace Opc.Ua
             var certificateTypes = CertificateIdentifier.MapSecurityPolicyToCertificateTypes(securityPolicy);
             foreach (var certType in certificateTypes)
             {
-                CertificateIdentifier id = ListOfCertificateIdentifier.FirstOrDefault(certId => certId.CertificateType == certType);
+                CertificateIdentifier id = ApplicationCertificates.FirstOrDefault(certId => certId.CertificateType == certType);
                 if (id == null)
                 {
                     if (certType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
                     {
                         // undefined certificate type as RsaSha256
-                        id = ListOfCertificateIdentifier.FirstOrDefault(certId => certId.CertificateType == null);
+                        id = ApplicationCertificates.FirstOrDefault(certId => certId.CertificateType == null);
                     }
                     else if (certType == ObjectTypeIds.ApplicationCertificateType)
                     {
                         // first certificate
-                        id = ListOfCertificateIdentifier.FirstOrDefault();
+                        id = ApplicationCertificates.FirstOrDefault();
                     }
                     else if (certType == ObjectTypeIds.EccApplicationCertificateType)
                     {
                         // first Ecc certificate
-                        id = ListOfCertificateIdentifier.FirstOrDefault(certId => X509Utils.IsECDsaSignature(certId.Certificate));
+                        id = ApplicationCertificates.FirstOrDefault(certId => X509Utils.IsECDsaSignature(certId.Certificate));
                     }
                 }
 

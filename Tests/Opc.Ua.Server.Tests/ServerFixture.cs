@@ -118,17 +118,13 @@ namespace Opc.Ua.Server.Tests
                     RejectTimeout = ReverseConnectTimeout / 4
                 });
             }
-
-            string eccCertTypes = "RSA,nistP256,nistP384";
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                eccCertTypes += ",brainpoolP256r1,brainpoolP384r1";
-            }
+            
+            CertificateIdentifierCollection eccSecurityCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(pkiRoot);
 
             Config = await serverConfig.AddSecurityConfiguration(
                     "CN=" + typeof(T).Name + ", C=US, S=Arizona, O=OPC Foundation, DC=localhost",
                     pkiRoot)
-                .SetApplicationCertificateTypes(eccCertTypes)
+                .SetApplicationCertificates(eccSecurityCerts)
                 .SetAutoAcceptUntrustedCertificates(AutoAccept)
                 .Create().ConfigureAwait(false);
         }
