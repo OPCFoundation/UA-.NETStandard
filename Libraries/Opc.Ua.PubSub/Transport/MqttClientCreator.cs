@@ -33,8 +33,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using MQTTnet;
 using MQTTnet.Client;
-using MQTTnet.Client.Connecting;
-using MQTTnet.Client.Options;
 
 namespace Opc.Ua.PubSub.Transport
 {
@@ -53,8 +51,8 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="topicFilter">The topics to which to subscribe</param>
         /// <returns></returns>
         internal static async Task<IMqttClient> GetMqttClientAsync(int reconnectInterval,
-                                                                   IMqttClientOptions mqttClientOptions,
-                                                                   Action<MqttApplicationMessageReceivedEventArgs> receiveMessageHandler,
+                                                                   MqttClientOptions mqttClientOptions,
+                                                                   Func<MqttApplicationMessageReceivedEventArgs, Task> receiveMessageHandler,
                                                                    StringCollection topicFilter = null)
         {
             IMqttClient mqttClient = mqttClientFactory.Value.CreateMqttClient();
@@ -62,30 +60,26 @@ namespace Opc.Ua.PubSub.Transport
             // Hook the receiveMessageHandler in case we deal with a subscriber
             if ((receiveMessageHandler != null) && (topicFilter != null))
             {
-                HashSet<string> uniqueTopics = new HashSet<string>(topicFilter.ToArray());
-                List<MqttTopicFilter> topics = new List<MqttTopicFilter>();
-                foreach (var topic in uniqueTopics)
-                {
-                    MqttTopicFilter tf = new MqttTopicFilter();
-                    tf.Topic = topic;
-                    topics.Add(tf);
-                }
 
-                mqttClient.UseApplicationMessageReceivedHandler(receiveMessageHandler);
-                mqttClient.UseConnectedHandler(async e => {
+                mqttClient.ApplicationMessageReceivedAsync += receiveMessageHandler;
+                mqttClient.ConnectedAsync += async e => {
                     Utils.Trace("{0} Connected to MQTTBroker", mqttClient?.Options?.ClientId);
 
                     try
                     {
-                        // subscribe to provided topics, messages are also filtered on the receiveMessageHandler
-                        await mqttClient.SubscribeAsync(topics.ToArray()).ConfigureAwait(false);
-                        Utils.Trace("{0} Subscribed to topics: {1}", mqttClient?.Options?.ClientId, string.Join(",", topics));
+                        foreach (string topic in topicFilter)
+                        {
+                            // subscribe to provided topics, messages are also filtered on the receiveMessageHandler
+                            await mqttClient.SubscribeAsync(topic).ConfigureAwait(false);
+                        }
+
+                        Utils.Trace("{0} Subscribed to topics: {1}", mqttClient?.Options?.ClientId, string.Join(",", topicFilter));
                     }
                     catch (Exception exception)
                     {
-                        Utils.Trace(exception, "{0} could not subscribe to topics: {1}", mqttClient?.Options?.ClientId, string.Join(",", topics));
+                        Utils.Trace(exception, "{0} could not subscribe to topics: {1}", mqttClient?.Options?.ClientId, string.Join(",", topicFilter));
                     }
-                });
+                };
             }
             else
             {
@@ -100,7 +94,7 @@ namespace Opc.Ua.PubSub.Transport
             }
 
             // Setup reconnect handler
-            mqttClient.UseDisconnectedHandler(async e => {
+            mqttClient.DisconnectedAsync += async e => {
                 await Task.Delay(TimeSpan.FromSeconds(reconnectInterval)).ConfigureAwait(false);
                 try
                 {
@@ -114,7 +108,7 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     Utils.Trace("{0} Failed to reconnect after disconnect occurred: {1}", mqttClient?.Options?.ClientId, excOnDisconnect.Message);
                 }
-            });
+            };
 
             await Connect(reconnectInterval, mqttClientOptions, mqttClient).ConfigureAwait(false);
 
@@ -127,7 +121,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="reconnectInterval"></param>
         /// <param name="mqttClientOptions"></param>
         /// <param name="mqttClient"></param>
-        private static async Task Connect(int reconnectInterval, IMqttClientOptions mqttClientOptions, IMqttClient mqttClient)
+        private static async Task Connect(int reconnectInterval, MqttClientOptions mqttClientOptions, IMqttClient mqttClient)
         {
             try
             {
