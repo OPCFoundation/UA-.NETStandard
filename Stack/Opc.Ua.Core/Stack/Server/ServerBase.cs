@@ -1523,8 +1523,16 @@ namespace Opc.Ua
                 bool monitorExit = true;
                 try
                 {
+                    // check if the server is stopped
+                    if (m_stopped)
+                    {
+                        monitorExit = false;
+                        Monitor.Exit(m_lock);
+                        request.OperationCompleted(null, StatusCodes.BadServerHalted);
+                        Utils.LogTrace("Server halted.");
+                    }
                     // check if we're able to schedule requests.
-                    if (m_queue.Count >= m_maxRequestCount)
+                    else if (m_queue.Count >= m_maxRequestCount)
                     {
                         // too many operations
                         totalThreadCount = m_totalThreadCount;
@@ -1536,14 +1544,6 @@ namespace Opc.Ua
 
                         Utils.LogTrace("Too many operations. Total: {0} Active: {1}",
                             totalThreadCount, activeThreadCount);
-                    }
-                    // now, check if the server is stopped
-                    else if (m_stopped)
-                    {
-                        monitorExit = false;
-                        Monitor.Exit(m_lock);
-                        request.OperationCompleted(null, StatusCodes.BadServerHalted);
-                        Utils.LogTrace("Server halted.");
                     }
                     else
                     {
