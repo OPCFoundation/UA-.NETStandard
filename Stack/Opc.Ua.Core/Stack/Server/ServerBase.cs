@@ -1540,7 +1540,7 @@ namespace Opc.Ua
                         monitorExit = false;
                         Monitor.Exit(m_lock);
 
-                        request.OperationCompleted(null, StatusCodes.BadTooManyOperations);
+                        request.OperationCompleted(null, StatusCodes.BadServerTooBusy);
 
                         Utils.LogTrace("Too many operations. Total: {0} Active: {1}",
                             totalThreadCount, activeThreadCount);
@@ -1593,7 +1593,7 @@ namespace Opc.Ua
                 if (activeThreadCount >= m_maxRequestCount)
                 {
                     Interlocked.Decrement(ref m_activeThreadCount);
-                    request.OperationCompleted(null, StatusCodes.BadTooManyOperations);
+                    request.OperationCompleted(null, StatusCodes.BadServerTooBusy);
                     Utils.LogWarning("Too many operations. Active thread count: {0}", m_activeThreadCount);
                     return;
                 }
