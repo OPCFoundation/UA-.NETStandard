@@ -132,6 +132,7 @@ namespace Opc.Ua.Client
                 m_PublishSequenceNumbersToAcknowledge = template.m_PublishSequenceNumbersToAcknowledge;
                 m_SubscriptionsChanged = template.m_SubscriptionsChanged;
                 m_SessionClosing = template.m_SessionClosing;
+                m_SessionConfigurationChanged = template.m_SessionConfigurationChanged;
             }
 
             foreach (Subscription subscription in template.Subscriptions)
@@ -403,6 +404,7 @@ namespace Opc.Ua.Client
                 m_PublishSequenceNumbersToAcknowledge = null;
                 m_SubscriptionsChanged = null;
                 m_SessionClosing = null;
+                m_SessionConfigurationChanged = null;
             }
         }
         #endregion
@@ -546,6 +548,21 @@ namespace Opc.Ua.Client
                 m_SessionClosing -= value;
             }
         }
+
+        /// <inheritdoc/>
+        public event EventHandler SessionConfigurationChanged
+        {
+            add
+            {
+                m_SessionConfigurationChanged += value;
+            }
+
+            remove
+            {
+                m_SessionConfigurationChanged -= value;
+            }
+        }
+
         #endregion
 
         #region Public Properties
@@ -1488,6 +1505,8 @@ namespace Opc.Ua.Client
                 }
 
                 StartKeepAliveTimer();
+
+                IndicateSessionConfigurationChanged();
             }
             finally
             {
@@ -2841,6 +2860,9 @@ namespace Opc.Ua.Client
 
                 // start keep alive thread.
                 StartKeepAliveTimer();
+
+                // raise event that session configuration chnaged.
+                IndicateSessionConfigurationChanged();
             }
             catch (Exception)
             {
@@ -2983,6 +3005,8 @@ namespace Opc.Ua.Client
                 m_systemContext.SessionId = this.SessionId;
                 m_systemContext.UserIdentity = identity;
             }
+
+            IndicateSessionConfigurationChanged();
         }
 
         /// <inheritdoc/>
@@ -5265,6 +5289,7 @@ namespace Opc.Ua.Client
                     // Servers may return this error when overloaded
                     case StatusCodes.BadTooManyOperations:
                     case StatusCodes.BadTcpServerTooBusy:
+                    case StatusCodes.BadServerTooBusy:
                     default:
                         // throttle the resend to reduce server load
                         Thread.Sleep(100);
@@ -5781,7 +5806,7 @@ namespace Opc.Ua.Client
                 if (createdOnly)
                 {
                     int count = 0;
-                    foreach(Subscription subscription in m_subscriptions)
+                    foreach (Subscription subscription in m_subscriptions)
                     {
                         if (subscription.Created)
                         {
@@ -5869,6 +5894,24 @@ namespace Opc.Ua.Client
                 }
             }
             return subscriptionIds;
+        }
+
+        /// <summary>
+        /// Indicates that the session configuration has changed.
+        /// </summary>
+        private void IndicateSessionConfigurationChanged()
+        {
+            if (m_SessionConfigurationChanged != null)
+            {
+                try
+                {
+                    m_SessionConfigurationChanged(this, EventArgs.Empty);
+                }
+                catch (Exception e)
+                {
+                    Utils.Trace(e, "Unexpected error calling SessionConfigurationChanged event handler.");
+                }
+            }
         }
         #endregion
 
@@ -5972,6 +6015,7 @@ namespace Opc.Ua.Client
         private event PublishSequenceNumbersToAcknowledgeEventHandler m_PublishSequenceNumbersToAcknowledge;
         private event EventHandler m_SubscriptionsChanged;
         private event EventHandler m_SessionClosing;
+        private event EventHandler m_SessionConfigurationChanged;
         #endregion
     }
 

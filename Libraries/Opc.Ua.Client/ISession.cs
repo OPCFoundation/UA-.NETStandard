@@ -116,6 +116,15 @@ namespace Opc.Ua.Client
         /// Raised to indicate the session is closing.
         /// </summary>
         event EventHandler SessionClosing;
+
+        /// <summary>
+        /// Raised to indicate the session configuration changed.
+        /// </summary>
+        /// <remarks>
+        /// An example for a session configuration change is a new user identity,
+        /// a new server nonce, a new locale etc.
+        /// </remarks>
+        event EventHandler SessionConfigurationChanged;
         #endregion
 
         #region Public Properties
