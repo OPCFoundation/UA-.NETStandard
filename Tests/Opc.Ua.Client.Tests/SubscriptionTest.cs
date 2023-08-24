@@ -186,6 +186,9 @@ namespace Opc.Ua.Client.Tests
             int keepAlive = 0;
             Session.KeepAlive += (ISession sender, KeepAliveEventArgs e) => { keepAlive++; };
 
+            int sessionConfigChanged = 0;
+            Session.SessionConfigurationChanged += (object sender, EventArgs e) => { sessionConfigChanged++; };
+
             // add current time
             var list = new List<MonitoredItem> {
                 new MonitoredItem(subscription.DefaultItem)
@@ -477,6 +480,9 @@ namespace Opc.Ua.Client.Tests
             ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity).ConfigureAwait(false);
             Assert.NotNull(session1);
 
+            int session1ConfigChanged = 0;
+            session1.SessionConfigurationChanged += (object sender, EventArgs e) => { session1ConfigChanged++; };
+
             ServerStatusDataType value1 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
             Assert.NotNull(value1);
 
@@ -525,6 +531,9 @@ namespace Opc.Ua.Client.Tests
 
             // prepare the inactive session with the new channel
             ISession session2 = ClientFixture.CreateSession(channel2, sessionConfiguration.ConfiguredEndpoint);
+
+            int session2ConfigChanged = 0;
+            session2.SessionConfigurationChanged += (object sender, EventArgs e) => { session2ConfigChanged++; };
 
             // apply the saved session configuration
             bool success = session2.ApplySessionConfiguration(sessionConfiguration);
@@ -632,6 +641,9 @@ namespace Opc.Ua.Client.Tests
             session2.DeleteSubscriptionsOnClose = true;
             session2.Close(1000);
             Utils.SilentDispose(session2);
+
+            Assert.AreEqual(0, session1ConfigChanged);
+            Assert.Less(0, session2ConfigChanged);
         }
 
         [Test, Order(400)]
