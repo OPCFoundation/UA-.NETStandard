@@ -348,6 +348,12 @@ namespace Opc.Ua.Client.Tests
             var session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints).ConfigureAwait(false);
             Assert.NotNull(session);
 
+            int sessionConfigChanged = 0;
+            session.SessionConfigurationChanged += (object sender, EventArgs e) => { sessionConfigChanged++; };
+
+            int sessionClosing = 0;
+            session.SessionClosing += (object sender, EventArgs e) => { sessionClosing++; };
+
             ManualResetEvent quitEvent = new ManualResetEvent(false);
             var reconnectHandler = new SessionReconnectHandler(reconnectAbort, useMaxReconnectPeriod ? MaxTimeout : -1);
             reconnectHandler.BeginReconnect(session, connectTimeout / 5,
@@ -391,10 +397,15 @@ namespace Opc.Ua.Client.Tests
                 Assert.AreEqual(session, reconnectHandler.Session);
             }
 
+            Assert.AreEqual(reconnectAbort ? 0 : 1, sessionConfigChanged);
+            Assert.AreEqual(0, sessionClosing);
+
             var result = session.Close();
             Assert.NotNull(result);
             reconnectHandler.Dispose();
             session.Dispose();
+
+            Assert.Less(0, sessionClosing);
         }
 
         [Theory, Order(220)]
@@ -632,7 +643,7 @@ namespace Opc.Ua.Client.Tests
             // hook callback to renew the user identity
             session2.RenewUserIdentity += (session, identity) => {
                 return userIdentity;
-                };
+            };
 
             // activate the session from saved sesson secrets on the new channel
             session2.Reconnect(channel2);
