@@ -130,6 +130,19 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Resets the state of the publish timer and associated message worker. 
+        /// </summary>
+        private void ResetPublishTimerAndWorkerState()
+        {
+            // stop the publish timer.
+            Utils.SilentDispose(m_publishTimer);
+            m_publishTimer = null;
+            m_messageWorkerShutdownEvent.Set();
+            m_messageWorkerEvent.Set();
+            m_messageWorkerTask = null;
+        }
+
+        /// <summary>
         /// Called by the .NET framework during deserialization.
         /// </summary>
         [OnDeserializing]
@@ -191,11 +204,7 @@ namespace Opc.Ua.Client
         {
             if (disposing)
             {
-                Utils.SilentDispose(m_publishTimer);
-                m_publishTimer = null;
-                m_messageWorkerShutdownEvent.Set();
-                m_messageWorkerEvent.Set();
-                m_messageWorkerTask = null;
+                ResetPublishTimerAndWorkerState();
             }
         }
         #endregion
@@ -1012,12 +1021,7 @@ namespace Opc.Ua.Client
 
                 lock (m_cache)
                 {
-                    // stop the publish timer.
-                    Utils.SilentDispose(m_publishTimer);
-                    m_publishTimer = null;
-                    m_messageWorkerShutdownEvent.Set();
-                    m_messageWorkerEvent.Set();
-                    m_messageWorkerTask = null;
+                    ResetPublishTimerAndWorkerState();
                 }
 
                 // delete the subscription.
@@ -2269,6 +2273,21 @@ namespace Opc.Ua.Client
                                 {
                                     Utils.LogWarning("StatusChangeNotification received with Status = {0} for SubscriptionId={1}.",
                                         statusChanged.Status.ToString(), Id);
+
+                                    ResetPublishTimerAndWorkerState();
+                                    callback = m_publishStatusChanged;
+
+                                    if (callback != null)
+                                    {
+                                        try
+                                        {
+                                            callback(this, new PublishStateChangedEventArgs(PublishStateChangedMask.Transferred));
+                                        }
+                                        catch (Exception e)
+                                        {
+                                            Utils.LogError(e, "Error while raising PublishStateChanged event for Transferred status.");
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -2806,6 +2825,11 @@ namespace Opc.Ua.Client
         /// A republish for a missing message was issued.
         /// </summary>
         Republish = 0x08,
+
+        /// <summary>
+        /// The publishing was transferred to another node.
+        /// </summary>
+        Transferred = 0x10,
     }
     #endregion
 
