@@ -2184,21 +2184,6 @@ namespace Opc.Ua.Client
                     callback = m_publishStatusChanged;
                 }
 
-                if (callback != null)
-                {
-                    if (publishStateChangedMask != PublishStateChangedMask.None)
-                    {
-                        try
-                        {
-                            callback(this, new PublishStateChangedEventArgs(publishStateChangedMask));
-                        }
-                        catch (Exception e)
-                        {
-                            Utils.LogError(e, "Error while raising PublishStateChanged event.");
-                        }
-                    }
-                }
-
                 // process new keep alive messages.
                 FastKeepAliveNotificationEventHandler keepAliveCallback = m_fastKeepAliveCallback;
                 if (keepAliveToProcess != null && keepAliveCallback != null)
@@ -2274,19 +2259,14 @@ namespace Opc.Ua.Client
                                     Utils.LogWarning("StatusChangeNotification received with Status = {0} for SubscriptionId={1}.",
                                         statusChanged.Status.ToString(), Id);
 
-                                    ResetPublishTimerAndWorkerState();
-                                    callback = m_publishStatusChanged;
-
-                                    if (callback != null)
+                                    if (statusChanged.Status == StatusCodes.GoodSubscriptionTransferred)
                                     {
-                                        try
-                                        {
-                                            callback(this, new PublishStateChangedEventArgs(PublishStateChangedMask.Transferred));
-                                        }
-                                        catch (Exception e)
-                                        {
-                                            Utils.LogError(e, "Error while raising PublishStateChanged event for Transferred status.");
-                                        }
+                                        publishStateChangedMask |= PublishStateChangedMask.Transferred;
+                                        ResetPublishTimerAndWorkerState();
+                                    }
+                                    else if (statusChanged.Status == StatusCodes.BadTimeout)
+                                    {
+                                        publishStateChangedMask |= PublishStateChangedMask.Timeout;
                                     }
                                 }
                             }
@@ -2300,6 +2280,17 @@ namespace Opc.Ua.Client
                         {
                             Utils.LogWarning("For subscription {0}, more notifications were received={1} than the max notifications per publish value={2}",
                                 Id, noNotificationsReceived, MaxNotificationsPerPublish);
+                        }
+                    }
+                    if ((callback != null) && (publishStateChangedMask != PublishStateChangedMask.None))
+                    {
+                        try
+                        {
+                            callback(this, new PublishStateChangedEventArgs(publishStateChangedMask));
+                        }
+                        catch (Exception e)
+                        {
+                            Utils.LogError(e, "Error while raising PublishStateChanged event.");
                         }
                     }
                 }
@@ -2830,6 +2821,11 @@ namespace Opc.Ua.Client
         /// The publishing was transferred to another node.
         /// </summary>
         Transferred = 0x10,
+
+        /// <summary>
+        /// The publishing was timed out
+        /// </summary>
+        Timeout = 0x20,
     }
     #endregion
 
