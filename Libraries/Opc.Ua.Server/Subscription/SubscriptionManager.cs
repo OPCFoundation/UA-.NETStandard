@@ -490,7 +490,7 @@ namespace Opc.Ua.Server
 
                         if (m_publishQueues.TryGetValue(sessionId, out queue))
                         {
-                            queue.Remove(subscription);
+                            queue.Remove(subscription, true);
                         }
                     }
                 }
@@ -960,20 +960,9 @@ namespace Opc.Ua.Server
             {
                 Utils.LogTrace("Publish #{0} ReceivedFromClient", context.ClientHandle);
 
-                // check for status messages.
-                lock (m_statusMessagesLock)
+                if (ReturnPendingStatusMessage(context, out message, out subscriptionId))
                 {
-                    Queue<StatusMessage> statusQueue = null;
-
-                    if (m_statusMessages.TryGetValue(context.SessionId, out statusQueue))
-                    {
-                        if (statusQueue.Count > 0)
-                        {
-                            StatusMessage status = statusQueue.Dequeue();
-                            subscriptionId = status.SubscriptionId;
-                            return status.Message;
-                        }
-                    }
+                    return message;
                 }
 
                 bool requeue = false;
@@ -989,6 +978,12 @@ namespace Opc.Ua.Server
 
                     if (subscription == null)
                     {
+                        // check for pending status message.
+                        if (ReturnPendingStatusMessage(context, out message, out subscriptionId))
+                        {
+                            return message;
+                        }
+
                         Utils.LogTrace("Publish #{0} Timeout", context.ClientHandle);
                         return null;
                     }
@@ -1268,7 +1263,8 @@ namespace Opc.Ua.Server
                             if (m_publishQueues.TryGetValue(ownerSession.Id, out var ownerPublishQueue) &&
                                 ownerPublishQueue != null)
                             {
-                                ownerPublishQueue.Remove(subscription);
+                                // keep the queued requests for the status message
+                                ownerPublishQueue.Remove(subscription, false);
                             }
                         }
 
@@ -1323,7 +1319,9 @@ namespace Opc.Ua.Server
                             SessionDiagnosticsDataType diagnostics = ownerSession.SessionDiagnostics;
                             diagnostics.CurrentSubscriptionsCount--;
                         }
-                        // add the Good_SubscriptionTransferred
+
+                        // queue the Good_SubscriptionTransferred message
+                        bool statusQueued = false;
                         lock (m_statusMessagesLock)
                         {
                             if (!NodeId.IsNull(ownerSession.Id) && m_statusMessages.TryGetValue(ownerSession.Id, out var queue))
@@ -1333,6 +1331,29 @@ namespace Opc.Ua.Server
                                     Message = subscription.SubscriptionTransferred()
                                 };
                                 queue.Enqueue(message);
+                                statusQueued = true;
+                            }
+                        }
+
+                        lock (m_lock)
+                        {
+                            // trigger publish response to return status immediately
+                            if (m_publishQueues.TryGetValue(ownerSession.Id, out var ownerPublishQueue) &&
+                                ownerPublishQueue != null)
+                            {
+                                if (statusQueued)
+                                {
+                                    // queue the status message
+                                    bool success = ownerPublishQueue.TryPublishCustomStatus(StatusCodes.GoodSubscriptionTransferred);
+                                    if (!success)
+                                    {
+                                        Utils.LogWarning("Failed to queue Good_SubscriptionTransferred for SessionId {0}, SubscriptionId {1} due to an empty request queue.",
+                                            ownerSession.Id, subscription.Id);
+                                    }
+                                }
+
+                                // check to remove queued requests if no subscriptions are active
+                                ownerPublishQueue.RemoveQueuedRequests();
                             }
                         }
                     }
@@ -1758,6 +1779,31 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Methods
+        /// <summary>
+        /// Checks if there is a status message to return.
+        /// </summary>
+        private bool ReturnPendingStatusMessage(OperationContext context, out NotificationMessage message, out uint subscriptionId)
+        {
+            message = null;
+            subscriptionId = 0;
+
+            // check for status messages.
+            lock (m_statusMessagesLock)
+            {
+                if (m_statusMessages.TryGetValue(context.SessionId, out Queue<StatusMessage> statusQueue))
+                {
+                    if (statusQueue.Count > 0)
+                    {
+                        StatusMessage status = statusQueue.Dequeue();
+                        subscriptionId = status.SubscriptionId;
+                        message = status.Message;
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
         /// <summary>
         /// Periodically checks if the sessions have timed out.
         /// </summary>
