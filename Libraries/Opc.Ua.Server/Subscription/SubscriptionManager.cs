@@ -1335,20 +1335,25 @@ namespace Opc.Ua.Server
                             }
                         }
 
-                        if (statusQueued)
+                        lock (m_lock)
                         {
-                            lock (m_lock)
+                            // trigger publish response to return status immediately
+                            if (m_publishQueues.TryGetValue(ownerSession.Id, out var ownerPublishQueue) &&
+                                ownerPublishQueue != null)
                             {
-                                // trigger publish response to return status immediately
-                                if (m_publishQueues.TryGetValue(ownerSession.Id, out var ownerPublishQueue) &&
-                                    ownerPublishQueue != null)
+                                if (statusQueued)
                                 {
                                     // queue the status message
-                                    ownerPublishQueue.TryPublishCustomStatus(StatusCodes.GoodSubscriptionTransferred);
-
-                                    // remove queued requests if no subscriptions are active
-                                    ownerPublishQueue.RemoveQueuedRequests();
+                                    bool success = ownerPublishQueue.TryPublishCustomStatus(StatusCodes.GoodSubscriptionTransferred);
+                                    if (!success)
+                                    {
+                                        Utils.LogWarning("Failed to queue Good_SubscriptionTransferred for SessionId {0}, SubscriptionId {1} due to an empty request queue.",
+                                            ownerSession.Id, subscription.Id);
+                                    }
                                 }
+
+                                // check to remove queued requests if no subscriptions are active
+                                ownerPublishQueue.RemoveQueuedRequests();
                             }
                         }
                     }

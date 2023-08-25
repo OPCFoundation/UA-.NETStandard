@@ -98,7 +98,7 @@ namespace Opc.Ua
 
         #region ICertificateStore Members
         /// <inheritdoc/>
-        public void Open(string location, bool noPrivateKeys = false)
+        public void Open(string location, bool noPrivateKeys)
         {
             lock (m_lock)
             {

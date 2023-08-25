@@ -2267,13 +2267,8 @@ namespace Opc.Ua.Client
 
                                 if (statusChanged != null)
                                 {
-                                    Utils.LogWarning("StatusChangeNotification received with Status = {0} for SubscriptionId={1} Session = {2}.",
-                                        statusChanged.Status.ToString(), Id, Session.SessionId);
-
-                                    if (statusChanged.Status == StatusCodes.GoodSubscriptionTransferred)
-                                    {
-
-                                    }
+                                    Utils.LogWarning("StatusChangeNotification received with Status = {0} for SubscriptionId={1}.",
+                                        statusChanged.Status.ToString(), Id);
                                 }
                             }
                         }

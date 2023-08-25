@@ -210,8 +210,8 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Try to publish the subscription transferred
-        /// status change using a queued publish request.
+        /// Try to publish a custom status message
+        /// using a queued publish request.
         /// </summary>
         public bool TryPublishCustomStatus(StatusCode statusCode)
         {
