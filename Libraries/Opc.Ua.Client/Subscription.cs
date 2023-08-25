@@ -130,6 +130,19 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Resets the state of the publish timer and associated message worker. 
+        /// </summary>
+        private void ResetPublishTimerAndWorkerState()
+        {
+            // stop the publish timer.
+            Utils.SilentDispose(m_publishTimer);
+            m_publishTimer = null;
+            m_messageWorkerShutdownEvent.Set();
+            m_messageWorkerEvent.Set();
+            m_messageWorkerTask = null;
+        }
+
+        /// <summary>
         /// Called by the .NET framework during deserialization.
         /// </summary>
         [OnDeserializing]
@@ -191,11 +204,7 @@ namespace Opc.Ua.Client
         {
             if (disposing)
             {
-                Utils.SilentDispose(m_publishTimer);
-                m_publishTimer = null;
-                m_messageWorkerShutdownEvent.Set();
-                m_messageWorkerEvent.Set();
-                m_messageWorkerTask = null;
+                ResetPublishTimerAndWorkerState();
             }
         }
         #endregion
@@ -1012,12 +1021,7 @@ namespace Opc.Ua.Client
 
                 lock (m_cache)
                 {
-                    // stop the publish timer.
-                    Utils.SilentDispose(m_publishTimer);
-                    m_publishTimer = null;
-                    m_messageWorkerShutdownEvent.Set();
-                    m_messageWorkerEvent.Set();
-                    m_messageWorkerTask = null;
+                    ResetPublishTimerAndWorkerState();
                 }
 
                 // delete the subscription.
@@ -2180,21 +2184,6 @@ namespace Opc.Ua.Client
                     callback = m_publishStatusChanged;
                 }
 
-                if (callback != null)
-                {
-                    if (publishStateChangedMask != PublishStateChangedMask.None)
-                    {
-                        try
-                        {
-                            callback(this, new PublishStateChangedEventArgs(publishStateChangedMask));
-                        }
-                        catch (Exception e)
-                        {
-                            Utils.LogError(e, "Error while raising PublishStateChanged event.");
-                        }
-                    }
-                }
-
                 // process new keep alive messages.
                 FastKeepAliveNotificationEventHandler keepAliveCallback = m_fastKeepAliveCallback;
                 if (keepAliveToProcess != null && keepAliveCallback != null)
@@ -2269,6 +2258,16 @@ namespace Opc.Ua.Client
                                 {
                                     Utils.LogWarning("StatusChangeNotification received with Status = {0} for SubscriptionId={1}.",
                                         statusChanged.Status.ToString(), Id);
+
+                                    if (statusChanged.Status == StatusCodes.GoodSubscriptionTransferred)
+                                    {
+                                        publishStateChangedMask |= PublishStateChangedMask.Transferred;
+                                        ResetPublishTimerAndWorkerState();
+                                    }
+                                    else if (statusChanged.Status == StatusCodes.BadTimeout)
+                                    {
+                                        publishStateChangedMask |= PublishStateChangedMask.Timeout;
+                                    }
                                 }
                             }
                         }
@@ -2281,6 +2280,17 @@ namespace Opc.Ua.Client
                         {
                             Utils.LogWarning("For subscription {0}, more notifications were received={1} than the max notifications per publish value={2}",
                                 Id, noNotificationsReceived, MaxNotificationsPerPublish);
+                        }
+                    }
+                    if ((callback != null) && (publishStateChangedMask != PublishStateChangedMask.None))
+                    {
+                        try
+                        {
+                            callback(this, new PublishStateChangedEventArgs(publishStateChangedMask));
+                        }
+                        catch (Exception e)
+                        {
+                            Utils.LogError(e, "Error while raising PublishStateChanged event.");
                         }
                     }
                 }
@@ -2806,6 +2816,16 @@ namespace Opc.Ua.Client
         /// A republish for a missing message was issued.
         /// </summary>
         Republish = 0x08,
+
+        /// <summary>
+        /// The publishing was transferred to another node.
+        /// </summary>
+        Transferred = 0x10,
+
+        /// <summary>
+        /// The publishing was timed out
+        /// </summary>
+        Timeout = 0x20,
     }
     #endregion
 

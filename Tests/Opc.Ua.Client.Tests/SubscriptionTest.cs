@@ -768,6 +768,7 @@ namespace Opc.Ua.Client.Tests
             var originSubscriptionFastDataCounters = new int[kTestSubscriptions];
             var targetSubscriptionCounters = new int[kTestSubscriptions];
             var targetSubscriptionFastDataCounters = new int[kTestSubscriptions];
+            var originSubscriptionTransferred = new int[kTestSubscriptions];
             var subscriptionTemplate = new Subscription(originSession.DefaultSubscription) {
                 PublishingInterval = 1_000,
                 LifetimeCount = 30,
@@ -780,6 +781,21 @@ namespace Opc.Ua.Client.Tests
             CreateSubscriptions(originSession, subscriptionTemplate,
                 originSubscriptions, originSubscriptionCounters, originSubscriptionFastDataCounters,
                 kTestSubscriptions, kQueueSize);
+
+            if(TransferType.KeepOpen == transferType)
+            {
+                foreach (var subscription in originSubscriptions)
+                {
+                    subscription.PublishStatusChanged += (s, e) => {
+                        TestContext.Out.WriteLine($"PublishStatusChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
+                        if ((e.Status & PublishStateChangedMask.Transferred)!=0)
+                        {
+                            // subscription transferred
+                            Interlocked.Increment(ref originSubscriptionTransferred[(int)s.Handle]);
+                        }
+                    };
+                }
+            }
 
             // settle
             await Task.Delay(kDelay).ConfigureAwait(false);
@@ -916,6 +932,14 @@ namespace Opc.Ua.Client.Tests
             // wait for some events
             await Task.Delay(kDelay).ConfigureAwait(false);
 
+            if (TransferType.KeepOpen == transferType)
+            {
+                foreach (var subscription in originSubscriptions)
+                {
+                    // assert if originSubscriptionTransferred is incremented
+                    Assert.AreEqual(1, originSubscriptionTransferred[(int)subscription.Handle]);
+                }
+            }
             // stop publishing
             foreach (var subscription in transferSubscriptions)
             {
