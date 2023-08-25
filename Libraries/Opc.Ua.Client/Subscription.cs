@@ -42,7 +42,7 @@ namespace Opc.Ua.Client
     /// A subscription.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public partial class Subscription : IDisposable
+    public partial class Subscription : IDisposable, ICloneable
     {
         #region Constructors
         /// <summary>
@@ -197,6 +197,21 @@ namespace Opc.Ua.Client
                 m_messageWorkerEvent.Set();
                 m_messageWorkerTask = null;
             }
+        }
+        #endregion
+
+        #region ICloneable Members
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            var clone = new Subscription(this);
+            return clone;
         }
         #endregion
 
@@ -2252,7 +2267,13 @@ namespace Opc.Ua.Client
 
                                 if (statusChanged != null)
                                 {
-                                    Utils.LogWarning("StatusChangeNotification received with Status = {0} for SubscriptionId={1}.", statusChanged.Status.ToString(), Id);
+                                    Utils.LogWarning("StatusChangeNotification received with Status = {0} for SubscriptionId={1} Session = {2}.",
+                                        statusChanged.Status.ToString(), Id, Session.SessionId);
+
+                                    if (statusChanged.Status == StatusCodes.GoodSubscriptionTransferred)
+                                    {
+
+                                    }
                                 }
                             }
                         }
@@ -2880,7 +2901,7 @@ namespace Opc.Ua.Client
     /// A collection of subscriptions.
     /// </summary>
     [CollectionDataContract(Name = "ListOfSubscription", Namespace = Namespaces.OpcUaXsd, ItemName = "Subscription")]
-    public partial class SubscriptionCollection : List<Subscription>
+    public partial class SubscriptionCollection : List<Subscription>, ICloneable
     {
         #region Constructors
         /// <summary>
@@ -2899,6 +2920,22 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="capacity">The max. capacity of the collection</param>
         public SubscriptionCollection(int capacity) : base(capacity) { }
+        #endregion
+
+        #region ICloneable Members
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (SubscriptionCollection)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            SubscriptionCollection clone = new SubscriptionCollection();
+            clone.AddRange(this.Select(item => (Subscription)item.Clone()));
+            return clone;
+        }
         #endregion
     }
 }
