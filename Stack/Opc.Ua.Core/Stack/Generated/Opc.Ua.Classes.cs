@@ -3927,11 +3927,12 @@ namespace Opc.Ua
         #region Initialization String
         private const string InitializationString =
            "//////////8EYIACAQAAAAAAKgAAAE5vblRyYW5zcGFyZW50QmFja3VwUmVkdW5kYW5jeVR5cGVJbnN0" +
-           "YW5jZQEAm34BAJt+m34AAP////8EAAAAFWCJCgIAAAAAABEAAABSZWR1bmRhbmN5U3VwcG9ydAEAnH4A" +
-           "LgBEnH4AAAEAUwP/////AQH/////AAAAABdgiQoCAAAAAAAOAAAAU2VydmVyVXJpQXJyYXkBAJ5+AC4A" +
-           "RJ5+AAAADAEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAABAAAAE1vZGUBAJ9+AC4ARJ9+AAAB" +
-           "AKF+/////wEB/////wAAAAAEYYIKBAAAAAAACAAAAEZhaWxvdmVyAQCgfgAvAQCgfqB+AAABAf////8A" +
-           "AAAA";
+           "YW5jZQEAm34BAJt+m34AAP////8FAAAAFWCJCgIAAAAAABEAAABSZWR1bmRhbmN5U3VwcG9ydAEAnH4A" +
+           "LgBEnH4AAAEAUwP/////AQH/////AAAAABdgiQoCAAAAAAAUAAAAUmVkdW5kYW50U2VydmVyQXJyYXkB" +
+           "AJ1+AC4ARJ1+AAABAFUDAQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAAAOAAAAU2VydmVyVXJp" +
+           "QXJyYXkBAJ5+AC4ARJ5+AAAADAEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAABAAAAE1vZGUB" +
+           "AJ9+AC4ARJ9+AAABAKF+/////wEB/////wAAAAAEYYIKBAAAAAAACAAAAEZhaWxvdmVyAQCgfgAvAQCg" +
+           "fqB+AAABAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -61364,7 +61365,7 @@ namespace Opc.Ua
            "//8BAf////8AAAAA";
 
         private const string ServerTimestampSupported_InitializationString =
-           "//////////8VYIkKAgAAAAAAGAAAAFNlcnZlclRpbWVzdGFtcFN1cHBvcnRlZAEAqH8ALgBEqH8AAAAB" +
+           "//////////8VYIkKAgAAAAAAGAAAAFNlcnZlclRpbWVzdGFtcFN1cHBvcnRlZAEAlEoALgBElEoAAAAB" +
            "/////wEB/////wAAAAA=";
 
         private const string MaxTimeStoredValues_InitializationString =
@@ -61391,7 +61392,7 @@ namespace Opc.Ua
            "AABFeGNlcHRpb25EZXZpYXRpb25Gb3JtYXQBABgJAC4ARBgJAAABAHoD/////wEB/////wAAAAAVYIkK" +
            "AgAAAAAADgAAAFN0YXJ0T2ZBcmNoaXZlAQDrLAAuAETrLAAAAQAmAf////8BAf////8AAAAAFWCJCgIA" +
            "AAAAABQAAABTdGFydE9mT25saW5lQXJjaGl2ZQEA7CwALgBE7CwAAAEAJgH/////AQH/////AAAAABVg" +
-           "iQoCAAAAAAAYAAAAU2VydmVyVGltZXN0YW1wU3VwcG9ydGVkAQCofwAuAESofwAAAAH/////AQH/////" +
+           "iQoCAAAAAAAYAAAAU2VydmVyVGltZXN0YW1wU3VwcG9ydGVkAQCUSgAuAESUSgAAAAH/////AQH/////" +
            "AAAAABVgiQoCAAAAAAATAAAATWF4VGltZVN0b3JlZFZhbHVlcwEAa38ALgBEa38AAAEAIgH/////AQH/" +
            "////AAAAABVgiQoCAAAAAAAUAAAATWF4Q291bnRTdG9yZWRWYWx1ZXMBAGx/AC4ARGx/AAAAB/////8B" +
            "Af////8AAAAA";

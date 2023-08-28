@@ -9941,6 +9941,9 @@ namespace Opc.Ua
         public const uint NonTransparentNetworkRedundancyType_ServerNetworkGroups = 11948;
 
         /// <remarks />
+        public const uint NonTransparentBackupRedundancyType_RedundantServerArray = 32413;
+
+        /// <remarks />
         public const uint NonTransparentBackupRedundancyType_Mode = 32415;
 
         /// <remarks />
@@ -15296,7 +15299,7 @@ namespace Opc.Ua
         public const uint HistoricalDataConfigurationType_StartOfOnlineArchive = 11500;
 
         /// <remarks />
-        public const uint HistoricalDataConfigurationType_ServerTimestampSupported = 32680;
+        public const uint HistoricalDataConfigurationType_ServerTimestampSupported = 19092;
 
         /// <remarks />
         public const uint HistoricalDataConfigurationType_MaxTimeStoredValues = 32619;
@@ -39938,6 +39941,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId NonTransparentNetworkRedundancyType_ServerNetworkGroups = new NodeId(Opc.Ua.Variables.NonTransparentNetworkRedundancyType_ServerNetworkGroups);
+
+        /// <remarks />
+        public static readonly NodeId NonTransparentBackupRedundancyType_RedundantServerArray = new NodeId(Opc.Ua.Variables.NonTransparentBackupRedundancyType_RedundantServerArray);
 
         /// <remarks />
         public static readonly NodeId NonTransparentBackupRedundancyType_Mode = new NodeId(Opc.Ua.Variables.NonTransparentBackupRedundancyType_Mode);
