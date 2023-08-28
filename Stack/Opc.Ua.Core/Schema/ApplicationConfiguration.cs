@@ -1817,7 +1817,7 @@ namespace Opc.Ua
         /// <summary>
         /// The server capabilities.
         /// The latest set of server capabilities is listed 
-        /// <see href="http://www.opcfoundation.org/UA/schemas/1.04/ServerCapabilities.csv">here.</see>
+        /// <see href="http://www.opcfoundation.org/UA/schemas/1.05/ServerCapabilities.csv">here.</see>
         /// </summary>
         /// <value>The array of server capabilites.</value>
         [DataMember(IsRequired = false, Order = 30)]

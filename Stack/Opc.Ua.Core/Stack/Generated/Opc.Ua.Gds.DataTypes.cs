@@ -27,9 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-// To support ICloneable, manually undef NET_STANDARD until Modelcompiler is fixed
-#undef NET_STANDARD
-
 using System;
 using System.Collections.Generic;
 using System.Text;
