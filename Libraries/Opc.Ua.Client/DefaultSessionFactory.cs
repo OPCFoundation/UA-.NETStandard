@@ -184,23 +184,23 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public virtual Task<ISession> RecreateAsync(ISession sessionTemplate, CancellationToken ct = default)
         {
-            if (!(template is Session sessionTemplate))
+            if (!(sessionTemplate is Session template))
             {
                 throw new ArgumentOutOfRangeException(nameof(template), "The ISession provided is not of a supported type.");
             }
 
-            return Task.FromResult((ISession)Session.Recreate(sessionTemplate));
+            return Task.FromResult((ISession)Session.Recreate(template));
         }
 
         /// <inheritdoc/>
-        public virtual Task<ISession> RecreateAsync(ISession template, ITransportWaitingConnection connection)
+        public virtual Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportWaitingConnection connection, CancellationToken ct = default)
         {
-            if (!(template is Session sessionTemplate))
+            if (!(sessionTemplate is Session template))
             {
                 throw new ArgumentOutOfRangeException(nameof(template), "The ISession provided is not of a supported type");
             }
 
-            return Task.FromResult((ISession)Session.Recreate(sessionTemplate, connection));
+            return Task.FromResult((ISession)Session.Recreate(template, connection));
         }
 
         /// <inheritdoc/>
