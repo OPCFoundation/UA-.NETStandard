@@ -114,6 +114,13 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        public event EventHandler SessionConfigurationChanged
+        {
+            add => m_session.SessionConfigurationChanged += value;
+            remove => m_session.SessionConfigurationChanged -= value;
+        }
+
+        /// <inheritdoc/>
         public event RenewUserIdentityEventHandler RenewUserIdentity
         {
             add => m_session.RenewUserIdentity += value;
