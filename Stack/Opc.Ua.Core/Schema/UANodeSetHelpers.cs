@@ -165,14 +165,15 @@ namespace Opc.Ua.Export
 
                     if (o.Value != null)
                     {
-                        XmlEncoder encoder = CreateEncoder(context);
+                        using (XmlEncoder encoder = CreateEncoder(context))
+                        {
+                            Variant variant = new Variant(o.Value);
+                            encoder.WriteVariantContents(variant.Value, variant.TypeInfo);
 
-                        Variant variant = new Variant(o.Value);
-                        encoder.WriteVariantContents(variant.Value, variant.TypeInfo);
-
-                        XmlDocument document = new XmlDocument();
-                        document.LoadInnerXml(encoder.Close());
-                        value.Value = document.DocumentElement;
+                            XmlDocument document = new XmlDocument();
+                            document.LoadInnerXml(encoder.CloseAndReturnText());
+                            value.Value = document.DocumentElement;
+                        }
                     }
 
                     exportedNode = value;
@@ -228,14 +229,15 @@ namespace Opc.Ua.Export
 
                     if (o.Value != null)
                     {
-                        XmlEncoder encoder = CreateEncoder(context);
+                        using (XmlEncoder encoder = CreateEncoder(context))
+                        {
+                            Variant variant = new Variant(o.Value);
+                            encoder.WriteVariantContents(variant.Value, variant.TypeInfo);
 
-                        Variant variant = new Variant(o.Value);
-                        encoder.WriteVariantContents(variant.Value, variant.TypeInfo);
-
-                        XmlDocument document = new XmlDocument();
-                        document.LoadInnerXml(encoder.Close());
-                        value.Value = document.DocumentElement;
+                            XmlDocument document = new XmlDocument();
+                            document.LoadInnerXml(encoder.CloseAndReturnText());
+                            value.Value = document.DocumentElement;
+                        }
                     }
 
                     exportedNode = value;

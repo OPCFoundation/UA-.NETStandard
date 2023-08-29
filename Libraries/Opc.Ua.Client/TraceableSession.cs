@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET6_0_OR_GREATER
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -61,7 +60,7 @@ namespace Opc.Ua.Client
         /// Activity Source static instance.
         /// </summary>
         public static ActivitySource ActivitySource => s_activitySource.Value;
-        private static readonly Lazy<ActivitySource> s_activitySource = new Lazy<ActivitySource>(() => new ActivitySource(ActivitySourceName));
+        private static readonly Lazy<ActivitySource> s_activitySource = new Lazy<ActivitySource>(() => new ActivitySource(ActivitySourceName, "1.0.0"));
 
         /// <summary>
         /// The ISession which is being traced.
@@ -112,6 +111,13 @@ namespace Opc.Ua.Client
         {
             add => m_session.SessionClosing += value;
             remove => m_session.SessionClosing -= value;
+        }
+
+        /// <inheritdoc/>
+        public event EventHandler SessionConfigurationChanged
+        {
+            add => m_session.SessionConfigurationChanged += value;
+            remove => m_session.SessionConfigurationChanged -= value;
         }
 
         /// <inheritdoc/>
@@ -1806,8 +1812,12 @@ namespace Opc.Ua.Client
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            m_session.Dispose();
-            m_session = null;
+            if (disposing)
+            {
+                // note: do not null the session here,
+                // properties may still be accessed after dispose.
+                Utils.SilentDispose(m_session);
+            }
         }
 
         /// <inheritdoc/>
@@ -1910,4 +1920,3 @@ namespace Opc.Ua.Client
         #endregion
     }
 }
-#endif

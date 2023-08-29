@@ -22,7 +22,7 @@ namespace Opc.Ua
     /// <summary>
     /// Writes objects to a XML stream.
     /// </summary>
-    public class XmlEncoder : IEncoder, IDisposable
+    public class XmlEncoder : IEncoder
     {
         #region Constructors
         /// <summary>
@@ -204,10 +204,8 @@ namespace Opc.Ua
             PopNamespace();
         }
 
-        /// <summary>
-        /// Completes writing and returns the XML text.
-        /// </summary>
-        public string Close()
+        /// <inheritdoc/>
+        public int Close()
         {
             if (m_root != null)
             {
@@ -216,6 +214,19 @@ namespace Opc.Ua
 
             m_writer.Flush();
             m_writer.Dispose();
+
+            if (m_destination != null)
+            {
+                return m_destination.Length;
+            }
+
+            return 0;
+        }
+
+        /// <inheritdoc/>
+        public string CloseAndReturnText()
+        {
+            Close();
 
             if (m_destination != null)
             {
@@ -233,6 +244,7 @@ namespace Opc.Ua
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>

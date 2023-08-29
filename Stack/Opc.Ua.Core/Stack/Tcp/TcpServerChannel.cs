@@ -162,20 +162,22 @@ namespace Opc.Ua.Bindings
                 ar.Socket.ReadNextMessage();
 
                 // send reverse hello message.
-                BinaryEncoder encoder = new BinaryEncoder(buffer, 0, SendBufferSize, Quotas.MessageContext);
-                encoder.WriteUInt32(null, TcpMessageType.ReverseHello);
-                encoder.WriteUInt32(null, 0);
-                encoder.WriteString(null, EndpointDescription.Server.ApplicationUri);
-                encoder.WriteString(null, EndpointDescription.EndpointUrl);
-                int size = encoder.Close();
-                UpdateMessageSize(buffer, 0, size);
+                using (BinaryEncoder encoder = new BinaryEncoder(buffer, 0, SendBufferSize, Quotas.MessageContext))
+                {
+                    encoder.WriteUInt32(null, TcpMessageType.ReverseHello);
+                    encoder.WriteUInt32(null, 0);
+                    encoder.WriteString(null, EndpointDescription.Server.ApplicationUri);
+                    encoder.WriteString(null, EndpointDescription.EndpointUrl);
+                    int size = encoder.Close();
+                    UpdateMessageSize(buffer, 0, size);
 
-                // set state to waiting for hello.
-                State = TcpChannelState.Connecting;
-                m_pendingReverseHello = ar;
+                    // set state to waiting for hello.
+                    State = TcpChannelState.Connecting;
+                    m_pendingReverseHello = ar;
 
-                BeginWriteMessage(new ArraySegment<byte>(buffer, 0, size), null);
-                buffer = null;
+                    BeginWriteMessage(new ArraySegment<byte>(buffer, 0, size), null);
+                    buffer = null;
+                }
             }
             catch (Exception e)
             {
@@ -439,7 +441,7 @@ namespace Opc.Ua.Bindings
                 try
                 {
                     using (MemoryStream ostrm = new MemoryStream(buffer, 0, kResponseBufferSize))
-                    using (BinaryEncoder encoder = new BinaryEncoder(ostrm, Quotas.MessageContext))
+                    using (BinaryEncoder encoder = new BinaryEncoder(ostrm, Quotas.MessageContext, false))
                     {
                         encoder.WriteUInt32(null, TcpMessageType.Acknowledge);
                         encoder.WriteUInt32(null, 0);

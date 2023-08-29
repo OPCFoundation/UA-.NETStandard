@@ -132,6 +132,7 @@ namespace Opc.Ua.Client
                 m_PublishSequenceNumbersToAcknowledge = template.m_PublishSequenceNumbersToAcknowledge;
                 m_SubscriptionsChanged = template.m_SubscriptionsChanged;
                 m_SessionClosing = template.m_SessionClosing;
+                m_SessionConfigurationChanged = template.m_SessionConfigurationChanged;
             }
 
             foreach (Subscription subscription in template.Subscriptions)
@@ -403,6 +404,7 @@ namespace Opc.Ua.Client
                 m_PublishSequenceNumbersToAcknowledge = null;
                 m_SubscriptionsChanged = null;
                 m_SessionClosing = null;
+                m_SessionConfigurationChanged = null;
             }
         }
         #endregion
@@ -546,6 +548,21 @@ namespace Opc.Ua.Client
                 m_SessionClosing -= value;
             }
         }
+
+        /// <inheritdoc/>
+        public event EventHandler SessionConfigurationChanged
+        {
+            add
+            {
+                m_SessionConfigurationChanged += value;
+            }
+
+            remove
+            {
+                m_SessionConfigurationChanged -= value;
+            }
+        }
+
         #endregion
 
         #region Public Properties
@@ -852,6 +869,7 @@ namespace Opc.Ua.Client
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="identity">The identity.</param>
         /// <param name="preferredLocales">The user identity to associate with the session.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object</returns>
         public static Task<Session> Create(
             ApplicationConfiguration configuration,
@@ -860,9 +878,10 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales)
+            IList<string> preferredLocales,
+            CancellationToken ct = default)
         {
-            return Create(configuration, endpoint, updateBeforeConnect, false, sessionName, sessionTimeout, identity, preferredLocales);
+            return Create(configuration, endpoint, updateBeforeConnect, false, sessionName, sessionTimeout, identity, preferredLocales, ct);
         }
 
         /// <summary>
@@ -876,6 +895,7 @@ namespace Opc.Ua.Client
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="identity">The user identity to associate with the session.</param>
         /// <param name="preferredLocales">The preferred locales.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
         public static Task<Session> Create(
             ApplicationConfiguration configuration,
@@ -885,9 +905,10 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales)
+            IList<string> preferredLocales,
+            CancellationToken ct = default)
         {
-            return Create(configuration, null, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, identity, preferredLocales);
+            return Create(configuration, (ITransportWaitingConnection)null, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, identity, preferredLocales, ct);
         }
 
         /// <summary>
@@ -919,13 +940,15 @@ namespace Opc.Ua.Client
         /// <param name="endpoint">A configured endpoint to connect to.</param> 
         /// <param name="updateBeforeConnect">Update configuration based on server prior connect.</param>
         /// <param name="checkDomain">Check that the certificate specifies a valid domain (computer) name.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
         public static async Task<ITransportChannel> CreateChannelAsync(
             ApplicationConfiguration configuration,
             ITransportWaitingConnection connection,
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
-            bool checkDomain)
+            bool checkDomain,
+            CancellationToken ct = default)
         {
             endpoint.UpdateBeforeConnect = updateBeforeConnect;
 
@@ -945,7 +968,7 @@ namespace Opc.Ua.Client
             // update endpoint description using the discovery endpoint.
             if (endpoint.UpdateBeforeConnect && connection == null)
             {
-                endpoint.UpdateFromServer();
+                await endpoint.UpdateFromServerAsync(ct).ConfigureAwait(false);
                 endpointDescription = endpoint.Description;
                 endpointConfiguration = endpoint.Configuration;
             }
@@ -1008,6 +1031,7 @@ namespace Opc.Ua.Client
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="identity">The user identity to associate with the session.</param>
         /// <param name="preferredLocales">The preferred locales.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
         public static async Task<Session> Create(
             ApplicationConfiguration configuration,
@@ -1018,10 +1042,11 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales)
+            IList<string> preferredLocales,
+            CancellationToken ct = default)
         {
             // initialize the channel which will be created with the server.
-            ITransportChannel channel = await Session.CreateChannelAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain).ConfigureAwait(false);
+            ITransportChannel channel = await Session.CreateChannelAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain, ct).ConfigureAwait(false);
 
             // create the session object.
             Session session = new Session(channel, configuration, endpoint, null);
@@ -1101,7 +1126,8 @@ namespace Opc.Ua.Client
                 sessionName,
                 sessionTimeout,
                 userIdentity,
-                preferredLocales).ConfigureAwait(false);
+                preferredLocales,
+                ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1479,6 +1505,8 @@ namespace Opc.Ua.Client
                 }
 
                 StartKeepAliveTimer();
+
+                IndicateSessionConfigurationChanged();
             }
             finally
             {
@@ -2832,6 +2860,9 @@ namespace Opc.Ua.Client
 
                 // start keep alive thread.
                 StartKeepAliveTimer();
+
+                // raise event that session configuration chnaged.
+                IndicateSessionConfigurationChanged();
             }
             catch (Exception)
             {
@@ -2974,6 +3005,8 @@ namespace Opc.Ua.Client
                 m_systemContext.SessionId = this.SessionId;
                 m_systemContext.UserIdentity = identity;
             }
+
+            IndicateSessionConfigurationChanged();
         }
 
         /// <inheritdoc/>
@@ -5256,6 +5289,8 @@ namespace Opc.Ua.Client
                     // Servers may return this error when overloaded
                     case StatusCodes.BadTooManyOperations:
                     case StatusCodes.BadTcpServerTooBusy:
+                    case StatusCodes.BadServerTooBusy:
+                    default:
                         // throttle the resend to reduce server load
                         Thread.Sleep(100);
                         break;
@@ -5771,7 +5806,7 @@ namespace Opc.Ua.Client
                 if (createdOnly)
                 {
                     int count = 0;
-                    foreach(Subscription subscription in m_subscriptions)
+                    foreach (Subscription subscription in m_subscriptions)
                     {
                         if (subscription.Created)
                         {
@@ -5859,6 +5894,24 @@ namespace Opc.Ua.Client
                 }
             }
             return subscriptionIds;
+        }
+
+        /// <summary>
+        /// Indicates that the session configuration has changed.
+        /// </summary>
+        private void IndicateSessionConfigurationChanged()
+        {
+            if (m_SessionConfigurationChanged != null)
+            {
+                try
+                {
+                    m_SessionConfigurationChanged(this, EventArgs.Empty);
+                }
+                catch (Exception e)
+                {
+                    Utils.Trace(e, "Unexpected error calling SessionConfigurationChanged event handler.");
+                }
+            }
         }
         #endregion
 
@@ -5962,6 +6015,7 @@ namespace Opc.Ua.Client
         private event PublishSequenceNumbersToAcknowledgeEventHandler m_PublishSequenceNumbersToAcknowledge;
         private event EventHandler m_SubscriptionsChanged;
         private event EventHandler m_SessionClosing;
+        private event EventHandler m_SessionConfigurationChanged;
         #endregion
     }
 

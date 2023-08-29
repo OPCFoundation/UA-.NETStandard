@@ -358,32 +358,33 @@ namespace Opc.Ua.Bindings
             try
             {
                 MemoryStream ostrm = new MemoryStream(buffer, 0, SendBufferSize);
-                BinaryEncoder encoder = new BinaryEncoder(ostrm, Quotas.MessageContext);
-
-                encoder.WriteUInt32(null, TcpMessageType.Hello);
-                encoder.WriteUInt32(null, 0);
-                encoder.WriteUInt32(null, 0); // ProtocolVersion
-                encoder.WriteUInt32(null, (uint)ReceiveBufferSize);
-                encoder.WriteUInt32(null, (uint)SendBufferSize);
-                encoder.WriteUInt32(null, (uint)MaxResponseMessageSize);
-                encoder.WriteUInt32(null, (uint)MaxResponseChunkCount);
-
-                byte[] endpointUrl = new UTF8Encoding().GetBytes(m_url.ToString());
-
-                if (endpointUrl.Length > TcpMessageLimits.MaxEndpointUrlLength)
+                using (BinaryEncoder encoder = new BinaryEncoder(ostrm, Quotas.MessageContext, false))
                 {
-                    byte[] truncatedUrl = new byte[TcpMessageLimits.MaxEndpointUrlLength];
-                    Array.Copy(endpointUrl, truncatedUrl, TcpMessageLimits.MaxEndpointUrlLength);
-                    endpointUrl = truncatedUrl;
+                    encoder.WriteUInt32(null, TcpMessageType.Hello);
+                    encoder.WriteUInt32(null, 0);
+                    encoder.WriteUInt32(null, 0); // ProtocolVersion
+                    encoder.WriteUInt32(null, (uint)ReceiveBufferSize);
+                    encoder.WriteUInt32(null, (uint)SendBufferSize);
+                    encoder.WriteUInt32(null, (uint)MaxResponseMessageSize);
+                    encoder.WriteUInt32(null, (uint)MaxResponseChunkCount);
+
+                    byte[] endpointUrl = new UTF8Encoding().GetBytes(m_url.ToString());
+
+                    if (endpointUrl.Length > TcpMessageLimits.MaxEndpointUrlLength)
+                    {
+                        byte[] truncatedUrl = new byte[TcpMessageLimits.MaxEndpointUrlLength];
+                        Array.Copy(endpointUrl, truncatedUrl, TcpMessageLimits.MaxEndpointUrlLength);
+                        endpointUrl = truncatedUrl;
+                    }
+
+                    encoder.WriteByteString(null, endpointUrl);
+
+                    int size = encoder.Close();
+                    UpdateMessageSize(buffer, 0, size);
+
+                    BeginWriteMessage(new ArraySegment<byte>(buffer, 0, size), operation);
+                    buffer = null;
                 }
-
-                encoder.WriteByteString(null, endpointUrl);
-
-                int size = encoder.Close();
-                UpdateMessageSize(buffer, 0, size);
-
-                BeginWriteMessage(new ArraySegment<byte>(buffer, 0, size), operation);
-                buffer = null;
             }
             finally
             {

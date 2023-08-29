@@ -1061,7 +1061,7 @@ namespace Opc.Ua.Test
 
             if (encodeable1 != null && encodeable2 != null)
             {
-                if (encodeable1.IsEqual(encodeable1))
+                if (encodeable1.IsEqual(encodeable2))
                 {
                     return true;
                 }
@@ -1090,18 +1090,6 @@ namespace Opc.Ua.Test
             if (value1 == null)
             {
                 if (value2 == null || value2.GetEnumerator().MoveNext() == false)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-
-            if (value2 == null)
-            {
-                if (value1 == null || value1.GetEnumerator().MoveNext() == false)
                 {
                     return true;
                 }

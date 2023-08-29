@@ -248,15 +248,21 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(car.ToString());
 
-            var encoderStream = new MemoryStream();
             ServiceMessageContext encoderContext = new ServiceMessageContext {
                 Factory = mockResolver.Factory,
                 NamespaceUris = mockResolver.NamespaceUris,
             };
-            IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, carType);
-            encoder.WriteEncodeable("Car", car, carType);
-            Dispose(encoder);
-            var buffer = encoderStream.ToArray();
+
+            byte[] buffer;
+            using (var encoderStream = new MemoryStream())
+            {
+                using (IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, carType))
+                {
+                    encoder.WriteEncodeable("Car", car, carType);
+                }
+                buffer = encoderStream.ToArray();
+            }
+
             _ = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
 
             // test encoder/decoder
@@ -417,16 +423,21 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(arrays.ToString());
 
-            var encoderStream = new MemoryStream();
             ServiceMessageContext encoderContext = new ServiceMessageContext {
                 Factory = mockResolver.Factory,
                 NamespaceUris = mockResolver.NamespaceUris,
             };
 
-            IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes, false);
-            encoder.WriteEncodeable("Arrays", arrays, arraysTypes);
-            Dispose(encoder);
-            var buffer = encoderStream.ToArray();
+            byte[] buffer;
+            using (var encoderStream = new MemoryStream())
+            {
+                using (IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes, false))
+                {
+                    encoder.WriteEncodeable("Arrays", arrays, arraysTypes);
+                }
+                buffer = encoderStream.ToArray();
+            }
+
             _ = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
 
             // test encoder/decoder
@@ -593,16 +604,21 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(testType.ToString());
 
-            var encoderStream = new MemoryStream();
             ServiceMessageContext encoderContext = new ServiceMessageContext {
                 Factory = mockResolver.Factory,
                 NamespaceUris = mockResolver.NamespaceUris,
             };
 
-            IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes, false);
-            encoder.WriteEncodeable("TestType", testType, arraysTypes);
-            Dispose(encoder);
-            var buffer = encoderStream.ToArray();
+            byte [] buffer;
+            using (var encoderStream = new MemoryStream())
+            {
+                using (IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes, false))
+                {
+                    encoder.WriteEncodeable("TestType", testType, arraysTypes);
+                }
+                buffer = encoderStream.ToArray();
+            }
+
             _ = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
 
             // test encoder/decoder
@@ -711,7 +727,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
         }
 
-        [DataMember(Order =0)]
+        [DataMember(Order = 0)]
         [StructureField(BuiltInType = (int)BuiltInType.SByte)]
         public SByte PropertyInt8 { get; set; }
 

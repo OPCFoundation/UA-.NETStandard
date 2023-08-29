@@ -564,8 +564,10 @@ namespace Opc.Ua.Server
                 Factory = context.EncodeableFactory
             };
             MemoryStream strm = new MemoryStream();
-            BinaryEncoder encoder = new BinaryEncoder(strm, messageContext);
-            encoder.WriteEncodeable(null, trustList, null);
+            using (BinaryEncoder encoder = new BinaryEncoder(strm, messageContext, true))
+            {
+                encoder.WriteEncodeable(null, trustList, null);
+            }
             strm.Position = 0;
             return strm;
         }
@@ -581,9 +583,10 @@ namespace Opc.Ua.Server
                 Factory = context.EncodeableFactory
             };
             strm.Position = 0;
-            BinaryDecoder decoder = new BinaryDecoder(strm, messageContext);
-            trustList.Decode(decoder);
-            decoder.Close();
+            using (IDecoder decoder = new BinaryDecoder(strm, messageContext))
+            {
+                trustList.Decode(decoder);
+            }
             return trustList;
         }
 

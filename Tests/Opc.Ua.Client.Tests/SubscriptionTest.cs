@@ -186,6 +186,9 @@ namespace Opc.Ua.Client.Tests
             int keepAlive = 0;
             Session.KeepAlive += (ISession sender, KeepAliveEventArgs e) => { keepAlive++; };
 
+            int sessionConfigChanged = 0;
+            Session.SessionConfigurationChanged += (object sender, EventArgs e) => { sessionConfigChanged++; };
+
             // add current time
             var list = new List<MonitoredItem> {
                 new MonitoredItem(subscription.DefaultItem)
@@ -477,6 +480,9 @@ namespace Opc.Ua.Client.Tests
             ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity).ConfigureAwait(false);
             Assert.NotNull(session1);
 
+            int session1ConfigChanged = 0;
+            session1.SessionConfigurationChanged += (object sender, EventArgs e) => { session1ConfigChanged++; };
+
             ServerStatusDataType value1 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
             Assert.NotNull(value1);
 
@@ -525,6 +531,9 @@ namespace Opc.Ua.Client.Tests
 
             // prepare the inactive session with the new channel
             ISession session2 = ClientFixture.CreateSession(channel2, sessionConfiguration.ConfiguredEndpoint);
+
+            int session2ConfigChanged = 0;
+            session2.SessionConfigurationChanged += (object sender, EventArgs e) => { session2ConfigChanged++; };
 
             // apply the saved session configuration
             bool success = session2.ApplySessionConfiguration(sessionConfiguration);
@@ -632,6 +641,9 @@ namespace Opc.Ua.Client.Tests
             session2.DeleteSubscriptionsOnClose = true;
             session2.Close(1000);
             Utils.SilentDispose(session2);
+
+            Assert.AreEqual(0, session1ConfigChanged);
+            Assert.Less(0, session2ConfigChanged);
         }
 
         [Test, Order(400)]
@@ -756,6 +768,7 @@ namespace Opc.Ua.Client.Tests
             var originSubscriptionFastDataCounters = new int[kTestSubscriptions];
             var targetSubscriptionCounters = new int[kTestSubscriptions];
             var targetSubscriptionFastDataCounters = new int[kTestSubscriptions];
+            var originSubscriptionTransferred = new int[kTestSubscriptions];
             var subscriptionTemplate = new Subscription(originSession.DefaultSubscription) {
                 PublishingInterval = 1_000,
                 LifetimeCount = 30,
@@ -768,6 +781,21 @@ namespace Opc.Ua.Client.Tests
             CreateSubscriptions(originSession, subscriptionTemplate,
                 originSubscriptions, originSubscriptionCounters, originSubscriptionFastDataCounters,
                 kTestSubscriptions, kQueueSize);
+
+            if(TransferType.KeepOpen == transferType)
+            {
+                foreach (var subscription in originSubscriptions)
+                {
+                    subscription.PublishStatusChanged += (s, e) => {
+                        TestContext.Out.WriteLine($"PublishStatusChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
+                        if ((e.Status & PublishStateChangedMask.Transferred)!=0)
+                        {
+                            // subscription transferred
+                            Interlocked.Increment(ref originSubscriptionTransferred[(int)s.Handle]);
+                        }
+                    };
+                }
+            }
 
             // settle
             await Task.Delay(kDelay).ConfigureAwait(false);
@@ -854,13 +882,29 @@ namespace Opc.Ua.Client.Tests
                 // wait
                 await Task.Delay(kDelay).ConfigureAwait(false);
 
-                transferSubscriptions.AddRange(originSubscriptions);
+                transferSubscriptions.AddRange((SubscriptionCollection)originSubscriptions.Clone());
                 int ii = 0;
                 transferSubscriptions.ForEach(s => {
+                    targetSession.AddSubscription(s);
                     s.Handle = ii++;
                     s.FastDataChangeCallback = (sub, n, _) => {
                         TestContext.Out.WriteLine($"FastDataChangeHandlerTarget: {sub.Id}-{n.SequenceNumber}-{n.MonitoredItems.Count}");
                         targetSubscriptionFastDataCounters[(int)s.Handle]++;
+                    };
+                    s.MonitoredItems.ToList().ForEach(i =>
+                        i.Notification += (MonitoredItem item, MonitoredItemNotificationEventArgs e) => {
+                            targetSubscriptionCounters[(int)s.Handle]++;
+                            foreach (var value in item.DequeueValues())
+                            {
+                                TestContext.Out.WriteLine("Tra:{0}: {1:20}, {2}, {3}, {4}", s.Id, item.DisplayName, value.Value, value.SourceTimestamp, value.StatusCode);
+                            }
+                        }
+                    );
+                    s.StateChanged += (su, e) => {
+                        TestContext.Out.WriteLine($"StateChanged: {su.Session.SessionId}-{su.Id}-{e.Status}");
+                    };
+                    s.PublishStatusChanged += (su, e) => {
+                        TestContext.Out.WriteLine($"PublishStatusChanged: {su.Session.SessionId}-{su.Id}-{e.Status}");
                     };
                 });
             }
@@ -888,6 +932,14 @@ namespace Opc.Ua.Client.Tests
             // wait for some events
             await Task.Delay(kDelay).ConfigureAwait(false);
 
+            if (TransferType.KeepOpen == transferType)
+            {
+                foreach (var subscription in originSubscriptions)
+                {
+                    // assert if originSubscriptionTransferred is incremented
+                    Assert.AreEqual(1, originSubscriptionTransferred[(int)subscription.Handle]);
+                }
+            }
             // stop publishing
             foreach (var subscription in transferSubscriptions)
             {
@@ -904,8 +956,8 @@ namespace Opc.Ua.Client.Tests
                 TestContext.Out.WriteLine("-- Subscription {0}: OriginFastDataCounts {1}, TargetFastDataCounts {2} ",
                     jj, originSubscriptionFastDataCounters[jj], targetSubscriptionFastDataCounters[jj]);
                 var monitoredItemCount = transferSubscriptions[jj].MonitoredItemCount;
-                var originExpectedCount = sendInitialValues && originSessionOpen ? monitoredItemCount * 2 : monitoredItemCount;
-                var targetExpectedCount = sendInitialValues && !originSessionOpen ? monitoredItemCount : 0;
+                var originExpectedCount = monitoredItemCount;
+                var targetExpectedCount = sendInitialValues ? monitoredItemCount : 0;
                 if (jj == 0)
                 {
                     // correct for delayed ack and republish count
@@ -953,10 +1005,6 @@ namespace Opc.Ua.Client.Tests
 
                 int[] testCounter = targetSubscriptionCounters;
                 int[] testFastDataCounter = targetSubscriptionFastDataCounters;
-                if (transferType == TransferType.KeepOpen)
-                {
-                    testCounter = originSubscriptionCounters;
-                }
 
                 if (jj == 0)
                 {
@@ -1119,11 +1167,11 @@ namespace Opc.Ua.Client.Tests
                 };
 
                 subscription.StateChanged += (s, e) => {
-                    TestContext.Out.WriteLine($"StateChanged: {s.Id}-{e.Status}");
+                    TestContext.Out.WriteLine($"StateChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
                 };
 
                 subscription.PublishStatusChanged += (s, e) => {
-                    TestContext.Out.WriteLine($"PublishStatusChanged: {s.Id}-{e.Status}");
+                    TestContext.Out.WriteLine($"PublishStatusChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
                 };
 
                 originSubscriptions.Add(subscription);

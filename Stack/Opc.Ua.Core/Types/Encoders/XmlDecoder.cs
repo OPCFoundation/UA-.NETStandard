@@ -22,7 +22,7 @@ namespace Opc.Ua
     /// <summary>
     /// Reads objects from a XML stream.
     /// </summary>
-    public class XmlDecoder : IDecoder, IDisposable
+    public class XmlDecoder : IDecoder
     {
         #region Constructors
         /// <summary>
@@ -578,6 +578,7 @@ namespace Opc.Ua
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>

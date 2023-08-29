@@ -364,6 +364,38 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             id = new NodeId((object)id1, 123);
             Assert.AreEqual(123, id.NamespaceIndex);
             Assert.AreEqual(id1, id.Identifier);
+            var guid = Guid.NewGuid();
+            id = new NodeId((object)guid, 123);
+            Assert.AreEqual(123, id.NamespaceIndex);
+            Assert.AreEqual(guid, id.Identifier);
+            Assert.Throws<ArgumentException>(() => _ = new NodeId((object)(long)7777777, 123));
+
+            var sre = Assert.Throws<ServiceResultException>(() => _ = NodeId.Create(123, "urn:xyz", new NamespaceTable()));
+            Assert.AreEqual(StatusCodes.BadNodeIdInvalid, sre.StatusCode);
+
+            NodeId opaqueId = new byte[] { 33, 44, 55, 66 };
+            NodeId stringId1 = "ns=1;s=Test";
+            NodeId stringId2 = new NodeId("ns=1;s=Test");
+            Assert.AreEqual(stringId1, stringId2);
+            Assert.Throws<ArgumentException>(() => new NodeId("Test"));
+            Assert.Throws<ArgumentException>(() => new NodeId("nsu=urn:xyz;Test"));
+            ExpandedNodeId expandedId1 = new ExpandedNodeId("nsu=urn:xyz;Test");
+            Assert.NotNull(expandedId1);
+            NodeId nullId = ExpandedNodeId.ToNodeId(null, new NamespaceTable());
+            Assert.IsNull(nullId);
+
+            // create a nodeId from a guid
+            Guid guid1 = Guid.NewGuid(), guid2 = Guid.NewGuid();
+            NodeId nodeGuid1 = new NodeId(id1);
+
+            // now to compare the nodeId to the guids
+            Assert.True(nodeGuid1.Equals(id1));
+            Assert.True(nodeGuid1 == id1);
+            Assert.True(nodeGuid1 == (NodeId)id1);
+            Assert.True(nodeGuid1.Equals((Uuid)id1));
+            Assert.True(nodeGuid1 == (Uuid)id1);
+            Assert.False(nodeGuid1.Equals(id2));
+            Assert.False(nodeGuid1 == id2);
 
             id.SetIdentifier("Test", IdType.Opaque);
 
@@ -634,6 +666,20 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
 
             Assert.IsTrue(nodeId.IsNullNodeId);
 
+            Assert.AreEqual(nodeId, NodeId.Null);
+            Assert.AreEqual(nodeId, new NodeId(0, 0));
+            Assert.AreEqual(nodeId, new NodeId(Guid.Empty));
+            Assert.AreEqual(nodeId, new NodeId(new byte[0]));
+            Assert.AreEqual(nodeId, new NodeId((byte[])null));
+            Assert.AreEqual(nodeId, new NodeId((string)null));
+
+            Assert.True(nodeId.Equals(NodeId.Null));
+            Assert.True(nodeId.Equals(new NodeId(0, 0)));
+            Assert.True(nodeId.Equals(new NodeId(Guid.Empty)));
+            Assert.True(nodeId.Equals(new NodeId(new byte[0])));
+            Assert.True(nodeId.Equals(new NodeId((byte[])null)));
+            Assert.True(nodeId.Equals(new NodeId((string)null)));
+
             DataValue nodeIdBasedDataValue = new DataValue(nodeId);
 
             DataValue dataValue = new DataValue(Attributes.NodeClass);
@@ -654,6 +700,20 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
 
             Assert.AreEqual(nodeIdBasedDataValue.Value, nodeId);
             Assert.AreEqual(nodeIdBasedDataValue.Value.GetHashCode(), nodeId.GetHashCode());
+        }
+
+        [Test]
+        public void ShouldNotThrow()
+        {
+            ExpandedNodeId[] expandedNodeIds1 = new ExpandedNodeId[] { new ExpandedNodeId(0), new ExpandedNodeId(0) };
+            ExpandedNodeId[] expandedNodeIds2 = new ExpandedNodeId[] { new ExpandedNodeId((byte[])null), new ExpandedNodeId((byte[])null) };
+            DataValue dv1 = new DataValue(expandedNodeIds1);
+            DataValue dv2 = new DataValue(expandedNodeIds2);
+            Assert.DoesNotThrow(() => dv1.Equals(dv2));
+
+            ExpandedNodeId byteArrayNodeId = new ExpandedNodeId((byte[])null);
+            ExpandedNodeId expandedNodeId = new ExpandedNodeId((NodeId)null);
+            Assert.DoesNotThrow(() => byteArrayNodeId.Equals(expandedNodeId));
         }
         #endregion
 

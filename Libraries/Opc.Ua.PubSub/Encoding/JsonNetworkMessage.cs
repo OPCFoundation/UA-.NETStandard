@@ -194,7 +194,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             bool topLevelIsArray = !HasNetworkMessageHeader && !HasSingleDataSetMessage && !IsMetaDataMessage;
 
-            using (var encoder = new JsonEncoder(messageContext, true, topLevelIsArray, stream))
+            using (IJsonEncoder encoder = new JsonEncoder(messageContext, true, topLevelIsArray, stream))
             {
                 if (IsMetaDataMessage)
                 {
@@ -261,7 +261,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             string json = System.Text.Encoding.UTF8.GetString(message);  
 
-            using (JsonDecoder jsonDecoder = new JsonDecoder(json, context))
+            using (IJsonDecoder jsonDecoder = new JsonDecoder(json, context))
             {
                 // 1. decode network message header (PublisherId & DataSetClassId)
                 DecodeNetworkMessageHeader(jsonDecoder);

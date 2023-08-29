@@ -749,17 +749,18 @@ namespace Opc.Ua
                 }
 
                 // create encoder.
-                XmlEncoder encoder = new XmlEncoder(m_context);
+                using (XmlEncoder encoder = new XmlEncoder(m_context))
+                {
+                    // write body.
+                    encoder.WriteExtensionObjectBody(m_body);
 
-                // write body.
-                encoder.WriteExtensionObjectBody(m_body);
+                    // create document from encoder.
+                    XmlDocument document = new XmlDocument();
+                    document.LoadInnerXml(encoder.CloseAndReturnText());
 
-                // create document from encoder.
-                XmlDocument document = new XmlDocument();
-                document.LoadInnerXml(encoder.Close());
-
-                // return root element.
-                return document.DocumentElement;
+                    // return root element.
+                    return document.DocumentElement;
+                }
             }
 
             set

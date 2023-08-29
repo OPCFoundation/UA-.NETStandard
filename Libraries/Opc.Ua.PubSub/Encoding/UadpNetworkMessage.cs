@@ -371,7 +371,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="stream">The stream to use.</param>
         public override void Encode(IServiceMessageContext messageContext, Stream stream)
         {
-            using (BinaryEncoder encoder = new BinaryEncoder(stream, messageContext))
+            using (BinaryEncoder encoder = new BinaryEncoder(stream, messageContext, true))
             {
                 if (m_uadpNetworkMessageType == UADPNetworkMessageType.DataSetMessage)
                 {
