@@ -761,7 +761,6 @@ namespace Opc.Ua.Bindings
                 m_globalChannelId = Utils.Format("{0}-{1}", m_contextId, m_channelId);
             }
         }
-
         #endregion
 
         #region WriteOperation Class
