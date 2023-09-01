@@ -394,7 +394,7 @@ namespace Opc.Ua.Client
         {
             using (Activity activity = ActivitySource.StartActivity(nameof(FindDataDictionary)))
             {
-                return await m_session.FindDataDictionary(descriptionId);
+                return await m_session.FindDataDictionary(descriptionId).ConfigureAwait(false);
             }
         }
 
@@ -930,7 +930,7 @@ namespace Opc.Ua.Client
         {
             using (Activity activity = ActivitySource.StartActivity(nameof(CancelAsync)))
             {
-                return await m_session.CancelAsync(requestHeader, requestHandle, ct);
+                return await m_session.CancelAsync(requestHeader, requestHandle, ct).ConfigureAwait(false);
             }
         }
 
@@ -960,7 +960,7 @@ namespace Opc.Ua.Client
         {
             using (Activity activity = ActivitySource.StartActivity(nameof(AddNodesAsync)))
             {
-                return await m_session.AddNodesAsync(requestHeader, nodesToAdd, ct);
+                return await m_session.AddNodesAsync(requestHeader, nodesToAdd, ct).ConfigureAwait(false);
             }
         }
 
@@ -990,7 +990,7 @@ namespace Opc.Ua.Client
         {
             using (Activity activity = ActivitySource.StartActivity(nameof(AddReferencesAsync)))
             {
-                return await m_session.AddReferencesAsync(requestHeader, referencesToAdd, ct);
+                return await m_session.AddReferencesAsync(requestHeader, referencesToAdd, ct).ConfigureAwait(false);
             }
         }
 
@@ -1020,7 +1020,7 @@ namespace Opc.Ua.Client
         {
             using (Activity activity = ActivitySource.StartActivity(nameof(DeleteNodesAsync)))
             {
-                return await m_session.DeleteNodesAsync(requestHeader, nodesToDelete, ct);
+                return await m_session.DeleteNodesAsync(requestHeader, nodesToDelete, ct).ConfigureAwait(false);
             }
         }
 
@@ -1050,7 +1050,7 @@ namespace Opc.Ua.Client
         {
             using (Activity activity = ActivitySource.StartActivity(nameof(DeleteReferencesAsync)))
             {
-                return await m_session.DeleteReferencesAsync(requestHeader, referencesToDelete, ct);
+                return await m_session.DeleteReferencesAsync(requestHeader, referencesToDelete, ct).ConfigureAwait(false);
             }
         }
 
@@ -1080,7 +1080,7 @@ namespace Opc.Ua.Client
         {
             using (Activity activity = ActivitySource.StartActivity(nameof(BrowseAsync)))
             {
-                return await m_session.BrowseAsync(requestHeader, view, requestedMaxReferencesPerNode, nodesToBrowse, ct);
+                return await m_session.BrowseAsync(requestHeader, view, requestedMaxReferencesPerNode, nodesToBrowse, ct).ConfigureAwait(false);
             }
         }
 
@@ -1110,7 +1110,7 @@ namespace Opc.Ua.Client
         {
             using (Activity activity = ActivitySource.StartActivity(nameof(BrowseNextAsync)))
             {
-                return await m_session.BrowseNextAsync(requestHeader, releaseContinuationPoints, continuationPoints, ct);
+                return await m_session.BrowseNextAsync(requestHeader, releaseContinuationPoints, continuationPoints, ct).ConfigureAwait(false);
             }
         }
 
