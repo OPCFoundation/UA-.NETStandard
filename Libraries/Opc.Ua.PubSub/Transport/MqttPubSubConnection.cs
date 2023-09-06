@@ -670,23 +670,31 @@ namespace Opc.Ua.PubSub.Transport
                     MqttTlsOptions mqttTlsOptions =
                         ((MqttClientProtocolConfiguration)transportProtocolConfiguration).MqttTlsOptions;
 
+                    List<X509Certificate2> x509Certificate2s = new List<X509Certificate2>();
+                    if (mqttTlsOptions?.Certificates != null)
+                    {
+                        foreach (var x509cert in mqttTlsOptions?.Certificates.X509Certificates)
+                        {
+                            x509Certificate2s.Add(new X509Certificate2(x509cert));
+                        }
+                    }
+
                     MqttClientOptionsBuilder mqttClientOptionsBuilder = new MqttClientOptionsBuilder()
                         .WithTcpServer(m_brokerHostName, m_brokerPort)
                         .WithKeepAlivePeriod(mqttKeepAlive)
                         .WithProtocolVersion(mqttProtocolVersion)
                         .WithClientId(clientId)
-                        .WithTls(new MqttClientOptionsBuilderTlsParameters {
-                            UseTls = true,
-                            Certificates = mqttTlsOptions?.Certificates?.X509Certificates,
-                            SslProtocol =
-                                mqttTlsOptions?.SslProtocolVersion ??
-                                System.Security.Authentication.SslProtocols.Tls12,
-                            AllowUntrustedCertificates = mqttTlsOptions?.AllowUntrustedCertificates ?? false,
-                            IgnoreCertificateChainErrors = mqttTlsOptions?.IgnoreCertificateChainErrors ?? false,
-                            IgnoreCertificateRevocationErrors = mqttTlsOptions?.IgnoreRevocationListErrors ?? false,
-                            CertificateValidationHandler = ValidateBrokerCertificate
+                        .WithTlsOptions(o => {
+                            o.UseTls(true);
+                            o.WithClientCertificates(x509Certificate2s);
+                            o.WithSslProtocols(mqttTlsOptions?.SslProtocolVersion ??
+                                System.Security.Authentication.SslProtocols.None);// Allow OS to choose best option
+                            o.WithAllowUntrustedCertificates(mqttTlsOptions?.AllowUntrustedCertificates ?? false);
+                            o.WithIgnoreCertificateChainErrors(mqttTlsOptions?.IgnoreCertificateChainErrors ?? false);
+                            o.WithIgnoreCertificateRevocationErrors(mqttTlsOptions?.IgnoreRevocationListErrors ?? false);
+                            o.WithCertificateValidationHandler(ValidateBrokerCertificate);
                         });
-
+                        
                     // Set user credentials.
                     if (mqttProtocolConfiguration.UseCredentials)
                     {
