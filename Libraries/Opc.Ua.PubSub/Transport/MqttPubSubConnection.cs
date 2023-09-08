@@ -433,29 +433,38 @@ namespace Opc.Ua.PubSub.Transport
             var publisherMqttClient = m_publisherMqttClient;
             var subscriberMqttClient = m_subscriberMqttClient;
 
-            if (publisherMqttClient != null)
+            void DisposeCerts(X509CertificateCollection certificates)
             {
-                if (publisherMqttClient.IsConnected)
+                if (certificates != null)
                 {
-                    await publisherMqttClient.DisconnectAsync().ContinueWith((e) => publisherMqttClient.Dispose()).ConfigureAwait(false);
-                }
-                else
-                {
-                    publisherMqttClient.Dispose();
+                    // dispose certificates
+                    foreach (var cert in certificates)
+                    {
+                        Utils.SilentDispose(cert);
+                    }
                 }
             }
-
-            if (subscriberMqttClient != null)
+            async Task InternalStop(IMqttClient client)
             {
-                if (subscriberMqttClient.IsConnected)
+                if (client != null)
                 {
-                    await subscriberMqttClient.DisconnectAsync().ContinueWith((e) => subscriberMqttClient.Dispose()).ConfigureAwait(false);
-                }
-                else
-                {
-                    subscriberMqttClient.Dispose();
+                    X509CertificateCollection certificates = client.Options?.ChannelOptions?.TlsOptions?.ClientCertificatesProvider?.GetCertificates();
+                    if (client.IsConnected)
+                    {
+                        await client.DisconnectAsync().ContinueWith((e) => {
+                            DisposeCerts(certificates);
+                            Utils.SilentDispose(client);
+                        }).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        DisposeCerts(certificates);
+                        Utils.SilentDispose(client);
+                    }
                 }
             }
+            await InternalStop(publisherMqttClient).ConfigureAwait(false);
+            await InternalStop(subscriberMqttClient).ConfigureAwait(false);
 
             if (m_metaDataPublishers != null)
             {
@@ -675,7 +684,7 @@ namespace Opc.Ua.PubSub.Transport
                     {
                         foreach (var x509cert in mqttTlsOptions?.Certificates.X509Certificates)
                         {
-                            x509Certificate2s.Add(new X509Certificate2(x509cert));
+                            x509Certificate2s.Add(new X509Certificate2(x509cert.Handle));
                         }
                     }
 
