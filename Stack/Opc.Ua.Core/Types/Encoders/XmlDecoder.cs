@@ -2743,8 +2743,6 @@ namespace Opc.Ua
                     m_reader.Read();
                 }
 
-                m_namespaces.Push(Namespaces.OpcUaXsd);
-
                 // process array types.
 
                 switch (builtInType)
@@ -2937,7 +2935,6 @@ namespace Opc.Ua
             }
             finally
             {
-                m_namespaces.Pop();
                 m_nestingLevel--;
             }
         }
