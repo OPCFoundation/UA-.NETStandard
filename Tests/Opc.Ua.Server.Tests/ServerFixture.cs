@@ -119,12 +119,15 @@ namespace Opc.Ua.Server.Tests
                 });
             }
             
-            CertificateIdentifierCollection eccSecurityCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(pkiRoot);
+            CertificateIdentifierCollection applicationCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                "CN=" + typeof(T).Name + ", C=US, S=Arizona, O=OPC Foundation, DC=localhost",
+                CertificateStoreType.Directory,
+                pkiRoot);
 
             Config = await serverConfig.AddSecurityConfiguration(
-                    "CN=" + typeof(T).Name + ", C=US, S=Arizona, O=OPC Foundation, DC=localhost",
+                    applicationCerts,
                     pkiRoot)
-                .SetApplicationCertificates(eccSecurityCerts)
+                //.SetApplicationCertificates(applicationCerts)
                 .SetAutoAcceptUntrustedCertificates(AutoAccept)
                 .Create().ConfigureAwait(false);
         }

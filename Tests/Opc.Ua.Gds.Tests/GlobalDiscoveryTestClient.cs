@@ -73,6 +73,11 @@ namespace Opc.Ua.Gds.Tests
                 AdminPassword = "demo"
             };
 
+            CertificateIdentifierCollection applicationCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                "CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost",
+                CertificateStoreType.Directory,
+                pkiRoot);
+
             // build the application configuration.
             Configuration = await application
                 .Build(
@@ -82,7 +87,7 @@ namespace Opc.Ua.Gds.Tests
                 .SetDefaultSessionTimeout(600000)
                 .SetMinSubscriptionLifetime(10000)
                 .AddSecurityConfiguration(
-                    "CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost",
+                    applicationCerts,
                     pkiRoot)
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)

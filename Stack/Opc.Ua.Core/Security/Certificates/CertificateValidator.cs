@@ -35,6 +35,7 @@ namespace Opc.Ua
         public CertificateValidator()
         {
             m_validatedCertificates = new Dictionary<string, X509Certificate2>();
+            m_applicationCertificates = new List<X509Certificate2>();
             m_protectFlags = 0;
             m_autoAcceptUntrustedCertificates = false;
             m_rejectSHA1SignedCertificates = CertificateFactory.DefaultHashSize >= 256;
@@ -180,7 +181,7 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the validator with the current state of the configuration.
         /// </summary>
-        public virtual Task Update(SecurityConfiguration configuration)
+        public virtual async Task Update(SecurityConfiguration configuration)
         {
             if (configuration == null)
             {
@@ -227,7 +228,25 @@ namespace Opc.Ua
                 m_semaphore.Release();
             }
 
-            return Task.CompletedTask;
+            if (configuration.ApplicationCertificates != null)
+            {
+                foreach (var applicationCertificate in configuration.ApplicationCertificates)
+                {
+                    X509Certificate2 certificate = await applicationCertificate.Find(true).ConfigureAwait(false);
+                    if (certificate == null)
+                    {
+                        Utils.Trace(Utils.TraceMasks.Security, "Could not find application certificate: {0}", applicationCertificate);
+                        continue;
+                    }
+                    // Add to list of application certificates only if not allready in list
+                    // necessary since the application certificates may be updated multiple times
+                    if (!m_applicationCertificates.Exists(cert => Utils.IsEqual(cert.RawData, certificate.RawData)))
+                    {
+                        m_applicationCertificates.Add(certificate);
+                    }
+                }
+            }
+
         }
 
         /// <summary>
@@ -1332,12 +1351,24 @@ namespace Opc.Ua
             // check if certificate is trusted.
             if (trustedCertificate == null && !isIssuerTrusted)
             {
-                // TODO ECC cert
-                bool isApplicationCertificate = true;
-                if (isApplicationCertificate)
-                //if (m_applicationCertificate == null || !Utils.IsEqual(m_applicationCertificate.RawData, certificate.RawData))
+                // If the certificate is not trusted, check if the certificate is amongst the application certificates
+                bool isApplicationCertificate = false;
+                if (m_applicationCertificates != null)
                 {
-                    var message = "Certificate is not trusted.";
+                    foreach (var appCert in m_applicationCertificates)
+                    {
+                        if (Utils.IsEqual(appCert.RawData, certificate.RawData))
+                        {
+                            // certificate is the application certificate
+                            isApplicationCertificate = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (m_applicationCertificates == null || !isApplicationCertificate)
+                {
+                    string message = "Certificate is not trusted.";
                     sresult = new ServiceResult(StatusCodes.BadCertificateUntrusted,
                     null, null, message, null, sresult);
                 }
@@ -1852,29 +1883,6 @@ namespace Opc.Ua
                 }
             }
         }
-        // public static bool IsECSecureForProfile(X509Certificate2 certificate, int requiredKeySizeInBits)
-        // {
-        //     using (ECDsa ecdsa = certificate.GetECDsaPublicKey())
-        //     {
-        //         if (ecdsa == null)
-        //         {
-        //             throw new ArgumentException("Certificate does not contain an ECC public key");
-        //         }
-
-        //         ECCurve curve = ecdsa.ExportParameters(false).Curve;
-
-        //         int curveKeySizeInBits = curve.Order.Length * 8;
-
-        //         // Check if the curve key size is at least as large as the required key size
-        //         if (curveKeySizeInBits < requiredKeySizeInBits)
-        //         {
-        //             return false;
-        //         }
-
-        //         // The curve is secure enough for the profile
-        //         return true;
-        //     }
-        // }
         #endregion
 
         #region Private Enum
@@ -1905,7 +1913,7 @@ namespace Opc.Ua
         private CertificateStoreIdentifier m_rejectedCertificateStore;
         private event CertificateValidationEventHandler m_CertificateValidation;
         private event CertificateUpdateEventHandler m_CertificateUpdate;
-        //private X509Certificate2 m_applicationCertificate;
+        private List<X509Certificate2> m_applicationCertificates;
         private ProtectFlags m_protectFlags;
         private bool m_autoAcceptUntrustedCertificates;
         private bool m_rejectSHA1SignedCertificates;
@@ -1913,6 +1921,7 @@ namespace Opc.Ua
         private ushort m_minimumCertificateKeySize;
         private ushort m_minimumECCertificateKeySize;
         private bool m_useValidatedCertificates;
+
         #endregion
     }
 

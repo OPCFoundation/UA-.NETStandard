@@ -75,11 +75,11 @@ namespace Opc.Ua.Client.Tests
 
             pkiRoot = pkiRoot ?? Path.Combine("%LocalApplicationData%", "OPC", "pki");
 
-            string eccCertTypes = "RSA,nistP256,nistP384";
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                eccCertTypes += ",brainpoolP256r1,brainpoolP384r1";
-            }
+            CertificateIdentifierCollection applicationCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                "CN=" + clientName + ", O=OPC Foundation, DC=localhost",
+                CertificateStoreType.Directory,
+                pkiRoot
+                );
 
             // build the application configuration.
             Config = await application
@@ -94,10 +94,10 @@ namespace Opc.Ua.Client.Tests
                     MaxNodesPerWrite = kDefaultOperationLimits
                 })
                 .AddSecurityConfiguration(
-                    "CN=" + clientName + ", O=OPC Foundation, DC=localhost",
+                    applicationCerts,
                     pkiRoot)
 
-                .SetApplicationCertificateTypes(eccCertTypes)
+                // .SetApplicationCertificates(applicationCerts)
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)
                 .SetMinimumCertificateKeySize(1024)

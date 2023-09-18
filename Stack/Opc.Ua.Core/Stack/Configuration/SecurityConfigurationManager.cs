@@ -153,7 +153,7 @@ namespace Opc.Ua.Security
                 {
 #pragma warning disable CS0618 // Type or member is obsolete
                     application.ApplicationCertificate = SecuredApplication.ToCertificateIdentifier(applicationConfiguration.SecurityConfiguration.ApplicationCertificate);
-#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning restore CS0618 // Type or member is obsolete
                 }
                 else
                 {

@@ -311,9 +311,14 @@ namespace Opc.Ua.Client.Tests
                 ApplicationName = ClientFixture.Config.ApplicationName
             };
             Assert.NotNull(applicationInstance);
+
+            CertificateIdentifierCollection applicationCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                ClientFixture.Config.SecurityConfiguration.ApplicationCertificate.SubjectName
+                );
+
             ApplicationConfiguration config = await applicationInstance.Build(ClientFixture.Config.ApplicationUri, ClientFixture.Config.ProductUri)
                 .AsClient()
-                .AddSecurityConfiguration(ClientFixture.Config.SecurityConfiguration.ApplicationCertificate.SubjectName)
+                .AddSecurityConfiguration(applicationCerts)
                 .Create().ConfigureAwait(false);
         }
 

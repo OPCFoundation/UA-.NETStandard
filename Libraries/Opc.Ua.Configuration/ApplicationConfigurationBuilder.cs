@@ -104,7 +104,73 @@ namespace Opc.Ua.Configuration
             var rejectedRootType = CertificateStoreIdentifier.DetermineStoreType(rejectedRoot);
             ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration {
                 // app cert store
-                ApplicationCertificates = CreateDefaultApplicationCertificates(appRoot),
+#pragma warning disable CS0618 // Type or member is obsolete
+                ApplicationCertificate = new CertificateIdentifier() {
+#pragma warning restore CS0618 // Type or member is obsolete
+                    StoreType = appStoreType,
+                    StorePath = DefaultCertificateStorePath(TrustlistType.Application, appRoot),
+                    SubjectName = Utils.ReplaceDCLocalhost(subjectName)
+                },
+                // App trusted & issuer
+                TrustedPeerCertificates = new CertificateTrustList() {
+                    StoreType = pkiRootType,
+                    StorePath = DefaultCertificateStorePath(TrustlistType.Trusted, pkiRoot)
+                },
+                TrustedIssuerCertificates = new CertificateTrustList() {
+                    StoreType = pkiRootType,
+                    StorePath = DefaultCertificateStorePath(TrustlistType.Issuer, pkiRoot)
+                },
+                // Https trusted & issuer
+                TrustedHttpsCertificates = new CertificateTrustList() {
+                    StoreType = pkiRootType,
+                    StorePath = DefaultCertificateStorePath(TrustlistType.TrustedHttps, pkiRoot)
+                },
+                HttpsIssuerCertificates = new CertificateTrustList() {
+                    StoreType = pkiRootType,
+                    StorePath = DefaultCertificateStorePath(TrustlistType.IssuerHttps, pkiRoot)
+                },
+                // User trusted & issuer
+                TrustedUserCertificates = new CertificateTrustList() {
+                    StoreType = pkiRootType,
+                    StorePath = DefaultCertificateStorePath(TrustlistType.TrustedUser, pkiRoot)
+                },
+                UserIssuerCertificates = new CertificateTrustList() {
+                    StoreType = pkiRootType,
+                    StorePath = DefaultCertificateStorePath(TrustlistType.IssuerUser, pkiRoot)
+                },
+                // rejected store
+                RejectedCertificateStore = new CertificateTrustList() {
+                    StoreType = rejectedRootType,
+                    StorePath = DefaultCertificateStorePath(TrustlistType.Rejected, rejectedRoot)
+                },
+                // ensure secure default settings
+                AutoAcceptUntrustedCertificates = false,
+                AddAppCertToTrustedStore = false,
+                RejectSHA1SignedCertificates = true,
+                RejectUnknownRevocationStatus = true,
+                SuppressNonceValidationErrors = false,
+                SendCertificateChain = true,
+                MinimumCertificateKeySize = CertificateFactory.DefaultKeySize,
+                MinimumECCertificateKeySize = CertificateFactory.DefaultECCKeySize,
+            };
+
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderSecurityOptions AddSecurityConfiguration(
+            CertificateIdentifierCollection applicationCertificates,
+            string pkiRoot = null,
+            string rejectedRoot = null
+            )
+        {
+            pkiRoot = DefaultPKIRoot(pkiRoot);
+            rejectedRoot = rejectedRoot == null ? pkiRoot : DefaultPKIRoot(rejectedRoot);
+            var pkiRootType = CertificateStoreIdentifier.DetermineStoreType(pkiRoot);
+            var rejectedRootType = CertificateStoreIdentifier.DetermineStoreType(rejectedRoot);
+            ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration {
+                // app cert store
+                ApplicationCertificates = applicationCertificates,
                 // App trusted & issuer
                 TrustedPeerCertificates = new CertificateTrustList() {
                     StoreType = pkiRootType,
@@ -804,29 +870,34 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Create ApplicationCertificates from a PKI root.
         /// </summary>
-        /// <param name="pkiRoot">The PKI root.</param>
+        /// <param name="storeType">The cert store type: ex: "Directory"</param>
+        /// <param name="storePath">The PKI root.</param>
+        /// <param name="subjectName">The subject name.</param>
         /// <returns>The application certificates.</returns>
 
-        public static CertificateIdentifierCollection CreateDefaultApplicationCertificates(string pkiRoot)
+        public static CertificateIdentifierCollection CreateDefaultApplicationCertificates(
+            string subjectName,
+            string storeType = null,
+            string storePath = null)
         {
             CertificateIdentifierCollection certificateIdentifiers = new CertificateIdentifierCollection{
                 new CertificateIdentifier {
-                    StoreType = "Directory",
-                    StorePath = pkiRoot,
-                    SubjectName = "N=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost",
-                    CertificateType = new NodeId ("i=12560") // RSA
+                    StoreType = storeType,
+                    StorePath = storePath,
+                    SubjectName = subjectName,
+                    CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
                 },
                 new CertificateIdentifier {
-                    StoreType = "Directory",
-                    StorePath = pkiRoot,
-                    SubjectName = "CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost",
-                    CertificateType = new NodeId ("i=23538") // Nistp256
+                    StoreType = storeType,
+                    StorePath = storePath,
+                    SubjectName = subjectName,
+                    CertificateType = ObjectTypeIds.EccNistP256ApplicationCertificateType
                 },
                 new CertificateIdentifier {
-                    StoreType = "Directory",
-                    StorePath = pkiRoot,
-                    SubjectName = "CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost",
-                    CertificateType = new NodeId ("i=23539") // Nistp384
+                    StoreType = storeType,
+                    StorePath = storePath,
+                    SubjectName = subjectName,
+                    CertificateType = ObjectTypeIds.EccNistP384ApplicationCertificateType
                 }
             };
 
@@ -835,17 +906,19 @@ namespace Opc.Ua.Configuration
                 certificateIdentifiers.AddRange(
                     new CertificateIdentifierCollection
                     {
-                        new CertificateIdentifier { 
-                            StoreType = "Directory",
-                            StorePath = pkiRoot,
-                            SubjectName = "CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost",
-                            CertificateType = new NodeId ("i=23540") // BrainpoolP256r1
+                        new CertificateIdentifier
+                        {
+                            StoreType = storeType,
+                            StorePath = storePath,
+                            SubjectName = subjectName,
+                            CertificateType = ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType
                         },
-                        new CertificateIdentifier { 
-                            StoreType = "Directory",
-                            StorePath = pkiRoot,
-                            SubjectName = "CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost",
-                            CertificateType = new NodeId ("i=23541") // BrainpoolP384r1
+                        new CertificateIdentifier
+                        {
+                            StoreType = storeType,
+                            StorePath = storePath,
+                            SubjectName = subjectName,
+                            CertificateType = ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType
                         }
                     });
             }

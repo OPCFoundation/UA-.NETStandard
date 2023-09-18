@@ -556,18 +556,21 @@ namespace Opc.Ua
                         return true;
                     }
 
-                    // special cases
-                    if (certType == ObjectTypeIds.EccNistP384ApplicationCertificateType &&
-                        certificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType)
-                    {
-                        return true;
-                    }
+                    /* // Why where these special cases needed?                    
+                                        // special cases
+                                        if (certType == ObjectTypeIds.EccNistP384ApplicationCertificateType &&
+                                            certificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType)
+                                        {
+                                            return true;
+                                        }
 
-                    if (certType == ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType &&
-                        certificateType == ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
-                    {
-                        return true;
-                    }
+                                        if (certType == ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType &&
+                                            certificateType == ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
+                                        {
+                                            return true;
+                                        } 
+                    */
+
                     break;
 
                 default:

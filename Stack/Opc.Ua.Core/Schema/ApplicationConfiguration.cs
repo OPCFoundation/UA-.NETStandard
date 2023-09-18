@@ -795,6 +795,7 @@ namespace Opc.Ua
         #region Persistent Properties
         /// <summary>
         /// The application instance certificate.
+        /// Kept for backward compatibility with configuration files which only support RSA certificates.
         /// </summary>
         /// <value>The application certificate.</value>
         /// <remarks>

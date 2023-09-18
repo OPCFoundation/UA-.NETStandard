@@ -29,6 +29,7 @@
 
 using System.Threading.Tasks;
 using System.Xml;
+using System;
 
 namespace Opc.Ua.Configuration
 {
@@ -392,10 +393,29 @@ namespace Opc.Ua.Configuration
         /// <param name="pkiRoot">The path to the pki root. By default all cert stores use the pki root.</param>
         /// <param name="appRoot">The path to the app cert store, if different than the pki root.</param>
         /// <param name="rejectedRoot">The path to the rejected certificate store.</param>
+        [Obsolete("Use AddSecurityConfiguration(CertificateIdentifierCollection certIdList, string pkiRoot = null, string rejectedRoot = null) instead.")]
         IApplicationConfigurationBuilderSecurityOptions AddSecurityConfiguration(
             string subjectName,
             string pkiRoot = null,
             string appRoot = null,
+            string rejectedRoot = null
+            );
+        
+        /// <summary>
+        /// Add the security configuration.
+        /// </summary>
+        /// <remarks>
+        /// The pki root path default to the certificate store
+        /// location as defined in <see cref="CertificateStoreIdentifier.DefaultPKIRoot"/>
+        /// A <see cref="CertificateStoreType"/> defaults to the corresponding default store location.
+        /// </remarks>
+        /// <param name="certIdList">A list of Certificate identifiers</param>
+        /// <param name="pkiRoot">The path to the pki root. By default all cert stores use the pki root.</param>
+        /// <param name="rejectedRoot">The path to the rejected certificate store.</param>
+
+        IApplicationConfigurationBuilderSecurityOptions AddSecurityConfiguration(
+            CertificateIdentifierCollection certIdList,
+            string pkiRoot = null,
             string rejectedRoot = null
             );
 

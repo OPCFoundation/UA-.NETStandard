@@ -86,6 +86,11 @@ namespace Opc.Ua.Gds.Tests
                 SecurityTokenLifetime = 3600000,
             };
 
+            CertificateIdentifierCollection applicationCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                "CN=Server Configuration Push Test Client, O=OPC Foundation",
+                CertificateStoreType.Directory,
+                pkiRoot);
+
             // build the application configuration.
             Config = await application
                 .Build(
@@ -94,8 +99,8 @@ namespace Opc.Ua.Gds.Tests
                 .SetTransportQuotas(transportQuotas)
                 .AsClient()
                 .AddSecurityConfiguration(
-                    "CN=Server Configuration Push Test Client, O=OPC Foundation",
-                    pkiRoot, pkiRoot, pkiRoot)
+                    applicationCerts,
+                    pkiRoot, pkiRoot)
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)
                 .SetRejectUnknownRevocationStatus(true)

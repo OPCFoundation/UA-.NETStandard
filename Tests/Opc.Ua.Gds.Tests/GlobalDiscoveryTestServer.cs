@@ -211,6 +211,12 @@ namespace Opc.Ua.Gds.Tests
                 DatabaseStorePath = Path.Combine(gdsRoot, "gdsdb.json")
             };
 
+            CertificateIdentifierCollection applicationCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                "CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost",
+                CertificateStoreType.Directory,
+                gdsRoot
+                );
+
             // build the application configuration.
             ApplicationConfiguration config = await application
                 .Build(
@@ -224,7 +230,7 @@ namespace Opc.Ua.Gds.Tests
                 .AddServerProfile("http://opcfoundation.org/UA-Profile/Server/GlobalDiscoveryAndCertificateManagement2017")
                 .SetShutdownDelay(0)
                 .AddSecurityConfiguration(
-                    "CN=Global Discovery Test Server, O=OPC Foundation, DC=localhost",
+                    applicationCerts,
                     gdsRoot)
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)
