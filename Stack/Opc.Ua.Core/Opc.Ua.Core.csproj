@@ -49,7 +49,7 @@
     </When>
     <When Condition="'$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'net48'">
       <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.4" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.1" />
       </ItemGroup>
     </When>
     <Otherwise>
@@ -88,11 +88,11 @@
   </PropertyGroup>
 
   <Target Name="ZipNodeSet2" BeforeTargets="PrepareForBuild" Inputs="$(ZipNodeSet2XML)" Outputs="$(ZipNodeSet2XML).zip">
-    <Message Text="Zip $(ZipNodeSet2XML) in $(ZipTmp)." Importance="high"/>
+    <Message Text="Zip $(ZipNodeSet2XML) in $(ZipTmp)." Importance="high" />
     <Copy SourceFiles="$(ZipNodeSet2XML)" DestinationFolder="$(ZipTmp)" />
     <ZipDirectory SourceDirectory="$(ZipTmp)" DestinationFile="$(ZipNodeSet2XML).zip" Overwrite="true" />
     <RemoveDir Directories="$(ZipTmp)" />
-    <Message Text="Zip NodeSet2 completed, $(ZipTmp) removed." Importance="high"/>
+    <Message Text="Zip NodeSet2 completed, $(ZipTmp) removed." Importance="high" />
   </Target>
 
 </Project>
