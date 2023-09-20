@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -23,7 +23,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * The complete license agreement can be found here: 
+ * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
@@ -99,7 +99,7 @@ namespace Opc.Ua.Client
         event PublishErrorEventHandler PublishError;
 
         /// <summary>
-        /// Raised when a publish request is about to acknolegde sequence numbers. 
+        /// Raised when a publish request is about to acknolegde sequence numbers.
         /// </summary>
         /// <remarks>
         /// If the client chose to defer acknowledge of sequenece numbers, it is responsible
@@ -219,7 +219,7 @@ namespace Opc.Ua.Client
         int SubscriptionCount { get; }
 
         /// <summary>
-        /// If the subscriptions are deleted when a session is closed. 
+        /// If the subscriptions are deleted when a session is closed.
         /// </summary>
         bool DeleteSubscriptionsOnClose { get; set; }
 
@@ -277,12 +277,12 @@ namespace Opc.Ua.Client
         OperationLimits OperationLimits { get; }
 
         /// <summary>
-        /// If the subscriptions are transferred when a session is reconnected. 
+        /// If the subscriptions are transferred when a session is reconnected.
         /// </summary>
         /// <remarks>
         /// Default <c>false</c>, set to <c>true</c> if subscriptions should
         /// be transferred after reconnect. Service must be supported by server.
-        /// </remarks>   
+        /// </remarks>
         bool TransferSubscriptionsOnReconnect { get; set; }
 
         /// <summary>
@@ -514,6 +514,19 @@ namespace Opc.Ua.Client
         /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
         void Open(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain);
 
+#if (CLIENT_ASYNC)
+        /// <summary>
+        /// Establishes a session with the server.
+        /// </summary>
+        /// <param name="sessionName">The name to assign to the session.</param>
+        /// <param name="sessionTimeout">The session timeout.</param>
+        /// <param name="identity">The user identity.</param>
+        /// <param name="preferredLocales">The list of preferred locales.</param>
+        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="ct">Cancellation tokent o cancel the request</param>
+        Task OpenAsync(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain, CancellationToken ct = default);
+#endif
+
         /// <summary>
         /// Updates the preferred locales used for the session.
         /// </summary>
@@ -547,6 +560,12 @@ namespace Opc.Ua.Client
         void ReadDisplayName(IList<NodeId> nodeIds, out IList<string> displayNames, out IList<ServiceResult> errors);
 
 #if (CLIENT_ASYNC)
+        /// <summary>
+        /// Updates the local copy of the server's namespace uri and server uri tables.
+        /// </summary>
+        /// <param name="ct">The cancellation token.</param>
+        Task FetchNamespaceTablesAsync(CancellationToken ct = default);
+
         /// <summary>
         /// Reads the values for the node attributes and returns a node object collection.
         /// </summary>

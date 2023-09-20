@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2023 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -525,6 +526,15 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        public async Task OpenAsync(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain, CancellationToken ct)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(Open)))
+            {
+                await m_session.OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
         public void ChangePreferredLocales(StringCollection preferredLocales)
         {
             using (Activity activity = ActivitySource.StartActivity(nameof(ChangePreferredLocales)))
@@ -568,6 +578,18 @@ namespace Opc.Ua.Client
                 m_session.ReadDisplayName(nodeIds, out displayNames, out errors);
             }
         }
+
+        #region FetchNamespaceTables Async Methods
+        /// <inheritdoc/>
+        public async Task FetchNamespaceTablesAsync(CancellationToken ct = default)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(FetchNamespaceTablesAsync)))
+            {
+                await m_session.FetchNamespaceTablesAsync(ct).ConfigureAwait(false);
+            }
+        }
+        #endregion
+
         /// <inheritdoc/>
         public async Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(IList<NodeId> nodeIds, NodeClass nodeClass, bool optionalAttributes = false, CancellationToken ct = default)
         {

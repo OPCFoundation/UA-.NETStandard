@@ -683,12 +683,12 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// If the subscriptions are deleted when a session is closed. 
+        /// If the subscriptions are deleted when a session is closed.
         /// </summary>
         /// <remarks>
         /// Default <c>true</c>, set to <c>false</c> if subscriptions need to
         /// be transferred or for durable subscriptions.
-        /// </remarks>   
+        /// </remarks>
         public bool DeleteSubscriptionsOnClose
         {
             get { return m_deleteSubscriptionsOnClose; }
@@ -696,12 +696,12 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// If the subscriptions are transferred when a session is reconnected. 
+        /// If the subscriptions are transferred when a session is reconnected.
         /// </summary>
         /// <remarks>
         /// Default <c>false</c>, set to <c>true</c> if subscriptions should
         /// be transferred after reconnect. Service must be supported by server.
-        /// </remarks>   
+        /// </remarks>
         public bool TransferSubscriptionsOnReconnect
         {
             get { return m_transferSubscriptionsOnReconnect; }
@@ -937,7 +937,7 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="configuration">The application configuration.</param>
         /// <param name="connection">The client endpoint for the reverse connect.</param>
-        /// <param name="endpoint">A configured endpoint to connect to.</param> 
+        /// <param name="endpoint">A configured endpoint to connect to.</param>
         /// <param name="updateBeforeConnect">Update configuration based on server prior connect.</param>
         /// <param name="checkDomain">Check that the certificate specifies a valid domain (computer) name.</param>
         /// <param name="ct">The cancellation token.</param>
@@ -1054,7 +1054,7 @@ namespace Opc.Ua.Client
             // create the session.
             try
             {
-                session.Open(sessionName, sessionTimeout, identity, preferredLocales, checkDomain);
+                await session.OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, ct).ConfigureAwait(false);
             }
             catch (Exception)
             {
@@ -4429,7 +4429,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Builds the node collection results based on the attribute values of the read response. 
+        /// Builds the node collection results based on the attribute values of the read response.
         /// </summary>
         /// <param name="attributesToRead">The collection of all attributes to read passed in the read request.</param>
         /// <param name="attributesPerNodeId">The attributes requested per NodeId</param>
@@ -5498,7 +5498,7 @@ namespace Opc.Ua.Client
                 }
 
 #if DEBUG_SEQUENTIALPUBLISHING
-                // Checks for debug info only. 
+                // Checks for debug info only.
                 // Once more than a single publish request is queued, the checks are invalid
                 // because a publish response may not include the latest ack information yet.
 
