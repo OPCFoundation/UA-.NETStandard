@@ -568,6 +568,34 @@ namespace Opc.Ua.Client
                 m_session.ReadDisplayName(nodeIds, out displayNames, out errors);
             }
         }
+
+        /// <inheritdoc/>
+        public async Task OpenAsync(string sessionName, IUserIdentity identity, CancellationToken ct)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(Open)))
+            {
+                await m_session.OpenAsync(sessionName, identity, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task OpenAsync(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, CancellationToken ct)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(Open)))
+            {
+                await m_session.OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task OpenAsync(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain, CancellationToken ct)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(Open)))
+            {
+                await m_session.OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, ct).ConfigureAwait(false);
+            }
+        }
+
         /// <inheritdoc/>
         public async Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(IList<NodeId> nodeIds, NodeClass nodeClass, bool optionalAttributes = false, CancellationToken ct = default)
         {
