@@ -49,7 +49,7 @@
     </When>
     <When Condition="'$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'net48'">
       <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.1" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.4" />
       </ItemGroup>
     </When>
     <Otherwise>
