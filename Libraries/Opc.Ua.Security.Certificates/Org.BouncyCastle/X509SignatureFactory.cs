@@ -123,34 +123,9 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
                 if (memStream == null) throw new ArgumentNullException(nameof(Stream));
                 var digest = memStream.ToArray();
                 var signature = _generator.SignData(digest, _hashAlgorithm);
-                return new //MemoryBlockResult(signature);
-                Org.BouncyCastle.Crypto.SimpleBlockResult(signature);
+                return new Org.BouncyCastle.Crypto.SimpleBlockResult(signature);
             }
         }
-        /*
-        /// <summary>
-        /// Helper for Bouncy Castle signing operation to store the result in a memory block.
-        /// </summary>
-        class MemoryBlockResult : IBlockResult
-        {
-            private readonly byte[] _data;
-            /// <inheritdoc/>
-            public MemoryBlockResult(byte[] data)
-            {
-                _data = data;
-            }
-            /// <inheritdoc/>
-            public byte[] Collect()
-            {
-                return _data;
-            }
-            /// <inheritdoc/>
-            public int Collect(byte[] destination, int offset)
-            {
-                throw new NotImplementedException();
-            }
-        }
-        */
     }
 }
 #endif
