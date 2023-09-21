@@ -331,12 +331,8 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
         public Task<IServiceResponse> SendRequestAsync(IServiceRequest request, CancellationToken ct)
         {
-#if USEAWAITER
-                var operation = BeginSendRequest(request, null, null);
-                return EndSendRequestAsync(operation, CancellationToken.None);
-#else
-                return Task.Factory.FromAsync(BeginSendRequest(request, null, null), EndSendRequest);
-#endif
+            var operation = BeginSendRequest(request, null, null);
+            return EndSendRequestAsync(operation, ct);
         }
 
         /// <summary>
@@ -479,7 +475,7 @@ namespace Opc.Ua.Bindings
                 m_channel.ReverseSocket = true;
             }
         }
-#endregion
+        #endregion
 
         #region Private Fields
         private object m_lock = new object();

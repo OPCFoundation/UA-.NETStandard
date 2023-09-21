@@ -270,6 +270,9 @@ namespace Opc.Ua.Client
                     Utils.LogInfo("Empty results were received for the ActivateSession call.");
                 }
 
+                // allow channel some time to stabilize
+                await Task.Delay(1).ConfigureAwait(false);
+
                 // fetch namespaces.
                 FetchNamespaceTables();
                 // TODO: await FetchNamespaceTablesAsync().ConfigureAwait(false);
