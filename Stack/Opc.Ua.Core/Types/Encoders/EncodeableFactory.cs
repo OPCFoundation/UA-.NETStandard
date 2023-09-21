@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
@@ -148,6 +149,9 @@ namespace Opc.Ua
                 Utils.LogTrace("WARNING: Adding type '{0}' to shared Factory #{1}.", systemType.Name, m_instanceId);
             }
 #endif
+
+            // assume write lock
+            Debug.Assert(m_readerWriterLockSlim.IsWriteLockHeld);
 
             ExpandedNodeId nodeId = encodeable.TypeId;
 
