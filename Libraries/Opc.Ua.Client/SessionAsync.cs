@@ -344,7 +344,53 @@ namespace Opc.Ua.Client
         }
         #endregion
 
-        #region FetchNamespaceTables Async Methods
+        #region FetchTypeTree Async Methods
+        /// <inheritdoc/>
+        public async Task FetchTypeTreeAsync(ExpandedNodeId typeId, CancellationToken ct = default)
+        {
+            Node node = await NodeCache.FindAsync(typeId, ct).ConfigureAwait(false) as Node;
+
+            if (node != null)
+            {
+                var subTypes = new ExpandedNodeIdCollection();
+                foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
+                {
+                    subTypes.Add(reference.TargetId);
+                }
+                if (subTypes.Count > 0)
+                {
+                    await FetchTypeTreeAsync(subTypes, ct).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task FetchTypeTreeAsync(ExpandedNodeIdCollection typeIds, CancellationToken ct = default)
+        {
+            var referenceTypeIds = new NodeIdCollection() { ReferenceTypeIds.HasSubtype };
+            IList<INode> nodes = await NodeCache.FindReferencesAsync(typeIds, referenceTypeIds, false, false, ct).ConfigureAwait(false);
+            var subTypes = new ExpandedNodeIdCollection();
+            foreach (INode inode in nodes)
+            {
+                if (inode is Node node)
+                {
+                    foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
+                    {
+                        if (!typeIds.Contains(reference.TargetId))
+                        {
+                            subTypes.Add(reference.TargetId);
+                        }
+                    }
+                }
+            }
+            if (subTypes.Count > 0)
+            {
+                await FetchTypeTreeAsync(subTypes, ct).ConfigureAwait(false);
+            }
+        }
+        #endregion
+
+        #region FetchOperationLimits Async Methods
         /// <summary>
         /// Fetch the operation limits of the server.
         /// </summary>

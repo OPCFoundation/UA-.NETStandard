@@ -378,6 +378,30 @@ namespace Opc.Ua.Client
         /// </remarks>
         void FetchTypeTree(ExpandedNodeIdCollection typeIds);
 
+#if (CLIENT_ASYNC)
+        /// <summary>
+        /// Updates the local copy of the server's namespace uri and server uri tables.
+        /// </summary>
+        /// <param name="ct">The cancellation token.</param>
+        Task FetchNamespaceTablesAsync(CancellationToken ct = default);
+
+        /// <summary>
+        /// Updates the cache with the type and its subtypes.
+        /// </summary>
+        /// <remarks>
+        /// This method can be used to ensure the TypeTree is populated.
+        /// </remarks>
+        Task FetchTypeTreeAsync(ExpandedNodeId typeId, CancellationToken ct = default);
+
+        /// <summary>
+        /// Updates the cache with the types and its subtypes.
+        /// </summary>
+        /// <remarks>
+        /// This method can be used to ensure the TypeTree is populated.
+        /// </remarks>
+        Task FetchTypeTreeAsync(ExpandedNodeIdCollection typeIds, CancellationToken ct = default);
+#endif
+
         /// <summary>
         /// Returns the available encodings for a node
         /// </summary>
@@ -587,12 +611,6 @@ namespace Opc.Ua.Client
         void ReadDisplayName(IList<NodeId> nodeIds, out IList<string> displayNames, out IList<ServiceResult> errors);
 
 #if (CLIENT_ASYNC)
-        /// <summary>
-        /// Updates the local copy of the server's namespace uri and server uri tables.
-        /// </summary>
-        /// <param name="ct">The cancellation token.</param>
-        Task FetchNamespaceTablesAsync(CancellationToken ct = default);
-
         /// <summary>
         /// Reads the values for the node attributes and returns a node object collection.
         /// </summary>

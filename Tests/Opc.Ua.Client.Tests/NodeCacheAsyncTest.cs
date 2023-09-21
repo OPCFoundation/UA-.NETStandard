@@ -148,7 +148,7 @@ namespace Opc.Ua.Client.Tests
                 ObjectIds.ObjectsFolder
             };
 
-            Session.FetchTypeTree(ReferenceTypeIds.References); // TODO: Async
+            await Session.FetchTypeTreeAsync(ReferenceTypeIds.References).ConfigureAwait(false); // TODO: Async
 
             while (nodesToBrowse.Count > 0)
             {
@@ -193,7 +193,7 @@ namespace Opc.Ua.Client.Tests
                 ObjectIds.ObjectsFolder
             };
 
-            Session.FetchTypeTree(ReferenceTypeIds.References);
+            await Session.FetchTypeTreeAsync(ReferenceTypeIds.References).ConfigureAwait(false);
             var referenceTypeIds = new NodeIdCollection() { ReferenceTypeIds.HierarchicalReferences };
             while (nodesToBrowse.Count > 0)
             {
@@ -292,16 +292,14 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
-#if FALSE
         [Test, Order(900)]
-        public void FetchTypeTree()
+        public async Task FetchTypeTree()
         {
-            Session.FetchTypeTree(NodeId.ToExpandedNodeId(DataTypeIds.BaseDataType, Session.NamespaceUris));
+            await Session.FetchTypeTreeAsync(NodeId.ToExpandedNodeId(DataTypeIds.BaseDataType, Session.NamespaceUris)).ConfigureAwait(false);
         }
-#endif
 
         [Test, Order(910)]
-        public void FetchAllReferenceTypes()
+        public async Task FetchAllReferenceTypes()
         {
             var bindingFlags =
                 BindingFlags.Instance |
@@ -311,7 +309,7 @@ namespace Opc.Ua.Client.Tests
                 .GetFields(bindingFlags)
                 .Select(field => NodeId.ToExpandedNodeId((NodeId)field.GetValue(null), Session.NamespaceUris));
 
-            Session.FetchTypeTree(new ExpandedNodeIdCollection(fieldValues)); // TODO Make async
+            await Session.FetchTypeTreeAsync(new ExpandedNodeIdCollection(fieldValues)).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -377,7 +375,7 @@ namespace Opc.Ua.Client.Tests
             var testSet = ReferenceDescriptions.OrderBy(o => random.Next()).Take(kTestSetSize).Select(r => r.NodeId).ToList();
             var taskList = new List<Task>();
             var refTypeIds = new List<NodeId>() { ReferenceTypeIds.HierarchicalReferences };
-            FetchAllReferenceTypes();
+            await FetchAllReferenceTypes().ConfigureAwait(false);
 
             // test concurrent access of FetchNodes
             for (int i = 0; i < 10; i++)
@@ -422,7 +420,7 @@ namespace Opc.Ua.Client.Tests
                         switch (iteration)
                         {
                             case 0:
-                                FetchAllReferenceTypes();
+                                await FetchAllReferenceTypes().ConfigureAwait(false);
                                 IList<INode> result = await Session.NodeCache.FindReferencesAsync(testSet1, refTypeIds, false, true).ConfigureAwait(false);
                                 break;
                             case 1:

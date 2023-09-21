@@ -373,6 +373,24 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        public async Task FetchTypeTreeAsync(ExpandedNodeId typeId, CancellationToken ct = default)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(FetchTypeTree)))
+            {
+                await m_session.FetchTypeTreeAsync(typeId, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task FetchTypeTreeAsync(ExpandedNodeIdCollection typeIds, CancellationToken ct = default)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(FetchTypeTree)))
+            {
+                await m_session.FetchTypeTreeAsync(typeIds, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
         public ReferenceDescriptionCollection ReadAvailableEncodings(NodeId variableId)
         {
             using (Activity activity = ActivitySource.StartActivity(nameof(ReadAvailableEncodings)))
