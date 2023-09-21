@@ -391,29 +391,29 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<DataDictionary> FindDataDictionary(NodeId descriptionId)
+        public async Task<DataDictionary> FindDataDictionary(NodeId descriptionId, CancellationToken ct = default)
         {
             using (Activity activity = ActivitySource.StartActivity(nameof(FindDataDictionary)))
             {
-                return await m_session.FindDataDictionary(descriptionId).ConfigureAwait(false);
+                return await m_session.FindDataDictionary(descriptionId, ct).ConfigureAwait(false);
             }
         }
 
         /// <inheritdoc/>
-        public async Task<DataDictionary> LoadDataDictionary(ReferenceDescription dictionaryNode, bool forceReload = false)
+        public async Task<DataDictionary> LoadDataDictionary(ReferenceDescription dictionaryNode, bool forceReload = false, CancellationToken ct = default)
         {
             using (Activity activity = ActivitySource.StartActivity(nameof(LoadDataDictionary)))
             {
-                return await m_session.LoadDataDictionary(dictionaryNode, forceReload).ConfigureAwait(false);
+                return await m_session.LoadDataDictionary(dictionaryNode, forceReload, ct).ConfigureAwait(false);
             }
         }
 
         /// <inheritdoc/>
-        public async Task<Dictionary<NodeId, DataDictionary>> LoadDataTypeSystem(NodeId dataTypeSystem = null)
+        public async Task<Dictionary<NodeId, DataDictionary>> LoadDataTypeSystem(NodeId dataTypeSystem = null, CancellationToken ct = default)
         {
             using (Activity activity = ActivitySource.StartActivity(nameof(LoadDataTypeSystem)))
             {
-                return await m_session.LoadDataTypeSystem(dataTypeSystem).ConfigureAwait(false);
+                return await m_session.LoadDataTypeSystem(dataTypeSystem, ct).ConfigureAwait(false);
             }
         }
 
@@ -495,6 +495,24 @@ namespace Opc.Ua.Client
             using (Activity activity = ActivitySource.StartActivity(nameof(FetchReferences)))
             {
                 m_session.FetchReferences(nodeIds, out referenceDescriptions, out errors);
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<ReferenceDescriptionCollection> FetchReferencesAsync(NodeId nodeId, CancellationToken ct)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(FetchReferencesAsync)))
+            {
+                return await m_session.FetchReferencesAsync(nodeId, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<(IList<ReferenceDescriptionCollection>, IList<ServiceResult>)> FetchReferencesAsync(IList<NodeId> nodeIds, CancellationToken ct)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(FetchReferencesAsync)))
+            {
+                return await m_session.FetchReferencesAsync(nodeIds, ct).ConfigureAwait(false);
             }
         }
 

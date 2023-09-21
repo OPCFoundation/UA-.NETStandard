@@ -389,26 +389,36 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="encodingId">The encoding Id.</param>
         ReferenceDescription FindDataDescription(NodeId encodingId);
+#if (CLIENT_ASYNC)
 
         /// <summary>
         ///  Returns the data dictionary that contains the description.
         /// </summary>
         /// <param name="descriptionId">The description id.</param>
-        Task<DataDictionary> FindDataDictionary(NodeId descriptionId);
+        /// <param name="ct"></param>
+        Task<DataDictionary> FindDataDictionary(NodeId descriptionId, CancellationToken ct = default);
 
         /// <summary>
         ///  Returns the data dictionary that contains the description.
         /// </summary>
         /// <param name="dictionaryNode">The dictionary id.</param>
         /// <param name="forceReload"></param>
+        /// <param name="ct"></param>
         /// <returns>The dictionary.</returns>
-        Task<DataDictionary> LoadDataDictionary(ReferenceDescription dictionaryNode, bool forceReload = false);
+        Task<DataDictionary> LoadDataDictionary(
+            ReferenceDescription dictionaryNode,
+            bool forceReload = false,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Loads all dictionaries of the OPC binary or Xml schema type system.
         /// </summary>
         /// <param name="dataTypeSystem">The type system.</param>
-        Task<Dictionary<NodeId, DataDictionary>> LoadDataTypeSystem(NodeId dataTypeSystem = null);
+        /// <param name="ct"></param>
+        Task<Dictionary<NodeId, DataDictionary>> LoadDataTypeSystem(
+            NodeId dataTypeSystem = null,
+            CancellationToken ct = default);
+#endif
 
         /// <summary>
         /// Reads the values for the node attributes and returns a node object.
@@ -487,6 +497,23 @@ namespace Opc.Ua.Client
         /// <param name="referenceDescriptions">A list of reference collections.</param>
         /// <param name="errors">The errors reported by the server.</param>
         void FetchReferences(IList<NodeId> nodeIds, out IList<ReferenceDescriptionCollection> referenceDescriptions, out IList<ServiceResult> errors);
+
+#if (CLIENT_ASYNC)
+        /// <summary>
+        /// Fetches all references for the specified node.
+        /// </summary>
+        /// <param name="nodeId">The node id.</param>
+        /// <param name="ct"></param>
+        Task<ReferenceDescriptionCollection> FetchReferencesAsync(NodeId nodeId, CancellationToken ct);
+
+        /// <summary>
+        /// Fetches all references for the specified nodes.
+        /// </summary>
+        /// <param name="nodeIds">The node id collection.</param>
+        /// <param name="ct"></param>
+        /// <returns>A list of reference collections and the errors reported by the server.</returns>
+        Task<(IList<ReferenceDescriptionCollection>, IList<ServiceResult>)> FetchReferencesAsync(IList<NodeId> nodeIds, CancellationToken ct);
+#endif
 
         /// <summary>
         /// Establishes a session with the server.
