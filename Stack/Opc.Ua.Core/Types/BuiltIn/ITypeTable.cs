@@ -60,7 +60,7 @@ namespace Opc.Ua
         /// <param name="typeId">The extended type identifier.</param>
         /// <param name="ct"></param>
         /// <returns>A type identifier of the <paramref name="typeId "/></returns>
-        Task<NodeId> FindSuperTypeAsync(ExpandedNodeId typeId, CancellationToken ct);
+        Task<NodeId> FindSuperTypeAsync(ExpandedNodeId typeId, CancellationToken ct = default);
 
         /// <summary>
         /// Returns the immediate supertype for the type.
@@ -68,7 +68,7 @@ namespace Opc.Ua
         /// <param name="typeId">The type identifier.</param>
         /// <param name="ct"></param>
         /// <returns>The immediate supertype idnetyfier for <paramref name="typeId"/></returns>
-        Task<NodeId> FindSuperTypeAsync(NodeId typeId, CancellationToken ct);
+        Task<NodeId> FindSuperTypeAsync(NodeId typeId, CancellationToken ct = default);
 #endif
 
         /// <summary>

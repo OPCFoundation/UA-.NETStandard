@@ -854,7 +854,7 @@ namespace Opc.Ua.Client
                 results.AddRange(descriptions[0]);
 
                 // process any continuation point.
-                while (continuationPoint != null)
+                while (continuationPoint != null && continuationPoint.Count > 0 & continuationPoint[0] != null)
                 {
                     (
                         _,

@@ -389,8 +389,8 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="encodingId">The encoding Id.</param>
         ReferenceDescription FindDataDescription(NodeId encodingId);
-#if (CLIENT_ASYNC)
 
+#if (CLIENT_ASYNC)
         /// <summary>
         ///  Returns the data dictionary that contains the description.
         /// </summary>
