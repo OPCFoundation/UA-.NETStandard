@@ -336,6 +336,33 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
+        public async Task<IServiceResponse> EndSendRequestAsync(IAsyncResult result, CancellationToken ct)
+        {
+            var result2 = result as HttpsAsyncResult;
+            if (result2 == null)
+            {
+                throw new ArgumentException("Invalid result object passed.", nameof(result));
+            }
+
+            try
+            {
+                // TODO: make it awaitable
+                result2.WaitForComplete();
+                if (result2.Response != null)
+                {
+                    Stream responseContent = await result2.Response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                    return BinaryDecoder.DecodeMessage(responseContent, null, m_quotas.MessageContext) as IServiceResponse;
+                }
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex, "Exception reading HTTPS response.");
+                result2.Exception = ex;
+            }
+            return result2 as IServiceResponse;
+        }
+
+        /// <inheritdoc/>
         /// <remarks>Not implemented here.</remarks>
         public IAsyncResult BeginOpen(AsyncCallback callback, object callbackData)
         {

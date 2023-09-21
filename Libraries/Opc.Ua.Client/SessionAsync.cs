@@ -91,14 +91,13 @@ namespace Opc.Ua.Client
 
                 if (requireEncryption)
                 {
-                    // TODO: async
                     if (checkDomain)
                     {
-                        m_configuration.CertificateValidator.Validate(serverCertificateChain, m_endpoint);
+                        await m_configuration.CertificateValidator.ValidateAsync(serverCertificateChain, m_endpoint).ConfigureAwait(false);
                     }
                     else
                     {
-                        m_configuration.CertificateValidator.Validate(serverCertificateChain);
+                        await m_configuration.CertificateValidator.ValidateAsync(serverCertificateChain).ConfigureAwait(false);
                     }
                     // save for reconnect
                     m_checkDomain = checkDomain;
@@ -861,7 +860,7 @@ namespace Opc.Ua.Client
 
         #region Close Async Methods
         /// <inheritdoc/>
-        public Task<StatusCode> CloseAsync(CancellationToken ct = default)
+        public override Task<StatusCode> CloseAsync(CancellationToken ct = default)
         {
             return CloseAsync(m_keepAliveInterval, true, ct);
         }

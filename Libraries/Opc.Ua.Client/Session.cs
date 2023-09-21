@@ -871,7 +871,7 @@ namespace Opc.Ua.Client
         /// <param name="preferredLocales">The user identity to associate with the session.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object</returns>
-        public static Task<Session> Create(
+        public static Task<Session> CreateAsync(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
@@ -881,7 +881,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             CancellationToken ct = default)
         {
-            return Create(configuration, endpoint, updateBeforeConnect, false, sessionName, sessionTimeout, identity, preferredLocales, ct);
+            return CreateAsync(configuration, endpoint, updateBeforeConnect, false, sessionName, sessionTimeout, identity, preferredLocales, ct);
         }
 
         /// <summary>
@@ -897,7 +897,7 @@ namespace Opc.Ua.Client
         /// <param name="preferredLocales">The preferred locales.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
-        public static Task<Session> Create(
+        public static Task<Session> CreateAsync(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
@@ -908,7 +908,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             CancellationToken ct = default)
         {
-            return Create(configuration, (ITransportWaitingConnection)null, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, identity, preferredLocales, ct);
+            return CreateAsync(configuration, (ITransportWaitingConnection)null, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, identity, preferredLocales, ct);
         }
 
         /// <summary>
@@ -1033,7 +1033,7 @@ namespace Opc.Ua.Client
         /// <param name="preferredLocales">The preferred locales.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
-        public static async Task<Session> Create(
+        public static async Task<Session> CreateAsync(
             ApplicationConfiguration configuration,
             ITransportWaitingConnection connection,
             ConfiguredEndpoint endpoint,
@@ -1054,7 +1054,7 @@ namespace Opc.Ua.Client
             // create the session.
             try
             {
-                session.Open(sessionName, sessionTimeout, identity, preferredLocales, checkDomain);
+                await session.OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, ct).ConfigureAwait(false);
             }
             catch (Exception)
             {
@@ -1079,7 +1079,7 @@ namespace Opc.Ua.Client
         /// <param name="preferredLocales">The preferred locales.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
-        public static async Task<Session> Create(
+        public static async Task<Session> CreateAsync(
             ApplicationConfiguration configuration,
             ReverseConnectManager reverseConnectManager,
             ConfiguredEndpoint endpoint,
@@ -1094,7 +1094,7 @@ namespace Opc.Ua.Client
         {
             if (reverseConnectManager == null)
             {
-                return await Create(configuration, endpoint, updateBeforeConnect,
+                return await CreateAsync(configuration, endpoint, updateBeforeConnect,
                     checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales).ConfigureAwait(false);
             }
 
@@ -1111,13 +1111,14 @@ namespace Opc.Ua.Client
                     await endpoint.UpdateFromServerAsync(
                         endpoint.EndpointUrl, connection,
                         endpoint.Description.SecurityMode,
-                        endpoint.Description.SecurityPolicyUri).ConfigureAwait(false);
+                        endpoint.Description.SecurityPolicyUri,
+                        ct).ConfigureAwait(false);
                     updateBeforeConnect = false;
                     connection = null;
                 }
             } while (connection == null);
 
-            return await Create(
+            return await CreateAsync(
                 configuration,
                 connection,
                 endpoint,
@@ -1606,7 +1607,7 @@ namespace Opc.Ua.Client
             nodesToRead.Add(valueId);
 
             // read from server.
-            ResponseHeader responseHeader = this.Read(
+            ResponseHeader responseHeader = base.Read(
                 null,
                 0,
                 TimestampsToReturn.Neither,

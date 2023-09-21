@@ -440,6 +440,27 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Completes an asynchronous operation to send a request over the secure channel.
+        /// </summary>
+        public Task<IServiceResponse> EndSendRequestAsync(IAsyncResult result, CancellationToken ct)
+        {
+            if (m_uaBypassChannel != null)
+            {
+                return m_uaBypassChannel.EndSendRequestAsync(result, ct);
+            }
+
+            throw new NotImplementedException();
+#if TODO
+#if MANAGE_CHANNEL_THREADS
+            return SendRequestAsyncResult.WaitForComplete(result);
+#else
+            InvokeServiceResponseMessage responseMessage = EndInvokeService(result);
+            return (IServiceResponse)BinaryDecoder.DecodeMessage(responseMessage.InvokeServiceResponse, null, m_messageContext);
+#endif
+#endif
+        }
+
+        /// <summary>
         /// Sends a request over the secure channel.
         /// </summary>
         /// <param name="request">The request.</param>

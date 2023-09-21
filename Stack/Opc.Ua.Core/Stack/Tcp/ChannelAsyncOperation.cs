@@ -68,6 +68,15 @@ namespace Opc.Ua.Bindings
                         m_event.Dispose();
                         m_event = null;
                     }
+
+                    if (m_tcs != null)
+                    {
+                        if (!m_tcs.Task.IsCompleted)
+                        {
+                            m_tcs.TrySetCanceled();
+                        }
+                        m_tcs = null;
+                    }
                 }
             }
         }
@@ -193,6 +202,103 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// The awaitable response returned from the server.
+        /// </summary>
+        public async Task<T> EndAsync(int timeout, bool throwOnError = true, CancellationToken ct = default)
+        {
+            // check if the request has already completed.
+            bool mustWait = false;
+
+            lock (m_lock)
+            {
+                mustWait = !m_completed;
+
+                if (mustWait)
+                {
+                    m_tcs = new TaskCompletionSource<bool>();
+                }
+            }
+
+            // wait for completion.
+            if (mustWait)
+            {
+                bool badRequestInterrupted = false;
+                try
+                {
+                    Task<bool> awaitableTask = m_tcs.Task;
+
+#if NET6_0_OR_GREATER
+                    if (timeout != Int32.MaxValue)
+                    {
+                        awaitableTask = m_tcs.Task.WaitAsync(TimeSpan.FromMilliseconds(timeout), ct);
+                    }
+                    else if (ct != default)
+                    {
+                        awaitableTask = m_tcs.Task.WaitAsync(ct);
+                    }
+#else
+#if TODO 
+                    if (timeout != Int32.MaxValue)
+                    {
+                        Func<Task> listenForCancelTaskFnc = async () => {
+                            if (timeout != Int32.MaxValue)
+                            {
+                                await Task.Delay(timeout, ct).ConfigureAwait(false);
+                            }
+                            else
+                            {
+                                await Task.Delay(-1, ct).ContinueWith(tsk => { }).ConfigureAwait(false);
+                            }
+                            m_tcs.TrySetCanceled();
+                        };
+
+                        awaitableTask = Task.WhenAny(new Task[] {
+                            m_tcs.Task,
+                            listenForCancelTaskFnc()
+                        });
+                    }
+#endif
+#endif
+                    if (!await awaitableTask.ConfigureAwait(false))
+                    {
+                        badRequestInterrupted = true;
+                    }
+                }
+                catch (TimeoutException)
+                {
+                    badRequestInterrupted = true;
+                }
+                catch (TaskCanceledException)
+                {
+                    badRequestInterrupted = true;
+                }
+                finally
+                {
+                    lock (m_lock)
+                    {
+                        m_tcs = null;
+                    }
+                }
+
+                if (badRequestInterrupted && throwOnError)
+                {
+                    throw new ServiceResultException(StatusCodes.BadRequestInterrupted);
+                }
+            }
+
+            // return the response.
+            lock (m_lock)
+            {
+                if (m_error != null && throwOnError)
+                {
+                    throw new ServiceResultException(m_error);
+                }
+
+                return m_response;
+            }
+        }
+
+        /// <summary>
         /// Stores additional state information associated with the operation.
         /// </summary>
         public IDictionary<string, object> Properties
@@ -210,7 +316,7 @@ namespace Opc.Ua.Bindings
                 }
             }
         }
-        #endregion
+#endregion
 
         #region IAsyncResult Members
         /// <summary cref="IAsyncResult.AsyncState" />
@@ -313,14 +419,18 @@ namespace Opc.Ua.Bindings
                 {
                     m_event.Set();
                 }
+
+                if (m_tcs != null)
+                {
+                    m_tcs.TrySetResult(true);
+                }
             }
 
             if (m_callback != null)
             {
                 if (doNotBlock)
                 {
-                    Task.Run(() =>
-                    {
+                    Task.Run(() => {
                         m_callback(this);
                     });
                 }
@@ -348,6 +458,7 @@ namespace Opc.Ua.Bindings
         private bool m_synchronous;
         private bool m_completed;
         private ManualResetEvent m_event;
+        private TaskCompletionSource<bool> m_tcs;
         private T m_response;
         private ServiceResult m_error;
         private Timer m_timer;
