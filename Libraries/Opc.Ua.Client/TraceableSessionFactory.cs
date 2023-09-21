@@ -67,7 +67,7 @@ namespace Opc.Ua.Client
         {
             using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(CreateAsync)))
             {
-                ISession session = await Session.CreateAsync(configuration, endpoint, updateBeforeConnect, false,
+                ISession session = await Session.Create(configuration, endpoint, updateBeforeConnect, false,
                     sessionName, sessionTimeout, identity, preferredLocales, ct).ConfigureAwait(false);
 
                 return new TraceableSession(session);
@@ -88,7 +88,7 @@ namespace Opc.Ua.Client
         {
             using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(CreateAsync)))
             {
-                ISession session = await Session.CreateAsync(configuration, (ITransportWaitingConnection)null, endpoint,
+                ISession session = await Session.Create(configuration, (ITransportWaitingConnection)null, endpoint,
                     updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
                     identity, preferredLocales, ct).ConfigureAwait(false);
 
@@ -111,7 +111,7 @@ namespace Opc.Ua.Client
         {
             using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(CreateAsync)))
             {
-                ISession session = await Session.CreateAsync(configuration, connection, endpoint,
+                ISession session = await Session.Create(configuration, connection, endpoint,
                     updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
                     identity, preferredLocales, ct
                     ).ConfigureAwait(false);
@@ -136,7 +136,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public override async Task<ITransportChannel> CreateChannelAsync(
+        public override Task<ITransportChannel> CreateChannelAsync(
             ApplicationConfiguration configuration,
             ITransportWaitingConnection connection,
             ConfiguredEndpoint endpoint,
@@ -146,7 +146,7 @@ namespace Opc.Ua.Client
         {
             using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(CreateAsync)))
             {
-                return await base.CreateChannelAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain, ct).ConfigureAwait(false);
+                return base.CreateChannelAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain, ct);
             }
         }
 

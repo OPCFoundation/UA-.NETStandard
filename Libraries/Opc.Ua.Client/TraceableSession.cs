@@ -572,7 +572,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task OpenAsync(string sessionName, IUserIdentity identity, CancellationToken ct)
         {
-            using (Activity activity = ActivitySource.StartActivity(nameof(Open)))
+            using (Activity activity = ActivitySource.StartActivity(nameof(OpenAsync)))
             {
                 await m_session.OpenAsync(sessionName, identity, ct).ConfigureAwait(false);
             }
@@ -581,7 +581,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task OpenAsync(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, CancellationToken ct)
         {
-            using (Activity activity = ActivitySource.StartActivity(nameof(Open)))
+            using (Activity activity = ActivitySource.StartActivity(nameof(OpenAsync)))
             {
                 await m_session.OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, ct).ConfigureAwait(false);
             }
@@ -590,7 +590,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task OpenAsync(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain, CancellationToken ct)
         {
-            using (Activity activity = ActivitySource.StartActivity(nameof(Open)))
+            using (Activity activity = ActivitySource.StartActivity(nameof(OpenAsync)))
             {
                 await m_session.OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, ct).ConfigureAwait(false);
             }

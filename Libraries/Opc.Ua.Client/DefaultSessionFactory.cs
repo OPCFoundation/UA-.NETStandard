@@ -64,7 +64,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             CancellationToken ct = default)
         {
-            return await Session.CreateAsync(configuration, endpoint, updateBeforeConnect, false,
+            return await Session.Create(configuration, endpoint, updateBeforeConnect, false,
                 sessionName, sessionTimeout, identity, preferredLocales).ConfigureAwait(false);
         }
 
@@ -80,7 +80,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             CancellationToken ct = default)
         {
-            return await Session.CreateAsync(configuration, (ITransportWaitingConnection)null, endpoint,
+            return await Session.Create(configuration, (ITransportWaitingConnection)null, endpoint,
                 updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
                 identity, preferredLocales, ct).ConfigureAwait(false);
         }
@@ -98,7 +98,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             CancellationToken ct = default)
         {
-            return await Session.CreateAsync(configuration, connection, endpoint,
+            return await Session.Create(configuration, connection, endpoint,
                 updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
                 identity, preferredLocales, ct
                 ).ConfigureAwait(false);

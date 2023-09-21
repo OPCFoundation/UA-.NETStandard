@@ -871,7 +871,7 @@ namespace Opc.Ua.Client
         /// <param name="preferredLocales">The user identity to associate with the session.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object</returns>
-        public static Task<Session> CreateAsync(
+        public static Task<Session> Create(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
@@ -881,7 +881,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             CancellationToken ct = default)
         {
-            return CreateAsync(configuration, endpoint, updateBeforeConnect, false, sessionName, sessionTimeout, identity, preferredLocales, ct);
+            return Create(configuration, endpoint, updateBeforeConnect, false, sessionName, sessionTimeout, identity, preferredLocales, ct);
         }
 
         /// <summary>
@@ -897,7 +897,7 @@ namespace Opc.Ua.Client
         /// <param name="preferredLocales">The preferred locales.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
-        public static Task<Session> CreateAsync(
+        public static Task<Session> Create(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
@@ -908,7 +908,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             CancellationToken ct = default)
         {
-            return CreateAsync(configuration, (ITransportWaitingConnection)null, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, identity, preferredLocales, ct);
+            return Create(configuration, (ITransportWaitingConnection)null, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, identity, preferredLocales, ct);
         }
 
         /// <summary>
@@ -1033,7 +1033,7 @@ namespace Opc.Ua.Client
         /// <param name="preferredLocales">The preferred locales.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
-        public static async Task<Session> CreateAsync(
+        public static async Task<Session> Create(
             ApplicationConfiguration configuration,
             ITransportWaitingConnection connection,
             ConfiguredEndpoint endpoint,
@@ -1079,7 +1079,7 @@ namespace Opc.Ua.Client
         /// <param name="preferredLocales">The preferred locales.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
-        public static async Task<Session> CreateAsync(
+        public static async Task<Session> Create(
             ApplicationConfiguration configuration,
             ReverseConnectManager reverseConnectManager,
             ConfiguredEndpoint endpoint,
@@ -1094,7 +1094,7 @@ namespace Opc.Ua.Client
         {
             if (reverseConnectManager == null)
             {
-                return await CreateAsync(configuration, endpoint, updateBeforeConnect,
+                return await Create(configuration, endpoint, updateBeforeConnect,
                     checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales).ConfigureAwait(false);
             }
 
@@ -1118,7 +1118,7 @@ namespace Opc.Ua.Client
                 }
             } while (connection == null);
 
-            return await CreateAsync(
+            return await Create(
                 configuration,
                 connection,
                 endpoint,
@@ -5287,7 +5287,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// 
+        /// Validates the server certificate returned.
         /// </summary>
         private void ValidateServerCertificateData(byte[] serverCertificateData)
         {
@@ -5317,7 +5317,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// 
+        /// Validates the server signature created with the client nonce.
         /// </summary>
         private void ValidateServerSignature(X509Certificate2 serverCertificate, SignatureData serverSignature,
             byte[] clientCertificateData, byte[] clientCertificateChainData, byte[] clientNonce)
@@ -5358,7 +5358,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// 
+        /// Validates the server endpoints returned.
         /// </summary>
         private void ValidateServerEndpoints(EndpointDescriptionCollection serverEndpoints)
         {
@@ -5471,6 +5471,9 @@ namespace Opc.Ua.Client
             }
         }
 
+        /// <summary>
+        /// Handles the validation of server software certificates and application callback.
+        /// </summary>
         private void HandleSignedSoftwareCertificates(SignedSoftwareCertificateCollection serverSoftwareCertificates)
         {
             // get a validator to check certificates provided by server.

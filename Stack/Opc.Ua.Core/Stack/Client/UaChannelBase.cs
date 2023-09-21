@@ -450,14 +450,6 @@ namespace Opc.Ua
             }
 
             throw new NotImplementedException();
-#if TODO
-#if MANAGE_CHANNEL_THREADS
-            return SendRequestAsyncResult.WaitForComplete(result);
-#else
-            InvokeServiceResponseMessage responseMessage = EndInvokeService(result);
-            return (IServiceResponse)BinaryDecoder.DecodeMessage(responseMessage.InvokeServiceResponse, null, m_messageContext);
-#endif
-#endif
         }
 
         /// <summary>
