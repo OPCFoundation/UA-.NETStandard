@@ -115,11 +115,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// For servers without DataTypeDefinition support, all
         /// custom types are loaded.
         /// </remarks>
-        public async Task<Type> LoadType(
-            ExpandedNodeId nodeId,
-            bool subTypes = false,
-            bool throwOnError = false,
-            CancellationToken ct = default)
+        public async Task<Type> LoadType(ExpandedNodeId nodeId, bool subTypes = false, bool throwOnError = false, CancellationToken ct = default)
         {
             try
             {

@@ -102,13 +102,6 @@ namespace Opc.Ua.Client
         /// </summary>
         void FetchSuperTypes(ExpandedNodeId nodeId);
 
-#if (CLIENT_ASYNC)
-        /// <summary>
-        /// Adds the supertypes of the node to the cache.
-        /// </summary>
-        Task FetchSuperTypesAsync(ExpandedNodeId nodeId, CancellationToken ct);
-#endif
-
         /// <summary>
         /// Returns the references of the specified node that meet the criteria specified.
         /// </summary>

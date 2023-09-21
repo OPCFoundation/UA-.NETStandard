@@ -99,7 +99,7 @@ namespace Opc.Ua.Client
         event PublishErrorEventHandler PublishError;
 
         /// <summary>
-        /// Raised when a publish request is about to acknolegde sequence numbers.
+        /// Raised when a publish request is about to acknowledge sequence numbers.
         /// </summary>
         /// <remarks>
         /// If the client chose to defer acknowledge of sequenece numbers, it is responsible
