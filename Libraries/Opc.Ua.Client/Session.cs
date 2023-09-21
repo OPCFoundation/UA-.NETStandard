@@ -5202,7 +5202,7 @@ namespace Opc.Ua.Client
 
         #region Private Methods
         /// <summary>
-        /// 
+        /// Validates  the identity for an open call.
         /// </summary>
         private void OpenValidateIdentity(
             ref IUserIdentity identity,

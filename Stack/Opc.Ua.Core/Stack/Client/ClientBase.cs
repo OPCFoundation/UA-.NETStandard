@@ -283,7 +283,6 @@ namespace Opc.Ua
             if (m_channel != null)
             {
                 m_channel.Close();
-                //await Task.Factory.FromAsync(m_channel.BeginClose, m_channel.EndClose, ct).ConfigureAwait(false);
                 m_channel = null;
             }
 
