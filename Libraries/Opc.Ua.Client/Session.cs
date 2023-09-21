@@ -2590,9 +2590,6 @@ namespace Opc.Ua.Client
                     Utils.LogInfo("Empty results were received for the ActivateSession call.");
                 }
 
-                // allow channel some time to stabilize
-                Thread.Sleep(1);
-
                 // fetch namespaces.
                 FetchNamespaceTables();
 

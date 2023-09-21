@@ -444,34 +444,23 @@ namespace Opc.Ua
             Validate(chain, null);
         }
 
-        /// <summary>
-        /// Validates the specified certificate against the trust list.
-        /// </summary>
-        /// <param name="certificate">The certificate.</param>
-        public Task ValidateAsync(X509Certificate2 certificate)
+        /// <inheritdoc/>
+        public Task ValidateAsync(X509Certificate2 certificate, CancellationToken ct)
         {
-            return ValidateAsync(new X509Certificate2Collection() { certificate });
+            return ValidateAsync(new X509Certificate2Collection() { certificate }, ct);
         }
 
-        /// <summary>
-        /// Validates a certificate.
-        /// </summary>
-        /// <remarks>
-        /// Each UA application may have a list of trusted certificates that is different from 
-        /// all other UA applications that may be running on the same machine. As a result, the
-        /// certificate validator cannot rely completely on the Windows certificate store and
-        /// user or machine specific CTLs (certificate trust lists).
-        /// </remarks>
-        public virtual Task ValidateAsync(X509Certificate2Collection chain)
+        /// <inheritdoc/>
+        public virtual Task ValidateAsync(X509Certificate2Collection chain, CancellationToken ct)
         {
-            return ValidateAsync(chain, null);
+            return ValidateAsync(chain, null, ct);
         }
 
         /// <summary>
         /// Validates a certificate with domain validation check.
-        /// <see cref="ValidateAsync(X509Certificate2Collection)"/>
+        /// <see cref="ValidateAsync(X509Certificate2Collection, CancellationToken)"/>
         /// </summary>
-        public virtual async Task ValidateAsync(X509Certificate2Collection chain, ConfiguredEndpoint endpoint)
+        public virtual async Task ValidateAsync(X509Certificate2Collection chain, ConfiguredEndpoint endpoint, CancellationToken ct)
         {
             X509Certificate2 certificate = chain[0];
 
@@ -479,9 +468,9 @@ namespace Opc.Ua
             {
                 try
                 {
-                    await m_semaphore.WaitAsync().ConfigureAwait(false);
+                    await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
 
-                    await InternalValidate(chain, endpoint).ConfigureAwait(false);
+                    await InternalValidate(chain, endpoint, ct).ConfigureAwait(false);
 
                     // add to list of validated certificates.
                     m_validatedCertificates[certificate.Thumbprint] = new X509Certificate2(certificate.RawData);
@@ -501,7 +490,7 @@ namespace Opc.Ua
             // add to list of peers.
             try
             {
-                await m_semaphore.WaitAsync().ConfigureAwait(false);
+                await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
 
                 Utils.LogCertificate(LogLevel.Warning, "Validation errors suppressed: ", certificate);
                 m_validatedCertificates[certificate.Thumbprint] = new X509Certificate2(certificate.RawData);
@@ -1100,8 +1089,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificates">The certificates to be checked.</param>
         /// <param name="endpoint">The endpoint for domain validation.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <exception cref="ServiceResultException">If certificate[0] cannot be accepted</exception>
-        protected virtual async Task InternalValidate(X509Certificate2Collection certificates, ConfiguredEndpoint endpoint)
+        protected virtual async Task InternalValidate(X509Certificate2Collection certificates, ConfiguredEndpoint endpoint, CancellationToken ct = default)
         {
             X509Certificate2 certificate = certificates[0];
 

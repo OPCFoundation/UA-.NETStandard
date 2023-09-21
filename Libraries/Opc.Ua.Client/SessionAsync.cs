@@ -93,11 +93,11 @@ namespace Opc.Ua.Client
                 {
                     if (checkDomain)
                     {
-                        await m_configuration.CertificateValidator.ValidateAsync(serverCertificateChain, m_endpoint).ConfigureAwait(false);
+                        await m_configuration.CertificateValidator.ValidateAsync(serverCertificateChain, m_endpoint, ct).ConfigureAwait(false);
                     }
                     else
                     {
-                        await m_configuration.CertificateValidator.ValidateAsync(serverCertificateChain).ConfigureAwait(false);
+                        await m_configuration.CertificateValidator.ValidateAsync(serverCertificateChain, ct).ConfigureAwait(false);
                     }
                     // save for reconnect
                     m_checkDomain = checkDomain;
@@ -269,9 +269,6 @@ namespace Opc.Ua.Client
                 {
                     Utils.LogInfo("Empty results were received for the ActivateSession call.");
                 }
-
-                // allow channel some time to stabilize
-                await Task.Delay(1).ConfigureAwait(false);
 
                 // fetch namespaces.
                 FetchNamespaceTables();

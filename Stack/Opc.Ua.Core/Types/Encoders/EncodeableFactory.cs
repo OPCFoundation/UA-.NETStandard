@@ -77,13 +77,25 @@ namespace Opc.Ua
                 m_encodeableTypes = ((EncodeableFactory)factory.Clone()).m_encodeableTypes;
             }
         }
+        #endregion
 
+        #region IDisposable
         /// <summary>
-        /// Destructor to clean up.
+        /// An overrideable version of the Dispose.
         /// </summary>
-        ~EncodeableFactory()
+        protected virtual void Dispose(bool disposing)
         {
-            m_readerWriterLockSlim?.Dispose();
+            if (disposing)
+            {
+                m_readerWriterLockSlim?.Dispose();
+            }
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
         #endregion
 

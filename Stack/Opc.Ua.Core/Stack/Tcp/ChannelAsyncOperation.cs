@@ -215,7 +215,7 @@ namespace Opc.Ua.Bindings
 
                 if (mustWait)
                 {
-                    m_tcs = new TaskCompletionSource<bool>();
+                    m_tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 }
             }
 
@@ -226,7 +226,6 @@ namespace Opc.Ua.Bindings
                 try
                 {
                     Task<bool> awaitableTask = m_tcs.Task;
-
 #if NET6_0_OR_GREATER
                     if (timeout != Int32.MaxValue)
                     {
@@ -237,27 +236,23 @@ namespace Opc.Ua.Bindings
                         awaitableTask = m_tcs.Task.WaitAsync(ct);
                     }
 #else
-#if TODO 
-                    if (timeout != Int32.MaxValue)
+                    if (timeout != Int32.MaxValue || ct != default)
                     {
-                        Func<Task> listenForCancelTaskFnc = async () => {
-                            if (timeout != Int32.MaxValue)
+                        Task completedTask = await Task.WhenAny(m_tcs.Task, Task.Delay(timeout, ct)).ConfigureAwait(false);
+                        if (m_tcs.Task == completedTask)
+                        {
+                            if (!m_tcs.Task.Result)
                             {
-                                await Task.Delay(timeout, ct).ConfigureAwait(false);
+                                badRequestInterrupted = true;
                             }
-                            else
-                            {
-                                await Task.Delay(-1, ct).ContinueWith(tsk => { }).ConfigureAwait(false);
-                            }
+                        }
+                        else
+                        {
                             m_tcs.TrySetCanceled();
-                        };
-
-                        awaitableTask = Task.WhenAny(new Task[] {
-                            m_tcs.Task,
-                            listenForCancelTaskFnc()
-                        });
+                            badRequestInterrupted = true;
+                        }
                     }
-#endif
+                    else
 #endif
                     if (!await awaitableTask.ConfigureAwait(false))
                     {
