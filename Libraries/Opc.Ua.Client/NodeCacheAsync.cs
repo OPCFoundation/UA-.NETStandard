@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#if CLIENT_ASYNC
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -212,7 +214,6 @@ namespace Opc.Ua.Client
         #endregion
 
         #region INodeCache Methods
-
         /// <inheritdoc/>
         public async Task<Node> FetchNodeAsync(ExpandedNodeId nodeId, CancellationToken ct)
         {
@@ -435,3 +436,4 @@ namespace Opc.Ua.Client
         #endregion
     }
 }
+#endif

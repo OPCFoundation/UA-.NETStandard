@@ -240,6 +240,7 @@ namespace Opc.Ua.Client
                 itemsToRead.Add(itemToRead);
             }
 
+#if CLIENT_ASYNC
             // read values.
             ReadResponse readResponse = await session.ReadAsync(
                 null,
@@ -250,6 +251,18 @@ namespace Opc.Ua.Client
 
             DataValueCollection values = readResponse.Results;
             DiagnosticInfoCollection diagnosticInfos = readResponse.DiagnosticInfos;
+            ResponseHeader response = readResponse.ResponseHeader;
+#else
+            // read values.
+            ResponseHeader response = session.Read(
+                null,
+                0,
+                TimestampsToReturn.Neither,
+                itemsToRead,
+                out DataValueCollection values,
+                out DiagnosticInfoCollection diagnosticInfos);
+            await Task.Delay(0).ConfigureAwait(false);  
+#endif
 
             ClientBase.ValidateResponse(values, itemsToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
@@ -262,7 +275,7 @@ namespace Opc.Ua.Client
                 // check for error.
                 if (StatusCode.IsBad(values[ii].StatusCode))
                 {
-                    ServiceResult sr = ClientBase.GetResult(values[ii].StatusCode, 0, diagnosticInfos, readResponse.ResponseHeader);
+                    ServiceResult sr = ClientBase.GetResult(values[ii].StatusCode, 0, diagnosticInfos, response);
                     throw new ServiceResultException(sr);
                 }
 
@@ -377,7 +390,7 @@ namespace Opc.Ua.Client
                 TypeDictionary = validator.Dictionary;
             }
         }
-        #endregion
+#endregion
 
         #region Private Members
         private ISession m_session;

@@ -162,6 +162,7 @@ namespace Opc.Ua
             return PatchEndpointUrls(endpoints);
         }
 
+#if NET_STANDARD_ASYNC
         /// <summary>
         /// Invokes the GetEndpoints service async.
         /// </summary>
@@ -172,6 +173,7 @@ namespace Opc.Ua
             var response = await GetEndpointsAsync(null, this.Endpoint.EndpointUrl, null, profileUris, ct).ConfigureAwait(false);
             return PatchEndpointUrls(response.Endpoints);
         }
+#endif
 
         /// <summary>
         /// Invokes the FindServers service.
@@ -192,6 +194,7 @@ namespace Opc.Ua
             return servers;
         }
 
+#if NET_STANDARD_ASYNC
         /// <summary>
         /// Invokes the FindServers service async.
         /// </summary>
@@ -208,6 +211,7 @@ namespace Opc.Ua
                 ct).ConfigureAwait(false);
             return response.Servers;
         }
+#endif
 
         /// <summary>
         /// Invokes the FindServersOnNetwork service.

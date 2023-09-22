@@ -880,7 +880,6 @@ namespace Opc.Ua.Client
             m_session.ReadNodes(localIds, out IList<Node> sourceNodes, out IList<ServiceResult> readErrors);
             m_session.FetchReferences(localIds, out IList<ReferenceDescriptionCollection> referenceCollectionList, out IList<ServiceResult> fetchErrors);
 
-
             int ii = 0;
             for (ii = 0; ii < count; ii++)
             {
