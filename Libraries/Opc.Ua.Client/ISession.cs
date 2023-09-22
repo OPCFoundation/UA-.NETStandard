@@ -548,6 +548,35 @@ namespace Opc.Ua.Client
 
 #if (CLIENT_ASYNC)
         /// <summary>
+        /// Establishes a session with the server.
+        /// </summary>
+        /// <param name="sessionName">The name to assign to the session.</param>
+        /// <param name="identity">The user identity.</param>
+        /// <param name="ct">The cancellation token.</param>
+        Task OpenAsync(string sessionName, IUserIdentity identity, CancellationToken ct);
+
+        /// <summary>
+        /// Establishes a session with the server.
+        /// </summary>
+        /// <param name="sessionName">The name to assign to the session.</param>
+        /// <param name="sessionTimeout">The session timeout.</param>
+        /// <param name="identity">The user identity.</param>
+        /// <param name="preferredLocales">The list of preferred locales.</param>
+        /// <param name="ct">The cancellation token.</param>
+        Task OpenAsync(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, CancellationToken ct);
+
+        /// <summary>
+        /// Establishes a session with the server.
+        /// </summary>
+        /// <param name="sessionName">The name to assign to the session.</param>
+        /// <param name="sessionTimeout">The session timeout.</param>
+        /// <param name="identity">The user identity.</param>
+        /// <param name="preferredLocales">The list of preferred locales.</param>
+        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="ct">The cancellation token.</param>
+        Task OpenAsync(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain, CancellationToken ct);
+
+        /// <summary>
         /// Reads the values for the node attributes and returns a node object collection.
         /// </summary>
         /// <remarks>

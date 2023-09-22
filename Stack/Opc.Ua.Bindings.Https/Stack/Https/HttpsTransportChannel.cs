@@ -336,6 +336,12 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
+        public Task<IServiceResponse> EndSendRequestAsync(IAsyncResult result, CancellationToken ct)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc/>
         /// <remarks>Not implemented here.</remarks>
         public IAsyncResult BeginOpen(AsyncCallback callback, object callbackData)
         {

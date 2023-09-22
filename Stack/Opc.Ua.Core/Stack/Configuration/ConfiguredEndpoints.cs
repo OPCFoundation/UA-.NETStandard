@@ -1175,7 +1175,7 @@ namespace Opc.Ua
             }
             finally
             {
-                client.Close();
+                await client.CloseAsync().ConfigureAwait(false);
             }
         }
 
