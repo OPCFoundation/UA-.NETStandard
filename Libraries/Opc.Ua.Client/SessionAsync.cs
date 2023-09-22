@@ -32,6 +32,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -43,6 +44,282 @@ namespace Opc.Ua.Client
     /// </summary>
     public partial class Session : SessionClientBatched, ISession, IDisposable
     {
+        #region Open Async Methods
+        /// <inheritdoc/>
+        public Task OpenAsync(
+            string sessionName,
+            IUserIdentity identity,
+            CancellationToken ct)
+        {
+            return OpenAsync(sessionName, 0, identity, null, ct);
+        }
+
+        /// <inheritdoc/>
+        public Task OpenAsync(
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales,
+            CancellationToken ct)
+        {
+            return OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, true, ct);
+        }
+
+        /// <inheritdoc/>
+        public async Task OpenAsync(
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales,
+            bool checkDomain,
+            CancellationToken ct)
+        {
+            OpenValidateIdentity(ref identity, out var identityToken, out var identityPolicy, out string securityPolicyUri, out bool requireEncryption);
+
+            // validate the server certificate /certificate chain.
+            X509Certificate2 serverCertificate = null;
+            byte[] certificateData = m_endpoint.Description.ServerCertificate;
+
+            if (certificateData != null && certificateData.Length > 0)
+            {
+                X509Certificate2Collection serverCertificateChain = Utils.ParseCertificateChainBlob(certificateData);
+
+                if (serverCertificateChain.Count > 0)
+                {
+                    serverCertificate = serverCertificateChain[0];
+                }
+
+                if (requireEncryption)
+                {
+                    if (checkDomain)
+                    {
+                        await m_configuration.CertificateValidator.ValidateAsync(serverCertificateChain, m_endpoint, ct).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await m_configuration.CertificateValidator.ValidateAsync(serverCertificateChain, ct).ConfigureAwait(false);
+                    }
+                    // save for reconnect
+                    m_checkDomain = checkDomain;
+                }
+            }
+
+            // create a nonce.
+            uint length = (uint)m_configuration.SecurityConfiguration.NonceLength;
+            byte[] clientNonce = Utils.Nonce.CreateNonce(length);
+
+            // send the application instance certificate for the client.
+            BuildCertificateData(out byte[] clientCertificateData, out byte[] clientCertificateChainData);
+
+            ApplicationDescription clientDescription = new ApplicationDescription {
+                ApplicationUri = m_configuration.ApplicationUri,
+                ApplicationName = m_configuration.ApplicationName,
+                ApplicationType = ApplicationType.Client,
+                ProductUri = m_configuration.ProductUri
+            };
+
+            if (sessionTimeout == 0)
+            {
+                sessionTimeout = (uint)m_configuration.ClientConfiguration.DefaultSessionTimeout;
+            }
+
+            bool successCreateSession = false;
+            CreateSessionResponse response = null;
+
+            //if security none, first try to connect without certificate
+            if (m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
+            {
+                //first try to connect with client certificate NULL
+                try
+                {
+                    response = await base.CreateSessionAsync(
+                        null,
+                        clientDescription,
+                        m_endpoint.Description.Server.ApplicationUri,
+                        m_endpoint.EndpointUrl.ToString(),
+                        sessionName,
+                        clientNonce,
+                        null,
+                        sessionTimeout,
+                        (uint)MessageContext.MaxMessageSize,
+                        ct).ConfigureAwait(false);
+
+                    successCreateSession = true;
+                }
+                catch (Exception ex)
+                {
+                    Utils.LogInfo("Create session failed with client certificate NULL. " + ex.Message);
+                    successCreateSession = false;
+                }
+            }
+
+            if (!successCreateSession)
+            {
+                response = await base.CreateSessionAsync(
+                        null,
+                        clientDescription,
+                        m_endpoint.Description.Server.ApplicationUri,
+                        m_endpoint.EndpointUrl.ToString(),
+                        sessionName,
+                        clientNonce,
+                        clientCertificateChainData != null ? clientCertificateChainData : clientCertificateData,
+                        sessionTimeout,
+                        (uint)MessageContext.MaxMessageSize,
+                        ct).ConfigureAwait(false);
+            }
+
+            NodeId sessionId = response.SessionId;
+            NodeId sessionCookie = response.AuthenticationToken;
+            byte[] serverNonce = response.ServerNonce;
+            byte[] serverCertificateData = response.ServerCertificate;
+            SignatureData serverSignature = response.ServerSignature;
+            EndpointDescriptionCollection serverEndpoints = response.ServerEndpoints;
+            SignedSoftwareCertificateCollection serverSoftwareCertificates = response.ServerSoftwareCertificates;
+
+            m_sessionTimeout = response.RevisedSessionTimeout;
+            m_maxRequestMessageSize = response.MaxRequestMessageSize;
+
+            // save session id.
+            lock (SyncRoot)
+            {
+                base.SessionCreated(sessionId, sessionCookie);
+            }
+
+            Utils.LogInfo("Revised session timeout value: {0}. ", m_sessionTimeout);
+            Utils.LogInfo("Max response message size value: {0}. Max request message size: {1} ",
+                MessageContext.MaxMessageSize, m_maxRequestMessageSize);
+
+            //we need to call CloseSession if CreateSession was successful but some other exception is thrown
+            try
+            {
+                // verify that the server returned the same instance certificate.
+                ValidateServerCertificateData(serverCertificateData);
+
+                ValidateServerEndpoints(serverEndpoints);
+
+                ValidateServerSignature(serverCertificate, serverSignature, clientCertificateData, clientCertificateChainData, clientNonce);
+
+                HandleSignedSoftwareCertificates(serverSoftwareCertificates);
+
+                // create the client signature.
+                byte[] dataToSign = Utils.Append(serverCertificate != null ? serverCertificate.RawData : null, serverNonce);
+                SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, securityPolicyUri, dataToSign);
+
+                // select the security policy for the user token.
+                securityPolicyUri = identityPolicy.SecurityPolicyUri;
+
+                if (String.IsNullOrEmpty(securityPolicyUri))
+                {
+                    securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
+                }
+
+                byte[] previousServerNonce = null;
+
+                if (TransportChannel.CurrentToken != null)
+                {
+                    previousServerNonce = TransportChannel.CurrentToken.ServerNonce;
+                }
+
+                // validate server nonce and security parameters for user identity.
+                ValidateServerNonce(
+                    identity,
+                    serverNonce,
+                    securityPolicyUri,
+                    previousServerNonce,
+                    m_endpoint.Description.SecurityMode);
+
+                // sign data with user token.
+                SignatureData userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
+
+                // encrypt token.
+                identityToken.Encrypt(serverCertificate, serverNonce, securityPolicyUri);
+
+                // send the software certificates assigned to the client.
+                SignedSoftwareCertificateCollection clientSoftwareCertificates = GetSoftwareCertificates();
+
+                // copy the preferred locales if provided.
+                if (preferredLocales != null && preferredLocales.Count > 0)
+                {
+                    m_preferredLocales = new StringCollection(preferredLocales);
+                }
+
+                // activate session.
+                ActivateSessionResponse activateResponse = await ActivateSessionAsync(
+                    null,
+                    clientSignature,
+                    clientSoftwareCertificates,
+                    m_preferredLocales,
+                    new ExtensionObject(identityToken),
+                    userTokenSignature,
+                    ct).ConfigureAwait(false);
+
+                serverNonce = activateResponse.ServerNonce;
+                StatusCodeCollection certificateResults = activateResponse.Results;
+                DiagnosticInfoCollection certificateDiagnosticInfos = activateResponse.DiagnosticInfos;
+
+                if (certificateResults != null)
+                {
+                    for (int i = 0; i < certificateResults.Count; i++)
+                    {
+                        Utils.LogInfo("ActivateSession result[{0}] = {1}", i, certificateResults[i]);
+                    }
+                }
+
+                if (certificateResults == null || certificateResults.Count == 0)
+                {
+                    Utils.LogInfo("Empty results were received for the ActivateSession call.");
+                }
+
+                // fetch namespaces.
+                FetchNamespaceTables();
+                // TODO: await FetchNamespaceTablesAsync().ConfigureAwait(false);
+
+                lock (SyncRoot)
+                {
+                    // save nonces.
+                    m_sessionName = sessionName;
+                    m_identity = identity;
+                    m_previousServerNonce = previousServerNonce;
+                    m_serverNonce = serverNonce;
+                    m_serverCertificate = serverCertificate;
+
+                    // update system context.
+                    m_systemContext.PreferredLocales = m_preferredLocales;
+                    m_systemContext.SessionId = this.SessionId;
+                    m_systemContext.UserIdentity = identity;
+                }
+
+                // fetch operation limits
+                FetchOperationLimits();
+                // TODO: await FetchOperationLimitsAsync().ConfigureAwait(false);
+
+                // start keep alive thread.
+                StartKeepAliveTimer();
+
+                // raise event that session configuration chnaged.
+                IndicateSessionConfigurationChanged();
+            }
+            catch (Exception)
+            {
+                try
+                {
+                    await base.CloseSessionAsync(null, false, ct).ConfigureAwait(false);
+                    CloseChannel();
+                }
+                catch (Exception e)
+                {
+                    Utils.LogError("Cleanup: CloseSession() or CloseChannel() raised exception. " + e.Message);
+                }
+                finally
+                {
+                    SessionCreated(null, null);
+                }
+
+                throw;
+            }
+        }
+        #endregion
+
         #region Subscription Async Methods
         /// <inheritdoc/>
         public async Task<bool> RemoveSubscriptionAsync(Subscription subscription, CancellationToken ct = default)
@@ -583,7 +860,7 @@ namespace Opc.Ua.Client
 
         #region Close Async Methods
         /// <inheritdoc/>
-        public Task<StatusCode> CloseAsync(CancellationToken ct = default)
+        public override Task<StatusCode> CloseAsync(CancellationToken ct = default)
         {
             return CloseAsync(m_keepAliveInterval, true, ct);
         }

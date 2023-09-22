@@ -38,7 +38,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// An implementation of a client side nodecache.
     /// </summary>
-    public class NodeCache : INodeCache
+    public class NodeCache : INodeCache, IDisposable
     {
         #region Constructors
         /// <summary>
@@ -54,16 +54,26 @@ namespace Opc.Ua.Client
             m_uaTypesLoaded = false;
             m_cacheLock = new ReaderWriterLockSlim();
         }
+        #endregion
 
+        #region IDisposable
         /// <summary>
-        /// Destructor to clean up.
+        /// An overrideable version of the Dispose.
         /// </summary>
-        ~NodeCache()
+        protected virtual void Dispose(bool disposing)
         {
-            if (m_cacheLock != null)
+            if (disposing)
             {
-                m_cacheLock.Dispose();
+                m_session = null;
+                m_cacheLock?.Dispose();
             }
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
         #endregion
 
