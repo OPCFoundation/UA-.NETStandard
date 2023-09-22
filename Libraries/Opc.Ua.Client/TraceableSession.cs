@@ -562,15 +562,6 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task OpenAsync(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain, CancellationToken ct)
-        {
-            using (Activity activity = ActivitySource.StartActivity(nameof(Open)))
-            {
-                await m_session.OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, ct).ConfigureAwait(false);
-            }
-        }
-
-        /// <inheritdoc/>
         public void ChangePreferredLocales(StringCollection preferredLocales)
         {
             using (Activity activity = ActivitySource.StartActivity(nameof(ChangePreferredLocales)))
@@ -615,7 +606,34 @@ namespace Opc.Ua.Client
             }
         }
 
-        #region FetchNamespaceTables Async Methods
+        /// <inheritdoc/>
+        public async Task OpenAsync(string sessionName, IUserIdentity identity, CancellationToken ct)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(OpenAsync)))
+            {
+                await m_session.OpenAsync(sessionName, identity, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task OpenAsync(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, CancellationToken ct)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(OpenAsync)))
+            {
+                await m_session.OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task OpenAsync(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain, CancellationToken ct)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(OpenAsync)))
+            {
+                await m_session.OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, ct).ConfigureAwait(false);
+            }
+        }
+
+
         /// <inheritdoc/>
         public async Task FetchNamespaceTablesAsync(CancellationToken ct = default)
         {
@@ -624,7 +642,6 @@ namespace Opc.Ua.Client
                 await m_session.FetchNamespaceTablesAsync(ct).ConfigureAwait(false);
             }
         }
-        #endregion
 
         /// <inheritdoc/>
         public async Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(IList<NodeId> nodeIds, NodeClass nodeClass, bool optionalAttributes = false, CancellationToken ct = default)

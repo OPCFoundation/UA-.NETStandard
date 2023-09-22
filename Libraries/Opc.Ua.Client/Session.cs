@@ -33,7 +33,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -380,6 +379,9 @@ namespace Opc.Ua.Client
 
                 Utils.SilentDispose(m_defaultSubscription);
                 m_defaultSubscription = null;
+
+                Utils.SilentDispose(m_nodeCache);
+                m_nodeCache = null;
 
                 IList<Subscription> subscriptions = null;
                 lock (SyncRoot)
@@ -1108,7 +1110,11 @@ namespace Opc.Ua.Client
 
                 if (updateBeforeConnect)
                 {
-                    await endpoint.UpdateFromServerAsync(endpoint.EndpointUrl, connection, endpoint.Description.SecurityMode, endpoint.Description.SecurityPolicyUri, ct).ConfigureAwait(false);
+                    await endpoint.UpdateFromServerAsync(
+                        endpoint.EndpointUrl, connection,
+                        endpoint.Description.SecurityMode,
+                        endpoint.Description.SecurityPolicyUri,
+                        ct).ConfigureAwait(false);
                     updateBeforeConnect = false;
                     connection = null;
                 }
@@ -1603,7 +1609,7 @@ namespace Opc.Ua.Client
             nodesToRead.Add(valueId);
 
             // read from server.
-            ResponseHeader responseHeader = this.Read(
+            ResponseHeader responseHeader = base.Read(
                 null,
                 0,
                 TimestampsToReturn.Neither,
@@ -2379,59 +2385,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             bool checkDomain)
         {
-            // check connection state.
-            lock (SyncRoot)
-            {
-                if (Connected)
-                {
-                    throw new ServiceResultException(StatusCodes.BadInvalidState, "Already connected to server.");
-                }
-            }
-
-            string securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
-
-            // catch security policies which are not supported by core
-            if (SecurityPolicies.GetDisplayName(securityPolicyUri) == null)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadSecurityChecksFailed,
-                    "The chosen security policy is not supported by the client to connect to the server.");
-            }
-
-            // get the identity token.
-            if (identity == null)
-            {
-                identity = new UserIdentity();
-            }
-
-            // get identity token.
-            UserIdentityToken identityToken = identity.GetIdentityToken();
-
-            // check that the user identity is supported by the endpoint.
-            UserTokenPolicy identityPolicy = m_endpoint.Description.FindUserTokenPolicy(identityToken.PolicyId);
-
-            if (identityPolicy == null)
-            {
-                // try looking up by TokenType if the policy id was not found.
-                identityPolicy = m_endpoint.Description.FindUserTokenPolicy(identity.TokenType, identity.IssuedTokenType);
-
-                if (identityPolicy == null)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadUserAccessDenied,
-                        "Endpoint does not support the user identity type provided.");
-                }
-
-                identityToken.PolicyId = identityPolicy.PolicyId;
-            }
-
-            bool requireEncryption = securityPolicyUri != SecurityPolicies.None;
-
-            if (!requireEncryption)
-            {
-                requireEncryption = identityPolicy.SecurityPolicyUri != SecurityPolicies.None &&
-                    !String.IsNullOrEmpty(identityPolicy.SecurityPolicyUri);
-            }
+            OpenValidateIdentity(ref identity, out var identityToken, out var identityPolicy, out string securityPolicyUri, out bool requireEncryption);
 
             // validate the server certificate /certificate chain.
             X509Certificate2 serverCertificate = null;
@@ -2473,27 +2427,14 @@ namespace Opc.Ua.Client
             SignedSoftwareCertificateCollection serverSoftwareCertificates = null;
 
             // send the application instance certificate for the client.
-            byte[] clientCertificateData = m_instanceCertificate != null ? m_instanceCertificate.RawData : null;
-            byte[] clientCertificateChainData = null;
+            BuildCertificateData(out byte[] clientCertificateData, out byte[] clientCertificateChainData);
 
-            if (m_instanceCertificateChain != null && m_instanceCertificateChain.Count > 0 && m_configuration.SecurityConfiguration.SendCertificateChain)
-            {
-                List<byte> clientCertificateChain = new List<byte>();
-
-                for (int i = 0; i < m_instanceCertificateChain.Count; i++)
-                {
-                    clientCertificateChain.AddRange(m_instanceCertificateChain[i].RawData);
-                }
-
-                clientCertificateChainData = clientCertificateChain.ToArray();
-            }
-
-            ApplicationDescription clientDescription = new ApplicationDescription();
-
-            clientDescription.ApplicationUri = m_configuration.ApplicationUri;
-            clientDescription.ApplicationName = m_configuration.ApplicationName;
-            clientDescription.ApplicationType = ApplicationType.Client;
-            clientDescription.ProductUri = m_configuration.ProductUri;
+            ApplicationDescription clientDescription = new ApplicationDescription {
+                ApplicationUri = m_configuration.ApplicationUri,
+                ApplicationName = m_configuration.ApplicationName,
+                ApplicationType = ApplicationType.Client,
+                ProductUri = m_configuration.ProductUri
+            };
 
             if (sessionTimeout == 0)
             {
@@ -2558,6 +2499,7 @@ namespace Opc.Ua.Client
                         out serverSignature,
                         out m_maxRequestMessageSize);
             }
+
             // save session id.
             lock (SyncRoot)
             {
@@ -2572,200 +2514,16 @@ namespace Opc.Ua.Client
             try
             {
                 // verify that the server returned the same instance certificate.
-                if (serverCertificateData != null &&
-                    m_endpoint.Description.ServerCertificate != null &&
-                    !Utils.IsEqual(serverCertificateData, m_endpoint.Description.ServerCertificate))
-                {
-                    try
-                    {
-                        // verify for certificate chain in endpoint.
-                        X509Certificate2Collection serverCertificateChain = Utils.ParseCertificateChainBlob(m_endpoint.Description.ServerCertificate);
+                ValidateServerCertificateData(serverCertificateData);
 
-                        if (serverCertificateChain.Count > 0 && !Utils.IsEqual(serverCertificateData, serverCertificateChain[0].RawData))
-                        {
-                            throw ServiceResultException.Create(
-                                        StatusCodes.BadCertificateInvalid,
-                                        "Server did not return the certificate used to create the secure channel.");
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        throw ServiceResultException.Create(
-                                StatusCodes.BadCertificateInvalid,
-                                "Server did not return the certificate used to create the secure channel.");
-                    }
-                }
+                ValidateServerEndpoints(serverEndpoints);
 
-                if (serverSignature == null || serverSignature.Signature == null)
-                {
-                    Utils.LogInfo("Server signature is null or empty.");
+                ValidateServerSignature(serverCertificate, serverSignature, clientCertificateData, clientCertificateChainData, clientNonce);
 
-                    //throw ServiceResultException.Create(
-                    //    StatusCodes.BadSecurityChecksFailed,
-                    //    "Server signature is null or empty.");
-                }
-
-                if (m_discoveryServerEndpoints != null && m_discoveryServerEndpoints.Count > 0)
-                {
-                    // Compare EndpointDescriptions returned at GetEndpoints with values returned at CreateSession
-                    EndpointDescriptionCollection expectedServerEndpoints = null;
-
-                    if (serverEndpoints != null &&
-                        m_discoveryProfileUris != null && m_discoveryProfileUris.Count > 0)
-                    {
-                        // Select EndpointDescriptions with a transportProfileUri that matches the
-                        // profileUris specified in the original GetEndpoints() request.
-                        expectedServerEndpoints = new EndpointDescriptionCollection();
-
-                        foreach (EndpointDescription serverEndpoint in serverEndpoints)
-                        {
-                            if (m_discoveryProfileUris.Contains(serverEndpoint.TransportProfileUri))
-                            {
-                                expectedServerEndpoints.Add(serverEndpoint);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        expectedServerEndpoints = serverEndpoints;
-                    }
-
-                    if (expectedServerEndpoints == null ||
-                        m_discoveryServerEndpoints.Count != expectedServerEndpoints.Count)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadSecurityChecksFailed,
-                            "Server did not return a number of ServerEndpoints that matches the one from GetEndpoints.");
-                    }
-
-                    for (int ii = 0; ii < expectedServerEndpoints.Count; ii++)
-                    {
-                        EndpointDescription serverEndpoint = expectedServerEndpoints[ii];
-                        EndpointDescription expectedServerEndpoint = m_discoveryServerEndpoints[ii];
-
-                        if (serverEndpoint.SecurityMode != expectedServerEndpoint.SecurityMode ||
-                            serverEndpoint.SecurityPolicyUri != expectedServerEndpoint.SecurityPolicyUri ||
-                            serverEndpoint.TransportProfileUri != expectedServerEndpoint.TransportProfileUri ||
-                            serverEndpoint.SecurityLevel != expectedServerEndpoint.SecurityLevel)
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadSecurityChecksFailed,
-                                "The list of ServerEndpoints returned at CreateSession does not match the list from GetEndpoints.");
-                        }
-
-                        if (serverEndpoint.UserIdentityTokens.Count != expectedServerEndpoint.UserIdentityTokens.Count)
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadSecurityChecksFailed,
-                                "The list of ServerEndpoints returned at CreateSession does not match the one from GetEndpoints.");
-                        }
-
-                        for (int jj = 0; jj < serverEndpoint.UserIdentityTokens.Count; jj++)
-                        {
-                            if (!serverEndpoint.UserIdentityTokens[jj].IsEqual(expectedServerEndpoint.UserIdentityTokens[jj]))
-                            {
-                                throw ServiceResultException.Create(
-                                StatusCodes.BadSecurityChecksFailed,
-                                "The list of ServerEndpoints returned at CreateSession does not match the one from GetEndpoints.");
-                            }
-                        }
-                    }
-                }
-
-                // find the matching description (TBD - check domains against certificate).
-                bool found = false;
-                Uri expectedUrl = Utils.ParseUri(m_endpoint.Description.EndpointUrl);
-
-                if (expectedUrl != null)
-                {
-                    for (int ii = 0; ii < serverEndpoints.Count; ii++)
-                    {
-                        EndpointDescription serverEndpoint = serverEndpoints[ii];
-                        Uri actualUrl = Utils.ParseUri(serverEndpoint.EndpointUrl);
-
-                        if (actualUrl != null && actualUrl.Scheme == expectedUrl.Scheme)
-                        {
-                            if (serverEndpoint.SecurityPolicyUri == m_endpoint.Description.SecurityPolicyUri)
-                            {
-                                if (serverEndpoint.SecurityMode == m_endpoint.Description.SecurityMode)
-                                {
-                                    // ensure endpoint has up to date information.
-                                    m_endpoint.Description.Server.ApplicationName = serverEndpoint.Server.ApplicationName;
-                                    m_endpoint.Description.Server.ApplicationUri = serverEndpoint.Server.ApplicationUri;
-                                    m_endpoint.Description.Server.ApplicationType = serverEndpoint.Server.ApplicationType;
-                                    m_endpoint.Description.Server.ProductUri = serverEndpoint.Server.ProductUri;
-                                    m_endpoint.Description.TransportProfileUri = serverEndpoint.TransportProfileUri;
-                                    m_endpoint.Description.UserIdentityTokens = serverEndpoint.UserIdentityTokens;
-
-                                    found = true;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // could be a security risk.
-                if (!found)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadSecurityChecksFailed,
-                        "Server did not return an EndpointDescription that matched the one used to create the secure channel.");
-                }
-
-                // validate the server's signature.
-                byte[] dataToSign = Utils.Append(clientCertificateData, clientNonce);
-
-                if (!SecurityPolicies.Verify(serverCertificate, m_endpoint.Description.SecurityPolicyUri, dataToSign, serverSignature))
-                {
-                    // validate the signature with complete chain if the check with leaf certificate failed.
-                    if (clientCertificateChainData != null)
-                    {
-                        dataToSign = Utils.Append(clientCertificateChainData, clientNonce);
-
-                        if (!SecurityPolicies.Verify(serverCertificate, m_endpoint.Description.SecurityPolicyUri, dataToSign, serverSignature))
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadApplicationSignatureInvalid,
-                                "Server did not provide a correct signature for the nonce data provided by the client.");
-                        }
-                    }
-                    else
-                    {
-                        throw ServiceResultException.Create(
-                           StatusCodes.BadApplicationSignatureInvalid,
-                           "Server did not provide a correct signature for the nonce data provided by the client.");
-                    }
-                }
-
-                // get a validator to check certificates provided by server.
-                CertificateValidator validator = m_configuration.CertificateValidator;
-
-                // validate software certificates.
-                List<SoftwareCertificate> softwareCertificates = new List<SoftwareCertificate>();
-
-                foreach (SignedSoftwareCertificate signedCertificate in serverSoftwareCertificates)
-                {
-                    SoftwareCertificate softwareCertificate = null;
-
-                    ServiceResult result = SoftwareCertificate.Validate(
-                        validator,
-                        signedCertificate.CertificateData,
-                        out softwareCertificate);
-
-                    if (ServiceResult.IsBad(result))
-                    {
-                        OnSoftwareCertificateError(signedCertificate, result);
-                    }
-
-                    softwareCertificates.Add(softwareCertificate);
-                }
-
-                // check if software certificates meet application requirements.
-                ValidateSoftwareCertificates(softwareCertificates);
+                HandleSignedSoftwareCertificates(serverSoftwareCertificates);
 
                 // create the client signature.
-                dataToSign = Utils.Append(serverCertificate != null ? serverCertificate.RawData : null, serverNonce);
+                byte[] dataToSign = Utils.Append(serverCertificate != null ? serverCertificate.RawData : null, serverNonce);
                 SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, securityPolicyUri, dataToSign);
 
                 // select the security policy for the user token.
@@ -5445,6 +5203,308 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Private Methods
+        /// <summary>
+        /// Validates  the identity for an open call.
+        /// </summary>
+        private void OpenValidateIdentity(
+            ref IUserIdentity identity,
+            out UserIdentityToken identityToken,
+            out UserTokenPolicy identityPolicy,
+            out string securityPolicyUri,
+            out bool requireEncryption)
+        {
+            // check connection state.
+            lock (SyncRoot)
+            {
+                if (Connected)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidState, "Already connected to server.");
+                }
+            }
+
+            securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
+
+            // catch security policies which are not supported by core
+            if (SecurityPolicies.GetDisplayName(securityPolicyUri) == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The chosen security policy is not supported by the client to connect to the server.");
+            }
+
+            // get the identity token.
+            if (identity == null)
+            {
+                identity = new UserIdentity();
+            }
+
+            // get identity token.
+            identityToken = identity.GetIdentityToken();
+
+            // check that the user identity is supported by the endpoint.
+            identityPolicy = m_endpoint.Description.FindUserTokenPolicy(identityToken.PolicyId);
+
+            if (identityPolicy == null)
+            {
+                // try looking up by TokenType if the policy id was not found.
+                identityPolicy = m_endpoint.Description.FindUserTokenPolicy(identity.TokenType, identity.IssuedTokenType);
+
+                if (identityPolicy == null)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadUserAccessDenied,
+                        "Endpoint does not support the user identity type provided.");
+                }
+
+                identityToken.PolicyId = identityPolicy.PolicyId;
+            }
+
+            requireEncryption = securityPolicyUri != SecurityPolicies.None;
+
+            if (!requireEncryption)
+            {
+                requireEncryption = identityPolicy.SecurityPolicyUri != SecurityPolicies.None &&
+                    !String.IsNullOrEmpty(identityPolicy.SecurityPolicyUri);
+            }
+        }
+
+        private void BuildCertificateData(out byte[] clientCertificateData, out byte[] clientCertificateChainData)
+        {
+            // send the application instance certificate for the client.
+            clientCertificateData = m_instanceCertificate != null ? m_instanceCertificate.RawData : null;
+            clientCertificateChainData = null;
+
+            if (m_instanceCertificateChain != null && m_instanceCertificateChain.Count > 0 &&
+                m_configuration.SecurityConfiguration.SendCertificateChain)
+            {
+                List<byte> clientCertificateChain = new List<byte>();
+
+                for (int i = 0; i < m_instanceCertificateChain.Count; i++)
+                {
+                    clientCertificateChain.AddRange(m_instanceCertificateChain[i].RawData);
+                }
+
+                clientCertificateChainData = clientCertificateChain.ToArray();
+            }
+        }
+
+        /// <summary>
+        /// Validates the server certificate returned.
+        /// </summary>
+        private void ValidateServerCertificateData(byte[] serverCertificateData)
+        {
+            if (serverCertificateData != null &&
+                m_endpoint.Description.ServerCertificate != null &&
+                !Utils.IsEqual(serverCertificateData, m_endpoint.Description.ServerCertificate))
+            {
+                try
+                {
+                    // verify for certificate chain in endpoint.
+                    X509Certificate2Collection serverCertificateChain = Utils.ParseCertificateChainBlob(m_endpoint.Description.ServerCertificate);
+
+                    if (serverCertificateChain.Count > 0 && !Utils.IsEqual(serverCertificateData, serverCertificateChain[0].RawData))
+                    {
+                        throw ServiceResultException.Create(
+                                    StatusCodes.BadCertificateInvalid,
+                                    "Server did not return the certificate used to create the secure channel.");
+                    }
+                }
+                catch (Exception)
+                {
+                    throw ServiceResultException.Create(
+                            StatusCodes.BadCertificateInvalid,
+                            "Server did not return the certificate used to create the secure channel.");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Validates the server signature created with the client nonce.
+        /// </summary>
+        private void ValidateServerSignature(X509Certificate2 serverCertificate, SignatureData serverSignature,
+            byte[] clientCertificateData, byte[] clientCertificateChainData, byte[] clientNonce)
+        {
+            if (serverSignature == null || serverSignature.Signature == null)
+            {
+                Utils.LogInfo("Server signature is null or empty.");
+
+                //throw ServiceResultException.Create(
+                //    StatusCodes.BadSecurityChecksFailed,
+                //    "Server signature is null or empty.");
+            }
+
+            // validate the server's signature.
+            byte[] dataToSign = Utils.Append(clientCertificateData, clientNonce);
+
+            if (!SecurityPolicies.Verify(serverCertificate, m_endpoint.Description.SecurityPolicyUri, dataToSign, serverSignature))
+            {
+                // validate the signature with complete chain if the check with leaf certificate failed.
+                if (clientCertificateChainData != null)
+                {
+                    dataToSign = Utils.Append(clientCertificateChainData, clientNonce);
+
+                    if (!SecurityPolicies.Verify(serverCertificate, m_endpoint.Description.SecurityPolicyUri, dataToSign, serverSignature))
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadApplicationSignatureInvalid,
+                            "Server did not provide a correct signature for the nonce data provided by the client.");
+                    }
+                }
+                else
+                {
+                    throw ServiceResultException.Create(
+                       StatusCodes.BadApplicationSignatureInvalid,
+                       "Server did not provide a correct signature for the nonce data provided by the client.");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Validates the server endpoints returned.
+        /// </summary>
+        private void ValidateServerEndpoints(EndpointDescriptionCollection serverEndpoints)
+        {
+            if (m_discoveryServerEndpoints != null && m_discoveryServerEndpoints.Count > 0)
+            {
+                // Compare EndpointDescriptions returned at GetEndpoints with values returned at CreateSession
+                EndpointDescriptionCollection expectedServerEndpoints = null;
+
+                if (serverEndpoints != null &&
+                    m_discoveryProfileUris != null && m_discoveryProfileUris.Count > 0)
+                {
+                    // Select EndpointDescriptions with a transportProfileUri that matches the
+                    // profileUris specified in the original GetEndpoints() request.
+                    expectedServerEndpoints = new EndpointDescriptionCollection();
+
+                    foreach (EndpointDescription serverEndpoint in serverEndpoints)
+                    {
+                        if (m_discoveryProfileUris.Contains(serverEndpoint.TransportProfileUri))
+                        {
+                            expectedServerEndpoints.Add(serverEndpoint);
+                        }
+                    }
+                }
+                else
+                {
+                    expectedServerEndpoints = serverEndpoints;
+                }
+
+                if (expectedServerEndpoints == null ||
+                    m_discoveryServerEndpoints.Count != expectedServerEndpoints.Count)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "Server did not return a number of ServerEndpoints that matches the one from GetEndpoints.");
+                }
+
+                for (int ii = 0; ii < expectedServerEndpoints.Count; ii++)
+                {
+                    EndpointDescription serverEndpoint = expectedServerEndpoints[ii];
+                    EndpointDescription expectedServerEndpoint = m_discoveryServerEndpoints[ii];
+
+                    if (serverEndpoint.SecurityMode != expectedServerEndpoint.SecurityMode ||
+                        serverEndpoint.SecurityPolicyUri != expectedServerEndpoint.SecurityPolicyUri ||
+                        serverEndpoint.TransportProfileUri != expectedServerEndpoint.TransportProfileUri ||
+                        serverEndpoint.SecurityLevel != expectedServerEndpoint.SecurityLevel)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadSecurityChecksFailed,
+                            "The list of ServerEndpoints returned at CreateSession does not match the list from GetEndpoints.");
+                    }
+
+                    if (serverEndpoint.UserIdentityTokens.Count != expectedServerEndpoint.UserIdentityTokens.Count)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadSecurityChecksFailed,
+                            "The list of ServerEndpoints returned at CreateSession does not match the one from GetEndpoints.");
+                    }
+
+                    for (int jj = 0; jj < serverEndpoint.UserIdentityTokens.Count; jj++)
+                    {
+                        if (!serverEndpoint.UserIdentityTokens[jj].IsEqual(expectedServerEndpoint.UserIdentityTokens[jj]))
+                        {
+                            throw ServiceResultException.Create(
+                            StatusCodes.BadSecurityChecksFailed,
+                            "The list of ServerEndpoints returned at CreateSession does not match the one from GetEndpoints.");
+                        }
+                    }
+                }
+            }
+
+            // find the matching description (TBD - check domains against certificate).
+            bool found = false;
+            Uri expectedUrl = Utils.ParseUri(m_endpoint.Description.EndpointUrl);
+
+            if (expectedUrl != null)
+            {
+                for (int ii = 0; ii < serverEndpoints.Count; ii++)
+                {
+                    EndpointDescription serverEndpoint = serverEndpoints[ii];
+                    Uri actualUrl = Utils.ParseUri(serverEndpoint.EndpointUrl);
+
+                    if (actualUrl != null && actualUrl.Scheme == expectedUrl.Scheme)
+                    {
+                        if (serverEndpoint.SecurityPolicyUri == m_endpoint.Description.SecurityPolicyUri)
+                        {
+                            if (serverEndpoint.SecurityMode == m_endpoint.Description.SecurityMode)
+                            {
+                                // ensure endpoint has up to date information.
+                                m_endpoint.Description.Server.ApplicationName = serverEndpoint.Server.ApplicationName;
+                                m_endpoint.Description.Server.ApplicationUri = serverEndpoint.Server.ApplicationUri;
+                                m_endpoint.Description.Server.ApplicationType = serverEndpoint.Server.ApplicationType;
+                                m_endpoint.Description.Server.ProductUri = serverEndpoint.Server.ProductUri;
+                                m_endpoint.Description.TransportProfileUri = serverEndpoint.TransportProfileUri;
+                                m_endpoint.Description.UserIdentityTokens = serverEndpoint.UserIdentityTokens;
+
+                                found = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // could be a security risk.
+            if (!found)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "Server did not return an EndpointDescription that matched the one used to create the secure channel.");
+            }
+        }
+
+        /// <summary>
+        /// Handles the validation of server software certificates and application callback.
+        /// </summary>
+        private void HandleSignedSoftwareCertificates(SignedSoftwareCertificateCollection serverSoftwareCertificates)
+        {
+            // get a validator to check certificates provided by server.
+            CertificateValidator validator = m_configuration.CertificateValidator;
+
+            // validate software certificates.
+            List<SoftwareCertificate> softwareCertificates = new List<SoftwareCertificate>();
+
+            foreach (SignedSoftwareCertificate signedCertificate in serverSoftwareCertificates)
+            {
+                SoftwareCertificate softwareCertificate = null;
+
+                ServiceResult result = SoftwareCertificate.Validate(
+                    validator,
+                    signedCertificate.CertificateData,
+                    out softwareCertificate);
+
+                if (ServiceResult.IsBad(result))
+                {
+                    OnSoftwareCertificateError(signedCertificate, result);
+                }
+
+                softwareCertificates.Add(softwareCertificate);
+            }
+
+            // check if software certificates meet application requirements.
+            ValidateSoftwareCertificates(softwareCertificates);
+        }
+
         /// <summary>
         /// Processes the response from a publish request.
         /// </summary>
