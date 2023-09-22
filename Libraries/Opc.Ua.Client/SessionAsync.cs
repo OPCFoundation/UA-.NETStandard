@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -32,6 +32,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -271,8 +272,7 @@ namespace Opc.Ua.Client
                 }
 
                 // fetch namespaces.
-                FetchNamespaceTables();
-                // TODO: await FetchNamespaceTablesAsync().ConfigureAwait(false);
+                await FetchNamespaceTablesAsync(ct).ConfigureAwait(false);
 
                 lock (SyncRoot)
                 {
@@ -290,8 +290,7 @@ namespace Opc.Ua.Client
                 }
 
                 // fetch operation limits
-                FetchOperationLimits();
-                // TODO: await FetchOperationLimitsAsync().ConfigureAwait(false);
+                await FetchOperationLimitsAsync(ct).ConfigureAwait(false);
 
                 // start keep alive thread.
                 StartKeepAliveTimer();
@@ -387,7 +386,7 @@ namespace Opc.Ua.Client
             {
                 try
                 {
-                    await m_reconnectLock.WaitAsync().ConfigureAwait(false);
+                    await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
                     m_reconnecting = true;
 
                     for (int ii = 0; ii < subscriptions.Count; ii++)
@@ -453,7 +452,7 @@ namespace Opc.Ua.Client
                 ClientBase.ValidateDiagnosticInfos(diagnosticInfos, requests);
 
                 int ii = 0;
-                foreach (var value in results)
+                foreach (CallMethodResult value in results)
                 {
                     ServiceResult result = ServiceResult.Good;
                     if (StatusCode.IsNotGood(value.StatusCode))
@@ -487,7 +486,7 @@ namespace Opc.Ua.Client
             {
                 try
                 {
-                    await m_reconnectLock.WaitAsync().ConfigureAwait(false);
+                    await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
                     m_reconnecting = true;
 
                     TransferSubscriptionsResponse response = await base.TransferSubscriptionsAsync(null, subscriptionIds, sendInitialValues, ct).ConfigureAwait(false);
@@ -508,12 +507,12 @@ namespace Opc.Ua.Client
                     {
                         if (StatusCode.IsGood(results[ii].StatusCode))
                         {
-                            if (await subscriptions[ii].TransferAsync(this, subscriptionIds[ii], results[ii].AvailableSequenceNumbers).ConfigureAwait(false))
+                            if (await subscriptions[ii].TransferAsync(this, subscriptionIds[ii], results[ii].AvailableSequenceNumbers, ct).ConfigureAwait(false))
                             {
                                 lock (SyncRoot)
                                 {
                                     // create ack for available sequence numbers
-                                    foreach (var sequenceNumber in results[ii].AvailableSequenceNumbers)
+                                    foreach (uint sequenceNumber in results[ii].AvailableSequenceNumbers)
                                     {
                                         var ack = new SubscriptionAcknowledgement() {
                                             SubscriptionId = subscriptionIds[ii],
@@ -552,6 +551,132 @@ namespace Opc.Ua.Client
             }
 
             return failedSubscriptions == 0;
+        }
+        #endregion
+
+        #region FetchNamespaceTables Async Methods
+        /// <inheritdoc/>
+        public async Task FetchNamespaceTablesAsync(CancellationToken ct = default)
+        {
+            ReadValueIdCollection nodesToRead = PrepareNamespaceTableNodesToRead();
+
+            // read from server.
+            ReadResponse response = await ReadAsync(
+                null,
+                0,
+                TimestampsToReturn.Neither,
+                nodesToRead,
+                ct).ConfigureAwait(false);
+
+            DataValueCollection values = response.Results;
+            DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+            ResponseHeader responseHeader = response.ResponseHeader;
+
+            ValidateResponse(values, nodesToRead);
+            ValidateDiagnosticInfos(diagnosticInfos, nodesToRead);
+
+            UpdateNamespaceTable(values, diagnosticInfos, responseHeader);
+        }
+        #endregion
+
+        #region FetchTypeTree Async Methods
+        /// <inheritdoc/>
+        public async Task FetchTypeTreeAsync(ExpandedNodeId typeId, CancellationToken ct = default)
+        {
+            Node node = await NodeCache.FindAsync(typeId, ct).ConfigureAwait(false) as Node;
+
+            if (node != null)
+            {
+                var subTypes = new ExpandedNodeIdCollection();
+                foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
+                {
+                    subTypes.Add(reference.TargetId);
+                }
+                if (subTypes.Count > 0)
+                {
+                    await FetchTypeTreeAsync(subTypes, ct).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task FetchTypeTreeAsync(ExpandedNodeIdCollection typeIds, CancellationToken ct = default)
+        {
+            var referenceTypeIds = new NodeIdCollection() { ReferenceTypeIds.HasSubtype };
+            IList<INode> nodes = await NodeCache.FindReferencesAsync(typeIds, referenceTypeIds, false, false, ct).ConfigureAwait(false);
+            var subTypes = new ExpandedNodeIdCollection();
+            foreach (INode inode in nodes)
+            {
+                if (inode is Node node)
+                {
+                    foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
+                    {
+                        if (!typeIds.Contains(reference.TargetId))
+                        {
+                            subTypes.Add(reference.TargetId);
+                        }
+                    }
+                }
+            }
+            if (subTypes.Count > 0)
+            {
+                await FetchTypeTreeAsync(subTypes, ct).ConfigureAwait(false);
+            }
+        }
+        #endregion
+
+        #region FetchOperationLimits Async Methods
+        /// <summary>
+        /// Fetch the operation limits of the server.
+        /// </summary>
+        public async Task FetchOperationLimitsAsync(CancellationToken ct)
+        {
+            try
+            {
+                var operationLimitsProperties = typeof(OperationLimits)
+                    .GetProperties().Select(p => p.Name).ToList();
+
+                var nodeIds = new NodeIdCollection(
+                    operationLimitsProperties.Select(name => (NodeId)typeof(VariableIds)
+                    .GetField("Server_ServerCapabilities_OperationLimits_" + name, BindingFlags.Public | BindingFlags.Static)
+                    .GetValue(null))
+                    );
+
+                (DataValueCollection values, IList<ServiceResult> errors) = await ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
+
+                OperationLimits configOperationLimits = m_configuration?.ClientConfiguration?.OperationLimits ?? new OperationLimits();
+                var operationLimits = new OperationLimits();
+
+                for (int ii = 0; ii < nodeIds.Count; ii++)
+                {
+                    PropertyInfo property = typeof(OperationLimits).GetProperty(operationLimitsProperties[ii]);
+                    uint value = (uint)property.GetValue(configOperationLimits);
+                    if (values[ii] != null &&
+                        ServiceResult.IsNotBad(errors[ii]))
+                    {
+                        if (values[ii].Value is uint serverValue)
+                        {
+                            if (serverValue > 0 &&
+                               (value == 0 || serverValue < value))
+                            {
+                                value = serverValue;
+                            }
+                        }
+                    }
+                    property.SetValue(operationLimits, value);
+                }
+
+                OperationLimits = operationLimits;
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex, "Failed to read operation limits from server. Using configuration defaults.");
+                OperationLimits operationLimits = m_configuration?.ClientConfiguration?.OperationLimits;
+                if (operationLimits != null)
+                {
+                    OperationLimits = operationLimits;
+                }
+            }
         }
         #endregion
 
@@ -694,7 +819,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             // build list of attributes.
-            var attributes = CreateAttributes(nodeClass, optionalAttributes);
+            IDictionary<uint, DataValue> attributes = CreateAttributes(nodeClass, optionalAttributes);
 
             // build list of values to read.
             ReadValueIdCollection itemsToRead = new ReadValueIdCollection();
@@ -794,7 +919,7 @@ namespace Opc.Ua.Client
             ClientBase.ValidateResponse(values, itemsToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
 
-            foreach (var value in values)
+            foreach (DataValue value in values)
             {
                 ServiceResult result = ServiceResult.Good;
                 if (StatusCode.IsBad(value.StatusCode))
@@ -805,6 +930,128 @@ namespace Opc.Ua.Client
             }
 
             return (values, errors);
+        }
+        #endregion
+
+        #region Browse Methods
+        /// <inheritdoc/>
+        public async Task<(
+            ResponseHeader responseHeader,
+            ByteStringCollection continuationPoints,
+            IList<ReferenceDescriptionCollection> referencesList,
+            IList<ServiceResult> errors
+            )> BrowseAsync(
+            RequestHeader requestHeader,
+            ViewDescription view,
+            IList<NodeId> nodesToBrowse,
+            uint maxResultsToReturn,
+            BrowseDirection browseDirection,
+            NodeId referenceTypeId,
+            bool includeSubtypes,
+            uint nodeClassMask,
+            CancellationToken ct = default)
+        {
+
+            BrowseDescriptionCollection browseDescription = new BrowseDescriptionCollection();
+            foreach (NodeId nodeToBrowse in nodesToBrowse)
+            {
+                BrowseDescription description = new BrowseDescription {
+                    NodeId = nodeToBrowse,
+                    BrowseDirection = browseDirection,
+                    ReferenceTypeId = referenceTypeId,
+                    IncludeSubtypes = includeSubtypes,
+                    NodeClassMask = nodeClassMask,
+                    ResultMask = (uint)BrowseResultMask.All
+                };
+
+                browseDescription.Add(description);
+            }
+
+            BrowseResponse browseResponse = await BrowseAsync(
+                requestHeader,
+                view,
+                maxResultsToReturn,
+                browseDescription,
+                ct).ConfigureAwait(false);
+
+            ClientBase.ValidateResponse(browseResponse.ResponseHeader);
+            BrowseResultCollection results = browseResponse.Results;
+            DiagnosticInfoCollection diagnosticInfos = browseResponse.DiagnosticInfos;
+
+            ClientBase.ValidateResponse(results, browseDescription);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, browseDescription);
+
+            int ii = 0;
+            var errors = new List<ServiceResult>();
+            var continuationPoints = new ByteStringCollection();
+            var referencesList = new List<ReferenceDescriptionCollection>();
+            foreach (BrowseResult result in results)
+            {
+                if (StatusCode.IsBad(result.StatusCode))
+                {
+                    errors.Add(new ServiceResult(result.StatusCode, ii, diagnosticInfos, browseResponse.ResponseHeader.StringTable));
+                }
+                else
+                {
+                    errors.Add(ServiceResult.Good);
+                }
+                continuationPoints.Add(result.ContinuationPoint);
+                referencesList.Add(result.References);
+                ii++;
+            }
+
+            return (browseResponse.ResponseHeader, continuationPoints, referencesList, errors);
+        }
+        #endregion
+
+        #region BrowseNext Methods
+
+        /// <inheritdoc/>
+        public async Task<(
+            ResponseHeader responseHeader,
+            ByteStringCollection revisedContinuationPoints,
+            IList<ReferenceDescriptionCollection> referencesList,
+            List<ServiceResult> errors
+            )> BrowseNextAsync(
+            RequestHeader requestHeader,
+            ByteStringCollection continuationPoints,
+            bool releaseContinuationPoint,
+            CancellationToken ct = default)
+        {
+            BrowseNextResponse response = await base.BrowseNextAsync(
+                requestHeader,
+                releaseContinuationPoint,
+                continuationPoints,
+                ct).ConfigureAwait(false);
+
+            ClientBase.ValidateResponse(response.ResponseHeader);
+
+            BrowseResultCollection results = response.Results;
+            DiagnosticInfoCollection diagnosticInfos = response.DiagnosticInfos;
+
+            ClientBase.ValidateResponse(results, continuationPoints);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, continuationPoints);
+
+            int ii = 0;
+            var errors = new List<ServiceResult>();
+            var revisedContinuationPoints = new ByteStringCollection();
+            var referencesList = new List<ReferenceDescriptionCollection>();
+            foreach (BrowseResult result in results)
+            {
+                if (StatusCode.IsBad(result.StatusCode))
+                {
+                    errors.Add(new ServiceResult(result.StatusCode, ii, diagnosticInfos, response.ResponseHeader.StringTable));
+                }
+                else
+                {
+                    errors.Add(ServiceResult.Good);
+                }
+                revisedContinuationPoints.Add(result.ContinuationPoint);
+                referencesList.Add(result.References);
+                ii++;
+            }
+
+            return (response.ResponseHeader, revisedContinuationPoints, referencesList, errors);
         }
         #endregion
 
@@ -855,6 +1102,270 @@ namespace Opc.Ua.Client
             }
 
             return outputArguments;
+        }
+        #endregion
+
+        #region FetchReferences Async Methods
+        /// <inheritdoc/>
+        public async Task<ReferenceDescriptionCollection> FetchReferencesAsync(
+            NodeId nodeId,
+            CancellationToken ct = default)
+        {
+            // browse for all references.
+
+            ReferenceDescriptionCollection results = new ReferenceDescriptionCollection();
+            (
+                _,
+                ByteStringCollection continuationPoint,
+                IList<ReferenceDescriptionCollection> descriptions,
+                _
+            ) = await BrowseAsync(
+                null,
+                null,
+                new[] { nodeId },
+                0,
+                BrowseDirection.Both,
+                null,
+                true,
+                0,
+                ct).ConfigureAwait(false);
+
+            if (descriptions.Count > 0)
+            {
+                results.AddRange(descriptions[0]);
+
+                // process any continuation point.
+                while (continuationPoint != null && continuationPoint.Count > 0 & continuationPoint[0] != null)
+                {
+                    (
+                        _,
+                        ByteStringCollection revisedContinuationPoint,
+                        IList<ReferenceDescriptionCollection> additionalDescriptions,
+                        _
+                    ) = await BrowseNextAsync(
+                        null,
+                        continuationPoint,
+                        false,
+                        ct).ConfigureAwait(false);
+
+                    continuationPoint = revisedContinuationPoint;
+
+                    if (additionalDescriptions.Count > 0)
+                        results.AddRange(additionalDescriptions[0]);
+                }
+            }
+            return results;
+        }
+
+        /// <inheritdoc/>
+        public async Task<(IList<ReferenceDescriptionCollection>, IList<ServiceResult>)> FetchReferencesAsync(
+            IList<NodeId> nodeIds,
+            CancellationToken ct = default)
+        {
+            var result = new List<ReferenceDescriptionCollection>();
+
+            // browse for all references.
+            (
+                _,
+                ByteStringCollection continuationPoints,
+                IList<ReferenceDescriptionCollection> descriptions,
+                IList<ServiceResult> errors
+            ) = await BrowseAsync(
+                null,
+                null,
+                nodeIds,
+                0,
+                BrowseDirection.Both,
+                null,
+                true,
+                0,
+                ct).ConfigureAwait(false);
+
+            result.AddRange(descriptions);
+
+            // process any continuation point.
+            List<ReferenceDescriptionCollection> previousResult = result;
+            IList<ServiceResult> previousErrors = errors;
+            while (HasAnyContinuationPoint(continuationPoints))
+            {
+                var nextContinuationPoints = new ByteStringCollection();
+                var nextResult = new List<ReferenceDescriptionCollection>();
+                var nextErrors = new List<ServiceResult>();
+
+                for (int ii = 0; ii < continuationPoints.Count; ii++)
+                {
+                    byte[] cp = continuationPoints[ii];
+                    if (cp != null)
+                    {
+                        nextContinuationPoints.Add(cp);
+                        nextResult.Add(previousResult[ii]);
+                        nextErrors.Add(previousErrors[ii]);
+                    }
+                }
+
+                (
+                    _,
+                    ByteStringCollection revisedContinuationPoints,
+                    IList<ReferenceDescriptionCollection> nextDescriptions,
+                    IList<ServiceResult> browseNextErrors
+                ) = await BrowseNextAsync(
+                    null,
+                    nextContinuationPoints,
+                    false,
+                    ct).ConfigureAwait(false);
+
+                continuationPoints = revisedContinuationPoints;
+                previousResult = nextResult;
+                previousErrors = nextErrors;
+
+                for (int ii = 0; ii < nextDescriptions.Count; ii++)
+                {
+                    nextResult[ii].AddRange(nextDescriptions[ii]);
+                    if (StatusCode.IsBad(browseNextErrors[ii].StatusCode))
+                    {
+                        nextErrors[ii] = browseNextErrors[ii];
+                    }
+                }
+            }
+
+            return (result, errors);
+        }
+        #endregion
+
+        #region Recreate Async Methods
+        /// <summary>
+        /// Recreates a session based on a specified template.
+        /// </summary>
+        /// <param name="template">The Session object to use as template</param>
+        /// <param name="ct"></param>
+        /// <returns>The new session object.</returns>
+        public static async Task<Session> RecreateAsync(Session template, CancellationToken ct = default)
+        {
+            ServiceMessageContext messageContext = template.m_configuration.CreateMessageContext();
+            messageContext.Factory = template.Factory;
+
+            // create the channel object used to connect to the server.
+            ITransportChannel channel = SessionChannel.Create(
+                template.m_configuration,
+                template.ConfiguredEndpoint.Description,
+                template.ConfiguredEndpoint.Configuration,
+                template.m_instanceCertificate,
+                template.m_configuration.SecurityConfiguration.SendCertificateChain ?
+                    template.m_instanceCertificateChain : null,
+                messageContext);
+
+            // create the session object.
+            Session session = new Session(channel, template, true);
+
+            try
+            {
+                // open the session.
+                await session.OpenAsync(
+                    template.SessionName,
+                    (uint)template.SessionTimeout,
+                    template.Identity,
+                    template.PreferredLocales,
+                    template.m_checkDomain,
+                    ct).ConfigureAwait(false);
+
+                await session.RecreateSubscriptionsAsync(template.Subscriptions, ct).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                session.Dispose();
+                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", template.SessionName);
+            }
+
+            return session;
+        }
+
+        /// <summary>
+        /// Recreates a session based on a specified template.
+        /// </summary>
+        /// <param name="template">The Session object to use as template</param>
+        /// <param name="connection">The waiting reverse connection.</param>
+        /// <param name="ct"></param>
+        /// <returns>The new session object.</returns>
+        public static async Task<Session> RecreateAsync(Session template, ITransportWaitingConnection connection, CancellationToken ct = default)
+        {
+            ServiceMessageContext messageContext = template.m_configuration.CreateMessageContext();
+            messageContext.Factory = template.Factory;
+
+            // create the channel object used to connect to the server.
+            ITransportChannel channel = SessionChannel.Create(
+                template.m_configuration,
+                connection,
+                template.m_endpoint.Description,
+                template.m_endpoint.Configuration,
+                template.m_instanceCertificate,
+                template.m_configuration.SecurityConfiguration.SendCertificateChain ?
+                    template.m_instanceCertificateChain : null,
+                messageContext);
+
+            // create the session object.
+            Session session = new Session(channel, template, true);
+
+            try
+            {
+                // open the session.
+                await session.OpenAsync(
+                    template.m_sessionName,
+                    (uint)template.m_sessionTimeout,
+                    template.m_identity,
+                    template.m_preferredLocales,
+                    template.m_checkDomain,
+                    ct).ConfigureAwait(false);
+
+                await session.RecreateSubscriptionsAsync(template.Subscriptions, ct).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                session.Dispose();
+                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", template.m_sessionName);
+            }
+
+            return session;
+        }
+
+        /// <summary>
+        /// Recreates a session based on a specified template using the provided channel.
+        /// </summary>
+        /// <param name="template">The Session object to use as template</param>
+        /// <param name="transportChannel">The waiting reverse connection.</param>
+        /// <param name="ct"></param>
+        /// <returns>The new session object.</returns>
+        public static async Task<Session> RecreateAsync(Session template, ITransportChannel transportChannel, CancellationToken ct = default)
+        {
+            ServiceMessageContext messageContext = template.m_configuration.CreateMessageContext();
+            messageContext.Factory = template.Factory;
+
+            // create the session object.
+            Session session = new Session(transportChannel, template, true);
+
+            try
+            {
+                // open the session.
+                await session.OpenAsync(
+                    template.m_sessionName,
+                    (uint)template.m_sessionTimeout,
+                    template.m_identity,
+                    template.m_preferredLocales,
+                    template.m_checkDomain,
+                    ct).ConfigureAwait(false);
+
+                // create the subscriptions.
+                foreach (Subscription subscription in session.Subscriptions)
+                {
+                    await subscription.CreateAsync(ct).ConfigureAwait(false);
+                }
+            }
+            catch (Exception e)
+            {
+                session.Dispose();
+                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", template.m_sessionName);
+            }
+
+            return session;
         }
         #endregion
 
@@ -918,7 +1429,7 @@ namespace Opc.Ua.Client
                 {
                     // close the session and delete all subscriptions if specified.
                     this.OperationTimeout = timeout;
-                    var response = await base.CloseSessionAsync(null, m_deleteSubscriptionsOnClose, ct).ConfigureAwait(false);
+                    CloseSessionResponse response = await base.CloseSessionAsync(null, m_deleteSubscriptionsOnClose, ct).ConfigureAwait(false);
                     this.OperationTimeout = existingTimeout;
 
                     if (closeChannel)
@@ -959,6 +1470,52 @@ namespace Opc.Ua.Client
             return result;
         }
         #endregion
+
+        /// <summary>
+        /// Recreate the subscriptions in a reconnected session.
+        /// Uses Transfer service if <see cref="TransferSubscriptionsOnReconnect"/> is set to <c>true</c>.
+        /// </summary>
+        /// <param name="subscriptionsTemplate">The template for the subscriptions.</param>
+        /// <param name="ct"></param>
+        private async Task RecreateSubscriptionsAsync(IEnumerable<Subscription> subscriptionsTemplate, CancellationToken ct)
+        {
+            bool transferred = false;
+            if (TransferSubscriptionsOnReconnect)
+            {
+                try
+                {
+                    transferred = await TransferSubscriptionsAsync(new SubscriptionCollection(subscriptionsTemplate), false, ct).ConfigureAwait(false);
+                }
+                catch (ServiceResultException sre)
+                {
+                    if (sre.StatusCode == StatusCodes.BadServiceUnsupported)
+                    {
+                        TransferSubscriptionsOnReconnect = false;
+                        Utils.LogWarning("Transfer subscription unsupported, TransferSubscriptionsOnReconnect set to false.");
+                    }
+                    else
+                    {
+                        Utils.LogError(sre, "Transfer subscriptions failed.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Utils.LogError(ex, "Unexpected Transfer subscriptions error.");
+                }
+            }
+
+            if (!transferred)
+            {
+                // Create the subscriptions which were not transferred.
+                foreach (Subscription subscription in Subscriptions)
+                {
+                    if (!subscription.Created)
+                    {
+                        await subscription.CreateAsync(ct).ConfigureAwait(false);
+                    }
+                }
+            }
+        }
     }
 }
 #endif

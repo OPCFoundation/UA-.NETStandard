@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Schema;
 
@@ -102,20 +103,20 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Loads the dictionary identified by the node id.
         /// </summary>
-        public Task Load(INode dictionary)
+        public void Load(INode dictionary)
         {
             if (dictionary == null)
             {
                 throw new ArgumentNullException(nameof(dictionary));
             }
             NodeId dictionaryId = ExpandedNodeId.ToNodeId(dictionary.NodeId, m_session.NamespaceUris);
-            return Load(dictionaryId, dictionary.ToString());
+            Load(dictionaryId, dictionary.ToString());
         }
 
         /// <summary>
         /// Loads the dictionary identified by the node id.
         /// </summary>
-        public async Task Load(NodeId dictionaryId, string name, byte[] schema = null, IDictionary<string, byte[]> imports = null)
+        public void Load(NodeId dictionaryId, string name, byte[] schema = null, IDictionary<string, byte[]> imports = null)
         {
             if (dictionaryId == null)
             {
@@ -141,7 +142,7 @@ namespace Opc.Ua.Client
                 Array.Resize(ref schema, zeroTerminator);
             }
 
-            await Validate(schema, imports).ConfigureAwait(false);
+            Validate(schema, imports);
 
             ReadDataTypes(dictionaryId);
 
@@ -225,7 +226,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Reads the contents of multiple data dictionaries.
         /// </summary>
-        public static async Task<IDictionary<NodeId, byte[]>> ReadDictionaries(ISessionClientMethods session, IList<NodeId> dictionaryIds)
+        public static async Task<IDictionary<NodeId, byte[]>> ReadDictionaries(
+            ISessionClientMethods session,
+            IList<NodeId> dictionaryIds,
+            CancellationToken ct = default)
         {
             ReadValueIdCollection itemsToRead = new ReadValueIdCollection();
             foreach (var nodeId in dictionaryIds)
@@ -240,17 +244,28 @@ namespace Opc.Ua.Client
                 itemsToRead.Add(itemToRead);
             }
 
+#if CLIENT_ASYNC
             // read values.
             ReadResponse readResponse = await session.ReadAsync(
                 null,
                 0,
                 TimestampsToReturn.Neither,
                 itemsToRead,
-                System.Threading.CancellationToken.None).ConfigureAwait(false);
+                ct).ConfigureAwait(false);
 
             DataValueCollection values = readResponse.Results;
             DiagnosticInfoCollection diagnosticInfos = readResponse.DiagnosticInfos;
-
+            ResponseHeader response = readResponse.ResponseHeader;
+#else
+            // read values.
+            ResponseHeader response = session.Read(
+                null,
+                0,
+                TimestampsToReturn.Neither,
+                itemsToRead,
+                out DataValueCollection values,
+                out DiagnosticInfoCollection diagnosticInfos);
+#endif
             ClientBase.ValidateResponse(values, itemsToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
 
@@ -262,7 +277,7 @@ namespace Opc.Ua.Client
                 // check for error.
                 if (StatusCode.IsBad(values[ii].StatusCode))
                 {
-                    ServiceResult sr = ClientBase.GetResult(values[ii].StatusCode, 0, diagnosticInfos, readResponse.ResponseHeader);
+                    ServiceResult sr = ClientBase.GetResult(values[ii].StatusCode, 0, diagnosticInfos, response);
                     throw new ServiceResultException(sr);
                 }
 
@@ -322,9 +337,9 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="dictionary">The encoded dictionary to validate.</param>
         /// <param name="throwOnError">Throw if an error occurred.</param>
-        internal Task Validate(byte[] dictionary, bool throwOnError)
+        internal void Validate(byte[] dictionary, bool throwOnError)
         {
-            return Validate(dictionary, null, throwOnError);
+            Validate(dictionary, null, throwOnError);
         }
 
         /// <summary>
@@ -333,7 +348,7 @@ namespace Opc.Ua.Client
         /// <param name="dictionary">The encoded dictionary to validate.</param>
         /// <param name="imports">A table of imported namespace schemas.</param>
         /// <param name="throwOnError">Throw if an error occurred.</param>
-        internal async Task Validate(byte[] dictionary, IDictionary<string, byte[]> imports = null, bool throwOnError = false)
+        internal void Validate(byte[] dictionary, IDictionary<string, byte[]> imports = null, bool throwOnError = false)
         {
             MemoryStream istrm = new MemoryStream(dictionary);
 
@@ -362,7 +377,7 @@ namespace Opc.Ua.Client
                 var validator = new Schema.Binary.BinarySchemaValidator(imports);
                 try
                 {
-                    await validator.Validate(istrm).ConfigureAwait(false);
+                    validator.Validate(istrm);
                 }
                 catch (Exception e)
                 {
@@ -377,7 +392,7 @@ namespace Opc.Ua.Client
                 TypeDictionary = validator.Dictionary;
             }
         }
-        #endregion
+#endregion
 
         #region Private Members
         private ISession m_session;

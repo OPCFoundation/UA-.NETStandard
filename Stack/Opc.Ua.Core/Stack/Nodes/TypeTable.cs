@@ -11,6 +11,8 @@
 */
 
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
@@ -126,6 +128,18 @@ namespace Opc.Ua
 
                 return NodeId.Null;
             }
+        }
+
+        /// <inheritdoc/>
+        public Task<NodeId> FindSuperTypeAsync(ExpandedNodeId typeId, CancellationToken ct)
+        {
+            return Task.FromResult(FindSuperType(typeId));
+        }
+
+        /// <inheritdoc/>
+        public Task<NodeId> FindSuperTypeAsync(NodeId typeId, CancellationToken ct)
+        {
+            return Task.FromResult(FindSuperType(typeId));
         }
 
         /// <inheritdoc/>
@@ -535,7 +549,7 @@ namespace Opc.Ua
                     }
                 }
 
-                // any new encodings.            
+                // any new encodings.
                 IList<IReference> encodings = node.References.Find(ReferenceTypeIds.HasEncoding, false, false, null);
 
                 if (encodings.Count > 0)
