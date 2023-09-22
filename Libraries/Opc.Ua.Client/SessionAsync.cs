@@ -558,23 +558,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task FetchNamespaceTablesAsync(CancellationToken ct = default)
         {
-            ReadValueIdCollection nodesToRead = new ReadValueIdCollection();
-
-            // request namespace array.
-            ReadValueId valueId = new ReadValueId {
-                NodeId = Variables.Server_NamespaceArray,
-                AttributeId = Attributes.Value
-            };
-
-            nodesToRead.Add(valueId);
-
-            // request server array.
-            valueId = new ReadValueId {
-                NodeId = Variables.Server_ServerArray,
-                AttributeId = Attributes.Value
-            };
-
-            nodesToRead.Add(valueId);
+            ReadValueIdCollection nodesToRead = PrepareNamespaceTableNodesToRead();
 
             // read from server.
             ReadResponse response = await ReadAsync(
@@ -591,29 +575,7 @@ namespace Opc.Ua.Client
             ValidateResponse(values, nodesToRead);
             ValidateDiagnosticInfos(diagnosticInfos, nodesToRead);
 
-            // validate namespace array.
-            ServiceResult result = ValidateDataValue(values[0], typeof(string[]), 0, diagnosticInfos, responseHeader);
-
-            if (ServiceResult.IsBad(result))
-            {
-                Utils.LogError("FetchNamespaceTablesAsync: Cannot read NamespaceArray node: {0}", result.StatusCode);
-            }
-            else
-            {
-                m_namespaceUris.Update((string[])values[0].Value);
-            }
-
-            // validate server array.
-            result = ValidateDataValue(values[1], typeof(string[]), 1, diagnosticInfos, responseHeader);
-
-            if (ServiceResult.IsBad(result))
-            {
-                Utils.LogError("FetchNamespaceTablesAsync: Cannot read ServerArray node: {0} ", result.StatusCode);
-            }
-            else
-            {
-                m_serverUris.Update((string[])values[1].Value);
-            }
+            UpdateNamespaceTable(values, diagnosticInfos, responseHeader);
         }
         #endregion
 
