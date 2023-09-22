@@ -418,11 +418,11 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<DataDictionary> LoadDataDictionary(ReferenceDescription dictionaryNode, bool forceReload = false, CancellationToken ct = default)
+        public DataDictionary LoadDataDictionary(ReferenceDescription dictionaryNode, bool forceReload = false)
         {
             using (Activity activity = ActivitySource.StartActivity(nameof(LoadDataDictionary)))
             {
-                return await m_session.LoadDataDictionary(dictionaryNode, forceReload, ct).ConfigureAwait(false);
+                return m_session.LoadDataDictionary(dictionaryNode, forceReload);
             }
         }
 

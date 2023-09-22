@@ -1791,7 +1791,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            IList<INode> references = this.NodeCache.FindReferences(descriptionId, ReferenceTypeIds.HasComponent, true, false);
+            IList<INode> references = await NodeCache.FindReferencesAsync(descriptionId, ReferenceTypeIds.HasComponent, true, false, ct).ConfigureAwait(false);
             if (references.Count == 0)
             {
                 throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "Description does not refer to a valid data dictionary.");
@@ -1802,7 +1802,7 @@ namespace Opc.Ua.Client
 
             DataDictionary dictionaryToLoad = new DataDictionary(this);
 
-            await dictionaryToLoad.Load(references[0]).ConfigureAwait(false);
+            dictionaryToLoad.Load(references[0]);
 
             m_dictionaries[dictionaryId] = dictionaryToLoad;
 
@@ -1810,7 +1810,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<DataDictionary> LoadDataDictionary(ReferenceDescription dictionaryNode, bool forceReload = false, CancellationToken ct = default)
+        public DataDictionary LoadDataDictionary(ReferenceDescription dictionaryNode, bool forceReload = false)
         {
             // check if the dictionary has already been loaded.
             DataDictionary dictionary;
@@ -1823,7 +1823,7 @@ namespace Opc.Ua.Client
 
             // load the dictionary.
             DataDictionary dictionaryToLoad = new DataDictionary(this);
-            await dictionaryToLoad.Load(dictionaryId, dictionaryNode.ToString()).ConfigureAwait(false);
+            dictionaryToLoad.Load(dictionaryId, dictionaryNode.ToString());
             m_dictionaries[dictionaryId] = dictionaryToLoad;
             return dictionaryToLoad;
         }
@@ -1862,7 +1862,7 @@ namespace Opc.Ua.Client
             var referenceExpandedNodeIds = references
                 .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, this.NamespaceUris))
                 .Where(n => n.NamespaceIndex != 0).ToList();
-            IDictionary<NodeId, byte[]> schemas = await DataDictionary.ReadDictionaries(this, referenceExpandedNodeIds).ConfigureAwait(false);
+            IDictionary<NodeId, byte[]> schemas = await DataDictionary.ReadDictionaries(this, referenceExpandedNodeIds, ct).ConfigureAwait(false);
 
             // read namespace property values
             var namespaces = new Dictionary<NodeId, string>();
@@ -1905,11 +1905,11 @@ namespace Opc.Ua.Client
                         dictionaryToLoad = new DataDictionary(this);
                         if (schemas.TryGetValue(dictionaryId, out var schema))
                         {
-                            await dictionaryToLoad.Load(dictionaryId, dictionaryId.ToString(), schema, imports).ConfigureAwait(false);
+                            dictionaryToLoad.Load(dictionaryId, dictionaryId.ToString(), schema, imports);
                         }
                         else
                         {
-                            await dictionaryToLoad.Load(dictionaryId, dictionaryId.ToString()).ConfigureAwait(false);
+                            dictionaryToLoad.Load(dictionaryId, dictionaryId.ToString());
                         }
                         m_dictionaries[dictionaryId] = dictionaryToLoad;
                     }

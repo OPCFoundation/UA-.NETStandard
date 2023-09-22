@@ -427,12 +427,10 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="dictionaryNode">The dictionary id.</param>
         /// <param name="forceReload"></param>
-        /// <param name="ct"></param>
         /// <returns>The dictionary.</returns>
-        Task<DataDictionary> LoadDataDictionary(
+        DataDictionary LoadDataDictionary(
             ReferenceDescription dictionaryNode,
-            bool forceReload = false,
-            CancellationToken ct = default);
+            bool forceReload = false);
 
         /// <summary>
         /// Loads all dictionaries of the OPC binary or Xml schema type system.
