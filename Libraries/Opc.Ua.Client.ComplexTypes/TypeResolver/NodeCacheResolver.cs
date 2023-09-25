@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -32,6 +32,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Client.ComplexTypes
@@ -65,106 +66,107 @@ namespace Opc.Ua.Client.ComplexTypes
         public IEncodeableFactory Factory => m_session.Factory;
 
         /// <inheritdoc/>
-        public Task<Dictionary<NodeId, DataDictionary>> LoadDataTypeSystem(NodeId dataTypeSystem = null)
+        public Task<Dictionary<NodeId, DataDictionary>> LoadDataTypeSystem(
+            NodeId dataTypeSystem = null,
+            CancellationToken ct = default)
         {
-            return m_session.LoadDataTypeSystem(dataTypeSystem);
+            return m_session.LoadDataTypeSystem(dataTypeSystem, ct);
         }
 
         /// <inheritdoc/>
-        public IList<NodeId> BrowseForEncodings(
+        public async Task<IList<NodeId>> BrowseForEncodingsAsync(
             IList<ExpandedNodeId> nodeIds,
-            string[] supportedEncodings
-            )
+            string[] supportedEncodings,
+            CancellationToken ct = default)
         {
             // cache type encodings
-            var encodings = m_session.NodeCache.FindReferences(
+            IList<INode> encodings = await m_session.NodeCache.FindReferencesAsync(
                  nodeIds,
                  new NodeIdCollection { ReferenceTypeIds.HasEncoding },
                  false,
-                 false
-                 );
+                 false,
+                 ct).ConfigureAwait(false);
 
             // cache dictionary descriptions
             nodeIds = encodings.Select(r => r.NodeId).ToList();
-            var descriptions = m_session.NodeCache.FindReferences(
+            IList<INode> descriptions = await m_session.NodeCache.FindReferencesAsync(
                 nodeIds,
                 new NodeIdCollection { ReferenceTypeIds.HasDescription },
                 false,
-                false
-                );
+                false,
+                ct).ConfigureAwait(false);
 
             return encodings.Where(r => supportedEncodings.Contains(r.BrowseName.Name))
                 .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris)).ToList();
         }
 
         /// <inheritdoc/>
-        public IList<NodeId> BrowseForEncodings(
+        public async Task<(IList<NodeId> encodings, ExpandedNodeId binaryEncodingId, ExpandedNodeId xmlEncodingId)> BrowseForEncodingsAsync(
             ExpandedNodeId nodeId,
             string[] supportedEncodings,
-            out ExpandedNodeId binaryEncodingId,
-            out ExpandedNodeId xmlEncodingId)
+            CancellationToken ct = default)
         {
-            var references = m_session.NodeCache.FindReferences(
-                 nodeId,
-                 ReferenceTypeIds.HasEncoding,
-                 false,
-                 false
-                 );
+            IList<INode> references = await m_session.NodeCache.FindReferencesAsync(
+                nodeId,
+                ReferenceTypeIds.HasEncoding,
+                false,
+                false,
+                ct).ConfigureAwait(false);
 
-            binaryEncodingId = references.FirstOrDefault(r => r.BrowseName.Name == BrowseNames.DefaultBinary)?.NodeId;
+            ExpandedNodeId binaryEncodingId = references.FirstOrDefault(r => r.BrowseName.Name == BrowseNames.DefaultBinary)?.NodeId;
             binaryEncodingId = NormalizeExpandedNodeId(binaryEncodingId);
-            xmlEncodingId = references.FirstOrDefault(r => r.BrowseName.Name == BrowseNames.DefaultXml)?.NodeId;
+            ExpandedNodeId xmlEncodingId = references.FirstOrDefault(r => r.BrowseName.Name == BrowseNames.DefaultXml)?.NodeId;
             xmlEncodingId = NormalizeExpandedNodeId(xmlEncodingId);
-            return references.Where(r => supportedEncodings.Contains(r.BrowseName.Name))
-                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris)).ToList();
+            return (references
+                .Where(r => supportedEncodings.Contains(r.BrowseName.Name))
+                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris))
+                .ToList(), binaryEncodingId, xmlEncodingId);
         }
 
         /// <inheritdoc/>
-        public bool BrowseTypeIdsForDictionaryComponent(
+        public async Task<(ExpandedNodeId typeId, ExpandedNodeId encodingId, DataTypeNode dataTypeNode)> BrowseTypeIdsForDictionaryComponentAsync(
             ExpandedNodeId nodeId,
-            out ExpandedNodeId typeId,
-            out ExpandedNodeId encodingId,
-            out DataTypeNode dataTypeNode)
+            CancellationToken ct = default)
         {
-            typeId = ExpandedNodeId.Null;
-            encodingId = ExpandedNodeId.Null;
-            dataTypeNode = null;
+            ExpandedNodeId encodingId;
+            DataTypeNode dataTypeNode;
 
-            var references = m_session.NodeCache.FindReferences(
+            IList<INode> references = await m_session.NodeCache.FindReferencesAsync(
                 nodeId,
                 ReferenceTypeIds.HasDescription,
                 true,
-                false
-                );
+                false,
+                ct).ConfigureAwait(false);
 
             if (references.Count == 1)
             {
                 encodingId = references[0].NodeId;
-                references = m_session.NodeCache.FindReferences(
+                references = await m_session.NodeCache.FindReferencesAsync(
                     encodingId,
                     ReferenceTypeIds.HasEncoding,
                     true,
-                    false
-                    );
+                    false,
+                    ct).ConfigureAwait(false);
                 encodingId = NormalizeExpandedNodeId(encodingId);
 
                 if (references.Count == 1)
                 {
-                    typeId = references[0].NodeId;
+                    ExpandedNodeId typeId = references[0].NodeId;
                     dataTypeNode = m_session.NodeCache.Find(typeId) as DataTypeNode;
                     typeId = NormalizeExpandedNodeId(typeId);
-                    return true;
+                    return (typeId, encodingId, dataTypeNode);
                 }
             }
-            return false;
+            return (null, null, null);
         }
 
         /// <inheritdoc/>
-        public IList<INode> LoadDataTypes(
+        public async Task<IList<INode>> LoadDataTypesAsync(
             ExpandedNodeId dataType,
             bool nestedSubTypes = false,
             bool addRootNode = false,
-            bool filterUATypes = true)
+            bool filterUATypes = true,
+            CancellationToken ct = default)
         {
             var result = new List<INode>();
             var nodesToBrowse = new ExpandedNodeIdCollection {
@@ -178,7 +180,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             if (addRootNode)
             {
-                var rootNode = m_session.NodeCache.Find(dataType);
+                INode rootNode = await m_session.NodeCache.FindAsync(dataType, ct).ConfigureAwait(false);
                 if (!(rootNode is DataTypeNode))
                 {
                     throw new ServiceResultException("Root Node is not a DataType node.");
@@ -188,11 +190,12 @@ namespace Opc.Ua.Client.ComplexTypes
 
             while (nodesToBrowse.Count > 0)
             {
-                var response = m_session.NodeCache.FindReferences(
+                IList<INode> response = await m_session.NodeCache.FindReferencesAsync(
                     nodesToBrowse,
                     new NodeIdCollection { ReferenceTypeIds.HasSubtype },
                     false,
-                    false);
+                    false,
+                    ct).ConfigureAwait(false);
 
                 var nextNodesToBrowse = new ExpandedNodeIdCollection();
                 if (nestedSubTypes)
@@ -221,35 +224,35 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <inheritdoc/>
-        public INode Find(ExpandedNodeId nodeId)
+        public Task<INode> FindAsync(ExpandedNodeId nodeId, CancellationToken ct)
         {
-            return m_session.NodeCache.Find(nodeId);
+            return m_session.NodeCache.FindAsync(nodeId, ct);
         }
 
         /// <inheritdoc/>
-        public object GetEnumTypeArray(ExpandedNodeId nodeId)
+        public async Task<object> GetEnumTypeArrayAsync(ExpandedNodeId nodeId, CancellationToken ct = default)
         {
             // find the property reference for the enum type
-            var references = m_session.NodeCache.FindReferences(
+            IList<INode> references = await m_session.NodeCache.FindReferencesAsync(
                 nodeId,
                 ReferenceTypeIds.HasProperty,
                 false,
-                false
-                );
-            var property = references.FirstOrDefault();
+                false,
+                ct).ConfigureAwait(false);
+            INode property = references.FirstOrDefault();
             if (property != null)
             {
                 // read the enum type array
-                DataValue value = m_session.ReadValue(ExpandedNodeId.ToNodeId(property.NodeId, NamespaceUris));
+                DataValue value = await m_session.ReadValueAsync(ExpandedNodeId.ToNodeId(property.NodeId, NamespaceUris), ct).ConfigureAwait(false);
                 return value?.Value;
             }
             return null;
         }
 
         /// <inheritdoc/>
-        public NodeId FindSuperType(NodeId typeId)
+        public Task<NodeId> FindSuperTypeAsync(NodeId typeId, CancellationToken ct = default)
         {
-            return m_session.NodeCache.FindSuperType(typeId);
+            return m_session.NodeCache.FindSuperTypeAsync(typeId, ct);
         }
         #endregion IComplexTypeResolver
 
