@@ -28,15 +28,12 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-
-using OpenTelemetry.Context.Propagation;
 
 namespace Opc.Ua.Client
 {
