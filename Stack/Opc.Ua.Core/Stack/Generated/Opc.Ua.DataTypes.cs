@@ -30,10 +30,8 @@
 // To support ICloneable, manually undef NET_STANDARD until Modelcompiler is fixed
 #undef NET_STANDARD
 
-using OpenTelemetry.Context.Propagation;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Text;
 using System.Xml;
 using System.Runtime.Serialization;
@@ -21721,24 +21719,10 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "AdditionalHeader", IsRequired = false, Order = 7)]
-        public ExtensionObject AdditionalHeader
+        public virtual ExtensionObject AdditionalHeader
         {
-            get
-            {
-                return m_additionalHeader;
-            }
-            set
-            {
-                // Before setting the additional header, serialize the current trace context.
-                if (Activity.Current != null)
-                {
-                    m_additionalHeader = _activitySourceAdapter.SerializeTraceContext(Activity.Current);
-                }
-                else
-                {
-                    m_additionalHeader = value;
-                }
-            }
+            get { return m_additionalHeader;  }
+            set { m_additionalHeader = value; }
         }
         #endregion
 
@@ -21834,36 +21818,9 @@ namespace Opc.Ua
 
             return clone;
         }
-
-        /// <summary>
-        /// Add Tracing Data to the RequestHeader
-        /// </summary>
-        public void AddTracingDetails()
-        {
-            if (Activity.Current != null)
-            {
-                // Inject the current trace context into user properties.
-                var userProperties = new Dictionary<string, string>();
-                _activitySourceAdapter.InjectTraceContext(Activity.Current, userProperties);
-
-                // Serialize user properties and set it to the AdditionalHeader.
-                AdditionalHeader = _activitySourceAdapter.SerializeTraceContext(userProperties);
-            }
-        }
-
-        /// <summary>
-        /// Extract Tracing Data from the RequestHeader
-        /// </summary>
-        public (Dictionary<string, string> UserProperties, PropagationContext ReceivedContext) ExtractTracingDetails()
-        {
-            var userProperties = _activitySourceAdapter.DeserializeTraceContext(AdditionalHeader);
-            var receivedContext = _activitySourceAdapter.ExtractTraceContext(userProperties);
-            return (userProperties, receivedContext);
-        }
         #endregion
 
         #region Private Fields
-        private readonly TraceableSessionActivitySourceAdapter _activitySourceAdapter = new TraceableSessionActivitySourceAdapter();
         private NodeId m_authenticationToken;
         private DateTime m_timestamp;
         private uint m_requestHandle;

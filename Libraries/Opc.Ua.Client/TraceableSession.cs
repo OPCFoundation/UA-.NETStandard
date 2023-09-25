@@ -34,7 +34,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -54,7 +53,7 @@ namespace Opc.Ua.Client
         public TraceableSession(ISession session)
         {
             m_session = session;
-            _activitySourceAdapter = new TraceableSessionActivitySourceAdapter();
+            _activitySourceAdapter = new TraceableSessionActivitySourceAdapter<TraceableSession>(ActivitySource);
         }
         #endregion
 
@@ -70,37 +69,11 @@ namespace Opc.Ua.Client
         private static readonly Lazy<ActivitySource> sActivitySource = new Lazy<ActivitySource>(() => new ActivitySource(ActivitySourceName, "1.0.0"));
 
         /// <summary>
-        /// Serializer for ActivityContext.
-        /// </summary>
-        public ExtensionObject SerializeTraceContext(Activity currentActivity)
-        {
-            // Convert Activity's context to a string using System.Text.Json
-            string serializedContext = JsonSerializer.Serialize(currentActivity.Context);
-            return new ExtensionObject(serializedContext);
-        }
-
-        /// <summary>
-        /// Deserializer for ActivityContext.
-        /// </summary>
-        public ActivityContext DeserializeTraceContext(ExtensionObject extensionObject)
-        {
-            var contextData = extensionObject.Body as string;
-
-            if (!string.IsNullOrEmpty(contextData))
-            {
-                // Convert the string back to an ActivityContext using System.Text.Json
-                return JsonSerializer.Deserialize<ActivityContext>(contextData);
-            }
-
-            return default;
-        }
-
-        /// <summary>
         /// The ISession which is being traced.
         /// </summary>
         private readonly ISession m_session;
 
-        private readonly TraceableSessionActivitySourceAdapter _activitySourceAdapter;
+        private readonly TraceableSessionActivitySourceAdapter<TraceableSession> _activitySourceAdapter;
 
         /// <inheritdoc/>
         public ISession Session => m_session;

@@ -3,67 +3,78 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
 using OpenTelemetry.Context.Propagation;
 
 namespace Opc.Ua.Client
 {
-    /// <inheritdoc/>
-    public class TraceableSessionActivitySourceAdapter : ITraceableSessionActivitySourceAdapter
+    /// <summary>
+    /// Adapter for Traceable Session ActivitySource.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    public class TraceableSessionActivitySourceAdapter<T>
     {
+        private readonly ActivitySource _activitySource;
         private readonly string _className;
         private readonly ConcurrentDictionary<string, string> _activityNameDict;
+        private readonly TraceContextPropagator _traceContextPropagator = new TraceContextPropagator();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TraceableSessionActivitySourceAdapter{T}"/> class.
         /// </summary>
-        public TraceableSessionActivitySourceAdapter()
+        /// <param name="activitySource"></param>
+        public TraceableSessionActivitySourceAdapter(ActivitySource activitySource)
         {
-            _className = nameof(TraceableSession);
+            _activitySource = activitySource;
+            _className = typeof(T).Name;
             _activityNameDict = new ConcurrentDictionary<string, string>();
         }
 
         /// <inheritdoc/>
-        public Activity StartActivity(string activityName)
+        public Activity StartActivity([CallerMemberName] string callingMethod = "", bool isRoot = false, ActivityContext parentContext = default(ActivityContext), params KeyValuePair<string, object>[] tags)
         {
-            return TraceableSession.ActivitySource.StartActivity(GetActivityName(activityName), ActivityKind.Internal)!;
-        }
+            if (isRoot)
+            {
+                Activity.Current = null;
+            }
 
-        /// <inheritdoc/>
-        public Activity StartAssetSourcedActivity(string activityName)
-        {
-            KeyValuePair<string, object?>[] tags = { new KeyValuePair<string, object?>(ActivityTagNames.AssetSourced, null) };
-            return TraceableSession.ActivitySource.StartActivity(GetActivityName(activityName), ActivityKind.Internal, parentContext: default, tags)!;
+            var activity = _activitySource.StartActivity(GetActivityName(callingMethod), ActivityKind.Internal, parentContext, tags);
+            if (activity == null)
+            {
+                throw new InvalidOperationException("Failed to start the activity.");
+            }
+            return activity;
+
         }
 
         /// <inheritdoc/>
         public void InjectTraceContext(PropagationContext parentContext, IDictionary<string, string> userProperties)
         {
-            // Assuming TraceContextPropagator is a global or static instance or provided from somewhere.
-            TraceContextPropagator.Inject(parentContext, userProperties, (userProperties, key, value) => {
-                userProperties.Add(key, value);
+            _traceContextPropagator.Inject(parentContext, userProperties, (properties, key, value) => {
+                properties.Add(key, value);
             });
         }
 
         /// <inheritdoc/>
-        public PropagationContext ExtractTraceContext(IDictionary<string, string>? userProperties)
+        public PropagationContext ExtractTraceContext(IDictionary<string, string> userProperties)
         {
-            return TraceContextPropagator.Extract(default, userProperties, (userProperties, key) => {
-                if (userProperties?.TryGetValue(key, out string? value) == true)
+            return _traceContextPropagator.Extract(default, userProperties, (properties, key) => {
+                if (properties?.TryGetValue(key, out string value) == true)
                 {
                     return Enumerable.Repeat(value, 1);
                 }
+
                 return Enumerable.Empty<string>();
             });
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Gets the activity name.
+        /// </summary>
         private string GetActivityName(string methodName)
         {
             return _activityNameDict.GetOrAdd(methodName, key => $"{_className}.{key}");
         }
     }
-
 
 }
