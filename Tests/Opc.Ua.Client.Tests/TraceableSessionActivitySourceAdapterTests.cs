@@ -23,20 +23,27 @@ namespace Opc.Ua.Client.Tests
         public void TestTraceContextIsPropagated()
         {
             StartActivityListener(true);
+
+            // Create a new instance of TraceableSessionActivitySourceAdapter and start an activity.
             var _injectionAdapter = new TraceableSessionActivitySourceAdapter<int>(new ActivitySource(TraceableSession.ActivitySourceName));
             Activity intectionTestActivity =_injectionAdapter.StartActivity("Trace Propogation Test Activity");
             intectionTestActivity.Should().NotBeNull();
 
+            // Inject the trace context into a dictionary.
             var traceData = new Dictionary<string, string>();
             _injectionAdapter.InjectTraceContext(new PropagationContext(Activity.Current.Context, Baggage.Current), traceData);
             var incomingValue = new ExtensionObject();
 
+            // Update the AdditionalHeader property of the ExtensionObject with the trace data.
             var _extractionAdapter = new TraceableSessionActivitySourceAdapter<int>(new ActivitySource("Extract-Activity-Source"));
             var requestHeader = new TraceableRequestHeader(_extractionAdapter);
             incomingValue.Body = TraceableRequestHeader.ConvertTraceDataToXmlElement(traceData);
             requestHeader.AdditionalHeader = incomingValue;
 
+            // Extract the trace context from the AdditionalHeader property of the ExtensionObject.
             var extractedContext = _extractionAdapter.ExtractTraceContext(traceData);
+
+            // Verify that the trace context is propagated.
             extractedContext.ActivityContext.TraceId.Should().Be(Activity.Current.Context.TraceId);
             extractedContext.ActivityContext.SpanId.Should().Be(Activity.Current.Context.SpanId);
         }
