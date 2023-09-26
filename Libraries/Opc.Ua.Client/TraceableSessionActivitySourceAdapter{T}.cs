@@ -38,13 +38,7 @@ namespace Opc.Ua.Client
                 Activity.Current = null;
             }
 
-            var activity = _activitySource.StartActivity(GetActivityName(callingMethod), ActivityKind.Internal, parentContext, tags);
-            if (activity == null)
-            {
-                throw new InvalidOperationException("Failed to start the activity.");
-            }
-            return activity;
-
+            return _activitySource.StartActivity(GetActivityName(callingMethod), ActivityKind.Internal, parentContext, tags);
         }
 
         /// <inheritdoc/>

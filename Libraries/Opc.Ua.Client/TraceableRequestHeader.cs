@@ -42,30 +42,37 @@ namespace Opc.Ua.Client
             }
         }
 
+        /// <summary>
+        /// Converts the trace data to an Xml element.
+        /// </summary>
+        public static XmlElement ConvertTraceDataToXmlElement(Dictionary<string, string> traceData)
+        {
+            // Creating a new XmlDocument instance.
+            XmlDocument xmlDoc = new XmlDocument();
+
+            // Creating the root element for trace data.
+            XmlElement root = xmlDoc.CreateElement("TraceableSessionTraceData");
+
+            // Looping through each trace data key-value pair and converting them to Xml elements.
+            foreach (var traceKVP in traceData)
+            {
+                XmlElement element = xmlDoc.CreateElement(traceKVP.Key);
+                element.InnerText = traceKVP.Value;
+                root.AppendChild(element);
+            }
+
+            return root;
+        }
+
         private void UpdateTraceContext(ExtensionObject incomingValue)
         {
             if (Activity.Current != null)
             {
                 var traceData = new Dictionary<string, string>();
                 _activitySourceAdapter.InjectTraceContext(new PropagationContext(Activity.Current.Context, Baggage.Current), traceData);
-                incomingValue.Body = ConvertToXmlElement(traceData);
+                incomingValue.Body = ConvertTraceDataToXmlElement(traceData);
             }
             base.AdditionalHeader = incomingValue;
-        }
-
-        private XmlElement ConvertToXmlElement(Dictionary<string, string> traceData)
-        {
-            XmlDocument doc = new XmlDocument();
-            XmlElement root = doc.CreateElement("TraceableSessionTraceData");
-
-            foreach (var kvp in traceData)
-            {
-                XmlElement element = doc.CreateElement(kvp.Key);
-                element.InnerText = kvp.Value;
-                root.AppendChild(element);
-            }
-
-            return root;
         }
     }
 }
