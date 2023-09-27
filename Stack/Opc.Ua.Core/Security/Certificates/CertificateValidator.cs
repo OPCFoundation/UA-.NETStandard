@@ -1867,19 +1867,27 @@ namespace Opc.Ua
                     throw new ArgumentException("Certificate does not contain an ECC public key");
                 }
 
-                ECCurve curve = ecdsa.ExportParameters(false).Curve;
-
-                if (curve.IsNamed)
+                if (ecdsa.KeySize != 0)
                 {
-                    if (NamedCurveBitSizes.TryGetValue(curve.Oid.Value, out int curveSize))
-                    {
-                        return curveSize >= requiredKeySizeInBits;
-                    }
-                    throw new NotSupportedException($"Unknown named curve: {curve.Oid.Value}");
+                    return ecdsa.KeySize >= requiredKeySizeInBits;
                 }
                 else
                 {
-                    throw new NotSupportedException("Unsupported curve type.");
+                    ECCurve curve = ecdsa.ExportParameters(false).Curve;
+
+                    if (curve.IsNamed)
+                    {
+                        if (NamedCurveBitSizes.TryGetValue(curve.Oid.Value, out int curveSize))
+                        {
+                            return curveSize >= requiredKeySizeInBits;
+                        }
+                        throw new NotSupportedException($"Unknown named curve: {curve.Oid.Value}");
+                    }
+                    else
+                    {
+                        throw new NotSupportedException("Unsupported curve type.");
+                    }
+
                 }
             }
         }
