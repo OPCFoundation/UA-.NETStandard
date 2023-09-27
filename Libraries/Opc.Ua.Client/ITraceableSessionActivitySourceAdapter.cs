@@ -17,7 +17,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Starts a new activity.
         /// </summary>
-        Activity StartActivity([CallerMemberName] string callingMethod = "", bool isRoot = false, ActivityContext parentContext = default(ActivityContext), params KeyValuePair<string, object>[] tags);
+        Activity StartActivity([CallerMemberName] string callingMethod = "", ActivityContext parentContext = default(ActivityContext), params KeyValuePair<string, object>[] tags);
 
         /// <summary>
         /// Injects the current trace context into a user properties dictionary.

@@ -1,11 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml;
-using FluentAssertions;
 using NUnit.Framework;
 using Opc.Ua;
 using Opc.Ua.Client;
@@ -27,7 +22,7 @@ namespace Opc.Ua.Client.Tests
             // Create a new instance of TraceableSessionActivitySourceAdapter and start an activity.
             var _injectionAdapter = new TraceableSessionActivitySourceAdapter<int>(new ActivitySource(TraceableSession.ActivitySourceName));
             Activity intectionTestActivity =_injectionAdapter.StartActivity("Trace Propogation Test Activity");
-            intectionTestActivity.Should().NotBeNull();
+            Assert.IsNotNull(intectionTestActivity);
 
             // Inject the trace context into a dictionary.
             var traceData = new Dictionary<string, string>();
@@ -44,8 +39,8 @@ namespace Opc.Ua.Client.Tests
             var extractedContext = _extractionAdapter.ExtractTraceContext(traceData);
 
             // Verify that the trace context is propagated.
-            extractedContext.ActivityContext.TraceId.Should().Be(Activity.Current.Context.TraceId);
-            extractedContext.ActivityContext.SpanId.Should().Be(Activity.Current.Context.SpanId);
+            Assert.AreEqual(Activity.Current.Context.TraceId, extractedContext.ActivityContext.TraceId);
+            Assert.AreEqual(Activity.Current.Context.SpanId, extractedContext.ActivityContext.SpanId);
         }
 
         /// <summary>

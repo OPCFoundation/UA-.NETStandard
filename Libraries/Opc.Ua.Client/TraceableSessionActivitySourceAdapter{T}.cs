@@ -31,13 +31,8 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public Activity StartActivity([CallerMemberName] string callingMethod = "", bool isRoot = false, ActivityContext parentContext = default(ActivityContext), params KeyValuePair<string, object>[] tags)
+        public Activity StartActivity([CallerMemberName] string callingMethod = "", ActivityContext parentContext = default(ActivityContext), params KeyValuePair<string, object>[] tags)
         {
-            if (isRoot)
-            {
-                Activity.Current = null;
-            }
-
             return _activitySource.StartActivity(GetActivityName(callingMethod), ActivityKind.Internal, parentContext, tags);
         }
 
