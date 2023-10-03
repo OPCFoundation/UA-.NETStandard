@@ -423,11 +423,7 @@ namespace Opc.Ua.Server
                 }
 
                 // load the certificate for the security profile
-                X509Certificate2 instanceCertificate = null;
-                if (requireEncryption)
-                {
-                    instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(context.SecurityPolicyUri);
-                }
+                X509Certificate2 instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(context.SecurityPolicyUri);
 
                 // create the session.
                 session = ServerInternal.SessionManager.CreateSession(

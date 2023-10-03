@@ -2958,10 +2958,15 @@ namespace Opc.Ua
                 {
 #if ECC_SUPPORT
                     case ObjectTypes.EccApplicationCertificateType:
+                        return true;
                     case ObjectTypes.EccBrainpoolP256r1ApplicationCertificateType:
+                        return s_eccCurveSupportCache[ECCurve.NamedCurves.brainpoolP256r1.Oid.FriendlyName].Value;
                     case ObjectTypes.EccBrainpoolP384r1ApplicationCertificateType:
+                        return s_eccCurveSupportCache[ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName].Value;
                     case ObjectTypes.EccNistP256ApplicationCertificateType:
+                        return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP256.Oid.FriendlyName].Value;
                     case ObjectTypes.EccNistP384ApplicationCertificateType:
+                        return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP384.Oid.FriendlyName].Value;
                     //case ObjectTypes.EccCurve25519ApplicationCertificateType:
                     //case ObjectTypes.EccCurve448ApplicationCertificateType:
 #endif
@@ -2974,6 +2979,40 @@ namespace Opc.Ua
             }
             return false;
         }
+
+        /// <summary>
+        /// Check if known curve is supported by platform
+        /// </summary>
+        /// <param name="eCCurve"></param>
+        private static bool IsCurveSupported(ECCurve eCCurve)
+        {
+            try
+            {
+                // Create a ECDsa object and generate a new keypair on the given curve
+                using (ECDsa eCDsa = ECDsa.Create(eCCurve))
+                {
+                    ECParameters parameters = eCDsa.ExportParameters(false);
+                    return parameters.Q.X != null && parameters.Q.Y != null;
+                }
+            }
+            catch (Exception ex) when (
+                ex is PlatformNotSupportedException ||
+                ex is ArgumentException ||
+                ex is CryptographicException)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Lazy helper for checking ECC eliptic curve support for running OS
+        /// </summary>
+        private static readonly Dictionary<string, Lazy<bool>> s_eccCurveSupportCache = new Dictionary<string, Lazy<bool>>{
+            { ECCurve.NamedCurves.nistP256.Oid.FriendlyName, new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.nistP256)) },
+            { ECCurve.NamedCurves.nistP384.Oid.FriendlyName, new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.nistP384)) },
+            { ECCurve.NamedCurves.brainpoolP256r1.Oid.FriendlyName, new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.brainpoolP256r1)) },
+            { ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName, new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.brainpoolP384r1)) },
+        };
 
         /// <summary>
         /// Lazy helper to allow runtime check for Mono.
@@ -2990,6 +3029,6 @@ namespace Opc.Ua
         {
             return s_isRunningOnMonoValue.Value;
         }
-        #endregion
+#endregion
     }
 }

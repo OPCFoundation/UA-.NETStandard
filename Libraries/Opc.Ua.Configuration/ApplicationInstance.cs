@@ -393,12 +393,10 @@ namespace Opc.Ua.Configuration
         /// Checks for a valid application instance certificate.
         /// </summary>
         /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
-        /// <param name="minimumKeySize">Minimum size of the key.</param>
         public Task<bool> CheckApplicationInstanceCertificate(
-            bool silent,
-            ushort minimumKeySize)
+            bool silent)
         {
-            return CheckApplicationInstanceCertificate(silent, minimumKeySize, CertificateFactory.DefaultLifeTime);
+            return CheckApplicationInstanceCertificate(silent, CertificateFactory.DefaultLifeTime);
         }
 
         /// <summary>
@@ -418,11 +416,9 @@ namespace Opc.Ua.Configuration
         /// Checks for a valid application instance certificate.
         /// </summary>
         /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
-        /// <param name="minimumKeySize">Minimum size of the key.</param>
         /// <param name="lifeTimeInMonths">The lifetime in months.</param>
         public async Task<bool> CheckApplicationInstanceCertificate(
             bool silent,
-            ushort minimumKeySize,
             ushort lifeTimeInMonths)
         {
             Utils.LogInfo("Checking application instance certificate.");
@@ -443,6 +439,7 @@ namespace Opc.Ua.Configuration
             bool result = true;
             foreach (var certId in securityConfiguration.ApplicationCertificates)
             {
+                ushort minimumKeySize = certId.GetMinKeySize(securityConfiguration);
                 bool nextResult = await CheckCertificateTypeAsync(certId, silent, minimumKeySize, lifeTimeInMonths).ConfigureAwait(false);
                 result = result && nextResult;
             }
@@ -645,21 +642,18 @@ namespace Opc.Ua.Configuration
                 configuration.CertificateValidator.CertificateValidation -= certValidator.OnCertificateValidation;
             }
 
-            if (!X509Utils.IsECDsaSignature(certificate))
+            // check key size 
+            int keySize = X509Utils.GetPublicKeySize(certificate);
+            if (minimumKeySize > keySize)
             {
-                // check key size.
-                int keySize = X509Utils.GetRSAPublicKeySize(certificate);
-                if (minimumKeySize > keySize)
-                {
-                    string message = Utils.Format(
-                        "The key size ({0}) in the certificate is less than the minimum provided ({1}). Use certificate anyway?",
-                        keySize,
-                        minimumKeySize);
+                string message = Utils.Format(
+                    "The key size ({0}) in the certificate is less than the minimum provided ({1}). Use certificate anyway?",
+                    keySize,
+                    minimumKeySize);
 
-                    if (!await ApproveMessage(message, silent).ConfigureAwait(false))
-                    {
-                        return false;
-                    }
+                if (!await ApproveMessage(message, silent).ConfigureAwait(false))
+                {
+                    return false;
                 }
             }
 

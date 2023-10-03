@@ -510,6 +510,35 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Retrieves the minimum accepted key size given the security configuration
+        /// </summary>
+        /// <param name="securityConfiguration"></param>
+        /// <returns></returns>
+        public ushort GetMinKeySize(SecurityConfiguration securityConfiguration)
+        {
+            if (CertificateType == ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType ||
+                CertificateType == ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType ||
+                CertificateType == ObjectTypeIds.EccCurve25519ApplicationCertificateType ||
+                CertificateType == ObjectTypeIds.EccCurve448ApplicationCertificateType ||
+                CertificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType ||
+                CertificateType == ObjectTypeIds.EccNistP384ApplicationCertificateType)
+            {
+                return securityConfiguration.MinimumECCertificateKeySize;
+            }
+            else if (
+                CertificateType == ObjectTypeIds.RsaMinApplicationCertificateType ||
+                CertificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType ||
+                CertificateType == ObjectTypeIds.ApplicationCertificateType)
+            {
+                return securityConfiguration.MinimumCertificateKeySize;
+            }
+           
+            throw new ArgumentException("Certificate type is unknown");
+            
+        }
+
+
+        /// <summary>
         /// Get the OPC UA CertificateType.
         /// </summary>
         /// <param name="certificate">The certificate with a signature.</param>
