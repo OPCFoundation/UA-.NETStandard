@@ -176,7 +176,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.NodeId, new NodeId(kNodeIdInt,kDemoServerIndex),
                 $"{{\"Id\":{kNodeIdInt},\"Namespace\":{kDemoServerIndex}}}", $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kDemoServer}\"}}" },
             {   BuiltInType.NodeId, new NodeId(kNodeIdInt,88), $"{{\"Id\":{kNodeIdInt},\"Namespace\":88}}", null},
-            {   BuiltInType.NodeId, new NodeId(kNodeIdString), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
+            {   BuiltInType.NodeId, new NodeId("ns=0;"+kNodeIdString), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
+            {   BuiltInType.NodeId, new NodeId("s="+kNodeIdString), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
+            {   BuiltInType.NodeId, new NodeId(kNodeIdString,0), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
             {   BuiltInType.NodeId, new NodeId(kNodeIdString,1), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":1}}", null },
             {   BuiltInType.NodeId, new NodeId(kNodeIdString,kDemoServerIndex),
                 $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":{kDemoServerIndex}}}",
@@ -203,7 +205,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdInt,kDemoServer2),
                 $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kDemoServer2}\"}}", $"{{\"Id\":{kNodeIdInt},\"Namespace\":\"{kDemoServer2}\"}}" },
             {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdInt,88), $"{{\"Id\":{kNodeIdInt},\"Namespace\":88}}", null},
-            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdString), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
+            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId("ns=0;"+kNodeIdString), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
+            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId("s="+kNodeIdString), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
+            {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdString,0), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\"}}", null },
             {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdString,1), $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":1}}", null },
             {   BuiltInType.ExpandedNodeId, new ExpandedNodeId(kNodeIdString,kDemoServerIndex),
                 $"{{\"IdType\":1,\"Id\":\"{kNodeIdString}\",\"Namespace\":{kDemoServerIndex}}}",
@@ -238,7 +242,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.StatusCode, new StatusCode(StatusCodes.BadCertificateInvalid),
                 $"{StatusCodes.BadCertificateInvalid}", $"{{\"Code\":{StatusCodes.BadCertificateInvalid}, \"Symbol\":\"{nameof(StatusCodes.BadCertificateInvalid)}\"}}"},
 
-            {   BuiltInType.DiagnosticInfo, new DiagnosticInfo(), "{}", null},
+            {   BuiltInType.DiagnosticInfo, new DiagnosticInfo(), null, null},
+            {   BuiltInType.DiagnosticInfo, new DiagnosticInfo(-1,-1,-1,-1,null), null, null},
+            {   BuiltInType.DiagnosticInfo, new DiagnosticInfo(1,2,3,4,"AdditionalInfo"), "{\"SymbolicId\":1,\"NamespaceUri\":2,\"Locale\":3,\"LocalizedText\":4,\"AdditionalInfo\":\"AdditionalInfo\"}", null},
 
             {   BuiltInType.QualifiedName, QualifiedName.Null, null, null},
             {   BuiltInType.QualifiedName, new QualifiedName(kQualifiedName), $"{{\"Name\":\"{kQualifiedName}\"}}", null},
@@ -346,13 +352,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void Constructor_Default(bool useReversible, bool topLevelIsArray)
         {
             var context = new ServiceMessageContext();
-            var jsonEncoder = new JsonEncoder(context, useReversible, topLevelIsArray);
-            TestEncoding(jsonEncoder, topLevelIsArray);
-            var result = jsonEncoder.CloseAndReturnText();
-            Assert.IsNotEmpty(result);
-            Assert.NotNull(result);
-            TestContext.Out.WriteLine("Result:");
-            _ = PrettifyAndValidateJson(result);
+            using (IJsonEncoder jsonEncoder = new JsonEncoder(context, useReversible, topLevelIsArray))
+            {
+                TestEncoding(jsonEncoder, topLevelIsArray);
+                var result = jsonEncoder.CloseAndReturnText();
+
+                Assert.IsNotEmpty(result);
+                Assert.NotNull(result);
+                TestContext.Out.WriteLine("Result:");
+                _ = PrettifyAndValidateJson(result);
+            }
         }
 
         /// <summary>
@@ -374,6 +383,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             _ = PrettifyAndValidateJson(result1);
 
             // recycle the StreamWriter, ensure the result is equal
+            memoryStream.Position = 0;
             using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, true))
             {
                 TestEncoding(jsonEncoder);
@@ -386,7 +396,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // recycle the StreamWriter, ensure the result is equal,
             // use reflection to return result in external stream
-            using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, false))
+            memoryStream.Position = 0;
+            using (IJsonEncoder jsonEncoder = new JsonEncoder(context, true, false, memoryStream, false))
             {
                 TestEncoding(jsonEncoder);
                 var result3 = jsonEncoder.CloseAndReturnText();
@@ -442,7 +453,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             using (var encodeable = new FooBarEncodeable())
             {
-                using (var encoder = new JsonEncoder(Context, true, topLevelIsArray))
+                using (IJsonEncoder encoder = new JsonEncoder(Context, true, topLevelIsArray))
                 {
                     encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
 
@@ -471,7 +482,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             using (var encodeable = new FooBarEncodeable())
             {
-                using (var encoder = new JsonEncoder(Context, true, false))
+                using (IJsonEncoder encoder = new JsonEncoder(Context, true, false))
                 {
                     encoder.WriteEncodeable(encodeable.Foo, encodeable, typeof(FooBarEncodeable));
 
@@ -498,9 +509,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expected);
 
-            using (var encodeable = new DynamicEncodeable("FooXml", "urn:dynamic_encoder_test", "test_dyn_typeid", "test_dyn_binaryencodingid", "test_dyn_xmlencodingid", "test_dyn_jsonencodingid", new Dictionary<string, (int, string)> { { "Foo", (1, "bar_1") } }))
+            using (var encodeable = new DynamicEncodeable("FooXml", "urn:dynamic_encoder_test", "ns=2;test_dyn_typeid", "s=test_dyn_binaryencodingid", "s=test_dyn_xmlencodingid", "s=test_dyn_jsonencodingid", new Dictionary<string, (int, string)> { { "Foo", (1, "bar_1") } }))
             {
-                using (var encoder = new JsonEncoder(Context, true, false))
+                using (IJsonEncoder encoder = new JsonEncoder(Context, true, false))
                 {
                     encoder.WriteEncodeable("bar_1", encodeable, typeof(DynamicEncodeable));
 
@@ -530,7 +541,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Expected XML:");
             expectedXml = PrettifyAndValidateXml(Encoding.UTF8.GetBytes(expectedXml));
 
-            var encodeable = new DynamicEncodeable("FooXml", "urn:dynamic_encoder_test", "test_dyn2_typeid", "test_dyn2_binaryencodingid", "test_dyn2_xmlencodingid", "test_dyn2_jsonencodingid", new Dictionary<string, (int, string)> {
+            var encodeable = new DynamicEncodeable("FooXml", "urn:dynamic_encoder_test", "s=test_dyn2_typeid", "s=test_dyn2_binaryencodingid", "s=test_dyn2_xmlencodingid", "ns=1;test_dyn2_jsonencodingid", new Dictionary<string, (int, string)> {
                 { "Foo", (1, "bar_1") },
                 { "Foo2", (2, "bar_2") },
             });
@@ -576,7 +587,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // Encode to JSON
             string encodedJson;
-            using (var encoder = new JsonEncoder(Context, true, false))
+            using (IJsonEncoder encoder = new JsonEncoder(Context, true, false))
             {
                 encoder.WriteExtensionObject(null, extensionObjectFromXml);
 
@@ -656,7 +667,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
             try
             {
-                using (var encoder = new JsonEncoder(Context, true, topLevelIsArray))
+                using (IJsonEncoder encoder = new JsonEncoder(Context, true, topLevelIsArray))
                 {
                     foreach (var encodeable in encodeables)
                     {
@@ -693,7 +704,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
             try
             {
-                using (var encoder = new JsonEncoder(Context, true, false))
+                using (IJsonEncoder encoder = new JsonEncoder(Context, true, false))
                 {
                     foreach (var encodeable in encodeables)
                     {
@@ -792,7 +803,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             using (var encodeable = new FooBarEncodeable(fieldname, foo))
             {
-                using (var encoder = new JsonEncoder(Context, true))
+                using (IJsonEncoder encoder = new JsonEncoder(Context, true))
                 {
                     encoder.WriteEncodeable(encodeable.FieldName, encodeable, typeof(FooBarEncodeable));
 
@@ -824,7 +835,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using (var encodeable = new FooBarEncodeable(fieldname, foo))
             {
                 var list = new List<IEncodeable>() { encodeable, encodeable };
-                using (var encoder = new JsonEncoder(Context, true))
+                using (IJsonEncoder encoder = new JsonEncoder(Context, true))
                 {
                     encoder.WriteEncodeableArray(encodeable.FieldName, list, typeof(FooBarEncodeable));
 
@@ -856,7 +867,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 var variant = new Variant(new ExtensionObject(encodeable));
                 // non reversible to save some space
-                using (var encoder = new JsonEncoder(Context, false))
+                using (IJsonEncoder encoder = new JsonEncoder(Context, false))
                 {
                     encoder.WriteVariant(encodeable.FieldName, variant);
 
@@ -940,7 +951,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     _ = PrettifyAndValidateJson(expected);
                 }
 
-                using (var encoder = new JsonEncoder(Context, true, topLevelIsArray))
+                using (IJsonEncoder encoder = new JsonEncoder(Context, true, topLevelIsArray))
                 {
                     encoder.WriteEncodeableArray(
                         fieldName,

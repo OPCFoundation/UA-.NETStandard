@@ -1581,7 +1581,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             object token = null;
             string jsonMessage = System.Text.Encoding.ASCII.GetString(networkMessage);
-            using (JsonDecoder jsonDecoder = new JsonDecoder(jsonMessage, context))
+            using (IJsonDecoder jsonDecoder = new JsonDecoder(jsonMessage, context))
             {
                 #region Verify DataSetMetaData mandatory fields
 
@@ -1730,7 +1730,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ServiceMessageContext context = ServiceMessageContext.GlobalContext;
 
             string jsonMessage = System.Text.Encoding.ASCII.GetString(networkMessage);
-            using (JsonDecoder jsonDecoder = new JsonDecoder(jsonMessage, context))
+            using (IJsonDecoder jsonDecoder = new JsonDecoder(jsonMessage, context))
             {
                 if (jsonNetworkMessage.HasNetworkMessageHeader)
                 {

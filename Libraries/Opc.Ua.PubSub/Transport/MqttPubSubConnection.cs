@@ -33,7 +33,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using MQTTnet;
 using MQTTnet.Client;
-using MQTTnet.Client.Options;
 using MQTTnet.Formatter;
 using MQTTnet.Protocol;
 using Opc.Ua.PubSub.Encoding;
@@ -246,7 +245,7 @@ namespace Opc.Ua.PubSub.Transport
                             {
                                 var message = new MqttApplicationMessage {
                                     Topic = queueName,
-                                    Payload = bytes,
+                                    PayloadSegment = new ArraySegment<byte>(bytes),
                                     QualityOfServiceLevel = GetMqttQualityOfServiceLevel(qos),
                                     Retain = networkMessage.IsMetaDataMessage
                                 };
@@ -360,7 +359,7 @@ namespace Opc.Ua.PubSub.Transport
 
             MqttClient publisherClient = null;
             MqttClient subscriberClient = null;
-            IMqttClientOptions mqttOptions = GetMqttClientOptions();
+            MqttClientOptions mqttOptions = GetMqttClientOptions();
 
             int nrOfPublishers = Publishers.Count;
             int nrOfSubscribers = GetAllDataSetReaders().Count;
@@ -434,29 +433,38 @@ namespace Opc.Ua.PubSub.Transport
             var publisherMqttClient = m_publisherMqttClient;
             var subscriberMqttClient = m_subscriberMqttClient;
 
-            if (publisherMqttClient != null)
+            void DisposeCerts(X509CertificateCollection certificates)
             {
-                if (publisherMqttClient.IsConnected)
+                if (certificates != null)
                 {
-                    await publisherMqttClient.DisconnectAsync().ContinueWith((e) => publisherMqttClient.Dispose()).ConfigureAwait(false);
-                }
-                else
-                {
-                    publisherMqttClient.Dispose();
+                    // dispose certificates
+                    foreach (var cert in certificates)
+                    {
+                        Utils.SilentDispose(cert);
+                    }
                 }
             }
-
-            if (subscriberMqttClient != null)
+            async Task InternalStop(IMqttClient client)
             {
-                if (subscriberMqttClient.IsConnected)
+                if (client != null)
                 {
-                    await subscriberMqttClient.DisconnectAsync().ContinueWith((e) => subscriberMqttClient.Dispose()).ConfigureAwait(false);
-                }
-                else
-                {
-                    subscriberMqttClient.Dispose();
+                    X509CertificateCollection certificates = client.Options?.ChannelOptions?.TlsOptions?.ClientCertificatesProvider?.GetCertificates();
+                    if (client.IsConnected)
+                    {
+                        await client.DisconnectAsync().ContinueWith((e) => {
+                            DisposeCerts(certificates);
+                            Utils.SilentDispose(client);
+                        }).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        DisposeCerts(certificates);
+                        Utils.SilentDispose(client);
+                    }
                 }
             }
+            await InternalStop(publisherMqttClient).ConfigureAwait(false);
+            await InternalStop(subscriberMqttClient).ConfigureAwait(false);
 
             if (m_metaDataPublishers != null)
             {
@@ -508,7 +516,7 @@ namespace Opc.Ua.PubSub.Transport
         /// Processes a message from the MQTT broker.
         /// </summary>
         /// <param name="eventArgs"></param>
-        private void ProcessMqttMessage(MqttApplicationMessageReceivedEventArgs eventArgs)
+        private Task ProcessMqttMessage(MqttApplicationMessageReceivedEventArgs eventArgs)
         {
             string topic = eventArgs.ApplicationMessage.Topic;
 
@@ -549,7 +557,7 @@ namespace Opc.Ua.PubSub.Transport
             {
                 // raise RawData received event
                 RawDataReceivedEventArgs rawDataReceivedEventArgs = new RawDataReceivedEventArgs() {
-                    Message = eventArgs.ApplicationMessage.Payload,
+                    Message = eventArgs.ApplicationMessage.PayloadSegment.Array,
                     Source = topic,
                     TransportProtocol = this.TransportProtocol,
                     MessageMapping = m_messageMapping,
@@ -563,7 +571,7 @@ namespace Opc.Ua.PubSub.Transport
                 if (rawDataReceivedEventArgs.Handled)
                 {
                     Utils.Trace("MqttConnection message from topic={0} is marked as handled and will not be decoded.", topic);
-                    return;
+                    return Task.CompletedTask;
                 }
 
                 // initialize the expected NetworkMessage
@@ -572,7 +580,7 @@ namespace Opc.Ua.PubSub.Transport
                 // trigger message decoding
                 if (networkMessage != null)
                 {
-                    networkMessage.Decode(MessageContext, eventArgs.ApplicationMessage.Payload, dataSetReaders);
+                    networkMessage.Decode(MessageContext, eventArgs.ApplicationMessage.PayloadSegment.Array, dataSetReaders);
 
                     // Handle the decoded message and raise the necessary event on UaPubSubApplication 
                     ProcessDecodedNetworkMessage(networkMessage, topic);
@@ -582,6 +590,8 @@ namespace Opc.Ua.PubSub.Transport
             {
                 Utils.Trace("MqttConnection - ProcessMqttMessage() No DataSetReader is registered for topic={0}.", topic);
             }
+
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -608,9 +618,9 @@ namespace Opc.Ua.PubSub.Transport
         /// Get appropriate IMqttClientOptions with which to connect to the MQTTBroker
         /// </summary>
         /// <returns></returns>
-        private IMqttClientOptions GetMqttClientOptions()
+        private MqttClientOptions GetMqttClientOptions()
         {
-            IMqttClientOptions mqttOptions = null;
+            MqttClientOptions mqttOptions = null;
             TimeSpan mqttKeepAlive = TimeSpan.FromSeconds(GetWriterGroupsMaxKeepAlive() + MaxKeepAliveIncrement);
 
             NetworkAddressUrlDataType networkAddressUrlState =
@@ -669,23 +679,31 @@ namespace Opc.Ua.PubSub.Transport
                     MqttTlsOptions mqttTlsOptions =
                         ((MqttClientProtocolConfiguration)transportProtocolConfiguration).MqttTlsOptions;
 
+                    List<X509Certificate2> x509Certificate2s = new List<X509Certificate2>();
+                    if (mqttTlsOptions?.Certificates != null)
+                    {
+                        foreach (var x509cert in mqttTlsOptions?.Certificates.X509Certificates)
+                        {
+                            x509Certificate2s.Add(new X509Certificate2(x509cert.Handle));
+                        }
+                    }
+
                     MqttClientOptionsBuilder mqttClientOptionsBuilder = new MqttClientOptionsBuilder()
                         .WithTcpServer(m_brokerHostName, m_brokerPort)
                         .WithKeepAlivePeriod(mqttKeepAlive)
                         .WithProtocolVersion(mqttProtocolVersion)
                         .WithClientId(clientId)
-                        .WithTls(new MqttClientOptionsBuilderTlsParameters {
-                            UseTls = true,
-                            Certificates = mqttTlsOptions?.Certificates?.X509Certificates,
-                            SslProtocol =
-                                mqttTlsOptions?.SslProtocolVersion ??
-                                System.Security.Authentication.SslProtocols.Tls12,
-                            AllowUntrustedCertificates = mqttTlsOptions?.AllowUntrustedCertificates ?? false,
-                            IgnoreCertificateChainErrors = mqttTlsOptions?.IgnoreCertificateChainErrors ?? false,
-                            IgnoreCertificateRevocationErrors = mqttTlsOptions?.IgnoreRevocationListErrors ?? false,
-                            CertificateValidationHandler = ValidateBrokerCertificate
+                        .WithTlsOptions(o => {
+                            o.UseTls(true);
+                            o.WithClientCertificates(x509Certificate2s);
+                            o.WithSslProtocols(mqttTlsOptions?.SslProtocolVersion ??
+                                System.Security.Authentication.SslProtocols.None);// Allow OS to choose best option
+                            o.WithAllowUntrustedCertificates(mqttTlsOptions?.AllowUntrustedCertificates ?? false);
+                            o.WithIgnoreCertificateChainErrors(mqttTlsOptions?.IgnoreCertificateChainErrors ?? false);
+                            o.WithIgnoreCertificateRevocationErrors(mqttTlsOptions?.IgnoreRevocationListErrors ?? false);
+                            o.WithCertificateValidationHandler(ValidateBrokerCertificate);
                         });
-
+                        
                     // Set user credentials.
                     if (mqttProtocolConfiguration.UseCredentials)
                     {
@@ -762,7 +780,7 @@ namespace Opc.Ua.PubSub.Transport
         /// Validates the broker certificate.
         /// </summary>
         /// <param name="context">The context of the validation</param>
-        private bool ValidateBrokerCertificate(MqttClientCertificateValidationCallbackContext context)
+        private bool ValidateBrokerCertificate(MqttClientCertificateValidationEventArgs context)
         {
             X509Certificate2 brokerCertificate = new X509Certificate2(context.Certificate.GetRawCertData());
 

@@ -191,6 +191,16 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
         /// <seealso cref="SendRequest" />
         IServiceResponse EndSendRequest(IAsyncResult result);
+
+        /// <summary>
+        /// Completes an asynchronous operation to send a request over the secure channel.
+        /// Awaitable version  
+        /// </summary>
+        /// <param name="result">The result returned from the BeginSendRequest call.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
+        /// <seealso cref="SendRequest" />
+        Task<IServiceResponse> EndSendRequestAsync(IAsyncResult result, CancellationToken ct);
     }
 
     /// <summary>

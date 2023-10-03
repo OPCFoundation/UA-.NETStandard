@@ -219,8 +219,9 @@ namespace Opc.Ua.Security.Certificates
 
                 if (generalNames.Count > 0)
                 {
-                    IList oids = new ArrayList();
-                    IList values = new ArrayList();
+                    IList<DerObjectIdentifier> oids = new List<DerObjectIdentifier>();
+                    IList< Org.BouncyCastle.Asn1.X509.X509Extension> values
+                        = new List< Org.BouncyCastle.Asn1.X509.X509Extension>();
                     oids.Add(Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectAlternativeName);
                     values.Add(new Org.BouncyCastle.Asn1.X509.X509Extension(false,
                         new DerOctetString(new GeneralNames(generalNames.ToArray()).GetDerEncoded())));

@@ -25,7 +25,7 @@ namespace Opc.Ua
     /// Extends a node id by adding a complete namespace URI.
     /// </remarks>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class ExpandedNodeId : ICloneable, IComparable, IFormattable
+    public class ExpandedNodeId : ICloneable, IComparable, IEquatable<ExpandedNodeId>, IFormattable
     {
         #region Constructors
         /// <summary>
@@ -315,7 +315,7 @@ namespace Opc.Ua
         public ExpandedNodeId(string text)
         {
             Initialize();
-            m_nodeId = new NodeId(text);
+            InternalParse(text);
         }
 
         /// <summary>
@@ -654,47 +654,7 @@ namespace Opc.Ua
                     return ExpandedNodeId.Null;
                 }
 
-                uint serverIndex = 0;
-
-                // parse the server index if present.
-                if (text.StartsWith("svr=", StringComparison.Ordinal))
-                {
-                    int index = text.IndexOf(';');
-
-                    if (index == -1)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, "Invalid server index.");
-                    }
-
-                    serverIndex = Convert.ToUInt32(text.Substring(4, index - 4), CultureInfo.InvariantCulture);
-
-                    text = text.Substring(index + 1);
-                }
-
-                string namespaceUri = null;
-
-                // parse the namespace uri if present.
-                if (text.StartsWith("nsu=", StringComparison.Ordinal))
-                {
-                    int index = text.IndexOf(';');
-
-                    if (index == -1)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, "Invalid namespace uri.");
-                    }
-
-                    StringBuilder buffer = new StringBuilder();
-
-                    UnescapeUri(text, 4, index, buffer);
-                    namespaceUri = buffer.ToString();
-                    text = text.Substring(index + 1);
-                }
-
-                // parse the node id.
-                NodeId nodeId = NodeId.Parse(text);
-
-                // craete the node id.
-                return new ExpandedNodeId(nodeId, namespaceUri, serverIndex);
+                return new ExpandedNodeId(text);
             }
             catch (Exception e)
             {
@@ -949,6 +909,15 @@ namespace Opc.Ua
 
             return (value1.CompareTo(value2) != 0);
         }
+
+        /// <summary>
+        /// Implements <see cref="IEquatable{T}"/>.Equals(T)"/>
+        /// </summary>
+        /// <param name="other">The other ExpandedNodeId.</param>
+        public bool Equals(ExpandedNodeId other)
+        {
+            return (CompareTo(other) == 0);
+        }
         #endregion
 
         #region IFormattable Members
@@ -1187,6 +1156,67 @@ namespace Opc.Ua
         public static ExpandedNodeId Null => s_Null;
 
         private static readonly ExpandedNodeId s_Null = new ExpandedNodeId();
+        #endregion
+
+        #region Private Methods
+        /// <summary>
+        /// Parses a expanded node id string and sets the properties.
+        /// </summary>
+        /// <param name="text">The ExpandedNodeId value as a string.</param>
+        private void InternalParse(string text)
+        {
+            uint serverIndex = 0;
+            string namespaceUri = null;
+            try
+            {
+                // parse the server index if present.
+                if (text.StartsWith("svr=", StringComparison.Ordinal))
+                {
+                    int index = text.IndexOf(';');
+
+                    if (index == -1)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, "Invalid server index.");
+                    }
+
+                    serverIndex = Convert.ToUInt32(text.Substring(4, index - 4), CultureInfo.InvariantCulture);
+
+                    text = text.Substring(index + 1);
+                }
+
+                // parse the namespace uri if present.
+                if (text.StartsWith("nsu=", StringComparison.Ordinal))
+                {
+                    int index = text.IndexOf(';');
+
+                    if (index == -1)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, "Invalid namespace uri.");
+                    }
+
+                    StringBuilder buffer = new StringBuilder();
+
+                    UnescapeUri(text, 4, index, buffer);
+                    namespaceUri = buffer.ToString();
+                    text = text.Substring(index + 1);
+                }
+            }
+            catch (Exception e)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNodeIdInvalid,
+                    Utils.Format("Cannot parse expanded node id text: '{0}'", text),
+                    e);
+            }
+
+            // parse the node id.
+            NodeId nodeId = NodeId.InternalParse(text, serverIndex != 0 || !string.IsNullOrEmpty(namespaceUri));
+
+            // set the properties.
+            m_nodeId = nodeId;
+            m_namespaceUri = namespaceUri;
+            m_serverIndex = serverIndex;
+        }
         #endregion
 
         #region Private Fields

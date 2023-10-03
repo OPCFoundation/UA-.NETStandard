@@ -16,7 +16,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Serialization;
 
@@ -72,21 +71,21 @@ namespace Opc.Ua.Schema.Binary
         /// <summary>
         /// Generates the code from the contents of the address space.
         /// </summary>
-        public async Task Validate(Stream stream)
+        public void Validate(Stream stream)
         {
             // read and parse the file.
             Dictionary = (TypeDictionary)LoadInput(typeof(TypeDictionary), stream);
-            await Validate().ConfigureAwait(false);
+            Validate();
         }
 
         /// <summary>
         /// Generates the code from the contents of the address space.
         /// </summary>
-        public async Task Validate(string inputPath)
+        public void Validate(string inputPath)
         {
             // read and parse the file.
             Dictionary = (TypeDictionary)LoadInput(typeof(TypeDictionary), inputPath);
-            await Validate().ConfigureAwait(false);
+            Validate();
         }
 
         /// <summary>
@@ -136,7 +135,7 @@ namespace Opc.Ua.Schema.Binary
         /// <summary>
         /// Generates the code from the contents of the address space.
         /// </summary>
-        private async Task Validate()
+        private void Validate()
         {
             m_descriptions = new Dictionary<XmlQualifiedName, TypeDescription>();
             m_validatedDescriptions = new List<TypeDescription>();
@@ -147,7 +146,7 @@ namespace Opc.Ua.Schema.Binary
             {
                 foreach (ImportDirective directive in Dictionary.Import)
                 {
-                    await Import(directive).ConfigureAwait(false);
+                    Import(directive);
                 }
             }
             else
@@ -156,7 +155,7 @@ namespace Opc.Ua.Schema.Binary
                 if (!WellKnownDictionaries.Any(n => string.Equals(n[0], Dictionary.TargetNamespace, StringComparison.Ordinal)))
                 {
                     ImportDirective directive = new ImportDirective { Namespace = Namespaces.OpcUa };
-                    await Import(directive).ConfigureAwait(false);
+                    Import(directive);
                 }
             }
 
@@ -187,7 +186,7 @@ namespace Opc.Ua.Schema.Binary
         /// <summary>
         /// Imports a dictionary identified by an import directive.
         /// </summary>
-        private async Task Import(ImportDirective directive)
+        private void Import(ImportDirective directive)
         {
             // check if already loaded.
             if (LoadedFiles.ContainsKey(directive.Namespace))
@@ -211,7 +210,7 @@ namespace Opc.Ua.Schema.Binary
             {
                 for (int ii = 0; ii < dictionary.Import.Length; ii++)
                 {
-                    await Import(dictionary.Import[ii]).ConfigureAwait(false);
+                    Import(dictionary.Import[ii]);
                 }
             }
 

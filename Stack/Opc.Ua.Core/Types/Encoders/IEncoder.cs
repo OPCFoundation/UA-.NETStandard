@@ -19,7 +19,7 @@ namespace Opc.Ua
     /// <summary>
     /// Defines functions used to encode objects in a stream.
     /// </summary>
-    public interface IEncoder
+    public interface IEncoder : IDisposable
     {
         /// <summary>
         /// The type of encoding being used.
@@ -35,6 +35,16 @@ namespace Opc.Ua
         /// The message context associated with the encoder.
         /// </summary>
         IServiceMessageContext Context { get; }
+
+        /// <summary>
+        /// Completes writing and returns the encoded length.
+        /// </summary>
+        int Close();
+
+        /// <summary>
+        /// Completes writing and returns the encoded text.
+        /// </summary>
+        string CloseAndReturnText();
 
         /// <summary>
         /// Sets the mapping tables to use during decoding.

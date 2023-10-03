@@ -29,13 +29,9 @@
 
 using System;
 using System.IO;
-using NUnit.Framework;
-using Opc.Ua;
 
 namespace Opc.Ua.Server.Tests
 {
-
-
     /// <summary>
     /// A NUnit trace logger replacement.
     /// </summary>
@@ -45,7 +41,7 @@ namespace Opc.Ua.Server.Tests
         private int m_traceMasks;
 
         /// <summary>
-        /// Create a serilog trace logger which replaces the default logging.
+        /// Create a nunit trace logger which replaces the default logging.
         /// </summary>
         public static NUnitTraceLogger Create(
             TextWriter writer,

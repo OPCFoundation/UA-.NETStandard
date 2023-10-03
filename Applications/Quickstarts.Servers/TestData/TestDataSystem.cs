@@ -971,14 +971,17 @@ namespace TestData
                     }
                     else
                     {
-                        Sample sample = new Sample();
-
-                        sample.Variable = variable;
-                        sample.Value = ReadValue(sample.Variable);
-                        sample.StatusCode = StatusCodes.Good;
-                        sample.Timestamp = DateTime.UtcNow;
-
-                        samples.Enqueue(sample);
+                        object value = ReadValue(variable);
+                        if (value != null)
+                        {
+                            Sample sample = new Sample {
+                                Variable = variable,
+                                Value = value,
+                                StatusCode = StatusCodes.Good,
+                                Timestamp = DateTime.UtcNow
+                            };
+                            samples.Enqueue(sample);
+                        }
                     }
                 }
             }

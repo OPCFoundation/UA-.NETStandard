@@ -33,16 +33,19 @@ using System.IO;
 using System.Text;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
+using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
     [TestFixture, Category("JsonEncoder")]
     [SetCulture("en-us"), SetUICulture("en-us")]
-    [Parallelizable]
+    [NonParallelizable]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
     public class JsonEncoderBenchmarks
     {
+        const int kBufferSize = 4096;
+
         [Params(1, 2, 8, 64)]
         public int PayLoadSize { get; set; } = 64;
 
@@ -103,32 +106,29 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Benchmark]
         [Test]
-        public void JsonEncoder_Constructor_Recyclable_Streamwriter2()
+        public void JsonEncoder_StreamLeaveOpen_MemoryStream()
         {
-            using (var memoryStream = new Microsoft.IO.RecyclableMemoryStream(m_memoryManager))
-            using (var jsonEncoder = new JsonEncoder(m_context, false, false, memoryStream, false, StreamSize))
-            {
-                TestEncoding(jsonEncoder);
-                int length = jsonEncoder.Close();
-                var result = Encoding.UTF8.GetString(m_memoryStream.ToArray());
-            }
+            JsonEncoder_StreamLeaveOpen(m_memoryStream);
         }
 
-
-
         /// <summary>
-        /// Benchmark encoding with memory stream kept open.
+        /// Benchmark encoding with recyclable memory stream kept open.
         /// </summary>
         [Benchmark]
         [Test]
-        public void JsonEncoder_Constructor_Streamwriter2()
+        public void JsonEncoder_StreamLeaveOpen_RecyclableMemoryStream()
         {
-            using (var jsonEncoder = new JsonEncoder(m_context, false, false, m_memoryStream, true, StreamSize))
-            {
-                TestEncoding(jsonEncoder);
-                int length = jsonEncoder.Close();
-                var result = Encoding.UTF8.GetString(m_memoryStream.ToArray());
-            }
+            JsonEncoder_StreamLeaveOpen(m_recyclableMemoryStream);
+        }
+
+        /// <summary>
+        /// Benchmark encoding with recyclable memory stream kept open.
+        /// </summary>
+        [Benchmark]
+        [Test]
+        public void JsonEncoder_StreamLeaveOpen_ArraySegmentStream()
+        {
+            JsonEncoder_StreamLeaveOpen(m_arraySegmentStream);
         }
 
         /// <summary>
@@ -160,6 +160,27 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 encoder.WriteInt32Array("Array", s_list);
             }
         }
+
+        private void JsonEncoder_StreamLeaveOpen(MemoryStream stream)
+        {
+            int length1;
+            int length2;
+            stream.Position = 0;
+            using (var jsonEncoder = new JsonEncoder(m_context, false, false, stream, true, StreamSize))
+            {
+                TestEncoding(jsonEncoder);
+                length1 = jsonEncoder.Close();
+            }
+            using (var jsonEncoder = new JsonEncoder(m_context, false, false, stream, true, StreamSize))
+            {
+                TestEncoding(jsonEncoder);
+                length2 = jsonEncoder.Close();
+            }
+            var result = Encoding.UTF8.GetString(stream.ToArray());
+            Assert.NotNull(result);
+            Assert.AreEqual(length1 * 2, length2);
+            Assert.AreEqual(length2, result.Length);
+        }
         #endregion
 
         #region Test Setup
@@ -168,8 +189,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             // for validating benchmark tests
             m_context = new ServiceMessageContext();
-            m_memoryManager = new Microsoft.IO.RecyclableMemoryStreamManager();
             m_memoryStream = new MemoryStream();
+            m_memoryManager = new Microsoft.IO.RecyclableMemoryStreamManager();
+            m_recyclableMemoryStream = new Microsoft.IO.RecyclableMemoryStream(m_memoryManager);
+            m_bufferManager = new BufferManager(nameof(BinaryEncoder), kBufferSize);
+            m_arraySegmentStream = new ArraySegmentStream(m_bufferManager, kBufferSize, 0, kBufferSize);
         }
 
         [OneTimeTearDown]
@@ -178,7 +202,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_context = null;
             m_memoryStream.Dispose();
             m_memoryStream = null;
+            m_recyclableMemoryStream.Dispose();
+            m_recyclableMemoryStream = null;
             m_memoryManager = null;
+            m_bufferManager = null;
+            m_arraySegmentStream.Dispose();
+            m_arraySegmentStream = null;
         }
         #endregion
 
@@ -189,9 +218,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [GlobalSetup]
         public void GlobalSetup()
         {
+            // for validating benchmark tests
             m_context = new ServiceMessageContext();
-            m_memoryManager = new Microsoft.IO.RecyclableMemoryStreamManager();
             m_memoryStream = new MemoryStream();
+            m_memoryManager = new Microsoft.IO.RecyclableMemoryStreamManager();
+            m_recyclableMemoryStream = new Microsoft.IO.RecyclableMemoryStream(m_memoryManager);
+            m_bufferManager = new BufferManager(nameof(BinaryEncoder), kBufferSize);
+            m_arraySegmentStream = new ArraySegmentStream(m_bufferManager, kBufferSize, 0, kBufferSize);
         }
 
         /// <summary>
@@ -203,7 +236,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_context = null;
             m_memoryStream.Dispose();
             m_memoryStream = null;
+            m_recyclableMemoryStream.Dispose();
+            m_recyclableMemoryStream = null;
             m_memoryManager = null;
+            m_bufferManager = null;
+            m_arraySegmentStream.Dispose();
+            m_arraySegmentStream = null;
         }
         #endregion
 
@@ -213,6 +251,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         private IServiceMessageContext m_context;
         private MemoryStream m_memoryStream;
         private Microsoft.IO.RecyclableMemoryStreamManager m_memoryManager;
+        private Microsoft.IO.RecyclableMemoryStream m_recyclableMemoryStream;
+        private BufferManager m_bufferManager;
+        private ArraySegmentStream m_arraySegmentStream;
         #endregion
     }
 }

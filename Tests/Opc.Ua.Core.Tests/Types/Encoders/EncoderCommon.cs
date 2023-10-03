@@ -146,12 +146,15 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Expected:");
             TestContext.Out.WriteLine(expected);
             Assert.IsNotNull(expected, "Expected DataValue is Null, " + encodeInfo);
-            var encoderStream = new MemoryStream();
-            IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), useReversibleEncoding);
-            encoder.WriteDataValue("DataValue", expected);
-            Dispose(encoder);
-            var buffer = encoderStream.ToArray();
-            return Encoding.UTF8.GetString(buffer);
+            using (var encoderStream = new MemoryStream())
+            {
+                using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), useReversibleEncoding))
+                {
+                    encoder.WriteDataValue("DataValue", expected);
+                }
+                var buffer = encoderStream.ToArray();
+                return Encoding.UTF8.GetString(buffer);
+            }
         }
 
         /// <summary>
@@ -171,11 +174,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.IsNotNull(expected, "Expected DataValue is Null, " + encodeInfo);
             TestContext.Out.WriteLine("Expected:");
             TestContext.Out.WriteLine(expected);
-            var encoderStream = new MemoryStream();
-            IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue));
-            encoder.WriteDataValue("DataValue", expected);
-            Dispose(encoder);
-            var buffer = encoderStream.ToArray();
+
+            byte[] buffer;
+            using (var encoderStream = new MemoryStream())
+            {
+                using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue)))
+                {
+                    encoder.WriteDataValue("DataValue", expected);
+                }
+                buffer = encoderStream.ToArray();
+            }
+
             string formatted;
             switch (encoderType)
             {
@@ -186,10 +195,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     formatted = PrettifyAndValidateXml(buffer);
                     break;
             }
-            var decoderStream = new MemoryStream(buffer);
-            IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, typeof(DataValue));
-            DataValue result = decoder.ReadDataValue("DataValue");
-            Dispose(decoder);
+
+            DataValue result;
+            using (var decoderStream = new MemoryStream(buffer))
+            using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, typeof(DataValue)))
+            {
+                result = decoder.ReadDataValue("DataValue");
+            }
+
             TestContext.Out.WriteLine("Result:");
             TestContext.Out.WriteLine(result);
             Assert.IsNotNull(result, "Resulting DataValue is Null, " + encodeInfo);
@@ -212,11 +225,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(encodeInfo);
             TestContext.Out.WriteLine("Expected:");
             TestContext.Out.WriteLine(expected);
-            var encoderStream = new MemoryStream();
-            IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, type);
-            Encode(encoder, builtInType, builtInType.ToString(), expected);
-            Dispose(encoder);
-            var buffer = encoderStream.ToArray();
+
+            byte[] buffer;
+            using (var encoderStream = new MemoryStream())
+            {
+                using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, type))
+                {
+                    Encode(encoder, builtInType, builtInType.ToString(), expected);
+                }
+                buffer = encoderStream.ToArray();
+            }
+
             string formatted;
             switch (encoderType)
             {
@@ -230,10 +249,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     formatted = Encoding.UTF8.GetString(buffer);
                     break;
             }
-            var decoderStream = new MemoryStream(buffer);
-            IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type);
-            object result = Decode(decoder, builtInType, builtInType.ToString(), type);
-            Dispose(decoder);
+
+            object result;
+            using (var decoderStream = new MemoryStream(buffer))
+            using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type))
+            {
+                result = Decode(decoder, builtInType, builtInType.ToString(), type);
+            }
             TestContext.Out.WriteLine("Result:");
             TestContext.Out.WriteLine(result);
             expected = AdjustExpectedBoundaryValues(encoderType, builtInType, expected);
@@ -271,16 +293,24 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 expected = "{}";
             }
             var formattedExpected = PrettifyAndValidateJson(expected);
-            var encoderStream = new MemoryStream();
+            TestContext.Out.WriteLine(formattedExpected);
+
             bool isNumber = TypeInfo.IsNumericType(builtInType) || builtInType == BuiltInType.Boolean;
             bool includeDefaultValues = !isNumber ? includeDefaults : false;
             bool includeDefaultNumbers = isNumber ? includeDefaults : true;
-            IEncoder encoder = CreateEncoder(EncodingType.Json, Context, encoderStream, typeof(DataValue),
-                useReversibleEncoding, topLevelIsArray, includeDefaultValues, includeDefaultNumbers);
-            //encoder.SetMappingTables(_nameSpaceUris, _serverUris);
-            Encode(encoder, builtInType, builtInType.ToString(), data);
-            Dispose(encoder);
-            var buffer = encoderStream.ToArray();
+
+            byte[] buffer;
+            using (var encoderStream = new MemoryStream())
+            {
+                using (IEncoder encoder = CreateEncoder(EncodingType.Json, Context, encoderStream, typeof(DataValue),
+                    useReversibleEncoding, topLevelIsArray, includeDefaultValues, includeDefaultNumbers))
+                {
+                    //encoder.SetMappingTables(_nameSpaceUris, _serverUris);
+                    Encode(encoder, builtInType, builtInType.ToString(), data);
+                }
+                buffer = encoderStream.ToArray();
+            }
+
             TestContext.Out.WriteLine("Result:");
             var result = Encoding.UTF8.GetString(buffer);
             var formattedResult = PrettifyAndValidateJson(result);
@@ -388,7 +418,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 case EncodingType.Binary:
                     Assume.That(useReversibleEncoding, "Binary encoding only supports reversible option.");
-                    return new BinaryEncoder(stream, context);
+                    return new BinaryEncoder(stream, context, false);
                 case EncodingType.Xml:
                     Assume.That(useReversibleEncoding, "Xml encoding only supports reversible option.");
                     var xmlWriter = XmlWriter.Create(stream);
@@ -398,8 +428,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         IncludeDefaultValues = includeDefaultValues,
                         IncludeDefaultNumberValues = includeDefaultNumbers
                     };
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(encoderType), encoderType, "Invalid EncoderType specified.");
             }
-            return null;
         }
 
         /// <summary>
@@ -435,15 +466,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             DateTime sourceTimeStamp = (DateTime)DataGenerator.GetRandom(BuiltInType.DateTime);
             Variant variant = (builtInType == BuiltInType.Variant) && (data is Variant) ? (Variant)data : new Variant(data);
             return new DataValue(variant, statusCode, sourceTimeStamp, DateTime.UtcNow);
-        }
-
-        /// <summary>
-        /// Standard dispose.
-        /// </summary>
-        protected void Dispose(object o)
-        {
-            var dispose = o as IDisposable;
-            dispose?.Dispose();
         }
 
         /// <summary>
@@ -828,7 +850,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             public DynamicEncodeable(string xmlName, string xmlNamespace, ExpandedNodeId typeId, ExpandedNodeId binaryEncodingId, ExpandedNodeId xmlEncodingId, ExpandedNodeId jsonEncodingId)
                 : this(xmlName, xmlNamespace, typeId, binaryEncodingId, xmlEncodingId, jsonEncodingId,
-                      (Dictionary<string, (int, string)>) null)
+                      (Dictionary<string, (int, string)>)null)
             {
                 m_resetCounter = true;
                 Count = Interlocked.Increment(ref s_count);
@@ -836,7 +858,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 m_fields = new Dictionary<string, (int, string)> { { "Foo", (1, $"bar_{Count}") } };
             }
 
-            public DynamicEncodeable(string xmlName,string xmlNamespace, ExpandedNodeId typeId, ExpandedNodeId binaryEncodingId, ExpandedNodeId xmlEncodingId, ExpandedNodeId jsonEncodingId, int count)
+            public DynamicEncodeable(string xmlName, string xmlNamespace, ExpandedNodeId typeId, ExpandedNodeId binaryEncodingId, ExpandedNodeId xmlEncodingId, ExpandedNodeId jsonEncodingId, int count)
                 : this(xmlName, xmlNamespace, typeId, binaryEncodingId, xmlEncodingId, jsonEncodingId,
                       new Dictionary<string, (int, string)> { { "Foo", (1, $"bar_{count}") } })
             {
@@ -906,7 +928,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     JsonEncodingId = encodeable?.JsonEncodingId;
                     BinaryEncodingId = encodeable?.BinaryEncodingId;
                     Count = encodeable?.Count ?? 0;
-                    m_fields = encodeable?.m_fields.ToDictionary(kv => kv.Key, kv => (kv.Value.FieldOrder, (string) null));
+                    m_fields = encodeable?.m_fields.ToDictionary(kv => kv.Key, kv => (kv.Value.FieldOrder, (string)null));
                     m_xmlName = encodeable?.m_xmlName;
                     m_xmlNamespace = encodeable?.m_xmlNamespace;
                 }

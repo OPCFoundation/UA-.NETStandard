@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -30,6 +30,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
@@ -74,26 +75,26 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public IEncodeableFactory Factory => m_factory;
 
         /// <inheritdoc/>
-        public Task<Dictionary<NodeId, DataDictionary>> LoadDataTypeSystem(NodeId dataTypeSystem = null)
+        public Task<Dictionary<NodeId, DataDictionary>> LoadDataTypeSystem(NodeId dataTypeSystem = null, CancellationToken ct = default)
         {
             return Task.FromResult(m_dataTypeDictionary);
         }
 
         /// <inheritdoc/>
-        public IList<NodeId> BrowseForEncodings(IList<ExpandedNodeId> nodeIds, string[] supportedEncodings)
+        public Task<IList<NodeId>> BrowseForEncodingsAsync(IList<ExpandedNodeId> nodeIds, string[] supportedEncodings, CancellationToken ct = default)
         {
-            return new List<NodeId>();
+            return Task.FromResult((IList<NodeId>)new List<NodeId>());
         }
 
         /// <inheritdoc/>
-        public IList<NodeId> BrowseForEncodings(
+        public Task<(IList<NodeId> encodings, ExpandedNodeId binaryEncodingId, ExpandedNodeId xmlEncodingId)> BrowseForEncodingsAsync(
             ExpandedNodeId nodeId,
             string[] supportedEncodings,
-            out ExpandedNodeId binaryEncodingId,
-            out ExpandedNodeId xmlEncodingId)
+            CancellationToken ct = default)
         {
-            binaryEncodingId = ExpandedNodeId.Null;
-            xmlEncodingId = ExpandedNodeId.Null;
+            var binaryEncodingId = ExpandedNodeId.Null;
+            var xmlEncodingId = ExpandedNodeId.Null;
+            IList<NodeId> encodings = null;
 
             var node = m_dataTypeNodes[ExpandedNodeId.ToNodeId(nodeId, NamespaceUris)];
             if (node is DataTypeNode dataTypeNode)
@@ -121,33 +122,26 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     }
                     result.Add(ExpandedNodeId.ToNodeId(reference.TargetId, NamespaceUris));
                 }
-                return result;
+                encodings = result;
             }
-            return null;
+            return Task.FromResult((encodings, binaryEncodingId, xmlEncodingId));
         }
 
         /// <inheritdoc/>
-        public bool BrowseTypeIdsForDictionaryComponent(
+        public Task<(ExpandedNodeId typeId, ExpandedNodeId encodingId, DataTypeNode dataTypeNode)> BrowseTypeIdsForDictionaryComponentAsync(
             ExpandedNodeId nodeId,
-            out ExpandedNodeId typeId,
-            out ExpandedNodeId encodingId,
-            out DataTypeNode dataTypeNode)
+            CancellationToken ct = default)
         {
-            typeId = ExpandedNodeId.Null;
-            encodingId = ExpandedNodeId.Null;
-            dataTypeNode = null;
-
-            // not implemented yet
-
-            return false;
+            return Task.FromResult<(ExpandedNodeId typeId, ExpandedNodeId encodingId, DataTypeNode dataTypeNode)>((null, null, null));
         }
 
         /// <inheritdoc/>
-        public IList<INode> LoadDataTypes(
+        public async Task<IList<INode>> LoadDataTypesAsync(
             ExpandedNodeId dataType,
             bool nestedSubTypes = false,
             bool addRootNode = false,
-            bool filterUATypes = true)
+            bool filterUATypes = true,
+            CancellationToken ct = default)
         {
             var result = new List<INode>();
             var nodesToBrowse = new ExpandedNodeIdCollection {
@@ -156,7 +150,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             if (addRootNode)
             {
-                var rootNode = Find(dataType);
+                var rootNode = await FindAsync(dataType, ct).ConfigureAwait(false);
                 if (!(rootNode is DataTypeNode))
                 {
                     throw new ServiceResultException("Root Node is not a DataType node.");
@@ -203,34 +197,33 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
 
         /// <inheritdoc/>
-        public INode Find(ExpandedNodeId nodeId)
+        public Task<INode> FindAsync(ExpandedNodeId nodeId, CancellationToken ct = default)
         {
-            return m_dataTypeNodes[ExpandedNodeId.ToNodeId(nodeId, NamespaceUris)];
-        }
-
-
-        /// <inheritdoc/>
-        public object GetEnumTypeArray(ExpandedNodeId nodeId)
-        {
-            return null;
+            return Task.FromResult(m_dataTypeNodes[ExpandedNodeId.ToNodeId(nodeId, NamespaceUris)]);
         }
 
         /// <inheritdoc/>
-        public NodeId FindSuperType(NodeId typeId)
+        public Task<object> GetEnumTypeArrayAsync(ExpandedNodeId nodeId, CancellationToken ct = default)
+        {
+            return Task.FromResult<object>(null);
+        }
+
+        /// <inheritdoc/>
+        public Task<NodeId> FindSuperTypeAsync(NodeId typeId, CancellationToken ct = default)
         {
             var node = m_dataTypeNodes[typeId];
             if (node is DataTypeNode dataTypeNode)
             {
                 if (dataTypeNode.DataTypeDefinition.Body is EnumDefinition enumDefinition)
                 {
-                    return DataTypeIds.Enumeration;
+                    return Task.FromResult(DataTypeIds.Enumeration);
                 }
                 else if (dataTypeNode.DataTypeDefinition.Body is StructureDefinition structureDefinition)
                 {
-                    return structureDefinition.BaseDataType;
+                    return Task.FromResult(structureDefinition.BaseDataType);
                 }
             }
-            return DataTypeIds.BaseDataType;
+            return Task.FromResult(DataTypeIds.BaseDataType);
         }
         #endregion IComplexTypeResolver
 

@@ -458,7 +458,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets or sets the extensions of the node set. Property used when importing nodeset2.xml files.
+        /// Gets or sets the extensions of the node set. Property used when importing NodeSet2.xml files.
         /// </summary>
         /// <value>
         /// The extensions.
@@ -570,16 +570,17 @@ namespace Opc.Ua
             {
                 XmlQualifiedName root = new XmlQualifiedName(this.SymbolicName, context.NamespaceUris.GetString(this.BrowseName.NamespaceIndex));
 
-                XmlEncoder encoder = new XmlEncoder(root, writer, messageContext);
+                using (XmlEncoder encoder = new XmlEncoder(root, writer, messageContext))
+                {
+                    encoder.SaveStringTable("NamespaceUris", "NamespaceUri", context.NamespaceUris);
+                    encoder.SaveStringTable("ServerUris", "ServerUri", context.ServerUris);
 
-                encoder.SaveStringTable("NamespaceUris", "NamespaceUri", context.NamespaceUris);
-                encoder.SaveStringTable("ServerUris", "ServerUri", context.ServerUris);
+                    Save(context, encoder);
+                    SaveReferences(context, encoder);
+                    SaveChildren(context, encoder);
 
-                Save(context, encoder);
-                SaveReferences(context, encoder);
-                SaveChildren(context, encoder);
-
-                encoder.Close();
+                    encoder.Close();
+                }
             }
         }
 
@@ -596,19 +597,20 @@ namespace Opc.Ua
             messageContext.ServerUris = context.ServerUris;
             messageContext.Factory = context.EncodeableFactory;
 
-            BinaryEncoder encoder = new BinaryEncoder(ostrm, messageContext);
+            using (BinaryEncoder encoder = new BinaryEncoder(ostrm, messageContext, true))
+            {
+                encoder.SaveStringTable(context.NamespaceUris);
+                encoder.SaveStringTable(context.ServerUris);
 
-            encoder.SaveStringTable(context.NamespaceUris);
-            encoder.SaveStringTable(context.ServerUris);
+                AttributesToSave attributesToSave = GetAttributesToSave(context);
+                encoder.WriteUInt32(null, (uint)attributesToSave);
 
-            AttributesToSave attributesToSave = GetAttributesToSave(context);
-            encoder.WriteUInt32(null, (uint)attributesToSave);
+                Save(context, encoder, attributesToSave);
+                SaveReferences(context, encoder);
+                SaveChildren(context, encoder);
 
-            Save(context, encoder, attributesToSave);
-            SaveReferences(context, encoder);
-            SaveChildren(context, encoder);
-
-            encoder.Close();
+                encoder.Close();
+            }
         }
 
         /// <summary>
@@ -883,9 +885,9 @@ namespace Opc.Ua
                 attributesToSave |= AttributesToSave.WriteMask;
             }
 
-            if (m_writeMask != AttributeWriteMask.None)
+            if (m_userWriteMask != AttributeWriteMask.None)
             {
-                attributesToSave |= AttributesToSave.UserAccessLevel;
+                attributesToSave |= AttributesToSave.UserWriteMask;
             }
 
             return attributesToSave;
@@ -1377,7 +1379,7 @@ namespace Opc.Ua
                 encoder.WriteEnumerated("WriteMask", m_writeMask);
             }
 
-            if (m_writeMask != AttributeWriteMask.None)
+            if (m_userWriteMask != AttributeWriteMask.None)
             {
                 encoder.WriteEnumerated("UserWriteMask", m_userWriteMask);
             }
@@ -1827,9 +1829,9 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
-                    "Could not load child '{1}', with NodeClass {0}",
-                    nodeClass,
-                    browseName);
+                    "Could not load child '{0}', with NodeClass {1}",
+                    browseName,
+                    nodeClass);
             }
 
             // initialize the child from the stream.
@@ -1898,9 +1900,9 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
-                    "Could not load node '{1}', with NodeClass {0}",
-                    nodeClass,
-                    browseName);
+                    "Could not load node '{0}', with NodeClass {1}",
+                    browseName,
+                    nodeClass);
             }
 
             // update symbolic name.
@@ -1967,9 +1969,9 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
-                    "Could not load node '{1}', with NodeClass {0}",
-                    nodeClass,
-                    browseName);
+                    "Could not load node '{0}', with NodeClass {1}",
+                    browseName,
+                    nodeClass);
             }
 
             // update symbolic name.
@@ -2058,9 +2060,9 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
-                    "Could not load child '{1}', with NodeClass {0}",
-                    nodeClass,
-                    browseName);
+                    "Could not load child '{0}', with NodeClass {1}",
+                    browseName,
+                    nodeClass);
             }
 
             // initialize the child from the stream.

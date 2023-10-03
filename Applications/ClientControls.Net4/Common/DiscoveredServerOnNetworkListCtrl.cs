@@ -57,17 +57,17 @@ namespace Opc.Ua.Client.Controls
             ItemsLV.MultiSelect = false;
         }
         #endregion
-        
+
         #region Private Fields
         // The columns to display in the control.		
-		private readonly object[][] m_ColumnNames = new object[][]
-		{ 
-			new object[] { "RecordId", HorizontalAlignment.Left, null },  
-			new object[] { "ServerName", HorizontalAlignment.Left, null },
-			new object[] { "DiscoveryUrl", HorizontalAlignment.Left, null },
-			new object[] { "ServerCapabilities",  HorizontalAlignment.Left, null }
-		};
-        
+        private readonly object[][] m_ColumnNames = new object[][]
+        {
+            new object[] { "RecordId", HorizontalAlignment.Left, null },
+            new object[] { "ServerName", HorizontalAlignment.Left, null },
+            new object[] { "DiscoveryUrl", HorizontalAlignment.Left, null },
+            new object[] { "ServerCapabilities",  HorizontalAlignment.Left, null }
+        };
+
         private ApplicationConfiguration m_configuration;
         private int m_discoveryTimeout;
         private int m_discoverCount;
@@ -115,7 +115,7 @@ namespace Opc.Ua.Client.Controls
             {
                 hostname = System.Net.Dns.GetHostName();
             }
-            
+
             this.Instructions = Utils.Format("Discovering servers on host '{0}'.", hostname);
             AdjustColumns();
 
@@ -131,7 +131,7 @@ namespace Opc.Ua.Client.Controls
             {
                 discoveryUrls = new StringCollection(Utils.DiscoveryUrls);
             }
-            
+
             // update the urls with the hostname.
             StringCollection urlsToUse = new StringCollection();
 
@@ -154,7 +154,7 @@ namespace Opc.Ua.Client.Controls
                 this.BeginInvoke(new WaitCallback(OnUpdateServers), state);
                 return;
             }
-            
+
             ItemsLV.Items.Clear();
 
             ServerOnNetworkCollection servers = state as ServerOnNetworkCollection;
@@ -254,7 +254,7 @@ namespace Opc.Ua.Client.Controls
                 }
                 catch (Exception e)
                 {
-                    Utils.LogError("Error retrieving FindServersOnNetwork parameters. Error=({1}){0}", e.Message, e.GetType());
+                    Utils.LogError("Error retrieving FindServersOnNetwork parameters. Error=({0}){1}", e.GetType(), e.Message);
                     return false;
                 }
 
@@ -265,7 +265,7 @@ namespace Opc.Ua.Client.Controls
             }
             catch (Exception e)
             {
-                Utils.LogError("DISCOVERY ERROR - Could not fetch servers from url: {0}. Error=({2}){1}", discoveryUrl, e.Message, e.GetType());
+                Utils.LogError("DISCOVERY ERROR - Could not fetch servers from url: {0}. Error=({1}){2}", discoveryUrl, e.GetType(), e.Message);
                 return false;
             }
             finally
@@ -295,7 +295,7 @@ namespace Opc.Ua.Client.Controls
             listItem.SubItems[0].Text = String.Format("{0}", server.RecordId);
             listItem.SubItems[1].Text = String.Format("{0}", server.ServerName);
             listItem.SubItems[2].Text = String.Format("{0}", server.DiscoveryUrl);
-            listItem.SubItems[3].Text = String.Format("{0}", string.Join(",", server.ServerCapabilities)); 
+            listItem.SubItems[3].Text = String.Format("{0}", string.Join(",", server.ServerCapabilities));
 
             listItem.ImageKey = GuiUtils.Icons.Service;
         }
