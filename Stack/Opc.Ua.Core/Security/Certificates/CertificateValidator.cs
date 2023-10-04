@@ -1853,7 +1853,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        internal CertificateUpdateEventArgs(
+        public CertificateUpdateEventArgs(
             SecurityConfiguration configuration,
             ICertificateValidator validator)
         {
