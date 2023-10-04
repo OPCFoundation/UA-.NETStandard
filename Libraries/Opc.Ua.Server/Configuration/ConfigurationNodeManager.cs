@@ -410,6 +410,15 @@ namespace Opc.Ua.Server
                 ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(certificateGroupId, certificateTypeId);
                 certificateGroup.UpdateCertificate = null;
 
+                try
+                {
+                    newCert = new X509Certificate2(certificate);
+                }
+                catch
+                {
+                    throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Certificate data is invalid.");
+                }
+
                 // identify the existing certificate to be updated
                 // it should be of the same type and same subject name as the new certificate
                 CertificateIdentifier existingCertIdentifier = certificateGroup.ApplicationCertificates.FirstOrDefault(cert => 
@@ -437,7 +446,6 @@ namespace Opc.Ua.Server
                         }
                     }
 
-                    newCert = new X509Certificate2(certificate);
                 }
                 catch
                 {
@@ -467,6 +475,7 @@ namespace Opc.Ua.Server
                     {
                         // verify cert with issuer chain
                         CertificateValidator certValidator = new CertificateValidator();
+                        certValidator.MinimumCertificateKeySize = 1024;
                         CertificateTrustList issuerStore = new CertificateTrustList();
                         CertificateIdentifierCollection issuerCollection = new CertificateIdentifierCollection();
                         foreach (var issuerCert in newIssuerCollection)
