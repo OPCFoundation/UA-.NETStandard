@@ -127,7 +127,7 @@ namespace Opc.Ua.Server.Tests
             Config = await serverConfig.AddSecurityConfiguration(
                     applicationCerts,
                     pkiRoot)
-                //.SetApplicationCertificates(applicationCerts)
+                .SetMinimumCertificateKeySize(1024)
                 .SetAutoAcceptUntrustedCertificates(AutoAccept)
                 .Create().ConfigureAwait(false);
         }
@@ -199,8 +199,8 @@ namespace Opc.Ua.Server.Tests
             }
 
             // check the application certificate.
-            bool haveAppCertificate = await Application.CheckApplicationInstanceCertificate(
-                true, CertificateFactory.DefaultKeySize, CertificateFactory.DefaultLifeTime).ConfigureAwait(false);
+            bool haveAppCertificate = await Application.CheckApplicationInstanceCertificates(
+                true, CertificateFactory.DefaultLifeTime).ConfigureAwait(false);
             if (!haveAppCertificate)
             {
                 throw new Exception("Application instance certificate invalid!");

@@ -393,10 +393,23 @@ namespace Opc.Ua.Configuration
         /// Checks for a valid application instance certificate.
         /// </summary>
         /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
+        /// <param name="minimumKeySize">Minimum size of the key.</param>
+        [Obsolete("This method is obsolete since an application now supports different minKey sizes depending on certificate type")]
         public Task<bool> CheckApplicationInstanceCertificate(
+            bool silent,
+            ushort minimumKeySize)
+        {
+            return CheckApplicationInstanceCertificate(silent, minimumKeySize, CertificateFactory.DefaultLifeTime);
+        }
+
+        /// <summary>
+        /// Checks for a valid application instance certificate.
+        /// </summary>
+        /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
+        public Task<bool> CheckApplicationInstanceCertificates(
             bool silent)
         {
-            return CheckApplicationInstanceCertificate(silent, CertificateFactory.DefaultLifeTime);
+            return CheckApplicationInstanceCertificates(silent, CertificateFactory.DefaultLifeTime);
         }
 
         /// <summary>
@@ -416,8 +429,23 @@ namespace Opc.Ua.Configuration
         /// Checks for a valid application instance certificate.
         /// </summary>
         /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
+        /// <param name="minimumKeySize">Minimum size of the key.</param>
         /// <param name="lifeTimeInMonths">The lifetime in months.</param>
+        [Obsolete("This method is obsolete since an application now supports different minKey sizes depending on certificate type")]
         public async Task<bool> CheckApplicationInstanceCertificate(
+            bool silent,
+            ushort minimumKeySize,
+            ushort lifeTimeInMonths)
+        {
+            return await CheckApplicationInstanceCertificates(silent, lifeTimeInMonths).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Checks for a valid application instance certificate.
+        /// </summary>
+        /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
+        /// <param name="lifeTimeInMonths">The lifetime in months.</param>
+        public async Task<bool> CheckApplicationInstanceCertificates(
             bool silent,
             ushort lifeTimeInMonths)
         {

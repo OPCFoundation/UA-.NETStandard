@@ -117,20 +117,21 @@ namespace Opc.Ua
 
 #if ECC_SUPPORT
             // ECC policy
-            if (name.Equals(nameof(ECC_nistP256)) ||
-                name.Equals(nameof(ECC_nistP384)))
+            if (name.Equals(nameof(ECC_nistP256)))
             {
-                return true;
+                return Utils.IsSupportedCertificateType(ObjectTypeIds.EccNistP256ApplicationCertificateType);
             }
-
-            if (name.Equals(nameof(ECC_brainpoolP256r1)) ||
-                name.Equals(nameof(ECC_brainpoolP384r1)))
+            if (name.Equals(nameof(ECC_nistP384)))
             {
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                {
-                    return false;
-                }
-                return true;
+                return Utils.IsSupportedCertificateType(ObjectTypeIds.EccNistP384ApplicationCertificateType);
+            }
+            if (name.Equals(nameof(ECC_brainpoolP256r1)))
+            {
+                return Utils.IsSupportedCertificateType(ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType);
+            }
+            if (name.Equals(nameof(ECC_brainpoolP384r1)))
+            {
+                return Utils.IsSupportedCertificateType(ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType);
             }
 
             // ECC policy
@@ -626,6 +627,6 @@ namespace Opc.Ua
                 "Unexpected security policy Uri: {0}",
                 securityPolicyUri);
         }
-        #endregion
+#endregion
     }
 }

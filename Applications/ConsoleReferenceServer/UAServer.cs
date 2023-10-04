@@ -101,7 +101,7 @@ namespace Quickstarts
                 }
 
                 // check the application certificate.
-                bool haveAppCertificate = await m_application.CheckApplicationInstanceCertificate(false).ConfigureAwait(false);
+                bool haveAppCertificate = await m_application.CheckApplicationInstanceCertificates(false).ConfigureAwait(false);
                 if (!haveAppCertificate)
                 {
                     throw new ErrorExitException("Application instance certificate invalid!");

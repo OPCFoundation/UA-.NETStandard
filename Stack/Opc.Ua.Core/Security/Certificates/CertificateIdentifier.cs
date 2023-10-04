@@ -528,11 +528,12 @@ namespace Opc.Ua
             else if (
                 CertificateType == ObjectTypeIds.RsaMinApplicationCertificateType ||
                 CertificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType ||
-                CertificateType == ObjectTypeIds.ApplicationCertificateType)
+                CertificateType == ObjectTypeIds.ApplicationCertificateType ||
+                securityConfiguration.IsDeprecatedConfiguration) // Deprecated configurations are implicitly RSA
             {
                 return securityConfiguration.MinimumCertificateKeySize;
             }
-           
+            
             throw new ArgumentException("Certificate type is unknown");
             
         }
@@ -608,10 +609,7 @@ namespace Opc.Ua
                         certificateType == ObjectTypeIds.RsaMinApplicationCertificateType ||
                         certificateType == ObjectTypeIds.ApplicationCertificateType)
                     {
-                        if (X509Utils.GetRSAPublicKeySize(certificate) >= CertificateFactory.DefaultKeySize)
-                        {
-                            return true;
-                        }
+                        return true;
                     }
                     break;
             }
