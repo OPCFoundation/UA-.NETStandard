@@ -21719,7 +21719,7 @@ namespace Opc.Ua
 
         /// <remarks />
         [DataMember(Name = "AdditionalHeader", IsRequired = false, Order = 7)]
-        public virtual ExtensionObject AdditionalHeader
+        public ExtensionObject AdditionalHeader
         {
             get { return m_additionalHeader;  }
             set { m_additionalHeader = value; }

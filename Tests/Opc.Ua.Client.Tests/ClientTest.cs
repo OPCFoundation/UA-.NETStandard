@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
@@ -36,9 +37,12 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
+using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server.Tests;
+using OpenTelemetry;
+using OpenTelemetry.Context.Propagation;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -1262,6 +1266,25 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
+        [Test, Order(900)]
+        public void TestTraceContextIsPropagated()
+        {
+            // Start an activity using TraceableSession's StartActivity method
+            using (var activity = TraceableSession.StartActivity("Test_Activity"))
+            {
+                // Inject the current trace context
+                var traceData = new Dictionary<string, string>();
+                TraceableSession.InjectTraceContext(new PropagationContext(activity.Context, Baggage.Current), traceData);
+
+                // Simulate extraction
+                var extractedContext = TraceableSession.ExtractTraceContext(traceData);
+
+                // Verify that the trace context is propagated.
+                Assert.AreEqual(Activity.Current.Context.TraceId, extractedContext.ActivityContext.TraceId);
+                Assert.AreEqual(Activity.Current.Context.SpanId, extractedContext.ActivityContext.SpanId);
+            }
+        }
+
         /// <summary>
         /// Read BuildInfo and ensure the values in the structure are the same as in the properties.
         /// </summary>
@@ -1303,6 +1326,7 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(buildInfo.BuildNumber, values[5].Value);
             Assert.AreEqual(buildInfo.BuildDate, values[6].Value);
         }
+
         #endregion
 
         #region Benchmarks

@@ -31,9 +31,13 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using OpenTelemetry;
+using OpenTelemetry.Context.Propagation;
 
 namespace Opc.Ua.Client
 {
@@ -49,7 +53,7 @@ namespace Opc.Ua.Client
         public TraceableSession(ISession session)
         {
             m_session = session;
-            _activitySourceAdapter = new TraceableSessionActivitySourceAdapter<TraceableSession>(ActivitySource);
+            m_tracingClientBase = new TracingClientBase(this, TransportChannel);
         }
         #endregion
 
@@ -69,7 +73,10 @@ namespace Opc.Ua.Client
         /// </summary>
         private readonly ISession m_session;
 
-        private readonly TraceableSessionActivitySourceAdapter<TraceableSession> _activitySourceAdapter;
+        /// <summary>
+        /// The TraceContextPropagator instance.
+        /// </summary>
+        private static readonly TraceContextPropagator m_traceContextPropagator = new TraceContextPropagator();
 
         /// <inheritdoc/>
         public ISession Session => m_session;
@@ -276,10 +283,86 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public bool CheckDomain => m_session.CheckDomain;
 
+        /// <summary>
+        /// Creates a new activity.
+        /// </summary>
+        public static Activity StartActivity(string name, ActivityContext parentContext = default(ActivityContext), params KeyValuePair<string, object>[] tags)
+        {
+            return ActivitySource.StartActivity(name, ActivityKind.Internal, parentContext, tags);
+        }
+
+        /// <summary>
+        /// Injects the current trace context into a user properties dictionary.
+        /// </summary>
+        public static void InjectTraceContext(PropagationContext parentContext, IDictionary<string, string> traceData)
+        {
+            m_traceContextPropagator.Inject(parentContext, traceData, (td, key, value) => td[key] = value);
+        }
+
+        /// <summary>
+        /// Extracts a trace context from a user properties dictionary.
+        /// </summary>
+        public static PropagationContext ExtractTraceContext(IDictionary<string, string> traceData)
+        {
+            return m_traceContextPropagator.Extract(default, traceData, (td, key) => {
+                if (td?.TryGetValue(key, out string value) == true)
+                {
+                    return Enumerable.Repeat(value, 1);
+                }
+                return Enumerable.Empty<string>();
+            });
+        }
+
+        /// <summary>
+        /// Convert Trace Data to Extension Object.
+        /// </summary>
+        private ExtensionObject ConvertTraceDataToExtensionObject(Dictionary<string, string> traceData)
+        {
+            string[] keyValuePairs = traceData.Select(kvp => $"{kvp.Key}={kvp.Value}").ToArray();
+            string traceDataString = string.Join(";", keyValuePairs);
+
+            // Create a MemoryStream to serve as an in-memory buffer.
+            using(MemoryStream memoryStream = new MemoryStream())
+            {
+                BinaryEncoder encoder = new BinaryEncoder(memoryStream, m_session.MessageContext, false);
+
+                encoder.WriteString("TraceData", traceDataString);
+
+                return new ExtensionObject {
+                    Body = memoryStream.ToArray()
+                };
+            }
+        }
+
+        private readonly TracingClientBase m_tracingClientBase;
+
+        private class TracingClientBase : ClientBase
+        {
+            private readonly TraceableSession m_traceableSession;
+
+            public TracingClientBase(TraceableSession traceableSession, ITransportChannel channel)
+                : base(channel)
+            {
+                m_traceableSession = traceableSession;
+            }
+
+            protected override void UpdateRequestHeader(IServiceRequest request, bool useDefaults)
+            {
+                base.UpdateRequestHeader(request, useDefaults);
+
+                if (Activity.Current != null)
+                {
+                    var traceData = new Dictionary<string, string>();
+                    TraceableSession.InjectTraceContext(new PropagationContext(Activity.Current.Context, Baggage.Current), traceData);
+                    request.RequestHeader.AdditionalHeader = m_traceableSession.ConvertTraceDataToExtensionObject(traceData);
+                }
+            }
+        }
+
         /// <inheritdoc/>
         public void Reconnect()
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(Reconnect)))
+            using (Activity activity = StartActivity(nameof(Reconnect)))
             {
                 m_session.Reconnect();
             }
@@ -288,7 +371,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void Reconnect(ITransportWaitingConnection connection)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(Reconnect)))
+            using (Activity activity = StartActivity(nameof(Reconnect)))
             {
                 m_session.Reconnect(connection);
             }
@@ -297,7 +380,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void Reconnect(ITransportChannel channel)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(Reconnect)))
+            using (Activity activity = StartActivity(nameof(Reconnect)))
             {
                 m_session.Reconnect(channel);
             }
@@ -306,7 +389,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void Save(string filePath)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(Save)))
+            using (Activity activity = StartActivity(nameof(Save)))
             {
                 m_session.Save(filePath);
             }
@@ -315,7 +398,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void Save(Stream stream, IEnumerable<Subscription> subscriptions)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(Save)))
+            using (Activity activity = StartActivity(nameof(Save)))
             {
                 m_session.Save(stream, subscriptions);
             }
@@ -324,7 +407,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void Save(string filePath, IEnumerable<Subscription> subscriptions)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(Save)))
+            using (Activity activity = StartActivity(nameof(Save)))
             {
                 m_session.Save(filePath, subscriptions);
             }
@@ -333,7 +416,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IEnumerable<Subscription> Load(Stream stream, bool transferSubscriptions = false)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(Load)))
+            using (Activity activity = StartActivity(nameof(Load)))
             {
                 return m_session.Load(stream, transferSubscriptions);
             }
@@ -342,7 +425,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IEnumerable<Subscription> Load(string filePath, bool transferSubscriptions = false)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(Load)))
+            using (Activity activity = StartActivity(nameof(Load)))
             {
                 return m_session.Load(filePath, transferSubscriptions);
             }
@@ -351,7 +434,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void FetchNamespaceTables()
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(FetchNamespaceTables)))
+            using (Activity activity = StartActivity(nameof(FetchNamespaceTables)))
             {
                 m_session.FetchNamespaceTables();
             }
@@ -360,7 +443,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void FetchTypeTree(ExpandedNodeId typeId)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(FetchTypeTree)))
+            using (Activity activity = StartActivity(nameof(FetchTypeTree)))
             {
                 m_session.FetchTypeTree(typeId);
             }
@@ -369,7 +452,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void FetchTypeTree(ExpandedNodeIdCollection typeIds)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(FetchTypeTree)))
+            using (Activity activity = StartActivity(nameof(FetchTypeTree)))
             {
                 m_session.FetchTypeTree(typeIds);
             }
@@ -378,7 +461,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task FetchTypeTreeAsync(ExpandedNodeId typeId, CancellationToken ct = default)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(FetchTypeTree)))
+            using (Activity activity = StartActivity(nameof(FetchTypeTree)))
             {
                 await m_session.FetchTypeTreeAsync(typeId, ct).ConfigureAwait(false);
             }
@@ -387,7 +470,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task FetchTypeTreeAsync(ExpandedNodeIdCollection typeIds, CancellationToken ct = default)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(FetchTypeTree)))
+            using (Activity activity = StartActivity(nameof(FetchTypeTree)))
             {
                 await m_session.FetchTypeTreeAsync(typeIds, ct).ConfigureAwait(false);
             }
@@ -396,7 +479,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ReferenceDescriptionCollection ReadAvailableEncodings(NodeId variableId)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ReadAvailableEncodings)))
+            using (Activity activity = StartActivity(nameof(ReadAvailableEncodings)))
             {
                 return m_session.ReadAvailableEncodings(variableId);
             }
@@ -405,7 +488,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ReferenceDescription FindDataDescription(NodeId encodingId)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(FindDataDescription)))
+            using (Activity activity = StartActivity(nameof(FindDataDescription)))
             {
                 return m_session.FindDataDescription(encodingId);
             }
@@ -414,7 +497,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<DataDictionary> FindDataDictionary(NodeId descriptionId, CancellationToken ct = default)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(FindDataDictionary)))
+            using (Activity activity = StartActivity(nameof(FindDataDictionary)))
             {
                 return await m_session.FindDataDictionary(descriptionId, ct).ConfigureAwait(false);
             }
@@ -423,7 +506,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public DataDictionary LoadDataDictionary(ReferenceDescription dictionaryNode, bool forceReload = false)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(LoadDataDictionary)))
+            using (Activity activity = StartActivity(nameof(LoadDataDictionary)))
             {
                 return m_session.LoadDataDictionary(dictionaryNode, forceReload);
             }
@@ -432,7 +515,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<Dictionary<NodeId, DataDictionary>> LoadDataTypeSystem(NodeId dataTypeSystem = null, CancellationToken ct = default)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(LoadDataTypeSystem)))
+            using (Activity activity = StartActivity(nameof(LoadDataTypeSystem)))
             {
                 return await m_session.LoadDataTypeSystem(dataTypeSystem, ct).ConfigureAwait(false);
             }
@@ -441,7 +524,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public Node ReadNode(NodeId nodeId)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ReadNode)))
+            using (Activity activity = StartActivity(nameof(ReadNode)))
             {
                 return m_session.ReadNode(nodeId);
             }
@@ -450,7 +533,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public Node ReadNode(NodeId nodeId, NodeClass nodeClass, bool optionalAttributes = true)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ReadNode)))
+            using (Activity activity = StartActivity(nameof(ReadNode)))
             {
                 return m_session.ReadNode(nodeId, nodeClass, optionalAttributes);
             }
@@ -459,7 +542,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void ReadNodes(IList<NodeId> nodeIds, out IList<Node> nodeCollection, out IList<ServiceResult> errors, bool optionalAttributes = false)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ReadNodes)))
+            using (Activity activity = StartActivity(nameof(ReadNodes)))
             {
                 m_session.ReadNodes(nodeIds, out nodeCollection, out errors, optionalAttributes);
             }
@@ -468,7 +551,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void ReadNodes(IList<NodeId> nodeIds, NodeClass nodeClass, out IList<Node> nodeCollection, out IList<ServiceResult> errors, bool optionalAttributes = false)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ReadNodes)))
+            using (Activity activity = StartActivity(nameof(ReadNodes)))
             {
                 m_session.ReadNodes(nodeIds, nodeClass, out nodeCollection, out errors, optionalAttributes);
             }
@@ -477,7 +560,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public DataValue ReadValue(NodeId nodeId)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ReadValue)))
+            using (Activity activity = StartActivity(nameof(ReadValue)))
             {
                 return m_session.ReadValue(nodeId);
             }
@@ -486,7 +569,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public object ReadValue(NodeId nodeId, Type expectedType)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ReadValue)))
+            using (Activity activity = StartActivity(nameof(ReadValue)))
             {
                 return m_session.ReadValue(nodeId, expectedType);
             }
@@ -495,7 +578,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void ReadValues(IList<NodeId> nodeIds, out DataValueCollection values, out IList<ServiceResult> errors)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ReadValues)))
+            using (Activity activity = StartActivity(nameof(ReadValues)))
             {
                 m_session.ReadValues(nodeIds, out values, out errors);
             }
@@ -504,7 +587,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ReferenceDescriptionCollection FetchReferences(NodeId nodeId)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(FetchReferences)))
+            using (Activity activity = StartActivity(nameof(FetchReferences)))
             {
                 return m_session.FetchReferences(nodeId);
             }
@@ -513,7 +596,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void FetchReferences(IList<NodeId> nodeIds, out IList<ReferenceDescriptionCollection> referenceDescriptions, out IList<ServiceResult> errors)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(FetchReferences)))
+            using (Activity activity = StartActivity(nameof(FetchReferences)))
             {
                 m_session.FetchReferences(nodeIds, out referenceDescriptions, out errors);
             }
@@ -522,7 +605,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<ReferenceDescriptionCollection> FetchReferencesAsync(NodeId nodeId, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(FetchReferencesAsync)))
+            using (Activity activity = StartActivity(nameof(FetchReferencesAsync)))
             {
                 return await m_session.FetchReferencesAsync(nodeId, ct).ConfigureAwait(false);
             }
@@ -531,7 +614,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<(IList<ReferenceDescriptionCollection>, IList<ServiceResult>)> FetchReferencesAsync(IList<NodeId> nodeIds, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(FetchReferencesAsync)))
+            using (Activity activity = StartActivity(nameof(FetchReferencesAsync)))
             {
                 return await m_session.FetchReferencesAsync(nodeIds, ct).ConfigureAwait(false);
             }
@@ -540,7 +623,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void Open(string sessionName, IUserIdentity identity)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(Open)))
+            using (Activity activity = StartActivity(nameof(Open)))
             {
                 m_session.Open(sessionName, identity);
             }
@@ -549,7 +632,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void Open(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(Open)))
+            using (Activity activity = StartActivity(nameof(Open)))
             {
                 m_session.Open(sessionName, sessionTimeout, identity, preferredLocales);
             }
@@ -558,7 +641,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void Open(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(Open)))
+            using (Activity activity = StartActivity(nameof(Open)))
             {
                 m_session.Open(sessionName, sessionTimeout, identity, preferredLocales, checkDomain);
             }
@@ -567,7 +650,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void ChangePreferredLocales(StringCollection preferredLocales)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ChangePreferredLocales)))
+            using (Activity activity = StartActivity(nameof(ChangePreferredLocales)))
             {
                 m_session.ChangePreferredLocales(preferredLocales);
             }
@@ -576,7 +659,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void UpdateSession(IUserIdentity identity, StringCollection preferredLocales)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(UpdateSession)))
+            using (Activity activity = StartActivity(nameof(UpdateSession)))
             {
                 m_session.UpdateSession(identity, preferredLocales);
             }
@@ -585,7 +668,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void FindComponentIds(NodeId instanceId, IList<string> componentPaths, out NodeIdCollection componentIds, out List<ServiceResult> errors)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(FindComponentIds)))
+            using (Activity activity = StartActivity(nameof(FindComponentIds)))
             {
                 m_session.FindComponentIds(instanceId, componentPaths, out componentIds, out errors);
             }
@@ -594,7 +677,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void ReadValues(IList<NodeId> variableIds, IList<Type> expectedTypes, out List<object> values, out List<ServiceResult> errors)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ReadValues)))
+            using (Activity activity = StartActivity(nameof(ReadValues)))
             {
                 m_session.ReadValues(variableIds, expectedTypes, out values, out errors);
             }
@@ -603,7 +686,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void ReadDisplayName(IList<NodeId> nodeIds, out IList<string> displayNames, out IList<ServiceResult> errors)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ReadDisplayName)))
+            using (Activity activity = StartActivity(nameof(ReadDisplayName)))
             {
                 m_session.ReadDisplayName(nodeIds, out displayNames, out errors);
             }
@@ -612,7 +695,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task OpenAsync(string sessionName, IUserIdentity identity, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(OpenAsync)))
+            using (Activity activity = StartActivity(nameof(OpenAsync)))
             {
                 await m_session.OpenAsync(sessionName, identity, ct).ConfigureAwait(false);
             }
@@ -621,7 +704,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task OpenAsync(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(OpenAsync)))
+            using (Activity activity = StartActivity(nameof(OpenAsync)))
             {
                 await m_session.OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, ct).ConfigureAwait(false);
             }
@@ -630,7 +713,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task OpenAsync(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(OpenAsync)))
+            using (Activity activity = StartActivity(nameof(OpenAsync)))
             {
                 await m_session.OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, ct).ConfigureAwait(false);
             }
@@ -640,7 +723,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task FetchNamespaceTablesAsync(CancellationToken ct = default)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(FetchNamespaceTablesAsync)))
+            using (Activity activity = StartActivity(nameof(FetchNamespaceTablesAsync)))
             {
                 await m_session.FetchNamespaceTablesAsync(ct).ConfigureAwait(false);
             }
@@ -649,7 +732,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(IList<NodeId> nodeIds, NodeClass nodeClass, bool optionalAttributes = false, CancellationToken ct = default)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ReadNodesAsync)))
+            using (Activity activity = StartActivity(nameof(ReadNodesAsync)))
             {
                 return await m_session.ReadNodesAsync(nodeIds, nodeClass, optionalAttributes, ct).ConfigureAwait(false);
             }
@@ -658,7 +741,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<DataValue> ReadValueAsync(NodeId nodeId, CancellationToken ct = default)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ReadValueAsync)))
+            using (Activity activity = StartActivity(nameof(ReadValueAsync)))
             {
                 return await m_session.ReadValueAsync(nodeId, ct).ConfigureAwait(false);
             }
@@ -667,7 +750,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<Node> ReadNodeAsync(NodeId nodeId, CancellationToken ct = default)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ReadNodeAsync)))
+            using (Activity activity = StartActivity(nameof(ReadNodeAsync)))
             {
                 return await m_session.ReadNodeAsync(nodeId, ct).ConfigureAwait(false);
             }
@@ -676,7 +759,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<Node> ReadNodeAsync(NodeId nodeId, NodeClass nodeClass, bool optionalAttributes = true, CancellationToken ct = default)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ReadNodeAsync)))
+            using (Activity activity = StartActivity(nameof(ReadNodeAsync)))
             {
                 return await m_session.ReadNodeAsync(nodeId, nodeClass, optionalAttributes, ct).ConfigureAwait(false);
             }
@@ -685,7 +768,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(IList<NodeId> nodeIds, bool optionalAttributes = false, CancellationToken ct = default)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ReadNodesAsync)))
+            using (Activity activity = StartActivity(nameof(ReadNodesAsync)))
             {
                 return await m_session.ReadNodesAsync(nodeIds, optionalAttributes, ct).ConfigureAwait(false);
             }
@@ -694,7 +777,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<(DataValueCollection, IList<ServiceResult>)> ReadValuesAsync(IList<NodeId> nodeIds, CancellationToken ct = default)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ReadValuesAsync)))
+            using (Activity activity = StartActivity(nameof(ReadValuesAsync)))
             {
                 return await m_session.ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
             }
@@ -703,7 +786,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public StatusCode Close(int timeout)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(Close)))
+            using (Activity activity = StartActivity(nameof(Close)))
             {
                 return m_session.Close(timeout);
             }
@@ -712,7 +795,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public StatusCode Close(bool closeChannel)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(Close)))
+            using (Activity activity = StartActivity(nameof(Close)))
             {
                 return m_session.Close(closeChannel);
             }
@@ -721,7 +804,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public StatusCode Close(int timeout, bool closeChannel)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(Close)))
+            using (Activity activity = StartActivity(nameof(Close)))
             {
                 return m_session.Close(timeout, closeChannel);
             }
@@ -730,7 +813,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<StatusCode> CloseAsync(CancellationToken ct = default)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(CloseAsync)))
+            using (Activity activity = StartActivity(nameof(CloseAsync)))
             {
                 return await m_session.CloseAsync(ct).ConfigureAwait(false);
             }
@@ -739,7 +822,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<StatusCode> CloseAsync(bool closeChannel, CancellationToken ct = default)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(CloseAsync)))
+            using (Activity activity = StartActivity(nameof(CloseAsync)))
             {
                 return await m_session.CloseAsync(closeChannel, ct).ConfigureAwait(false);
             }
@@ -748,7 +831,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<StatusCode> CloseAsync(int timeout, CancellationToken ct = default)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(CloseAsync)))
+            using (Activity activity = StartActivity(nameof(CloseAsync)))
             {
                 return await m_session.CloseAsync(timeout, ct).ConfigureAwait(false);
             }
@@ -757,7 +840,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<StatusCode> CloseAsync(int timeout, bool closeChannel, CancellationToken ct = default)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(CloseAsync)))
+            using (Activity activity = StartActivity(nameof(CloseAsync)))
             {
                 return await m_session.CloseAsync(timeout, closeChannel, ct).ConfigureAwait(false);
             }
@@ -766,7 +849,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public bool AddSubscription(Subscription subscription)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(AddSubscription)))
+            using (Activity activity = StartActivity(nameof(AddSubscription)))
             {
                 return m_session.AddSubscription(subscription);
             }
@@ -775,7 +858,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public bool RemoveSubscription(Subscription subscription)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(RemoveSubscription)))
+            using (Activity activity = StartActivity(nameof(RemoveSubscription)))
             {
                 return m_session.RemoveSubscription(subscription);
             }
@@ -784,7 +867,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public bool RemoveSubscriptions(IEnumerable<Subscription> subscriptions)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(RemoveSubscriptions)))
+            using (Activity activity = StartActivity(nameof(RemoveSubscriptions)))
             {
                 return m_session.RemoveSubscriptions(subscriptions);
             }
@@ -793,7 +876,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public bool TransferSubscriptions(SubscriptionCollection subscriptions, bool sendInitialValues)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(TransferSubscriptions)))
+            using (Activity activity = StartActivity(nameof(TransferSubscriptions)))
             {
                 return m_session.TransferSubscriptions(subscriptions, sendInitialValues);
             }
@@ -802,7 +885,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public bool RemoveTransferredSubscription(Subscription subscription)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(RemoveTransferredSubscription)))
+            using (Activity activity = StartActivity(nameof(RemoveTransferredSubscription)))
             {
                 return m_session.RemoveTransferredSubscription(subscription);
             }
@@ -811,7 +894,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<bool> RemoveSubscriptionAsync(Subscription subscription)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(RemoveSubscriptionAsync)))
+            using (Activity activity = StartActivity(nameof(RemoveSubscriptionAsync)))
             {
                 return await m_session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
             }
@@ -820,7 +903,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<bool> RemoveSubscriptionsAsync(IEnumerable<Subscription> subscriptions)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(RemoveSubscriptionsAsync)))
+            using (Activity activity = StartActivity(nameof(RemoveSubscriptionsAsync)))
             {
                 return await m_session.RemoveSubscriptionsAsync(subscriptions).ConfigureAwait(false);
             }
@@ -829,7 +912,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader Browse(RequestHeader requestHeader, ViewDescription view, NodeId nodeToBrowse, uint maxResultsToReturn, BrowseDirection browseDirection, NodeId referenceTypeId, bool includeSubtypes, uint nodeClassMask, out byte[] continuationPoint, out ReferenceDescriptionCollection references)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(Browse)))
+            using (Activity activity = StartActivity(nameof(Browse)))
             {
                 return m_session.Browse(requestHeader, view, nodeToBrowse, maxResultsToReturn, browseDirection, referenceTypeId, includeSubtypes, nodeClassMask, out continuationPoint, out references);
             }
@@ -850,7 +933,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader BrowseNext(RequestHeader requestHeader, bool releaseContinuationPoint, byte[] continuationPoint, out byte[] revisedContinuationPoint, out ReferenceDescriptionCollection references)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(BrowseNext)))
+            using (Activity activity = StartActivity(nameof(BrowseNext)))
             {
                 return m_session.BrowseNext(requestHeader, releaseContinuationPoint, continuationPoint, out revisedContinuationPoint, out references);
             }
@@ -871,7 +954,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IList<object> Call(NodeId objectId, NodeId methodId, params object[] args)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(Call)))
+            using (Activity activity = StartActivity(nameof(Call)))
             {
                 return m_session.Call(objectId, methodId, args);
             }
@@ -886,7 +969,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public bool Republish(uint subscriptionId, uint sequenceNumber)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(Republish)))
+            using (Activity activity = StartActivity(nameof(Republish)))
             {
                 return m_session.Republish(subscriptionId, sequenceNumber);
             }
@@ -895,7 +978,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader CreateSession(RequestHeader requestHeader, ApplicationDescription clientDescription, string serverUri, string endpointUrl, string sessionName, byte[] clientNonce, byte[] clientCertificate, double requestedSessionTimeout, uint maxResponseMessageSize, out NodeId sessionId, out NodeId authenticationToken, out double revisedSessionTimeout, out byte[] serverNonce, out byte[] serverCertificate, out EndpointDescriptionCollection serverEndpoints, out SignedSoftwareCertificateCollection serverSoftwareCertificates, out SignatureData serverSignature, out uint maxRequestMessageSize)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(CreateSession)))
+            using (Activity activity = StartActivity(nameof(CreateSession)))
             {
                 return m_session.CreateSession(requestHeader, clientDescription, serverUri, endpointUrl, sessionName, clientNonce, clientCertificate, requestedSessionTimeout, maxResponseMessageSize, out sessionId, out authenticationToken, out revisedSessionTimeout, out serverNonce, out serverCertificate, out serverEndpoints, out serverSoftwareCertificates, out serverSignature, out maxRequestMessageSize);
             }
@@ -916,7 +999,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<CreateSessionResponse> CreateSessionAsync(RequestHeader requestHeader, ApplicationDescription clientDescription, string serverUri, string endpointUrl, string sessionName, byte[] clientNonce, byte[] clientCertificate, double requestedSessionTimeout, uint maxResponseMessageSize, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(CreateSessionAsync)))
+            using (Activity activity = StartActivity(nameof(CreateSessionAsync)))
             {
                 return await m_session.CreateSessionAsync(requestHeader, clientDescription, serverUri, endpointUrl, sessionName, clientNonce, clientCertificate, requestedSessionTimeout, maxResponseMessageSize, ct).ConfigureAwait(false);
             }
@@ -925,7 +1008,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader ActivateSession(RequestHeader requestHeader, SignatureData clientSignature, SignedSoftwareCertificateCollection clientSoftwareCertificates, StringCollection localeIds, ExtensionObject userIdentityToken, SignatureData userTokenSignature, out byte[] serverNonce, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ActivateSession)))
+            using (Activity activity = StartActivity(nameof(ActivateSession)))
             {
                 return m_session.ActivateSession(requestHeader, clientSignature, clientSoftwareCertificates, localeIds, userIdentityToken, userTokenSignature, out serverNonce, out results, out diagnosticInfos);
             }
@@ -946,7 +1029,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<ActivateSessionResponse> ActivateSessionAsync(RequestHeader requestHeader, SignatureData clientSignature, SignedSoftwareCertificateCollection clientSoftwareCertificates, StringCollection localeIds, ExtensionObject userIdentityToken, SignatureData userTokenSignature, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ActivateSessionAsync)))
+            using (Activity activity = StartActivity(nameof(ActivateSessionAsync)))
             {
                 return await m_session.ActivateSessionAsync(requestHeader, clientSignature, clientSoftwareCertificates, localeIds, userIdentityToken, userTokenSignature, ct).ConfigureAwait(false);
             }
@@ -955,7 +1038,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader CloseSession(RequestHeader requestHeader, bool deleteSubscriptions)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(CloseSession)))
+            using (Activity activity = StartActivity(nameof(CloseSession)))
             {
                 return m_session.CloseSession(requestHeader, deleteSubscriptions);
             }
@@ -976,7 +1059,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<CloseSessionResponse> CloseSessionAsync(RequestHeader requestHeader, bool deleteSubscriptions, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(CloseSessionAsync)))
+            using (Activity activity = StartActivity(nameof(CloseSessionAsync)))
             {
                 return await m_session.CloseSessionAsync(requestHeader, deleteSubscriptions, ct).ConfigureAwait(false);
             }
@@ -985,7 +1068,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader Cancel(RequestHeader requestHeader, uint requestHandle, out uint cancelCount)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(Cancel)))
+            using (Activity activity = StartActivity(nameof(Cancel)))
             {
                 return m_session.Cancel(requestHeader, requestHandle, out cancelCount);
             }
@@ -1006,7 +1089,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<CancelResponse> CancelAsync(RequestHeader requestHeader, uint requestHandle, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(CancelAsync)))
+            using (Activity activity = StartActivity(nameof(CancelAsync)))
             {
                 return await m_session.CancelAsync(requestHeader, requestHandle, ct).ConfigureAwait(false);
             }
@@ -1015,7 +1098,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader AddNodes(RequestHeader requestHeader, AddNodesItemCollection nodesToAdd, out AddNodesResultCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(AddNodes)))
+            using (Activity activity = StartActivity(nameof(AddNodes)))
             {
                 return m_session.AddNodes(requestHeader, nodesToAdd, out results, out diagnosticInfos);
             }
@@ -1036,7 +1119,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<AddNodesResponse> AddNodesAsync(RequestHeader requestHeader, AddNodesItemCollection nodesToAdd, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(AddNodesAsync)))
+            using (Activity activity = StartActivity(nameof(AddNodesAsync)))
             {
                 return await m_session.AddNodesAsync(requestHeader, nodesToAdd, ct).ConfigureAwait(false);
             }
@@ -1045,7 +1128,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader AddReferences(RequestHeader requestHeader, AddReferencesItemCollection referencesToAdd, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(AddReferences)))
+            using (Activity activity = StartActivity(nameof(AddReferences)))
             {
                 return m_session.AddReferences(requestHeader, referencesToAdd, out results, out diagnosticInfos);
             }
@@ -1066,7 +1149,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<AddReferencesResponse> AddReferencesAsync(RequestHeader requestHeader, AddReferencesItemCollection referencesToAdd, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(AddReferencesAsync)))
+            using (Activity activity = StartActivity(nameof(AddReferencesAsync)))
             {
                 return await m_session.AddReferencesAsync(requestHeader, referencesToAdd, ct).ConfigureAwait(false);
             }
@@ -1075,7 +1158,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader DeleteNodes(RequestHeader requestHeader, DeleteNodesItemCollection nodesToDelete, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(DeleteNodes)))
+            using (Activity activity = StartActivity(nameof(DeleteNodes)))
             {
                 return m_session.DeleteNodes(requestHeader, nodesToDelete, out results, out diagnosticInfos);
             }
@@ -1096,7 +1179,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<DeleteNodesResponse> DeleteNodesAsync(RequestHeader requestHeader, DeleteNodesItemCollection nodesToDelete, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(DeleteNodesAsync)))
+            using (Activity activity = StartActivity(nameof(DeleteNodesAsync)))
             {
                 return await m_session.DeleteNodesAsync(requestHeader, nodesToDelete, ct).ConfigureAwait(false);
             }
@@ -1105,7 +1188,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader DeleteReferences(RequestHeader requestHeader, DeleteReferencesItemCollection referencesToDelete, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(DeleteReferences)))
+            using (Activity activity = StartActivity(nameof(DeleteReferences)))
             {
                 return m_session.DeleteReferences(requestHeader, referencesToDelete, out results, out diagnosticInfos);
             }
@@ -1126,7 +1209,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<DeleteReferencesResponse> DeleteReferencesAsync(RequestHeader requestHeader, DeleteReferencesItemCollection referencesToDelete, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(DeleteReferencesAsync)))
+            using (Activity activity = StartActivity(nameof(DeleteReferencesAsync)))
             {
                 return await m_session.DeleteReferencesAsync(requestHeader, referencesToDelete, ct).ConfigureAwait(false);
             }
@@ -1135,7 +1218,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader Browse(RequestHeader requestHeader, ViewDescription view, uint requestedMaxReferencesPerNode, BrowseDescriptionCollection nodesToBrowse, out BrowseResultCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(Browse)))
+            using (Activity activity = StartActivity(nameof(Browse)))
             {
                 return m_session.Browse(requestHeader, view, requestedMaxReferencesPerNode, nodesToBrowse, out results, out diagnosticInfos);
             }
@@ -1156,7 +1239,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<BrowseResponse> BrowseAsync(RequestHeader requestHeader, ViewDescription view, uint requestedMaxReferencesPerNode, BrowseDescriptionCollection nodesToBrowse, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(BrowseAsync)))
+            using (Activity activity = StartActivity(nameof(BrowseAsync)))
             {
                 return await m_session.BrowseAsync(requestHeader, view, requestedMaxReferencesPerNode, nodesToBrowse, ct).ConfigureAwait(false);
             }
@@ -1165,7 +1248,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader BrowseNext(RequestHeader requestHeader, bool releaseContinuationPoints, ByteStringCollection continuationPoints, out BrowseResultCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(BrowseNext)))
+            using (Activity activity = StartActivity(nameof(BrowseNext)))
             {
                 return m_session.BrowseNext(requestHeader, releaseContinuationPoints, continuationPoints, out results, out diagnosticInfos);
             }
@@ -1186,7 +1269,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<BrowseNextResponse> BrowseNextAsync(RequestHeader requestHeader, bool releaseContinuationPoints, ByteStringCollection continuationPoints, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(BrowseNextAsync)))
+            using (Activity activity = StartActivity(nameof(BrowseNextAsync)))
             {
                 return await m_session.BrowseNextAsync(requestHeader, releaseContinuationPoints, continuationPoints, ct).ConfigureAwait(false);
             }
@@ -1195,7 +1278,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader TranslateBrowsePathsToNodeIds(RequestHeader requestHeader, BrowsePathCollection browsePaths, out BrowsePathResultCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(TranslateBrowsePathsToNodeIds)))
+            using (Activity activity = StartActivity(nameof(TranslateBrowsePathsToNodeIds)))
             {
                 return m_session.TranslateBrowsePathsToNodeIds(requestHeader, browsePaths, out results, out diagnosticInfos);
             }
@@ -1216,7 +1299,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(RequestHeader requestHeader, BrowsePathCollection browsePaths, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(TranslateBrowsePathsToNodeIdsAsync)))
+            using (Activity activity = StartActivity(nameof(TranslateBrowsePathsToNodeIdsAsync)))
             {
                 return await m_session.TranslateBrowsePathsToNodeIdsAsync(requestHeader, browsePaths, ct).ConfigureAwait(false);
             }
@@ -1225,7 +1308,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader RegisterNodes(RequestHeader requestHeader, NodeIdCollection nodesToRegister, out NodeIdCollection registeredNodeIds)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(RegisterNodes)))
+            using (Activity activity = StartActivity(nameof(RegisterNodes)))
             {
                 return m_session.RegisterNodes(requestHeader, nodesToRegister, out registeredNodeIds);
             }
@@ -1246,7 +1329,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<RegisterNodesResponse> RegisterNodesAsync(RequestHeader requestHeader, NodeIdCollection nodesToRegister, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(RegisterNodesAsync)))
+            using (Activity activity = StartActivity(nameof(RegisterNodesAsync)))
             {
                 return await m_session.RegisterNodesAsync(requestHeader, nodesToRegister, ct).ConfigureAwait(false);
             }
@@ -1255,7 +1338,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader UnregisterNodes(RequestHeader requestHeader, NodeIdCollection nodesToUnregister)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(UnregisterNodes)))
+            using (Activity activity = StartActivity(nameof(UnregisterNodes)))
             {
                 return m_session.UnregisterNodes(requestHeader, nodesToUnregister);
             }
@@ -1276,7 +1359,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<UnregisterNodesResponse> UnregisterNodesAsync(RequestHeader requestHeader, NodeIdCollection nodesToUnregister, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(UnregisterNodesAsync)))
+            using (Activity activity = StartActivity(nameof(UnregisterNodesAsync)))
             {
                 return await m_session.UnregisterNodesAsync(requestHeader, nodesToUnregister, ct).ConfigureAwait(false);
             }
@@ -1285,7 +1368,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader QueryFirst(RequestHeader requestHeader, ViewDescription view, NodeTypeDescriptionCollection nodeTypes, ContentFilter filter, uint maxDataSetsToReturn, uint maxReferencesToReturn, out QueryDataSetCollection queryDataSets, out byte[] continuationPoint, out ParsingResultCollection parsingResults, out DiagnosticInfoCollection diagnosticInfos, out ContentFilterResult filterResult)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(QueryFirst)))
+            using (Activity activity = StartActivity(nameof(QueryFirst)))
             {
                 return m_session.QueryFirst(requestHeader, view, nodeTypes, filter, maxDataSetsToReturn, maxReferencesToReturn, out queryDataSets, out continuationPoint, out parsingResults, out diagnosticInfos, out filterResult);
             }
@@ -1306,7 +1389,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<QueryFirstResponse> QueryFirstAsync(RequestHeader requestHeader, ViewDescription view, NodeTypeDescriptionCollection nodeTypes, ContentFilter filter, uint maxDataSetsToReturn, uint maxReferencesToReturn, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(QueryFirstAsync)))
+            using (Activity activity = StartActivity(nameof(QueryFirstAsync)))
             {
                 return await m_session.QueryFirstAsync(requestHeader, view, nodeTypes, filter, maxDataSetsToReturn, maxReferencesToReturn, ct).ConfigureAwait(false);
             }
@@ -1315,7 +1398,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader QueryNext(RequestHeader requestHeader, bool releaseContinuationPoint, byte[] continuationPoint, out QueryDataSetCollection queryDataSets, out byte[] revisedContinuationPoint)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(QueryNext)))
+            using (Activity activity = StartActivity(nameof(QueryNext)))
             {
                 return m_session.QueryNext(requestHeader, releaseContinuationPoint, continuationPoint, out queryDataSets, out revisedContinuationPoint);
             }
@@ -1336,7 +1419,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<QueryNextResponse> QueryNextAsync(RequestHeader requestHeader, bool releaseContinuationPoint, byte[] continuationPoint, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(QueryNextAsync)))
+            using (Activity activity = StartActivity(nameof(QueryNextAsync)))
             {
                 return await m_session.QueryNextAsync(requestHeader, releaseContinuationPoint, continuationPoint, ct).ConfigureAwait(false);
             }
@@ -1345,7 +1428,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader Read(RequestHeader requestHeader, double maxAge, TimestampsToReturn timestampsToReturn, ReadValueIdCollection nodesToRead, out DataValueCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(Read)))
+            using (Activity activity = StartActivity(nameof(Read)))
             {
                 return m_session.Read(requestHeader, maxAge, timestampsToReturn, nodesToRead, out results, out diagnosticInfos);
             }
@@ -1366,7 +1449,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<ReadResponse> ReadAsync(RequestHeader requestHeader, double maxAge, TimestampsToReturn timestampsToReturn, ReadValueIdCollection nodesToRead, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ReadAsync)))
+            using (Activity activity = StartActivity(nameof(ReadAsync)))
             {
                 return await m_session.ReadAsync(requestHeader, maxAge, timestampsToReturn, nodesToRead, ct).ConfigureAwait(false);
             }
@@ -1375,7 +1458,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader HistoryRead(RequestHeader requestHeader, ExtensionObject historyReadDetails, TimestampsToReturn timestampsToReturn, bool releaseContinuationPoints, HistoryReadValueIdCollection nodesToRead, out HistoryReadResultCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(HistoryRead)))
+            using (Activity activity = StartActivity(nameof(HistoryRead)))
             {
                 return m_session.HistoryRead(requestHeader, historyReadDetails, timestampsToReturn, releaseContinuationPoints, nodesToRead, out results, out diagnosticInfos);
             }
@@ -1396,7 +1479,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<HistoryReadResponse> HistoryReadAsync(RequestHeader requestHeader, ExtensionObject historyReadDetails, TimestampsToReturn timestampsToReturn, bool releaseContinuationPoints, HistoryReadValueIdCollection nodesToRead, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(HistoryReadAsync)))
+            using (Activity activity = StartActivity(nameof(HistoryReadAsync)))
             {
                 return await m_session.HistoryReadAsync(requestHeader, historyReadDetails, timestampsToReturn, releaseContinuationPoints, nodesToRead, ct).ConfigureAwait(false);
             }
@@ -1405,7 +1488,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader Write(RequestHeader requestHeader, WriteValueCollection nodesToWrite, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(Write)))
+            using (Activity activity = StartActivity(nameof(Write)))
             {
                 return m_session.Write(requestHeader, nodesToWrite, out results, out diagnosticInfos);
             }
@@ -1426,7 +1509,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<WriteResponse> WriteAsync(RequestHeader requestHeader, WriteValueCollection nodesToWrite, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(WriteAsync)))
+            using (Activity activity = StartActivity(nameof(WriteAsync)))
             {
                 return await m_session.WriteAsync(requestHeader, nodesToWrite, ct).ConfigureAwait(false);
             }
@@ -1435,7 +1518,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader HistoryUpdate(RequestHeader requestHeader, ExtensionObjectCollection historyUpdateDetails, out HistoryUpdateResultCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(HistoryUpdate)))
+            using (Activity activity = StartActivity(nameof(HistoryUpdate)))
             {
                 return m_session.HistoryUpdate(requestHeader, historyUpdateDetails, out results, out diagnosticInfos);
             }
@@ -1456,7 +1539,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<HistoryUpdateResponse> HistoryUpdateAsync(RequestHeader requestHeader, ExtensionObjectCollection historyUpdateDetails, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(HistoryUpdateAsync)))
+            using (Activity activity = StartActivity(nameof(HistoryUpdateAsync)))
             {
                 return await m_session.HistoryUpdateAsync(requestHeader, historyUpdateDetails, ct).ConfigureAwait(false);
             }
@@ -1465,7 +1548,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader Call(RequestHeader requestHeader, CallMethodRequestCollection methodsToCall, out CallMethodResultCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(Call)))
+            using (Activity activity = StartActivity(nameof(Call)))
             {
                 return m_session.Call(requestHeader, methodsToCall, out results, out diagnosticInfos);
             }
@@ -1486,7 +1569,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<CallResponse> CallAsync(RequestHeader requestHeader, CallMethodRequestCollection methodsToCall, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(CallAsync)))
+            using (Activity activity = StartActivity(nameof(CallAsync)))
             {
                 return await m_session.CallAsync(requestHeader, methodsToCall, ct).ConfigureAwait(false);
             }
@@ -1495,7 +1578,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader CreateMonitoredItems(RequestHeader requestHeader, uint subscriptionId, TimestampsToReturn timestampsToReturn, MonitoredItemCreateRequestCollection itemsToCreate, out MonitoredItemCreateResultCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(CreateMonitoredItems)))
+            using (Activity activity = StartActivity(nameof(CreateMonitoredItems)))
             {
                 return m_session.CreateMonitoredItems(requestHeader, subscriptionId, timestampsToReturn, itemsToCreate, out results, out diagnosticInfos);
             }
@@ -1516,7 +1599,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(RequestHeader requestHeader, uint subscriptionId, TimestampsToReturn timestampsToReturn, MonitoredItemCreateRequestCollection itemsToCreate, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(CreateMonitoredItemsAsync)))
+            using (Activity activity = StartActivity(nameof(CreateMonitoredItemsAsync)))
             {
                 return await m_session.CreateMonitoredItemsAsync(requestHeader, subscriptionId, timestampsToReturn, itemsToCreate, ct).ConfigureAwait(false);
             }
@@ -1525,7 +1608,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader ModifyMonitoredItems(RequestHeader requestHeader, uint subscriptionId, TimestampsToReturn timestampsToReturn, MonitoredItemModifyRequestCollection itemsToModify, out MonitoredItemModifyResultCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ModifyMonitoredItems)))
+            using (Activity activity = StartActivity(nameof(ModifyMonitoredItems)))
             {
                 return m_session.ModifyMonitoredItems(requestHeader, subscriptionId, timestampsToReturn, itemsToModify, out results, out diagnosticInfos);
             }
@@ -1546,7 +1629,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(RequestHeader requestHeader, uint subscriptionId, TimestampsToReturn timestampsToReturn, MonitoredItemModifyRequestCollection itemsToModify, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ModifyMonitoredItemsAsync)))
+            using (Activity activity = StartActivity(nameof(ModifyMonitoredItemsAsync)))
             {
                 return await m_session.ModifyMonitoredItemsAsync(requestHeader, subscriptionId, timestampsToReturn, itemsToModify, ct).ConfigureAwait(false);
             }
@@ -1555,7 +1638,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader SetMonitoringMode(RequestHeader requestHeader, uint subscriptionId, MonitoringMode monitoringMode, UInt32Collection monitoredItemIds, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(SetMonitoringMode)))
+            using (Activity activity = StartActivity(nameof(SetMonitoringMode)))
             {
                 return m_session.SetMonitoringMode(requestHeader, subscriptionId, monitoringMode, monitoredItemIds, out results, out diagnosticInfos);
             }
@@ -1576,7 +1659,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<SetMonitoringModeResponse> SetMonitoringModeAsync(RequestHeader requestHeader, uint subscriptionId, MonitoringMode monitoringMode, UInt32Collection monitoredItemIds, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(SetMonitoringModeAsync)))
+            using (Activity activity = StartActivity(nameof(SetMonitoringModeAsync)))
             {
                 return await m_session.SetMonitoringModeAsync(requestHeader, subscriptionId, monitoringMode, monitoredItemIds, ct).ConfigureAwait(false);
             }
@@ -1585,7 +1668,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader SetTriggering(RequestHeader requestHeader, uint subscriptionId, uint triggeringItemId, UInt32Collection linksToAdd, UInt32Collection linksToRemove, out StatusCodeCollection addResults, out DiagnosticInfoCollection addDiagnosticInfos, out StatusCodeCollection removeResults, out DiagnosticInfoCollection removeDiagnosticInfos)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(SetTriggering)))
+            using (Activity activity = StartActivity(nameof(SetTriggering)))
             {
                 return m_session.SetTriggering(requestHeader, subscriptionId, triggeringItemId, linksToAdd, linksToRemove, out addResults, out addDiagnosticInfos, out removeResults, out removeDiagnosticInfos);
             }
@@ -1606,7 +1689,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<SetTriggeringResponse> SetTriggeringAsync(RequestHeader requestHeader, uint subscriptionId, uint triggeringItemId, UInt32Collection linksToAdd, UInt32Collection linksToRemove, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(SetTriggeringAsync)))
+            using (Activity activity = StartActivity(nameof(SetTriggeringAsync)))
             {
                 return await m_session.SetTriggeringAsync(requestHeader, subscriptionId, triggeringItemId, linksToAdd, linksToRemove, ct).ConfigureAwait(false);
             }
@@ -1615,7 +1698,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader DeleteMonitoredItems(RequestHeader requestHeader, uint subscriptionId, UInt32Collection monitoredItemIds, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(DeleteMonitoredItems)))
+            using (Activity activity = StartActivity(nameof(DeleteMonitoredItems)))
             {
                 return m_session.DeleteMonitoredItems(requestHeader, subscriptionId, monitoredItemIds, out results, out diagnosticInfos);
             }
@@ -1636,7 +1719,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(RequestHeader requestHeader, uint subscriptionId, UInt32Collection monitoredItemIds, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(DeleteMonitoredItemsAsync)))
+            using (Activity activity = StartActivity(nameof(DeleteMonitoredItemsAsync)))
             {
                 return await m_session.DeleteMonitoredItemsAsync(requestHeader, subscriptionId, monitoredItemIds, ct).ConfigureAwait(false);
             }
@@ -1645,7 +1728,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader CreateSubscription(RequestHeader requestHeader, double requestedPublishingInterval, uint requestedLifetimeCount, uint requestedMaxKeepAliveCount, uint maxNotificationsPerPublish, bool publishingEnabled, byte priority, out uint subscriptionId, out double revisedPublishingInterval, out uint revisedLifetimeCount, out uint revisedMaxKeepAliveCount)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(CreateSubscription)))
+            using (Activity activity = StartActivity(nameof(CreateSubscription)))
             {
                 return m_session.CreateSubscription(requestHeader, requestedPublishingInterval, requestedLifetimeCount, requestedMaxKeepAliveCount, maxNotificationsPerPublish, publishingEnabled, priority, out subscriptionId, out revisedPublishingInterval, out revisedLifetimeCount, out revisedMaxKeepAliveCount);
             }
@@ -1666,7 +1749,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<CreateSubscriptionResponse> CreateSubscriptionAsync(RequestHeader requestHeader, double requestedPublishingInterval, uint requestedLifetimeCount, uint requestedMaxKeepAliveCount, uint maxNotificationsPerPublish, bool publishingEnabled, byte priority, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(CreateSubscriptionAsync)))
+            using (Activity activity = StartActivity(nameof(CreateSubscriptionAsync)))
             {
                 return await m_session.CreateSubscriptionAsync(requestHeader, requestedPublishingInterval, requestedLifetimeCount, requestedMaxKeepAliveCount, maxNotificationsPerPublish, publishingEnabled, priority, ct).ConfigureAwait(false);
             }
@@ -1675,7 +1758,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader ModifySubscription(RequestHeader requestHeader, uint subscriptionId, double requestedPublishingInterval, uint requestedLifetimeCount, uint requestedMaxKeepAliveCount, uint maxNotificationsPerPublish, byte priority, out double revisedPublishingInterval, out uint revisedLifetimeCount, out uint revisedMaxKeepAliveCount)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ModifySubscription)))
+            using (Activity activity = StartActivity(nameof(ModifySubscription)))
             {
                 return m_session.ModifySubscription(requestHeader, subscriptionId, requestedPublishingInterval, requestedLifetimeCount, requestedMaxKeepAliveCount, maxNotificationsPerPublish, priority, out revisedPublishingInterval, out revisedLifetimeCount, out revisedMaxKeepAliveCount);
             }
@@ -1696,7 +1779,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<ModifySubscriptionResponse> ModifySubscriptionAsync(RequestHeader requestHeader, uint subscriptionId, double requestedPublishingInterval, uint requestedLifetimeCount, uint requestedMaxKeepAliveCount, uint maxNotificationsPerPublish, byte priority, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ModifySubscriptionAsync)))
+            using (Activity activity = StartActivity(nameof(ModifySubscriptionAsync)))
             {
                 return await m_session.ModifySubscriptionAsync(requestHeader, subscriptionId, requestedPublishingInterval, requestedLifetimeCount, requestedMaxKeepAliveCount, maxNotificationsPerPublish, priority, ct).ConfigureAwait(false);
             }
@@ -1705,7 +1788,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader SetPublishingMode(RequestHeader requestHeader, bool publishingEnabled, UInt32Collection subscriptionIds, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(SetPublishingMode)))
+            using (Activity activity = StartActivity(nameof(SetPublishingMode)))
             {
                 return m_session.SetPublishingMode(requestHeader, publishingEnabled, subscriptionIds, out results, out diagnosticInfos);
             }
@@ -1726,7 +1809,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<SetPublishingModeResponse> SetPublishingModeAsync(RequestHeader requestHeader, bool publishingEnabled, UInt32Collection subscriptionIds, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(SetPublishingModeAsync)))
+            using (Activity activity = StartActivity(nameof(SetPublishingModeAsync)))
             {
                 return await m_session.SetPublishingModeAsync(requestHeader, publishingEnabled, subscriptionIds, ct).ConfigureAwait(false);
             }
@@ -1735,7 +1818,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader Publish(RequestHeader requestHeader, SubscriptionAcknowledgementCollection subscriptionAcknowledgements, out uint subscriptionId, out UInt32Collection availableSequenceNumbers, out bool moreNotifications, out NotificationMessage notificationMessage, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(Publish)))
+            using (Activity activity = StartActivity(nameof(Publish)))
             {
                 return m_session.Publish(requestHeader, subscriptionAcknowledgements, out subscriptionId, out availableSequenceNumbers, out moreNotifications, out notificationMessage, out results, out diagnosticInfos);
             }
@@ -1756,7 +1839,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<PublishResponse> PublishAsync(RequestHeader requestHeader, SubscriptionAcknowledgementCollection subscriptionAcknowledgements, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(PublishAsync)))
+            using (Activity activity = StartActivity(nameof(PublishAsync)))
             {
                 return await m_session.PublishAsync(requestHeader, subscriptionAcknowledgements, ct).ConfigureAwait(false);
             }
@@ -1765,7 +1848,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader Republish(RequestHeader requestHeader, uint subscriptionId, uint retransmitSequenceNumber, out NotificationMessage notificationMessage)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(Republish)))
+            using (Activity activity = StartActivity(nameof(Republish)))
             {
                 return m_session.Republish(requestHeader, subscriptionId, retransmitSequenceNumber, out notificationMessage);
             }
@@ -1786,7 +1869,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<RepublishResponse> RepublishAsync(RequestHeader requestHeader, uint subscriptionId, uint retransmitSequenceNumber, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(RepublishAsync)))
+            using (Activity activity = StartActivity(nameof(RepublishAsync)))
             {
                 return await m_session.RepublishAsync(requestHeader, subscriptionId, retransmitSequenceNumber, ct).ConfigureAwait(false);
             }
@@ -1795,7 +1878,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader TransferSubscriptions(RequestHeader requestHeader, UInt32Collection subscriptionIds, bool sendInitialValues, out TransferResultCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(TransferSubscriptions)))
+            using (Activity activity = StartActivity(nameof(TransferSubscriptions)))
             {
                 return m_session.TransferSubscriptions(requestHeader, subscriptionIds, sendInitialValues, out results, out diagnosticInfos);
             }
@@ -1816,7 +1899,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<TransferSubscriptionsResponse> TransferSubscriptionsAsync(RequestHeader requestHeader, UInt32Collection subscriptionIds, bool sendInitialValues, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(TransferSubscriptionsAsync)))
+            using (Activity activity = StartActivity(nameof(TransferSubscriptionsAsync)))
             {
                 return await m_session.TransferSubscriptionsAsync(requestHeader, subscriptionIds, sendInitialValues, ct).ConfigureAwait(false);
             }
@@ -1825,7 +1908,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ResponseHeader DeleteSubscriptions(RequestHeader requestHeader, UInt32Collection subscriptionIds, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(DeleteSubscriptions)))
+            using (Activity activity = StartActivity(nameof(DeleteSubscriptions)))
             {
                 return m_session.DeleteSubscriptions(requestHeader, subscriptionIds, out results, out diagnosticInfos);
             }
@@ -1846,7 +1929,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(RequestHeader requestHeader, UInt32Collection subscriptionIds, CancellationToken ct)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(DeleteSubscriptionsAsync)))
+            using (Activity activity = StartActivity(nameof(DeleteSubscriptionsAsync)))
             {
                 return await m_session.DeleteSubscriptionsAsync(requestHeader, subscriptionIds, ct).ConfigureAwait(false);
             }
@@ -1855,7 +1938,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void AttachChannel(ITransportChannel channel)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(AttachChannel)))
+            using (Activity activity = StartActivity(nameof(AttachChannel)))
             {
                 m_session.AttachChannel(channel);
             }
@@ -1864,7 +1947,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void DetachChannel()
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(DetachChannel)))
+            using (Activity activity = StartActivity(nameof(DetachChannel)))
             {
                 m_session.DetachChannel();
             }
@@ -1873,7 +1956,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public StatusCode Close()
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(Close)))
+            using (Activity activity = StartActivity(nameof(Close)))
             {
                 return m_session.Close();
             }
@@ -1909,7 +1992,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public SessionConfiguration SaveSessionConfiguration(Stream stream = null)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(SaveSessionConfiguration)))
+            using (Activity activity = StartActivity(nameof(SaveSessionConfiguration)))
             {
                 return m_session.SaveSessionConfiguration(stream);
             }
@@ -1918,7 +2001,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public bool ApplySessionConfiguration(SessionConfiguration sessionConfiguration)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ApplySessionConfiguration)))
+            using (Activity activity = StartActivity(nameof(ApplySessionConfiguration)))
             {
                 return m_session.ApplySessionConfiguration(sessionConfiguration);
             }
@@ -1927,7 +2010,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public bool ReactivateSubscriptions(SubscriptionCollection subscriptions, bool sendInitialValues)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ReactivateSubscriptions)))
+            using (Activity activity = StartActivity(nameof(ReactivateSubscriptions)))
             {
                 return m_session.ReactivateSubscriptions(subscriptions, sendInitialValues);
             }
@@ -1936,7 +2019,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<bool> RemoveSubscriptionAsync(Subscription subscription, CancellationToken ct = default)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(RemoveSubscriptionAsync)))
+            using (Activity activity = StartActivity(nameof(RemoveSubscriptionAsync)))
             {
                 return await m_session.RemoveSubscriptionAsync(subscription, ct).ConfigureAwait(false);
             }
@@ -1945,7 +2028,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<bool> RemoveSubscriptionsAsync(IEnumerable<Subscription> subscriptions, CancellationToken ct = default)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(RemoveSubscriptionsAsync)))
+            using (Activity activity = StartActivity(nameof(RemoveSubscriptionsAsync)))
             {
                 return await m_session.RemoveSubscriptionsAsync(subscriptions, ct).ConfigureAwait(false);
             }
@@ -1954,7 +2037,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<bool> ReactivateSubscriptionsAsync(SubscriptionCollection subscriptions, bool sendInitialValues, CancellationToken ct = default)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ReactivateSubscriptionsAsync)))
+            using (Activity activity = StartActivity(nameof(ReactivateSubscriptionsAsync)))
             {
                 return await m_session.ReactivateSubscriptionsAsync(subscriptions, sendInitialValues, ct).ConfigureAwait(false);
             }
@@ -1963,7 +2046,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<bool> TransferSubscriptionsAsync(SubscriptionCollection subscriptions, bool sendInitialValues, CancellationToken ct = default)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(TransferSubscriptionsAsync)))
+            using (Activity activity = StartActivity(nameof(TransferSubscriptionsAsync)))
             {
                 return await m_session.TransferSubscriptionsAsync(subscriptions, sendInitialValues, ct).ConfigureAwait(false);
             }
@@ -1972,7 +2055,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<IList<object>> CallAsync(NodeId objectId, NodeId methodId, CancellationToken ct = default, params object[] args)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(CallAsync)))
+            using (Activity activity = StartActivity(nameof(CallAsync)))
             {
                 return await m_session.CallAsync(objectId, methodId, ct, args).ConfigureAwait(false);
             }
@@ -1981,7 +2064,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public bool ResendData(IEnumerable<Subscription> subscriptions, out IList<ServiceResult> errors)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ResendData)))
+            using (Activity activity = StartActivity(nameof(ResendData)))
             {
                 return m_session.ResendData(subscriptions, out errors);
             }
@@ -1990,7 +2073,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<(bool, IList<ServiceResult>)> ResendDataAsync(IEnumerable<Subscription> subscriptions, CancellationToken ct = default)
         {
-            using (Activity activity = _activitySourceAdapter.StartActivity(nameof(ResendDataAsync)))
+            using (Activity activity = StartActivity(nameof(ResendDataAsync)))
             {
                 return await m_session.ResendDataAsync(subscriptions, ct).ConfigureAwait(false);
             }
