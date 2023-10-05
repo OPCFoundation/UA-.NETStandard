@@ -113,7 +113,7 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        public virtual CertificateGroup Create(
+        public virtual ICertificateGroup Create(
             string storePath,
             CertificateGroupConfiguration certificateGroupConfiguration)
         {
