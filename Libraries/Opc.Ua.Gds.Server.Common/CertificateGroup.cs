@@ -165,13 +165,18 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        public virtual Task<X509CRL> RevokeCertificateAsync(
+        public async virtual Task<X509CRL> RevokeCertificateAsync(
             X509Certificate2 certificate)
         {
-            return RevokeCertificateAsync(
+            var crl = RevokeCertificateAsync(
                 AuthoritiesStorePath,
                 certificate,
                 null);
+
+            //Also updated TrustedList CRL so registerd Applications get the new CRL
+            await UpdateAuthorityCertInTrustedList().ConfigureAwait(false);
+
+            return await crl.ConfigureAwait(false);
         }
 
         public virtual Task VerifySigningRequestAsync(
