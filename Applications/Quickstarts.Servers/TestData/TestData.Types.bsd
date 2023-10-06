@@ -239,6 +239,18 @@
     <opc:Field Name="Z" TypeName="opc:Double" />
   </opc:StructuredType>
 
+  <opc:StructuredType Name="VectorUnion" BaseType="ua:Union">
+    <opc:Field Name="X" TypeName="opc:Double" />
+    <opc:Field Name="Y" TypeName="opc:Double" />
+    <opc:Field Name="Z" TypeName="opc:Double" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="VectorWithOptionalFields" BaseType="ua:ExtensionObject">
+    <opc:Field Name="X" TypeName="opc:Double" />
+    <opc:Field Name="Y" TypeName="opc:Double" />
+    <opc:Field Name="Z" TypeName="opc:Double" />
+  </opc:StructuredType>
+
   <opc:StructuredType Name="WorkOrderStatusType" BaseType="ua:ExtensionObject">
     <opc:Field Name="Actor" TypeName="opc:String" />
     <opc:Field Name="Timestamp" TypeName="opc:DateTime" />

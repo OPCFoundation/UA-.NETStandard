@@ -125,6 +125,12 @@ namespace TestData
         public const uint Vector = 1888;
 
         /// <remarks />
+        public const uint VectorUnion = 3584;
+
+        /// <remarks />
+        public const uint VectorWithOptionalFields = 3585;
+
+        /// <remarks />
         public const uint WorkOrderStatusType = 1893;
 
         /// <remarks />
@@ -645,6 +651,12 @@ namespace TestData
         public const uint Vector_Encoding_DefaultBinary = 3515;
 
         /// <remarks />
+        public const uint VectorUnion_Encoding_DefaultBinary = 3590;
+
+        /// <remarks />
+        public const uint VectorWithOptionalFields_Encoding_DefaultBinary = 3591;
+
+        /// <remarks />
         public const uint WorkOrderStatusType_Encoding_DefaultBinary = 3516;
 
         /// <remarks />
@@ -666,6 +678,12 @@ namespace TestData
         public const uint Vector_Encoding_DefaultXml = 3547;
 
         /// <remarks />
+        public const uint VectorUnion_Encoding_DefaultXml = 3598;
+
+        /// <remarks />
+        public const uint VectorWithOptionalFields_Encoding_DefaultXml = 3599;
+
+        /// <remarks />
         public const uint WorkOrderStatusType_Encoding_DefaultXml = 3548;
 
         /// <remarks />
@@ -685,6 +703,12 @@ namespace TestData
 
         /// <remarks />
         public const uint Vector_Encoding_DefaultJson = 3579;
+
+        /// <remarks />
+        public const uint VectorUnion_Encoding_DefaultJson = 3606;
+
+        /// <remarks />
+        public const uint VectorWithOptionalFields_Encoding_DefaultJson = 3607;
 
         /// <remarks />
         public const uint WorkOrderStatusType_Encoding_DefaultJson = 3580;
@@ -1097,6 +1121,12 @@ namespace TestData
 
         /// <remarks />
         public const uint ScalarValueObjectType_VectorValue_Z = 1209;
+
+        /// <remarks />
+        public const uint ScalarValueObjectType_VectorUnionValue = 3582;
+
+        /// <remarks />
+        public const uint ScalarValueObjectType_VectorWithOptionalFieldsValue = 3583;
 
         /// <remarks />
         public const uint StructureValueObjectType_GenerateValues_InputArguments = 1213;
@@ -1616,6 +1646,12 @@ namespace TestData
 
         /// <remarks />
         public const uint ArrayValueObjectType_VectorValue = 1546;
+
+        /// <remarks />
+        public const uint ArrayValueObjectType_VectorUnionValue = 3608;
+
+        /// <remarks />
+        public const uint ArrayValueObjectType_VectorWithOptionalFieldsValue = 3609;
 
         /// <remarks />
         public const uint AnalogArrayValueObjectType_GenerateValues_InputArguments = 1550;
@@ -2365,6 +2401,12 @@ namespace TestData
         public const uint Data_Static_Scalar_VectorValue_Z = 2069;
 
         /// <remarks />
+        public const uint Data_Static_Scalar_VectorUnionValue = 3586;
+
+        /// <remarks />
+        public const uint Data_Static_Scalar_VectorWithOptionalFieldsValue = 3587;
+
+        /// <remarks />
         public const uint Data_Static_Structure_SimulationActive = 2071;
 
         /// <remarks />
@@ -2723,6 +2765,12 @@ namespace TestData
 
         /// <remarks />
         public const uint Data_Static_Array_VectorValue = 2255;
+
+        /// <remarks />
+        public const uint Data_Static_Array_VectorUnionValue = 3610;
+
+        /// <remarks />
+        public const uint Data_Static_Array_VectorWithOptionalFieldsValue = 3611;
 
         /// <remarks />
         public const uint Data_Static_UserScalar_SimulationActive = 2257;
@@ -3616,6 +3664,12 @@ namespace TestData
         public const uint Data_Dynamic_Scalar_VectorValue_Z = 2833;
 
         /// <remarks />
+        public const uint Data_Dynamic_Scalar_VectorUnionValue = 3588;
+
+        /// <remarks />
+        public const uint Data_Dynamic_Scalar_VectorWithOptionalFieldsValue = 3589;
+
+        /// <remarks />
         public const uint Data_Dynamic_Structure_SimulationActive = 2835;
 
         /// <remarks />
@@ -3974,6 +4028,12 @@ namespace TestData
 
         /// <remarks />
         public const uint Data_Dynamic_Array_VectorValue = 3019;
+
+        /// <remarks />
+        public const uint Data_Dynamic_Array_VectorUnionValue = 3612;
+
+        /// <remarks />
+        public const uint Data_Dynamic_Array_VectorWithOptionalFieldsValue = 3613;
 
         /// <remarks />
         public const uint Data_Dynamic_UserScalar_SimulationActive = 3021;
@@ -4720,6 +4780,12 @@ namespace TestData
         public const uint TestData_BinarySchema_Vector = 3534;
 
         /// <remarks />
+        public const uint TestData_BinarySchema_VectorUnion = 3592;
+
+        /// <remarks />
+        public const uint TestData_BinarySchema_VectorWithOptionalFields = 3595;
+
+        /// <remarks />
         public const uint TestData_BinarySchema_WorkOrderStatusType = 3537;
 
         /// <remarks />
@@ -4748,6 +4814,12 @@ namespace TestData
 
         /// <remarks />
         public const uint TestData_XmlSchema_Vector = 3566;
+
+        /// <remarks />
+        public const uint TestData_XmlSchema_VectorUnion = 3600;
+
+        /// <remarks />
+        public const uint TestData_XmlSchema_VectorWithOptionalFields = 3603;
 
         /// <remarks />
         public const uint TestData_XmlSchema_WorkOrderStatusType = 3569;
@@ -4857,6 +4929,12 @@ namespace TestData
 
         /// <remarks />
         public static readonly ExpandedNodeId Vector = new ExpandedNodeId(TestData.DataTypes.Vector, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId VectorUnion = new ExpandedNodeId(TestData.DataTypes.VectorUnion, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId VectorWithOptionalFields = new ExpandedNodeId(TestData.DataTypes.VectorWithOptionalFields, TestData.Namespaces.TestData);
 
         /// <remarks />
         public static readonly ExpandedNodeId WorkOrderStatusType = new ExpandedNodeId(TestData.DataTypes.WorkOrderStatusType, TestData.Namespaces.TestData);
@@ -5379,6 +5457,12 @@ namespace TestData
         public static readonly ExpandedNodeId Vector_Encoding_DefaultBinary = new ExpandedNodeId(TestData.Objects.Vector_Encoding_DefaultBinary, TestData.Namespaces.TestData);
 
         /// <remarks />
+        public static readonly ExpandedNodeId VectorUnion_Encoding_DefaultBinary = new ExpandedNodeId(TestData.Objects.VectorUnion_Encoding_DefaultBinary, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId VectorWithOptionalFields_Encoding_DefaultBinary = new ExpandedNodeId(TestData.Objects.VectorWithOptionalFields_Encoding_DefaultBinary, TestData.Namespaces.TestData);
+
+        /// <remarks />
         public static readonly ExpandedNodeId WorkOrderStatusType_Encoding_DefaultBinary = new ExpandedNodeId(TestData.Objects.WorkOrderStatusType_Encoding_DefaultBinary, TestData.Namespaces.TestData);
 
         /// <remarks />
@@ -5400,6 +5484,12 @@ namespace TestData
         public static readonly ExpandedNodeId Vector_Encoding_DefaultXml = new ExpandedNodeId(TestData.Objects.Vector_Encoding_DefaultXml, TestData.Namespaces.TestData);
 
         /// <remarks />
+        public static readonly ExpandedNodeId VectorUnion_Encoding_DefaultXml = new ExpandedNodeId(TestData.Objects.VectorUnion_Encoding_DefaultXml, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId VectorWithOptionalFields_Encoding_DefaultXml = new ExpandedNodeId(TestData.Objects.VectorWithOptionalFields_Encoding_DefaultXml, TestData.Namespaces.TestData);
+
+        /// <remarks />
         public static readonly ExpandedNodeId WorkOrderStatusType_Encoding_DefaultXml = new ExpandedNodeId(TestData.Objects.WorkOrderStatusType_Encoding_DefaultXml, TestData.Namespaces.TestData);
 
         /// <remarks />
@@ -5419,6 +5509,12 @@ namespace TestData
 
         /// <remarks />
         public static readonly ExpandedNodeId Vector_Encoding_DefaultJson = new ExpandedNodeId(TestData.Objects.Vector_Encoding_DefaultJson, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId VectorUnion_Encoding_DefaultJson = new ExpandedNodeId(TestData.Objects.VectorUnion_Encoding_DefaultJson, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId VectorWithOptionalFields_Encoding_DefaultJson = new ExpandedNodeId(TestData.Objects.VectorWithOptionalFields_Encoding_DefaultJson, TestData.Namespaces.TestData);
 
         /// <remarks />
         public static readonly ExpandedNodeId WorkOrderStatusType_Encoding_DefaultJson = new ExpandedNodeId(TestData.Objects.WorkOrderStatusType_Encoding_DefaultJson, TestData.Namespaces.TestData);
@@ -5831,6 +5927,12 @@ namespace TestData
 
         /// <remarks />
         public static readonly ExpandedNodeId ScalarValueObjectType_VectorValue_Z = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_VectorValue_Z, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueObjectType_VectorUnionValue = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_VectorUnionValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueObjectType_VectorWithOptionalFieldsValue = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_VectorWithOptionalFieldsValue, TestData.Namespaces.TestData);
 
         /// <remarks />
         public static readonly ExpandedNodeId StructureValueObjectType_GenerateValues_InputArguments = new ExpandedNodeId(TestData.Variables.StructureValueObjectType_GenerateValues_InputArguments, TestData.Namespaces.TestData);
@@ -6350,6 +6452,12 @@ namespace TestData
 
         /// <remarks />
         public static readonly ExpandedNodeId ArrayValueObjectType_VectorValue = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_VectorValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ArrayValueObjectType_VectorUnionValue = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_VectorUnionValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ArrayValueObjectType_VectorWithOptionalFieldsValue = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_VectorWithOptionalFieldsValue, TestData.Namespaces.TestData);
 
         /// <remarks />
         public static readonly ExpandedNodeId AnalogArrayValueObjectType_GenerateValues_InputArguments = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_GenerateValues_InputArguments, TestData.Namespaces.TestData);
@@ -7099,6 +7207,12 @@ namespace TestData
         public static readonly ExpandedNodeId Data_Static_Scalar_VectorValue_Z = new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_VectorValue_Z, TestData.Namespaces.TestData);
 
         /// <remarks />
+        public static readonly ExpandedNodeId Data_Static_Scalar_VectorUnionValue = new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_VectorUnionValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Static_Scalar_VectorWithOptionalFieldsValue = new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_VectorWithOptionalFieldsValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
         public static readonly ExpandedNodeId Data_Static_Structure_SimulationActive = new ExpandedNodeId(TestData.Variables.Data_Static_Structure_SimulationActive, TestData.Namespaces.TestData);
 
         /// <remarks />
@@ -7457,6 +7571,12 @@ namespace TestData
 
         /// <remarks />
         public static readonly ExpandedNodeId Data_Static_Array_VectorValue = new ExpandedNodeId(TestData.Variables.Data_Static_Array_VectorValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Static_Array_VectorUnionValue = new ExpandedNodeId(TestData.Variables.Data_Static_Array_VectorUnionValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Static_Array_VectorWithOptionalFieldsValue = new ExpandedNodeId(TestData.Variables.Data_Static_Array_VectorWithOptionalFieldsValue, TestData.Namespaces.TestData);
 
         /// <remarks />
         public static readonly ExpandedNodeId Data_Static_UserScalar_SimulationActive = new ExpandedNodeId(TestData.Variables.Data_Static_UserScalar_SimulationActive, TestData.Namespaces.TestData);
@@ -8350,6 +8470,12 @@ namespace TestData
         public static readonly ExpandedNodeId Data_Dynamic_Scalar_VectorValue_Z = new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_VectorValue_Z, TestData.Namespaces.TestData);
 
         /// <remarks />
+        public static readonly ExpandedNodeId Data_Dynamic_Scalar_VectorUnionValue = new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_VectorUnionValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Dynamic_Scalar_VectorWithOptionalFieldsValue = new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_VectorWithOptionalFieldsValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
         public static readonly ExpandedNodeId Data_Dynamic_Structure_SimulationActive = new ExpandedNodeId(TestData.Variables.Data_Dynamic_Structure_SimulationActive, TestData.Namespaces.TestData);
 
         /// <remarks />
@@ -8708,6 +8834,12 @@ namespace TestData
 
         /// <remarks />
         public static readonly ExpandedNodeId Data_Dynamic_Array_VectorValue = new ExpandedNodeId(TestData.Variables.Data_Dynamic_Array_VectorValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Dynamic_Array_VectorUnionValue = new ExpandedNodeId(TestData.Variables.Data_Dynamic_Array_VectorUnionValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Dynamic_Array_VectorWithOptionalFieldsValue = new ExpandedNodeId(TestData.Variables.Data_Dynamic_Array_VectorWithOptionalFieldsValue, TestData.Namespaces.TestData);
 
         /// <remarks />
         public static readonly ExpandedNodeId Data_Dynamic_UserScalar_SimulationActive = new ExpandedNodeId(TestData.Variables.Data_Dynamic_UserScalar_SimulationActive, TestData.Namespaces.TestData);
@@ -9454,6 +9586,12 @@ namespace TestData
         public static readonly ExpandedNodeId TestData_BinarySchema_Vector = new ExpandedNodeId(TestData.Variables.TestData_BinarySchema_Vector, TestData.Namespaces.TestData);
 
         /// <remarks />
+        public static readonly ExpandedNodeId TestData_BinarySchema_VectorUnion = new ExpandedNodeId(TestData.Variables.TestData_BinarySchema_VectorUnion, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestData_BinarySchema_VectorWithOptionalFields = new ExpandedNodeId(TestData.Variables.TestData_BinarySchema_VectorWithOptionalFields, TestData.Namespaces.TestData);
+
+        /// <remarks />
         public static readonly ExpandedNodeId TestData_BinarySchema_WorkOrderStatusType = new ExpandedNodeId(TestData.Variables.TestData_BinarySchema_WorkOrderStatusType, TestData.Namespaces.TestData);
 
         /// <remarks />
@@ -9482,6 +9620,12 @@ namespace TestData
 
         /// <remarks />
         public static readonly ExpandedNodeId TestData_XmlSchema_Vector = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_Vector, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestData_XmlSchema_VectorUnion = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_VectorUnion, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestData_XmlSchema_VectorWithOptionalFields = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_VectorWithOptionalFields, TestData.Namespaces.TestData);
 
         /// <remarks />
         public static readonly ExpandedNodeId TestData_XmlSchema_WorkOrderStatusType = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_WorkOrderStatusType, TestData.Namespaces.TestData);
@@ -9775,10 +9919,22 @@ namespace TestData
         public const string VectorStructure = "VectorStructure";
 
         /// <remarks />
+        public const string VectorUnion = "VectorUnion";
+
+        /// <remarks />
+        public const string VectorUnionValue = "VectorUnionValue";
+
+        /// <remarks />
         public const string VectorValue = "VectorValue";
 
         /// <remarks />
         public const string VectorVariableType = "VectorVariableType";
+
+        /// <remarks />
+        public const string VectorWithOptionalFields = "VectorWithOptionalFields";
+
+        /// <remarks />
+        public const string VectorWithOptionalFieldsValue = "VectorWithOptionalFieldsValue";
 
         /// <remarks />
         public const string WorkOrderStatusType = "WorkOrderStatusType";

@@ -258,6 +258,8 @@
       <opc:Variable SymbolicName="IntegerValue" DataType="ua:Integer" ModellingRule="Mandatory" />
       <opc:Variable SymbolicName="UIntegerValue" DataType="ua:UInteger" ModellingRule="Mandatory" />
       <opc:Variable SymbolicName="VectorValue" DataType="Vector" TypeDefinition="VectorVariableType" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="VectorUnionValue" DataType="VectorUnion" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="VectorWithOptionalFieldsValue" DataType="VectorWithOptionalFields" ModellingRule="Mandatory" />
     </opc:Children>
   </opc:ObjectType>
 
@@ -417,6 +419,8 @@
       <opc:Variable SymbolicName="IntegerValue" DataType="ua:Integer" ValueRank="Array" ModellingRule="Mandatory" />
       <opc:Variable SymbolicName="UIntegerValue" DataType="ua:UInteger" ValueRank="Array" ModellingRule="Mandatory" />
       <opc:Variable SymbolicName="VectorValue" DataType="Vector" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="VectorUnionValue" DataType="VectorUnion" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="VectorWithOptionalFieldsValue" DataType="VectorWithOptionalFields" ValueRank="Array" ModellingRule="Mandatory" />
     </opc:Children>
   </opc:ObjectType>
 
@@ -643,7 +647,7 @@
     </opc:Children>
   </opc:VariableType>
 
-<!--
+
   <opc:DataType SymbolicName="VectorUnion" BaseType="ua:Union" IsUnion="true">
     <opc:Fields>
       <opc:Field Name="X" DataType="ua:Double" />
@@ -659,7 +663,8 @@
       <opc:Field Name="Z" DataType="ua:Double" IsOptional="true" />
     </opc:Fields>
   </opc:DataType>
-  
+
+<!--  
   <opc:DataType SymbolicName="SampleUnion" BaseType="ua:Union" IsUnion="true">
     <opc:Fields>
       <opc:Field Name="FieldA" DataType="ua:UInt32" />
