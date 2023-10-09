@@ -76,6 +76,7 @@ namespace TestData
             InitializeVariable(context, VectorValue, TestData.Variables.ArrayValueObjectType_VectorValue);
             InitializeVariable(context, VectorUnionValue, TestData.Variables.ArrayValueObjectType_VectorUnionValue);
             InitializeVariable(context, VectorWithOptionalFieldsValue, TestData.Variables.ArrayValueObjectType_VectorWithOptionalFieldsValue);
+            InitializeVariable(context, MultipleVectorsValue, TestData.Variables.ArrayValueObjectType_MultipleVectorsValue);
         }
         #endregion
 
@@ -127,6 +128,7 @@ namespace TestData
             GenerateValue(system, VectorValue);
             GenerateValue(system, VectorUnionValue);
             GenerateValue(system, VectorWithOptionalFieldsValue);
+            GenerateValue(system, MultipleVectorsValue);
 
             return base.OnGenerateValues(context, method, objectId, count);
         }

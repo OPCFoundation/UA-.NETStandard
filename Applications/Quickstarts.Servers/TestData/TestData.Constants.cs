@@ -1669,6 +1669,9 @@ namespace TestData
         public const uint ArrayValueObjectType_VectorWithOptionalFieldsValue = 3609;
 
         /// <remarks />
+        public const uint ArrayValueObjectType_MultipleVectorsValue = 3627;
+
+        /// <remarks />
         public const uint AnalogArrayValueObjectType_GenerateValues_InputArguments = 1550;
 
         /// <remarks />
@@ -2789,6 +2792,9 @@ namespace TestData
 
         /// <remarks />
         public const uint Data_Static_Array_VectorWithOptionalFieldsValue = 3611;
+
+        /// <remarks />
+        public const uint Data_Static_Array_MultipleVectorsValue = 3628;
 
         /// <remarks />
         public const uint Data_Static_UserScalar_SimulationActive = 2257;
@@ -4055,6 +4061,9 @@ namespace TestData
 
         /// <remarks />
         public const uint Data_Dynamic_Array_VectorWithOptionalFieldsValue = 3613;
+
+        /// <remarks />
+        public const uint Data_Dynamic_Array_MultipleVectorsValue = 3629;
 
         /// <remarks />
         public const uint Data_Dynamic_UserScalar_SimulationActive = 3021;
@@ -6502,6 +6511,9 @@ namespace TestData
         public static readonly ExpandedNodeId ArrayValueObjectType_VectorWithOptionalFieldsValue = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_VectorWithOptionalFieldsValue, TestData.Namespaces.TestData);
 
         /// <remarks />
+        public static readonly ExpandedNodeId ArrayValueObjectType_MultipleVectorsValue = new ExpandedNodeId(TestData.Variables.ArrayValueObjectType_MultipleVectorsValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
         public static readonly ExpandedNodeId AnalogArrayValueObjectType_GenerateValues_InputArguments = new ExpandedNodeId(TestData.Variables.AnalogArrayValueObjectType_GenerateValues_InputArguments, TestData.Namespaces.TestData);
 
         /// <remarks />
@@ -7622,6 +7634,9 @@ namespace TestData
 
         /// <remarks />
         public static readonly ExpandedNodeId Data_Static_Array_VectorWithOptionalFieldsValue = new ExpandedNodeId(TestData.Variables.Data_Static_Array_VectorWithOptionalFieldsValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Static_Array_MultipleVectorsValue = new ExpandedNodeId(TestData.Variables.Data_Static_Array_MultipleVectorsValue, TestData.Namespaces.TestData);
 
         /// <remarks />
         public static readonly ExpandedNodeId Data_Static_UserScalar_SimulationActive = new ExpandedNodeId(TestData.Variables.Data_Static_UserScalar_SimulationActive, TestData.Namespaces.TestData);
@@ -8888,6 +8903,9 @@ namespace TestData
 
         /// <remarks />
         public static readonly ExpandedNodeId Data_Dynamic_Array_VectorWithOptionalFieldsValue = new ExpandedNodeId(TestData.Variables.Data_Dynamic_Array_VectorWithOptionalFieldsValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Data_Dynamic_Array_MultipleVectorsValue = new ExpandedNodeId(TestData.Variables.Data_Dynamic_Array_MultipleVectorsValue, TestData.Namespaces.TestData);
 
         /// <remarks />
         public static readonly ExpandedNodeId Data_Dynamic_UserScalar_SimulationActive = new ExpandedNodeId(TestData.Variables.Data_Dynamic_UserScalar_SimulationActive, TestData.Namespaces.TestData);

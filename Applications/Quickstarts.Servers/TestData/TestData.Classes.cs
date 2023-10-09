@@ -7684,7 +7684,7 @@ namespace TestData
         #region Initialization String
         private const string InitializationString =
            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABABwAAABBcnJheVZhbHVl" +
-           "T2JqZWN0VHlwZUluc3RhbmNlAQGwBQEBsAWwBQAAAQAAAAAkAAEBtAUhAAAANWCJCgIAAAABABAAAABT" +
+           "T2JqZWN0VHlwZUluc3RhbmNlAQGwBQEBsAWwBQAAAQAAAAAkAAEBtAUiAAAANWCJCgIAAAABABAAAABT" +
            "aW11bGF0aW9uQWN0aXZlAQGxBQMAAAAARwAAAElmIHRydWUgdGhlIHNlcnZlciB3aWxsIHByb2R1Y2Ug" +
            "bmV3IHZhbHVlcyBmb3IgZWFjaCBtb25pdG9yZWQgdmFyaWFibGUuAC4ARLEFAAAAAf////8BAf////8A" +
            "AAAABGGCCgQAAAABAA4AAABHZW5lcmF0ZVZhbHVlcwEBsgUALwEB+QOyBQAAAQH/////AQAAABdgqQoC" +
@@ -7755,7 +7755,8 @@ namespace TestData
            "AAEB/////wAAAAAXYIkKAgAAAAEACwAAAFZlY3RvclZhbHVlAQEKBgAvAD8KBgAAAQFgBwEAAAABAAAA" +
            "AAAAAAEB/////wAAAAAXYIkKAgAAAAEAEAAAAFZlY3RvclVuaW9uVmFsdWUBARgOAC8APxgOAAABAQAO" +
            "AQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAQAdAAAAVmVjdG9yV2l0aE9wdGlvbmFsRmllbGRz" +
-           "VmFsdWUBARkOAC8APxkOAAABAQEOAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
+           "VmFsdWUBARkOAC8APxkOAAABAQEOAQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAQAUAAAATXVs" +
+           "dGlwbGVWZWN0b3JzVmFsdWUBASsOAC8APysOAAABAR8OAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -8330,6 +8331,25 @@ namespace TestData
                 m_vectorWithOptionalFieldsValue = value;
             }
         }
+
+        /// <remarks />
+        public BaseDataVariableState<MultipleVectors[]> MultipleVectorsValue
+        {
+            get
+            {
+                return m_multipleVectorsValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_multipleVectorsValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_multipleVectorsValue = value;
+            }
+        }
         #endregion
 
         #region Overridden Methods
@@ -8486,6 +8506,11 @@ namespace TestData
             if (m_vectorWithOptionalFieldsValue != null)
             {
                 children.Add(m_vectorWithOptionalFieldsValue);
+            }
+
+            if (m_multipleVectorsValue != null)
+            {
+                children.Add(m_multipleVectorsValue);
             }
 
             base.GetChildren(context, children);
@@ -9136,6 +9161,27 @@ namespace TestData
                     instance = VectorWithOptionalFieldsValue;
                     break;
                 }
+
+                case TestData.BrowseNames.MultipleVectorsValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (MultipleVectorsValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                MultipleVectorsValue = new BaseDataVariableState<MultipleVectors[]>(this);
+                            }
+                            else
+                            {
+                                MultipleVectorsValue = (BaseDataVariableState<MultipleVectors[]>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = MultipleVectorsValue;
+                    break;
+                }
             }
 
             if (instance != null)
@@ -9178,6 +9224,7 @@ namespace TestData
         private BaseDataVariableState<Vector[]> m_vectorValue;
         private BaseDataVariableState<VectorUnion[]> m_vectorUnionValue;
         private BaseDataVariableState<VectorWithOptionalFields[]> m_vectorWithOptionalFieldsValue;
+        private BaseDataVariableState<MultipleVectors[]> m_multipleVectorsValue;
         #endregion
     }
     #endif

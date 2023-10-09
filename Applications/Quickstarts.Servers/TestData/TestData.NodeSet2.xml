@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2023-10-09T05:48:25.1215815Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2023-10-09T08:51:24.5237088Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <NamespaceUris>
     <Uri>http://test.org/UA/Data/</Uri>
   </NamespaceUris>
   <Models>
-    <Model ModelUri="http://test.org/UA/Data/" Version="1.0.0" PublicationDate="2023-10-09T05:48:25.1215815Z">
+    <Model ModelUri="http://test.org/UA/Data/" Version="1.0.0" PublicationDate="2023-10-09T08:51:24.5237088Z">
       <RequiredModel ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" />
     </Model>
   </Models>
@@ -1694,6 +1694,7 @@
       <Reference ReferenceType="HasComponent">ns=1;i=1546</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=3608</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=3609</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=3627</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1015</Reference>
     </References>
   </UAObjectType>
@@ -1931,6 +1932,14 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=3609" BrowseName="1:VectorWithOptionalFieldsValue" ParentNodeId="ns=1;i=1456" DataType="ns=1;i=3585" ValueRank="1" ArrayDimensions="0">
     <DisplayName>VectorWithOptionalFieldsValue</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1456</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=3627" BrowseName="1:MultipleVectorsValue" ParentNodeId="ns=1;i=1456" DataType="ns=1;i=3615" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>MultipleVectorsValue</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -7553,6 +7562,7 @@
       <Reference ReferenceType="HasComponent">ns=1;i=2255</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=3610</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=3611</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=3628</Reference>
       <Reference ReferenceType="HasEventSource" IsForward="false">ns=1;i=1975</Reference>
       <Reference ReferenceType="HasEventSource">ns=1;i=2169</Reference>
       <Reference ReferenceType="HasTypeDefinition">ns=1;i=1456</Reference>
@@ -8139,6 +8149,13 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=3611" BrowseName="1:VectorWithOptionalFieldsValue" ParentNodeId="ns=1;i=2165" DataType="ns=1;i=3585" ValueRank="1" ArrayDimensions="0">
     <DisplayName>VectorWithOptionalFieldsValue</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=2165</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=3628" BrowseName="1:MultipleVectorsValue" ParentNodeId="ns=1;i=2165" DataType="ns=1;i=3615" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>MultipleVectorsValue</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=2165</Reference>
@@ -15077,6 +15094,7 @@
       <Reference ReferenceType="HasComponent">ns=1;i=3019</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=3612</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=3613</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=3629</Reference>
       <Reference ReferenceType="HasEventSource" IsForward="false">ns=1;i=2739</Reference>
       <Reference ReferenceType="HasEventSource">ns=1;i=2933</Reference>
       <Reference ReferenceType="HasTypeDefinition">ns=1;i=1456</Reference>
@@ -15666,6 +15684,13 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=3613" BrowseName="1:VectorWithOptionalFieldsValue" ParentNodeId="ns=1;i=2929" DataType="ns=1;i=3585" ValueRank="1" ArrayDimensions="0">
     <DisplayName>VectorWithOptionalFieldsValue</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=2929</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=3629" BrowseName="1:MultipleVectorsValue" ParentNodeId="ns=1;i=2929" DataType="ns=1;i=3615" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>MultipleVectorsValue</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=2929</Reference>
@@ -18871,7 +18896,7 @@ c2QiDQogIHhtbG5zOnRucz0iaHR0cDovL3Rlc3Qub3JnL1VBL0RhdGEvIg0KICB0YXJnZXROYW1l
 c3BhY2U9Imh0dHA6Ly90ZXN0Lm9yZy9VQS9EYXRhLyINCiAgZWxlbWVudEZvcm1EZWZhdWx0PSJx
 dWFsaWZpZWQiDQo+DQogIDx4czphbm5vdGF0aW9uPg0KICAgIDx4czphcHBpbmZvPg0KICAgICAg
 PHVhOk1vZGVsIE1vZGVsVXJpPSJodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS8iIFZlcnNpb249IjEu
-MC4wIiBQdWJsaWNhdGlvbkRhdGU9IjIwMjMtMTAtMDlUMDU6NDg6MjUuMTIxNTgxNVoiIC8+DQog
+MC4wIiBQdWJsaWNhdGlvbkRhdGU9IjIwMjMtMTAtMDlUMDg6NTE6MjQuNTIzNzA4OFoiIC8+DQog
 ICAgPC94czphcHBpbmZvPg0KICA8L3hzOmFubm90YXRpb24+DQogIA0KICA8eHM6aW1wb3J0IG5h
 bWVzcGFjZT0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBLzIwMDgvMDIvVHlwZXMueHNkIiAv
 Pg0KDQogIDx4czpjb21wbGV4VHlwZSBuYW1lPSJTY2FsYXJTdHJ1Y3R1cmVEYXRhVHlwZSI+DQog

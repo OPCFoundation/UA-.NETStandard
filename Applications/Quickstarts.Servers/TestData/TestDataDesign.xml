@@ -422,6 +422,7 @@
       <opc:Variable SymbolicName="VectorValue" DataType="Vector" ValueRank="Array" ModellingRule="Mandatory" />
       <opc:Variable SymbolicName="VectorUnionValue" DataType="VectorUnion" ValueRank="Array" ModellingRule="Mandatory" />
       <opc:Variable SymbolicName="VectorWithOptionalFieldsValue" DataType="VectorWithOptionalFields" ValueRank="Array" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="MultipleVectorsValue" DataType="MultipleVectors" ValueRank="Array" ModellingRule="Mandatory" />
     </opc:Children>
   </opc:ObjectType>
 

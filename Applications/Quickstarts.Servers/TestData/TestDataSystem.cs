@@ -402,6 +402,12 @@ namespace TestData
                         return GetRandomMultipleVectors();
                     }
 
+                    // MultipleVectors - Array
+                    case TestData.Variables.ArrayValueObjectType_MultipleVectorsValue:
+                    {
+                        return GetRandomArray(GetRandomMultipleVectors);
+                    }
+
                     case TestData.Variables.ArrayValueObjectType_BooleanValue:
                     case TestData.Variables.UserArrayValueObjectType_BooleanValue:
                     {
