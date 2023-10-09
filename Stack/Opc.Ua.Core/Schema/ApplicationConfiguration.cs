@@ -3314,10 +3314,17 @@ namespace Opc.Ua
         {
             get => m_certificateType;
             set => m_certificateType = value;
+        }
 
-            // get { return EncodeCertificateType(m_certificateType); }
-            // set { m_certificateType = DecodeCertificateType (value); }
-
+        /// <summary>
+        /// The string representation of the certificate
+        /// </summary>
+        /// <value>Rsa, RsaMin, RsaSha256, NistP256, NistP384, BrainpoolP256r1, BrainpoolP384r1, Curve25519, Curve448</value>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 90)]
+        public string CertificateTypeString
+        {
+            get => EncodeCertificateType(m_certificateType);
+            set => m_certificateType = DecodeCertificateType(value);
         }
         #endregion
 
