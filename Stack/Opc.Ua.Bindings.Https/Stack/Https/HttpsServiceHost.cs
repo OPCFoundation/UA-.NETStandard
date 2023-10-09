@@ -106,17 +106,17 @@ namespace Opc.Ua.Bindings
                 description.EndpointUrl = uri.ToString();
                 description.Server = serverDescription;
 
-                    if (certificateTypesProvider != null)
-                    {
-                        var instanceCertificate = certificateTypesProvider.GetInstanceCertificate(bestPolicy.SecurityPolicyUri);
-                        description.ServerCertificate = instanceCertificate.RawData;
+                if (certificateTypesProvider != null)
+                {
+                    var instanceCertificate = certificateTypesProvider.GetInstanceCertificate(bestPolicy.SecurityPolicyUri);
+                    description.ServerCertificate = instanceCertificate.RawData;
 
-                        // check if complete chain should be sent.
-                        if (configuration.SecurityConfiguration.SendCertificateChain)
-                        {
-                            description.ServerCertificate = certificateTypesProvider.LoadCertificateChainRawAsync(instanceCertificate).GetAwaiter().GetResult();
-                        }
+                    // check if complete chain should be sent.
+                    if (configuration.SecurityConfiguration.SendCertificateChain)
+                    {
+                        description.ServerCertificate = certificateTypesProvider.LoadCertificateChainRawAsync(instanceCertificate).GetAwaiter().GetResult();
                     }
+                }
 
                 description.SecurityMode = bestPolicy.SecurityMode;
                 description.SecurityPolicyUri = bestPolicy.SecurityPolicyUri;
@@ -137,11 +137,12 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-                // create the host.
-                hosts[hostName] = serverBase.CreateServiceHost(serverBase, uris.ToArray());
-            }
+            // create the host.
+            hosts[hostName] = serverBase.CreateServiceHost(serverBase, uris.ToArray());
+
 
             return endpoints;
-        }
-    }
+
+        }    
+    } 
 }

@@ -222,29 +222,30 @@ namespace Opc.Ua
                 {
                     m_useValidatedCertificates = configuration.UseValidatedCertificates;
                 }
+
+                if (configuration.ApplicationCertificates != null)
+                {
+                    foreach (var applicationCertificate in configuration.ApplicationCertificates)
+                    {
+                        X509Certificate2 certificate = await applicationCertificate.Find(true).ConfigureAwait(false);
+                        if (certificate == null)
+                        {
+                            Utils.Trace(Utils.TraceMasks.Security, "Could not find application certificate: {0}", applicationCertificate);
+                            continue;
+                        }
+                        // Add to list of application certificates only if not allready in list
+                        // necessary since the application certificates may be updated multiple times
+                        if (!m_applicationCertificates.Exists(cert => Utils.IsEqual(cert.RawData, certificate.RawData)))
+                        {
+                            m_applicationCertificates.Add(certificate);
+                        }
+                    }
+                }
+
             }
             finally
             {
                 m_semaphore.Release();
-            }
-
-            if (configuration.ApplicationCertificates != null)
-            {
-                foreach (var applicationCertificate in configuration.ApplicationCertificates)
-                {
-                    X509Certificate2 certificate = await applicationCertificate.Find(true).ConfigureAwait(false);
-                    if (certificate == null)
-                    {
-                        Utils.Trace(Utils.TraceMasks.Security, "Could not find application certificate: {0}", applicationCertificate);
-                        continue;
-                    }
-                    // Add to list of application certificates only if not allready in list
-                    // necessary since the application certificates may be updated multiple times
-                    if (!m_applicationCertificates.Exists(cert => Utils.IsEqual(cert.RawData, certificate.RawData)))
-                    {
-                        m_applicationCertificates.Add(certificate);
-                    }
-                }
             }
 
         }
@@ -428,14 +429,21 @@ namespace Opc.Ua
             get => m_minimumECCertificateKeySize;
             set
             {
-                lock (m_lock)
+                try
                 {
+                    m_semaphore.Wait();
+
                     m_protectFlags |= ProtectFlags.MinimumECCertificateKeySize;
                     if (m_minimumECCertificateKeySize != value)
                     {
                         m_minimumECCertificateKeySize = value;
                         ResetValidatedCertificates();
                     }
+
+                }
+                finally
+                {
+                    m_semaphore.Release();
                 }
             }
         }
