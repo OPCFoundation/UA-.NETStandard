@@ -396,6 +396,12 @@ namespace TestData
                         return GetRandomArray(GetRandomVectorWithOptionalFields);
                     }
 
+                    // MultipleVectors - Scalar
+                    case TestData.Variables.ScalarValueObjectType_MultipleVectorsValue:
+                    {
+                        return GetRandomMultipleVectors();
+                    }
+
                     case TestData.Variables.ArrayValueObjectType_BooleanValue:
                     case TestData.Variables.UserArrayValueObjectType_BooleanValue:
                     {
@@ -850,6 +856,18 @@ namespace TestData
                 X = (double)m_generator.GetRandom(BuiltInType.Double),
                 Y = (double)m_generator.GetRandom(BuiltInType.Double),
                 Z = (double)m_generator.GetRandom(BuiltInType.Double),
+            };
+        }
+
+        public MultipleVectors GetRandomMultipleVectors()
+        {
+            return new MultipleVectors() {
+                Vector = GetRandomVector(),
+                VectorUnion = GetRandomVectorUnion(),
+                VectorWithOptionalFields = GetRandomVectorWithOptionalFields(),
+                VectorArray = GetRandomArray(GetRandomVector),
+                VectorUnionArray = GetRandomArray(GetRandomVectorUnion),
+                VectorWithOptionalFieldsArray = GetRandomArray(GetRandomVectorWithOptionalFields),
             };
         }
 

@@ -4606,7 +4606,7 @@ namespace TestData
         #region Initialization String
         private const string InitializationString =
            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABAB0AAABTY2FsYXJWYWx1" +
-           "ZU9iamVjdFR5cGVJbnN0YW5jZQEBXAQBAVwEXAQAAAEAAAAAJAABAWAEIQAAADVgiQoCAAAAAQAQAAAA" +
+           "ZU9iamVjdFR5cGVJbnN0YW5jZQEBXAQBAVwEXAQAAAEAAAAAJAABAWAEIgAAADVgiQoCAAAAAQAQAAAA" +
            "U2ltdWxhdGlvbkFjdGl2ZQEBXQQDAAAAAEcAAABJZiB0cnVlIHRoZSBzZXJ2ZXIgd2lsbCBwcm9kdWNl" +
            "IG5ldyB2YWx1ZXMgZm9yIGVhY2ggbW9uaXRvcmVkIHZhcmlhYmxlLgAuAERdBAAAAAH/////AQH/////" +
            "AAAAAARhggoEAAAAAQAOAAAAR2VuZXJhdGVWYWx1ZXMBAV4EAC8BAfkDXgQAAAEB/////wEAAAAXYKkK" +
@@ -4675,7 +4675,8 @@ namespace TestData
            "AAv/////AQH/////AAAAABVgiQoCAAAAAQABAAAAWQEBuAQALgBEuAQAAAAL/////wEB/////wAAAAAV" +
            "YIkKAgAAAAEAAQAAAFoBAbkEAC4ARLkEAAAAC/////8BAf////8AAAAAFWCJCgIAAAABABAAAABWZWN0" +
            "b3JVbmlvblZhbHVlAQH+DQAvAD/+DQAAAQEADv////8BAf////8AAAAAFWCJCgIAAAABAB0AAABWZWN0" +
-           "b3JXaXRoT3B0aW9uYWxGaWVsZHNWYWx1ZQEB/w0ALwA//w0AAAEBAQ7/////AQH/////AAAAAA==";
+           "b3JXaXRoT3B0aW9uYWxGaWVsZHNWYWx1ZQEB/w0ALwA//w0AAAEBAQ7/////AQH/////AAAAABVgiQoC" +
+           "AAAAAQAUAAAATXVsdGlwbGVWZWN0b3JzVmFsdWUBAR4OAC8APx4OAAABAR8O/////wEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -5250,6 +5251,25 @@ namespace TestData
                 m_vectorWithOptionalFieldsValue = value;
             }
         }
+
+        /// <remarks />
+        public BaseDataVariableState<MultipleVectors> MultipleVectorsValue
+        {
+            get
+            {
+                return m_multipleVectorsValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_multipleVectorsValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_multipleVectorsValue = value;
+            }
+        }
         #endregion
 
         #region Overridden Methods
@@ -5406,6 +5426,11 @@ namespace TestData
             if (m_vectorWithOptionalFieldsValue != null)
             {
                 children.Add(m_vectorWithOptionalFieldsValue);
+            }
+
+            if (m_multipleVectorsValue != null)
+            {
+                children.Add(m_multipleVectorsValue);
             }
 
             base.GetChildren(context, children);
@@ -6056,6 +6081,27 @@ namespace TestData
                     instance = VectorWithOptionalFieldsValue;
                     break;
                 }
+
+                case TestData.BrowseNames.MultipleVectorsValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (MultipleVectorsValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                MultipleVectorsValue = new BaseDataVariableState<MultipleVectors>(this);
+                            }
+                            else
+                            {
+                                MultipleVectorsValue = (BaseDataVariableState<MultipleVectors>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = MultipleVectorsValue;
+                    break;
+                }
             }
 
             if (instance != null)
@@ -6098,6 +6144,7 @@ namespace TestData
         private VectorVariableState m_vectorValue;
         private BaseDataVariableState<VectorUnion> m_vectorUnionValue;
         private BaseDataVariableState<VectorWithOptionalFields> m_vectorWithOptionalFieldsValue;
+        private BaseDataVariableState<MultipleVectors> m_multipleVectorsValue;
         #endregion
     }
     #endif

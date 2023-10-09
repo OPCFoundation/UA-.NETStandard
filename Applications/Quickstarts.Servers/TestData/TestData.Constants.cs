@@ -131,6 +131,9 @@ namespace TestData
         public const uint VectorWithOptionalFields = 3585;
 
         /// <remarks />
+        public const uint MultipleVectors = 3615;
+
+        /// <remarks />
         public const uint WorkOrderStatusType = 1893;
 
         /// <remarks />
@@ -657,6 +660,9 @@ namespace TestData
         public const uint VectorWithOptionalFields_Encoding_DefaultBinary = 3591;
 
         /// <remarks />
+        public const uint MultipleVectors_Encoding_DefaultBinary = 3618;
+
+        /// <remarks />
         public const uint WorkOrderStatusType_Encoding_DefaultBinary = 3516;
 
         /// <remarks />
@@ -684,6 +690,9 @@ namespace TestData
         public const uint VectorWithOptionalFields_Encoding_DefaultXml = 3599;
 
         /// <remarks />
+        public const uint MultipleVectors_Encoding_DefaultXml = 3622;
+
+        /// <remarks />
         public const uint WorkOrderStatusType_Encoding_DefaultXml = 3548;
 
         /// <remarks />
@@ -709,6 +718,9 @@ namespace TestData
 
         /// <remarks />
         public const uint VectorWithOptionalFields_Encoding_DefaultJson = 3607;
+
+        /// <remarks />
+        public const uint MultipleVectors_Encoding_DefaultJson = 3626;
 
         /// <remarks />
         public const uint WorkOrderStatusType_Encoding_DefaultJson = 3580;
@@ -1127,6 +1139,9 @@ namespace TestData
 
         /// <remarks />
         public const uint ScalarValueObjectType_VectorWithOptionalFieldsValue = 3583;
+
+        /// <remarks />
+        public const uint ScalarValueObjectType_MultipleVectorsValue = 3614;
 
         /// <remarks />
         public const uint StructureValueObjectType_GenerateValues_InputArguments = 1213;
@@ -2407,6 +2422,9 @@ namespace TestData
         public const uint Data_Static_Scalar_VectorWithOptionalFieldsValue = 3587;
 
         /// <remarks />
+        public const uint Data_Static_Scalar_MultipleVectorsValue = 3616;
+
+        /// <remarks />
         public const uint Data_Static_Structure_SimulationActive = 2071;
 
         /// <remarks />
@@ -3670,6 +3688,9 @@ namespace TestData
         public const uint Data_Dynamic_Scalar_VectorWithOptionalFieldsValue = 3589;
 
         /// <remarks />
+        public const uint Data_Dynamic_Scalar_MultipleVectorsValue = 3617;
+
+        /// <remarks />
         public const uint Data_Dynamic_Structure_SimulationActive = 2835;
 
         /// <remarks />
@@ -4786,6 +4807,9 @@ namespace TestData
         public const uint TestData_BinarySchema_VectorWithOptionalFields = 3595;
 
         /// <remarks />
+        public const uint TestData_BinarySchema_MultipleVectors = 3619;
+
+        /// <remarks />
         public const uint TestData_BinarySchema_WorkOrderStatusType = 3537;
 
         /// <remarks />
@@ -4820,6 +4844,9 @@ namespace TestData
 
         /// <remarks />
         public const uint TestData_XmlSchema_VectorWithOptionalFields = 3603;
+
+        /// <remarks />
+        public const uint TestData_XmlSchema_MultipleVectors = 3623;
 
         /// <remarks />
         public const uint TestData_XmlSchema_WorkOrderStatusType = 3569;
@@ -4935,6 +4962,9 @@ namespace TestData
 
         /// <remarks />
         public static readonly ExpandedNodeId VectorWithOptionalFields = new ExpandedNodeId(TestData.DataTypes.VectorWithOptionalFields, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId MultipleVectors = new ExpandedNodeId(TestData.DataTypes.MultipleVectors, TestData.Namespaces.TestData);
 
         /// <remarks />
         public static readonly ExpandedNodeId WorkOrderStatusType = new ExpandedNodeId(TestData.DataTypes.WorkOrderStatusType, TestData.Namespaces.TestData);
@@ -5463,6 +5493,9 @@ namespace TestData
         public static readonly ExpandedNodeId VectorWithOptionalFields_Encoding_DefaultBinary = new ExpandedNodeId(TestData.Objects.VectorWithOptionalFields_Encoding_DefaultBinary, TestData.Namespaces.TestData);
 
         /// <remarks />
+        public static readonly ExpandedNodeId MultipleVectors_Encoding_DefaultBinary = new ExpandedNodeId(TestData.Objects.MultipleVectors_Encoding_DefaultBinary, TestData.Namespaces.TestData);
+
+        /// <remarks />
         public static readonly ExpandedNodeId WorkOrderStatusType_Encoding_DefaultBinary = new ExpandedNodeId(TestData.Objects.WorkOrderStatusType_Encoding_DefaultBinary, TestData.Namespaces.TestData);
 
         /// <remarks />
@@ -5490,6 +5523,9 @@ namespace TestData
         public static readonly ExpandedNodeId VectorWithOptionalFields_Encoding_DefaultXml = new ExpandedNodeId(TestData.Objects.VectorWithOptionalFields_Encoding_DefaultXml, TestData.Namespaces.TestData);
 
         /// <remarks />
+        public static readonly ExpandedNodeId MultipleVectors_Encoding_DefaultXml = new ExpandedNodeId(TestData.Objects.MultipleVectors_Encoding_DefaultXml, TestData.Namespaces.TestData);
+
+        /// <remarks />
         public static readonly ExpandedNodeId WorkOrderStatusType_Encoding_DefaultXml = new ExpandedNodeId(TestData.Objects.WorkOrderStatusType_Encoding_DefaultXml, TestData.Namespaces.TestData);
 
         /// <remarks />
@@ -5515,6 +5551,9 @@ namespace TestData
 
         /// <remarks />
         public static readonly ExpandedNodeId VectorWithOptionalFields_Encoding_DefaultJson = new ExpandedNodeId(TestData.Objects.VectorWithOptionalFields_Encoding_DefaultJson, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId MultipleVectors_Encoding_DefaultJson = new ExpandedNodeId(TestData.Objects.MultipleVectors_Encoding_DefaultJson, TestData.Namespaces.TestData);
 
         /// <remarks />
         public static readonly ExpandedNodeId WorkOrderStatusType_Encoding_DefaultJson = new ExpandedNodeId(TestData.Objects.WorkOrderStatusType_Encoding_DefaultJson, TestData.Namespaces.TestData);
@@ -5933,6 +5972,9 @@ namespace TestData
 
         /// <remarks />
         public static readonly ExpandedNodeId ScalarValueObjectType_VectorWithOptionalFieldsValue = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_VectorWithOptionalFieldsValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId ScalarValueObjectType_MultipleVectorsValue = new ExpandedNodeId(TestData.Variables.ScalarValueObjectType_MultipleVectorsValue, TestData.Namespaces.TestData);
 
         /// <remarks />
         public static readonly ExpandedNodeId StructureValueObjectType_GenerateValues_InputArguments = new ExpandedNodeId(TestData.Variables.StructureValueObjectType_GenerateValues_InputArguments, TestData.Namespaces.TestData);
@@ -7213,6 +7255,9 @@ namespace TestData
         public static readonly ExpandedNodeId Data_Static_Scalar_VectorWithOptionalFieldsValue = new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_VectorWithOptionalFieldsValue, TestData.Namespaces.TestData);
 
         /// <remarks />
+        public static readonly ExpandedNodeId Data_Static_Scalar_MultipleVectorsValue = new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_MultipleVectorsValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
         public static readonly ExpandedNodeId Data_Static_Structure_SimulationActive = new ExpandedNodeId(TestData.Variables.Data_Static_Structure_SimulationActive, TestData.Namespaces.TestData);
 
         /// <remarks />
@@ -8476,6 +8521,9 @@ namespace TestData
         public static readonly ExpandedNodeId Data_Dynamic_Scalar_VectorWithOptionalFieldsValue = new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_VectorWithOptionalFieldsValue, TestData.Namespaces.TestData);
 
         /// <remarks />
+        public static readonly ExpandedNodeId Data_Dynamic_Scalar_MultipleVectorsValue = new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_MultipleVectorsValue, TestData.Namespaces.TestData);
+
+        /// <remarks />
         public static readonly ExpandedNodeId Data_Dynamic_Structure_SimulationActive = new ExpandedNodeId(TestData.Variables.Data_Dynamic_Structure_SimulationActive, TestData.Namespaces.TestData);
 
         /// <remarks />
@@ -9592,6 +9640,9 @@ namespace TestData
         public static readonly ExpandedNodeId TestData_BinarySchema_VectorWithOptionalFields = new ExpandedNodeId(TestData.Variables.TestData_BinarySchema_VectorWithOptionalFields, TestData.Namespaces.TestData);
 
         /// <remarks />
+        public static readonly ExpandedNodeId TestData_BinarySchema_MultipleVectors = new ExpandedNodeId(TestData.Variables.TestData_BinarySchema_MultipleVectors, TestData.Namespaces.TestData);
+
+        /// <remarks />
         public static readonly ExpandedNodeId TestData_BinarySchema_WorkOrderStatusType = new ExpandedNodeId(TestData.Variables.TestData_BinarySchema_WorkOrderStatusType, TestData.Namespaces.TestData);
 
         /// <remarks />
@@ -9626,6 +9677,9 @@ namespace TestData
 
         /// <remarks />
         public static readonly ExpandedNodeId TestData_XmlSchema_VectorWithOptionalFields = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_VectorWithOptionalFields, TestData.Namespaces.TestData);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId TestData_XmlSchema_MultipleVectors = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_MultipleVectors, TestData.Namespaces.TestData);
 
         /// <remarks />
         public static readonly ExpandedNodeId TestData_XmlSchema_WorkOrderStatusType = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_WorkOrderStatusType, TestData.Namespaces.TestData);
@@ -9779,6 +9833,12 @@ namespace TestData
 
         /// <remarks />
         public const string MonitoredNodeCount = "MonitoredNodeCount";
+
+        /// <remarks />
+        public const string MultipleVectors = "MultipleVectors";
+
+        /// <remarks />
+        public const string MultipleVectorsValue = "MultipleVectorsValue";
 
         /// <remarks />
         public const string NewValueCount = "NewValueCount";
