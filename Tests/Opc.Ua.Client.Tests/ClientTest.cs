@@ -1269,8 +1269,7 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(900)]
         public void TestTraceContextIsPropagated()
         {
-            // Start an activity using TraceableSession's StartActivity method
-            using (var activity = TraceableSession.StartActivity("Test_Activity"))
+            using (var activity = TraceableSession.ActivitySource.StartActivity("Test_Activity"))
             {
                 // Inject the current trace context
                 var traceData = new Dictionary<string, string>();
