@@ -1793,13 +1793,13 @@ namespace Opc.Ua
         private static readonly Dictionary<string, int> NamedCurveBitSizes = new Dictionary<string, int>
         {
             // NIST Curves
-            { ECCurve.NamedCurves.nistP256.Oid.Value, 256 },    // NIST P-256
-            { ECCurve.NamedCurves.nistP384.Oid.Value, 384 },    // NIST P-384
-            { ECCurve.NamedCurves.nistP521.Oid.Value, 521 },    // NIST P-521
+            { ECCurve.NamedCurves.nistP256.Oid.Value ?? "1.2.840.10045.3.1.7", 256 },    // NIST P-256
+            { ECCurve.NamedCurves.nistP384.Oid.Value ?? "1.3.132.0.34"       , 384 },    // NIST P-384
+            { ECCurve.NamedCurves.nistP521.Oid.Value ?? "1.3.132.0.35"       , 521 },    // NIST P-521
 
             // Brainpool Curves
-            { ECCurve.NamedCurves.brainpoolP256r1.Oid.Value, 256 },  // BrainpoolP256r1
-            { ECCurve.NamedCurves.brainpoolP384r1.Oid.Value, 384 },  // BrainpoolP384r1
+            { ECCurve.NamedCurves.brainpoolP256r1.Oid.Value ?? "1.3.36.3.3.2.8.1.1.7", 256 },  // BrainpoolP256r1
+            { ECCurve.NamedCurves.brainpoolP384r1.Oid.Value ?? "1.3.36.3.3.2.8.1.1.11", 384 },  // BrainpoolP384r1
         };
 
         /// <summary>
