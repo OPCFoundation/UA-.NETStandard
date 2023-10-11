@@ -39,16 +39,45 @@ namespace Opc.Ua
     /// </summary>
     public static class EccUtils
     {
+        #region Public constants
+
+
+        /// <summary>
+        /// The name of the NIST P-256 curve.
+        /// </summary>
         public const string NistP256 = nameof(NistP256);
+        /// <summary>
+        /// The name of the NIST P-384 curve.
+        /// </summary>
         public const string NistP384 = nameof(NistP384);
+        /// <summary>
+        /// The name of the BrainpoolP256r1 curve.
+        /// </summary>
         public const string BrainpoolP256r1 = nameof(BrainpoolP256r1);
+        /// <summary>
+        /// The name of the BrainpoolP384r1 curve.
+        /// </summary>
         public const string BrainpoolP384r1 = nameof(BrainpoolP384r1);
+
+        #endregion
+
+        #region Private constants
+
 
         private const string NistP256KeyParameters = "06-08-2A-86-48-CE-3D-03-01-07";
         private const string NistP384KeyParameters = "06-05-2B-81-04-00-22";
         private const string BrainpoolP256r1KeyParameters = "06-09-2B-24-03-03-02-08-01-01-07";
         private const string BrainpoolP384r1KeyParameters = "06-09-2B-24-03-03-02-08-01-01-0B";
 
+        #endregion
+
+
+
+        /// <summary>
+        /// Returns true if the certificate is an ECC certificate.
+        /// </summary>
+        /// <param name="securityPolicyUri"></param>
+        /// <returns></returns>
         public static bool IsEccPolicy(string securityPolicyUri)
         {
             if (securityPolicyUri != null)
@@ -70,6 +99,11 @@ namespace Opc.Ua
             return false;
         }
 
+        /// <summary>
+        /// Returns the NodeId for the certificate type for the specified certificate.
+        /// </summary>
+        /// <param name="certificate"></param>
+        /// <returns></returns>
         public static NodeId GetEccCertificateTypeId(X509Certificate2 certificate)
         {
             var keyAlgorithm = certificate.GetKeyAlgorithm();
@@ -94,6 +128,11 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Returns the signature algorithm for the specified certificate.
+        /// </summary>
+        /// <param name="certificate"></param>
+        /// <returns></returns>
         public static string GetECDsaQualifier(X509Certificate2 certificate)
         {
             if (X509Utils.IsECDsaSignature(certificate))
@@ -137,12 +176,23 @@ namespace Opc.Ua
         }
 
 #if ECC_SUPPORT
+        /// <summary>
+        /// Returns the public key for the specified certificate.
+        /// </summary>
+        /// <param name="certificate"></param>
+        /// <returns></returns>
         public static ECDsa GetPublicKey(X509Certificate2 certificate)
         {
             string[] securityPolicyUris;
             return GetPublicKey(certificate, out securityPolicyUris);
         }
 
+        /// <summary>
+        /// Returns the public key for the specified certificate and ouputs the security policy uris.
+        /// </summary>
+        /// <param name="certificate"></param>
+        /// <param name="securityPolicyUris"></param>
+        /// <returns></returns>
         public static ECDsa GetPublicKey(X509Certificate2 certificate, out string[] securityPolicyUris)
         {
             securityPolicyUris = null;
@@ -259,9 +309,10 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// 
+        /// Returns the hash algorithm for the specified security policy.
         /// </summary>
         /// <param name="securityPolicyUri"></param>
+        /// <returns></returns>
         public static HashAlgorithmName GetSignatureAlgorithmName(string securityPolicyUri)
         {
             if (securityPolicyUri == null)
@@ -444,24 +495,60 @@ namespace Opc.Ua
         }
     }
 
+    /// <summary>
+    /// Utility class for encrypting and decrypting secrets using Elliptic Curve Cryptography (ECC).
+    /// </summary>
     public class EncryptedSecret
     {
+        /// <summary>
+        /// Gets or sets the X.509 certificate of the sender.
+        /// </summary>
         public X509Certificate2 SenderCertificate { get; set; }
 
+        /// <summary>
+        /// Gets or sets the collection of X.509 certificates of the sender's issuer.
+        /// </summary>
         public X509Certificate2Collection SenderIssuerCertificates { get; set; }
 
+        /// <summary>
+        /// Gets or sets a value indicating whether the sender's certificate should not be encoded.
+        /// </summary>
         public bool DoNotEncodeSenderCertificate { get; set; }
 
+        /// <summary>
+        /// Gets or sets the nonce of the sender.
+        /// </summary>
         public Nonce SenderNonce { get; set; }
 
+        /// <summary>
+        /// Gets or sets the nonce of the receiver.
+        /// </summary>
         public Nonce ReceiverNonce { get; set; }
 
+        /// <summary>
+        /// Gets or sets the X.509 certificate of the receiver.
+        /// </summary>
         public X509Certificate2 ReceiverCertificate { get; set; }
 
+        /// <summary>
+        /// Gets or sets the certificate validator.
+        /// </summary>
         public CertificateValidator Validator { get; set; }
 
+        /// <summary>
+        /// Gets or sets the security policy URI.
+        /// </summary>
         public string SecurityPolicyUri { get; set; }
 
+       
+        /// <summary>
+        /// Encrypts a secret using the specified nonce, encrypting key, and initialization vector (IV).
+        /// </summary>
+        /// <param name="secret">The secret to encrypt.</param>
+        /// <param name="nonce">The nonce to use for encryption.</param>
+        /// <param name="encryptingKey">The key to use for encryption.</param>
+        /// <param name="iv">The initialization vector to use for encryption.</param>
+        /// <returns>The encrypted secret.</returns>
         private static byte[] EncryptSecret(
             byte[] secret,
             byte[] nonce,
@@ -529,6 +616,13 @@ namespace Opc.Ua
         }
 
 #if CURVE25519
+        /// <summary>
+        /// Encrypts the given data using the ChaCha20Poly1305 algorithm with the provided key and initialization vector (IV).
+        /// </summary>
+        /// <param name="encryptingKey">The key used for encryption.</param>
+        /// <param name="iv">The initialization vector used for encryption.</param>
+        /// <param name="dataToEncrypt">The data to be encrypted.</param>
+        /// <returns>The encrypted data.</returns>
         private static byte[] EncryptWithChaCha20Poly1305(
             byte[] encryptingKey,
             byte[] iv,
@@ -562,6 +656,16 @@ namespace Opc.Ua
             return ciphertext;
         }
 
+        /// <summary>
+        /// Decrypts the given data using the ChaCha20Poly1305 algorithm with the provided key and initialization vector (IV).
+        /// </summary>
+        /// <param name="encryptingKey">The key used for encryption.</param>
+        /// <param name="iv">The initialization vector used for encryption.</param>
+        /// <param name="dataToDecrypt">The data to be decrypted.</param>
+        /// <param name="offset">The offset in the data to start decrypting from.</param>
+        /// <param name="count">The number of bytes to decrypt.</param>
+        /// <returns>An <see cref="ArraySegment{T}"/> containing the decrypted data.</returns>
+        /// <exception cref="ServiceResultException">Thrown if the plaintext is not the expected size or too short, or if the nonce is invalid.</exception>
         private ArraySegment<byte> DecryptWithChaCha20Poly1305(
             byte[] encryptingKey,
             byte[] iv,
@@ -621,9 +725,17 @@ namespace Opc.Ua
         }
 #endif
 
+
         /// <summary>
-        /// 
+        /// Decrypts the specified data using the provided encrypting key and initialization vector (IV).
         /// </summary>
+        /// <param name="dataToDecrypt">The data to decrypt.</param>
+        /// <param name="offset">The offset in the data to start decrypting from.</param>
+        /// <param name="count">The number of bytes to decrypt.</param>
+        /// <param name="encryptingKey">The key to use for decryption.</param>
+        /// <param name="iv">The initialization vector to use for decryption.</param>
+        /// <returns>The decrypted data.</returns>
+        /// <exception cref="ServiceResultException">Thrown if the input data is not an even number of encryption blocks or if the nonce is invalid.</exception>
         private static ArraySegment<byte> DecryptSecret(
             byte[] dataToDecrypt,
             int offset,
@@ -691,6 +803,15 @@ namespace Opc.Ua
         private static readonly byte[] s_Label = new UTF8Encoding().GetBytes("opcua-secret");
 
 
+        /// <summary>
+        /// Creates the encrypting key and initialization vector (IV) for Elliptic Curve Cryptography (ECC) encryption or decryption.
+        /// </summary>
+        /// <param name="securityPolicyUri">The security policy URI.</param>
+        /// <param name="senderNonce">The sender nonce.</param>
+        /// <param name="receiverNonce">The receiver nonce.</param>
+        /// <param name="forDecryption">if set to <c>true</c>, creates the keys for decryption; otherwise, creates the keys for encryption.</param>
+        /// <param name="encryptingKey">The encrypting key.</param>
+        /// <param name="iv">The initialization vector (IV).</param>
         private static void CreateKeysForEcc(
             string securityPolicyUri,
             Nonce senderNonce,
@@ -751,6 +872,12 @@ namespace Opc.Ua
             Buffer.BlockCopy(keyData, encryptingKeySize, iv, 0, iv.Length);
         }
 
+        /// <summary>
+        /// Encrypts a secret using the specified nonce.
+        /// </summary>
+        /// <param name="secret">The secret to encrypt.</param>
+        /// <param name="nonce">The nonce to use for encryption.</param>
+        /// <returns>The encrypted secret.</returns>
         public byte[] Encrypt(byte[] secret, byte[] nonce)
         {
             byte[] encryptingKey = null;
@@ -862,6 +989,12 @@ namespace Opc.Ua
             return message;
         }
 
+        /// <summary>
+        /// Verifies the header for an ECC encrypted message and returns the encrypted data.
+        /// </summary>
+        /// <param name="dataToDecrypt">The data to decrypt.</param>
+        /// <param name="earliestTime">The earliest time allowed for the message signing time.</param>
+        /// <returns>The encrypted data.</returns>
         private ArraySegment<byte> VerifyHeaderForEcc(
             ArraySegment<byte> dataToDecrypt,
             DateTime earliestTime)
@@ -993,6 +1126,15 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Decrypts the specified data using the ECC algorithm.
+        /// </summary>
+        /// <param name="earliestTime">The earliest time allowed for the message.</param>
+        /// <param name="expectedNonce">The expected nonce value.</param>
+        /// <param name="data">The data to decrypt.</param>
+        /// <param name="offset">The offset of the data to decrypt.</param>
+        /// <param name="count">The number of bytes to decrypt.</param>
+        /// <returns>The decrypted data.</returns>
         public byte[] Decrypt(DateTime earliestTime, byte[] expectedNonce, byte[] data, int offset, int count)
         {
             byte[] encryptingKey = null;

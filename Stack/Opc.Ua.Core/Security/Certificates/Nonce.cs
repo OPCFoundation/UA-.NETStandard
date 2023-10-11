@@ -34,8 +34,9 @@ using Org.BouncyCastle.Crypto.Digests;
 
 namespace Opc.Ua
 {
+
     /// <summary>
-    /// 
+    /// Represents a cryptographic nonce used for secure communication.
     /// </summary>
     public class Nonce : IDisposable
     {
@@ -101,8 +102,19 @@ namespace Opc.Ua
         }
 #endregion
 
+        /// <summary>
+        /// Gets the nonce data.
+        /// </summary>
         public byte[] Data { get; private set; }
 
+        /// <summary>
+        /// Derives a key from the remote nonce, using the specified salt, hash algorithm, and length.
+        /// </summary>
+        /// <param name="remoteNonce">The remote nonce to use in key derivation.</param>
+        /// <param name="salt">The salt to use in key derivation.</param>
+        /// <param name="algorithm">The hash algorithm to use in key derivation.</param>
+        /// <param name="length">The length of the derived key.</param>
+        /// <returns>The derived key.</returns>
         public byte[] DeriveKey(Nonce remoteNonce, byte[] salt, HashAlgorithmName algorithm, int length)
         {
 #if CURVE25519
@@ -190,6 +202,12 @@ namespace Opc.Ua
             return Data;
         }
 
+        /// <summary>
+        /// Creates a nonce for the specified security policy URI and nonce length.
+        /// </summary>
+        /// <param name="securityPolicyUri">The security policy URI.</param>
+        /// <param name="nonceLength">The length of the nonce.</param>
+        /// <returns>A <see cref="Nonce"/> object containing the generated nonce.</returns>
         public static Nonce CreateNonce(string securityPolicyUri, uint nonceLength)
         {
             if (securityPolicyUri == null)
@@ -227,6 +245,10 @@ namespace Opc.Ua
             }
         }
 #if CURVE25519
+        /// <summary>
+        /// Creates a new Nonce object to be used in Curve25519 cryptography.
+        /// </summary>
+        /// <returns>A new Nonce object.</returns>
         private static Nonce CreateNonceForCurve25519()
         {
             SecureRandom random = new SecureRandom();
@@ -246,6 +268,10 @@ namespace Opc.Ua
             return nonce;
         }
 
+        /// <summary>
+        /// Creates a Nonce object using the X448 elliptic curve algorithm.
+        /// </summary>
+        /// <returns>A Nonce object containing the generated nonce data and key pair.</returns>
         private static Nonce CreateNonceForCurve448()
         {
             SecureRandom random = new SecureRandom();
@@ -266,6 +292,11 @@ namespace Opc.Ua
         }
 #endif
 
+        /// <summary>
+        /// Creates a new Nonce instance using the specified elliptic curve.
+        /// </summary>
+        /// <param name="curve">The elliptic curve to use for the ECDH key exchange.</param>
+        /// <returns>A new Nonce instance.</returns>
         private static Nonce CreateNonce(ECCurve curve)
         {
             var ecdh = (ECDiffieHellman)ECDiffieHellman.Create(curve);
@@ -284,6 +315,12 @@ namespace Opc.Ua
             return nonce;
         }
 
+        /// <summary>
+        /// Creates a new Nonce object for the specified security policy URI and nonce data.
+        /// </summary>
+        /// <param name="securityPolicyUri">The security policy URI.</param>
+        /// <param name="nonceData">The nonce data.</param>
+        /// <returns>A new Nonce object.</returns>
         public static Nonce CreateNonce(string securityPolicyUri, byte[] nonceData)
         {
             if (securityPolicyUri == null)
@@ -327,6 +364,11 @@ namespace Opc.Ua
         }
 
 
+        /// <summary>
+        /// Creates a new Nonce object for use with Curve25519.
+        /// </summary>
+        /// <param name="nonceData">The nonce data to use.</param>
+        /// <returns>A new Nonce object.</returns>
         private static Nonce CreateNonceForCurve25519(byte[] nonceData)
         {
             var nonce = new Nonce() {
@@ -336,6 +378,11 @@ namespace Opc.Ua
             return nonce;
         }
 
+        /// <summary>
+        /// Creates a new Nonce instance for Curve448.
+        /// </summary>
+        /// <param name="nonceData">The nonce data.</param>
+        /// <returns>A new Nonce instance.</returns>
         private static Nonce CreateNonceForCurve448(byte[] nonceData)
         {
             var nonce = new Nonce() {
@@ -345,6 +392,12 @@ namespace Opc.Ua
             return nonce;
         }
 
+        /// <summary>
+        /// Creates a new Nonce instance with the specified curve and nonce data.
+        /// </summary>
+        /// <param name="curve">The elliptic curve to use for the ECDH key exchange.</param>
+        /// <param name="nonceData">The nonce data to use for the ECDH key exchange.</param>
+        /// <returns>A new Nonce instance with the specified curve and nonce data.</returns>
         private static Nonce CreateNonce(ECCurve curve, byte[] nonceData)
         {
             Nonce nonce = new Nonce() {
