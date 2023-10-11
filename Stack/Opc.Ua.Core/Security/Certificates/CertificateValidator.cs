@@ -434,7 +434,7 @@ namespace Opc.Ua
         /// Validates a certificate.
         /// </summary>
         /// <remarks>
-        /// Each UA application may have a list of trusted certificates that is different from 
+        /// Each UA application may have a list of trusted certificates that is different from
         /// all other UA applications that may be running on the same machine. As a result, the
         /// certificate validator cannot rely completely on the Windows certificate store and
         /// user or machine specific CTLs (certificate trust lists).
@@ -547,7 +547,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="se"></param>
         /// <param name="certificate"></param>
@@ -1514,8 +1514,8 @@ namespace Opc.Ua
                     goto case X509ChainStatusFlags.UntrustedRoot;
                 case X509ChainStatusFlags.UntrustedRoot:
                 {
-                    // self signed cert signature validation 
-                    // .NET Core ChainStatus returns NotSignatureValid only on Windows, 
+                    // self signed cert signature validation
+                    // .NET Core ChainStatus returns NotSignatureValid only on Windows,
                     // so we have to do the extra cert signature check on all platforms
                     if (issuer == null && id.Certificate != null &&
                         X509Utils.IsSelfSigned(id.Certificate))
@@ -1780,7 +1780,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        internal CertificateValidationEventArgs(ServiceResult error, X509Certificate2 certificate)
+        public CertificateValidationEventArgs(ServiceResult error, X509Certificate2 certificate)
         {
             m_error = error;
             m_certificate = certificate;
@@ -1853,7 +1853,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        internal CertificateUpdateEventArgs(
+        public CertificateUpdateEventArgs(
             SecurityConfiguration configuration,
             ICertificateValidator validator)
         {
