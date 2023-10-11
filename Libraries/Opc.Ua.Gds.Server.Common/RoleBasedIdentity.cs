@@ -47,7 +47,7 @@ namespace Opc.Ua.Gds.Server
         ApplicationUser,
 
         /// <summary>
-        /// Can manage the own Certificates & pull trust list
+        /// Can manage the own Certificates and pull trust list
         /// </summary>
         ApplicationSelfAdmin
     }

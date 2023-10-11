@@ -235,6 +235,7 @@ namespace Opc.Ua.Gds.Server
                 return;
             }
 
+            //check if applicable for application self admin privilege
             if(session.ClientCertificate != null)
             {
                 GdsRole role = GdsRole.ApplicationSelfAdmin;
