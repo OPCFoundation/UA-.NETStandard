@@ -33,6 +33,8 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using Opc.Ua.Server;
 using Opc.Ua.Gds.Server.Database;
+using Opc.Ua.Security.Certificates;
+using Org.BouncyCastle.Asn1.Cmp;
 
 namespace Opc.Ua.Gds.Server
 {
@@ -232,6 +234,55 @@ namespace Opc.Ua.Gds.Server
                 args.Identity = new RoleBasedIdentity(new UserIdentity(x509Token), role);
                 return;
             }
+
+            if(session.ClientCertificate != null)
+            {
+                GdsRole role = GdsRole.ApplicationSelfAdmin;
+                if (VerifiyApplicationRegistered(session.ClientCertificate))
+                {
+                    Utils.LogInfo("Application accepted based on certificate: {0} as {1}",
+                        session.ClientCertificate.SubjectName.ToString(), role.ToString());
+                    args.Identity = new RoleBasedIdentity(new UserIdentity(),role);
+                    return;
+                }
+            }
+        }
+
+        //Verifies if an Application is registered with the provided certificate at at the GDS
+        private bool VerifiyApplicationRegistered(X509Certificate2 applicationInstanceCertificate)
+        {
+            bool applicationRegistered = false;
+            //get access to GDS configuration section to find out ApplicationCertificatesStorePath
+            GlobalDiscoveryServerConfiguration configuration = Configuration.ParseExtension<GlobalDiscoveryServerConfiguration>();
+            if (configuration == null)
+            {
+                configuration = new GlobalDiscoveryServerConfiguration();
+            }
+            //check if application certificate is in the Store of the GDS
+            using (ICertificateStore ApplicationsStore = CertificateStoreIdentifier.OpenStore(configuration.ApplicationCertificatesStorePath))
+            {
+                var matchingCerts = ApplicationsStore.FindByThumbprint(applicationInstanceCertificate.Thumbprint).Result;
+
+                if (matchingCerts.Contains(applicationInstanceCertificate))
+                    applicationRegistered =  true;
+            }
+            //check if application certificate is revoked
+            using (ICertificateStore AuthoritiesStore = CertificateStoreIdentifier.OpenStore(configuration.AuthoritiesStorePath))
+            {
+                var crls = AuthoritiesStore.EnumerateCRLs().Result;
+                foreach (X509CRL crl in crls)
+                {
+                    var revokedCertificates = crl.RevokedCertificates;
+                    foreach (RevokedCertificate revokedCertificate in revokedCertificates)
+                    {
+                        if(revokedCertificate.SerialNumber == applicationInstanceCertificate.SerialNumber)
+                        {
+                            applicationRegistered = false;
+                        }
+                    }
+                }
+            }
+            return applicationRegistered;
         }
 
         /// <summary>

@@ -44,7 +44,12 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// The GDS application user.
         /// </summary>
-        ApplicationUser
+        ApplicationUser,
+
+        /// <summary>
+        /// Can manage the own Certificates & pull trust list
+        /// </summary>
+        ApplicationSelfAdmin
     }
 
     /// <summary>
