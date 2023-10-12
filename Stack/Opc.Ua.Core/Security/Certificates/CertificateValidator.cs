@@ -261,6 +261,7 @@ namespace Opc.Ua
 
                 foreach (var applicationCertificate in securityConfiguration.ApplicationCertificates)
                 {
+                    m_applicationCertificates.RemoveAll(cert => Utils.IsEqual(cert.RawData, applicationCertificate.RawData));
                     applicationCertificate.DisposeCertificate();
                 }
 
@@ -290,17 +291,14 @@ namespace Opc.Ua
         /// <summary>
         /// Reset the list of validated certificates.
         /// </summary>
-        public void ResetValidatedCertificates()
+        private void ResetValidatedCertificates()
         {
             try
             {
-                m_semaphore.Wait();
-
                 InternalResetValidatedCertificates();
             }
             finally
             {
-                m_semaphore.Release();
             }
         }
 
