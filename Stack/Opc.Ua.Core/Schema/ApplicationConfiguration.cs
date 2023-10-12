@@ -832,9 +832,8 @@ namespace Opc.Ua
                 }
                 SupportedSecurityPolicies = BuildSupportedSecurityPolicies();
 
-
+                m_applicationCertificates[0].CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType;
                 m_isDeprecatedConfiguration = true;
-
             }
         }
 
