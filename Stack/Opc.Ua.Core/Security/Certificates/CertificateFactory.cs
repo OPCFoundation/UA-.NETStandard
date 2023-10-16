@@ -98,7 +98,11 @@ namespace Opc.Ua
                 // check for existing cached certificate.
                 if (m_certificates.TryGetValue(certificate.Thumbprint, out cachedCertificate))
                 {
-                    return cachedCertificate;
+                    // cached certificate might be disposed, if so do not return but try to update value in the cache
+                    if (cachedCertificate.Handle != IntPtr.Zero)
+                    {
+                        return cachedCertificate;
+                    }
                 }
 
                 // nothing more to do if no private key or dont care about accessibility.
