@@ -376,28 +376,32 @@ namespace Opc.Ua.Client
 
 
         /// <summary>
-        /// Convert Trace Data to Extension Object.
+        /// Convert Trace Data to an Extension Object.
         /// </summary>
-        private ExtensionObject ConvertTraceDataToExtensionObject(Dictionary<string, string> traceData)
+        internal ExtensionObject ConvertTraceDataToExtensionObject(Dictionary<string, string> traceData)
         {
+            // Convert the dictionary into a key=value format.
             string[] keyValuePairs = traceData.Select(kvp => $"{kvp.Key}={kvp.Value}").ToArray();
             string traceDataString = string.Join(";", keyValuePairs);
 
-            // Create a MemoryStream to serve as an in-memory buffer.
-            using(MemoryStream memoryStream = new MemoryStream())
+            using (MemoryStream memoryStream = new MemoryStream())
             {
+                // Encode the trace data string into the memory stream.
                 BinaryEncoder encoder = new BinaryEncoder(memoryStream, m_session.MessageContext, false);
-
                 encoder.WriteString("TraceData", traceDataString);
 
+                // Return the encoded data as an ExtensionObject.
                 return new ExtensionObject {
                     Body = memoryStream.ToArray()
                 };
             }
         }
-
+        
         private readonly TracingClientBase m_tracingClientBase;
 
+        /// <summary>
+        /// Tracing implementation of the ClientBase class.
+        /// </summary>
         private class TracingClientBase : ClientBase
         {
             private readonly TraceableSession m_traceableSession;
@@ -411,6 +415,18 @@ namespace Opc.Ua.Client
             protected override void UpdateRequestHeader(IServiceRequest request, bool useDefaults)
             {
                 base.UpdateRequestHeader(request, useDefaults);
+
+                if (Activity.Current != null)
+                {
+                    var traceData = new Dictionary<string, string>();
+                    TraceableSession.InjectTraceContext(new TraceContext(Activity.Current.Context, new Dictionary<string, string>()), traceData);
+                    request.RequestHeader.AdditionalHeader = m_traceableSession.ConvertTraceDataToExtensionObject(traceData);
+                }
+            }
+
+            protected override void UpdateRequestHeader(IServiceRequest request, bool useDefaults, string serviceName)
+            {
+                base.UpdateRequestHeader(request, useDefaults, serviceName);
 
                 if (Activity.Current != null)
                 {
