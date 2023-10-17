@@ -35,6 +35,8 @@ using Opc.Ua.Server;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Security.Certificates;
 using Org.BouncyCastle.Asn1.Cmp;
+using System.Linq;
+using System.Data;
 
 namespace Opc.Ua.Gds.Server
 {
@@ -231,25 +233,27 @@ namespace Opc.Ua.Gds.Server
                 // role = GdsRole.ApplicationAdmin;
 
                 Utils.LogInfo("X509 Token Accepted: {0} as {1}", args.Identity.DisplayName, role.ToString());
-                args.Identity = new RoleBasedIdentity(new UserIdentity(x509Token), role);
+
+                string applicationUri = session.SessionDiagnostics.ClientDescription.ApplicationUri;
+                args.Identity = new RoleBasedIdentity(new UserIdentity(x509Token), role, applicationUri);
                 return;
             }
 
             //check if applicable for application self admin privilege
             if(session.ClientCertificate != null)
             {
-                GdsRole role = GdsRole.ApplicationSelfAdmin;
                 if (VerifiyApplicationRegistered(session.ClientCertificate))
                 {
-                    Utils.LogInfo("Application accepted based on certificate: {0} as {1}",
-                        session.ClientCertificate.SubjectName.ToString(), role.ToString());
-                    args.Identity = new RoleBasedIdentity(new UserIdentity(),role);
-                    return;
+                    ImpersonateAsApplicationSelfAdmin(session, args);
                 }
             }
         }
 
-        //Verifies if an Application is registered with the provided certificate at at the GDS
+        /// <summary>
+        /// Verifies if an Application is registered with the provided certificate at at the GDS
+        /// </summary>
+        /// <param name="applicationInstanceCertificate">the certificate to check for</param>
+        /// <returns></returns>
         private bool VerifiyApplicationRegistered(X509Certificate2 applicationInstanceCertificate)
         {
             bool applicationRegistered = false;
@@ -334,6 +338,28 @@ namespace Opc.Ua.Gds.Server
             // TODO: check username/password permissions
             return userNameToken.DecryptedPassword == "demo";
         }
+
+        /// <summary>
+        /// Impersonates the current Session as ApplicationSelfAdmin
+        /// </summary>
+        /// <param name="session">the current session</param>
+        /// <param name="args">the impersonateEventArgs</param>
+        private void ImpersonateAsApplicationSelfAdmin(Session session, ImpersonateEventArgs args)
+        {
+            string applicationUri = session.SessionDiagnostics.ClientDescription.ApplicationUri;
+            ApplicationRecordDataType[] application = m_database.FindApplications(applicationUri);
+            if(application == null || application.Length>1 || application.Length<1)
+            {
+                Utils.LogInfo("Cannot login based on ApplicationInstanceCertificate, no uniqure result for Application with URI: {0}", applicationUri);
+                return;
+            }
+            NodeId applicationId = application.FirstOrDefault().ApplicationId;
+            Utils.LogInfo("Application {0} accepted based on ApplicationInstanceCertificate as ApplicationSelfAdmin",
+                applicationUri);
+            args.Identity = new RoleBasedIdentity(new UserIdentity(), GdsRole.ApplicationSelfAdmin, applicationId);
+            return;
+        }
+        
         #endregion
 
         #region Private Fields

@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Xml;
 
 namespace Opc.Ua.Gds.Server
@@ -59,6 +60,7 @@ namespace Opc.Ua.Gds.Server
     {
         private IUserIdentity m_identity;
         private GdsRole m_role;
+        private NodeId m_applicationId;
 
         /// <summary>
         /// Initialize the role based identity.
@@ -67,6 +69,12 @@ namespace Opc.Ua.Gds.Server
         {
             m_identity = identity;
             m_role = role;
+        }
+
+        public RoleBasedIdentity(IUserIdentity identity, GdsRole role, NodeId applicationId)
+            :this(identity, role)
+        {
+            m_applicationId = applicationId;
         }
 
         /// <inheritdoc/>
@@ -82,6 +90,14 @@ namespace Opc.Ua.Gds.Server
         public GdsRole Role
         {
             get { return m_role; }
+        }
+
+        /// <summary>
+        /// The applicationId in case the ApplicationSelfAdminPrivilege is used
+        /// </summary>
+        public NodeId ApplicationId
+        {
+            get { return m_applicationId; }
         }
 
         /// <inheritdoc/>

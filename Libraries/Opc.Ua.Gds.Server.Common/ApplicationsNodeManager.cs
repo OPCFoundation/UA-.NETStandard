@@ -188,6 +188,29 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
+        /// <summary>
+        /// checks if the given Application can be modified with the current context
+        /// </summary>
+        /// <param name="context">the current context</param>
+        /// <param name="applicationId">the application to modify</param>
+        private void HasApplicationSelfAdminPrivilege(ISystemContext context, NodeId applicationId)
+        {
+            HasApplicationUserAccess(context);
+            if (context != null)
+            {
+                RoleBasedIdentity identity = context.UserIdentity as RoleBasedIdentity;
+                //administrator has full access
+                if (identity.Role == GdsRole.ApplicationAdmin)
+                    return;
+                //not administrator only has access to specified application
+                if (identity.ApplicationId != applicationId)
+                {
+                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application Self Admin Privielge or " +
+                        "Application Administrator access required.");
+                }
+            }
+        }
+
         private NodeId GetTrustListId(NodeId certificateGroupId)
         {
 
@@ -760,7 +783,7 @@ namespace Opc.Ua.Gds.Server
             string privateKeyPassword,
             ref NodeId requestId)
         {
-            HasApplicationAdminAccess(context);
+            HasApplicationSelfAdminPrivilege(context, applicationId);
 
             var application = m_database.GetApplication(applicationId);
 
@@ -879,7 +902,7 @@ namespace Opc.Ua.Gds.Server
             byte[] certificateRequest,
             ref NodeId requestId)
         {
-            HasApplicationAdminAccess(context);
+            HasApplicationSelfAdminPrivilege(context, applicationId);
 
             var application = m_database.GetApplication(applicationId);
 
@@ -960,7 +983,7 @@ namespace Opc.Ua.Gds.Server
             signedCertificate = null;
             issuerCertificates = null;
             privateKey = null;
-            HasApplicationAdminAccess(context);
+            HasApplicationSelfAdminPrivilege(context, applicationId);
 
             var application = m_database.GetApplication(applicationId);
             if (application == null)
@@ -1126,7 +1149,7 @@ namespace Opc.Ua.Gds.Server
             NodeId applicationId,
             ref NodeId[] certificateGroupIds)
         {
-            HasApplicationUserAccess(context);
+            HasApplicationSelfAdminPrivilege(context, applicationId);
 
             var application = m_database.GetApplication(applicationId);
 
@@ -1154,7 +1177,7 @@ namespace Opc.Ua.Gds.Server
             NodeId certificateGroupId,
             ref NodeId trustListId)
         {
-            HasApplicationUserAccess(context);
+            HasApplicationSelfAdminPrivilege(context, applicationId);
 
             var application = m_database.GetApplication(applicationId);
 
@@ -1187,7 +1210,7 @@ namespace Opc.Ua.Gds.Server
             NodeId certificateTypeId,
             ref Boolean updateRequired)
         {
-            HasApplicationUserAccess(context);
+            HasApplicationSelfAdminPrivilege(context, applicationId);
 
             var application = m_database.GetApplication(applicationId);
 
