@@ -63,8 +63,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Activity Source static instance.
         /// </summary>
-        public static ActivitySource ActivitySource => s_ActivitySource.Value;
-        private static readonly Lazy<ActivitySource> s_ActivitySource = new Lazy<ActivitySource>(() => new ActivitySource(ActivitySourceName, "1.0.0"));
+        public static ActivitySource ActivitySource => s_activitySource.Value;
+        private static readonly Lazy<ActivitySource> s_activitySource = new Lazy<ActivitySource>(() => new ActivitySource(ActivitySourceName, "1.0.0"));
 
         /// <summary>
         /// The ISession which is being traced.
