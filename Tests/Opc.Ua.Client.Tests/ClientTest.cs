@@ -41,8 +41,6 @@ using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server.Tests;
-using OpenTelemetry;
-using OpenTelemetry.Context.Propagation;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -1271,9 +1269,12 @@ namespace Opc.Ua.Client.Tests
         {
             using (var activity = TraceableSession.ActivitySource.StartActivity("Test_Activity"))
             {
+                // Create a custom TraceContext using the current activity's context and an empty baggage (as an example).
+                var currentContext = new TraceableSession.TraceContext(activity.Context, new Dictionary<string, string>());
+
                 // Inject the current trace context
                 var traceData = new Dictionary<string, string>();
-                TraceableSession.InjectTraceContext(new PropagationContext(activity.Context, Baggage.Current), traceData);
+                TraceableSession.InjectTraceContext(currentContext, traceData);
 
                 // Simulate extraction
                 var extractedContext = TraceableSession.ExtractTraceContext(traceData);
@@ -1283,6 +1284,7 @@ namespace Opc.Ua.Client.Tests
                 Assert.AreEqual(Activity.Current.Context.SpanId, extractedContext.ActivityContext.SpanId);
             }
         }
+
 
         /// <summary>
         /// Read BuildInfo and ensure the values in the structure are the same as in the properties.
