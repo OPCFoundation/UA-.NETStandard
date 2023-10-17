@@ -1285,7 +1285,6 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
-
         /// <summary>
         /// Read BuildInfo and ensure the values in the structure are the same as in the properties.
         /// </summary>
