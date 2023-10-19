@@ -2134,12 +2134,20 @@ namespace Opc.Ua
                             used, length);
                     }
                 }
+                catch (EndOfStreamException eofStream)
+                {
+                    // type was known but decoding failed, reset stream!
+                    m_reader.BaseStream.Position = start;
+                    encodeable = null;
+                    Utils.LogWarning(eofStream, "End of stream, failed to decode encodeable type '{0}', NodeId='{1}'. BinaryDecoder recovered.",
+                        systemType.Name, extension.TypeId);
+                }
                 catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
                 {
                     // type was known but decoding failed, reset stream!
                     m_reader.BaseStream.Position = start;
                     encodeable = null;
-                    Utils.LogWarning(sre, "Failed to decode encodeable type '{0}', NodeId='{1}'. BinaryDecoder recovered.",
+                    Utils.LogWarning(sre, "Encoding limits exceeded, failed to decode encodeable type '{0}', NodeId='{1}'. BinaryDecoder recovered.",
                         systemType.Name, extension.TypeId);
                 }
                 finally

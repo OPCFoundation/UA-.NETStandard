@@ -225,8 +225,6 @@ namespace Opc.Ua.Bindings
 
             int position = (int)offset;
 
-            CheckEndOfStream();
-
             for (int ii = 0; ii < m_buffers.Count; ii++)
             {
                 int length = GetBufferCount(ii);
