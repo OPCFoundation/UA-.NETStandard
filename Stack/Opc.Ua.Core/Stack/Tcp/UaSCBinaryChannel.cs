@@ -577,6 +577,11 @@ namespace Opc.Ua.Bindings
                 reason = new UTF8Encoding().GetString(reasonBytes, 0, reasonLength);
             }
 
+            if (reason == null)
+            {
+                reason = new ServiceResult(statusCode).ToString();
+            }
+
             return ServiceResult.Create(statusCode, "Error received from remote host: {0}", reason);
         }
 
