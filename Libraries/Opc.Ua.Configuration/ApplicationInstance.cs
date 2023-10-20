@@ -50,13 +50,16 @@ namespace Opc.Ua.Configuration
         /// Initializes a new instance of the <see cref="ApplicationInstance"/> class.
         /// </summary>
         public ApplicationInstance()
-        { }
+        {
+            DisableCertificateAutoCreation = false;
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ApplicationInstance"/> class.
         /// </summary>
         /// <param name="applicationConfiguration">The application configuration.</param>
         public ApplicationInstance(ApplicationConfiguration applicationConfiguration)
+            : this()
         {
             m_applicationConfiguration = applicationConfiguration;
         }
@@ -130,8 +133,9 @@ namespace Opc.Ua.Configuration
         public ICertificatePasswordProvider CertificatePasswordProvider { get; set; }
 
         /// <summary>
-        /// Get or set bool which indicates if the auto creation of a new application certificate
-        /// during startup is disabled.
+        /// Get or set bool which indicates if the auto creation
+        /// of a new application certificate during startup is disabled.
+        /// Default is enabled./>
         /// </summary>
         /// <remarks>
         /// Prevents auto self signed cert creation in use cases
