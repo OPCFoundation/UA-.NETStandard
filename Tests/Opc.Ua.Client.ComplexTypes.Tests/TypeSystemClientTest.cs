@@ -245,7 +245,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         }
 
         [Test, Order(400)]
-        public async Task ReadWriteScalaVariableTypeAsync()
+        public async Task ReadWriteScalarVariableTypeAsync()
         {
             var samples = new ClientSamples(TestContext.Out, null, null, true);
             await samples.LoadTypeSystemAsync(m_session).ConfigureAwait(false);

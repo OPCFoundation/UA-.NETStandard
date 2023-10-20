@@ -264,7 +264,6 @@ namespace Opc.Ua
                 if (m_reader != null)
                 {
                     m_reader.Close();
-                    m_reader = null;
                 }
             }
         }

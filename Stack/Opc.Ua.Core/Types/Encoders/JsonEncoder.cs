@@ -320,7 +320,6 @@ namespace Opc.Ua
                 if (m_writer != null)
                 {
                     Close();
-                    m_writer = null;
                 }
 
                 if (!m_leaveOpen)

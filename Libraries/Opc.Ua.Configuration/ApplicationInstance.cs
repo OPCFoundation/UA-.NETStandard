@@ -432,6 +432,7 @@ namespace Opc.Ua.Configuration
         /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
         /// <param name="minimumKeySize">Minimum size of the key.</param>
         /// <param name="lifeTimeInMonths">The lifetime in months.</param>
+        /// <param name="ct">The cancellation token.</param>
         public async Task<bool> CheckApplicationInstanceCertificate(
             bool silent,
             ushort minimumKeySize,
@@ -652,7 +653,7 @@ namespace Opc.Ua.Configuration
             // check domains.
             if (configuration.ApplicationType != ApplicationType.Client)
             {
-                if (!await ApplicationInstance.CheckDomainsInCertificateAsync(configuration, certificate, silent).ConfigureAwait(false))
+                if (!await ApplicationInstance.CheckDomainsInCertificateAsync(configuration, certificate, silent, ct).ConfigureAwait(false))
                 {
                     return false;
                 }
@@ -736,7 +737,7 @@ namespace Opc.Ua.Configuration
                     // get IP addresses only if necessary.
                     if (addresses == null)
                     {
-                        addresses = await Utils.GetHostAddressesAsync(computerName, ct).ConfigureAwait(false);
+                        addresses = await Utils.GetHostAddressesAsync(computerName).ConfigureAwait(false);
                     }
 
                     // check for ip addresses.
@@ -761,7 +762,7 @@ namespace Opc.Ua.Configuration
 
                 valid = false;
 
-                if (await ApplicationInstance.ApproveMessageAsync(message, silent, ct).ConfigureAwait(false))
+                if (await ApplicationInstance.ApproveMessageAsync(message, silent).ConfigureAwait(false))
                 {
                     valid = true;
                     continue;
