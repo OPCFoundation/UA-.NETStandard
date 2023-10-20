@@ -1337,6 +1337,41 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(buildInfo.BuildNumber, values[5].Value);
             Assert.AreEqual(buildInfo.BuildDate, values[6].Value);
         }
+
+        /// <summary>
+        /// Open a session on a channel using ECC encrypted UserIdentityToken
+        /// </summary>
+        [Test, Combinatorial, Order(10100)]
+        public async Task OpenSessionECCUserIdentityToken(
+            [Values(SecurityPolicies.ECC_nistP256,
+                    SecurityPolicies.ECC_nistP384,
+                    SecurityPolicies.ECC_brainpoolP256r1,
+                    SecurityPolicies.ECC_brainpoolP384r1)] string securityPolicy,
+            [Values(true, false)] bool anonymous)
+        {
+
+            IUserIdentity userIdentity = anonymous ? new UserIdentity() : new UserIdentity("user1", "password");
+
+            // the first channel determines the endpoint
+            ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
+            Assert.NotNull(endpoint);
+
+            UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentity.TokenType, userIdentity.IssuedTokenType);
+            if (identityPolicy == null)
+            {
+                Assert.Ignore($"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
+            }
+
+            // the active channel
+            ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity).ConfigureAwait(false);
+            Assert.NotNull(session1);
+
+            ServerStatusDataType value1 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+            Assert.NotNull(value1);
+        
+        }
+
+
         #endregion
 
         #region Benchmarks
