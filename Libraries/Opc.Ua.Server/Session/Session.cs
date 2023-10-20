@@ -380,6 +380,17 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// The Server generated ephemeral key
+        /// </summary>
+        public EphemeralKeyType EphemeralKey
+        {
+            set
+            {
+                m_ephemeralKey = value;
+            }
+        }
+
+        /// <summary>
         /// Validates the request.
         /// </summary>
         public virtual void ValidateRequest(RequestHeader requestHeader, RequestType requestType)
@@ -1176,6 +1187,8 @@ namespace Opc.Ua.Server
         private SessionSecurityDiagnosticsDataType m_securityDiagnostics;
         private List<ContinuationPoint> m_browseContinuationPoints;
         private List<HistoryContinuationPoint> m_historyContinuationPoints;
+
+        private EphemeralKeyType m_ephemeralKey;
         #endregion
     }
 }

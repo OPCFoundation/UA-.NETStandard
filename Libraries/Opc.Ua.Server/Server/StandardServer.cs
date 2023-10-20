@@ -502,7 +502,13 @@ namespace Opc.Ua.Server
                 // report audit for successful create session
                 ServerInternal.ReportAuditCreateSessionEvent(context?.AuditEntryId, session, revisedSessionTimeout);
 
-                return CreateResponse(requestHeader, StatusCodes.Good);
+                ResponseHeader responseHeader = CreateResponse(requestHeader, StatusCodes.Good);
+
+#if ECC_SUPPORT
+                GenerateEphemeralKey(context?.SecurityPolicyUri, session, instanceCertificate, responseHeader);
+#endif
+
+                return responseHeader;
             }
             catch (ServiceResultException e)
             {
@@ -535,6 +541,37 @@ namespace Opc.Ua.Server
                 OnRequestComplete(context);
             }
         }
+
+#if ECC_SUPPORT
+        /// <summary>
+        /// Generate a new ephemeral key to be used in UserIdentityToken encryption,
+        /// add it to the ResponseHeader.AdditionalHeader field and save it to the server session
+        /// This is to be used only within encryption using ECC security policies
+        /// </summary>
+        /// <param name="securityPolicyUri"></param>
+        /// <param name="session"></param>
+        /// <param name="instanceCertificate"></param>
+        /// <param name="responseHeader"></param>
+        private static void GenerateEphemeralKey(string securityPolicyUri, Session session, X509Certificate2 instanceCertificate, ResponseHeader responseHeader)
+        {
+            if (EccUtils.IsEccPolicy(securityPolicyUri))
+            {
+                EphemeralKeyType ephemeralKey = EccUtils.GenerateEphemeralKey(securityPolicyUri, instanceCertificate);
+
+                // Add the ephemeralKey to the AdditionalHeader of the response header
+                KeyValuePairCollection additionalHeaderKeyValues = new KeyValuePairCollection();
+                additionalHeaderKeyValues.Add(new KeyValuePair() { Key = securityPolicyUri, Value = new Variant(ephemeralKey) });
+
+                AdditionalParametersType additionalParams = new AdditionalParametersType();
+                additionalParams.Parameters = additionalHeaderKeyValues;
+
+                responseHeader.AdditionalHeader = new ExtensionObject(additionalParams);
+
+                session.EphemeralKey = ephemeralKey;
+            }
+        }
+#endif
+
 
         /// <summary>
         /// Invokes the ActivateSession service.
@@ -649,7 +686,15 @@ namespace Opc.Ua.Server
                 Session session = ServerInternal.SessionManager.GetSession(requestHeader.AuthenticationToken);
                 ServerInternal.ReportAuditActivateSessionEvent(context?.AuditEntryId, session, softwareCertificates);
 
-                return CreateResponse(requestHeader, StatusCodes.Good);
+                ResponseHeader responseHeader = CreateResponse(requestHeader, StatusCodes.Good);
+
+#if ECC_SUPPORT
+                // load the certificate for the security profile
+                X509Certificate2 instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(context.SecurityPolicyUri);
+
+                GenerateEphemeralKey(context?.SecurityPolicyUri, session, instanceCertificate, responseHeader);
+#endif
+                return responseHeader;
             }
             catch (ServiceResultException e)
             {
@@ -2197,9 +2242,9 @@ namespace Opc.Ua.Server
                 OnRequestComplete(context);
             }
         }
-        #endregion
+#endregion
 
-        #region Public Methods used by the Host Process
+#region Public Methods used by the Host Process
         /// <summary>
         /// The state object associated with the server.
         /// It provides the shared components for the Server.
@@ -2449,9 +2494,9 @@ namespace Opc.Ua.Server
                 Utils.LogError(e, "Unexpected exception handling registration timer.");
             }
         }
-        #endregion
+#endregion
 
-        #region Protected Members used for Request Processing
+#region Protected Members used for Request Processing
         /// <summary>
         /// The synchronization object.
         /// </summary>
@@ -2707,9 +2752,9 @@ namespace Opc.Ua.Server
                 m_serverInternal.RequestManager.RequestCompleted(context);
             }
         }
-        #endregion
+#endregion
 
-        #region Protected Members used for Initialization
+#region Protected Members used for Initialization
         /// <summary>
         /// Raised when the configuration changes.
         /// </summary>
@@ -3330,13 +3375,13 @@ namespace Opc.Ua.Server
         {
             m_nodeManagerFactories.Remove(nodeManagerFactory);
         }
-        #endregion
+#endregion
 
-        #region Private Properties
+#region Private Properties
         private OperationLimitsState OperationLimits => ServerInternal.ServerObject.ServerCapabilities.OperationLimits;
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private readonly object m_lock = new object();
         private readonly object m_registrationLock = new object();
         private ServerInternalData m_serverInternal;
@@ -3350,6 +3395,6 @@ namespace Opc.Ua.Server
         private int m_minNonceLength;
         private bool m_useRegisterServer2;
         private IList<INodeManagerFactory> m_nodeManagerFactories;
-        #endregion
+#endregion
     }
 }

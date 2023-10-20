@@ -493,6 +493,27 @@ namespace Opc.Ua
                 return ecdsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, algorithm);
             }
         }
+
+        /// <summary>
+        /// Generates an EphemeralKey and signes it with the provided certificate
+        /// </summary>
+        /// <param name="securityPolicyUri"></param>
+        /// <param name="certificate"></param>
+        /// <returns>The ephemeral key</returns>
+        public static EphemeralKeyType GenerateEphemeralKey(string securityPolicyUri, X509Certificate2 certificate)
+        {
+            EphemeralKeyType ephemeralKey = new EphemeralKeyType();
+
+            // Create the ephemeralKey
+            using (ECDiffieHellman ephemeralKeyCreator = ECDiffieHellman.Create())
+            {
+                byte[] publicKeyBytes = ephemeralKeyCreator.PublicKey.ToByteArray();
+                ephemeralKey.PublicKey = publicKeyBytes;
+                ephemeralKey.Signature = Sign(new ArraySegment<byte>(publicKeyBytes), certificate, securityPolicyUri);
+            }
+
+            return ephemeralKey;
+        }
     }
 
     /// <summary>
@@ -540,7 +561,6 @@ namespace Opc.Ua
         /// </summary>
         public string SecurityPolicyUri { get; set; }
 
-       
         /// <summary>
         /// Encrypts a secret using the specified nonce, encrypting key, and initialization vector (IV).
         /// </summary>
