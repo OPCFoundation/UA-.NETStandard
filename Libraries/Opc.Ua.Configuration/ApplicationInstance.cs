@@ -50,13 +50,16 @@ namespace Opc.Ua.Configuration
         /// Initializes a new instance of the <see cref="ApplicationInstance"/> class.
         /// </summary>
         public ApplicationInstance()
-        { }
+        {
+            DisableCertificateAutoCreation = false;
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ApplicationInstance"/> class.
         /// </summary>
         /// <param name="applicationConfiguration">The application configuration.</param>
         public ApplicationInstance(ApplicationConfiguration applicationConfiguration)
+            : this()
         {
             m_applicationConfiguration = applicationConfiguration;
         }
@@ -130,8 +133,9 @@ namespace Opc.Ua.Configuration
         public ICertificatePasswordProvider CertificatePasswordProvider { get; set; }
 
         /// <summary>
-        /// Get or set bool which indicates if the auto creation of a new application certificate
-        /// during startup is disabled.
+        /// Get or set bool which indicates if the auto creation
+        /// of a new application certificate during startup is disabled.
+        /// Default is enabled./>
         /// </summary>
         /// <remarks>
         /// Prevents auto self signed cert creation in use cases
@@ -416,10 +420,9 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Delete the application certificate.
         /// </summary>
-        public async Task DeleteApplicationInstanceCertificate()
+        public async Task DeleteApplicationInstanceCertificate(CancellationToken ct = default)
         {
             if (m_applicationConfiguration == null) throw new ArgumentException("Missing configuration.");
-            CancellationToken ct = default;
             await DeleteApplicationInstanceCertificateAsync(m_applicationConfiguration, ct).ConfigureAwait(false);
         }
 
@@ -432,10 +435,9 @@ namespace Opc.Ua.Configuration
         public async Task<bool> CheckApplicationInstanceCertificate(
             bool silent,
             ushort minimumKeySize,
-            ushort lifeTimeInMonths)
+            ushort lifeTimeInMonths,
+            CancellationToken ct = default)
         {
-            CancellationToken ct = default;
-
             Utils.LogInfo("Checking application instance certificate.");
 
             if (m_applicationConfiguration == null)
@@ -687,7 +689,8 @@ namespace Opc.Ua.Configuration
         private static async Task<bool> CheckDomainsInCertificateAsync(
             ApplicationConfiguration configuration,
             X509Certificate2 certificate,
-            bool silent)
+            bool silent,
+            CancellationToken ct)
         {
             Utils.LogInfo("Check domains in certificate.");
 
@@ -733,7 +736,7 @@ namespace Opc.Ua.Configuration
                     // get IP addresses only if necessary.
                     if (addresses == null)
                     {
-                        addresses = await Utils.GetHostAddressesAsync(computerName).ConfigureAwait(false);
+                        addresses = await Utils.GetHostAddressesAsync(computerName, ct).ConfigureAwait(false);
                     }
 
                     // check for ip addresses.
@@ -758,7 +761,7 @@ namespace Opc.Ua.Configuration
 
                 valid = false;
 
-                if (await ApplicationInstance.ApproveMessageAsync(message, silent).ConfigureAwait(false))
+                if (await ApplicationInstance.ApproveMessageAsync(message, silent, ct).ConfigureAwait(false))
                 {
                     valid = true;
                     continue;
