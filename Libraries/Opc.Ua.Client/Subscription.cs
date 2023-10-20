@@ -1821,7 +1821,7 @@ namespace Opc.Ua.Client
                 if (m_messageWorkerTask == null || m_messageWorkerTask.IsCompleted)
                 {
                     m_messageWorkerShutdownEvent.Reset();
-                    m_messageWorkerTask = Task.Run(() => PublishResponseMessageWorker());
+                    m_messageWorkerTask = Task.Run(() => PublishResponseMessageWorkerAsync());
                 }
             }
 
@@ -1870,7 +1870,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Publish response worker task for the subscriptions.
         /// </summary>
-        private async Task PublishResponseMessageWorker()
+        private async Task PublishResponseMessageWorkerAsync()
         {
             try
             {

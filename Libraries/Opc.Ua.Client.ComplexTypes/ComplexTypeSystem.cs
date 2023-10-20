@@ -318,6 +318,13 @@ namespace Opc.Ua.Client.ComplexTypes
             }
         }
 
+        /// <summary>
+        /// Clear references in datatype cache.
+        /// </summary>
+        public void ClearDataTypeCache()
+        {
+            m_dataTypeDefinitionCache.Clear();
+        }
         #endregion Public Members
 
         #region Internal Properties
@@ -1154,11 +1161,11 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         return null;
                     }
-                    else if (superType == DataTypeIds.Structure)
+                    else if (superType == DataTypeIds.Structure || superType == DataTypeIds.Union)
                     {
                         // throw on invalid combinations of allowSubTypes, isOptional and abstract types
                         // in such case the encoding as ExtensionObject is undetermined and not specified
-                        if ((dataType != DataTypeIds.Structure) &&
+                        if ((dataType != DataTypeIds.Structure) && (dataType != DataTypeIds.Union) &&
                             ((allowSubTypes && !isOptional) || !allowSubTypes) &&
                             await IsAbstractTypeAsync(dataType, ct).ConfigureAwait(false))
                         {
