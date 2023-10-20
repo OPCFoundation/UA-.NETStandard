@@ -486,7 +486,7 @@ namespace Opc.Ua.Client.Tests
             }
             await Task.WhenAll(taskList.ToArray()).ConfigureAwait(false);
         }
-#endregion
+        #endregion
 
         #region Benchmarks
         #endregion
