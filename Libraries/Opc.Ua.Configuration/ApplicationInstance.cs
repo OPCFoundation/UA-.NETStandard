@@ -420,10 +420,9 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Delete the application certificate.
         /// </summary>
-        public async Task DeleteApplicationInstanceCertificate()
+        public async Task DeleteApplicationInstanceCertificate(CancellationToken ct = default)
         {
             if (m_applicationConfiguration == null) throw new ArgumentException("Missing configuration.");
-            CancellationToken ct = default;
             await DeleteApplicationInstanceCertificateAsync(m_applicationConfiguration, ct).ConfigureAwait(false);
         }
 
@@ -433,13 +432,13 @@ namespace Opc.Ua.Configuration
         /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
         /// <param name="minimumKeySize">Minimum size of the key.</param>
         /// <param name="lifeTimeInMonths">The lifetime in months.</param>
+        /// <param name="ct">The cancellation token.</param>
         public async Task<bool> CheckApplicationInstanceCertificate(
             bool silent,
             ushort minimumKeySize,
-            ushort lifeTimeInMonths)
+            ushort lifeTimeInMonths,
+            CancellationToken ct = default)
         {
-            CancellationToken ct = default;
-
             Utils.LogInfo("Checking application instance certificate.");
 
             if (m_applicationConfiguration == null)
@@ -654,7 +653,7 @@ namespace Opc.Ua.Configuration
             // check domains.
             if (configuration.ApplicationType != ApplicationType.Client)
             {
-                if (!await ApplicationInstance.CheckDomainsInCertificateAsync(configuration, certificate, silent).ConfigureAwait(false))
+                if (!await ApplicationInstance.CheckDomainsInCertificateAsync(configuration, certificate, silent, ct).ConfigureAwait(false))
                 {
                     return false;
                 }
@@ -691,7 +690,8 @@ namespace Opc.Ua.Configuration
         private static async Task<bool> CheckDomainsInCertificateAsync(
             ApplicationConfiguration configuration,
             X509Certificate2 certificate,
-            bool silent)
+            bool silent,
+            CancellationToken ct)
         {
             Utils.LogInfo("Check domains in certificate.");
 

@@ -293,13 +293,13 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(900)]
-        public async Task FetchTypeTree()
+        public async Task FetchTypeTreeAsync()
         {
             await Session.FetchTypeTreeAsync(NodeId.ToExpandedNodeId(DataTypeIds.BaseDataType, Session.NamespaceUris)).ConfigureAwait(false);
         }
 
         [Test, Order(910)]
-        public async Task FetchAllReferenceTypes()
+        public async Task FetchAllReferenceTypesAsync()
         {
             var bindingFlags =
                 BindingFlags.Instance |
@@ -316,7 +316,7 @@ namespace Opc.Ua.Client.Tests
         /// Test concurrent access of FetchNodes.
         /// </summary>
         [Test, Order(1000)]
-        public async Task NodeCacheFetchNodesConcurrent()
+        public async Task NodeCacheFetchNodesConcurrentAsync()
         {
             if (ReferenceDescriptions == null)
             {
@@ -375,7 +375,7 @@ namespace Opc.Ua.Client.Tests
             var testSet = ReferenceDescriptions.OrderBy(o => random.Next()).Take(kTestSetSize).Select(r => r.NodeId).ToList();
             var taskList = new List<Task>();
             var refTypeIds = new List<NodeId>() { ReferenceTypeIds.HierarchicalReferences };
-            await FetchAllReferenceTypes().ConfigureAwait(false);
+            await FetchAllReferenceTypesAsync().ConfigureAwait(false);
 
             // test concurrent access of FetchNodes
             for (int i = 0; i < 10; i++)
@@ -401,7 +401,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             Random random = new Random(62541);
-            var testSetAll = ReferenceDescriptions.OrderBy(o => random.Next()).Where(r=>r.NodeClass == NodeClass.Variable).Select(r => r.NodeId).ToList();
+            var testSetAll = ReferenceDescriptions.OrderBy(o => random.Next()).Where(r => r.NodeClass == NodeClass.Variable).Select(r => r.NodeId).ToList();
             var testSet1 = testSetAll.Take(kTestSetSize).ToList();
             var testSet2 = testSetAll.Skip(kTestSetSize).Take(kTestSetSize).ToList();
             var testSet3 = testSetAll.Skip(kTestSetSize * 2).Take(kTestSetSize).ToList();
@@ -420,7 +420,7 @@ namespace Opc.Ua.Client.Tests
                         switch (iteration)
                         {
                             case 0:
-                                await FetchAllReferenceTypes().ConfigureAwait(false);
+                                await FetchAllReferenceTypesAsync().ConfigureAwait(false);
                                 IList<INode> result = await Session.NodeCache.FindReferencesAsync(testSet1, refTypeIds, false, true).ConfigureAwait(false);
                                 break;
                             case 1:
@@ -442,7 +442,7 @@ namespace Opc.Ua.Client.Tests
                                 Node result5 = await Session.NodeCache.FetchNodeAsync(testSet3[0]).ConfigureAwait(false);
                                 Assert.NotNull(result5);
                                 Assert.True(result5 is VariableNode);
-                                Session.NodeCache.FetchSuperTypes(result5.NodeId);
+                                await Session.NodeCache.FetchSuperTypesAsync(result5.NodeId).ConfigureAwait(false);
                                 break;
                             case 6:
                                 string text = Session.NodeCache.GetDisplayText(testSet2[0]);
@@ -486,7 +486,7 @@ namespace Opc.Ua.Client.Tests
             }
             await Task.WhenAll(taskList.ToArray()).ConfigureAwait(false);
         }
-#endregion
+        #endregion
 
         #region Benchmarks
         #endregion
