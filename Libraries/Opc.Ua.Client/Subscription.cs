@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
@@ -1822,7 +1821,7 @@ namespace Opc.Ua.Client
                 if (m_messageWorkerTask == null || m_messageWorkerTask.IsCompleted)
                 {
                     m_messageWorkerShutdownEvent.Reset();
-                    m_messageWorkerTask = Task.Run(() => PublishResponseMessageWorker());
+                    m_messageWorkerTask = Task.Run(() => PublishResponseMessageWorkerAsync());
                 }
             }
 
@@ -1869,9 +1868,9 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Periodically checks if the sessions have timed out.
+        /// Publish response worker task for the subscriptions.
         /// </summary>
-        private async Task PublishResponseMessageWorker()
+        private async Task PublishResponseMessageWorkerAsync()
         {
             try
             {
@@ -2256,6 +2255,9 @@ namespace Opc.Ua.Client
 
                                 if (statusChanged != null)
                                 {
+                                    statusChanged.PublishTime = message.PublishTime;
+                                    statusChanged.SequenceNumber = message.SequenceNumber;
+
                                     Utils.LogWarning("StatusChangeNotification received with Status = {0} for SubscriptionId={1}.",
                                         statusChanged.Status.ToString(), Id);
 
