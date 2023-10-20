@@ -159,7 +159,7 @@ namespace Opc.Ua.Schema.Xml
                 writer.Dispose();
             }
 
-            return new UTF8Encoding().GetString(ostrm.ToArray());
+            return Encoding.UTF8.GetString(ostrm.ToArray());
         }
         #endregion
 

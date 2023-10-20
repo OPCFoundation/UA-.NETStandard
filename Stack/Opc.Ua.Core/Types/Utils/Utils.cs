@@ -2834,7 +2834,7 @@ namespace Opc.Ua
             // convert label to UTF-8 byte sequence.
             if (!String.IsNullOrEmpty(label))
             {
-                seed = new UTF8Encoding().GetBytes(label);
+                seed = Encoding.UTF8.GetBytes(label);
             }
 
             // append data to label.
