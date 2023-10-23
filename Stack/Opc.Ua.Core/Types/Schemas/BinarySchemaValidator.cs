@@ -127,7 +127,7 @@ namespace Opc.Ua.Schema.Binary
                 writer.Dispose();
             }
 
-            return new UTF8Encoding().GetString(ostrm.ToArray(), 0, (int)ostrm.Length);
+            return Encoding.UTF8.GetString(ostrm.ToArray(), 0, (int)ostrm.Length);
         }
         #endregion
 

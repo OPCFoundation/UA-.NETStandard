@@ -96,6 +96,13 @@ namespace Opc.Ua.Client
         /// <param name="nodeIds">The node identifier collection.</param>
         /// <param name="ct"></param>
         Task<IList<Node>> FetchNodesAsync(IList<ExpandedNodeId> nodeIds, CancellationToken ct = default);
+
+        /// <summary>
+        /// Adds the supertypes of the node to the cache.
+        /// </summary>
+        /// <param name="nodeId">Node id to fetch.</param>
+        /// <param name="ct"></param>
+        Task FetchSuperTypesAsync(ExpandedNodeId nodeId, CancellationToken ct = default);
 #endif
         /// <summary>
         /// Adds the supertypes of the node to the cache.

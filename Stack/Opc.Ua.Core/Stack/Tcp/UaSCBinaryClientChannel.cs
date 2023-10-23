@@ -1144,14 +1144,14 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                Utils.LogWarning("ChannelId {0}: Force reconnect reason={1}", Id, reason);
-
                 // check if reconnects are disabled.
                 if (State == TcpChannelState.Closing || m_waitBetweenReconnects == Timeout.Infinite)
                 {
                     Shutdown(reason);
                     return;
                 }
+
+                Utils.LogWarning("ChannelId {0}: Force reconnect reason={1}", Id, reason);
 
                 // cancel all requests.
                 List<WriteOperation> operations = new List<WriteOperation>(m_requests.Values);

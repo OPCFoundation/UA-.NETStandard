@@ -736,7 +736,7 @@ namespace Opc.Ua.Bindings
             {
                 if (computedSignature[ii] != signature[ii])
                 {
-                    string messageType = new UTF8Encoding().GetString(dataToVerify.Array, dataToVerify.Offset, 4);
+                    string messageType = Encoding.UTF8.GetString(dataToVerify.Array, dataToVerify.Offset, 4);
                     int messageLength = BitConverter.ToInt32(dataToVerify.Array, dataToVerify.Offset + 4);
                     string expectedSignature = Utils.ToHexString(computedSignature);
                     string actualSignature = Utils.ToHexString(signature);
