@@ -78,6 +78,8 @@ namespace Opc.Ua.Client.Tests
                 .Build(
                     "urn:localhost:opcfoundation.org:" + clientName,
                     "http://opcfoundation.org/UA/" + clientName)
+                .SetMaxByteStringLength(4 * 1024 * 1024)
+                .SetMaxArrayLength(1024 * 1024)
                 .AsClient()
                 .SetClientOperationLimits(new OperationLimits {
                     MaxNodesPerBrowse = kDefaultOperationLimits,

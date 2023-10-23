@@ -2126,11 +2126,11 @@ namespace Opc.Ua
 
                     // verify the decoder did not exceed the length of the encodeable object
                     int used = Position - start;
-                    if (length < used)
+                    if (length != used)
                     {
                         throw ServiceResultException.Create(
-                            StatusCodes.BadEncodingLimitsExceeded,
-                            "The encodeable.Decoder operation exceeded the length of the extension object. {0} > {1}",
+                            StatusCodes.BadDecodingError,
+                            "The encodeable.Decoder operation did not match the length of the extension object. {0} != {1}",
                             used, length);
                     }
                 }
@@ -2142,13 +2142,14 @@ namespace Opc.Ua
                     Utils.LogWarning(eofStream, "End of stream, failed to decode encodeable type '{0}', NodeId='{1}'. BinaryDecoder recovered.",
                         systemType.Name, extension.TypeId);
                 }
-                catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
+                catch (ServiceResultException sre) when
+                    ((sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded) || (sre.StatusCode == StatusCodes.BadDecodingError))
                 {
                     // type was known but decoding failed, reset stream!
                     m_reader.BaseStream.Position = start;
                     encodeable = null;
-                    Utils.LogWarning(sre, "Encoding limits exceeded, failed to decode encodeable type '{0}', NodeId='{1}'. BinaryDecoder recovered.",
-                        systemType.Name, extension.TypeId);
+                    Utils.LogWarning(sre, "{0}, failed to decode encodeable type '{1}', NodeId='{2}'. BinaryDecoder recovered.",
+                        sre.Message, systemType.Name, extension.TypeId);
                 }
                 finally
                 {

@@ -1161,11 +1161,11 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         return null;
                     }
-                    else if (superType == DataTypeIds.Structure || superType == DataTypeIds.Union)
+                    else if (superType == DataTypeIds.Structure)
                     {
                         // throw on invalid combinations of allowSubTypes, isOptional and abstract types
                         // in such case the encoding as ExtensionObject is undetermined and not specified
-                        if ((dataType != DataTypeIds.Structure) && (dataType != DataTypeIds.Union) &&
+                        if ((dataType != DataTypeIds.Structure) &&
                             ((allowSubTypes && !isOptional) || !allowSubTypes) &&
                             await IsAbstractTypeAsync(dataType, ct).ConfigureAwait(false))
                         {
@@ -1178,7 +1178,10 @@ namespace Opc.Ua.Client.ComplexTypes
                         }
                         return null;
                     }
-                    break;
+                    else if (superType == DataTypeIds.BaseDataType)
+                    {
+                        break;
+                    }
                 }
             }
             return superType;
