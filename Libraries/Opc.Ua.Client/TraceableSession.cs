@@ -50,8 +50,19 @@ namespace Opc.Ua.Client
         /// </summary>
         public TraceableSession(ISession session)
         {
-            m_session = session;
-            m_tracingClientBase = new TracingClientBase(this, TransportChannel);
+            // Check if the given session is a SessionClient or its derivative
+            if (session is SessionClient sessionClient)
+            {
+                // Create the proxy around the sessionClient and assign to m_tracingClientProxy
+                m_tracingClientProxy = new TracingClientProxy(this, sessionClient);
+
+                // Point m_session to the proxy so that future calls on m_session use the proxy
+                m_session = m_tracingClientProxy;
+            }
+            else
+            {
+                m_session = session;
+            }
         }
         #endregion
 
@@ -65,6 +76,9 @@ namespace Opc.Ua.Client
         /// </summary>
         public static ActivitySource ActivitySource => s_activitySource.Value;
         private static readonly Lazy<ActivitySource> s_activitySource = new Lazy<ActivitySource>(() => new ActivitySource(ActivitySourceName, "1.0.0"));
+
+
+        private TracingClientProxy m_tracingClientProxy;
 
         /// <summary>
         /// The ISession which is being traced.
@@ -396,22 +410,34 @@ namespace Opc.Ua.Client
                 };
             }
         }
-        
-        private readonly TracingClientBase m_tracingClientBase;
+
+        //  private readonly TracingClientBase m_tracingClientBase;
 
         /// <summary>
         /// Tracing implementation of the ClientBase class.
         /// </summary>
-        private class TracingClientBase : ClientBase
+        public class TracingClientProxy : ClientBase
         {
-            private readonly TraceableSession m_traceableSession;
+-           private readonly TraceableSession m_traceableSession;
 
-            public TracingClientBase(TraceableSession traceableSession, ITransportChannel channel)
-                : base(channel)
+            /// <summary>
+            /// Initialize TracingClientProxy
+            /// </summary>
+            /// <param name="traceableSession"></param>
+            /// <param name="innerClient"></param>
+            public TracingClientProxy(TraceableSession traceableSession, ClientBase innerClient) : base(innerClient.TransportChannel)
             {
                 m_traceableSession = traceableSession;
             }
 
+            ///<inheritdoc/>
+            [Obsolete("Must override the version with useDefault parameter.")]
+            protected override void UpdateRequestHeader(IServiceRequest request)
+            {
+                UpdateRequestHeader(request, request == null);
+            }
+
+            ///<inheritdoc/>
             protected override void UpdateRequestHeader(IServiceRequest request, bool useDefaults)
             {
                 base.UpdateRequestHeader(request, useDefaults);
@@ -424,6 +450,7 @@ namespace Opc.Ua.Client
                 }
             }
 
+            ///<inheritdoc/>
             protected override void UpdateRequestHeader(IServiceRequest request, bool useDefaults, string serviceName)
             {
                 base.UpdateRequestHeader(request, useDefaults, serviceName);
