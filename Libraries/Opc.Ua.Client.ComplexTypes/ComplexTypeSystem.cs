@@ -1140,8 +1140,11 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private async Task<NodeId> GetBuiltInSuperTypeAsync(NodeId dataType, bool allowSubTypes, bool isOptional, CancellationToken ct = default)
         {
+            const int MaxSuperTypes = 100;
+
+            int iterations = 0;
             NodeId superType = dataType;
-            while (true)
+            while (iterations++ < MaxSuperTypes)
             {
                 superType = await m_complexTypeResolver.FindSuperTypeAsync(superType, ct).ConfigureAwait(false);
                 if (superType?.IsNullNodeId != false)
@@ -1178,13 +1181,21 @@ namespace Opc.Ua.Client.ComplexTypes
                         }
                         return null;
                     }
+                    // end search if a valid BuiltInType is found. Treat type as opaque.
+                    else if (superType.IdType == IdType.Numeric &&
+                        (uint)superType.Identifier >= (uint)BuiltInType.Boolean &&
+                        (uint)superType.Identifier <= (uint)BuiltInType.DiagnosticInfo)
+                    {
+                        return superType;
+                    }
+                    // no valid supertype found
                     else if (superType == DataTypeIds.BaseDataType)
                     {
                         break;
                     }
                 }
             }
-            return superType;
+            return null;
         }
 
         /// <summary>
