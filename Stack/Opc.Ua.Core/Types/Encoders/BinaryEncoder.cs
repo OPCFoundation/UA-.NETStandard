@@ -90,11 +90,13 @@ namespace Opc.Ua
                 {
                     m_writer.Flush();
                     m_writer.Dispose();
+                    m_writer = null;
                 }
 
                 if (!m_leaveOpen)
                 {
                     m_ostrm?.Dispose();
+                    m_ostrm = null;
                 }
             }
         }
