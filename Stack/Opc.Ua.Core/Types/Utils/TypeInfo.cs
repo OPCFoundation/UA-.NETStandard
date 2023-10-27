@@ -12,6 +12,8 @@
 
 using System;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Xml;
 
 namespace Opc.Ua
@@ -512,6 +514,44 @@ namespace Opc.Ua
             return BuiltInType.Null;
         }
 
+#if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Returns the BuiltInType type for the DataTypeId.
+        /// </summary>
+        /// <param name="datatypeId">The data type identyfier for a node in a server's address space..</param>
+        /// <param name="typeTree">The type tree for a server. .</param>
+        /// <param name="ct"></param>
+        /// <returns>
+        /// A <see cref="BuiltInType"/> value for <paramref name="datatypeId"/>
+        /// </returns>
+        public static async Task<BuiltInType> GetBuiltInTypeAsync(NodeId datatypeId, ITypeTable typeTree, CancellationToken ct = default)
+        {
+            NodeId typeId = datatypeId;
+
+            while (!Opc.Ua.NodeId.IsNull(typeId))
+            {
+                if (typeId != null && typeId.NamespaceIndex == 0 && typeId.IdType == Opc.Ua.IdType.Numeric)
+                {
+                    BuiltInType id = (BuiltInType)(int)(uint)typeId.Identifier;
+
+                    if (id > BuiltInType.Null && id <= BuiltInType.Enumeration && id != BuiltInType.DiagnosticInfo)
+                    {
+                        return id;
+                    }
+                }
+
+                if (typeTree == null)
+                {
+                    break;
+                }
+
+                typeId = await typeTree.FindSuperTypeAsync(typeId, ct).ConfigureAwait(false);
+            }
+
+            return BuiltInType.Null;
+        }
+#endif
+
         /// <summary>
         /// Returns the system type for the datatype.
         /// </summary>
@@ -886,7 +926,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            // check every element in the array or matrix.     
+            // check every element in the array or matrix.
             Array array = value as Array;
             if (array == null)
             {
@@ -1214,7 +1254,7 @@ namespace Opc.Ua
                     return TypeInfo.Unknown;
                 }
 
-                // check for generic type.                
+                // check for generic type.
                 if (systemType.GetTypeInfo().IsGenericType)
                 {
                     Type[] argTypes = systemType.GetGenericArguments();
@@ -1310,7 +1350,7 @@ namespace Opc.Ua
                 }
             }
 
-            // unknown type.   
+            // unknown type.
             return TypeInfo.Unknown;
         }
 

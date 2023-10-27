@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Client
 {
@@ -64,6 +66,44 @@ namespace Opc.Ua.Client
         /// </summary>
         IList<Node> FetchNodes(IList<ExpandedNodeId> nodeIds);
 
+#if (CLIENT_ASYNC)
+        /// <summary>
+        /// Finds a set of nodes in the nodeset,
+        /// fetches missing nodes from server.
+        /// </summary>
+        /// <param name="nodeId">The node identifier.</param>
+        /// <param name="ct"></param>
+        Task<INode> FindAsync(ExpandedNodeId nodeId, CancellationToken ct = default);
+
+        /// <summary>
+        /// Finds a set of nodes in the nodeset,
+        /// fetches missing nodes from server.
+        /// </summary>
+        /// <param name="nodeIds">The node identifier collection.</param>
+        /// <param name="ct"></param>
+        Task<IList<INode>> FindAsync(IList<ExpandedNodeId> nodeIds, CancellationToken ct = default);
+
+        /// <summary>
+        /// Fetches a node from the server and updates the cache.
+        /// </summary>
+        /// <param name="nodeId">Node id to fetch.</param>
+        /// <param name="ct"></param>
+        Task<Node> FetchNodeAsync(ExpandedNodeId nodeId, CancellationToken ct = default);
+
+        /// <summary>
+        /// Fetches a node collection from the server and updates the cache.
+        /// </summary>
+        /// <param name="nodeIds">The node identifier collection.</param>
+        /// <param name="ct"></param>
+        Task<IList<Node>> FetchNodesAsync(IList<ExpandedNodeId> nodeIds, CancellationToken ct = default);
+
+        /// <summary>
+        /// Adds the supertypes of the node to the cache.
+        /// </summary>
+        /// <param name="nodeId">Node id to fetch.</param>
+        /// <param name="ct"></param>
+        Task FetchSuperTypesAsync(ExpandedNodeId nodeId, CancellationToken ct = default);
+#endif
         /// <summary>
         /// Adds the supertypes of the node to the cache.
         /// </summary>
@@ -78,6 +118,18 @@ namespace Opc.Ua.Client
         /// Returns the references of the specified nodes that meet the criteria specified.
         /// </summary>
         IList<INode> FindReferences(IList<ExpandedNodeId> nodeIds, IList<NodeId> referenceTypeIds, bool isInverse, bool includeSubtypes);
+
+#if (CLIENT_ASYNC)
+        /// <summary>
+        /// Returns the references of the specified node that meet the criteria specified.
+        /// </summary>
+        Task<IList<INode>> FindReferencesAsync(ExpandedNodeId nodeId, NodeId referenceTypeId, bool isInverse, bool includeSubtypes, CancellationToken ct = default);
+
+        /// <summary>
+        /// Returns the references of the specified nodes that meet the criteria specified.
+        /// </summary>
+        Task<IList<INode>> FindReferencesAsync(IList<ExpandedNodeId> nodeIds, IList<NodeId> referenceTypeIds, bool isInverse, bool includeSubtypes, CancellationToken ct = default);
+#endif
 
         /// <summary>
         /// Returns a display name for a node.

@@ -1110,6 +1110,7 @@ namespace Opc.Ua
             }
         }
 
+#if NET_STANDARD_ASYNC
         /// <summary>
         /// Updates an endpoint with information from the server's discovery endpoint.
         /// </summary>
@@ -1175,9 +1176,10 @@ namespace Opc.Ua
             }
             finally
             {
-                client.Close();
+                await client.CloseAsync(ct).ConfigureAwait(false);
             }
         }
+#endif
 
         /// <summary>
         /// Returns a discovery url that can be used to update the endpoint description.
@@ -1207,7 +1209,7 @@ namespace Opc.Ua
             {
                 if (endpointUrl.Scheme.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal))
                 {
-                    return new Uri(String.Format(CultureInfo.InvariantCulture, "{0}"+ kDiscoverySuffix, endpointUrl));
+                    return new Uri(String.Format(CultureInfo.InvariantCulture, "{0}" + kDiscoverySuffix, endpointUrl));
                 }
                 else
                 {
