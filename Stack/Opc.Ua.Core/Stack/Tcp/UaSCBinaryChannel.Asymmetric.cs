@@ -284,7 +284,7 @@ namespace Opc.Ua.Bindings
 
             if (securityPolicyUri != null)
             {
-                headerSize += new UTF8Encoding().GetByteCount(securityPolicyUri);
+                headerSize += Encoding.UTF8.GetByteCount(securityPolicyUri);
             }
 
             headerSize += TcpMessageLimits.StringLengthSize;
@@ -323,7 +323,7 @@ namespace Opc.Ua.Bindings
 
             if (securityPolicyUri != null)
             {
-                headerSize += new UTF8Encoding().GetByteCount(securityPolicyUri);
+                headerSize += Encoding.UTF8.GetByteCount(securityPolicyUri);
             }
 
             headerSize += TcpMessageLimits.StringLengthSize;
@@ -473,7 +473,7 @@ namespace Opc.Ua.Bindings
 
             if (securityPolicyUri != null)
             {
-                occupiedSize += new UTF8Encoding().GetByteCount(securityPolicyUri);   //security policy uri size
+                occupiedSize += Encoding.UTF8.GetByteCount(securityPolicyUri);   //security policy uri size
             }
 
             occupiedSize += TcpMessageLimits.StringLengthSize; //SenderCertificateLength

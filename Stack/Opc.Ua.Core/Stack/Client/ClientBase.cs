@@ -13,6 +13,7 @@
 using System;
 using System.Collections;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
@@ -272,6 +273,21 @@ namespace Opc.Ua
 
             m_authenticationToken = null;
             return StatusCodes.Good;
+        }
+
+        /// <summary>
+        /// Closes the channel using async call.
+        /// </summary>
+        public virtual Task<StatusCode> CloseAsync(CancellationToken ct = default)
+        {
+            if (m_channel != null)
+            {
+                m_channel.Close();
+                m_channel = null;
+            }
+
+            m_authenticationToken = null;
+            return Task.FromResult<StatusCode>(StatusCodes.Good);
         }
 
         /// <summary>

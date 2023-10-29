@@ -264,6 +264,7 @@ namespace Opc.Ua
                 if (m_reader != null)
                 {
                     m_reader.Close();
+                    m_reader = null;
                 }
             }
         }
@@ -827,7 +828,7 @@ namespace Opc.Ua
             if (bytes != null && bytes.Length > 0)
             {
                 XmlDocument document = new XmlDocument();
-                string xmlString = new UTF8Encoding().GetString(bytes, 0, bytes.Length);
+                string xmlString = Encoding.UTF8.GetString(bytes, 0, bytes.Length);
 
                 using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), Utils.DefaultXmlReaderSettings()))
                 {
