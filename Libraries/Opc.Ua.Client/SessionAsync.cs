@@ -682,6 +682,56 @@ namespace Opc.Ua.Client
             return result;
         }
         #endregion
+
+        /// <summary>
+        /// Recreate the subscriptions in a reconnected session.
+        /// Uses Transfer service if <see cref="TransferSubscriptionsOnReconnect"/> is set to <c>true</c>.
+        /// </summary>
+        /// <param name="subscriptionsTemplate">The template for the subscriptions.</param>
+        /// <param name="ct"></param>
+        private async Task RecreateSubscriptionsAsync(IEnumerable<Subscription> subscriptionsTemplate, CancellationToken ct)
+        {
+            bool transferred = false;
+            if (TransferSubscriptionsOnReconnect)
+            {
+                try
+                {
+                    transferred = await TransferSubscriptionsAsync(new SubscriptionCollection(subscriptionsTemplate), false, ct).ConfigureAwait(false);
+                }
+                catch (ServiceResultException sre)
+                {
+                    if (sre.StatusCode == StatusCodes.BadServiceUnsupported)
+                    {
+                        TransferSubscriptionsOnReconnect = false;
+                        Utils.LogWarning("Transfer subscription unsupported, TransferSubscriptionsOnReconnect set to false.");
+                    }
+                    else if (sre.StatusCode == StatusCodes.BadSecureChannelClosed)
+                    {
+                        Utils.LogError(sre, "Transfer subscriptions failed.");
+                    }
+                    else
+                    {
+                        Utils.LogError(sre, "Transfer subscriptions failed.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Utils.LogError(ex, "Unexpected Transfer subscriptions error.");
+                }
+            }
+
+            if (!transferred)
+            {
+                // Create the subscriptions which were not transferred.
+                foreach (Subscription subscription in Subscriptions)
+                {
+                    if (!subscription.Created)
+                    {
+                        await subscription.CreateAsync(ct).ConfigureAwait(false);
+                    }
+                }
+            }
+        }
     }
 }
 #endif

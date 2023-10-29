@@ -368,7 +368,7 @@ namespace Opc.Ua.Bindings
                     encoder.WriteUInt32(null, (uint)MaxResponseMessageSize);
                     encoder.WriteUInt32(null, (uint)MaxResponseChunkCount);
 
-                    byte[] endpointUrl = new UTF8Encoding().GetBytes(m_url.ToString());
+                    byte[] endpointUrl = Encoding.UTF8.GetBytes(m_url.ToString());
 
                     if (endpointUrl.Length > TcpMessageLimits.MaxEndpointUrlLength)
                     {
