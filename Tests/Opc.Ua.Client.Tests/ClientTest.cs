@@ -1164,7 +1164,7 @@ namespace Opc.Ua.Client.Tests
 
         [Test, Order(710)]
         [TestCaseSource(nameof(TypeSystems))]
-        public async Task LoadAllServerDataTypeSystems(NodeId dataTypeSystem)
+        public void LoadAllServerDataTypeSystems(NodeId dataTypeSystem)
         {
             // find the dictionary for the description.
             Browser browser = new Browser(Session) {
@@ -1185,7 +1185,7 @@ namespace Opc.Ua.Client.Tests
                 NodeId dictionaryId = ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris);
                 TestContext.Out.WriteLine("  ReadDictionary {0} {1}", r.BrowseName.Name, dictionaryId);
                 var dictionaryToLoad = new DataDictionary(Session);
-                await dictionaryToLoad.Load(dictionaryId, r.BrowseName.Name).ConfigureAwait(false);
+                dictionaryToLoad.Load(dictionaryId, r.BrowseName.Name);
 
                 // internal API for testing only
                 var dictionary = dictionaryToLoad.ReadDictionary(dictionaryId);
@@ -1195,7 +1195,7 @@ namespace Opc.Ua.Client.Tests
                 {
                     try
                     {
-                        await dictionaryToLoad.Validate(dictionary, true).ConfigureAwait(false);
+                        dictionaryToLoad.Validate(dictionary, true);
                     }
                     catch (Exception ex)
                     {
@@ -1204,7 +1204,7 @@ namespace Opc.Ua.Client.Tests
                 }
                 else
                 {
-                    await dictionaryToLoad.Validate(dictionary, true).ConfigureAwait(false);
+                    dictionaryToLoad.Validate(dictionary, true);
                 }
             }
         }

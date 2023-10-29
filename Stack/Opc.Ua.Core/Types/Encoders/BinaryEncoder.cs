@@ -90,11 +90,13 @@ namespace Opc.Ua
                 {
                     m_writer.Flush();
                     m_writer.Dispose();
+                    m_writer = null;
                 }
 
                 if (!m_leaveOpen)
                 {
                     m_ostrm?.Dispose();
+                    m_ostrm = null;
                 }
             }
         }
@@ -440,7 +442,7 @@ namespace Opc.Ua
                 return;
             }
 
-            byte[] bytes = new UTF8Encoding().GetBytes(value);
+            byte[] bytes = Encoding.UTF8.GetBytes(value);
 
             if (m_context.MaxStringLength > 0 && m_context.MaxStringLength < bytes.Length)
             {
@@ -451,7 +453,7 @@ namespace Opc.Ua
                     bytes.Length);
             }
 
-            WriteByteString(null, new UTF8Encoding().GetBytes(value));
+            WriteByteString(null, Encoding.UTF8.GetBytes(value));
         }
 
         /// <summary>
@@ -534,7 +536,7 @@ namespace Opc.Ua
                 return;
             }
 
-            WriteByteString(null, new UTF8Encoding().GetBytes(value.OuterXml));
+            WriteByteString(null, Encoding.UTF8.GetBytes(value.OuterXml));
         }
 
         /// <summary>

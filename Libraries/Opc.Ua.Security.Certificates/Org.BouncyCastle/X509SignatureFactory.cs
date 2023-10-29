@@ -82,7 +82,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         public Object AlgorithmDetails => _algID;
 
         /// <inheritdoc/>
-        public IStreamCalculator CreateCalculator()
+        public IStreamCalculator<IBlockResult> CreateCalculator()
         {
             return new X509StreamCalculator(_generator, _hashAlgorithm);
         }
@@ -90,7 +90,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// <summary>
         /// Signs a Bouncy Castle digest stream with the .Net X509SignatureGenerator.
         /// </summary>
-        class X509StreamCalculator : IStreamCalculator
+        class X509StreamCalculator : IStreamCalculator<IBlockResult>
         {
             private X509SignatureGenerator _generator;
             private readonly HashAlgorithmName _hashAlgorithm;
@@ -117,36 +117,13 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             /// <summary>
             /// Callback signs the digest with X509SignatureGenerator.
             /// </summary>
-            public object GetResult()
+            public IBlockResult GetResult()
             {
                 var memStream = Stream as MemoryStream;
                 if (memStream == null) throw new ArgumentNullException(nameof(Stream));
                 var digest = memStream.ToArray();
                 var signature = _generator.SignData(digest, _hashAlgorithm);
-                return new MemoryBlockResult(signature);
-            }
-        }
-
-        /// <summary>
-        /// Helper for Bouncy Castle signing operation to store the result in a memory block.
-        /// </summary>
-        class MemoryBlockResult : IBlockResult
-        {
-            private readonly byte[] _data;
-            /// <inheritdoc/>
-            public MemoryBlockResult(byte[] data)
-            {
-                _data = data;
-            }
-            /// <inheritdoc/>
-            public byte[] Collect()
-            {
-                return _data;
-            }
-            /// <inheritdoc/>
-            public int Collect(byte[] destination, int offset)
-            {
-                throw new NotImplementedException();
+                return new Org.BouncyCastle.Crypto.SimpleBlockResult(signature);
             }
         }
     }

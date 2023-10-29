@@ -85,13 +85,13 @@ namespace Opc.Ua
             // handle no encryption.
             if (String.IsNullOrEmpty(securityPolicyUri) || securityPolicyUri == SecurityPolicies.None)
             {
-                m_password = new UTF8Encoding().GetBytes(m_decryptedPassword);
+                m_password = Encoding.UTF8.GetBytes(m_decryptedPassword);
                 m_encryptionAlgorithm = null;
                 return;
             }
             
             // encrypt the password.
-            byte[] dataToEncrypt = Utils.Append(new UTF8Encoding().GetBytes(m_decryptedPassword), senderNonce);
+            byte[] dataToEncrypt = Utils.Append(Encoding.UTF8.GetBytes(m_decryptedPassword), senderNonce);
 
             EncryptedData encryptedData = SecurityPolicies.Encrypt(
                 certificate,
@@ -110,7 +110,7 @@ namespace Opc.Ua
             // handle no encryption.
             if (String.IsNullOrEmpty(securityPolicyUri) || securityPolicyUri == SecurityPolicies.None)
             {
-                m_decryptedPassword = new UTF8Encoding().GetString(m_password, 0, m_password.Length);
+                m_decryptedPassword = Encoding.UTF8.GetString(m_password, 0, m_password.Length);
                 return;
             }
 
@@ -150,7 +150,7 @@ namespace Opc.Ua
             }
 
             // convert to UTF-8.
-            m_decryptedPassword = new UTF8Encoding().GetString(decryptedPassword, 0, startOfNonce);
+            m_decryptedPassword = Encoding.UTF8.GetString(decryptedPassword, 0, startOfNonce);
         }
         #endregion
 

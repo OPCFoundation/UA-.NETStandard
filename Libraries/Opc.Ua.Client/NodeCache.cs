@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -38,7 +38,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// An implementation of a client side nodecache.
     /// </summary>
-    public class NodeCache : INodeCache
+    public partial class NodeCache : INodeCache, IDisposable
     {
         #region Constructors
         /// <summary>
@@ -54,16 +54,26 @@ namespace Opc.Ua.Client
             m_uaTypesLoaded = false;
             m_cacheLock = new ReaderWriterLockSlim();
         }
+        #endregion
 
+        #region IDisposable
         /// <summary>
-        /// Destructor to clean up.
+        /// An overrideable version of the Dispose.
         /// </summary>
-        ~NodeCache()
+        protected virtual void Dispose(bool disposing)
         {
-            if (m_cacheLock != null)
+            if (disposing)
             {
-                m_cacheLock.Dispose();
+                m_session = null;
+                m_cacheLock?.Dispose();
             }
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
         #endregion
 
@@ -869,7 +879,6 @@ namespace Opc.Ua.Client
             // fetch nodes and references from server.
             m_session.ReadNodes(localIds, out IList<Node> sourceNodes, out IList<ServiceResult> readErrors);
             m_session.FetchReferences(localIds, out IList<ReferenceDescriptionCollection> referenceCollectionList, out IList<ServiceResult> fetchErrors);
-
 
             int ii = 0;
             for (ii = 0; ii < count; ii++)
