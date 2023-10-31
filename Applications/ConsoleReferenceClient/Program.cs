@@ -331,31 +331,5 @@ namespace Quickstarts.ConsoleReferenceClient
                 output.Close();
             }
         }
-
-        static void WriteValue(ISession session, NodeId nodeId, DataValue value)
-        {
-            // Write the configured nodes
-            WriteValueCollection nodesToWrite = new WriteValueCollection();
-
-            WriteValue writeVal = new WriteValue();
-            writeVal.NodeId = nodeId;
-            writeVal.AttributeId = Attributes.Value;
-            writeVal.Value = value;
-            nodesToWrite.Add(writeVal);
-
-            // Write the node attributes
-            StatusCodeCollection results = null;
-            DiagnosticInfoCollection diagnosticInfos;
-
-            // Call Write Service
-            session.Write(null,
-                            nodesToWrite,
-                            out results,
-                            out diagnosticInfos);
-
-            // Validate the response
-            ClientBase.ValidateResponse(results, nodesToWrite);
-
-        }
     }
 }
