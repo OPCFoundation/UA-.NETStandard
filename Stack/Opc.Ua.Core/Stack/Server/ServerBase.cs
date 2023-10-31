@@ -1152,7 +1152,7 @@ namespace Opc.Ua
                         continue;
                     }
 
-                    if (endpointUrl.Port != baseAddress.Url.Port)
+                    if (endpointUrl.Port != baseAddress.Url.Port && !translateHttpsEndpoint)
                     {
                         continue;
                     }
