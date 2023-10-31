@@ -98,10 +98,10 @@ namespace Opc.Ua
                     this.LimitState.SetState(context, 0);
                     break;
                 }
-           }
+            }
 
-           SetActiveEffectiveSubState(context, this.LimitState.CurrentState.Value, DateTime.UtcNow);
-           base.SetActiveState(context, limit != LimitAlarmStates.Inactive);
+            SetActiveEffectiveSubState(context, this.LimitState.CurrentState.Value, DateTime.UtcNow);
+            base.SetActiveState(context, limit != LimitAlarmStates.Inactive);
         }
         #endregion
     }

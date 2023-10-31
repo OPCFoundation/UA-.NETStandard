@@ -150,7 +150,7 @@ namespace Opc.Ua
             {
                 AcknowledgeableConditionState branch = GetAcknowledgeableBranch(eventId);
 
-                if ( branch != null )
+                if (branch != null)
                 {
                     branch.OnAcknowledgeCalled(context, method, objectId, eventId, comment);
 
@@ -159,7 +159,7 @@ namespace Opc.Ua
                         ReplaceBranchEvent(eventId, branch);
                     }
                     else
-                    { 
+                    {
                         RemoveBranchEvent(eventId);
                     }
                 }
@@ -242,7 +242,7 @@ namespace Opc.Ua
             {
                 return StatusCodes.BadConditionDisabled;
             }
-            
+
             if (OnAcknowledge != null)
             {
                 try
@@ -510,7 +510,7 @@ namespace Opc.Ua
         {
             bool supportsConfirm = false;
 
-            if (this.ConfirmedState != null && this.ConfirmedState.Value != null )
+            if (this.ConfirmedState != null && this.ConfirmedState.Value != null)
             {
                 supportsConfirm = true;
             }
@@ -563,7 +563,7 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    if ( SupportsConfirm() && !this.ConfirmedState.Id.Value)
+                    if (SupportsConfirm() && !this.ConfirmedState.Id.Value)
                     {
                         retainState = true;
                     }

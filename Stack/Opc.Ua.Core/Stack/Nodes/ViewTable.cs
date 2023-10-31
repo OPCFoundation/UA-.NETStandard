@@ -51,7 +51,7 @@ namespace Opc.Ua
                 return m_views.ContainsKey(description.ViewId);
             }
         }
-        
+
         /// <summary>
         /// Determines whether a node is in a view.
         /// </summary>
@@ -147,7 +147,7 @@ namespace Opc.Ua
         public void Remove(NodeId viewId)
         {
             if (NodeId.IsNull(viewId)) throw new ArgumentNullException(nameof(viewId));
-                        
+
             lock (m_lock)
             {
                 // find view.

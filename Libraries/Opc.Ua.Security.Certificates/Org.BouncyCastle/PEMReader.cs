@@ -71,8 +71,7 @@ namespace Opc.Ua.Security.Certificates
                     while (pemObject != null)
                     {
                         RsaPrivateCrtKeyParameters privateKey = null;
-                        var keypair = pemObject as Org.BouncyCastle.Crypto.AsymmetricCipherKeyPair;
-                        if (keypair != null)
+                        if (pemObject is Org.BouncyCastle.Crypto.AsymmetricCipherKeyPair keypair)
                         {
                             privateKey = keypair.Private as RsaPrivateCrtKeyParameters;
                         }

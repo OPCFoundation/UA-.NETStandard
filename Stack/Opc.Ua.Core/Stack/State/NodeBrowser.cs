@@ -196,7 +196,7 @@ namespace Opc.Ua
                 m_references.Add(reference);
             }
         }
-        
+
         /// <summary>
         /// Adds a reference to target entity.
         /// </summary>
@@ -248,7 +248,7 @@ namespace Opc.Ua
         {
             get { return m_context; }
         }
-        
+
         /// <summary>
         /// The view being browsed.
         /// </summary>

@@ -321,9 +321,8 @@ namespace Opc.Ua
             m_channel = channel;
             m_useTransportChannel = true;
 
-            UaChannelBase uaChannel = channel as UaChannelBase;
 
-            if (uaChannel != null)
+            if (channel is UaChannelBase uaChannel)
             {
                 m_useTransportChannel = uaChannel.m_uaBypassChannel != null || uaChannel.UseBinaryEncoding;
             }

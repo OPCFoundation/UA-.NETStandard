@@ -414,9 +414,8 @@ namespace Opc.Ua
 
             ServiceResult result = null;
 
-            ServiceResultException sre = exception as ServiceResultException;
 
-            if (sre != null)
+            if (exception is ServiceResultException sre)
             {
                 result = new ServiceResult(sre);
                 Utils.LogWarning("SERVER - Service Fault Occurred. Reason={0}", result.StatusCode);
@@ -785,9 +784,7 @@ namespace Opc.Ua
             /// <returns>The response.</returns>
             public static IServiceResponse WaitForComplete(IAsyncResult ar, bool throwOnError)
             {
-                ProcessRequestAsyncResult result = ar as ProcessRequestAsyncResult;
-
-                if (result == null)
+                if (!(ar is ProcessRequestAsyncResult result))
                 {
                     throw new ArgumentException("End called with an invalid IAsyncResult object.", nameof(ar));
                 }
@@ -815,9 +812,7 @@ namespace Opc.Ua
             /// <returns>The request object if available; otherwise null.</returns>
             public static IServiceRequest GetRequest(IAsyncResult ar)
             {
-                ProcessRequestAsyncResult result = ar as ProcessRequestAsyncResult;
-
-                if (result != null)
+                if (ar is ProcessRequestAsyncResult result)
                 {
                     return result.m_request;
                 }

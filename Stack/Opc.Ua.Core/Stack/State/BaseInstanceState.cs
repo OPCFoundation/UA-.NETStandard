@@ -37,9 +37,7 @@ namespace Opc.Ua
         /// </summary>
         protected override void Initialize(ISystemContext context, NodeState source)
         {
-            BaseInstanceState instance = source as BaseInstanceState;
-
-            if (instance != null)
+            if (source is BaseInstanceState instance)
             {
                 m_referenceTypeId = instance.m_referenceTypeId;
                 m_typeDefinitionId = instance.m_typeDefinitionId;
@@ -137,9 +135,7 @@ namespace Opc.Ua
 
                 while (parent != null)
                 {
-                    BaseInstanceState instance = parent as BaseInstanceState;
-
-                    if (instance == null)
+                    if (!(parent is BaseInstanceState instance))
                     {
                         break;
                     }
@@ -376,9 +372,7 @@ namespace Opc.Ua
                     // save the variable value.
                     if (field.AttributeId == Attributes.Value)
                     {
-                        BaseVariableState variable = child as BaseVariableState;
-
-                        if (variable != null && field.AttributeId == Attributes.Value)
+                        if (child is BaseVariableState variable && field.AttributeId == Attributes.Value)
                         {
                             try
                             {
@@ -406,9 +400,7 @@ namespace Opc.Ua
         /// <param name="minimumSamplingInterval">The minimum sampling interval.</param>
         public void SetMinimumSamplingInterval(ISystemContext context, double minimumSamplingInterval)
         {
-            BaseVariableState variable = this as BaseVariableState;
-
-            if (variable != null)
+            if (this is BaseVariableState variable)
             {
                 variable.MinimumSamplingInterval = minimumSamplingInterval;
             }

@@ -61,9 +61,7 @@ namespace Opc.Ua
         /// </summary>
         protected override void Initialize(ISystemContext context, NodeState source)
         {
-            ViewState instance = source as ViewState;
-
-            if (instance != null)
+            if (source is ViewState instance)
             {
                 m_eventNotifier = instance.m_eventNotifier;
                 m_containsNoLoops = instance.m_containsNoLoops;
@@ -169,9 +167,8 @@ namespace Opc.Ua
         {
             base.Export(context, node);
 
-            ViewNode viewNode = node as ViewNode;
 
-            if (viewNode != null)
+            if (node is ViewNode viewNode)
             {
                 viewNode.EventNotifier = this.EventNotifier;
                 viewNode.ContainsNoLoops = this.ContainsNoLoops;

@@ -447,9 +447,8 @@ namespace Opc.Ua
                 return true;
             }
 
-            ExtensionObject value = obj as ExtensionObject;
 
-            if (value != null)
+            if (obj is ExtensionObject value)
             {
                 if (this.m_typeId != value.m_typeId)
                 {
@@ -536,9 +535,7 @@ namespace Opc.Ua
 
                         for (int ii = 0; ii < attributes.Length; ii++)
                         {
-                            DataMemberAttribute contract = attributes[ii] as DataMemberAttribute;
-
-                            if (contract != null)
+                            if (attributes[ii] is DataMemberAttribute contract)
                             {
                                 if (body.Length == 0)
                                 {
@@ -643,9 +640,7 @@ namespace Opc.Ua
         /// </remarks>
         public static Array ToArray(object source, Type elementType)
         {
-            var extensions = source as Array;
-
-            if (extensions == null)
+            if (!(source is Array extensions))
             {
                 return null;
             }
@@ -675,9 +670,7 @@ namespace Opc.Ua
         /// </remarks>
         public static List<T> ToList<T>(object source) where T : class
         {
-            var extensions = source as Array;
-
-            if (extensions == null)
+            if (!(source is Array extensions))
             {
                 return null;
             }
@@ -715,9 +708,8 @@ namespace Opc.Ua
             get
             {
                 // must use the XML encoding id if encoding in an XML stream.
-                IEncodeable encodeable = m_body as IEncodeable;
 
-                if (encodeable != null)
+                if (m_body is IEncodeable encodeable)
                 {
                     return ExpandedNodeId.ToNodeId(encodeable.XmlEncodingId, m_context.NamespaceUris);
                 }
@@ -779,9 +771,8 @@ namespace Opc.Ua
                 Body = decoder.ReadExtensionObjectBody(m_typeId);
 
                 // clear the type id for encodeables.
-                IEncodeable encodeable = m_body as IEncodeable;
 
-                if (encodeable != null)
+                if (m_body is IEncodeable encodeable)
                 {
                     m_typeId = ExpandedNodeId.Null;
                 }
@@ -925,9 +916,8 @@ namespace Opc.Ua
                 foreach (IEncodeable encodeable in encodeables)
                 {
                     // check if already an extension object.
-                    ExtensionObject extensible = encodeable as ExtensionObject;
 
-                    if (extensible != null)
+                    if (encodeable is ExtensionObject extensible)
                     {
                         extensibles.Add(extensible);
                     }

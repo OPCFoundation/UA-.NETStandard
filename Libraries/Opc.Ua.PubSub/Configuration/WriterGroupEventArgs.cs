@@ -50,5 +50,5 @@ namespace Opc.Ua.PubSub.Configuration
         /// Reference to <see cref="WriterGroupDataType"/> object
         /// </summary>
         public WriterGroupDataType WriterGroupDataType { get; set; }
-    }   
+    }
 }

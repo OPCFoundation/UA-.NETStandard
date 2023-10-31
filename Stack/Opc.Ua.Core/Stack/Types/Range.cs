@@ -27,14 +27,14 @@ namespace Opc.Ua
         /// </summary>
         public Range(double high, double low)
         {
-            m_low  = low;
+            m_low = low;
             m_high = high;
 
             // swap values if high is not actually higher.
             if (low > high)
             {
                 m_high = low;
-                m_low  = high;
+                m_low = high;
             }
         }
 

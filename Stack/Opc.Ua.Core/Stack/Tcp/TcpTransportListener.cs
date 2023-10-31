@@ -474,9 +474,7 @@ namespace Opc.Ua.Bindings
                 repeatAccept = false;
                 lock (m_lock)
                 {
-                    Socket listeningSocket = e.UserToken as Socket;
-
-                    if (listeningSocket == null)
+                    if (!(e.UserToken is Socket listeningSocket))
                     {
                         Utils.LogError("OnAccept: Listensocket was null.");
                         e.Dispose();

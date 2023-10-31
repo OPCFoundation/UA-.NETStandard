@@ -311,7 +311,7 @@ namespace Opc.Ua.Bindings
                 }
             }
         }
-#endregion
+        #endregion
 
         #region IAsyncResult Members
         /// <summary cref="IAsyncResult.AsyncState" />

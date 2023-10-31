@@ -119,8 +119,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             /// </summary>
             public IBlockResult GetResult()
             {
-                var memStream = Stream as MemoryStream;
-                if (memStream == null) throw new ArgumentNullException(nameof(Stream));
+                if (!(Stream is MemoryStream memStream)) throw new ArgumentNullException(nameof(Stream));
                 var digest = memStream.ToArray();
                 var signature = _generator.SignData(digest, _hashAlgorithm);
                 return new Org.BouncyCastle.Crypto.SimpleBlockResult(signature);

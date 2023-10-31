@@ -57,7 +57,7 @@ namespace Opc.Ua.Types.Utils
                 }
                 else
                 {
-                    var tcs = new TaskCompletionSource<bool>();
+                    var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                     m_waits.Enqueue(tcs);
                     return tcs.Task;
                 }

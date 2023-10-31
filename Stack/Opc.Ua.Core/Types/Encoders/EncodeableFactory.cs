@@ -125,7 +125,6 @@ namespace Opc.Ua
         /// <param name="unboundTypeIds">A dictionary of unbound typeIds, e.g. JSON type ids referenced by object name.</param>
         private void AddEncodeableType(Type systemType, Dictionary<string, ExpandedNodeId> unboundTypeIds)
         {
-
             if (systemType == null)
             {
                 return;
@@ -136,9 +135,8 @@ namespace Opc.Ua
                 return;
             }
 
-            IEncodeable encodeable = Activator.CreateInstance(systemType) as IEncodeable;
 
-            if (encodeable == null)
+            if (!(Activator.CreateInstance(systemType) is IEncodeable encodeable))
             {
                 return;
             }
@@ -261,9 +259,7 @@ namespace Opc.Ua
             {
                 for (int ii = 0; ii < attributes.Length; ii++)
                 {
-                    DataContractAttribute contract = attributes[ii] as DataContractAttribute;
-
-                    if (contract != null)
+                    if (attributes[ii] is DataContractAttribute contract)
                     {
                         if (String.IsNullOrEmpty(contract.Name))
                         {
@@ -281,9 +277,7 @@ namespace Opc.Ua
             {
                 for (int ii = 0; ii < attributes.Length; ii++)
                 {
-                    CollectionDataContractAttribute contract = attributes[ii] as CollectionDataContractAttribute;
-
-                    if (contract != null)
+                    if (attributes[ii] is CollectionDataContractAttribute contract)
                     {
                         if (String.IsNullOrEmpty(contract.Name))
                         {

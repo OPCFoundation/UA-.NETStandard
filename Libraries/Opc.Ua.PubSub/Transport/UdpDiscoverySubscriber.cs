@@ -63,7 +63,7 @@ namespace Opc.Ua.PubSub.Transport
         #endregion
 
         #region Start/Stop Method Overides
-        
+
         /// <summary>
         /// Implementation of StartAsync for the subscriber Discovery
         /// </summary>
@@ -99,7 +99,7 @@ namespace Opc.Ua.PubSub.Transport
             {
                 if (!m_metadataWriterIdsToSend.Contains(writerId))
                 {
-                    m_metadataWriterIdsToSend.Add(writerId);                    
+                    m_metadataWriterIdsToSend.Add(writerId);
                 }
             }
         }
@@ -121,7 +121,7 @@ namespace Opc.Ua.PubSub.Transport
         #endregion
 
         #region Private Methods
-        
+
         /// <summary>
         /// Decide if there is anything to publish
         /// </summary>
@@ -174,7 +174,7 @@ namespace Opc.Ua.PubSub.Transport
                     Utils.Trace("UdpDiscoverySubscriber.SendDiscoveryRequestDataSetMetaData Before sending message for DataSetWriterIds:{0}",
                         String.Join(", ", dataSetWriterIds));
 
-                    udpClient.Send(bytes, bytes.Length, DiscoveryNetworkAddressEndPoint);                   
+                    udpClient.Send(bytes, bytes.Length, DiscoveryNetworkAddressEndPoint);
                 }
                 catch (Exception ex)
                 {

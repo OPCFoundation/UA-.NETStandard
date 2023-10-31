@@ -52,7 +52,7 @@ namespace Opc.Ua.PubSub.Configuration
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
 
-            using (XmlWriter writer = XmlDictionaryWriter.Create(ostrm, settings))
+            using (XmlWriter writer = XmlWriter.Create(ostrm, settings))
             {
                 DataContractSerializer serializer = new DataContractSerializer(typeof(PubSubConfigurationDataType));
                 serializer.WriteObject(writer, pubSubConfiguration);

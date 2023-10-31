@@ -818,7 +818,7 @@ namespace Opc.Ua.Bindings
             }
             args.Dispose();
         }
-#endregion
+        #endregion
 
         #region Write Handling
         /// <summary>
@@ -826,8 +826,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public bool SendAsync(IMessageSocketAsyncEventArgs args)
         {
-            TcpMessageSocketAsyncEventArgs eventArgs = args as TcpMessageSocketAsyncEventArgs;
-            if (eventArgs == null)
+            if (!(args is TcpMessageSocketAsyncEventArgs eventArgs))
             {
                 throw new ArgumentNullException(nameof(args));
             }

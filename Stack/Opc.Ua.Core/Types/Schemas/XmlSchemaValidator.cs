@@ -137,9 +137,7 @@ namespace Opc.Ua.Schema.Xml
                 {
                     foreach (XmlSchemaObject current in m_schema.Elements.Values)
                     {
-                        XmlSchemaElement element = current as XmlSchemaElement;
-
-                        if (element != null)
+                        if (current is XmlSchemaElement element)
                         {
                             if (element.Name == typeName)
                             {

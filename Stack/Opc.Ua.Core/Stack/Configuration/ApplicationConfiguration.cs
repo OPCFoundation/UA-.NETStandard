@@ -439,8 +439,7 @@ namespace Opc.Ua
             // load private key
             await SecurityConfiguration.ApplicationCertificate.LoadPrivateKeyEx(SecurityConfiguration.CertificatePasswordProvider).ConfigureAwait(false);
 
-            Func<string> generateDefaultUri = () =>
-            {
+            Func<string> generateDefaultUri = () => {
                 var sb = new StringBuilder();
                 sb.Append("urn:");
                 sb.Append(Utils.GetHostName());

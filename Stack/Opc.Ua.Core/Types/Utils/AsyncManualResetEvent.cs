@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2023 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -26,49 +26,54 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+#if mist
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
-using System.Security.Cryptography;
-
-namespace Opc.Ua.Security.Certificates
+namespace Opc.Ua.Types.Utils
 {
     /// <summary>
-    /// The defaults used in the library for Certificates.
+    /// An async version of <see cref="ManualResetEvent"/> based on
+    /// https://devblogs.microsoft.com/pfxteam/building-async-coordination-primitives-part-1-asyncmanualresetevent/.
     /// </summary>
-    public static class X509Defaults
+    public class AsyncManualResetEvent
     {
+        private volatile TaskCompletionSource<bool> m_tcs = new TaskCompletionSource<bool>();
+
         /// <summary>
-        /// The default key size for RSA certificates in bits.
+        /// 
         /// </summary>
-        /// <remarks>
-        /// Supported values are 1024(deprecated), 2048, 3072 or 4096.
-        /// </remarks>
-        public static readonly ushort RSAKeySize = 2048;
+        public Task WaitAsync() { return m_tcs.Task; }
+
         /// <summary>
-        /// The min supported size for a RSA key.
+        /// 
         /// </summary>
-        public static readonly ushort RSAKeySizeMin = 1024;
+        public void Set() { m_tcs.TrySetResult(true); }
+
         /// <summary>
-        /// The max supported size for a RSA key.
+        /// 
         /// </summary>
-        public static readonly ushort RSAKeySizeMax = 4096;
+        public void Reset()
+        {
+            while (true)
+            {
+                var tcs = m_tcs;
+                if (!tcs.Task.IsCompleted ||
+                    Interlocked.CompareExchange(ref m_tcs, new TaskCompletionSource<bool>(), tcs) == tcs)
+                    return;
+            }
+        }
         /// <summary>
-        /// The default hash algorithm to use for signatures.
+        /// 
         /// </summary>
-        /// <remarks>
-        /// Supported values are SHA-1(deprecated) or 256, 384 and 512 for SHA-2.
-        /// </remarks>
-        public static readonly HashAlgorithmName HashAlgorithmName = HashAlgorithmName.SHA256;
-        /// <summary>
-        /// The default lifetime of certificates in months.
-        /// </summary>
-        public static readonly ushort LifeTime = 24;
-        /// <summary>
-        /// The recommended min serial numbers length in octets.
-        /// </summary>
-        public static readonly int SerialNumberLengthMin = 10;
-        /// <summary>
-        /// The max serial numbers length in octets.
-        /// </summary>
-        public static readonly int SerialNumberLengthMax = 20;
+        public void Set()
+        {
+            var tcs = m_tcs;
+            Task.Factory.StartNew(s => ((TaskCompletionSource<bool>)s).TrySetResult(true),
+                tcs, CancellationToken.None, TaskCreationOptions.PreferFairness, TaskScheduler.Default);
+            tcs.Task.Wait();
+        }
     }
 }
+#endif

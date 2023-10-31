@@ -43,9 +43,7 @@ namespace Opc.Ua
         /// </summary>
         protected override void Initialize(ISystemContext context, NodeState source)
         {
-            BaseTypeState type = source as BaseTypeState;
-
-            if (type != null)
+            if (source is BaseTypeState type)
             {
                 m_superTypeId = type.m_superTypeId;
                 m_isAbstract = type.m_isAbstract;

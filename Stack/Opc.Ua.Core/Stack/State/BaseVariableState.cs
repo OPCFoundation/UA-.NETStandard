@@ -48,9 +48,7 @@ namespace Opc.Ua
         /// <param name="source">A source node to be copied to this instance.</param>
         protected override void Initialize(ISystemContext context, NodeState source)
         {
-            BaseVariableState instance = source as BaseVariableState;
-
-            if (instance != null)
+            if (source is BaseVariableState instance)
             {
                 // The value will be set to default(T) if the originating value is null
                 m_value = ExtractValueFromVariant(context, instance.m_value, false);
@@ -200,9 +198,8 @@ namespace Opc.Ua
                 return value;
             }
 
-            ExtensionObject extension = value as ExtensionObject;
 
-            if (extension != null)
+            if (value is ExtensionObject extension)
             {
                 if (typeof(T).IsInstanceOfType(extension.Body))
                 {
@@ -227,9 +224,8 @@ namespace Opc.Ua
             if (elementType != null)
             {
                 // check for array of extensions.
-                IList<ExtensionObject> extensions = value as IList<ExtensionObject>;
 
-                if (extensions != null && typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(elementType.GetTypeInfo()))
+                if (value is IList<ExtensionObject> extensions && typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(elementType.GetTypeInfo()))
                 {
                     Array encodeables = Array.CreateInstance(elementType, extensions.Count);
 
@@ -265,9 +261,8 @@ namespace Opc.Ua
                 }
 
                 // check for array of variants.
-                IList<Variant> variants = value as IList<Variant>;
 
-                if (variants != null)
+                if (value is IList<Variant> variants)
                 {
                     // only support conversions to object[].
                     if (elementType != typeof(object))
@@ -292,9 +287,7 @@ namespace Opc.Ua
                 // check for array of uuids.
                 if (typeof(Guid).GetTypeInfo().IsAssignableFrom(elementType.GetTypeInfo()))
                 {
-                    IList<Uuid> uuids = value as IList<Uuid>;
-
-                    if (uuids != null)
+                    if (value is IList<Uuid> uuids)
                     {
                         Guid[] guids = new Guid[uuids.Count];
 
@@ -310,9 +303,7 @@ namespace Opc.Ua
                 // check for array of enumeration.
                 if (typeof(Enum).GetTypeInfo().IsAssignableFrom(elementType.GetTypeInfo()))
                 {
-                    IList<int> values = value as IList<int>;
-
-                    if (values != null)
+                    if (value is IList<int> values)
                     {
                         Array enums = Array.CreateInstance(elementType, values.Count);
 
@@ -369,9 +360,8 @@ namespace Opc.Ua
                 return extension.Body;
             }
 
-            IEncodeable instance = Activator.CreateInstance(targetType) as IEncodeable;
 
-            if (instance != null)
+            if (Activator.CreateInstance(targetType) is IEncodeable instance)
             {
                 IDecoder decoder = null;
 
@@ -885,9 +875,8 @@ namespace Opc.Ua
         {
             base.Export(context, node);
 
-            VariableNode variableNode = node as VariableNode;
 
-            if (variableNode != null)
+            if (node is VariableNode variableNode)
             {
                 try
                 {
@@ -2623,9 +2612,8 @@ namespace Opc.Ua
                         m_updateList[ii] = updateList[ii];
 
                         // the copy copy is enforced by the value wrapper.
-                        BaseVariableState variable = m_updateList[ii] as BaseVariableState;
 
-                        if (variable != null)
+                        if (m_updateList[ii] is BaseVariableState variable)
                         {
                             variable.CopyPolicy = VariableCopyPolicy.Never;
                         }
