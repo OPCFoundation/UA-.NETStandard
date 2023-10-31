@@ -286,6 +286,12 @@ namespace Opc.Ua.Gds.Server
             string subjectName
             )
         {
+            if(!SubjectName.Equals(subjectName))
+            {
+                throw new ArgumentException("SubjectName provided does not match the SubjectName property of the CertificateGroup \n" +
+                    "CA Certificate is not created until the subjectName " + SubjectName " is provided", subjectName);
+            }
+        
             DateTime yesterday = DateTime.Today.AddDays(-1);
             X509Certificate2 newCertificate = CertificateFactory.CreateCertificate(subjectName)
                 .SetNotBefore(yesterday)
@@ -304,11 +310,6 @@ namespace Opc.Ua.Gds.Server
             // initialize revocation list
             await RevokeCertificateAsync(AuthoritiesStorePath, newCertificate, null).ConfigureAwait(false);
 
-            if(SubjectName != subjectName)
-            {
-                throw new ArgumentException("Subject Name of CA does not match the Subject Name Property of the Certificate Group \n" +
-                    "CA Certificate is created but only placed in the Issuer Certificate Store & not in the Trusted Store", subjectName);
-            }
             await UpdateAuthorityCertInTrustedList().ConfigureAwait(false);
 
             return Certificate;
