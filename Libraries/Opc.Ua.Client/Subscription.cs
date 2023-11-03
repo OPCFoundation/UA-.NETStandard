@@ -289,7 +289,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// The life time of of the subscription in counts of
+        /// The life time of the subscription in counts of
         /// publish interval.
         /// LifetimeCount shall be at least 3*KeepAliveCount.
         /// </summary>
