@@ -470,7 +470,7 @@ namespace Opc.Ua
                 {
                     await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
 
-                    await InternalValidate(chain, endpoint, ct).ConfigureAwait(false);
+                    await InternalValidateAsync(chain, endpoint, ct).ConfigureAwait(false);
 
                     // add to list of validated certificates.
                     m_validatedCertificates[certificate.Thumbprint] = new X509Certificate2(certificate.RawData);
@@ -515,7 +515,7 @@ namespace Opc.Ua
                 {
                     m_semaphore.Wait();
 
-                    InternalValidate(chain, endpoint).GetAwaiter().GetResult();
+                    InternalValidateAsync(chain, endpoint).GetAwaiter().GetResult();
 
                     // add to list of validated certificates.
                     m_validatedCertificates[certificate.Thumbprint] = new X509Certificate2(certificate.RawData);
@@ -1091,7 +1091,7 @@ namespace Opc.Ua
         /// <param name="endpoint">The endpoint for domain validation.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <exception cref="ServiceResultException">If certificate[0] cannot be accepted</exception>
-        protected virtual async Task InternalValidate(X509Certificate2Collection certificates, ConfiguredEndpoint endpoint, CancellationToken ct = default)
+        protected virtual async Task InternalValidateAsync(X509Certificate2Collection certificates, ConfiguredEndpoint endpoint, CancellationToken ct = default)
         {
             X509Certificate2 certificate = certificates[0];
 
@@ -1769,7 +1769,7 @@ namespace Opc.Ua
         #region Private Fields
         private readonly SemaphoreSlim m_semaphore = new SemaphoreSlim(1, 1);
         private readonly object m_callbackLock = new object();
-        private Dictionary<string, X509Certificate2> m_validatedCertificates;
+        private readonly Dictionary<string, X509Certificate2> m_validatedCertificates;
         private CertificateStoreIdentifier m_trustedCertificateStore;
         private CertificateIdentifierCollection m_trustedCertificateList;
         private CertificateStoreIdentifier m_issuerCertificateStore;
@@ -1846,8 +1846,8 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private ServiceResult m_error;
-        private X509Certificate2 m_certificate;
+        private readonly ServiceResult m_error;
+        private readonly X509Certificate2 m_certificate;
         private bool m_accept;
         private bool m_acceptAll;
         private string m_applicationErrorMsg;

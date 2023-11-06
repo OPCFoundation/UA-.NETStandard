@@ -248,7 +248,7 @@ namespace Opc.Ua.Bindings
                         }
                         else
                         {
-                            m_tcs.TrySetCanceled();
+                            m_tcs.TrySetCanceled(ct);
                             badRequestInterrupted = true;
                         }
                     }
