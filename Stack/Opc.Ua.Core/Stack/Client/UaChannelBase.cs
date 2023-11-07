@@ -991,9 +991,7 @@ namespace Opc.Ua
             /// <returns>The oject that </returns>
             public static new UaChannelAsyncResult WaitForComplete(IAsyncResult ar)
             {
-                UaChannelAsyncResult asyncResult = ar as UaChannelAsyncResult;
-
-                if (asyncResult == null)
+                if (!(ar is UaChannelAsyncResult asyncResult))
                 {
                     throw new ArgumentException("End called with an invalid IAsyncResult object.", nameof(ar));
                 }

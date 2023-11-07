@@ -1118,7 +1118,7 @@ namespace Opc.Ua
 
             return CompareTo(idType, id);
         }
-#endregion
+        #endregion
 
         #region public static bool operator>(NodeId value1, NodeId value2)
         /// <summary>
@@ -1156,7 +1156,7 @@ namespace Opc.Ua
         }
         #endregion
 
-#endregion
+        #endregion
 
         #region IFormattable Members
 
@@ -1543,9 +1543,7 @@ namespace Opc.Ua
 
                     case IdType.String:
                     {
-                        string text = nonNull as string;
-
-                        if (text != null && text.Length == 0)
+                        if (nonNull is string text && text.Length == 0)
                         {
                             return 0;
                         }
@@ -1555,9 +1553,7 @@ namespace Opc.Ua
 
                     case IdType.Opaque:
                     {
-                        byte[] bytes = nonNull as byte[];
-
-                        if (bytes != null && bytes.Length == 0)
+                        if (nonNull is byte[] bytes && bytes.Length == 0)
                         {
                             return 0;
                         }
@@ -1569,13 +1565,10 @@ namespace Opc.Ua
                 return (id1 == null) ? -1 : +1;
             }
 
-            byte[] bytes1 = id1 as byte[];
 
-            if (bytes1 != null)
+            if (id1 is byte[] bytes1)
             {
-                byte[] bytes2 = id2 as byte[];
-
-                if (bytes2 == null)
+                if (!(id2 is byte[] bytes2))
                 {
                     return +1;
                 }
@@ -1599,9 +1592,8 @@ namespace Opc.Ua
                 return 0;
             }
 
-            IComparable comparable1 = id1 as IComparable;
 
-            if (comparable1 != null)
+            if (id1 is IComparable comparable1)
             {
                 return comparable1.CompareTo(id2);
             }

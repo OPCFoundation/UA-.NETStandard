@@ -130,9 +130,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             CompareEncodeDecode(uaNetworkMessage);
         }
 
-       [Test(Description = "Invalidate PublisherId with wrong data type")]
+        [Test(Description = "Invalidate PublisherId with wrong data type")]
         public void InvalidatePublisherId([
-           Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
             DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
             DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
             DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
@@ -147,7 +147,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
             )]
             DataSetFieldContentMask dataSetFieldContentMask,
-           [Values((float)10, (double)10)] object publisherId)
+            [Values((float)10, (double)10)] object publisherId)
         {
             // Arrange
             UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
@@ -192,7 +192,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             CompareEncodeDecode(uaNetworkMessage);
         }
 
-        
+
 
         [Test(Description = "Validate WriterGroupId")]
         public void ValidateWriterGroupIdWithVariantType(
@@ -529,7 +529,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 // The Variant can contain a StatusCode instead of the expected DataType if the status of the field is Bad.
                 // The Variant can contain a DataValue with the value and the statusCode if the status of the field is Uncertain.
                 dataSetWriter.DataSetFieldContentMask = (uint)dataSetFieldContentMask;
-            }            
+            }
 
             var networkMessages = m_firstPublisherConnection.CreateNetworkMessages(m_firstWriterGroup, new WriterGroupPublishState());
             // filter out the metadata message
@@ -556,7 +556,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
 
             UadpNetworkMessage uaNetworkMessageDecoded = new UadpNetworkMessage();
-            uaNetworkMessageDecoded.Decode(new ServiceMessageContext(), bytes, m_firstDataSetReadersType);            
+            uaNetworkMessageDecoded.Decode(new ServiceMessageContext(), bytes, m_firstDataSetReadersType);
 
             // compare uaNetworkMessage with uaNetworkMessageDecoded
             Compare(uadpNetworkMessage, uaNetworkMessageDecoded);
@@ -621,7 +621,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // Verify flags
             Assert.AreEqual(uadpNetworkMessageEncode.UADPFlags, uadpNetworkMessageDecoded.UADPFlags, "UADPFlags were not decoded correctly");
-            
+
             #region Network Message Header
             if ((networkMessageContentMask & UadpNetworkMessageContentMask.PublisherId) != 0)
             {
@@ -674,7 +674,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     uadpNetworkMessageDecoded.DataSetMessages.Count, "UadpDataSetMessages.Count was not decoded correctly");
 
                 // check if the encoded match the decoded DataSetWriterId's
-                
+
                 foreach (UadpDataSetMessage uadpDataSetMessage in uadpNetworkMessageEncode.DataSetMessages)
                 {
                     UadpDataSetMessage uadpDataSetMessageDecoded =

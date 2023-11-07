@@ -53,7 +53,7 @@ namespace Opc.Ua.Security.Certificates
         {
             RSA rsaPrivateKey = null;
             Org.BouncyCastle.OpenSsl.PemReader pemReader;
-            using (StreamReader pemStreamReader = new StreamReader(new MemoryStream(pemDataBlob), Encoding.UTF8, true))
+            using (var pemStreamReader = new StreamReader(new MemoryStream(pemDataBlob), Encoding.UTF8, true))
             {
                 if (String.IsNullOrEmpty(password))
                 {
@@ -61,18 +61,17 @@ namespace Opc.Ua.Security.Certificates
                 }
                 else
                 {
-                    Password pwFinder = new Password(password.ToCharArray());
+                    var pwFinder = new Password(password.ToCharArray());
                     pemReader = new Org.BouncyCastle.OpenSsl.PemReader(pemStreamReader, pwFinder);
                 }
                 try
                 {
                     // find the private key in the PEM blob
-                    var pemObject = pemReader.ReadObject();
+                    object pemObject = pemReader.ReadObject();
                     while (pemObject != null)
                     {
                         RsaPrivateCrtKeyParameters privateKey = null;
-                        var keypair = pemObject as Org.BouncyCastle.Crypto.AsymmetricCipherKeyPair;
-                        if (keypair != null)
+                        if (pemObject is Org.BouncyCastle.Crypto.AsymmetricCipherKeyPair keypair)
                         {
                             privateKey = keypair.Private as RsaPrivateCrtKeyParameters;
                         }
@@ -115,17 +114,17 @@ namespace Opc.Ua.Security.Certificates
         internal class Password
             : IPasswordFinder
         {
-            private readonly char[] password;
+            private readonly char[] m_password;
 
             public Password(
                 char[] word)
             {
-                this.password = (char[])word.Clone();
+                this.m_password = (char[])word.Clone();
             }
 
             public char[] GetPassword()
             {
-                return (char[])password.Clone();
+                return (char[])m_password.Clone();
             }
         }
         #endregion

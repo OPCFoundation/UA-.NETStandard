@@ -30,8 +30,8 @@ namespace Opc.Ua
         /// <param name="severity">The severity for the event.</param>
         /// <param name="message">The default message.</param>
         public virtual void Initialize(
-            ISystemContext context, 
-            NodeState source, 
+            ISystemContext context,
+            NodeState source,
             EventSeverity severity,
             LocalizedText message)
         {

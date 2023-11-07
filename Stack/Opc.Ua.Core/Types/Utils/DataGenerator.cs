@@ -550,7 +550,7 @@ namespace Opc.Ua.Test
 
             for (int ii = 0; ii < value.Length; ii++)
             {
-                value[ii] = default(T);
+                value[ii] = default;
             }
 
             return value;

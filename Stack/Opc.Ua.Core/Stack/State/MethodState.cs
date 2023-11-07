@@ -65,14 +65,12 @@ namespace Opc.Ua
         /// </summary>
         protected override void Initialize(ISystemContext context, NodeState source)
         {
-            MethodState method = source as MethodState;
-
-            if (method != null)
+            if (source is MethodState method)
             {
                 m_executable = method.m_executable;
                 m_userExecutable = method.m_userExecutable;
             }
-            
+
             base.Initialize(context, source);
         }
         #endregion
@@ -120,10 +118,10 @@ namespace Opc.Ua
         public bool Executable
         {
             get
-            { 
-                return m_executable;  
+            {
+                return m_executable;
             }
-            
+
             set
             {
                 if (m_executable != value)
@@ -141,10 +139,10 @@ namespace Opc.Ua
         public bool UserExecutable
         {
             get
-            { 
-                return m_userExecutable;  
+            {
+                return m_userExecutable;
             }
-            
+
             set
             {
                 if (m_userExecutable != value)
@@ -199,9 +197,8 @@ namespace Opc.Ua
         {
             base.Export(context, node);
 
-            MethodNode methodNode = node as MethodNode;
 
-            if (methodNode != null)
+            if (node is MethodNode methodNode)
             {
                 methodNode.Executable = this.Executable;
                 methodNode.UserExecutable = this.UserExecutable;
@@ -456,10 +453,10 @@ namespace Opc.Ua
         public PropertyState<Argument[]> InputArguments
         {
             get
-            { 
-                return m_inputArguments;  
+            {
+                return m_inputArguments;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_inputArguments, value))
@@ -477,10 +474,10 @@ namespace Opc.Ua
         public PropertyState<Argument[]> OutputArguments
         {
             get
-            { 
-                return m_outputArguments;  
+            {
+                return m_outputArguments;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_outputArguments, value))
@@ -641,7 +638,7 @@ namespace Opc.Ua
             {
                 return StatusCodes.BadTooManyArguments;
             }
-            
+
             // validate individual arguements.
             bool error = false;
 

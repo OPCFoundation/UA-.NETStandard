@@ -46,7 +46,7 @@ namespace Opc.Ua
         /// Schedules an incoming request.
         /// </summary>
         /// <param name="request">The request.</param>
-        void ScheduleIncomingRequest(IEndpointIncomingRequest request);      
+        void ScheduleIncomingRequest(IEndpointIncomingRequest request);
     }
 
     /// <summary>

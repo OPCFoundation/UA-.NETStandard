@@ -782,13 +782,13 @@ namespace Opc.Ua.Client.Tests
                 originSubscriptions, originSubscriptionCounters, originSubscriptionFastDataCounters,
                 kTestSubscriptions, kQueueSize);
 
-            if(TransferType.KeepOpen == transferType)
+            if (TransferType.KeepOpen == transferType)
             {
                 foreach (var subscription in originSubscriptions)
                 {
                     subscription.PublishStatusChanged += (s, e) => {
                         TestContext.Out.WriteLine($"PublishStatusChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
-                        if ((e.Status & PublishStateChangedMask.Transferred)!=0)
+                        if ((e.Status & PublishStateChangedMask.Transferred) != 0)
                         {
                             // subscription transferred
                             Interlocked.Increment(ref originSubscriptionTransferred[(int)s.Handle]);

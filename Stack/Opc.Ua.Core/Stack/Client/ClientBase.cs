@@ -321,9 +321,8 @@ namespace Opc.Ua
             m_channel = channel;
             m_useTransportChannel = true;
 
-            UaChannelBase uaChannel = channel as UaChannelBase;
 
-            if (uaChannel != null)
+            if (channel is UaChannelBase uaChannel)
             {
                 m_useTransportChannel = uaChannel.m_uaBypassChannel != null || uaChannel.UseBinaryEncoding;
             }
@@ -619,7 +618,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private ITransportChannel m_channel;
         private NodeId m_authenticationToken;
         private DiagnosticsMasks m_returnDiagnostics;
