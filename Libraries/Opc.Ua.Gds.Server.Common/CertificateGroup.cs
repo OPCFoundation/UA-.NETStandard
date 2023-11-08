@@ -289,7 +289,7 @@ namespace Opc.Ua.Gds.Server
             if(!SubjectName.Equals(subjectName))
             {
                 throw new ArgumentException("SubjectName provided does not match the SubjectName property of the CertificateGroup \n" +
-                    "CA Certificate is not created until the subjectName " + SubjectName " is provided", subjectName);
+                    "CA Certificate is not created until the subjectName " + SubjectName + " is provided", subjectName);
             }
         
             DateTime yesterday = DateTime.Today.AddDays(-1);
