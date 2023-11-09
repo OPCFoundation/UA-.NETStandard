@@ -286,7 +286,11 @@ namespace Opc.Ua.Gds.Server
             string subjectName
             )
         {
-            if(!SubjectName.Equals(subjectName))
+            // validate new subjectName matches the previous subject
+            // TODO: An issuer may modify the subject of the CA certificate,
+            // but then the configuration must be updated too!
+            // NOTE: not a strict requirement here for ASN.1 byte compare
+            if (!X509Utils.CompareDistinguishedName(subjectName, SubjectName))
             {
                 throw new ArgumentException("SubjectName provided does not match the SubjectName property of the CertificateGroup \n" +
                     "CA Certificate is not created until the subjectName " + SubjectName + " is provided", subjectName);
