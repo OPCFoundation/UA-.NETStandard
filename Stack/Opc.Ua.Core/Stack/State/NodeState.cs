@@ -2640,7 +2640,7 @@ namespace Opc.Ua
             if (changeMasks != NodeStateChangeMasks.None)
             {
                 OnStateChanged?.Invoke(context, this, changeMasks);
-                StateChanged.Invoke(context, this, changeMasks);
+                StateChanged?.Invoke(context, this, changeMasks);
                 m_changeMasks = NodeStateChangeMasks.None;
             }
         }
