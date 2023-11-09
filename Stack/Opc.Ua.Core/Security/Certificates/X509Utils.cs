@@ -524,7 +524,7 @@ namespace Opc.Ua
             X509Certificate2 certWithPrivateKey,
             bool throwOnError = false)
         {
-#if ECC_SUPPORT
+#if ECC_SUPPORT && !NETSTANDARD2_0 
             return X509PfxUtils.VerifyECDsaKeyPair(certWithPublicKey, certWithPrivateKey, throwOnError);
 #else
             throw new NotSupportedException();

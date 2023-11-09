@@ -94,7 +94,10 @@ namespace Opc.Ua.Server
             m_sessionName = sessionName;
             m_serverCertificate = serverCertificate;
             m_clientCertificate = clientCertificate;
-            m_secureChannelId = context.ChannelContext.SecureChannelId;
+
+            m_clientIssuerCertificates = null;
+            
+            m_secureChannelId = SecureChannelId;
             m_maxResponseMessageSize = maxResponseMessageSize;
             m_maxRequestAge = maxRequestAge;
             m_maxBrowseContinuationPoints = maxBrowseContinuationPoints;
@@ -354,6 +357,37 @@ namespace Opc.Ua.Server
             get
             {
                 return m_activated;
+            }
+        }
+
+        public virtual void SetEccUserTokenSecurityPolicy(string securityPolicyUri)
+        {
+            lock (m_lock)
+            {
+                m_eccUserTokenSecurityPolicyUri = securityPolicyUri;
+                m_eccUserTokenNonce = null;
+            }
+        }
+
+        public virtual EphemeralKeyType GetNewEccKey()
+        {
+            lock (m_lock)
+            {
+                if (m_eccUserTokenSecurityPolicyUri == null)
+                {
+                    return null;
+                }
+
+                m_eccUserTokenNonce = Nonce.CreateNonce(m_eccUserTokenSecurityPolicyUri, 0).Data;
+
+                EphemeralKeyType key = new EphemeralKeyType()
+                {
+                    PublicKey = m_eccUserTokenNonce
+                };
+
+                key.Signature = EccUtils.Sign(new ArraySegment<byte>(key.PublicKey), m_serverCertificate, m_eccUserTokenSecurityPolicyUri);
+
+                return key;
             }
         }
 
@@ -991,7 +1025,12 @@ namespace Opc.Ua.Server
 
                 try
                 {
-                    token.Decrypt(m_serverCertificate, m_serverNonce, securityPolicyUri);
+                    token.Decrypt(m_serverCertificate,
+                        Nonce.CreateNonce(securityPolicyUri,m_serverNonce),
+                        securityPolicyUri,
+                        Nonce.CreateNonce(securityPolicyUri,m_eccUserTokenNonce),
+                        m_clientCertificate,
+                        m_clientIssuerCertificates);
                 }
                 catch (Exception e)
                 {
@@ -1166,6 +1205,8 @@ namespace Opc.Ua.Server
         private bool m_activated;
 
         private X509Certificate2 m_clientCertificate;
+        private X509Certificate2Collection m_clientIssuerCertificates;
+
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
         private List<SoftwareCertificate> m_softwareCertificates;
         private byte[] m_clientNonce;
@@ -1175,6 +1216,8 @@ namespace Opc.Ua.Server
         private EndpointDescription m_endpoint;
         private X509Certificate2 m_serverCertificate;
         private byte[] m_serverCertificateChain;
+        private string m_eccUserTokenSecurityPolicyUri;
+        private byte[] m_eccUserTokenNonce;
 
         private string[] m_localeIds;
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]

@@ -459,6 +459,14 @@ namespace Opc.Ua.Server
                     }
                 }
 
+#if ECC_SUPPORT 
+                var parameters = ExtensionObject.ToEncodeable(requestHeader.AdditionalHeader) as AdditionalParametersType;
+
+                if (parameters != null)
+                {
+                    parameters = CreateSessionProcessAdditionalParameters(session, parameters);
+                }
+#endif
                 lock (m_lock)
                 {
                     // return the application instance certificate for the server.
@@ -504,8 +512,11 @@ namespace Opc.Ua.Server
 
                 ResponseHeader responseHeader = CreateResponse(requestHeader, StatusCodes.Good);
 
-#if ECC_SUPPORT
-                GenerateEphemeralKey(context?.SecurityPolicyUri, session, instanceCertificate, responseHeader);
+#if ECC_SUPPORT 
+                if (parameters != null)
+                {
+                    responseHeader.AdditionalHeader = new ExtensionObject(parameters);
+                }
 #endif
 
                 return responseHeader;
@@ -542,34 +553,52 @@ namespace Opc.Ua.Server
             }
         }
 
-#if ECC_SUPPORT
-        /// <summary>
-        /// Generate a new ephemeral key to be used in UserIdentityToken encryption,
-        /// add it to the ResponseHeader.AdditionalHeader field and save it to the server session
-        /// This is to be used only within encryption using ECC security policies
-        /// </summary>
-        /// <param name="securityPolicyUri"></param>
-        /// <param name="session"></param>
-        /// <param name="instanceCertificate"></param>
-        /// <param name="responseHeader"></param>
-        private static void GenerateEphemeralKey(string securityPolicyUri, Session session, X509Certificate2 instanceCertificate, ResponseHeader responseHeader)
+#if ECC_SUPPORT 
+        protected virtual AdditionalParametersType CreateSessionProcessAdditionalParameters(Session session, AdditionalParametersType parameters)
         {
-            if (EccUtils.IsEccPolicy(securityPolicyUri))
+            AdditionalParametersType response = null;
+
+            if (parameters != null && parameters.Parameters != null)
             {
-                EphemeralKeyType ephemeralKey = EccUtils.GenerateEphemeralKey(securityPolicyUri, instanceCertificate);
+                response = new AdditionalParametersType();
 
-                // Add the ephemeralKey to the AdditionalHeader of the response header
-                KeyValuePairCollection additionalHeaderKeyValues = new KeyValuePairCollection();
-                additionalHeaderKeyValues.Add(new KeyValuePair() { Key = securityPolicyUri, Value = new Variant(ephemeralKey) });
+                foreach (var ii in parameters.Parameters)
+                {
+                    if (ii.Key == "ECDHPolicyUri")
+                    {
+                        var policyUri = ii.Value.ToString();
 
-                AdditionalParametersType additionalParams = new AdditionalParametersType();
-                additionalParams.Parameters = additionalHeaderKeyValues;
-
-                responseHeader.AdditionalHeader = new ExtensionObject(additionalParams);
-
-                session.EphemeralKey = ephemeralKey;
+                        if (EccUtils.IsEccPolicy(policyUri))
+                        {
+                            session.SetEccUserTokenSecurityPolicy(policyUri);
+                            var key = session.GetNewEccKey();
+                            response.Parameters.Add(new KeyValuePair() { Key = "ECDHKey", Value = new ExtensionObject(key) });
+                        }
+                        else
+                        {
+                            response.Parameters.Add(new KeyValuePair() { Key = "ECDHKey", Value = StatusCodes.BadSecurityPolicyRejected });
+                        }
+                    }
+                }
             }
+
+            return response;
         }
+        protected virtual AdditionalParametersType ActivateSessionProcessAdditionalParameters(Session session, AdditionalParametersType parameters)
+        {
+            AdditionalParametersType response = null;
+
+            var key = session.GetNewEccKey();
+
+            if (key != null)
+            {
+                response = new AdditionalParametersType();
+                response.Parameters.Add(new KeyValuePair() { Key = "ECDHKey", Value = new ExtensionObject(key) });
+            }
+
+            return response;
+        }
+
 #endif
 
 
@@ -680,19 +709,22 @@ namespace Opc.Ua.Server
                     // TBD - call Node Manager and Subscription Manager.
                 }
 
+                var parameters = ExtensionObject.ToEncodeable(requestHeader.AdditionalHeader) as AdditionalParametersType;
+                Session session = ServerInternal.SessionManager.GetSession(requestHeader.AuthenticationToken);
+                parameters = ActivateSessionProcessAdditionalParameters(session, parameters);
+
                 Utils.LogInfo("Server - SESSION ACTIVATED.");
 
                 // report the audit event for session activate
-                Session session = ServerInternal.SessionManager.GetSession(requestHeader.AuthenticationToken);
                 ServerInternal.ReportAuditActivateSessionEvent(context?.AuditEntryId, session, softwareCertificates);
 
                 ResponseHeader responseHeader = CreateResponse(requestHeader, StatusCodes.Good);
 
-#if ECC_SUPPORT
-                // load the certificate for the security profile
-                X509Certificate2 instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(context.SecurityPolicyUri);
-
-                GenerateEphemeralKey(context?.SecurityPolicyUri, session, instanceCertificate, responseHeader);
+#if ECC_SUPPORT 
+                if (parameters != null)
+                {
+                    responseHeader.AdditionalHeader = new ExtensionObject(parameters);
+                }
 #endif
                 return responseHeader;
             }

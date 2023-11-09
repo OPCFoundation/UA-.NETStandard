@@ -1383,7 +1383,16 @@ namespace Opc.Ua.Client
                 SignatureData userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
 
                 // encrypt token.
-                identityToken.Encrypt(m_serverCertificate, m_serverNonce, securityPolicyUri);
+                // identityToken.Encrypt(m_serverCertificate, m_serverNonce, securityPolicyUri);
+                // encrypt token.
+                identityToken.Encrypt(
+                    m_serverCertificate,
+                    m_serverNonce,
+                    m_userTokenSecurityPolicyUri,
+                    m_eccServerEphermalKey,
+                    m_instanceCertificate,
+                    m_instanceCertificateChain,
+                    m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
 
                 // send the software certificates assigned to the client.
                 SignedSoftwareCertificateCollection clientSoftwareCertificates = GetSoftwareCertificates();
@@ -1463,11 +1472,13 @@ namespace Opc.Ua.Client
                     Utils.LogWarning("WARNING: ACTIVATE SESSION timed out. {0}/{1}", GoodPublishRequestCount, OutstandingRequestCount);
                 }
 
-                EndActivateSession(
+                var responseHeader = EndActivateSession(
                     result,
                     out serverNonce,
                     out certificateResults,
                     out certificateDiagnosticInfos);
+
+                ProcessResponseAdditionalHeader(responseHeader);
 
                 int publishCount = 0;
 
@@ -2386,14 +2397,40 @@ namespace Opc.Ua.Client
                 sessionTimeout = (uint)m_configuration.ClientConfiguration.DefaultSessionTimeout;
             }
 
+            // select the security policy for the user token.
+            var userTokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
+
+            if (String.IsNullOrEmpty(userTokenSecurityPolicyUri))
+            {
+                userTokenSecurityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
+            }
+
+            RequestHeader requestHeader = new RequestHeader();
+
+            if (EccUtils.IsEccPolicy(userTokenSecurityPolicyUri))
+            {
+                AdditionalParametersType parameters = new AdditionalParametersType();
+
+                parameters.Parameters.Add(new KeyValuePair() {
+                    Key = "ECDHPolicyUri",
+                    Value = userTokenSecurityPolicyUri
+                });
+
+                requestHeader.AdditionalHeader = new ExtensionObject(parameters);
+                m_userTokenSecurityPolicyUri = userTokenSecurityPolicyUri;
+            }
+
             bool successCreateSession = false;
+
+            ResponseHeader responseHeader = null;
+
             //if security none, first try to connect without certificate
             if (m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
             {
                 //first try to connect with client certificate NULL
                 try
                 {
-                    base.CreateSession(
+                    responseHeader = base.CreateSession(
                         null,
                         clientDescription,
                         m_endpoint.Description.Server.ApplicationUri,
@@ -2424,7 +2461,7 @@ namespace Opc.Ua.Client
 
             if (!successCreateSession)
             {
-                base.CreateSession(
+                responseHeader = base.CreateSession(
                         null,
                         clientDescription,
                         m_endpoint.Description.Server.ApplicationUri,
@@ -2467,6 +2504,9 @@ namespace Opc.Ua.Client
 
                 HandleSignedSoftwareCertificates(serverSoftwareCertificates);
 
+                // process additional header
+                ProcessResponseAdditionalHeader(responseHeader);
+
                 // create the client signature.
                 byte[] dataToSign = Utils.Append(serverCertificate != null ? serverCertificate.RawData : null, serverNonce);
                 SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, securityPolicyUri, dataToSign);
@@ -2498,7 +2538,14 @@ namespace Opc.Ua.Client
                 SignatureData userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
 
                 // encrypt token.
-                identityToken.Encrypt(serverCertificate, serverNonce, securityPolicyUri);
+                identityToken.Encrypt(
+                    serverCertificate,
+                    serverNonce,
+                    userTokenSecurityPolicyUri,
+                    m_eccServerEphermalKey,
+                    m_instanceCertificate,
+                    m_instanceCertificateChain,
+                    m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
 
                 // send the software certificates assigned to the client.
                 SignedSoftwareCertificateCollection clientSoftwareCertificates = GetSoftwareCertificates();
@@ -2668,7 +2715,14 @@ namespace Opc.Ua.Client
             userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
 
             // encrypt token.
-            identityToken.Encrypt(m_serverCertificate, serverNonce, securityPolicyUri);
+            identityToken.Encrypt(
+                m_serverCertificate,
+                serverNonce,
+                m_userTokenSecurityPolicyUri,
+                m_eccServerEphermalKey,
+                m_instanceCertificate,
+                m_instanceCertificateChain,
+                m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
 
             // send the software certificates assigned to the client.
             SignedSoftwareCertificateCollection clientSoftwareCertificates = GetSoftwareCertificates();
@@ -5971,6 +6025,54 @@ namespace Opc.Ua.Client
         }
         #endregion
 
+        #region Protected Methods
+        /// <summary>
+        /// Process the AdditionalHeader field of a ResponseHeader
+        /// </summary>
+        /// <param name="responseHeader"></param>
+        /// <exception cref="ServiceResultException"></exception>
+        protected virtual void ProcessResponseAdditionalHeader(ResponseHeader responseHeader)
+        {
+            AdditionalParametersType parameters = ExtensionObject.ToEncodeable(responseHeader?.AdditionalHeader) as AdditionalParametersType;
+
+            if (parameters != null)
+            {
+                foreach (var ii in parameters.Parameters)
+                {
+                    if (ii.Key == "ECDHKey")
+                    {
+                        if (ii.Value.TypeInfo == TypeInfo.Scalars.StatusCode)
+                        {
+                            throw new ServiceResultException(
+                                (uint)(StatusCode)ii.Value.Value,
+                                "Server could not provide an ECDHKey. User authentication not possible.");
+                        }
+
+                        var key = ExtensionObject.ToEncodeable(ii.Value.Value as ExtensionObject) as EphemeralKeyType;
+
+                        if (key == null)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadDecodingError,
+                                "Server did not provide a valid ECDHKey. User authentication not possible.");
+                        }
+
+                        if (!EccUtils.Verify(new ArraySegment<byte>(key.PublicKey), key.Signature, m_serverCertificate, m_userTokenSecurityPolicyUri))
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadDecodingError,
+                                "Could not verify signature on ECDHKey. User authentication not possible.");
+                        }
+
+                        m_eccServerEphermalKey = Nonce.CreateNonce(m_userTokenSecurityPolicyUri, key.PublicKey);
+                    }
+                }
+            }
+        }
+
+
+        #endregion
+
         #region Protected Fields
         /// <summary>
         /// The period for which the server will maintain the session if there is no communication from the client.
@@ -6052,6 +6154,8 @@ namespace Opc.Ua.Client
         private const int kDefaultPublishRequestCount = 1;
         private int m_minPublishRequestCount;
         private LinkedList<AsyncRequestState> m_outstandingRequests;
+        private string m_userTokenSecurityPolicyUri;
+        private Nonce m_eccServerEphermalKey;
         private readonly EndpointDescriptionCollection m_discoveryServerEndpoints;
         private readonly StringCollection m_discoveryProfileUris;
 

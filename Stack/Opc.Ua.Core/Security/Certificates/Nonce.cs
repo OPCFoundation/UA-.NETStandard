@@ -19,6 +19,17 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Security.Certificates;
 
+#if NETSTANDARD2_0
+using Org.BouncyCastle.Asn1.X9;
+using Org.BouncyCastle.Crypto;
+using Org.BouncyCastle.Crypto.Agreement;
+using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Crypto.Digests;
+using Org.BouncyCastle.Crypto.Macs;
+using Org.BouncyCastle.Math;
+using Org.BouncyCastle.Security;
+#endif
+
 #if CURVE25519
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.X509;
@@ -38,9 +49,167 @@ namespace Opc.Ua
     /// <summary>
     /// Represents a cryptographic nonce used for secure communication.
     /// </summary>
+
+#if NETSTANDARD2_0
+    public class ECDHKeyPairGenerator
+    {
+        public static (AsymmetricCipherKeyPair, ECDomainParameters) GenerateKeyPair(X9ECParameters eCParameters)
+        {
+            ECDomainParameters domainParameters = new ECDomainParameters(eCParameters.Curve,
+                eCParameters.G, eCParameters.N, eCParameters.H, eCParameters.GetSeed());
+            ECKeyGenerationParameters keyGenParameters = new ECKeyGenerationParameters(domainParameters, new SecureRandom());
+            Org.BouncyCastle.Crypto.Generators.ECKeyPairGenerator generator = new Org.BouncyCastle.Crypto.Generators.ECKeyPairGenerator();
+            generator.Init(keyGenParameters);
+            return (generator.GenerateKeyPair(), domainParameters);
+        }
+
+        public static (AsymmetricCipherKeyPair, ECDomainParameters) GenerateKeyPair(string curveName)
+        {
+            X9ECParameters eCParameters = ECNamedCurveTable.GetByName(curveName);
+            return GenerateKeyPair(eCParameters);
+        }
+
+        public static byte[] DeriveKeyFromHmac(AsymmetricCipherKeyPair localKeyPair, ECPublicKeyParameters remotePublicKey, byte[] salt, byte[] info, int derivedKeyLength)
+        {
+            // Perform ECDH key agreement
+            ECDHBasicAgreement agreement = new ECDHBasicAgreement();
+            agreement.Init(localKeyPair.Private);
+            BigInteger sharedSecret = agreement.CalculateAgreement(remotePublicKey);
+
+            byte[] sharedSecretBytes = sharedSecret.ToByteArrayUnsigned();
+
+            // Setup HMAC-based KDF
+            HMac hmac = new HMac(new Sha256Digest());
+            hmac.Init(new KeyParameter(sharedSecretBytes));
+
+            // KDF parameters
+            int hashLength = hmac.GetMacSize();
+            int numBlocks = (int)Math.Ceiling((double)derivedKeyLength / hashLength);
+            byte[] derivedKey = new byte[derivedKeyLength];
+
+            // HMAC-based KDF as per HKDF
+            byte[] previousBlock = new byte[0];
+            for (int blockIndex = 1; blockIndex <= numBlocks; blockIndex++)
+            {
+                hmac.BlockUpdate(previousBlock, 0, previousBlock.Length);
+                hmac.BlockUpdate(salt, 0, salt.Length);
+                hmac.BlockUpdate(new byte[] { (byte)blockIndex }, 0, 1);
+                hmac.BlockUpdate(info, 0, info.Length);
+
+                byte[] block = new byte[hashLength];
+                hmac.DoFinal(block, 0);
+                previousBlock = block;
+
+                Array.Copy(block, 0, derivedKey, (blockIndex - 1) * hashLength, Math.Min(hashLength, derivedKey.Length - (blockIndex - 1) * hashLength));
+            }
+
+            return derivedKey;
+        }
+
+        public static string TranslateMsCurveToBcName(ECCurve eccCurve)
+        {
+            if (CurveNameMap.TryGetValue(eccCurve.Oid.FriendlyName, out string bcCurveName))
+            {
+                X9ECParameters ecParameters = ECNamedCurveTable.GetByName(bcCurveName);
+                if (ecParameters != null)
+                {
+                    return bcCurveName;
+                }
+            }
+            throw new NotSupportedException($"Curve {eccCurve.Oid.FriendlyName} is not supported");
+        }
+
+        public static string TranslateBcCurveNameToMs(string bcCurveName)
+        {
+            foreach (var kvp in CurveNameMap)
+            {
+                if (kvp.Value.Equals(bcCurveName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return kvp.Key;
+                }
+            }
+
+            throw new NotSupportedException($"Curve {bcCurveName} is not supported");
+        }
+
+        private static readonly Dictionary<string, string> CurveNameMap = new Dictionary<string, string> {
+            { "nistp256", "P-256" },
+            { "nistP384", "P-384" },
+            { "nistP521", "P-521" },
+            { "brainpoolP256r1", "brainpoolp256r1" },
+            { "brainpoolP384r1", "brainpoolp384r1" },
+            { "brainpoolP521r1", "brainpoolp521r1" }
+        };
+
+    }
+
+    public class BCECDiffieHellman
+    {
+        public AsymmetricCipherKeyPair PublicKey
+        {
+            get
+            {
+                return m_asymmetricCipherKeyPair;
+            }
+        }
+        public (AsymmetricCipherKeyPair, ECDomainParameters) Create(string bcCurveName)
+        {
+            m_curveName = bcCurveName;
+            (m_asymmetricCipherKeyPair, m_domainParameters) = ECDHKeyPairGenerator.GenerateKeyPair(bcCurveName);
+
+            return (m_asymmetricCipherKeyPair, m_domainParameters);
+        }
+        public byte[] DeriveKeyFromHmac(AsymmetricCipherKeyPair localKeyPair, ECPublicKeyParameters remotePublicKey, byte[] salt, byte[] info, int derivedKeyLength)
+        {
+            // Perform ECDH key agreement
+            ECDHBasicAgreement agreement = new ECDHBasicAgreement();
+            agreement.Init(localKeyPair.Private);
+            BigInteger sharedSecret = agreement.CalculateAgreement(remotePublicKey);
+
+            byte[] sharedSecretBytes = sharedSecret.ToByteArrayUnsigned();
+
+            // Setup HMAC-based KDF
+            HMac hmac = new HMac(new Sha256Digest());
+            hmac.Init(new KeyParameter(sharedSecretBytes));
+
+            // KDF parameters
+            int hashLength = hmac.GetMacSize();
+            int numBlocks = (int)Math.Ceiling((double)derivedKeyLength / hashLength);
+            byte[] derivedKey = new byte[derivedKeyLength];
+
+            // HMAC-based KDF as per HKDF
+            byte[] previousBlock = new byte[0];
+            for (int blockIndex = 1; blockIndex <= numBlocks; blockIndex++)
+            {
+                hmac.BlockUpdate(previousBlock, 0, previousBlock.Length);
+                hmac.BlockUpdate(salt, 0, salt.Length);
+                hmac.BlockUpdate(new byte[] { (byte)blockIndex }, 0, 1);
+                hmac.BlockUpdate(info, 0, info.Length);
+
+                byte[] block = new byte[hashLength];
+                hmac.DoFinal(block, 0);
+                previousBlock = block;
+
+                Array.Copy(block, 0, derivedKey, (blockIndex - 1) * hashLength, Math.Min(hashLength, derivedKey.Length - (blockIndex - 1) * hashLength));
+            }
+
+            return derivedKey;
+        }
+
+        private string m_curveName;
+        private ECDomainParameters m_domainParameters;
+        private AsymmetricCipherKeyPair m_asymmetricCipherKeyPair;
+    }
+#endif
+
     public class Nonce : IDisposable
     {
+#if NETSTANDARD2_0
+        private AsymmetricCipherKeyPair m_ecdh;
+#else
         private ECDiffieHellman m_ecdh;
+#endif
+
 #if CURVE25519
         private AsymmetricCipherKeyPair m_bcKeyPair;
 #endif
@@ -77,7 +246,7 @@ namespace Opc.Ua
             }
         }
 
-#region IDisposable Members
+        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -95,12 +264,14 @@ namespace Opc.Ua
             {
                 if (m_ecdh != null)
                 {
+#if !NETSTANDARD2_0
                     m_ecdh.Dispose();
+#endif
                     m_ecdh = null;
                 }
             }
         }
-#endregion
+        #endregion
 
         /// <summary>
         /// Gets the nonce data.
@@ -161,12 +332,21 @@ namespace Opc.Ua
 #endif
             if (m_ecdh != null)
             {
+#if NETSTANDARD2_0
+                var derivedKey = ECDHKeyPairGenerator.DeriveKeyFromHmac(m_ecdh,
+                    (ECPublicKeyParameters)remoteNonce.m_ecdh.Public,
+                    salt,
+                    null,
+                    length);
+
+                return derivedKey;
+#else
                 var secret = m_ecdh.DeriveKeyFromHmac(remoteNonce.m_ecdh.PublicKey, algorithm, salt, null, null);
 
                 byte[] output = new byte[length];
 
                 HMAC hmac = returnHMACInstance(secret, algorithm);
-      
+
                 byte counter = 1;
 
                 byte[] info = new byte[hmac.HashSize / 8 + salt.Length + 1];
@@ -197,6 +377,8 @@ namespace Opc.Ua
                 }
 
                 return output;
+
+#endif
             }
 
             return Data;
@@ -299,6 +481,30 @@ namespace Opc.Ua
         /// <returns>A new Nonce instance.</returns>
         private static Nonce CreateNonce(ECCurve curve)
         {
+#if NETSTANDARD2_0
+            (var keyPair, _) = ECDHKeyPairGenerator.GenerateKeyPair(ECDHKeyPairGenerator.TranslateMsCurveToBcName(curve));
+
+            // Get the public key parameters
+            var ecPublicKeyParameters = (ECPublicKeyParameters)keyPair.Public;
+            var q = ecPublicKeyParameters.Q.Normalize();
+
+            // Get the byte arrays for X and Y coordinates of the ppublic key
+            byte[] qx = q.XCoord.GetEncoded();
+            byte[] qy = q.YCoord.GetEncoded();
+
+            // Combine the X and Y coordinate byte arrays into a singe byte array
+            byte[] senderNonce = new byte[qx.Length + qy.Length];
+            Array.Copy(qx, 0, senderNonce, 0, qx.Length);
+            Array.Copy(qy, 0, senderNonce, qx.Length, qy.Length);
+
+            // Create and return the Nonce object
+            var nonce = new Nonce {
+                Data = senderNonce,
+                m_ecdh = keyPair
+            };
+
+            return nonce;
+#else
             var ecdh = (ECDiffieHellman)ECDiffieHellman.Create(curve);
             var ecdhParameters = ecdh.ExportParameters(false);
             int xLen = ecdhParameters.Q.X.Length;
@@ -313,6 +519,9 @@ namespace Opc.Ua
             };
 
             return nonce;
+#endif
+
+
         }
 
         /// <summary>
@@ -411,6 +620,24 @@ namespace Opc.Ua
             Buffer.BlockCopy(nonceData, 0, qx, 0, keyLength / 2);
             Buffer.BlockCopy(nonceData, keyLength / 2, qy, 0, keyLength / 2);
 
+#if NETSTANDARD2_0
+            string bcCurveName = ECDHKeyPairGenerator.TranslateMsCurveToBcName(curve);
+            var bcCurve = X9ECParameters.GetInstance(
+                ECNamedCurveTable.GetByName(bcCurveName)
+                ).Curve;
+
+            var q = bcCurve.CreatePoint(
+                new BigInteger(1, qx),
+                new BigInteger(1, qy)
+                );
+
+            ECPublicKeyParameters eCPublicKeyParameters = new ECPublicKeyParameters(q, new ECDomainParameters(bcCurve, null, null));
+            ECPrivateKeyParameters eCPrivateKeyParameters = new ECPrivateKeyParameters(new BigInteger(1, nonceData), new ECDomainParameters(bcCurve, null, null));
+            nonce.m_ecdh = new AsymmetricCipherKeyPair(eCPublicKeyParameters, eCPrivateKeyParameters);
+
+            return nonce;
+
+#else
             var ecdhParameters = new ECParameters {
                 Curve = curve,
                 Q = { X = qx, Y = qy }
@@ -419,8 +646,8 @@ namespace Opc.Ua
             nonce.m_ecdh = ECDiffieHellman.Create(ecdhParameters);
 
             return nonce;
+#endif
         }
     }
-
 }
 #endif
