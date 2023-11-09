@@ -10,10 +10,11 @@ using NUnit.Framework;
 namespace Opc.Ua.Core.Tests.Stack.State
 {
     /// <summary>
-    /// Tests for the NodeState classes.
+    /// Tests for concurrency issues in BaseVariableState class
     /// </summary>
     [TestFixture]
     [SetCulture("en-us"), SetUICulture("en-us")]
+    [Parallelizable]
     public class BaseVariableStateConcurrencyTests
     {
 
@@ -53,7 +54,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             DateTime utcNow = DateTime.UtcNow;
 
-            while (DateTime.UtcNow - utcNow < TimeSpan.FromSeconds(1))
+            while (DateTime.UtcNow - utcNow < TimeSpan.FromSeconds(3))
             {
                 var writeResult = testNodeState.WriteAttribute(
                                     systemContext,
@@ -101,7 +102,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             DateTime utcNow = DateTime.UtcNow;
 
-            while (DateTime.UtcNow - utcNow < TimeSpan.FromSeconds(1))
+            while (DateTime.UtcNow - utcNow < TimeSpan.FromSeconds(3))
             {
                 bool tryTakeSuccess = referenceTargets.TryTake(out ExpandedNodeId target, TimeSpan.FromSeconds(1));
                 if(tryTakeSuccess)
