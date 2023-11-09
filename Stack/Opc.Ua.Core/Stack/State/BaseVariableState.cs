@@ -886,9 +886,11 @@ namespace Opc.Ua
                     variableNode.ValueRank = this.ValueRank;
                     variableNode.ArrayDimensions = null;
 
-                    if (this.ArrayDimensions != null)
+                    ReadOnlyList<uint> arrayDimensions = this.ArrayDimensions;
+
+                    if (arrayDimensions != null)
                     {
-                        variableNode.ArrayDimensions = new UInt32Collection(this.ArrayDimensions);
+                        variableNode.ArrayDimensions = new UInt32Collection(arrayDimensions);
                     }
 
                     variableNode.AccessLevel = this.AccessLevel;
@@ -1340,9 +1342,11 @@ namespace Opc.Ua
                 {
                     NodeId dataType = m_dataType;
 
-                    if (OnReadDataType != null)
+                    NodeAttributeEventHandler<NodeId> onReadDataType = OnReadDataType;
+
+                    if (onReadDataType != null)
                     {
-                        result = OnReadDataType(context, this, ref dataType);
+                        result = onReadDataType(context, this, ref dataType);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1357,9 +1361,11 @@ namespace Opc.Ua
                 {
                     int valueRank = m_valueRank;
 
-                    if (OnReadValueRank != null)
+                    NodeAttributeEventHandler<int> onReadValueRank = OnReadValueRank;
+
+                    if (onReadValueRank != null)
                     {
-                        result = OnReadValueRank(context, this, ref valueRank);
+                        result = onReadValueRank(context, this, ref valueRank);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1374,9 +1380,11 @@ namespace Opc.Ua
                 {
                     IList<uint> arrayDimensions = m_arrayDimensions;
 
-                    if (OnReadArrayDimensions != null)
+                    NodeAttributeEventHandler<IList<uint>> onReadArrayDimensions = OnReadArrayDimensions;
+
+                    if (onReadArrayDimensions != null)
                     {
-                        result = OnReadArrayDimensions(context, this, ref arrayDimensions);
+                        result = onReadArrayDimensions(context, this, ref arrayDimensions);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1391,9 +1399,11 @@ namespace Opc.Ua
                 {
                     byte accessLevel = AccessLevel;
 
-                    if (OnReadAccessLevel != null)
+                    NodeAttributeEventHandler<byte> onReadAccessLevel = OnReadAccessLevel;
+
+                    if (onReadAccessLevel != null)
                     {
-                        result = OnReadAccessLevel(context, this, ref accessLevel);
+                        result = onReadAccessLevel(context, this, ref accessLevel);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1408,9 +1418,11 @@ namespace Opc.Ua
                 {
                     uint accessLevelEx = m_accessLevel;
 
-                    if (OnReadAccessLevelEx != null)
+                    NodeAttributeEventHandler<uint> onReadAccessLevelEx = OnReadAccessLevelEx;
+
+                    if (onReadAccessLevelEx != null)
                     {
-                        result = OnReadAccessLevelEx(context, this, ref accessLevelEx);
+                        result = onReadAccessLevelEx(context, this, ref accessLevelEx);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1425,9 +1437,11 @@ namespace Opc.Ua
                 {
                     byte userAccessLevel = m_userAccessLevel;
 
-                    if (OnReadUserAccessLevel != null)
+                    NodeAttributeEventHandler<byte> onReadUserAccessLevel = OnReadUserAccessLevel;
+
+                    if (onReadUserAccessLevel != null)
                     {
-                        result = OnReadUserAccessLevel(context, this, ref userAccessLevel);
+                        result = onReadUserAccessLevel(context, this, ref userAccessLevel);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1442,9 +1456,11 @@ namespace Opc.Ua
                 {
                     double minimumSamplingInterval = m_minimumSamplingInterval;
 
-                    if (OnReadMinimumSamplingInterval != null)
+                    NodeAttributeEventHandler<double> onReadMinimumSamplingInterval = OnReadMinimumSamplingInterval;
+
+                    if (onReadMinimumSamplingInterval != null)
                     {
-                        result = OnReadMinimumSamplingInterval(context, this, ref minimumSamplingInterval);
+                        result = onReadMinimumSamplingInterval(context, this, ref minimumSamplingInterval);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1459,9 +1475,11 @@ namespace Opc.Ua
                 {
                     bool historizing = m_historizing;
 
-                    if (OnReadHistorizing != null)
+                    NodeAttributeEventHandler<bool> onReadHistorizing = OnReadHistorizing;
+
+                    if (onReadHistorizing != null)
                     {
-                        result = OnReadHistorizing(context, this, ref historizing);
+                        result = onReadHistorizing(context, this, ref historizing);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1522,10 +1540,12 @@ namespace Opc.Ua
 
             ServiceResult result = null;
 
+            NodeValueEventHandler onReadValue = OnReadValue;
+
             // check if the read behavior has been overridden.
-            if (OnReadValue != null)
+            if (onReadValue != null)
             {
-                result = OnReadValue(
+                result = onReadValue(
                     context,
                     this,
                     indexRange,
@@ -1548,10 +1568,12 @@ namespace Opc.Ua
                 return result;
             }
 
+            NodeValueSimpleEventHandler onSimpleReadValue = OnSimpleReadValue;
+
             // use default behavior.
-            if (OnSimpleReadValue != null)
+            if (onSimpleReadValue != null)
             {
-                result = OnSimpleReadValue(
+                result = onSimpleReadValue(
                     context,
                     this,
                     ref value);
@@ -1668,9 +1690,11 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    if (OnWriteDataType != null)
+                    NodeAttributeEventHandler<NodeId> onWriteDataType = OnWriteDataType;
+
+                    if (onWriteDataType != null)
                     {
-                        result = OnWriteDataType(context, this, ref dataType);
+                        result = onWriteDataType(context, this, ref dataType);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1697,9 +1721,11 @@ namespace Opc.Ua
 
                     int valueRank = valueRankRef.Value;
 
-                    if (OnWriteValueRank != null)
+                    NodeAttributeEventHandler<int> onWriteValueRank = OnWriteValueRank;
+
+                    if (onWriteValueRank != null)
                     {
-                        result = OnWriteValueRank(context, this, ref valueRank);
+                        result = onWriteValueRank(context, this, ref valueRank);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1719,9 +1745,11 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    if (OnWriteArrayDimensions != null)
+                    NodeAttributeEventHandler<IList<uint>> onWriteArrayDimensions = OnWriteArrayDimensions;
+
+                    if (onWriteArrayDimensions != null)
                     {
-                        result = OnWriteArrayDimensions(context, this, ref arrayDimensions);
+                        result = onWriteArrayDimensions(context, this, ref arrayDimensions);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1755,9 +1783,11 @@ namespace Opc.Ua
 
                     byte accessLevel = accessLevelRef.Value;
 
-                    if (OnWriteAccessLevel != null)
+                    NodeAttributeEventHandler<byte> onWriteAccessLevel = OnWriteAccessLevel;
+
+                    if (onWriteAccessLevel != null)
                     {
-                        result = OnWriteAccessLevel(context, this, ref accessLevel);
+                        result = onWriteAccessLevel(context, this, ref accessLevel);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1784,9 +1814,11 @@ namespace Opc.Ua
 
                     byte userAccessLevel = userAccessLevelRef.Value;
 
-                    if (OnWriteUserAccessLevel != null)
+                    NodeAttributeEventHandler<byte> onWriteUserAccessLevel = OnWriteUserAccessLevel;
+
+                    if (onWriteUserAccessLevel != null)
                     {
-                        result = OnWriteUserAccessLevel(context, this, ref userAccessLevel);
+                        result = onWriteUserAccessLevel(context, this, ref userAccessLevel);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1813,9 +1845,11 @@ namespace Opc.Ua
 
                     double minimumSamplingInterval = minimumSamplingIntervalRef.Value;
 
-                    if (OnWriteMinimumSamplingInterval != null)
+                    NodeAttributeEventHandler<double> onWriteMinimumSamplingInterval = OnWriteMinimumSamplingInterval;
+
+                    if (onWriteMinimumSamplingInterval != null)
                     {
-                        result = OnWriteMinimumSamplingInterval(context, this, ref minimumSamplingInterval);
+                        result = onWriteMinimumSamplingInterval(context, this, ref minimumSamplingInterval);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1842,9 +1876,11 @@ namespace Opc.Ua
 
                     bool historizing = historizingRef.Value;
 
-                    if (OnWriteHistorizing != null)
+                    NodeAttributeEventHandler<bool> onWriteHistorizing = OnWriteHistorizing;
+
+                    if (onWriteHistorizing != null)
                     {
-                        result = OnWriteHistorizing(context, this, ref historizing);
+                        result = onWriteHistorizing(context, this, ref historizing);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1895,10 +1931,12 @@ namespace Opc.Ua
                 return StatusCodes.BadUserAccessDenied;
             }
 
+            NodeValueEventHandler onWriteValue = OnWriteValue;
+
             // check if the write behavior has been overridden.
-            if (OnWriteValue != null)
+            if (onWriteValue != null)
             {
-                result = OnWriteValue(
+                result = onWriteValue(
                     context,
                     this,
                     indexRange,
@@ -1968,8 +2006,10 @@ namespace Opc.Ua
                 value = Utils.Clone(value);
             }
 
+            NodeValueSimpleEventHandler onSimpleWriteValue = OnSimpleWriteValue;
+
             // check for simple write value handler.
-            if (OnSimpleWriteValue != null)
+            if (onSimpleWriteValue != null)
             {
                 // index range writes not supported.
                 if (indexRange != NumericRange.Empty)
@@ -1977,7 +2017,7 @@ namespace Opc.Ua
                     return StatusCodes.BadIndexRangeInvalid;
                 }
 
-                result = OnSimpleWriteValue(
+                result = onSimpleWriteValue(
                     context,
                     this,
                     ref value);
