@@ -12,7 +12,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
     [TestFixture]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [Category("NodeStateConcurrency")]
-    [Parallelizable]
+    [Parallelizable(ParallelScope.All)]
     public class NodeStateCollectionConcurrencyTests
     {
         [Test]
