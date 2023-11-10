@@ -67,7 +67,7 @@ namespace Opc.Ua.Server
             X509Certificate2 serverCertificate,
             NodeId authenticationToken,
             byte[] clientNonce,
-            byte[] serverNonce,
+            Nonce  serverNonce,
             string sessionName,
             ApplicationDescription clientDescription,
             string endpointUrl,
@@ -97,7 +97,7 @@ namespace Opc.Ua.Server
 
             m_clientIssuerCertificates = null;
             
-            m_secureChannelId = SecureChannelId;
+            m_secureChannelId = context.ChannelContext.SecureChannelId;
             m_maxResponseMessageSize = maxResponseMessageSize;
             m_maxRequestAge = maxRequestAge;
             m_maxBrowseContinuationPoints = maxBrowseContinuationPoints;
@@ -378,11 +378,10 @@ namespace Opc.Ua.Server
                     return null;
                 }
 
-                m_eccUserTokenNonce = Nonce.CreateNonce(m_eccUserTokenSecurityPolicyUri, 0).Data;
+                m_eccUserTokenNonce = Nonce.CreateNonce(m_eccUserTokenSecurityPolicyUri, 0);
 
-                EphemeralKeyType key = new EphemeralKeyType()
-                {
-                    PublicKey = m_eccUserTokenNonce
+                EphemeralKeyType key = new EphemeralKeyType() {
+                    PublicKey = m_eccUserTokenNonce.Data
                 };
 
                 key.Signature = EccUtils.Sign(new ArraySegment<byte>(key.PublicKey), m_serverCertificate, m_eccUserTokenSecurityPolicyUri);
@@ -530,8 +529,6 @@ namespace Opc.Ua.Server
             List<SoftwareCertificate> clientSoftwareCertificates,
             ExtensionObject userIdentityToken,
             SignatureData userTokenSignature,
-            StringCollection localeIds,
-            byte[] serverNonce,
             out UserIdentityToken identityToken,
             out UserTokenPolicy userTokenPolicy)
         {
@@ -559,7 +556,7 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(StatusCodes.BadApplicationSignatureInvalid);
                     }
 
-                    byte[] dataToSign = Utils.Append(m_serverCertificate.RawData, m_serverNonce);
+                    byte[] dataToSign = Utils.Append(m_serverCertificate.RawData, m_serverNonce.Data);
 
                     if (!SecurityPolicies.Verify(m_clientCertificate, m_endpoint.SecurityPolicyUri, dataToSign, clientSignature))
                     {
@@ -577,7 +574,7 @@ namespace Opc.Ua.Server
                             }
 
                             byte[] serverCertificateChainData = serverCertificateChainList.ToArray();
-                            dataToSign = Utils.Append(serverCertificateChainData, m_serverNonce);
+                            dataToSign = Utils.Append(serverCertificateChainData, m_serverNonce.Data);
 
                             if (!SecurityPolicies.Verify(m_clientCertificate, m_endpoint.SecurityPolicyUri, dataToSign, clientSignature))
                             {
@@ -625,7 +622,7 @@ namespace Opc.Ua.Server
             IUserIdentity identity,
             IUserIdentity effectiveIdentity,
             StringCollection localeIds,
-            byte[] serverNonce)
+            Nonce  serverNonce)
         {
             lock (m_lock)
             {
@@ -1026,9 +1023,9 @@ namespace Opc.Ua.Server
                 try
                 {
                     token.Decrypt(m_serverCertificate,
-                        Nonce.CreateNonce(securityPolicyUri,m_serverNonce),
+                        m_serverNonce,
                         securityPolicyUri,
-                        Nonce.CreateNonce(securityPolicyUri,m_eccUserTokenNonce),
+                        m_eccUserTokenNonce,
                         m_clientCertificate,
                         m_clientIssuerCertificates);
                 }
@@ -1045,7 +1042,7 @@ namespace Opc.Ua.Server
                 // verify the signature.
                 if (securityPolicyUri != SecurityPolicies.None)
                 {
-                    byte[] dataToSign = Utils.Append(m_serverCertificate.RawData, m_serverNonce);
+                    byte[] dataToSign = Utils.Append(m_serverCertificate.RawData, m_serverNonce.Data);
 
                     if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
                     {
@@ -1063,7 +1060,7 @@ namespace Opc.Ua.Server
                             }
 
                             byte[] serverCertificateChainData = serverCertificateChainList.ToArray();
-                            dataToSign = Utils.Append(serverCertificateChainData, m_serverNonce);
+                            dataToSign = Utils.Append(serverCertificateChainData, m_serverNonce.Data);
 
                             if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
                             {
@@ -1210,14 +1207,14 @@ namespace Opc.Ua.Server
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
         private List<SoftwareCertificate> m_softwareCertificates;
         private byte[] m_clientNonce;
-        private byte[] m_serverNonce;
+        private Nonce m_serverNonce;
         private string m_sessionName;
         private string m_secureChannelId;
         private EndpointDescription m_endpoint;
         private X509Certificate2 m_serverCertificate;
         private byte[] m_serverCertificateChain;
         private string m_eccUserTokenSecurityPolicyUri;
-        private byte[] m_eccUserTokenNonce;
+        private Nonce m_eccUserTokenNonce;
 
         private string[] m_localeIds;
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]

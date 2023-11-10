@@ -179,7 +179,7 @@ namespace Opc.Ua.Client
             if (!successCreateSession)
             {
                 response = await base.CreateSessionAsync(
-                        null,
+                        requestHeader,
                         clientDescription,
                         m_endpoint.Description.Server.ApplicationUri,
                         m_endpoint.EndpointUrl.ToString(),
@@ -225,7 +225,7 @@ namespace Opc.Ua.Client
                 HandleSignedSoftwareCertificates(serverSoftwareCertificates);
 
                 //  process additional header
-                ProcessResponseAdditionalHeader(response.ResponseHeader);
+                ProcessResponseAdditionalHeader(response.ResponseHeader, serverCertificate);
 
                 // create the client signature.
                 byte[] dataToSign = Utils.Append(serverCertificate != null ? serverCertificate.RawData : null, serverNonce);

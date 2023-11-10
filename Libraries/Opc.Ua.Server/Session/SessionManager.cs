@@ -161,6 +161,7 @@ namespace Opc.Ua.Server
             out double revisedSessionTimeout)
         {
             sessionId = 0;
+            serverNonce = null;
             revisedSessionTimeout = requestedSessionTimeout;
 
             Session session = null;
@@ -214,7 +215,8 @@ namespace Opc.Ua.Server
                 }
 
                 // create server nonce.
-                serverNonce = Utils.Nonce.CreateNonce((uint)m_minNonceLength);
+                var serverNonceObject = Nonce.CreateNonce(context.ChannelContext.EndpointDescription.SecurityPolicyUri,
+                    (uint)m_minNonceLength);
 
                 // assign client name.
                 if (String.IsNullOrEmpty(sessionName))
@@ -229,7 +231,7 @@ namespace Opc.Ua.Server
                     serverCertificate,
                     authenticationToken,
                     clientNonce,
-                    serverNonce,
+                    serverNonceObject,
                     sessionName,
                     clientDescription,
                     endpointUrl,
@@ -241,6 +243,7 @@ namespace Opc.Ua.Server
 
                 // get the session id.
                 sessionId = session.Id;
+                serverNonce = serverNonceObject.Data;
 
                 // save session.
                 m_sessions.Add(authenticationToken, session);
@@ -267,6 +270,7 @@ namespace Opc.Ua.Server
             out byte[] serverNonce)
         {
             serverNonce = null;
+            Nonce serverNonceObject = null;
 
             Session session = null;
             UserIdentityToken newIdentity = null;
@@ -292,7 +296,7 @@ namespace Opc.Ua.Server
                 }
 
                 // create new server nonce.
-                serverNonce = Utils.Nonce.CreateNonce((uint)m_minNonceLength);
+                serverNonceObject = Nonce.CreateNonce(context.ChannelContext.EndpointDescription.SecurityPolicyUri, (uint)m_minNonceLength);
 
                 // validate before activation.
                 session.ValidateBeforeActivate(
@@ -301,10 +305,10 @@ namespace Opc.Ua.Server
                     clientSoftwareCertificates,
                     userIdentityToken,
                     userTokenSignature,
-                    localeIds,
-                    serverNonce,
                     out newIdentity,
                     out userTokenPolicy);
+
+                serverNonce = serverNonceObject.Data;
             }
 
             IUserIdentity identity = null;
@@ -373,7 +377,7 @@ namespace Opc.Ua.Server
                 identity,
                 effectiveIdentity,
                 localeIds,
-                serverNonce);
+                serverNonceObject);
 
             // raise session related event.
             if (contextChanged)
@@ -508,7 +512,7 @@ namespace Opc.Ua.Server
             X509Certificate2 serverCertificate,
             NodeId sessionCookie,
             byte[] clientNonce,
-            byte[] serverNonce,
+            Nonce serverNonce,
             string sessionName,
             ApplicationDescription clientDescription,
             string endpointUrl,

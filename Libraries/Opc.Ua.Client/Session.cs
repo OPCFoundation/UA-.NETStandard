@@ -1383,8 +1383,6 @@ namespace Opc.Ua.Client
                 SignatureData userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
 
                 // encrypt token.
-                // identityToken.Encrypt(m_serverCertificate, m_serverNonce, securityPolicyUri);
-                // encrypt token.
                 identityToken.Encrypt(
                     m_serverCertificate,
                     m_serverNonce,
@@ -1478,7 +1476,7 @@ namespace Opc.Ua.Client
                     out certificateResults,
                     out certificateDiagnosticInfos);
 
-                ProcessResponseAdditionalHeader(responseHeader);
+                ProcessResponseAdditionalHeader(responseHeader, m_serverCertificate);
 
                 int publishCount = 0;
 
@@ -2505,7 +2503,7 @@ namespace Opc.Ua.Client
                 HandleSignedSoftwareCertificates(serverSoftwareCertificates);
 
                 // process additional header
-                ProcessResponseAdditionalHeader(responseHeader);
+                ProcessResponseAdditionalHeader(responseHeader, serverCertificate);
 
                 // create the client signature.
                 byte[] dataToSign = Utils.Append(serverCertificate != null ? serverCertificate.RawData : null, serverNonce);
@@ -6030,8 +6028,9 @@ namespace Opc.Ua.Client
         /// Process the AdditionalHeader field of a ResponseHeader
         /// </summary>
         /// <param name="responseHeader"></param>
+        /// <param name="serverCertificate"></param>
         /// <exception cref="ServiceResultException"></exception>
-        protected virtual void ProcessResponseAdditionalHeader(ResponseHeader responseHeader)
+        protected virtual void ProcessResponseAdditionalHeader(ResponseHeader responseHeader, X509Certificate2 serverCertificate)
         {
             AdditionalParametersType parameters = ExtensionObject.ToEncodeable(responseHeader?.AdditionalHeader) as AdditionalParametersType;
 
@@ -6057,7 +6056,7 @@ namespace Opc.Ua.Client
                                 "Server did not provide a valid ECDHKey. User authentication not possible.");
                         }
 
-                        if (!EccUtils.Verify(new ArraySegment<byte>(key.PublicKey), key.Signature, m_serverCertificate, m_userTokenSecurityPolicyUri))
+                        if (!EccUtils.Verify(new ArraySegment<byte>(key.PublicKey), key.Signature, serverCertificate, m_userTokenSecurityPolicyUri))
                         {
                             throw new ServiceResultException(
                                 StatusCodes.BadDecodingError,

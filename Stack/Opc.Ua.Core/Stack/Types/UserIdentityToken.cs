@@ -243,7 +243,7 @@ namespace Opc.Ua
                 {
                     if (senderIssuerCertificates[0].Thumbprint == senderCertificate.Thumbprint)
                     {
-                        var issuers = new MsBcCertificateCollection();
+                        var issuers = new X509Certificate2Collection();
 
                         for (int ii = 1; ii < senderIssuerCertificates.Count; ii++)
                         {

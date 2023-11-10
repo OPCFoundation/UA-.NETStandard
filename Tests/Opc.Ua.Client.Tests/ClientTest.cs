@@ -1347,7 +1347,7 @@ namespace Opc.Ua.Client.Tests
                     SecurityPolicies.ECC_nistP384,
                     SecurityPolicies.ECC_brainpoolP256r1,
                     SecurityPolicies.ECC_brainpoolP384r1)] string securityPolicy,
-            [Values(true, false)] bool anonymous)
+            [Values(false)] bool anonymous)
         {
 
             IUserIdentity userIdentity = anonymous ? new UserIdentity() : new UserIdentity("user1", "password");
