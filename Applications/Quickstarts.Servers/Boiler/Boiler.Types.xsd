@@ -7,7 +7,7 @@
 >
   <xs:annotation>
     <xs:appinfo>
-      <ua:Model ModelUri="http://opcfoundation.org/UA/Boiler/" Version="1.0.0" PublicationDate="2023-02-23T10:07:27.7772148Z" />
+      <ua:Model ModelUri="http://opcfoundation.org/UA/Boiler/" Version="1.0.0" PublicationDate="2023-10-06T12:57:31.2741539Z" />
     </xs:appinfo>
   </xs:annotation>
   

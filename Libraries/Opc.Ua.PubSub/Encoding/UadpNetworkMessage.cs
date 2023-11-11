@@ -134,7 +134,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         public UADPNetworkMessageDiscoveryType UADPDiscoveryType
         {
-            get { return m_discoveryType;}
+            get { return m_discoveryType; }
         }
 
         /// <summary>
@@ -371,7 +371,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="stream">The stream to use.</param>
         public override void Encode(IServiceMessageContext messageContext, Stream stream)
         {
-            using (BinaryEncoder encoder = new BinaryEncoder(stream, messageContext))
+            using (BinaryEncoder encoder = new BinaryEncoder(stream, messageContext, true))
             {
                 if (m_uadpNetworkMessageType == UADPNetworkMessageType.DataSetMessage)
                 {
@@ -457,15 +457,15 @@ namespace Opc.Ua.PubSub.Encoding
                 }
             }
         }
-            #endregion
+        #endregion
 
-            #region Private Methods - Encoding
-            /// <summary>
-            /// Encodes the DataSet Network message in a binary stream.
-            /// </summary>
-            /// <param name="binaryEncoder"></param>
-            private void EncodeDataSetNetworkMessageType(BinaryEncoder binaryEncoder)
-            {
+        #region Private Methods - Encoding
+        /// <summary>
+        /// Encodes the DataSet Network message in a binary stream.
+        /// </summary>
+        /// <param name="binaryEncoder"></param>
+        private void EncodeDataSetNetworkMessageType(BinaryEncoder binaryEncoder)
+        {
             if (binaryEncoder == null)
             {
                 throw new ArgumentException(nameof(binaryEncoder));
@@ -492,13 +492,13 @@ namespace Opc.Ua.PubSub.Encoding
             }
             else
             {
-                Utils.Trace("The UADP DiscoveryResponse DataSetMetaData message cannot be encoded: The DataSetWriterId property is missing. Value 0 will be used.");
+                Trace("The UADP DiscoveryResponse DataSetMetaData message cannot be encoded: The DataSetWriterId property is missing. Value 0 will be used.");
                 binaryEncoder.WriteUInt16("DataSetWriterId", 0);
             }
 
             if (m_metadata == null)
             {
-                Utils.Trace("The UADP DiscoveryResponse DataSetMetaData message cannot be encoded: The MetaData property is missing. Value null will be used.");
+                Trace("The UADP DiscoveryResponse DataSetMetaData message cannot be encoded: The MetaData property is missing. Value null will be used.");
             }
             binaryEncoder.WriteEncodeable("MetaData", m_metadata, typeof(DataSetMetaDataType));
 
@@ -803,12 +803,12 @@ namespace Opc.Ua.PubSub.Encoding
                     m_uaDataSetMessages.Clear();
                     m_uaDataSetMessages.AddRange(dataSetMessages);
                 }
-                
+
             }
             catch (Exception ex)
             {
                 // Unexpected exception in DecodeSubscribedDataSets
-                Utils.Trace(ex, "UadpNetworkMessage.DecodeSubscribedDataSets");
+                Trace(ex, "UadpNetworkMessage.DecodeSubscribedDataSets");
             }
         }
 
@@ -823,7 +823,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             // temporary write StatusCode.Good 
             StatusCode statusCode = binaryDecoder.ReadStatusCode("StatusCode");
-            Utils.Trace("DecodeMetaDataMessage returned: ", statusCode);
+            Trace("DecodeMetaDataMessage returned: ", statusCode);
 
         }
 
@@ -851,7 +851,7 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 if (PublisherId == null)
                 {
-                    Utils.Trace(TraceMasks.Error, "NetworkMessageHeader cannot be encoded. PublisherId is null but it is expected to be encoded.");
+                    Trace(TraceMasks.Error, "NetworkMessageHeader cannot be encoded. PublisherId is null but it is expected to be encoded.");
                 }
                 else
                 {
@@ -931,8 +931,7 @@ namespace Opc.Ua.PubSub.Encoding
                 // Collect DataSetSetMessages headers
                 for (int index = 0; index < DataSetMessages.Count; index++)
                 {
-                    UadpDataSetMessage uadpDataSetMessage = DataSetMessages[index] as UadpDataSetMessage;
-                    if (uadpDataSetMessage != null && uadpDataSetMessage.DataSet != null)
+                    if (DataSetMessages[index] is UadpDataSetMessage uadpDataSetMessage && uadpDataSetMessage.DataSet != null)
                     {
                         encoder.WriteUInt16("DataSetWriterId", uadpDataSetMessage.DataSetWriterId);
                     }
@@ -966,7 +965,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Encode promoted fields
         /// </summary>
         /// <param name="encoder"></param>
-        private void EncodePromotedFields(BinaryEncoder encoder)
+        private static void EncodePromotedFields(BinaryEncoder encoder)
         {
             // todo: Promoted fields not supported
         }
@@ -1040,7 +1039,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Encode signature
         /// </summary>
         /// <param name="encoder"></param>
-        private void EncodeSignature(BinaryEncoder encoder)
+        private static void EncodeSignature(BinaryEncoder encoder)
         {
             // encoder.WriteByteArray("Signature", Signature);
         }
@@ -1207,7 +1206,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Decode promoted fields
         /// </summary>
         /// <param name="decoder"></param>
-        private void DecodePromotedFields(BinaryDecoder decoder)
+        private static void DecodePromotedFields(BinaryDecoder decoder)
         {
             // todo: Promoted fields not supported
         }
@@ -1230,8 +1229,7 @@ namespace Opc.Ua.PubSub.Encoding
                     }
                 }
             }
-            BinaryDecoder binaryDecoder = decoder as BinaryDecoder;
-            if (binaryDecoder != null)
+            if (decoder is BinaryDecoder binaryDecoder)
             {
                 int offset = 0;
                 // set start position of dataset message in binary stream 
@@ -1280,7 +1278,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Decode signature
         /// </summary>
         /// <param name="decoder"></param>
-        private void DecodeSignature(BinaryDecoder decoder)
+        private static void DecodeSignature(BinaryDecoder decoder)
         {
             // Signature = decoder.ReadByteArray("Signature").ToArray();
         }

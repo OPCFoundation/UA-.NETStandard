@@ -41,9 +41,9 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
     /// </summary>
     public class X509SignatureFactory : ISignatureFactory
     {
-        private readonly AlgorithmIdentifier _algID;
-        private readonly HashAlgorithmName _hashAlgorithm;
-        private readonly X509SignatureGenerator _generator;
+        private readonly AlgorithmIdentifier m_algID;
+        private readonly HashAlgorithmName m_hashAlgorithm;
+        private readonly X509SignatureGenerator m_generator;
 
         /// <summary>
         /// Constructor which also specifies a source of randomness to be used if one is required.
@@ -73,24 +73,24 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             {
                 throw new ArgumentOutOfRangeException(nameof(hashAlgorithm));
             }
-            _hashAlgorithm = hashAlgorithm;
-            _generator = generator;
-            _algID = new AlgorithmIdentifier(sigOid);
+            m_hashAlgorithm = hashAlgorithm;
+            m_generator = generator;
+            m_algID = new AlgorithmIdentifier(sigOid);
         }
 
         /// <inheritdoc/>
-        public Object AlgorithmDetails => _algID;
+        public Object AlgorithmDetails => m_algID;
 
         /// <inheritdoc/>
-        public IStreamCalculator CreateCalculator()
+        public IStreamCalculator<IBlockResult> CreateCalculator()
         {
-            return new X509StreamCalculator(_generator, _hashAlgorithm);
+            return new X509StreamCalculator(m_generator, m_hashAlgorithm);
         }
 
         /// <summary>
         /// Signs a Bouncy Castle digest stream with the .Net X509SignatureGenerator.
         /// </summary>
-        class X509StreamCalculator : IStreamCalculator
+        class X509StreamCalculator : IStreamCalculator<IBlockResult>
         {
             private X509SignatureGenerator _generator;
             private readonly HashAlgorithmName _hashAlgorithm;
@@ -117,36 +117,12 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             /// <summary>
             /// Callback signs the digest with X509SignatureGenerator.
             /// </summary>
-            public object GetResult()
+            public IBlockResult GetResult()
             {
-                var memStream = Stream as MemoryStream;
-                if (memStream == null) throw new ArgumentNullException(nameof(Stream));
-                var digest = memStream.ToArray();
-                var signature = _generator.SignData(digest, _hashAlgorithm);
-                return new MemoryBlockResult(signature);
-            }
-        }
-
-        /// <summary>
-        /// Helper for Bouncy Castle signing operation to store the result in a memory block.
-        /// </summary>
-        class MemoryBlockResult : IBlockResult
-        {
-            private readonly byte[] _data;
-            /// <inheritdoc/>
-            public MemoryBlockResult(byte[] data)
-            {
-                _data = data;
-            }
-            /// <inheritdoc/>
-            public byte[] Collect()
-            {
-                return _data;
-            }
-            /// <inheritdoc/>
-            public int Collect(byte[] destination, int offset)
-            {
-                throw new NotImplementedException();
+                if (!(Stream is MemoryStream memStream)) throw new ArgumentNullException(nameof(Stream));
+                byte[] digest = memStream.ToArray();
+                byte[] signature = _generator.SignData(digest, _hashAlgorithm);
+                return new Org.BouncyCastle.Crypto.SimpleBlockResult(signature);
             }
         }
     }

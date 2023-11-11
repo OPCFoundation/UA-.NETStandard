@@ -21,6 +21,7 @@ namespace Opc.Ua
     /// An exception thrown when a UA defined error occurs.
     /// </summary>
     [DataContractAttribute]
+    [SerializableAttribute]
     public class ServiceResultException : Exception
     {
         #region Constructors
@@ -112,12 +113,12 @@ namespace Opc.Ua
 
         /// <summary>
         /// The namespace that qualifies symbolic identifier.
-        /// </summary>		
+        /// </summary>
         public string NamespaceUri => m_status.NamespaceUri;
 
         /// <summary>
         /// The qualified name of the symbolic identifier associated with the status code.
-        /// </summary>		
+        /// </summary>
         public string SymbolicId => m_status.SymbolicId;
 
         /// <summary>

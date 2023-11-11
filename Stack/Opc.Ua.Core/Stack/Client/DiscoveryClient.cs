@@ -162,15 +162,18 @@ namespace Opc.Ua
             return PatchEndpointUrls(endpoints);
         }
 
+#if NET_STANDARD_ASYNC
         /// <summary>
         /// Invokes the GetEndpoints service async.
         /// </summary>
         /// <param name="profileUris">The collection of profile URIs.</param>
-        public async virtual Task<EndpointDescriptionCollection> GetEndpointsAsync(StringCollection profileUris)
+        /// <param name="ct">The cancellation token.</param>
+        public async virtual Task<EndpointDescriptionCollection> GetEndpointsAsync(StringCollection profileUris, CancellationToken ct = default)
         {
-            var response = await GetEndpointsAsync(null, this.Endpoint.EndpointUrl, null, profileUris, CancellationToken.None).ConfigureAwait(false);
+            var response = await GetEndpointsAsync(null, this.Endpoint.EndpointUrl, null, profileUris, ct).ConfigureAwait(false);
             return PatchEndpointUrls(response.Endpoints);
         }
+#endif
 
         /// <summary>
         /// Invokes the FindServers service.
@@ -191,21 +194,24 @@ namespace Opc.Ua
             return servers;
         }
 
+#if NET_STANDARD_ASYNC
         /// <summary>
         /// Invokes the FindServers service async.
         /// </summary>
         /// <param name="serverUris">The collection of server URIs.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns></returns>
-        public virtual async Task<ApplicationDescriptionCollection> FindServersAsync(StringCollection serverUris)
+        public virtual async Task<ApplicationDescriptionCollection> FindServersAsync(StringCollection serverUris, CancellationToken ct = default)
         {
             var response = await FindServersAsync(
                 null,
                 this.Endpoint.EndpointUrl,
                 null,
                 serverUris,
-                CancellationToken.None).ConfigureAwait(false);
+                ct).ConfigureAwait(false);
             return response.Servers;
         }
+#endif
 
         /// <summary>
         /// Invokes the FindServersOnNetwork service.

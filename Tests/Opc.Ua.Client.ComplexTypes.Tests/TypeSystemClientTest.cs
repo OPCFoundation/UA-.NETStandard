@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -61,6 +62,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         string m_pkiRoot;
         Uri m_url;
 
+        // for test that fetched and browsed node count match
+        int m_fetchedNodesCount;
+        int m_browsedNodesCount;
+
         public TypeSystemClientTest()
         {
             m_uriScheme = Utils.UriSchemeOpcTcp;
@@ -78,6 +83,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         [OneTimeSetUp]
         public Task OneTimeSetUp()
         {
+            m_fetchedNodesCount = -1;
+            m_browsedNodesCount = -1;
+
             return OneTimeSetUpAsync(null);
         }
 
@@ -96,6 +104,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 SecurityNone = true,
                 AutoAccept = true,
                 AllNodeManagers = true,
+                OperationLimits = true,
             };
             if (writer != null)
             {
@@ -104,6 +113,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out, m_pkiRoot).ConfigureAwait(false);
 
             m_clientFixture = new ClientFixture();
+            m_clientFixture.UseTracing = true;
+            m_clientFixture.StartActivityListener();
+
             await m_clientFixture.LoadClientConfiguration(m_pkiRoot).ConfigureAwait(false);
             m_clientFixture.Config.TransportQuotas.MaxMessageSize = 4 * 1024 * 1024;
             m_url = new Uri(m_uriScheme + "://localhost:" + m_serverFixture.Port.ToString());
@@ -130,6 +142,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 m_session = null;
             }
             await m_serverFixture.StopAsync().ConfigureAwait(false);
+            Utils.SilentDispose(m_clientFixture);
         }
 
         /// <summary>
@@ -187,46 +200,51 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         }
 
         [Test, Order(200)]
-        public async Task BrowseComplexTypesServer()
+        public async Task BrowseComplexTypesServerAsync()
         {
             var samples = new ClientSamples(TestContext.Out, null, null, true);
 
-            await samples.LoadTypeSystem(Session).ConfigureAwait(false);
+            await samples.LoadTypeSystemAsync(Session).ConfigureAwait(false);
 
             ReferenceDescriptionCollection referenceDescriptions =
-                samples.BrowseFullAddressSpace(this, Objects.RootFolder);
+                await samples.BrowseFullAddressSpaceAsync(this, Objects.RootFolder).ConfigureAwait(false);
 
             TestContext.Out.WriteLine("References: {0}", referenceDescriptions.Count);
+            m_browsedNodesCount = referenceDescriptions.Count;
 
             NodeIdCollection variableIds = new NodeIdCollection(referenceDescriptions
-                .Where(r => r.NodeClass == NodeClass.Variable && r.TypeDefinition.NamespaceIndex != 0)
+                .Where(r => r.NodeClass == NodeClass.Variable)
                 .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris)));
 
             TestContext.Out.WriteLine("VariableIds: {0}", variableIds.Count);
 
             (var values, var serviceResults) = await samples.ReadAllValuesAsync(this, variableIds).ConfigureAwait(false);
 
+            int ii = 0;
             foreach (var serviceResult in serviceResults)
             {
-                Assert.IsTrue(ServiceResult.IsGood(serviceResult));
+                var result = serviceResults[ii++];
+                Assert.IsTrue(ServiceResult.IsGood(serviceResult), $"Expected good result, but received {serviceResult}");
             }
         }
 
         [Test, Order(300)]
-        public async Task FetchComplexTypesServer()
+        public async Task FetchComplexTypesServerAsync()
         {
             var samples = new ClientSamples(TestContext.Out, null, null, true);
 
-            await samples.LoadTypeSystem(m_session).ConfigureAwait(false);
+            await samples.LoadTypeSystemAsync(m_session).ConfigureAwait(false);
 
             IList<INode> allNodes = null;
-            allNodes = samples.FetchAllNodesNodeCache(
-                this, Objects.RootFolder, true, true, false);
+            allNodes = await samples.FetchAllNodesNodeCacheAsync(
+                this, Objects.RootFolder, true, false, false).ConfigureAwait(false);
 
             TestContext.Out.WriteLine("References: {0}", allNodes.Count);
 
+            m_fetchedNodesCount = allNodes.Count;
+
             NodeIdCollection variableIds = new NodeIdCollection(allNodes
-                .Where(r => r.NodeClass == NodeClass.Variable && ((VariableNode)r).DataType.NamespaceIndex != 0)
+                .Where(r => r.NodeClass == NodeClass.Variable && r is VariableNode && ((VariableNode)r).DataType.NamespaceIndex != 0)
                 .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris)));
 
             TestContext.Out.WriteLine("VariableIds: {0}", variableIds.Count);
@@ -237,13 +255,99 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             {
                 Assert.IsTrue(ServiceResult.IsGood(serviceResult));
             }
+
+            // check if complex type is properly decoded
+            bool testFailed = false;
+            for (int ii = 0; ii < values.Count; ii++)
+            {
+                DataValue value = values[ii];
+                NodeId variableId = variableIds[ii];
+                ExpandedNodeId variableExpandedNodeId = NodeId.ToExpandedNodeId(variableId, m_session.NamespaceUris);
+                var variableNode = allNodes.Where(n => n.NodeId == variableId).FirstOrDefault() as VariableNode;
+                if (variableNode != null &&
+                    variableNode.DataType.NamespaceIndex != 0)
+                {
+                    TestContext.Out.WriteLine("Check for custom type: {0}", variableNode);
+                    ExpandedNodeId fullTypeId = NodeId.ToExpandedNodeId(variableNode.DataType, m_session.NamespaceUris);
+                    Type type = m_session.Factory.GetSystemType(fullTypeId);
+                    if (type == null)
+                    {
+                        // check for opaque type
+                        NodeId superType = m_session.NodeCache.FindSuperType(fullTypeId);
+                        NodeId lastGoodType = variableNode.DataType;
+                        while (!superType.IsNullNodeId && superType != DataTypes.BaseDataType)
+                        {
+                            if (superType == DataTypeIds.Structure)
+                            {
+                                testFailed = true;
+                                break;
+                            }
+                            lastGoodType = superType;
+                            superType = m_session.NodeCache.FindSuperType(superType);
+                        }
+
+                        if (testFailed)
+                        {
+                            TestContext.Out.WriteLine("-- Variable: {0} complex type unavailable --> {1}", variableNode.NodeId, variableNode.DataType);
+                            (_, _) = await samples.ReadAllValuesAsync(this, new NodeIdCollection() { variableId }).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            TestContext.Out.WriteLine("-- Variable: {0} opaque typeid --> {1}", variableNode.NodeId, lastGoodType);
+                        }
+                        continue;
+                    }
+
+                    if (value.Value is ExtensionObject)
+                    {
+                        Type valueType = ((ExtensionObject)value.Value).Body.GetType();
+                        if (valueType != type)
+                        {
+                            testFailed = true;
+                            TestContext.Out.WriteLine("Variable: {0} type is decoded as ExtensionObject --> {1}", variableNode, value.Value);
+                            (_, _) = await samples.ReadAllValuesAsync(this, new NodeIdCollection() { variableId }).ConfigureAwait(false);
+                        }
+                        continue;
+                    }
+
+                    if (value.Value is Array array &&
+                        array.GetType().GetElementType() == typeof(ExtensionObject))
+                    {
+                        foreach (ExtensionObject valueItem in array)
+                        {
+                            Type valueType = valueItem.Body.GetType();
+                            if (valueType != type)
+                            {
+                                testFailed = true;
+                                TestContext.Out.WriteLine("Variable: {0} type is decoded as ExtensionObject --> {1}", variableNode, valueItem);
+                                (_, _) = await samples.ReadAllValuesAsync(this, new NodeIdCollection() { variableId }).ConfigureAwait(false);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (testFailed)
+            {
+                Assert.Fail("Test failed, unknown or undecodable complex type detected. See log for information.");
+            }
+        }
+
+        [Test, Order(330)]
+        public void ValidateFetchedAndBrowsedNodesMatch()
+        {
+            if (m_browsedNodesCount < 0 || m_fetchedNodesCount < 0)
+            {
+                Assert.Ignore("The browse or fetch test did not run.");
+            }
+            Assert.AreEqual(m_fetchedNodesCount, m_browsedNodesCount);
         }
 
         [Test, Order(400)]
-        public async Task ReadWriteScalaVariableType()
+        public async Task ReadWriteScalarVariableTypeAsync()
         {
             var samples = new ClientSamples(TestContext.Out, null, null, true);
-            await samples.LoadTypeSystem(m_session).ConfigureAwait(false);
+            await samples.LoadTypeSystemAsync(m_session).ConfigureAwait(false);
 
             // test the static version of the structure
             ExpandedNodeId structureVariable = TestData.VariableIds.Data_Static_Structure_ScalarStructure;
@@ -292,6 +396,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     Value = dataWriteValue
                     }
                 };
+
             WriteResponse response = await m_session.WriteAsync(null, writeValues, CancellationToken.None).ConfigureAwait(false);
             Assert.NotNull(response);
             Assert.NotNull(response.Results);

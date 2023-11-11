@@ -436,9 +436,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             {
                 foreach (var writerGroup in pubSubConnection.WriterGroups)
                 {
-                    BrokerWriterGroupTransportDataType brokerTransportSettings = ExtensionObject.ToEncodeable(writerGroup.TransportSettings)
-                        as BrokerWriterGroupTransportDataType;
-                    if (brokerTransportSettings != null)
+                    if (ExtensionObject.ToEncodeable(writerGroup.TransportSettings) is BrokerWriterGroupTransportDataType brokerTransportSettings)
                     {
                         brokerTransportSettings.QueueName = topic;
                     }
@@ -762,7 +760,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ReaderGroupTransportDataType transportSettings)
         {
             ReaderGroupDataType readerGroup = new ReaderGroupDataType();
-            readerGroup.Name = $"ReaderGroup { readerGroupId}";
+            readerGroup.Name = $"ReaderGroup {readerGroupId}";
             readerGroup.Enabled = true;
             readerGroup.MaxNetworkMessageSize = 1500;
             readerGroup.MessageSettings = new ExtensionObject(messageSettings);
@@ -780,7 +778,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             if (connection != null)
             {
-                return connection.ReaderGroups.Find(x => x.Name == $"ReaderGroup { writerGroupId}");
+                return connection.ReaderGroups.Find(x => x.Name == $"ReaderGroup {writerGroupId}");
             }
             return null;
         }
@@ -1096,9 +1094,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 {
                     foreach (var dataSetReader in readerGroup.DataSetReaders)
                     {
-                        BrokerDataSetReaderTransportDataType brokerTransportSettings = ExtensionObject.ToEncodeable(dataSetReader.TransportSettings)
-                        as BrokerDataSetReaderTransportDataType;
-                        if (brokerTransportSettings != null)
+                        if (ExtensionObject.ToEncodeable(dataSetReader.TransportSettings) is BrokerDataSetReaderTransportDataType brokerTransportSettings)
                         {
                             brokerTransportSettings.QueueName = topic;
                         }

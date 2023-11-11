@@ -178,8 +178,14 @@ namespace Quickstarts
                     EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_configuration);
                     ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
+#if NET6_0_OR_GREATER
+                    var sessionFactory = TraceableSessionFactory.Instance;
+#else
+                    var sessionFactory = DefaultSessionFactory.Instance;
+#endif
+
                     // Create the session
-                    var session = await Opc.Ua.Client.Session.Create(
+                    var session = await sessionFactory.CreateAsync(
                         m_configuration,
                         connection,
                         endpoint,
@@ -374,7 +380,7 @@ namespace Quickstarts
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private ReverseConnectManager m_reverseConnectManager;
         private ApplicationConfiguration m_configuration;
         private SessionReconnectHandler m_reconnectHandler;

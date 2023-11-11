@@ -73,7 +73,7 @@ namespace Opc.Ua.Client.Controls
 
                 if (token.Password != null && token.Password.Length > 0)
                 {
-                    PasswordTB.Text = new UTF8Encoding().GetString(token.Password);
+                    PasswordTB.Text = Encoding.UTF8.GetString(token.Password);
                 }
             }
 
@@ -86,7 +86,7 @@ namespace Opc.Ua.Client.Controls
 
             if (!String.IsNullOrEmpty(PasswordTB.Text))
             {
-                token.Password = new UTF8Encoding().GetBytes(PasswordTB.Text);
+                token.Password = Encoding.UTF8.GetBytes(PasswordTB.Text);
             }
             else
             {

@@ -73,7 +73,7 @@ namespace Opc.Ua.Security.Certificates
             m_nextUpdate = crl.NextUpdate;
             m_revokedCertificates = new List<RevokedCertificate>(crl.RevokedCertificates);
             m_crlExtensions = new X509ExtensionCollection();
-            foreach (var extension in crl.CrlExtensions)
+            foreach (X509Extension extension in crl.CrlExtensions)
             {
                 m_crlExtensions.Add(extension);
             }
@@ -194,8 +194,8 @@ namespace Opc.Ua.Security.Certificates
                 throw new CryptographicException("Certificate was not created by the CRL Issuer.");
             }
             EnsureDecoded();
-            var serialnumber = certificate.GetSerialNumber();
-            foreach (var revokedCert in RevokedCertificates)
+            byte[] serialnumber = certificate.GetSerialNumber();
+            foreach (RevokedCertificate revokedCert in RevokedCertificates)
             {
                 if (serialnumber.SequenceEqual<byte>(revokedCert.UserCertificate))
                 {
@@ -227,16 +227,16 @@ namespace Opc.Ua.Security.Certificates
         {
             try
             {
-                AsnReader crlReader = new AsnReader(tbs, AsnEncodingRules.DER);
-                var tag = Asn1Tag.Sequence;
-                var seqReader = crlReader.ReadSequence(tag);
+                var crlReader = new AsnReader(tbs, AsnEncodingRules.DER);
+                Asn1Tag tag = Asn1Tag.Sequence;
+                AsnReader seqReader = crlReader.ReadSequence(tag);
                 crlReader.ThrowIfNotEmpty();
                 if (seqReader != null)
                 {
                     // Version is OPTIONAL
                     uint version = 0;
                     var intTag = new Asn1Tag(UniversalTagNumber.Integer);
-                    var peekTag = seqReader.PeekTag();
+                    Asn1Tag peekTag = seqReader.PeekTag();
                     if (peekTag == intTag)
                     {
                         if (seqReader.TryReadUInt32(out version))
@@ -249,8 +249,8 @@ namespace Opc.Ua.Security.Certificates
                     }
 
                     // Signature Algorithm Identifier
-                    var sigReader = seqReader.ReadSequence();
-                    var oid = sigReader.ReadObjectIdentifier();
+                    AsnReader sigReader = seqReader.ReadSequence();
+                    string oid = sigReader.ReadObjectIdentifier();
                     m_hashAlgorithmName = Oids.GetHashAlgorithmName(oid);
                     if (sigReader.HasData)
                     {
@@ -262,32 +262,32 @@ namespace Opc.Ua.Security.Certificates
                     m_issuerName = new X500DistinguishedName(seqReader.ReadEncodedValue().ToArray());
 
                     // thisUpdate
-                    m_thisUpdate = ReadTime(seqReader, optional: false);
+                    m_thisUpdate = X509CRL.ReadTime(seqReader, optional: false);
 
                     // nextUpdate is OPTIONAL
-                    m_nextUpdate = ReadTime(seqReader, optional: true);
+                    m_nextUpdate = X509CRL.ReadTime(seqReader, optional: true);
 
                     var seqTag = new Asn1Tag(UniversalTagNumber.Sequence, true);
                     peekTag = seqReader.PeekTag();
                     if (peekTag == seqTag)
                     {
                         // revoked certificates
-                        var revReader = seqReader.ReadSequence(tag);
+                        AsnReader revReader = seqReader.ReadSequence(tag);
                         var revokedCertificates = new List<RevokedCertificate>();
                         while (revReader.HasData)
                         {
-                            var crlEntry = revReader.ReadSequence();
-                            var serial = crlEntry.ReadInteger();
+                            AsnReader crlEntry = revReader.ReadSequence();
+                            System.Numerics.BigInteger serial = crlEntry.ReadInteger();
                             var revokedCertificate = new RevokedCertificate(serial.ToByteArray());
-                            revokedCertificate.RevocationDate = ReadTime(crlEntry, optional: false);
+                            revokedCertificate.RevocationDate = X509CRL.ReadTime(crlEntry, optional: false);
                             if (version == 1 &&
                                 crlEntry.HasData)
                             {
                                 // CRL entry extensions
-                                var crlEntryExtensions = crlEntry.ReadSequence();
+                                AsnReader crlEntryExtensions = crlEntry.ReadSequence();
                                 while (crlEntryExtensions.HasData)
                                 {
-                                    var extension = crlEntryExtensions.ReadExtension();
+                                    X509Extension extension = crlEntryExtensions.ReadExtension();
                                     revokedCertificate.CrlEntryExtensions.Add(extension);
                                 }
                                 crlEntryExtensions.ThrowIfNotEmpty();
@@ -304,12 +304,12 @@ namespace Opc.Ua.Security.Certificates
                         seqReader.HasData)
                     {
                         var extTag = new Asn1Tag(TagClass.ContextSpecific, 0);
-                        var optReader = seqReader.ReadSequence(extTag);
+                        AsnReader optReader = seqReader.ReadSequence(extTag);
                         var crlExtensionList = new X509ExtensionCollection();
-                        var crlExtensions = optReader.ReadSequence();
+                        AsnReader crlExtensions = optReader.ReadSequence();
                         while (crlExtensions.HasData)
                         {
-                            var extension = crlExtensions.ReadExtension();
+                            X509Extension extension = crlExtensions.ReadExtension();
                             crlExtensionList.Add(extension);
                         }
                         m_crlExtensions = crlExtensionList;
@@ -332,10 +332,10 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="asnReader"></param>
         /// <param name="optional"></param>
         /// <returns>The DateTime representing the tag</returns>
-        private DateTime ReadTime(AsnReader asnReader, bool optional)
+        private static DateTime ReadTime(AsnReader asnReader, bool optional)
         {
             // determine if the time is UTC or GeneralizedTime time
-            var timeTag = asnReader.PeekTag();
+            Asn1Tag timeTag = asnReader.PeekTag();
             if (timeTag.TagValue == Asn1Tag.UtcTime.TagValue)
             {
                 return asnReader.ReadUtcTime().UtcDateTime;

@@ -13,6 +13,7 @@
 using System;
 using System.Collections;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
@@ -134,6 +135,11 @@ namespace Opc.Ua
 
             protected set
             {
+                if (ReferenceEquals(m_channel, value))
+                {
+                    return;
+                }
+
                 ITransportChannel channel = m_channel;
                 m_channel = null;
 
@@ -270,6 +276,21 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Closes the channel using async call.
+        /// </summary>
+        public virtual Task<StatusCode> CloseAsync(CancellationToken ct = default)
+        {
+            if (m_channel != null)
+            {
+                m_channel.Close();
+                m_channel = null;
+            }
+
+            m_authenticationToken = null;
+            return Task.FromResult<StatusCode>(StatusCodes.Good);
+        }
+
+        /// <summary>
         /// Whether the object has been disposed.
         /// </summary>
         /// <value><c>true</c> if disposed; otherwise, <c>false</c>.</value>
@@ -300,9 +321,8 @@ namespace Opc.Ua
             m_channel = channel;
             m_useTransportChannel = true;
 
-            UaChannelBase uaChannel = channel as UaChannelBase;
 
-            if (uaChannel != null)
+            if (channel is UaChannelBase uaChannel)
             {
                 m_useTransportChannel = uaChannel.m_uaBypassChannel != null || uaChannel.UseBinaryEncoding;
             }
@@ -598,7 +618,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private ITransportChannel m_channel;
         private NodeId m_authenticationToken;
         private DiagnosticsMasks m_returnDiagnostics;
@@ -606,75 +626,6 @@ namespace Opc.Ua
         private int m_pendingRequestCount;
         private bool m_disposed;
         private bool m_useTransportChannel;
-        #endregion
-    }
-
-    /// <summary>
-	/// The client side interface with a UA server.
-	/// </summary>
-    public partial class SessionClient : ISessionClient
-    {
-        #region IDisposable Implementation
-        /// <summary>
-        /// An overrideable version of the Dispose.
-        /// </summary>
-        /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                m_sessionId = null;
-            }
-
-            base.Dispose(disposing);
-        }
-        #endregion
-
-        #region Public Properties
-        /// <summary>
-        /// The server assigned identifier for the current session.
-        /// </summary>
-        /// <value>The session id.</value>
-        public NodeId SessionId
-        {
-            get
-            {
-                return m_sessionId;
-            }
-        }
-
-        /// <summary>
-        /// Whether a session has beed created with the server.
-        /// </summary>
-        /// <value><c>true</c> if connected; otherwise, <c>false</c>.</value>
-        public bool Connected
-        {
-            get
-            {
-                return m_sessionId != null;
-            }
-        }
-        #endregion
-
-        #region Protected Methods
-        /// <summary>
-        /// Called when a new session is created.
-        /// </summary>
-        /// <param name="sessionId">The session id.</param>
-        /// <param name="sessionCookie">The session cookie.</param>
-        public virtual void SessionCreated(NodeId sessionId, NodeId sessionCookie)
-        {
-            lock (m_lock)
-            {
-                m_sessionId = sessionId;
-                AuthenticationToken = sessionCookie;
-            }
-        }
-        #endregion
-
-        #region Private Fields
-        private object m_lock = new object();
-        private NodeId m_sessionId;
         #endregion
     }
 }

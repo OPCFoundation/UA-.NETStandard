@@ -535,7 +535,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             dataSetReaderAllTypes.Enabled = true;
             dataSetReaderAllTypes.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;// RawData encoding;
             dataSetReaderAllTypes.KeyFrameCount = 1;
-            
+
             jsonDataSetReaderMessage = new JsonDataSetReaderMessageDataType() {
                 NetworkMessageContentMask = (uint)(JsonNetworkMessageContentMask.NetworkMessageHeader
                         | JsonNetworkMessageContentMask.DataSetMessageHeader

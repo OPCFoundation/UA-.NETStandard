@@ -102,7 +102,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         protected override void UpdateEffectiveState(ISystemContext context)
-        {            
+        {
             if (!this.EnabledState.Id.Value)
             {
                 base.UpdateEffectiveState(context);
@@ -196,7 +196,7 @@ namespace Opc.Ua
                     e.SetChildValue(context, BrowseNames.InputArguments, new object[] { selectedResponse }, false);
 
                     e.SetChildValue(context, BrowseNames.SelectedResponse, selectedResponse.ToString(), false);
-                    
+
                     ReportEvent(context, e);
                 }
             }

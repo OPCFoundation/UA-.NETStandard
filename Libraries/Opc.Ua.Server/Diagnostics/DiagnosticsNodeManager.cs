@@ -1389,7 +1389,7 @@ namespace Opc.Ua.Server
             if ((sessionId != context.SessionId) &&
                     !HasApplicationSecureAdminAccess(context))
             {
-                list[index] = default(T);
+                list[index] = default;
             }
         }
 

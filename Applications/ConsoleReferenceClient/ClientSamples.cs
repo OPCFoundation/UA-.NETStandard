@@ -376,7 +376,7 @@ namespace Quickstarts
         /// <param name="addRootNode">Adds the root node to the result.</param>
         /// <param name="filterUATypes">Filters nodes from namespace 0 from the result.</param>
         /// <returns>The list of nodes on the server.</returns>
-        public IList<INode> FetchAllNodesNodeCache(
+        public async Task<IList<INode>> FetchAllNodesNodeCacheAsync(
             IUAClient uaClient,
             NodeId startingNode,
             bool fetchTree = false,
@@ -398,13 +398,13 @@ namespace Quickstarts
             {
                 // clear NodeCache to fetch all nodes from server
                 uaClient.Session.NodeCache.Clear();
-                FetchReferenceIdTypes(uaClient.Session);
+                await FetchReferenceIdTypesAsync(uaClient.Session).ConfigureAwait(false);
             }
 
             // add root node
             if (addRootNode)
             {
-                var rootNode = uaClient.Session.NodeCache.Find(startingNode);
+                var rootNode = await uaClient.Session.NodeCache.FindAsync(startingNode).ConfigureAwait(false);
                 nodeDictionary[rootNode.NodeId] = rootNode;
             }
 
@@ -419,11 +419,11 @@ namespace Quickstarts
 
                 searchDepth++;
                 Utils.LogInfo("{0}: Find {1} references after {2}ms", searchDepth, nodesToBrowse.Count, stopwatch.ElapsedMilliseconds);
-                IList<INode> response = uaClient.Session.NodeCache.FindReferences(
+                IList<INode> response = await uaClient.Session.NodeCache.FindReferencesAsync(
                     nodesToBrowse,
                     references,
                     false,
-                    true);
+                    true).ConfigureAwait(false);
 
                 var nextNodesToBrowse = new ExpandedNodeIdCollection();
                 int duplicates = 0;
@@ -466,7 +466,7 @@ namespace Quickstarts
                         }
                         else
                         {
-                            nodeDictionary[node.NodeId] = node; ;
+                            nodeDictionary[node.NodeId] = node;
                         }
                     }
                     else
@@ -511,10 +511,11 @@ namespace Quickstarts
         /// <param name="uaClient">The UAClient with a session to use.</param>
         /// <param name="startingNode">The node where the browse operation starts.</param>
         /// <param name="browseDescription">An optional BrowseDescription to use.</param>
-        public ReferenceDescriptionCollection BrowseFullAddressSpace(
+        public async Task<ReferenceDescriptionCollection> BrowseFullAddressSpaceAsync(
             IUAClient uaClient,
             NodeId startingNode = null,
-            BrowseDescription browseDescription = null)
+            BrowseDescription browseDescription = null,
+            CancellationToken ct = default)
         {
             Stopwatch stopWatch = new Stopwatch();
             stopWatch.Start();
@@ -563,9 +564,10 @@ namespace Quickstarts
                     repeatBrowse = false;
                     try
                     {
-                        _ = uaClient.Session.Browse(null, null,
-                            kMaxReferencesPerNode, browseCollection,
-                            out browseResultCollection, out diagnosticsInfoCollection);
+                        var browseResponse = await uaClient.Session.BrowseAsync(null, null,
+                            kMaxReferencesPerNode, browseCollection, ct).ConfigureAwait(false);
+                        browseResultCollection = browseResponse.Results;
+                        diagnosticsInfoCollection = browseResponse.DiagnosticInfos;
                         ClientBase.ValidateResponse(browseResultCollection, browseCollection);
                         ClientBase.ValidateDiagnosticInfos(diagnosticsInfoCollection, browseCollection);
 
@@ -629,8 +631,9 @@ namespace Quickstarts
                     }
 
                     Utils.LogInfo("BrowseNext {0} continuation points.", continuationPoints.Count);
-                    _ = uaClient.Session.BrowseNext(null, false, continuationPoints,
-                        out var browseNextResultCollection, out diagnosticsInfoCollection);
+                    var browseNextResult = await uaClient.Session.BrowseNextAsync(null, false, continuationPoints, ct).ConfigureAwait(false);
+                    var browseNextResultCollection = browseNextResult.Results;
+                    diagnosticsInfoCollection = browseNextResult.DiagnosticInfos;
                     ClientBase.ValidateResponse(browseNextResultCollection, continuationPoints);
                     ClientBase.ValidateDiagnosticInfos(diagnosticsInfoCollection, continuationPoints);
                     allBrowseResults.AddRange(browseNextResultCollection);
@@ -696,7 +699,7 @@ namespace Quickstarts
         /// Outputs elapsed time information for perf testing and lists all
         /// types that were successfully added to the session encodeable type factory.
         /// </remarks>
-        public async Task LoadTypeSystem(ISession session)
+        public async Task LoadTypeSystemAsync(ISession session)
         {
             m_output.WriteLine("Load the server type system.");
 
@@ -742,7 +745,7 @@ namespace Quickstarts
         /// The NodeCache needs this information to function properly with subtypes of hierarchical calls.
         /// </remarks>
         /// <param name="session">The session to use</param>
-        void FetchReferenceIdTypes(ISession session)
+        Task FetchReferenceIdTypesAsync(ISession session)
         {
             // fetch the reference types first, otherwise browse for e.g. hierarchical references with subtypes won't work
             var bindingFlags = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
@@ -750,7 +753,7 @@ namespace Quickstarts
             var referenceTypes = typeof(ReferenceTypeIds)
                      .GetFields(bindingFlags)
                      .Select(field => NodeId.ToExpandedNodeId((NodeId)field.GetValue(null), namespaceUris));
-            session.FetchTypeTree(new ExpandedNodeIdCollection(referenceTypes));
+            return session.FetchTypeTreeAsync(new ExpandedNodeIdCollection(referenceTypes));
         }
         #endregion
 
@@ -897,7 +900,7 @@ namespace Quickstarts
                         StartNodeId = item.NodeId,
                         AttributeId = Attributes.Value,
                         SamplingInterval = samplingInterval,
-                        DisplayName = item.DisplayName.Text ?? item.BrowseName.Name,
+                        DisplayName = item.DisplayName?.Text ?? item.BrowseName.Name,
                         QueueSize = queueSize,
                         DiscardOldest = true,
                         MonitoringMode = MonitoringMode.Reporting,
@@ -907,7 +910,7 @@ namespace Quickstarts
                 }
 
                 // Create the monitored items on Server side
-                subscription.ApplyChanges();
+                await subscription.ApplyChangesAsync().ConfigureAwait(false);
                 m_output.WriteLine("MonitoredItems {0} created for SubscriptionId = {1}.", subscription.MonitoredItemCount, subscription.Id);
             }
             catch (Exception ex)
@@ -930,9 +933,13 @@ namespace Quickstarts
             DataValue value,
             bool jsonReversible)
         {
-            var jsonEncoder = new JsonEncoder(messageContext, jsonReversible);
-            jsonEncoder.WriteDataValue(name, value);
-            var textbuffer = jsonEncoder.CloseAndReturnText();
+            string textbuffer;
+            using (var jsonEncoder = new JsonEncoder(messageContext, jsonReversible))
+            {
+                jsonEncoder.WriteDataValue(name, value);
+                textbuffer = jsonEncoder.CloseAndReturnText();
+            }
+
             // prettify
             using (var stringWriter = new StringWriter())
             {

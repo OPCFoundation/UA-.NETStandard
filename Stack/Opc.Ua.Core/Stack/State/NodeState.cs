@@ -458,7 +458,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets or sets the extensions of the node set. Property used when importing nodeset2.xml files.
+        /// Gets or sets the extensions of the node set. Property used when importing NodeSet2.xml files.
         /// </summary>
         /// <value>
         /// The extensions.
@@ -570,16 +570,17 @@ namespace Opc.Ua
             {
                 XmlQualifiedName root = new XmlQualifiedName(this.SymbolicName, context.NamespaceUris.GetString(this.BrowseName.NamespaceIndex));
 
-                XmlEncoder encoder = new XmlEncoder(root, writer, messageContext);
+                using (XmlEncoder encoder = new XmlEncoder(root, writer, messageContext))
+                {
+                    encoder.SaveStringTable("NamespaceUris", "NamespaceUri", context.NamespaceUris);
+                    encoder.SaveStringTable("ServerUris", "ServerUri", context.ServerUris);
 
-                encoder.SaveStringTable("NamespaceUris", "NamespaceUri", context.NamespaceUris);
-                encoder.SaveStringTable("ServerUris", "ServerUri", context.ServerUris);
+                    Save(context, encoder);
+                    SaveReferences(context, encoder);
+                    SaveChildren(context, encoder);
 
-                Save(context, encoder);
-                SaveReferences(context, encoder);
-                SaveChildren(context, encoder);
-
-                encoder.Close();
+                    encoder.Close();
+                }
             }
         }
 
@@ -596,19 +597,20 @@ namespace Opc.Ua
             messageContext.ServerUris = context.ServerUris;
             messageContext.Factory = context.EncodeableFactory;
 
-            BinaryEncoder encoder = new BinaryEncoder(ostrm, messageContext);
+            using (BinaryEncoder encoder = new BinaryEncoder(ostrm, messageContext, true))
+            {
+                encoder.SaveStringTable(context.NamespaceUris);
+                encoder.SaveStringTable(context.ServerUris);
 
-            encoder.SaveStringTable(context.NamespaceUris);
-            encoder.SaveStringTable(context.ServerUris);
+                AttributesToSave attributesToSave = GetAttributesToSave(context);
+                encoder.WriteUInt32(null, (uint)attributesToSave);
 
-            AttributesToSave attributesToSave = GetAttributesToSave(context);
-            encoder.WriteUInt32(null, (uint)attributesToSave);
+                Save(context, encoder, attributesToSave);
+                SaveReferences(context, encoder);
+                SaveChildren(context, encoder);
 
-            Save(context, encoder, attributesToSave);
-            SaveReferences(context, encoder);
-            SaveChildren(context, encoder);
-
-            encoder.Close();
+                encoder.Close();
+            }
         }
 
         /// <summary>
@@ -883,9 +885,9 @@ namespace Opc.Ua
                 attributesToSave |= AttributesToSave.WriteMask;
             }
 
-            if (m_writeMask != AttributeWriteMask.None)
+            if (m_userWriteMask != AttributeWriteMask.None)
             {
-                attributesToSave |= AttributesToSave.UserAccessLevel;
+                attributesToSave |= AttributesToSave.UserWriteMask;
             }
 
             return attributesToSave;
@@ -1377,7 +1379,7 @@ namespace Opc.Ua
                 encoder.WriteEnumerated("WriteMask", m_writeMask);
             }
 
-            if (m_writeMask != AttributeWriteMask.None)
+            if (m_userWriteMask != AttributeWriteMask.None)
             {
                 encoder.WriteEnumerated("UserWriteMask", m_userWriteMask);
             }
@@ -1815,21 +1817,20 @@ namespace Opc.Ua
             }
 
             // create the appropriate node.
-            BaseInstanceState child = factory.CreateInstance(
+
+            if (!(factory.CreateInstance(
                 context,
                 parent,
                 nodeClass,
                 browseName,
                 referenceTypeId,
-                typeDefinitionId) as BaseInstanceState;
-
-            if (child == null)
+                typeDefinitionId) is BaseInstanceState child))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
-                    "Could not load child '{1}', with NodeClass {0}",
-                    nodeClass,
-                    browseName);
+                    "Could not load child '{0}', with NodeClass {1}",
+                    browseName,
+                    nodeClass);
             }
 
             // initialize the child from the stream.
@@ -1898,9 +1899,9 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
-                    "Could not load node '{1}', with NodeClass {0}",
-                    nodeClass,
-                    browseName);
+                    "Could not load node '{0}', with NodeClass {1}",
+                    browseName,
+                    nodeClass);
             }
 
             // update symbolic name.
@@ -1967,9 +1968,9 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
-                    "Could not load node '{1}', with NodeClass {0}",
-                    nodeClass,
-                    browseName);
+                    "Could not load node '{0}', with NodeClass {1}",
+                    browseName,
+                    nodeClass);
             }
 
             // update symbolic name.
@@ -2046,21 +2047,20 @@ namespace Opc.Ua
             }
 
             // create the appropriate node.
-            BaseInstanceState child = factory.CreateInstance(
+
+            if (!(factory.CreateInstance(
                 context,
                 parent,
                 nodeClass,
                 browseName,
                 referenceTypeId,
-                typeDefinitionId) as BaseInstanceState;
-
-            if (child == null)
+                typeDefinitionId) is BaseInstanceState child))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
-                    "Could not load child '{1}', with NodeClass {0}",
-                    nodeClass,
-                    browseName);
+                    "Could not load child '{0}', with NodeClass {1}",
+                    browseName,
+                    nodeClass);
             }
 
             // initialize the child from the stream.
@@ -2249,9 +2249,8 @@ namespace Opc.Ua
         public NodeState GetHierarchyRoot()
         {
             // only instance nodes can be part of a hierarchy.
-            BaseInstanceState instance = this as BaseInstanceState;
 
-            if (instance == null || instance.Parent == null)
+            if (!(this is BaseInstanceState instance) || instance.Parent == null)
             {
                 return this;
             }
@@ -2542,9 +2541,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < children.Count; ii++)
             {
-                MethodState method = children[ii] as MethodState;
-
-                if (method != null)
+                if (children[ii] is MethodState method)
                 {
                     if (method.NodeId == methodId || method.MethodDeclarationId == methodId)
                     {
@@ -3221,17 +3218,15 @@ namespace Opc.Ua
                     continue;
                 }
 
-                BaseVariableState variableInstance = child as BaseVariableState;
 
-                if (variableInstance != null)
+                if (child is BaseVariableState variableInstance)
                 {
                     variableInstance.Value = values.EventFields[ii].Value;
                     continue;
                 }
 
-                BaseObjectState objectInstance = child as BaseObjectState;
 
-                if (objectInstance != null)
+                if (child is BaseObjectState objectInstance)
                 {
                     NodeId nodeId = values.EventFields[ii].Value as NodeId;
 
@@ -3910,9 +3905,7 @@ namespace Opc.Ua
 
                 case Attributes.RolePermissions:
                 {
-                    ExtensionObject[] rolePermissionsArray = value as ExtensionObject[];
-
-                    if (rolePermissionsArray == null)
+                    if (!(value is ExtensionObject[] rolePermissionsArray))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -3921,9 +3914,7 @@ namespace Opc.Ua
 
                     foreach (ExtensionObject arrayValue in rolePermissionsArray)
                     {
-                        RolePermissionType rolePermission = arrayValue.Body as RolePermissionType;
-
-                        if (rolePermission == null)
+                        if (!(arrayValue.Body is RolePermissionType rolePermission))
                         {
                             return StatusCodes.BadTypeMismatch;
                         }
@@ -4264,17 +4255,13 @@ namespace Opc.Ua
                 return false;
             }
 
-            BaseInstanceState child = CreateChild(context, browseName) as BaseInstanceState;
 
-            if (child == null)
+            if (!(CreateChild(context, browseName) is BaseInstanceState child))
             {
                 return false;
             }
 
-            BaseVariableState variable = child as BaseVariableState;
-            BaseVariableState sourceVariable = source as BaseVariableState;
-
-            if (variable != null && sourceVariable != null)
+            if (child is BaseVariableState variable && source is BaseVariableState sourceVariable)
             {
                 if (copy)
                 {
@@ -4308,9 +4295,7 @@ namespace Opc.Ua
             object value,
             bool copy)
         {
-            BaseVariableState child = CreateChild(context, browseName) as BaseVariableState;
-
-            if (child == null)
+            if (!(CreateChild(context, browseName) is BaseVariableState child))
             {
                 return false;
             }

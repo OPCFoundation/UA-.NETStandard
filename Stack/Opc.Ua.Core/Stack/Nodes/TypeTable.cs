@@ -11,6 +11,8 @@
 */
 
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
@@ -126,6 +128,18 @@ namespace Opc.Ua
 
                 return NodeId.Null;
             }
+        }
+
+        /// <inheritdoc/>
+        public Task<NodeId> FindSuperTypeAsync(ExpandedNodeId typeId, CancellationToken ct)
+        {
+            return Task.FromResult(FindSuperType(typeId));
+        }
+
+        /// <inheritdoc/>
+        public Task<NodeId> FindSuperTypeAsync(NodeId typeId, CancellationToken ct)
+        {
+            return Task.FromResult(FindSuperType(typeId));
         }
 
         /// <inheritdoc/>
@@ -379,17 +393,15 @@ namespace Opc.Ua
             }
 
             // for structure types must try to determine the subtype.
-            ExtensionObject extension = value as ExtensionObject;
 
-            if (extension != null)
+            if (value is ExtensionObject extension)
             {
                 return IsEncodingFor(expectedTypeId, extension);
             }
 
             // every element in an array must match.
-            ExtensionObject[] extensions = value as ExtensionObject[];
 
-            if (extensions != null)
+            if (value is ExtensionObject[] extensions)
             {
                 for (int ii = 0; ii < extensions.Length; ii++)
                 {
@@ -535,7 +547,7 @@ namespace Opc.Ua
                     }
                 }
 
-                // any new encodings.            
+                // any new encodings.
                 IList<IReference> encodings = node.References.Find(ReferenceTypeIds.HasEncoding, false, false, null);
 
                 if (encodings.Count > 0)
@@ -835,7 +847,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private NamespaceTable m_namespaceUris;
         private SortedDictionary<QualifiedName, TypeInfo> m_referenceTypes;
         private NodeIdDictionary<TypeInfo> m_nodes;

@@ -61,7 +61,7 @@ namespace Opc.Ua.Bindings
                 TryAddDefaultTransportBindings(uriScheme);
                 if (!Bindings.TryGetValue(uriScheme, out binding))
                 {
-                    return default(T);
+                    return default;
                 }
             }
             return binding;
@@ -97,8 +97,7 @@ namespace Opc.Ua.Bindings
             var result = new List<Type>();
             foreach (Type bindingType in bindings)
             {
-                var binding = Activator.CreateInstance(bindingType) as T;
-                if (binding != null)
+                if (Activator.CreateInstance(bindingType) is T binding)
                 {
                     Bindings[binding.UriScheme] = binding;
                     result.Add(bindingType);
@@ -126,8 +125,7 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
-            var listener = Activator.CreateInstance(bindingType) as T;
-            if (listener == null)
+            if (!(Activator.CreateInstance(bindingType) is T listener))
             {
                 return false;
             }

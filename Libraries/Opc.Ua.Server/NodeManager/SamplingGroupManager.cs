@@ -497,7 +497,7 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private IServerInternal m_server;
         private INodeManager m_nodeManager;
         private List<SamplingGroup> m_samplingGroups;

@@ -1581,7 +1581,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             object token = null;
             string jsonMessage = System.Text.Encoding.ASCII.GetString(networkMessage);
-            using (JsonDecoder jsonDecoder = new JsonDecoder(jsonMessage, context))
+            using (IJsonDecoder jsonDecoder = new JsonDecoder(jsonMessage, context))
             {
                 #region Verify DataSetMetaData mandatory fields
 
@@ -1730,7 +1730,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ServiceMessageContext context = ServiceMessageContext.GlobalContext;
 
             string jsonMessage = System.Text.Encoding.ASCII.GetString(networkMessage);
-            using (JsonDecoder jsonDecoder = new JsonDecoder(jsonMessage, context))
+            using (IJsonDecoder jsonDecoder = new JsonDecoder(jsonMessage, context))
             {
                 if (jsonNetworkMessage.HasNetworkMessageHeader)
                 {
@@ -1760,7 +1760,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="jsonNetworkMessage"></param>
         /// <param name="jsonDecoder"></param>
         /// <returns></returns>
-        private NetworkMessageFailOptions VerifyNetworkMessageEncoding(JsonNetworkMessage jsonNetworkMessage, JsonDecoder jsonDecoder)
+        private NetworkMessageFailOptions VerifyNetworkMessageEncoding(JsonNetworkMessage jsonNetworkMessage, IJsonDecoder jsonDecoder)
         {
             string messageIdValue = null;
             string messageTypeValue = null;
@@ -1818,7 +1818,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="jsonNetworkMessage"></param>
         /// <param name="jsonDecoder"></param>
         /// <returns></returns>
-        private DataSetMessageFailOptions VerifyDataSetMessagesEncoding(JsonNetworkMessage jsonNetworkMessage, JsonDecoder jsonDecoder)
+        private DataSetMessageFailOptions VerifyDataSetMessagesEncoding(JsonNetworkMessage jsonNetworkMessage, IJsonDecoder jsonDecoder)
         {
             UInt16 dataSetWriterIdValue = 0;
             UInt32 sequenceNumberValue = 0;
@@ -2081,7 +2081,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="fieldMetaData"></param>
         /// <param name="fieldName"></param>
         /// <returns></returns>
-        private object DecodeFieldData(JsonDecoder jsonDecoder, FieldMetaData fieldMetaData, string fieldName)
+        private object DecodeFieldData(IJsonDecoder jsonDecoder, FieldMetaData fieldMetaData, string fieldName)
         {
             if (fieldMetaData.BuiltInType != 0)
             {
@@ -2116,7 +2116,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="builtInType"></param>
         /// <param name="fieldName"></param>
         /// <returns></returns>
-        private object DecodeFieldByType(JsonDecoder jsonDecoder, byte builtInType, string fieldName)
+        private object DecodeFieldByType(IJsonDecoder jsonDecoder, byte builtInType, string fieldName)
         {
             try
             {

@@ -40,7 +40,7 @@ namespace Opc.Ua.Server.Tests
     /// <typeparam name="T">A server class T used for testing.</typeparam>
     public class ServerFixture<T> where T : ServerBase, new()
     {
-        private NUnitTraceLogger m_traceLogger;
+        private NUnitTestLogger<T> m_traceLogger;
         public ApplicationInstance Application { get; private set; }
         public ApplicationConfiguration Config { get; private set; }
         public T Server { get; private set; }
@@ -67,6 +67,8 @@ namespace Opc.Ua.Server.Tests
             var serverConfig = Application.Build(
                 "urn:localhost:UA:" + typeof(T).Name,
                 "uri:opcfoundation.org:" + typeof(T).Name)
+                .SetMaxByteStringLength(4 * 1024 * 1024)
+                .SetMaxArrayLength(1024 * 1024)
                 .AsServer(
                     new string[] {
                     endpointUrl
@@ -99,10 +101,17 @@ namespace Opc.Ua.Server.Tests
                     MaxNodesPerWrite = 1000,
                     MaxNodesPerMethodCall = 1000,
                     MaxMonitoredItemsPerCall = 1000,
+                    MaxNodesPerHistoryReadData = 1000,
+                    MaxNodesPerHistoryReadEvents = 1000,
+                    MaxNodesPerHistoryUpdateData = 1000,
+                    MaxNodesPerHistoryUpdateEvents = 1000,
+                    MaxNodesPerNodeManagement = 1000,
+                    MaxNodesPerRegisterNodes = 1000,
                     MaxNodesPerTranslateBrowsePathsToNodeIds = 1000
                 });
             }
 
+            serverConfig.SetMaxMessageQueueSize(20);
             serverConfig.SetDiagnosticsEnabled(true);
             serverConfig.SetAuditingEnabled(true);
 
@@ -185,7 +194,7 @@ namespace Opc.Ua.Server.Tests
 
             if (writer != null)
             {
-                m_traceLogger = NUnitTraceLogger.Create(writer, Config, TraceMasks);
+                m_traceLogger = NUnitTestLogger<T>.Create(writer, Config, TraceMasks);
             }
 
             // check the application certificate.

@@ -4606,7 +4606,7 @@ namespace TestData
         #region Initialization String
         private const string InitializationString =
            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABAB0AAABTY2FsYXJWYWx1" +
-           "ZU9iamVjdFR5cGVJbnN0YW5jZQEBXAQBAVwEXAQAAAEAAAAAJAABAWAEHwAAADVgiQoCAAAAAQAQAAAA" +
+           "ZU9iamVjdFR5cGVJbnN0YW5jZQEBXAQBAVwEXAQAAAEAAAAAJAABAWAEIgAAADVgiQoCAAAAAQAQAAAA" +
            "U2ltdWxhdGlvbkFjdGl2ZQEBXQQDAAAAAEcAAABJZiB0cnVlIHRoZSBzZXJ2ZXIgd2lsbCBwcm9kdWNl" +
            "IG5ldyB2YWx1ZXMgZm9yIGVhY2ggbW9uaXRvcmVkIHZhcmlhYmxlLgAuAERdBAAAAAH/////AQH/////" +
            "AAAAAARhggoEAAAAAQAOAAAAR2VuZXJhdGVWYWx1ZXMBAV4EAC8BAfkDXgQAAAEB/////wEAAAAXYKkK" +
@@ -4673,7 +4673,10 @@ namespace TestData
            "Z2VyVmFsdWUBAbUEAC8AP7UEAAAAHP////8BAf////8AAAAAFWCJCgIAAAABAAsAAABWZWN0b3JWYWx1" +
            "ZQEBtgQALwEBYQe2BAAAAQFgB/////8BAf////8DAAAAFWCJCgIAAAABAAEAAABYAQG3BAAuAES3BAAA" +
            "AAv/////AQH/////AAAAABVgiQoCAAAAAQABAAAAWQEBuAQALgBEuAQAAAAL/////wEB/////wAAAAAV" +
-           "YIkKAgAAAAEAAQAAAFoBAbkEAC4ARLkEAAAAC/////8BAf////8AAAAA";
+           "YIkKAgAAAAEAAQAAAFoBAbkEAC4ARLkEAAAAC/////8BAf////8AAAAAFWCJCgIAAAABABAAAABWZWN0" +
+           "b3JVbmlvblZhbHVlAQH+DQAvAD/+DQAAAQEADv////8BAf////8AAAAAFWCJCgIAAAABAB0AAABWZWN0" +
+           "b3JXaXRoT3B0aW9uYWxGaWVsZHNWYWx1ZQEB/w0ALwA//w0AAAEBAQ7/////AQH/////AAAAABVgiQoC" +
+           "AAAAAQAUAAAATXVsdGlwbGVWZWN0b3JzVmFsdWUBAR4OAC8APx4OAAABAR8O/////wEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -5210,6 +5213,63 @@ namespace TestData
                 m_vectorValue = value;
             }
         }
+
+        /// <remarks />
+        public BaseDataVariableState<VectorUnion> VectorUnionValue
+        {
+            get
+            {
+                return m_vectorUnionValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_vectorUnionValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_vectorUnionValue = value;
+            }
+        }
+
+        /// <remarks />
+        public BaseDataVariableState<VectorWithOptionalFields> VectorWithOptionalFieldsValue
+        {
+            get
+            {
+                return m_vectorWithOptionalFieldsValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_vectorWithOptionalFieldsValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_vectorWithOptionalFieldsValue = value;
+            }
+        }
+
+        /// <remarks />
+        public BaseDataVariableState<MultipleVectors> MultipleVectorsValue
+        {
+            get
+            {
+                return m_multipleVectorsValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_multipleVectorsValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_multipleVectorsValue = value;
+            }
+        }
         #endregion
 
         #region Overridden Methods
@@ -5356,6 +5416,21 @@ namespace TestData
             if (m_vectorValue != null)
             {
                 children.Add(m_vectorValue);
+            }
+
+            if (m_vectorUnionValue != null)
+            {
+                children.Add(m_vectorUnionValue);
+            }
+
+            if (m_vectorWithOptionalFieldsValue != null)
+            {
+                children.Add(m_vectorWithOptionalFieldsValue);
+            }
+
+            if (m_multipleVectorsValue != null)
+            {
+                children.Add(m_multipleVectorsValue);
             }
 
             base.GetChildren(context, children);
@@ -5964,6 +6039,69 @@ namespace TestData
                     instance = VectorValue;
                     break;
                 }
+
+                case TestData.BrowseNames.VectorUnionValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (VectorUnionValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                VectorUnionValue = new BaseDataVariableState<VectorUnion>(this);
+                            }
+                            else
+                            {
+                                VectorUnionValue = (BaseDataVariableState<VectorUnion>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = VectorUnionValue;
+                    break;
+                }
+
+                case TestData.BrowseNames.VectorWithOptionalFieldsValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (VectorWithOptionalFieldsValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                VectorWithOptionalFieldsValue = new BaseDataVariableState<VectorWithOptionalFields>(this);
+                            }
+                            else
+                            {
+                                VectorWithOptionalFieldsValue = (BaseDataVariableState<VectorWithOptionalFields>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = VectorWithOptionalFieldsValue;
+                    break;
+                }
+
+                case TestData.BrowseNames.MultipleVectorsValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (MultipleVectorsValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                MultipleVectorsValue = new BaseDataVariableState<MultipleVectors>(this);
+                            }
+                            else
+                            {
+                                MultipleVectorsValue = (BaseDataVariableState<MultipleVectors>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = MultipleVectorsValue;
+                    break;
+                }
             }
 
             if (instance != null)
@@ -6004,6 +6142,9 @@ namespace TestData
         private BaseDataVariableState m_integerValue;
         private BaseDataVariableState m_uIntegerValue;
         private VectorVariableState m_vectorValue;
+        private BaseDataVariableState<VectorUnion> m_vectorUnionValue;
+        private BaseDataVariableState<VectorWithOptionalFields> m_vectorWithOptionalFieldsValue;
+        private BaseDataVariableState<MultipleVectors> m_multipleVectorsValue;
         #endregion
     }
     #endif
@@ -7543,7 +7684,7 @@ namespace TestData
         #region Initialization String
         private const string InitializationString =
            "AQAAABgAAABodHRwOi8vdGVzdC5vcmcvVUEvRGF0YS//////BGCAAgEAAAABABwAAABBcnJheVZhbHVl" +
-           "T2JqZWN0VHlwZUluc3RhbmNlAQGwBQEBsAWwBQAAAQAAAAAkAAEBtAUfAAAANWCJCgIAAAABABAAAABT" +
+           "T2JqZWN0VHlwZUluc3RhbmNlAQGwBQEBsAWwBQAAAQAAAAAkAAEBtAUiAAAANWCJCgIAAAABABAAAABT" +
            "aW11bGF0aW9uQWN0aXZlAQGxBQMAAAAARwAAAElmIHRydWUgdGhlIHNlcnZlciB3aWxsIHByb2R1Y2Ug" +
            "bmV3IHZhbHVlcyBmb3IgZWFjaCBtb25pdG9yZWQgdmFyaWFibGUuAC4ARLEFAAAAAf////8BAf////8A" +
            "AAAABGGCCgQAAAABAA4AAABHZW5lcmF0ZVZhbHVlcwEBsgUALwEB+QOyBQAAAQH/////AQAAABdgqQoC" +
@@ -7612,7 +7753,10 @@ namespace TestData
            "//8AAAAAF2CJCgIAAAABAAwAAABJbnRlZ2VyVmFsdWUBAQgGAC8APwgGAAAAGwEAAAABAAAAAAAAAAEB" +
            "/////wAAAAAXYIkKAgAAAAEADQAAAFVJbnRlZ2VyVmFsdWUBAQkGAC8APwkGAAAAHAEAAAABAAAAAAAA" +
            "AAEB/////wAAAAAXYIkKAgAAAAEACwAAAFZlY3RvclZhbHVlAQEKBgAvAD8KBgAAAQFgBwEAAAABAAAA" +
-           "AAAAAAEB/////wAAAAA=";
+           "AAAAAAEB/////wAAAAAXYIkKAgAAAAEAEAAAAFZlY3RvclVuaW9uVmFsdWUBARgOAC8APxgOAAABAQAO" +
+           "AQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAQAdAAAAVmVjdG9yV2l0aE9wdGlvbmFsRmllbGRz" +
+           "VmFsdWUBARkOAC8APxkOAAABAQEOAQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAQAUAAAATXVs" +
+           "dGlwbGVWZWN0b3JzVmFsdWUBASsOAC8APysOAAABAR8OAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -8149,6 +8293,63 @@ namespace TestData
                 m_vectorValue = value;
             }
         }
+
+        /// <remarks />
+        public BaseDataVariableState<VectorUnion[]> VectorUnionValue
+        {
+            get
+            {
+                return m_vectorUnionValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_vectorUnionValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_vectorUnionValue = value;
+            }
+        }
+
+        /// <remarks />
+        public BaseDataVariableState<VectorWithOptionalFields[]> VectorWithOptionalFieldsValue
+        {
+            get
+            {
+                return m_vectorWithOptionalFieldsValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_vectorWithOptionalFieldsValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_vectorWithOptionalFieldsValue = value;
+            }
+        }
+
+        /// <remarks />
+        public BaseDataVariableState<MultipleVectors[]> MultipleVectorsValue
+        {
+            get
+            {
+                return m_multipleVectorsValue;
+            }
+
+            set
+            {
+                if (!Object.ReferenceEquals(m_multipleVectorsValue, value))
+                {
+                    ChangeMasks |= NodeStateChangeMasks.Children;
+                }
+
+                m_multipleVectorsValue = value;
+            }
+        }
         #endregion
 
         #region Overridden Methods
@@ -8295,6 +8496,21 @@ namespace TestData
             if (m_vectorValue != null)
             {
                 children.Add(m_vectorValue);
+            }
+
+            if (m_vectorUnionValue != null)
+            {
+                children.Add(m_vectorUnionValue);
+            }
+
+            if (m_vectorWithOptionalFieldsValue != null)
+            {
+                children.Add(m_vectorWithOptionalFieldsValue);
+            }
+
+            if (m_multipleVectorsValue != null)
+            {
+                children.Add(m_multipleVectorsValue);
             }
 
             base.GetChildren(context, children);
@@ -8903,6 +9119,69 @@ namespace TestData
                     instance = VectorValue;
                     break;
                 }
+
+                case TestData.BrowseNames.VectorUnionValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (VectorUnionValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                VectorUnionValue = new BaseDataVariableState<VectorUnion[]>(this);
+                            }
+                            else
+                            {
+                                VectorUnionValue = (BaseDataVariableState<VectorUnion[]>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = VectorUnionValue;
+                    break;
+                }
+
+                case TestData.BrowseNames.VectorWithOptionalFieldsValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (VectorWithOptionalFieldsValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                VectorWithOptionalFieldsValue = new BaseDataVariableState<VectorWithOptionalFields[]>(this);
+                            }
+                            else
+                            {
+                                VectorWithOptionalFieldsValue = (BaseDataVariableState<VectorWithOptionalFields[]>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = VectorWithOptionalFieldsValue;
+                    break;
+                }
+
+                case TestData.BrowseNames.MultipleVectorsValue:
+                {
+                    if (createOrReplace)
+                    {
+                        if (MultipleVectorsValue == null)
+                        {
+                            if (replacement == null)
+                            {
+                                MultipleVectorsValue = new BaseDataVariableState<MultipleVectors[]>(this);
+                            }
+                            else
+                            {
+                                MultipleVectorsValue = (BaseDataVariableState<MultipleVectors[]>)replacement;
+                            }
+                        }
+                    }
+
+                    instance = MultipleVectorsValue;
+                    break;
+                }
             }
 
             if (instance != null)
@@ -8943,6 +9222,9 @@ namespace TestData
         private BaseDataVariableState<object[]> m_integerValue;
         private BaseDataVariableState<object[]> m_uIntegerValue;
         private BaseDataVariableState<Vector[]> m_vectorValue;
+        private BaseDataVariableState<VectorUnion[]> m_vectorUnionValue;
+        private BaseDataVariableState<VectorWithOptionalFields[]> m_vectorWithOptionalFieldsValue;
+        private BaseDataVariableState<MultipleVectors[]> m_multipleVectorsValue;
         #endregion
     }
     #endif

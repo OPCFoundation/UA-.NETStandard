@@ -41,7 +41,7 @@ namespace Opc.Ua.PubSub
     internal abstract class UaPubSubConnection : IUaPubSubConnection
     {
         #region Fields
-        protected object m_lock = new object();
+        protected readonly object Lock = new object();
         private bool m_isRunning;
         private readonly List<IUaPublisher> m_publishers;
         private readonly PubSubConnectionDataType m_pubSubConnectionDataType;
@@ -56,8 +56,7 @@ namespace Opc.Ua.PubSub
         internal UaPubSubConnection(UaPubSubApplication parentUaPubSubApplication, PubSubConnectionDataType pubSubConnectionDataType)
         {
             // set the default message context that uses the GlobalContext
-            MessageContext = new ServiceMessageContext
-            {
+            MessageContext = new ServiceMessageContext {
                 NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris,
                 ServerUris = ServiceMessageContext.GlobalContext.ServerUris
             };
@@ -174,7 +173,7 @@ namespace Opc.Ua.PubSub
             InternalStart().Wait();
             Utils.Trace("Connection '{0}' was started.", m_pubSubConnectionDataType.Name);
 
-            lock (m_lock)
+            lock (Lock)
             {
                 m_isRunning = true;
                 foreach (var publisher in m_publishers)
@@ -190,7 +189,7 @@ namespace Opc.Ua.PubSub
         public void Stop()
         {
             InternalStop().Wait();
-            lock (m_lock)
+            lock (Lock)
             {
                 m_isRunning = false;
                 foreach (var publisher in m_publishers)
@@ -309,7 +308,7 @@ namespace Opc.Ua.PubSub
                 {
                     bool raiseChangedEvent = false;
 
-                    lock (m_lock)
+                    lock (Lock)
                     {
                         // check if reader's MetaData shall be updated
                         if (reader.DataSetWriterId != 0
@@ -324,8 +323,7 @@ namespace Opc.Ua.PubSub
                     if (raiseChangedEvent)
                     {
                         // raise event
-                        ConfigurationUpdatingEventArgs metaDataUpdatedEventArgs = new ConfigurationUpdatingEventArgs()
-                        {
+                        ConfigurationUpdatingEventArgs metaDataUpdatedEventArgs = new ConfigurationUpdatingEventArgs() {
                             ChangedProperty = ConfigurationProperty.DataSetMetaData,
                             Parent = reader,
                             NewValue = networkMessage.DataSetMetaData,
@@ -341,7 +339,7 @@ namespace Opc.Ua.PubSub
                             Utils.Trace("Connection '{0}' - The MetaData is updated for DataSetReader '{1}' with DataSetWriterId={2}",
                                     source, reader.Name, networkMessage.DataSetWriterId);
 
-                            lock (m_lock)
+                            lock (Lock)
                             {
                                 reader.DataSetMetaData = networkMessage.DataSetMetaData;
                             }
@@ -349,8 +347,7 @@ namespace Opc.Ua.PubSub
                     }
                 }
 
-                SubscribedDataEventArgs subscribedDataEventArgs = new SubscribedDataEventArgs()
-                {
+                SubscribedDataEventArgs subscribedDataEventArgs = new SubscribedDataEventArgs() {
                     NetworkMessage = networkMessage,
                     Source = source
                 };
@@ -365,8 +362,7 @@ namespace Opc.Ua.PubSub
             }
             else if (networkMessage.DataSetMessages != null && networkMessage.DataSetMessages.Count > 0)
             {
-                SubscribedDataEventArgs subscribedDataEventArgs = new SubscribedDataEventArgs()
-                {
+                SubscribedDataEventArgs subscribedDataEventArgs = new SubscribedDataEventArgs() {
                     NetworkMessage = networkMessage,
                     Source = source
                 };

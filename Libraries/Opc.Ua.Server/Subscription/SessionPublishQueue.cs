@@ -163,7 +163,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Removes a subscription from the publish queue.
         /// </summary>
-        public void Remove(Subscription subscription)
+        public void Remove(Subscription subscription, bool removeQueuedRequests)
         {
             if (subscription == null) throw new ArgumentNullException(nameof(subscription));
 
@@ -179,6 +179,22 @@ namespace Opc.Ua.Server
                     }
                 }
 
+                if (removeQueuedRequests)
+                {
+                    RemoveQueuedRequests();
+                }
+
+                // TraceState("SUBSCRIPTION REMOVED");
+            }
+        }
+
+        /// <summary>
+        /// Removes outstanding requests if no 
+        /// </summary>
+        public void RemoveQueuedRequests()
+        {
+            lock (m_lock)
+            {
                 // remove any outstanding publishes.
                 if (m_queuedSubscriptions.Count == 0)
                 {
@@ -190,8 +206,27 @@ namespace Opc.Ua.Server
                         m_queuedRequests.RemoveFirst();
                     }
                 }
+            }
+        }
 
-                // TraceState("SUBSCRIPTION REMOVED");
+        /// <summary>
+        /// Try to publish a custom status message
+        /// using a queued publish request.
+        /// </summary>
+        public bool TryPublishCustomStatus(StatusCode statusCode)
+        {
+            lock (m_lock)
+            {
+                if (m_queuedRequests.Count > 0)
+                {
+                    QueuedRequest request = m_queuedRequests.Last.Value;
+                    request.Error = statusCode;
+                    request.Set();
+                    m_queuedRequests.RemoveLast();
+                    return true;
+                }
+
+                return false;
             }
         }
 
@@ -451,6 +486,20 @@ namespace Opc.Ua.Server
 
                 // TraceState("REQUEST #{0} PUBLISH ERROR ({1})", clientHandle, error.StatusCode);
                 throw new ServiceResultException(request.Error);
+            }
+            // special case to force a status message is handled correctly
+            else if (request.Error == StatusCodes.GoodSubscriptionTransferred)
+            {
+                if (request.Subscription != null)
+                {
+                    lock (m_lock)
+                    {
+                        request.Subscription.Publishing = false;
+                        AssignSubscriptionToRequest(request.Subscription);
+                    }
+                    request.Subscription = null;
+                }
+                return null;
             }
 
             // must be shuting down if this is null but no error.
@@ -865,7 +914,7 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private IServerInternal m_server;
         private Session m_session;
         private ManualResetEvent m_publishEvent;

@@ -58,7 +58,7 @@ namespace Opc.Ua.Gds.Client
         {
             Configuration = configuration;
             EndpointUrl = endpointUrl;
-            m_sessionFactory = sessionFactory ?? new DefaultSessionFactory();
+            m_sessionFactory = sessionFactory ?? DefaultSessionFactory.Instance;
             // preset admin 
             AdminCredentials = adminUserIdentity;
         }
@@ -853,53 +853,53 @@ namespace Opc.Ua.Gds.Client
                 (byte)OpenFileMode.Read);
 
             uint fileHandle = (uint)outputArguments[0];
-            MemoryStream ostrm = new MemoryStream();
-
-            try
+            using (MemoryStream ostrm = new MemoryStream())
             {
-                while (true)
+                try
                 {
-                    int length = 4096;
-
-                    outputArguments = Session.Call(
-                        trustListId,
-                        Opc.Ua.MethodIds.FileType_Read,
-                        fileHandle,
-                        length);
-
-                    byte[] bytes = (byte[])outputArguments[0];
-                    ostrm.Write(bytes, 0, bytes.Length);
-
-                    if (length != bytes.Length)
+                    while (true)
                     {
-                        break;
+                        int length = 4096;
+
+                        outputArguments = Session.Call(
+                            trustListId,
+                            Opc.Ua.MethodIds.FileType_Read,
+                            fileHandle,
+                            length);
+
+                        byte[] bytes = (byte[])outputArguments[0];
+                        ostrm.Write(bytes, 0, bytes.Length);
+
+                        if (length != bytes.Length)
+                        {
+                            break;
+                        }
                     }
                 }
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-            finally
-            {
-                if (IsConnected)
+                catch (Exception)
                 {
-                    Session.Call(
-                        trustListId,
-                        Opc.Ua.MethodIds.FileType_Close,
-                        fileHandle);
+                    throw;
                 }
+                finally
+                {
+                    if (IsConnected)
+                    {
+                        Session.Call(
+                            trustListId,
+                            Opc.Ua.MethodIds.FileType_Close,
+                            fileHandle);
+                    }
+                }
+
+                ostrm.Position = 0;
+
+                TrustListDataType trustList = new TrustListDataType();
+                using (BinaryDecoder decoder = new BinaryDecoder(ostrm, Session.MessageContext))
+                {
+                    trustList.Decode(decoder);
+                }
+                return trustList;
             }
-
-            ostrm.Position = 0;
-
-            BinaryDecoder decoder = new BinaryDecoder(ostrm, Session.MessageContext);
-            TrustListDataType trustList = new TrustListDataType();
-            trustList.Decode(decoder);
-            decoder.Close();
-            ostrm.Close();
-
-            return trustList;
         }
         #endregion
 
