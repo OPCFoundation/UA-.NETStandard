@@ -40,6 +40,7 @@ namespace Opc.Ua
         private IServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
+        private bool m_doNotAddNewUrisToTables;
         private uint m_nestingLevel;
         // JSON encoded value of: “9999-12-31T23:59:59Z”
         private DateTime m_dateTimeMaxJsonValue = new DateTime((long)3155378975990000000);
@@ -199,6 +200,126 @@ namespace Opc.Ua
 
             // return the message.
             return message;
+        }
+
+        private ushort ToNamespaceIndex(string uri)
+        {
+            var index = m_context.NamespaceUris.GetIndex(uri);
+
+            if (index < 0)
+            {
+                if (m_doNotAddNewUrisToTables)
+                {
+                    return UInt16.MaxValue;
+                }
+                else
+                {
+                    index = m_context.NamespaceUris.GetIndexOrAppend(uri);
+                }
+            }
+
+            return (ushort)index;
+        }
+
+        private ushort ToNamespaceIndex(int index)
+        {
+            if (m_namespaceMappings == null || index <= 0)
+            {
+                return (ushort)index;
+            }
+
+            if (index < 0 || index >= m_namespaceMappings.Length)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError, $"No mapping for NamespaceIndex={index}.");
+            }
+
+            return m_namespaceMappings[index];
+        }
+
+        private ushort ToServerIndex(string uri)
+        {
+            var index = m_context.ServerUris.GetIndex(uri);
+
+            if (index < 0)
+            {
+                if (m_doNotAddNewUrisToTables)
+                {
+                    return UInt16.MaxValue;            
+                }
+                else
+                {
+                    index = m_context.ServerUris.GetIndexOrAppend(uri);
+                }
+            }
+
+            return (ushort)index;
+        }
+
+        private ushort ToServerIndex(int index)
+        {
+            if (m_serverMappings == null || index <= 0)
+            {
+                return (ushort)index;
+            }
+
+            if (index < 0 || index >= m_serverMappings.Length)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError, $"No mapping for ServerIndex(={index}.");
+            }
+
+            return m_serverMappings[index];
+        }
+
+        /// <summary>
+        /// Looks for top level fields called "NamespaceUris" and "ServerUris"
+        /// creates a mapping table for indexes.
+        /// </summary>
+        /// <param name="doNotAddNewUrisToTables">If TRUE new URIs are not added to tables. An invalid NamespaceIndex is used instead.</param>
+        public void ExtractUrisFromData(bool doNotAddNewUrisToTables = false)
+        {
+            m_doNotAddNewUrisToTables = doNotAddNewUrisToTables;
+
+            var namespaceUris = ReadStringArray("NamespaceUris");
+
+            if (namespaceUris != null)
+            {
+                m_namespaceMappings = new ushort[namespaceUris.Count];
+
+                for (int ii = 0; ii < namespaceUris.Count; ii++)
+                {
+                    if (doNotAddNewUrisToTables)
+                    {
+                        int index = m_context.NamespaceUris.GetIndex(namespaceUris[ii]);
+                        m_namespaceMappings[ii] = (index < 0) ? UInt16.MaxValue : (ushort)index;
+                    }
+                    else
+                    {
+                        int index = m_context.NamespaceUris.GetIndexOrAppend(namespaceUris[ii]);
+                        m_namespaceMappings[ii] = (ushort)index;
+                    }
+                }
+            }
+
+            var serverUris = ReadStringArray("ServerUris");
+
+            if (serverUris != null && serverUris.Count > 0)
+            {
+                m_serverMappings = new ushort[serverUris.Count];
+
+                for (int ii = 0; ii < serverUris.Count; ii++)
+                {
+                    if (doNotAddNewUrisToTables)
+                    {
+                        int index = m_context.ServerUris.GetIndex(serverUris[ii]);
+                        m_serverMappings[ii] = (index < 0) ? UInt16.MaxValue : (ushort)index;
+                    }
+                    else
+                    {
+                        int index = m_context.ServerUris.GetIndexOrAppend(namespaceUris[ii]);
+                        m_serverMappings[ii] = (ushort)index;
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -851,6 +972,40 @@ namespace Opc.Ua
             return null;
         }
 
+        private NodeId JsonStringToNodeId(string json)
+        {
+            ushort namespaceIndex  = 0;
+            string namespaceUri = null;
+
+            if (json.StartsWith("nsu="))
+            {
+                json = json.Substring(4);
+                int index = json.IndexOf(';');
+
+                if (index <= 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingError, $"NodeId is not valid: '{json}'");
+                }
+
+                namespaceUri = json.Substring(0, index);
+                namespaceIndex = ToNamespaceIndex(namespaceUri);
+                json = json.Substring(index + 1);
+
+                if (namespaceIndex == UInt16.MaxValue)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingError, $"NodeId NamespaceUri is not valid: '{json}'");
+                }
+            }
+
+            var nodeId = NodeId.Parse(json);
+
+            namespaceIndex = (namespaceUri == null)
+                ? ToNamespaceIndex(nodeId.NamespaceIndex)
+                : namespaceIndex;
+
+            return new NodeId(nodeId.Identifier, namespaceIndex);
+        }
+
         /// <summary>
         /// Reads an NodeId from the stream.
         /// </summary>
@@ -867,7 +1022,14 @@ namespace Opc.Ua
 
             if (value == null)
             {
-                return NodeId.Null;
+                var text = token as string;
+
+                if (text is null)
+                {
+                    return NodeId.Null;
+                }
+
+                return JsonStringToNodeId(text);
             }
 
             IdType idType = IdType.Numeric;
@@ -891,16 +1053,17 @@ namespace Opc.Ua
                     if (index == null)
                     {
                         string namespaceUri = namespaceToken as string;
+
                         if (namespaceUri != null)
                         {
-                            namespaceIndex = m_context.NamespaceUris.GetIndexOrAppend(namespaceUri);
+                            namespaceIndex = ToNamespaceIndex(namespaceUri);
                         }
                     }
                     else
                     {
                         if (index.Value >= 0 || index.Value < UInt16.MaxValue)
                         {
-                            namespaceIndex = (ushort)index.Value;
+                            namespaceIndex = ToNamespaceIndex((int)index.Value);
                         }
                     }
                 }
@@ -939,6 +1102,58 @@ namespace Opc.Ua
             }
         }
 
+        private ExpandedNodeId JsonStringToExpandedNodeId(string json)
+        {
+            ushort serverIndex = 0;
+            ushort namespaceIndex;
+            string namespaceUri;
+
+            if (json.StartsWith("svu="))
+            {
+                json = json.Substring(4);
+                int index = json.IndexOf(';');
+
+                if (index <= 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingError, $"ExpandedNodeId is not valid: '{json}'");
+                }
+
+                serverIndex = ToServerIndex(json.Substring(0, index));
+                json = json.Substring(index + 1);
+
+                if (serverIndex == UInt16.MaxValue)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingError, $"ExpandedNodeId ServerUri is not valid: '{json}'");
+                }
+            }
+
+            if (json.StartsWith("nsu="))
+            {
+                json = json.Substring(4);
+                int index = json.IndexOf(';');
+
+                if (index <= 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingError, $"ExpandedNodeId is not valid: '{json}'");
+                }
+
+                namespaceUri = json.Substring(0, index);
+                namespaceIndex = ToNamespaceIndex(namespaceUri);
+                json = json.Substring(index + 1);
+
+                if (namespaceIndex == UInt16.MaxValue)
+                {
+                    return new ExpandedNodeId(NodeId.Parse(json).Identifier, 0, namespaceUri, serverIndex);
+                }
+
+                return new ExpandedNodeId(NodeId.Parse(json).Identifier, namespaceIndex, null, serverIndex);
+            }
+
+            var nodeId = NodeId.Parse(json);
+            namespaceIndex = ToNamespaceIndex(nodeId.NamespaceIndex);
+            return new ExpandedNodeId(nodeId, null, serverIndex);
+        }
+
         /// <summary>
         /// Reads an ExpandedNodeId from the stream.
         /// </summary>
@@ -955,7 +1170,14 @@ namespace Opc.Ua
 
             if (value == null)
             {
-                return ExpandedNodeId.Null;
+                var text = token as string;
+
+                if (text is null)
+                {
+                    return NodeId.Null;
+                }
+
+                return JsonStringToExpandedNodeId(text);
             }
 
             IdType idType = IdType.Numeric;
@@ -986,14 +1208,14 @@ namespace Opc.Ua
                     {
                         if (index.Value >= 0 || index.Value < UInt16.MaxValue)
                         {
-                            namespaceIndex = (ushort)index.Value;
+                            namespaceIndex = ToNamespaceIndex((ushort)index.Value);
                         }
                     }
                 }
 
                 if (value.ContainsKey("ServerUri"))
                 {
-                    serverIndex = ReadUInt32("ServerUri");
+                    serverIndex = ToServerIndex((int)ReadUInt32("ServerUri"));
                 }
 
                 if (value.ContainsKey("Id"))
@@ -1151,6 +1373,40 @@ namespace Opc.Ua
             }
         }
 
+        private QualifiedName JsonStringQualifiedName(string json)
+        {
+            ushort namespaceIndex;
+            string namespaceUri;
+
+            if (json.StartsWith("nsu="))
+            {
+                json = json.Substring(4);
+                int index = json.IndexOf(';');
+
+                if (index <= 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingError, $"QualifiedName is not valid: '{json}'");
+                }
+
+                namespaceUri = json.Substring(0, index);
+                namespaceIndex = ToNamespaceIndex(namespaceUri);
+                json = json.Substring(index + 1);
+
+                if (namespaceIndex == UInt16.MaxValue)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingError, $"QualifiedName NamespaceUri is not valid: '{json}'");
+                }
+
+                return new QualifiedName(json, namespaceIndex);
+            }
+            else
+            {
+                var qname = QualifiedName.Parse(json);
+                namespaceIndex = ToNamespaceIndex(qname.NamespaceIndex);
+                return new QualifiedName(qname.Name, namespaceIndex);
+            }
+        }
+
         /// <summary>
         /// Reads an QualifiedName from the stream.
         /// </summary>
@@ -1167,11 +1423,19 @@ namespace Opc.Ua
 
             if (value == null)
             {
-                return QualifiedName.Null;
+                var text = token as string;
+
+                if (text is null)
+                {
+                    return QualifiedName.Null;
+                }
+
+                return JsonStringQualifiedName(text);
             }
 
             UInt16 namespaceIndex = 0;
             string name = null;
+
             try
             {
                 m_stack.Push(value);
@@ -1191,16 +1455,17 @@ namespace Opc.Ua
                     {
                         // handle non reversible encoding
                         string namespaceUri = namespaceToken as string;
+
                         if (namespaceUri != null)
                         {
-                            namespaceIndex = m_context.NamespaceUris.GetIndexOrAppend(namespaceUri);
+                            namespaceIndex = ToNamespaceIndex(namespaceUri);
                         }
                     }
                     else
                     {
                         if (index.Value >= 0 || index.Value < UInt16.MaxValue)
                         {
-                            namespaceIndex = (ushort)index.Value;
+                            namespaceIndex = ToNamespaceIndex((int)index.Value);
                         }
                     }
                 }
