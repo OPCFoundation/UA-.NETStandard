@@ -1167,22 +1167,19 @@ namespace Opc.Ua
         /// <param name="encoder">The encoder wrapping the stream to write.</param>
         public void SaveReferences(ISystemContext context, BinaryEncoder encoder)
         {
-            lock (m_referencesLock)
+            if (m_references == null || m_references.Count <= 0)
             {
-                if (m_references == null || m_references.Count <= 0)
-                {
-                    encoder.WriteInt32(null, -1);
-                    return;
-                }
+                encoder.WriteInt32(null, -1);
+                return;
+            }
 
-                encoder.WriteInt32(null, m_references.Count);
+            encoder.WriteInt32(null, m_references.Count);
 
-                foreach (IReference reference in m_references.Keys)
-                {
-                    encoder.WriteNodeId(null, reference.ReferenceTypeId);
-                    encoder.WriteBoolean(null, reference.IsInverse);
-                    encoder.WriteExpandedNodeId(null, reference.TargetId);
-                }
+            foreach (IReference reference in m_references.Keys)
+            {
+                encoder.WriteNodeId(null, reference.ReferenceTypeId);
+                encoder.WriteBoolean(null, reference.IsInverse);
+                encoder.WriteExpandedNodeId(null, reference.TargetId);
             }
         }
 
@@ -2413,7 +2410,13 @@ namespace Opc.Ua
             NodeState target)
         {
 
-            lock(m_notifiersLock)
+            // ensure duplicate references are not left over from the model design.
+            if (!NodeId.IsNull(target.NodeId))
+            {
+                RemoveReference(referenceTypeId, isInverse, target.NodeId);
+            }
+
+            lock (m_notifiersLock)
             {
                 if (m_notifiers == null)
                 {
@@ -2435,12 +2438,6 @@ namespace Opc.Ua
                         entry = m_notifiers[ii];
                         break;
                     }
-                }
-
-                // ensure duplicate references are not left over from the model design.
-                if (!NodeId.IsNull(target.NodeId))
-                {
-                    RemoveReference(referenceTypeId, isInverse, target.NodeId);
                 }
 
                 if (entry == null)
@@ -3192,6 +3189,12 @@ namespace Opc.Ua
                 }
             }
 
+            List<IReference> referencesToAdd = new List<IReference>();
+
+            BrowseDirection browserBrowseDirection = browser.BrowseDirection;
+            bool browserIncludeSubtypes = browser.IncludeSubtypes;
+            NodeId browserReferenceType = browser.ReferenceType;
+
             lock (m_referencesLock)
             {
                 // add any arbitrary references.
@@ -3203,61 +3206,66 @@ namespace Opc.Ua
                         {
                             if (reference.IsInverse)
                             {
-                                if (browser.BrowseDirection == BrowseDirection.Forward)
+                                if (browserBrowseDirection == BrowseDirection.Forward)
                                 {
                                     continue;
                                 }
                             }
                             else
                             {
-                                if (browser.BrowseDirection == BrowseDirection.Inverse)
+                                if (browserBrowseDirection == BrowseDirection.Inverse)
                                 {
                                     continue;
                                 }
                             }
 
-                            browser.Add(reference);
+                            referencesToAdd.Add(reference);
                         }
                     }
                     else
                     {
                         IList<IReference> references = null;
 
-                        if (browser.BrowseDirection != BrowseDirection.Inverse)
+                        if (browserBrowseDirection != BrowseDirection.Inverse)
                         {
-                            if (browser.IncludeSubtypes)
+                            if (browserIncludeSubtypes)
                             {
-                                references = m_references.Find(browser.ReferenceType, false, context.TypeTable);
+                                references = m_references.Find(browserReferenceType, false, context.TypeTable);
                             }
                             else
                             {
-                                references = m_references.Find(browser.ReferenceType, false);
+                                references = m_references.Find(browserReferenceType, false);
                             }
 
                             for (int ii = 0; ii < references.Count; ii++)
                             {
-                                browser.Add(references[ii]);
+                                referencesToAdd.Add(references[ii]);
                             }
                         }
 
-                        if (browser.BrowseDirection != BrowseDirection.Forward)
+                        if (browserBrowseDirection != BrowseDirection.Forward)
                         {
-                            if (browser.IncludeSubtypes)
+                            if (browserIncludeSubtypes)
                             {
-                                references = m_references.Find(browser.ReferenceType, true, context.TypeTable);
+                                references = m_references.Find(browserReferenceType, true, context.TypeTable);
                             }
                             else
                             {
-                                references = m_references.Find(browser.ReferenceType, true);
+                                references = m_references.Find(browserReferenceType, true);
                             }
 
                             for (int ii = 0; ii < references.Count; ii++)
                             {
-                                browser.Add(references[ii]);
+                                referencesToAdd.Add(references[ii]);
                             }
                         }
                     }
                 }
+            }
+
+            foreach(var reference in referencesToAdd)
+            {
+                browser.Add(reference);
             }
         }
 
