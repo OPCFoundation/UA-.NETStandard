@@ -2410,6 +2410,11 @@ namespace Opc.Ua
             NodeState target)
         {
 
+            if (NodeId.IsNull(referenceTypeId))
+            {
+                referenceTypeId = ReferenceTypeIds.HasEventSource;
+            }
+
             // ensure duplicate references are not left over from the model design.
             if (!NodeId.IsNull(target.NodeId))
             {
@@ -2421,11 +2426,6 @@ namespace Opc.Ua
                 if (m_notifiers == null)
                 {
                     m_notifiers = new List<Notifier>();
-                }
-            
-                if (NodeId.IsNull(referenceTypeId))
-                {
-                    referenceTypeId = ReferenceTypeIds.HasEventSource;
                 }
 
                 // check for existing reference.
