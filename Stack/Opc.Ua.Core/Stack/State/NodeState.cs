@@ -2294,7 +2294,7 @@ namespace Opc.Ua
         /// </summary>
         public bool AreEventsMonitored
         {
-            get { lock (m_areEventsMonitoredLock) { return m_areEventsMonitored > 0; } }
+            get { return m_areEventsMonitored > 0; }
         }
 
         /// <summary>
