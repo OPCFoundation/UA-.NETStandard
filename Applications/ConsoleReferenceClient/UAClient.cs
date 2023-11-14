@@ -178,11 +178,7 @@ namespace Quickstarts
                     EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_configuration);
                     ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
-#if NET6_0_OR_GREATER
                     var sessionFactory = TraceableSessionFactory.Instance;
-#else
-                    var sessionFactory = DefaultSessionFactory.Instance;
-#endif
 
                     // Create the session
                     var session = await sessionFactory.CreateAsync(

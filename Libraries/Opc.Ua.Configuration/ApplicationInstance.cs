@@ -522,7 +522,7 @@ namespace Opc.Ua.Configuration
                     else
                     {
                         var message = new StringBuilder();
-                        message.AppendLine("Thumbprint was explicitly specified in the configuration. ");
+                        message.AppendLine("Thumbprint was explicitly specified in the configuration.");
                         message.AppendLine("Cannot generate a new certificate.");
                         throw ServiceResultException.Create(StatusCodes.BadConfigurationError, message.ToString());
                     }

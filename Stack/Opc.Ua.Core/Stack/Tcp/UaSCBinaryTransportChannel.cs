@@ -285,6 +285,27 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Closes the secure channel (async).
+        /// </summary>
+        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
+        public async Task CloseAsync(CancellationToken ct)
+        {
+            UaSCUaBinaryClientChannel channel = null;
+            lock (m_lock)
+            {
+                if (m_channel != null)
+                {
+                    channel = m_channel;
+                    m_channel = null;
+                }
+            }
+            if (channel != null)
+            {
+                await channel.CloseAsync(1000, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// Begins an asynchronous operation to close the secure channel.
         /// </summary>
         /// <param name="callback">The callback to call when the operation completes.</param>

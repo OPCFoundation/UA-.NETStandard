@@ -278,16 +278,16 @@ namespace Opc.Ua
         /// <summary>
         /// Closes the channel using async call.
         /// </summary>
-        public virtual Task<StatusCode> CloseAsync(CancellationToken ct = default)
+        public async virtual Task<StatusCode> CloseAsync(CancellationToken ct = default)
         {
             if (m_channel != null)
             {
-                m_channel.Close();
+                await m_channel.CloseAsync(ct).ConfigureAwait(false);
                 m_channel = null;
             }
 
             m_authenticationToken = null;
-            return Task.FromResult<StatusCode>(StatusCodes.Good);
+            return StatusCodes.Good;
         }
 
         /// <summary>

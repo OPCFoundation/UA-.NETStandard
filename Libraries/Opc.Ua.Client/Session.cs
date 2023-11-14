@@ -1873,7 +1873,11 @@ namespace Opc.Ua.Client
             {
                 if (StatusCode.IsNotBad(errors[ii].StatusCode))
                 {
-                    namespaces[((NodeId)referenceNodeIds[ii])] = (string)nameSpaceValues[ii];
+                    // servers may optimize space by not returning a dictionary
+                    if (nameSpaceValues[ii] != null)
+                    {
+                        namespaces[((NodeId)referenceNodeIds[ii])] = (string)nameSpaceValues[ii];
+                    }
                 }
                 else
                 {
@@ -5646,13 +5650,13 @@ namespace Opc.Ua.Client
                 // Validate publish time and reject old values.
                 if (notificationMessage.PublishTime.AddMilliseconds(subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount) < DateTime.UtcNow)
                 {
-                    Utils.LogWarning("PublishTime {0} in publish response is too old for SubscriptionId {1}.", notificationMessage.PublishTime.ToLocalTime(), subscription.Id);
+                    Utils.LogTrace("PublishTime {0} in publish response is too old for SubscriptionId {1}.", notificationMessage.PublishTime.ToLocalTime(), subscription.Id);
                 }
 
                 // Validate publish time and reject old values.
                 if (notificationMessage.PublishTime > DateTime.UtcNow.AddMilliseconds(subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount))
                 {
-                    Utils.LogWarning("PublishTime {0} in publish response is newer than actual time for SubscriptionId {1}.", notificationMessage.PublishTime.ToLocalTime(), subscription.Id);
+                    Utils.LogTrace("PublishTime {0} in publish response is newer than actual time for SubscriptionId {1}.", notificationMessage.PublishTime.ToLocalTime(), subscription.Id);
                 }
 
                 // update subscription cache.
