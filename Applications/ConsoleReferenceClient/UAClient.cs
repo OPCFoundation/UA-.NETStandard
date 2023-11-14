@@ -272,7 +272,17 @@ namespace Quickstarts
                 // check for events from discarded sessions.
                 if (!Object.ReferenceEquals(session, m_session))
                 {
+                    if (m_session is TraceableSession traceableSession)
+                    {
+                        if (!ReferenceEquals(session, traceableSession.Session))
+                        {
+                            return;
+                        }
+                    }
+                    else
+                    {
                     return;
+                }
                 }
 
                 // start reconnect sequence on communication error.
