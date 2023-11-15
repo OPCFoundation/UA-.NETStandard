@@ -1873,12 +1873,8 @@ namespace Opc.Ua.Client
             {
                 if (StatusCode.IsNotBad(errors[ii].StatusCode))
                 {
-                    // servers may optimize space by not returning a dictionary
-                    if (nameSpaceValues[ii] != null)
-                    {
                         namespaces[((NodeId)referenceNodeIds[ii])] = (string)nameSpaceValues[ii];
                     }
-                }
                 else
                 {
                     Utils.LogWarning("Failed to load namespace {0}: {1}", namespaceNodeIds[ii], errors[ii]);

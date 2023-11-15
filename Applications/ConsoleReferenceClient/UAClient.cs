@@ -178,7 +178,7 @@ namespace Quickstarts
                     EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_configuration);
                     ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
-                    var sessionFactory = TraceableSessionFactory.Instance;
+                    var sessionFactory = DefaultSessionFactory.Instance;
 
                     // Create the session
                     var session = await sessionFactory.CreateAsync(
@@ -272,17 +272,7 @@ namespace Quickstarts
                 // check for events from discarded sessions.
                 if (!Object.ReferenceEquals(session, m_session))
                 {
-                    if (m_session is TraceableSession traceableSession)
-                    {
-                        if (!ReferenceEquals(session, traceableSession.Session))
-                        {
-                            return;
-                        }
-                    }
-                    else
-                    {
-                        return;
-                    }
+                    return;
                 }
 
                 // start reconnect sequence on communication error.
