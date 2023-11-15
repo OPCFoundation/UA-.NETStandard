@@ -281,8 +281,8 @@ namespace Quickstarts
                     }
                     else
                     {
-                    return;
-                }
+                        return;
+                    }
                 }
 
                 // start reconnect sequence on communication error.
