@@ -21,12 +21,14 @@ namespace Opc.Ua
     /// The UserIdentityToken class.
     /// </summary>
     public partial class UserIdentityToken
-	{
+    {
         #region Public Methods
         /// <summary>
         /// Encrypts the token (implemented by the subclass).
         /// </summary>
-        [Obsolete("Use Encrypt(X509Certificate2, byte[], string securityPolicyUri, Nonce, X509Certificate2, X509Certificate2Collection, bool) ")]        
+#if ECC_SUPPORT 
+        [Obsolete("Use Encrypt(X509Certificate2, byte[], string securityPolicyUri, Nonce, X509Certificate2, X509Certificate2Collection, bool) ")]
+#endif
         public virtual void Encrypt(X509Certificate2 certificate, byte[] receiverNonce, string securityPolicyUri)
         {
         }
@@ -34,17 +36,21 @@ namespace Opc.Ua
         /// <summary>
         /// Decrypts the token (implemented by the subclass).
         /// </summary>
+#if ECC_SUPPORT
         [Obsolete("Use Decrypt(X509Certificate2, Nonce, string, Nonce, X509Certificate2, X509Certificate2Collection, CertificateValidator) ")]
+#endif
         public virtual void Decrypt(X509Certificate2 certificate, byte[] receiverNonce, string securityPolicyUri)
         {
         }
 
+
+#if ECC_SUPPORT 
         /// <summary>
         /// Encrypts the token (implemented by the subclass).
         /// </summary>
         public virtual void Encrypt(
             X509Certificate2 receiverCertificate,
-            byte[] receiverNonce, 
+            byte[] receiverNonce,
             string securityPolicyUri,
             Nonce receiverEphemeralKey = null,
             X509Certificate2 senderCertificate = null,
@@ -57,8 +63,8 @@ namespace Opc.Ua
         /// Decrypts the token (implemented by the subclass).
         /// </summary>
         public virtual void Decrypt(
-            X509Certificate2 certificate, 
-            Nonce receiverNonce, 
+            X509Certificate2 certificate,
+            Nonce receiverNonce,
             string securityPolicyUri,
             Nonce ephemeralKey = null,
             X509Certificate2 senderCertificate = null,
@@ -66,6 +72,7 @@ namespace Opc.Ua
             CertificateValidator validator = null)
         {
         }
+#endif
 
         /// <summary>
         /// Creates a signature with the token (implemented by the subclass).
@@ -82,7 +89,7 @@ namespace Opc.Ua
         {
             return true;
         }
-        #endregion
+#endregion
     }
 
     /// <summary>
@@ -90,7 +97,7 @@ namespace Opc.Ua
     /// </summary>
     public partial class UserNameIdentityToken
     {
-        #region Public Properties
+#region Public Properties
         /// <summary>
         /// The decrypted password associated with the token.
         /// </summary>
@@ -105,7 +112,9 @@ namespace Opc.Ua
         /// <summary>
         /// Encrypts the DecryptedPassword using the EncryptionAlgorithm and places the result in Password
         /// </summary>
+#if ECC_SUPPORT
         [Obsolete]
+#endif
         public override void Encrypt(X509Certificate2 certificate, byte[] senderNonce, string securityPolicyUri)
         {
             if (m_decryptedPassword == null)
@@ -137,7 +146,9 @@ namespace Opc.Ua
         /// <summary>
         /// Decrypts the Password using the EncryptionAlgorithm and places the result in DecryptedPassword
         /// </summary>
+#if ECC_SUPPORT
         [Obsolete]
+#endif
         public override void Decrypt(X509Certificate2 certificate, byte[] senderNonce, string securityPolicyUri)
         {
             // handle no encryption.
@@ -189,6 +200,8 @@ namespace Opc.Ua
         /// <summary>
         /// Encrypts the DecryptedPassword using the EncryptionAlgorithm and places the result in Password
         /// </summary>
+        ///
+#if ECC_SUPPORT
         public override void Encrypt(
             X509Certificate2 receiverCertificate,
             byte[] receiverNonce,
@@ -225,7 +238,6 @@ namespace Opc.Ua
                 m_password = encryptedData.Data;
                 m_encryptionAlgorithm = encryptedData.Algorithm;
             }
-
             // handle ECC encryption.
             else
             {
@@ -302,7 +314,6 @@ namespace Opc.Ua
 
                 // verify the sender's nonce.
                 int startOfNonce = decryptedPassword.Length;
-
                 if (receiverNonce != null)
                 {
                     startOfNonce -= receiverNonce.Data.Length;
@@ -318,11 +329,10 @@ namespace Opc.Ua
                         throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected);
                     }
                 }
-
+           
                 // convert to UTF-8.
                 m_decryptedPassword = new UTF8Encoding().GetString(decryptedPassword, 0, startOfNonce);
             }
-
             // handle ECC encryption.
             else
             {
@@ -339,11 +349,13 @@ namespace Opc.Ua
                 m_decryptedPassword = new UTF8Encoding().GetString(plainText);
             }
         }
+#endif
+
         #endregion
 
         #region Private Fields
         private string m_decryptedPassword;
-        #endregion
+#endregion
     }
 
     /// <summary>
@@ -351,7 +363,7 @@ namespace Opc.Ua
     /// </summary>
     public partial class X509IdentityToken
     {
-        #region Public Properties
+#region Public Properties
         /// <summary>
         /// The certificate associated with the token.
         /// </summary>
@@ -367,9 +379,9 @@ namespace Opc.Ua
             }
             set { m_certificate = value; }
         }
-        #endregion
+#endregion
 
-        #region Public Methods
+#region Public Methods
         /// <summary>
         /// Creates a signature with the token.
         /// </summary>
@@ -421,11 +433,11 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(StatusCodes.BadIdentityTokenInvalid, e, "Could not verify user signature!");
             }
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private X509Certificate2 m_certificate;
-        #endregion
+#endregion
     }
 
     /// <summary>
@@ -456,7 +468,7 @@ namespace Opc.Ua
     /// </summary>
     public partial class IssuedIdentityToken
     {
-        #region Public Properties
+#region Public Properties
         /// <summary>
         /// The type of issued token.
         /// </summary>
@@ -480,7 +492,9 @@ namespace Opc.Ua
         /// <summary>
         /// Encrypts the DecryptedTokenData using the EncryptionAlgorithm and places the result in Password
         /// </summary>
+#if ECC_SUPPORT
         [Obsolete]
+#endif
         public override void Encrypt(X509Certificate2 certificate, byte[] senderNonce, string securityPolicyUri)
         {
             // handle no encryption.
@@ -505,7 +519,9 @@ namespace Opc.Ua
         /// <summary>
         /// Decrypts the Password using the EncryptionAlgorithm and places the result in DecryptedPassword
         /// </summary>
+#if ECC_SUPPORT
         [Obsolete]
+#endif
         public override void Decrypt(X509Certificate2 certificate, byte[] senderNonce, string securityPolicyUri)
         {
             // handle no encryption.
@@ -546,6 +562,7 @@ namespace Opc.Ua
             Array.Copy(decryptedTokenData, m_decryptedTokenData, startOfNonce);                     
         }
 
+#if ECC_SUPPORT 
         /// <summary>
         /// Encrypts the DecryptedTokenData using the EncryptionAlgorithm and places the result in Password
         /// </summary>
@@ -626,6 +643,7 @@ namespace Opc.Ua
             m_decryptedTokenData = new byte[startOfNonce];
             Array.Copy(decryptedTokenData, m_decryptedTokenData, startOfNonce);
         }
+#endif
 
         /// <summary>
         /// Creates a signature with the token.
@@ -642,10 +660,10 @@ namespace Opc.Ua
         {
             return true;
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private byte[] m_decryptedTokenData;
-        #endregion
+#endregion
     }
 }

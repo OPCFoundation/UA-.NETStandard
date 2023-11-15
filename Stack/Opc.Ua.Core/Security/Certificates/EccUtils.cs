@@ -1170,6 +1170,213 @@ namespace Opc.Ua
 
             return secret;
         }
+#else
+        /// <summary>
+        /// Verifies a ECDsa signature.
+        /// </summary>
+        public static bool Verify(
+            ArraySegment<byte> dataToVerify,
+            byte[] signature,
+            X509Certificate2 signingCertificate,
+            string securityPolicyUri)
+        {
+            return Verify(dataToVerify, signature, signingCertificate, GetSignatureAlgorithmName(securityPolicyUri));
+        }
+
+        /// <summary>
+        /// Verifies a ECDsa signature.
+        /// </summary>
+        public static bool Verify(
+            ArraySegment<byte> dataToVerify,
+            byte[] signature,
+            X509Certificate2 signingCertificate,
+            HashAlgorithmName algorithm)
+        {
+#if CURVE25519
+            var publicKey = signingCertificate.BcCertificate.GetPublicKey();
+
+            if (publicKey is Ed25519PublicKeyParameters)
+            {
+                var verifier = new Ed25519Signer();
+
+                verifier.Init(false, signingCertificate.BcCertificate.GetPublicKey());
+                verifier.BlockUpdate(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count);
+
+                if (!verifier.VerifySignature(signature))
+                {
+                    return false;
+                }
+
+                return true;
+            }
+
+            if (publicKey is Ed448PublicKeyParameters)
+            {
+                var verifier = new Ed448Signer(new byte[32]);
+
+                verifier.Init(false, signingCertificate.BcCertificate.GetPublicKey());
+                verifier.BlockUpdate(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count);
+
+                if (!verifier.VerifySignature(signature))
+                {
+                    return false;
+                }
+
+                return true;
+            }
+#endif
+            using (ECDsa ecdsa = EccUtils.GetPublicKey(signingCertificate))
+            {
+                return ecdsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, algorithm);
+            }
+        }
+
+        /// <summary>
+        /// Returns the public key for the specified certificate and ouputs the security policy uris.
+        /// </summary>
+        /// <param name="certificate"></param>
+        /// <param name="securityPolicyUris"></param>
+        /// <returns></returns>
+        public static ECDsa GetPublicKey(X509Certificate2 certificate, out string[] securityPolicyUris)
+        {
+            securityPolicyUris = null;
+
+            var keyAlgorithm = certificate.GetKeyAlgorithm();
+
+            if (certificate == null || keyAlgorithm != Oids.ECPublicKey)
+            {
+                return null;
+            }
+
+            const X509KeyUsageFlags SufficientFlags =
+                X509KeyUsageFlags.KeyAgreement |
+                X509KeyUsageFlags.DigitalSignature |
+                X509KeyUsageFlags.NonRepudiation |
+                X509KeyUsageFlags.CrlSign |
+                X509KeyUsageFlags.KeyCertSign;
+
+            foreach (X509Extension extension in certificate.Extensions)
+            {
+                if (extension.Oid.Value == "2.5.29.15")
+                {
+                    X509KeyUsageExtension kuExt = (X509KeyUsageExtension)extension;
+
+                    if ((kuExt.KeyUsages & SufficientFlags) == 0)
+                    {
+                        return null;
+                    }
+                }
+            }
+
+            PublicKey encodedPublicKey = certificate.PublicKey;
+            string keyParameters = BitConverter.ToString(encodedPublicKey.EncodedParameters.RawData);
+            byte[] keyValue = encodedPublicKey.EncodedKeyValue.RawData;
+
+            ECParameters ecParameters = default(ECParameters);
+
+            if (keyValue[0] != 0x04)
+            {
+                throw new InvalidOperationException("Only uncompressed points are supported");
+            }
+
+            byte[] x = new byte[(keyValue.Length - 1) / 2];
+            byte[] y = new byte[x.Length];
+
+            Buffer.BlockCopy(keyValue, 1, x, 0, x.Length);
+            Buffer.BlockCopy(keyValue, 1 + x.Length, y, 0, y.Length);
+
+            ecParameters.Q.X = x;
+            ecParameters.Q.Y = y;
+
+            // New values can be determined by running the dotted-decimal OID value
+            // through BitConverter.ToString(CryptoConfig.EncodeOID(dottedDecimal));
+
+            switch (keyParameters)
+            {
+                case NistP256KeyParameters:
+                {
+                    ecParameters.Curve = ECCurve.NamedCurves.nistP256;
+                    securityPolicyUris = new string[] { SecurityPolicies.ECC_nistP256 };
+                    break;
+                }
+
+                case NistP384KeyParameters:
+                {
+                    ecParameters.Curve = ECCurve.NamedCurves.nistP384;
+                    securityPolicyUris = new string[] { SecurityPolicies.ECC_nistP384, SecurityPolicies.ECC_nistP256 };
+                    break;
+                }
+
+                case BrainpoolP256r1KeyParameters:
+                {
+                    ecParameters.Curve = ECCurve.NamedCurves.brainpoolP256r1;
+                    securityPolicyUris = new string[] { SecurityPolicies.ECC_brainpoolP256r1 };
+                    break;
+                }
+
+                case BrainpoolP384r1KeyParameters:
+                {
+                    ecParameters.Curve = ECCurve.NamedCurves.brainpoolP384r1;
+                    securityPolicyUris = new string[] { SecurityPolicies.ECC_brainpoolP384r1, SecurityPolicies.ECC_brainpoolP256r1 };
+                    break;
+                }
+
+                default:
+                {
+                    throw new NotImplementedException(keyParameters);
+                }
+            }
+
+            return ECDsa.Create(ecParameters);
+        }
+
+        /// <summary>
+        /// Returns the public key for the specified certificate.
+        /// </summary>
+        /// <param name="certificate"></param>
+        /// <returns></returns>
+        public static ECDsa GetPublicKey(X509Certificate2 certificate)
+        {
+            string[] securityPolicyUris;
+            return GetPublicKey(certificate, out securityPolicyUris);
+        }
+
+            /// <summary>
+        /// Returns the hash algorithm for the specified security policy.
+        /// </summary>
+        /// <param name="securityPolicyUri"></param>
+        /// <returns></returns>
+        public static HashAlgorithmName GetSignatureAlgorithmName(string securityPolicyUri)
+        {
+            if (securityPolicyUri == null)
+            {
+                throw new ArgumentNullException(nameof(securityPolicyUri));
+            }
+
+            switch (securityPolicyUri)
+            {
+                case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_brainpoolP256r1:
+                {
+                    return HashAlgorithmName.SHA256;
+                }
+
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_brainpoolP384r1:
+                {
+                    return HashAlgorithmName.SHA384;
+                }
+
+                case SecurityPolicies.None:
+                case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve448:
+                default:
+                {
+                    return HashAlgorithmName.SHA256;
+                }
+            }
+        }
+    
 #endif
     }
 }

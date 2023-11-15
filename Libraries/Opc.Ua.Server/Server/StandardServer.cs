@@ -709,9 +709,11 @@ namespace Opc.Ua.Server
                     // TBD - call Node Manager and Subscription Manager.
                 }
 
-                var parameters = ExtensionObject.ToEncodeable(requestHeader.AdditionalHeader) as AdditionalParametersType;
                 Session session = ServerInternal.SessionManager.GetSession(requestHeader.AuthenticationToken);
+#if ECC_SUPPORT
+                var parameters = ExtensionObject.ToEncodeable(requestHeader.AdditionalHeader) as AdditionalParametersType;
                 parameters = ActivateSessionProcessAdditionalParameters(session, parameters);
+#endif
 
                 Utils.LogInfo("Server - SESSION ACTIVATED.");
 
@@ -720,7 +722,7 @@ namespace Opc.Ua.Server
 
                 ResponseHeader responseHeader = CreateResponse(requestHeader, StatusCodes.Good);
 
-#if ECC_SUPPORT 
+#if ECC_SUPPORT
                 if (parameters != null)
                 {
                     responseHeader.AdditionalHeader = new ExtensionObject(parameters);

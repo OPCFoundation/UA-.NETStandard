@@ -1383,6 +1383,7 @@ namespace Opc.Ua.Client
                 SignatureData userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
 
                 // encrypt token.
+#if ECC_SUPPORT 
                 identityToken.Encrypt(
                     m_serverCertificate,
                     m_serverNonce,
@@ -1391,6 +1392,9 @@ namespace Opc.Ua.Client
                     m_instanceCertificate,
                     m_instanceCertificateChain,
                     m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
+#else
+                identityToken.Encrypt(m_serverCertificate, m_serverNonce, securityPolicyUri);
+#endif
 
                 // send the software certificates assigned to the client.
                 SignedSoftwareCertificateCollection clientSoftwareCertificates = GetSoftwareCertificates();
@@ -2536,6 +2540,7 @@ namespace Opc.Ua.Client
                 SignatureData userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
 
                 // encrypt token.
+#if ECC_SUPPORT 
                 identityToken.Encrypt(
                     serverCertificate,
                     serverNonce,
@@ -2544,7 +2549,9 @@ namespace Opc.Ua.Client
                     m_instanceCertificate,
                     m_instanceCertificateChain,
                     m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
-
+#else
+                identityToken.Encrypt(serverCertificate, serverNonce, securityPolicyUri);
+#endif
                 // send the software certificates assigned to the client.
                 SignedSoftwareCertificateCollection clientSoftwareCertificates = GetSoftwareCertificates();
 
@@ -2713,6 +2720,7 @@ namespace Opc.Ua.Client
             userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
 
             // encrypt token.
+#if ECC_SUPPORT 
             identityToken.Encrypt(
                 m_serverCertificate,
                 serverNonce,
@@ -2721,7 +2729,9 @@ namespace Opc.Ua.Client
                 m_instanceCertificate,
                 m_instanceCertificateChain,
                 m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
-
+#else
+            identityToken.Encrypt(m_serverCertificate, serverNonce, securityPolicyUri);
+#endif
             // send the software certificates assigned to the client.
             SignedSoftwareCertificateCollection clientSoftwareCertificates = GetSoftwareCertificates();
 
@@ -3012,9 +3022,9 @@ namespace Opc.Ua.Client
                 }
             }
         }
-        #endregion
+#endregion
 
-        #region Close Methods
+#region Close Methods
         /// <inheritdoc/>
         public override StatusCode Close()
         {
@@ -3110,9 +3120,9 @@ namespace Opc.Ua.Client
 
             return result;
         }
-        #endregion
+#endregion
 
-        #region Subscription Methods
+#region Subscription Methods
         /// <inheritdoc/>
         public bool AddSubscription(Subscription subscription)
         {
@@ -3358,9 +3368,9 @@ namespace Opc.Ua.Client
 
             return failedSubscriptions == 0;
         }
-        #endregion
+#endregion
 
-        #region Browse Methods
+#region Browse Methods
         /// <inheritdoc/>
         public virtual ResponseHeader Browse(
             RequestHeader requestHeader,
@@ -3537,9 +3547,9 @@ namespace Opc.Ua.Client
 
             return responseHeader;
         }
-        #endregion
+#endregion
 
-        #region BrowseNext Methods
+#region BrowseNext Methods
         /// <inheritdoc/>
         public virtual ResponseHeader BrowseNext(
             RequestHeader requestHeader,
@@ -3667,9 +3677,9 @@ namespace Opc.Ua.Client
 
             return responseHeader;
         }
-        #endregion
+#endregion
 
-        #region Call Methods
+#region Call Methods
         /// <inheritdoc/>
         public IList<object> Call(NodeId objectId, NodeId methodId, params object[] args)
         {
@@ -3718,9 +3728,9 @@ namespace Opc.Ua.Client
 
             return outputArguments;
         }
-        #endregion
+#endregion
 
-        #region Protected Methods
+#region Protected Methods
         /// <summary>
         /// Returns the software certificates assigned to the application.
         /// </summary>
@@ -4850,9 +4860,9 @@ namespace Opc.Ua.Client
 
             return attributes;
         }
-        #endregion
+#endregion
 
-        #region Publish Methods
+#region Publish Methods
         /// <summary>
         /// Sends an additional publish request.
         /// </summary>
@@ -5253,9 +5263,9 @@ namespace Opc.Ua.Client
 
             return false;
         }
-        #endregion
+#endregion
 
-        #region Private Methods
+#region Private Methods
         /// <summary>
         /// Validates  the identity for an open call.
         /// </summary>
@@ -6021,9 +6031,9 @@ namespace Opc.Ua.Client
                 }
             }
         }
-        #endregion
+#endregion
 
-        #region Protected Methods
+#region Protected Methods
         /// <summary>
         /// Process the AdditionalHeader field of a ResponseHeader
         /// </summary>
@@ -6062,17 +6072,18 @@ namespace Opc.Ua.Client
                                 StatusCodes.BadDecodingError,
                                 "Could not verify signature on ECDHKey. User authentication not possible.");
                         }
-
+#if ECC_SUPPORT
                         m_eccServerEphermalKey = Nonce.CreateNonce(m_userTokenSecurityPolicyUri, key.PublicKey);
+#endif
                     }
                 }
             }
         }
 
 
-        #endregion
+#endregion
 
-        #region Protected Fields
+#region Protected Fields
         /// <summary>
         /// The period for which the server will maintain the session if there is no communication from the client.
         /// </summary>
@@ -6117,9 +6128,9 @@ namespace Opc.Ua.Client
         /// The user identity currently used for the session.
         /// </summary>
         protected IUserIdentity m_identity;
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private ISessionFactory m_sessionFactory;
         private SubscriptionAcknowledgementCollection m_acknowledgementsToSend;
         private Dictionary<uint, uint> m_latestAcknowledgementsSent;
@@ -6154,7 +6165,9 @@ namespace Opc.Ua.Client
         private int m_minPublishRequestCount;
         private LinkedList<AsyncRequestState> m_outstandingRequests;
         private string m_userTokenSecurityPolicyUri;
+#if ECC_SUPPORT
         private Nonce m_eccServerEphermalKey;
+#endif
         private readonly EndpointDescriptionCollection m_discoveryServerEndpoints;
         private readonly StringCollection m_discoveryProfileUris;
 
@@ -6175,16 +6188,16 @@ namespace Opc.Ua.Client
         private event EventHandler m_SubscriptionsChanged;
         private event EventHandler m_SessionClosing;
         private event EventHandler m_SessionConfigurationChanged;
-        #endregion
+#endregion
     }
 
-    #region KeepAliveEventArgs Class
+#region KeepAliveEventArgs Class
     /// <summary>
     /// The event arguments provided when a keep alive response arrives.
     /// </summary>
     public class KeepAliveEventArgs : EventArgs
     {
-        #region Constructors
+#region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -6197,9 +6210,9 @@ namespace Opc.Ua.Client
             m_currentState = currentState;
             m_currentTime = currentTime;
         }
-        #endregion
+#endregion
 
-        #region Public Properties
+#region Public Properties
         /// <summary>
         /// Gets the status associated with the keep alive operation.
         /// </summary>
@@ -6223,24 +6236,24 @@ namespace Opc.Ua.Client
             get { return m_cancelKeepAlive; }
             set { m_cancelKeepAlive = value; }
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private readonly ServiceResult m_status;
         private readonly ServerState m_currentState;
         private readonly DateTime m_currentTime;
         private bool m_cancelKeepAlive;
-        #endregion
+#endregion
     }
-    #endregion
+#endregion
 
-    #region NotificationEventArgs Class
+#region NotificationEventArgs Class
     /// <summary>
     /// Represents the event arguments provided when a new notification message arrives.
     /// </summary>
     public class NotificationEventArgs : EventArgs
     {
-        #region Constructors
+#region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -6253,9 +6266,9 @@ namespace Opc.Ua.Client
             m_notificationMessage = notificationMessage;
             m_stringTable = stringTable;
         }
-        #endregion
+#endregion
 
-        #region Public Properties
+#region Public Properties
         /// <summary>
         /// Gets the subscription that the notification applies to.
         /// </summary>
@@ -6270,23 +6283,23 @@ namespace Opc.Ua.Client
         /// Gets the string table returned with the notification message.
         /// </summary>
         public IList<string> StringTable => m_stringTable;
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private readonly Subscription m_subscription;
         private readonly NotificationMessage m_notificationMessage;
         private readonly IList<string> m_stringTable;
-        #endregion
+#endregion
     }
-    #endregion
+#endregion
 
-    #region PublishErrorEventArgs Class
+#region PublishErrorEventArgs Class
     /// <summary>
     /// Represents the event arguments provided when a publish error occurs.
     /// </summary>
     public class PublishErrorEventArgs : EventArgs
     {
-        #region Constructors
+#region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -6304,9 +6317,9 @@ namespace Opc.Ua.Client
             m_subscriptionId = subscriptionId;
             m_sequenceNumber = sequenceNumber;
         }
-        #endregion
+#endregion
 
-        #region Public Properties
+#region Public Properties
         /// <summary>
         /// Gets the status associated with the keep alive operation.
         /// </summary>
@@ -6321,17 +6334,17 @@ namespace Opc.Ua.Client
         /// Gets the sequence number for the message that could not be republished.
         /// </summary>
         public uint SequenceNumber => m_sequenceNumber;
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private readonly uint m_subscriptionId;
         private readonly uint m_sequenceNumber;
         private readonly ServiceResult m_status;
-        #endregion
+#endregion
     }
-    #endregion
+#endregion
 
-    #region PublishSequenceNumbersToAcknowledgeEventArgs Class
+#region PublishSequenceNumbersToAcknowledgeEventArgs Class
     /// <summary>
     /// Represents the event arguments provided when publish response
     /// sequence numbers are about to be achknoledged with a publish request.
@@ -6344,7 +6357,7 @@ namespace Opc.Ua.Client
     /// </remarks>
     public class PublishSequenceNumbersToAcknowledgeEventArgs : EventArgs
     {
-        #region Constructors
+#region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -6355,9 +6368,9 @@ namespace Opc.Ua.Client
             m_acknowledgementsToSend = acknowledgementsToSend;
             m_deferredAcknowledgementsToSend = deferredAcknowledgementsToSend;
         }
-        #endregion
+#endregion
 
-        #region Public Properties
+#region Public Properties
         /// <summary>
         /// The acknowledgements which are sent with the next publish request.
         /// </summary>
@@ -6375,12 +6388,12 @@ namespace Opc.Ua.Client
         /// to this list to defer the acknowledge of a sequence number to the next publish request.
         /// </remarks>
         public SubscriptionAcknowledgementCollection DeferredAcknowledgementsToSend => m_deferredAcknowledgementsToSend;
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private readonly SubscriptionAcknowledgementCollection m_acknowledgementsToSend;
         private readonly SubscriptionAcknowledgementCollection m_deferredAcknowledgementsToSend;
-        #endregion
+#endregion
     }
-    #endregion
+#endregion
 }

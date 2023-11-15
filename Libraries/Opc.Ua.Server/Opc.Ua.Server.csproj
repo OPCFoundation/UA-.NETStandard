@@ -22,7 +22,7 @@
   </PropertyGroup>
   
   <PropertyGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
-    <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
+    <DefineConstants>$(DefineConstants);</DefineConstants>
   </PropertyGroup>
   
   <PropertyGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
