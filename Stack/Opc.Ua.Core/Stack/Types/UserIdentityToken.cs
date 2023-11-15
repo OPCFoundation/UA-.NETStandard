@@ -22,7 +22,7 @@ namespace Opc.Ua
     /// </summary>
     public partial class UserIdentityToken
     {
-        #region Public Methods
+#region Public Methods
         /// <summary>
         /// Encrypts the token (implemented by the subclass).
         /// </summary>
@@ -108,7 +108,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        #region Public Methods
+#region Public Methods
         /// <summary>
         /// Encrypts the DecryptedPassword using the EncryptionAlgorithm and places the result in Password
         /// </summary>
@@ -353,7 +353,7 @@ namespace Opc.Ua
 
         #endregion
 
-        #region Private Fields
+#region Private Fields
         private string m_decryptedPassword;
 #endregion
     }
@@ -488,7 +488,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        #region Public Methods
+#region Public Methods
         /// <summary>
         /// Encrypts the DecryptedTokenData using the EncryptionAlgorithm and places the result in Password
         /// </summary>
