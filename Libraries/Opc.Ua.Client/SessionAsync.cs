@@ -131,6 +131,7 @@ namespace Opc.Ua.Client
             {
                 userTokenSecurityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
             }
+            m_userTokenSecurityPolicyUri = userTokenSecurityPolicyUri;
 
             RequestHeader requestHeader = new RequestHeader();
 
@@ -144,8 +145,8 @@ namespace Opc.Ua.Client
                 });
 
                 requestHeader.AdditionalHeader = new ExtensionObject(parameters);
-                m_userTokenSecurityPolicyUri = userTokenSecurityPolicyUri;
             }
+
             bool successCreateSession = false;
             CreateSessionResponse response = null;
 
