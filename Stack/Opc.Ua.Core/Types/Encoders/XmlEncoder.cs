@@ -1832,11 +1832,9 @@ namespace Opc.Ua
 
                         case BuiltInType.Enumeration:
                         {
-                            int[] ints = value as int[];
-                            if (ints == null)
+                            if (!(value is int[] ints))
                             {
-                                Enum[] enums = value as Enum[];
-                                if (enums == null)
+                                if (!(value is Enum[] enums))
                                 {
                                     throw new ServiceResultException(
                                         StatusCodes.BadEncodingError,
@@ -1855,17 +1853,14 @@ namespace Opc.Ua
 
                         case BuiltInType.Variant:
                         {
-                            Variant[] variants = value as Variant[];
-
-                            if (variants != null)
+                            if (value is Variant[] variants)
                             {
                                 WriteVariantArray("ListOfVariant", variants);
                                 return;
                             }
 
-                            object[] objects = value as object[];
 
-                            if (objects != null)
+                            if (value is object[] objects)
                             {
                                 WriteObjectArray("ListOfVariant", objects);
                                 return;
@@ -1909,9 +1904,8 @@ namespace Opc.Ua
             }
 
             // encode byte body.
-            byte[] bytes = body as byte[];
 
-            if (bytes != null)
+            if (body is byte[] bytes)
             {
                 m_writer.WriteStartElement("ByteString", Namespaces.OpcUaXsd);
                 m_writer.WriteString(Convert.ToBase64String(bytes, Base64FormattingOptions.InsertLineBreaks));
@@ -1920,8 +1914,7 @@ namespace Opc.Ua
             }
 
             // encode xml body.
-            XmlElement xml = body as XmlElement;
-            if (xml != null)
+            if (body is XmlElement xml)
             {
                 using (XmlReader reader = XmlReader.Create(new StringReader(xml.OuterXml), Utils.DefaultXmlReaderSettings()))
                 {
@@ -1930,8 +1923,7 @@ namespace Opc.Ua
                 }
             }
 
-            IEncodeable encodeable = body as IEncodeable;
-            if (encodeable == null)
+            if (!(body is IEncodeable encodeable))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadEncodingError,
@@ -2017,8 +2009,7 @@ namespace Opc.Ua
                         case BuiltInType.DiagnosticInfo: { WriteDiagnosticInfoArray(fieldName, (DiagnosticInfo[])array); return; }
                         case BuiltInType.Enumeration:
                         {
-                            int[] ints = array as int[];
-                            if (ints == null)
+                            if (!(array is int[] ints))
                             {
                                 Enum[] enums = array as Enum[];
                                 if (enums == null)
@@ -2038,31 +2029,27 @@ namespace Opc.Ua
                             return;
                         }
 
-                        case BuiltInType.Variant:
-                        {
-                            Variant[] variants = array as Variant[];
-
-                            if (variants != null)
+                            case BuiltInType.Variant:
                             {
-                                WriteVariantArray(fieldName, variants);
-                                return;
-                            }
+                                if (array is Variant[] variants)
+                                {
+                                    WriteVariantArray(fieldName, variants);
+                                    return;
+                                }
 
-                            // try to write IEncodeable Array
-                            IEncodeable[] encodeableArray = array as IEncodeable[];
-                            if (encodeableArray != null)
-                            {
-                                WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
-                                return;
-                            }
+                                // try to write IEncodeable Array
+                                IEncodeable[] encodeableArray = array as IEncodeable[];
+                                if (encodeableArray != null)
+                                {
+                                    WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
+                                    return;
+                                }
 
-                            object[] objects = array as object[];
-
-                            if (objects != null)
-                            {
-                                WriteObjectArray(fieldName, objects);
-                                return;
-                            }
+                                if (array is object[] objects)
+                                {
+                                    WriteObjectArray(fieldName, objects);
+                                    return;
+                                }
 
                             throw ServiceResultException.Create(
                                 StatusCodes.BadEncodingError,
@@ -2070,15 +2057,14 @@ namespace Opc.Ua
                                 array.GetType());
                         }
 
-                        default:
-                        {
-                            // try to write IEncodeable Array
-                            IEncodeable[] encodeableArray = array as IEncodeable[];
-                            if (encodeableArray != null)
+                            default:
                             {
-                                WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
-                                return;
-                            }
+                                // try to write IEncodeable Array
+                                if (array is IEncodeable[] encodeableArray)
+                                {
+                                    WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
+                                    return;
+                                }
 
                             throw ServiceResultException.Create(
                                 StatusCodes.BadEncodingError,
@@ -2096,11 +2082,9 @@ namespace Opc.Ua
                      * product of the dimensions.
                      * The number of values is 0 if one or more dimension is less than or equal to 0.*/
 
-                    Matrix matrix = array as Matrix;
-                    if (matrix == null)
+                    if (!(array is Matrix matrix))
                     {
-                        var multiArray = array as Array;
-                        if (multiArray != null && multiArray.Rank == valueRank)
+                        if (array is Array multiArray && multiArray.Rank == valueRank)
                         {
                             matrix = new Matrix(multiArray, builtInType);
                         }

@@ -80,7 +80,7 @@ namespace Opc.Ua.Security.Certificates
             Tbs = tbs;
             Signature = signature;
             SignatureAlgorithmIdentifier = signatureAlgorithmIdentifier;
-            SignatureAlgorithm = DecodeAlgorithm(signatureAlgorithmIdentifier);
+            SignatureAlgorithm = X509Signature.DecodeAlgorithm(signatureAlgorithmIdentifier);
             Name = Oids.GetHashAlgorithmName(SignatureAlgorithm);
         }
 
@@ -90,9 +90,9 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>X509 ASN format of EncodedData+SignatureOID+Signature bytes.</returns>
         public byte[] Encode()
         {
-            AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
+            var writer = new AsnWriter(AsnEncodingRules.DER);
 
-            var tag = Asn1Tag.Sequence;
+            Asn1Tag tag = Asn1Tag.Sequence;
             writer.PushSequence(tag);
 
             // write Tbs encoded data
@@ -128,15 +128,15 @@ namespace Opc.Ua.Security.Certificates
         {
             try
             {
-                AsnReader crlReader = new AsnReader(crl, AsnEncodingRules.DER);
-                var seqReader = crlReader.ReadSequence(Asn1Tag.Sequence);
+                var crlReader = new AsnReader(crl, AsnEncodingRules.DER);
+                AsnReader seqReader = crlReader.ReadSequence(Asn1Tag.Sequence);
                 if (seqReader != null)
                 {
                     // Tbs encoded data
                     Tbs = seqReader.ReadEncodedValue().ToArray();
 
                     // Signature Algorithm Identifier
-                    var sigOid = seqReader.ReadSequence();
+                    AsnReader sigOid = seqReader.ReadSequence();
                     SignatureAlgorithm = sigOid.ReadObjectIdentifier();
                     Name = Oids.GetHashAlgorithmName(SignatureAlgorithm);
 
@@ -202,7 +202,7 @@ namespace Opc.Ua.Security.Certificates
         {
             using (ECDsa key = certificate.GetECDsaPublicKey())
             {
-                var decodedSignature = DecodeECDsa(Signature, key.KeySize);
+                byte[] decodedSignature = DecodeECDsa(Signature, key.KeySize);
                 return key.VerifyData(Tbs, decodedSignature, Name);
             }
         }
@@ -212,12 +212,12 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="oid">The ASN.1 encoded algorithm oid.</param>
         /// <returns></returns>
-        private string DecodeAlgorithm(byte[] oid)
+        private static string DecodeAlgorithm(byte[] oid)
         {
             var seqReader = new AsnReader(oid, AsnEncodingRules.DER);
-            var sigOid = seqReader.ReadSequence();
+            AsnReader sigOid = seqReader.ReadSequence();
             seqReader.ThrowIfNotEmpty();
-            var result = sigOid.ReadObjectIdentifier();
+            string result = sigOid.ReadObjectIdentifier();
             if (sigOid.HasData)
             {
                 sigOid.ReadNull();
@@ -235,8 +235,8 @@ namespace Opc.Ua.Security.Certificates
             // Encode from IEEE signature format to ASN1 DER encoded 
             // signature format for ecdsa certificates.
             // ECDSA-Sig-Value ::= SEQUENCE { r INTEGER, s INTEGER }
-            AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
-            var tag = Asn1Tag.Sequence;
+            var writer = new AsnWriter(AsnEncodingRules.DER);
+            Asn1Tag tag = Asn1Tag.Sequence;
             writer.PushSequence(tag);
 
             int segmentLength = signature.Length / 2;
@@ -255,11 +255,11 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="keySize">The keySize in bits.</param>
         private static byte[] DecodeECDsa(ReadOnlyMemory<byte> signature, int keySize)
         {
-            AsnReader reader = new AsnReader(signature, AsnEncodingRules.DER);
-            var seqReader = reader.ReadSequence();
+            var reader = new AsnReader(signature, AsnEncodingRules.DER);
+            AsnReader seqReader = reader.ReadSequence();
             reader.ThrowIfNotEmpty();
-            var r = seqReader.ReadIntegerBytes();
-            var s = seqReader.ReadIntegerBytes();
+            ReadOnlyMemory<byte> r = seqReader.ReadIntegerBytes();
+            ReadOnlyMemory<byte> s = seqReader.ReadIntegerBytes();
             seqReader.ThrowIfNotEmpty();
             keySize >>= 3;
             if (r.Span[0] == 0 && r.Length > keySize)
@@ -270,7 +270,7 @@ namespace Opc.Ua.Security.Certificates
             {
                 s = s.Slice(1);
             }
-            var result = new byte[2 * keySize];
+            byte[] result = new byte[2 * keySize];
             int offset = keySize - r.Length;
             r.CopyTo(new Memory<byte>(result, offset, r.Length));
             offset = 2 * keySize - s.Length;

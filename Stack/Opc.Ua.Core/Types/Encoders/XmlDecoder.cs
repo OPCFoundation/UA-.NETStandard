@@ -1390,8 +1390,7 @@ namespace Opc.Ua
             // read end of extension object.
             EndField(fieldName);
 
-            IEncodeable encodeable = body as IEncodeable;
-            if (encodeable != null)
+            if (body is IEncodeable encodeable)
             {
                 // Set the known TypeId for encodeables.
                 absoluteId = encodeable.TypeId;
@@ -1411,9 +1410,8 @@ namespace Opc.Ua
         {
             if (systemType == null) throw new ArgumentNullException(nameof(systemType));
 
-            IEncodeable value = Activator.CreateInstance(systemType) as IEncodeable;
 
-            if (value == null)
+            if (!(Activator.CreateInstance(systemType) is IEncodeable value))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadDecodingError,
@@ -1423,9 +1421,8 @@ namespace Opc.Ua
             if (encodeableTypeId != null)
             {
                 // set type identifier for custom complex data types before decode.
-                IComplexTypeInstance complexTypeInstance = value as IComplexTypeInstance;
 
-                if (complexTypeInstance != null)
+                if (value is IComplexTypeInstance complexTypeInstance)
                 {
                     complexTypeInstance.TypeId = encodeableTypeId;
                 }

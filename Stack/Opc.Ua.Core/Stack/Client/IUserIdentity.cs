@@ -42,7 +42,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The type of the issued token.</value>
         XmlQualifiedName IssuedTokenType { get; }
-        
+
         /// <summary>
         /// Whether the object can create signatures to prove possession of the user's credentials.
         /// </summary>

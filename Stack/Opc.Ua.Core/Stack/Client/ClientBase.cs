@@ -13,6 +13,7 @@
 using System;
 using System.Collections;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
@@ -275,6 +276,21 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Closes the channel using async call.
+        /// </summary>
+        public virtual Task<StatusCode> CloseAsync(CancellationToken ct = default)
+        {
+            if (m_channel != null)
+            {
+                m_channel.Close();
+                m_channel = null;
+            }
+
+            m_authenticationToken = null;
+            return Task.FromResult<StatusCode>(StatusCodes.Good);
+        }
+
+        /// <summary>
         /// Whether the object has been disposed.
         /// </summary>
         /// <value><c>true</c> if disposed; otherwise, <c>false</c>.</value>
@@ -305,9 +321,8 @@ namespace Opc.Ua
             m_channel = channel;
             m_useTransportChannel = true;
 
-            UaChannelBase uaChannel = channel as UaChannelBase;
 
-            if (uaChannel != null)
+            if (channel is UaChannelBase uaChannel)
             {
                 m_useTransportChannel = uaChannel.m_uaBypassChannel != null || uaChannel.UseBinaryEncoding;
             }
@@ -603,7 +618,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private ITransportChannel m_channel;
         private NodeId m_authenticationToken;
         private DiagnosticsMasks m_returnDiagnostics;

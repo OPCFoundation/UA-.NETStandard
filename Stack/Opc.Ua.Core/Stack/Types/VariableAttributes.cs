@@ -28,21 +28,21 @@ namespace Opc.Ua
         public VariableAttributes(object value, byte accessLevel)
         {
             Initialize();
-            
-            Value                   = new Variant(value);
-            AccessLevel             = accessLevel;
-            UserAccessLevel         = accessLevel;
+
+            Value = new Variant(value);
+            AccessLevel = accessLevel;
+            UserAccessLevel = accessLevel;
             MinimumSamplingInterval = MinimumSamplingIntervals.Indeterminate;
-            Historizing             = false;
+            Historizing = false;
 
             if (value == null)
             {
-                DataType  = DataTypes.BaseDataType;
+                DataType = DataTypes.BaseDataType;
                 ValueRank = ValueRanks.Any;
             }
             else
             {
-                DataType  = TypeInfo.GetDataTypeId(value);
+                DataType = TypeInfo.GetDataTypeId(value);
                 ValueRank = TypeInfo.GetValueRank(value);
             }
         }

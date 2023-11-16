@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using MQTTnet;
@@ -39,7 +38,7 @@ namespace Opc.Ua.PubSub.Transport
     internal static class MqttClientCreator
     {
         #region Private
-        private static readonly Lazy<MqttFactory> mqttClientFactory = new Lazy<MqttFactory>(() => new MqttFactory());
+        private static readonly Lazy<MqttFactory> s_mqttClientFactory = new Lazy<MqttFactory>(() => new MqttFactory());
         #endregion
 
         /// <summary>
@@ -55,7 +54,7 @@ namespace Opc.Ua.PubSub.Transport
                                                                    Func<MqttApplicationMessageReceivedEventArgs, Task> receiveMessageHandler,
                                                                    StringCollection topicFilter = null)
         {
-            IMqttClient mqttClient = mqttClientFactory.Value.CreateMqttClient();
+            IMqttClient mqttClient = s_mqttClientFactory.Value.CreateMqttClient();
 
             // Hook the receiveMessageHandler in case we deal with a subscriber
             if ((receiveMessageHandler != null) && (topicFilter != null))
@@ -102,7 +101,7 @@ namespace Opc.Ua.PubSub.Transport
                         mqttClient?.Options?.ClientId,
                         e.Reason,
                         e.ClientWasConnected);
-                    await Connect(reconnectInterval, mqttClientOptions, mqttClient).ConfigureAwait(false);
+                    await ConnectAsync(reconnectInterval, mqttClientOptions, mqttClient).ConfigureAwait(false);
                 }
                 catch (Exception excOnDisconnect)
                 {
@@ -110,7 +109,7 @@ namespace Opc.Ua.PubSub.Transport
                 }
             };
 
-            await Connect(reconnectInterval, mqttClientOptions, mqttClient).ConfigureAwait(false);
+            await ConnectAsync(reconnectInterval, mqttClientOptions, mqttClient).ConfigureAwait(false);
 
             return mqttClient;
         }
@@ -121,11 +120,11 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="reconnectInterval"></param>
         /// <param name="mqttClientOptions"></param>
         /// <param name="mqttClient"></param>
-        private static async Task Connect(int reconnectInterval, MqttClientOptions mqttClientOptions, IMqttClient mqttClient)
+        private static async Task ConnectAsync(int reconnectInterval, MqttClientOptions mqttClientOptions, IMqttClient mqttClient)
         {
             try
             {
-                var result = await mqttClient.ConnectAsync(mqttClientOptions, CancellationToken.None).ConfigureAwait(false);
+                MqttClientConnectResult result = await mqttClient.ConnectAsync(mqttClientOptions, CancellationToken.None).ConfigureAwait(false);
                 if (MqttClientConnectResultCode.Success == result.ResultCode)
                 {
                     Utils.Trace("MQTT client {0} successfully connected", mqttClient?.Options?.ClientId);

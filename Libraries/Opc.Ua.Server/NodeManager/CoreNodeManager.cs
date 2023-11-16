@@ -3258,7 +3258,7 @@ namespace Opc.Ua.Server
         #endregion
         
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private IServerInternal m_server;
         private NodeTable m_nodes;
         private long m_lastId;

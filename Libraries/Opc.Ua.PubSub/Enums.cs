@@ -154,11 +154,11 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// DataSet message
         /// </summary>
-        DataSetMessage = 0, 
+        DataSetMessage = 0,
         /// <summary>
         /// Discovery Request message
         /// </summary>
-        DiscoveryRequest = 4, 
+        DiscoveryRequest = 4,
         /// <summary>
         /// Discovery Response message
         /// </summary>

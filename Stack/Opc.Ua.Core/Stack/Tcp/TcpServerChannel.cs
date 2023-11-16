@@ -122,9 +122,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void EndReverseConnect(IAsyncResult result)
         {
-            var ar = result as ReverseConnectAsyncResult;
-
-            if (ar == null)
+            if (!(result is ReverseConnectAsyncResult ar))
             {
                 throw new ArgumentException("EndReverseConnect is called with invalid IAsyncResult.", nameof(result));
             }
@@ -312,9 +310,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void OnChannelReconnected(object state)
         {
-            SortedDictionary<uint, IServiceResponse> responses = state as SortedDictionary<uint, IServiceResponse>;
-
-            if (responses == null)
+            if (!(state is SortedDictionary<uint, IServiceResponse> responses))
             {
                 return;
             }
@@ -516,7 +512,6 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 const string errorSecurityChecksFailed = "Could not verify security on OpenSecureChannel request.";
-                ServiceResultException innerException = e.InnerException as ServiceResultException;
 
                 // report the audit event for open secure channel
                 ReportAuditOpenSecureChannelEvent?.Invoke(this, null, clientCertificate, e);
@@ -526,7 +521,7 @@ namespace Opc.Ua.Bindings
 
                 // If the certificate structure, signature and trust list checks pass,
                 // return the other specific validation errors instead of BadSecurityChecksFailed
-                if (innerException != null)
+                if (e.InnerException is ServiceResultException innerException)
                 {
                     if (innerException.StatusCode == StatusCodes.BadCertificateUntrusted ||
                         innerException.StatusCode == StatusCodes.BadCertificateChainIncomplete ||
@@ -846,12 +841,11 @@ namespace Opc.Ua.Bindings
                 // get the chunks to process.
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
-                CloseSecureChannelRequest request = BinaryDecoder.DecodeMessage(
+
+                if (!(BinaryDecoder.DecodeMessage(
                     new ArraySegmentStream(chunksToProcess),
                     typeof(CloseSecureChannelRequest),
-                    Quotas.MessageContext) as CloseSecureChannelRequest;
-
-                if (request == null)
+                    Quotas.MessageContext) is CloseSecureChannelRequest request))
                 {
                     throw ServiceResultException.Create(StatusCodes.BadStructureMissing, "Could not parse CloseSecureChannel request body.");
                 }
@@ -1000,9 +994,8 @@ namespace Opc.Ua.Bindings
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
                 // decode the request.
-                IServiceRequest request = BinaryDecoder.DecodeMessage(new ArraySegmentStream(chunksToProcess), null, Quotas.MessageContext) as IServiceRequest;
 
-                if (request == null)
+                if (!(BinaryDecoder.DecodeMessage(new ArraySegmentStream(chunksToProcess), null, Quotas.MessageContext) is IServiceRequest request))
                 {
                     SendServiceFault(token, requestId, ServiceResult.Create(StatusCodes.BadStructureMissing, "Could not parse request body."));
                     return true;

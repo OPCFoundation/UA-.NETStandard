@@ -682,9 +682,9 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderServerOptions SetMaxEventQueueSize(int maxEventQueueSize)
+        public IApplicationConfigurationBuilderServerOptions SetMaxEventQueueSize(int setMaxEventQueueSize)
         {
-            ApplicationConfiguration.ServerConfiguration.MaxEventQueueSize = maxEventQueueSize;
+            ApplicationConfiguration.ServerConfiguration.MaxEventQueueSize = setMaxEventQueueSize;
             return this;
         }
 

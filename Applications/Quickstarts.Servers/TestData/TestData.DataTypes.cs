@@ -2863,6 +2863,809 @@ namespace TestData
     #endif
     #endregion
 
+    #region VectorUnion Class
+    #if (!OPCUA_EXCLUDE_VectorUnion)
+    /// <remarks />
+    /// <exclude />
+    public enum VectorUnionFields : uint
+    {
+        /// <remarks />
+        None = 0,
+        /// <remarks />
+        X = 1,
+        /// <remarks />
+        Y = 2,
+        /// <remarks />
+        Z = 3
+    }
+
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = TestData.Namespaces.TestData)]
+    public partial class VectorUnion : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public VectorUnion()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            SwitchField = VectorUnionFields.None;
+            m_x = (double)0;
+            m_y = (double)0;
+            m_z = (double)0;
+        }
+        #endregion
+
+        #region Public Properties
+        // <remarks />
+        [DataMember(Name = "SwitchField", IsRequired = true, Order = 0)]
+        public VectorUnionFields SwitchField { get; set; }
+
+        /// <remarks />
+        [DataMember(Name = "X", IsRequired = false, Order = 1)]
+        public double X
+        {
+            get { return m_x;  }
+            set { m_x = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Y", IsRequired = false, Order = 2)]
+        public double Y
+        {
+            get { return m_y;  }
+            set { m_y = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Z", IsRequired = false, Order = 3)]
+        public double Z
+        {
+            get { return m_z;  }
+            set { m_z = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.VectorUnion; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.VectorUnion_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.VectorUnion_Encoding_DefaultXml;
+
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.VectorUnion_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(TestData.Namespaces.TestData);
+            encoder.WriteUInt32(nameof(SwitchField), (uint)SwitchField);
+
+            switch (SwitchField)
+            {
+                default: { break; }
+                case VectorUnionFields.X: { encoder.WriteDouble("X", X); break; }
+                case VectorUnionFields.Y: { encoder.WriteDouble("Y", Y); break; }
+                case VectorUnionFields.Z: { encoder.WriteDouble("Z", Z); break; }
+            }
+            
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(TestData.Namespaces.TestData);
+
+            SwitchField = (VectorUnionFields)decoder.ReadUInt32(nameof(SwitchField));
+                
+            switch (SwitchField)
+            {
+                default: { break; }
+                case VectorUnionFields.X: { X = decoder.ReadDouble("X"); break; }
+                case VectorUnionFields.Y: { Y = decoder.ReadDouble("Y"); break; }
+                case VectorUnionFields.Z: { Z = decoder.ReadDouble("Z"); break; }
+            }
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            VectorUnion value = encodeable as VectorUnion;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (value.SwitchField != this.SwitchField) return false;
+
+            switch (SwitchField)
+            {
+                default: { break; }
+                case VectorUnionFields.X: { if (!Utils.IsEqual(m_x, value.m_x)) return false; break; }
+                case VectorUnionFields.Y: { if (!Utils.IsEqual(m_y, value.m_y)) return false; break; }
+                case VectorUnionFields.Z: { if (!Utils.IsEqual(m_z, value.m_z)) return false; break; }
+            }
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (VectorUnion)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            VectorUnion clone = (VectorUnion)base.MemberwiseClone();
+
+            clone.SwitchField = this.SwitchField;
+
+            switch (SwitchField)
+            {
+                default: { break; }
+                case VectorUnionFields.X: { clone.m_x = (double)Utils.Clone(this.m_x); break; }
+                case VectorUnionFields.Y: { clone.m_y = (double)Utils.Clone(this.m_y); break; }
+                case VectorUnionFields.Z: { clone.m_z = (double)Utils.Clone(this.m_z); break; }
+            }
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private double m_x;
+        private double m_y;
+        private double m_z;
+        #endregion
+    }
+
+    #region VectorUnionCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfVectorUnion", Namespace = TestData.Namespaces.TestData, ItemName = "VectorUnion")]
+    public partial class VectorUnionCollection : List<VectorUnion>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public VectorUnionCollection() {}
+
+        /// <remarks />
+        public VectorUnionCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public VectorUnionCollection(IEnumerable<VectorUnion> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator VectorUnionCollection(VectorUnion[] values)
+        {
+            if (values != null)
+            {
+                return new VectorUnionCollection(values);
+            }
+
+            return new VectorUnionCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator VectorUnion[](VectorUnionCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (VectorUnionCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            VectorUnionCollection clone = new VectorUnionCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((VectorUnion)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region VectorWithOptionalFields Class
+    #if (!OPCUA_EXCLUDE_VectorWithOptionalFields)
+    /// <remarks />
+    /// <exclude />
+    
+    public enum VectorWithOptionalFieldsFields : uint
+    {   
+        None = 0,
+        /// <remarks />
+        X = 0x1,
+        /// <remarks />
+        Y = 0x2,
+        /// <remarks />
+        Z = 0x4
+    }
+        
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = TestData.Namespaces.TestData)]
+    public partial class VectorWithOptionalFields : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public VectorWithOptionalFields()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            EncodingMask = VectorWithOptionalFieldsFields.None;
+            m_x = (double)0;
+            m_y = (double)0;
+            m_z = (double)0;
+        }
+        #endregion
+
+        #region Public Properties
+        // <remarks />
+        [DataMember(Name = "EncodingMask", IsRequired = true, Order = 0)]
+        public VectorWithOptionalFieldsFields EncodingMask { get; set; }
+
+        /// <remarks />
+        [DataMember(Name = "X", IsRequired = false, Order = 1)]
+        public double X
+        {
+            get { return m_x;  }
+            set { m_x = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Y", IsRequired = false, Order = 2)]
+        public double Y
+        {
+            get { return m_y;  }
+            set { m_y = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Z", IsRequired = false, Order = 3)]
+        public double Z
+        {
+            get { return m_z;  }
+            set { m_z = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.VectorWithOptionalFields; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.VectorWithOptionalFields_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.VectorWithOptionalFields_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.VectorWithOptionalFields_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(TestData.Namespaces.TestData);
+            encoder.WriteUInt32(nameof(EncodingMask), (uint)EncodingMask);
+
+            if ((EncodingMask & VectorWithOptionalFieldsFields.X) != 0) encoder.WriteDouble("X", X);
+            if ((EncodingMask & VectorWithOptionalFieldsFields.Y) != 0) encoder.WriteDouble("Y", Y);
+            if ((EncodingMask & VectorWithOptionalFieldsFields.Z) != 0) encoder.WriteDouble("Z", Z);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(TestData.Namespaces.TestData);
+
+            EncodingMask = (VectorWithOptionalFieldsFields)decoder.ReadUInt32(nameof(EncodingMask));
+
+            if ((EncodingMask & VectorWithOptionalFieldsFields.X) != 0) X = decoder.ReadDouble("X");
+            if ((EncodingMask & VectorWithOptionalFieldsFields.Y) != 0) Y = decoder.ReadDouble("Y");
+            if ((EncodingMask & VectorWithOptionalFieldsFields.Z) != 0) Z = decoder.ReadDouble("Z");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            VectorWithOptionalFields value = encodeable as VectorWithOptionalFields;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (value.EncodingMask != this.EncodingMask) return false;
+
+            if ((EncodingMask & VectorWithOptionalFieldsFields.X) != 0) if (!Utils.IsEqual(m_x, value.m_x)) return false;
+            if ((EncodingMask & VectorWithOptionalFieldsFields.Y) != 0) if (!Utils.IsEqual(m_y, value.m_y)) return false;
+            if ((EncodingMask & VectorWithOptionalFieldsFields.Z) != 0) if (!Utils.IsEqual(m_z, value.m_z)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (VectorWithOptionalFields)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            VectorWithOptionalFields clone = (VectorWithOptionalFields)base.MemberwiseClone();
+
+            clone.EncodingMask = this.EncodingMask;
+
+            if ((EncodingMask & VectorWithOptionalFieldsFields.X) != 0) clone.m_x = (double)Utils.Clone(this.m_x);
+            if ((EncodingMask & VectorWithOptionalFieldsFields.Y) != 0) clone.m_y = (double)Utils.Clone(this.m_y);
+            if ((EncodingMask & VectorWithOptionalFieldsFields.Z) != 0) clone.m_z = (double)Utils.Clone(this.m_z);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private double m_x;
+        private double m_y;
+        private double m_z;
+        #endregion
+    }
+
+    #region VectorWithOptionalFieldsCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfVectorWithOptionalFields", Namespace = TestData.Namespaces.TestData, ItemName = "VectorWithOptionalFields")]
+    public partial class VectorWithOptionalFieldsCollection : List<VectorWithOptionalFields>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public VectorWithOptionalFieldsCollection() {}
+
+        /// <remarks />
+        public VectorWithOptionalFieldsCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public VectorWithOptionalFieldsCollection(IEnumerable<VectorWithOptionalFields> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator VectorWithOptionalFieldsCollection(VectorWithOptionalFields[] values)
+        {
+            if (values != null)
+            {
+                return new VectorWithOptionalFieldsCollection(values);
+            }
+
+            return new VectorWithOptionalFieldsCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator VectorWithOptionalFields[](VectorWithOptionalFieldsCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (VectorWithOptionalFieldsCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            VectorWithOptionalFieldsCollection clone = new VectorWithOptionalFieldsCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((VectorWithOptionalFields)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region MultipleVectors Class
+    #if (!OPCUA_EXCLUDE_MultipleVectors)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = TestData.Namespaces.TestData)]
+    public partial class MultipleVectors : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public MultipleVectors()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_vector = new Vector();
+            m_vectorUnion = new VectorUnion();
+            m_vectorWithOptionalFields = new VectorWithOptionalFields();
+            m_vectorArray = new VectorCollection();
+            m_vectorUnionArray = new VectorUnionCollection();
+            m_vectorWithOptionalFieldsArray = new VectorWithOptionalFieldsCollection();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "Vector", IsRequired = false, Order = 1)]
+        public Vector Vector
+        {
+            get
+            {
+                return m_vector;
+            }
+
+            set
+            {
+                m_vector = value;
+
+                if (value == null)
+                {
+                    m_vector = new Vector();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "VectorUnion", IsRequired = false, Order = 2)]
+        public VectorUnion VectorUnion
+        {
+            get
+            {
+                return m_vectorUnion;
+            }
+
+            set
+            {
+                m_vectorUnion = value;
+
+                if (value == null)
+                {
+                    m_vectorUnion = new VectorUnion();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "VectorWithOptionalFields", IsRequired = false, Order = 3)]
+        public VectorWithOptionalFields VectorWithOptionalFields
+        {
+            get
+            {
+                return m_vectorWithOptionalFields;
+            }
+
+            set
+            {
+                m_vectorWithOptionalFields = value;
+
+                if (value == null)
+                {
+                    m_vectorWithOptionalFields = new VectorWithOptionalFields();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "VectorArray", IsRequired = false, Order = 4)]
+        public VectorCollection VectorArray
+        {
+            get
+            {
+                return m_vectorArray;
+            }
+
+            set
+            {
+                m_vectorArray = value;
+
+                if (value == null)
+                {
+                    m_vectorArray = new VectorCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "VectorUnionArray", IsRequired = false, Order = 5)]
+        public VectorUnionCollection VectorUnionArray
+        {
+            get
+            {
+                return m_vectorUnionArray;
+            }
+
+            set
+            {
+                m_vectorUnionArray = value;
+
+                if (value == null)
+                {
+                    m_vectorUnionArray = new VectorUnionCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "VectorWithOptionalFieldsArray", IsRequired = false, Order = 6)]
+        public VectorWithOptionalFieldsCollection VectorWithOptionalFieldsArray
+        {
+            get
+            {
+                return m_vectorWithOptionalFieldsArray;
+            }
+
+            set
+            {
+                m_vectorWithOptionalFieldsArray = value;
+
+                if (value == null)
+                {
+                    m_vectorWithOptionalFieldsArray = new VectorWithOptionalFieldsCollection();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.MultipleVectors; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.MultipleVectors_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MultipleVectors_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.MultipleVectors_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(TestData.Namespaces.TestData);
+
+            encoder.WriteEncodeable("Vector", Vector, typeof(Vector));
+            encoder.WriteEncodeable("VectorUnion", VectorUnion, typeof(VectorUnion));
+            encoder.WriteEncodeable("VectorWithOptionalFields", VectorWithOptionalFields, typeof(VectorWithOptionalFields));
+            encoder.WriteEncodeableArray("VectorArray", VectorArray.ToArray(), typeof(Vector));
+            encoder.WriteEncodeableArray("VectorUnionArray", VectorUnionArray.ToArray(), typeof(VectorUnion));
+            encoder.WriteEncodeableArray("VectorWithOptionalFieldsArray", VectorWithOptionalFieldsArray.ToArray(), typeof(VectorWithOptionalFields));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(TestData.Namespaces.TestData);
+
+            Vector = (Vector)decoder.ReadEncodeable("Vector", typeof(Vector));
+            VectorUnion = (VectorUnion)decoder.ReadEncodeable("VectorUnion", typeof(VectorUnion));
+            VectorWithOptionalFields = (VectorWithOptionalFields)decoder.ReadEncodeable("VectorWithOptionalFields", typeof(VectorWithOptionalFields));
+            VectorArray = (VectorCollection)decoder.ReadEncodeableArray("VectorArray", typeof(Vector));
+            VectorUnionArray = (VectorUnionCollection)decoder.ReadEncodeableArray("VectorUnionArray", typeof(VectorUnion));
+            VectorWithOptionalFieldsArray = (VectorWithOptionalFieldsCollection)decoder.ReadEncodeableArray("VectorWithOptionalFieldsArray", typeof(VectorWithOptionalFields));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            MultipleVectors value = encodeable as MultipleVectors;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_vector, value.m_vector)) return false;
+            if (!Utils.IsEqual(m_vectorUnion, value.m_vectorUnion)) return false;
+            if (!Utils.IsEqual(m_vectorWithOptionalFields, value.m_vectorWithOptionalFields)) return false;
+            if (!Utils.IsEqual(m_vectorArray, value.m_vectorArray)) return false;
+            if (!Utils.IsEqual(m_vectorUnionArray, value.m_vectorUnionArray)) return false;
+            if (!Utils.IsEqual(m_vectorWithOptionalFieldsArray, value.m_vectorWithOptionalFieldsArray)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (MultipleVectors)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            MultipleVectors clone = (MultipleVectors)base.MemberwiseClone();
+
+            clone.m_vector = (Vector)Utils.Clone(this.m_vector);
+            clone.m_vectorUnion = (VectorUnion)Utils.Clone(this.m_vectorUnion);
+            clone.m_vectorWithOptionalFields = (VectorWithOptionalFields)Utils.Clone(this.m_vectorWithOptionalFields);
+            clone.m_vectorArray = (VectorCollection)Utils.Clone(this.m_vectorArray);
+            clone.m_vectorUnionArray = (VectorUnionCollection)Utils.Clone(this.m_vectorUnionArray);
+            clone.m_vectorWithOptionalFieldsArray = (VectorWithOptionalFieldsCollection)Utils.Clone(this.m_vectorWithOptionalFieldsArray);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private Vector m_vector;
+        private VectorUnion m_vectorUnion;
+        private VectorWithOptionalFields m_vectorWithOptionalFields;
+        private VectorCollection m_vectorArray;
+        private VectorUnionCollection m_vectorUnionArray;
+        private VectorWithOptionalFieldsCollection m_vectorWithOptionalFieldsArray;
+        #endregion
+    }
+
+    #region MultipleVectorsCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfMultipleVectors", Namespace = TestData.Namespaces.TestData, ItemName = "MultipleVectors")]
+    public partial class MultipleVectorsCollection : List<MultipleVectors>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public MultipleVectorsCollection() {}
+
+        /// <remarks />
+        public MultipleVectorsCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public MultipleVectorsCollection(IEnumerable<MultipleVectors> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator MultipleVectorsCollection(MultipleVectors[] values)
+        {
+            if (values != null)
+            {
+                return new MultipleVectorsCollection(values);
+            }
+
+            return new MultipleVectorsCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator MultipleVectors[](MultipleVectorsCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (MultipleVectorsCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            MultipleVectorsCollection clone = new MultipleVectorsCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((MultipleVectors)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
     #region WorkOrderStatusType Class
     #if (!OPCUA_EXCLUDE_WorkOrderStatusType)
     /// <remarks />

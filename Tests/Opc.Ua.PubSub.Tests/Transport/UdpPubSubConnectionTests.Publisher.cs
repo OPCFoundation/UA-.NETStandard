@@ -51,7 +51,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #endif
         public void ValidateUdpPubSubConnectionNetworkMessagePublishUnicast()
         {
-           //Arrange 
+            //Arrange 
             var localhost = GetFirstNic();
             Assert.IsNotNull(localhost, "localhost is null");
             Assert.IsNotNull(localhost.Address, "localhost.Address is null");
@@ -92,7 +92,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
 
             //Act
-           publisherConnection.Start();
+            publisherConnection.Start();
 
             if (networkMessages != null)
             {
@@ -289,7 +289,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.Greater(publisherConfiguration.Connections.Count, 1, "publisherConfiguration.Connection should be > 0");
 
             //discovery IP adress 224.0.2.14
-            IPAddress[] multicastIPAddresses =  Dns.GetHostAddresses(kUdpDiscoveryIp);
+            IPAddress[] multicastIPAddresses = Dns.GetHostAddresses(kUdpDiscoveryIp);
             IPAddress multicastIPAddress = multicastIPAddresses.First();
             Assert.IsNotNull(multicastIPAddress, "multicastIPAddress is null");
 
@@ -300,7 +300,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //create publisher UaPubSubApplication with changed configuration settings
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
-                        
+
             UdpPubSubConnection publisherConnection = publisherApplication.PubSubConnections.First() as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
@@ -345,7 +345,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             publisherConnection.Stop();
             udpMulticastClient.Close();
             udpMulticastClient.Dispose();
-            
+
             if (noMessageReceived)
             {
                 Assert.Fail("The UDP message was not received");

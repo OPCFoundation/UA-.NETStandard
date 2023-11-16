@@ -331,7 +331,8 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
         public Task<IServiceResponse> SendRequestAsync(IServiceRequest request, CancellationToken ct)
         {
-            return Task.Factory.FromAsync(BeginSendRequest(request, null, null), EndSendRequest);
+            var operation = BeginSendRequest(request, null, null);
+            return EndSendRequestAsync(operation, ct);
         }
 
         /// <summary>
@@ -382,6 +383,26 @@ namespace Opc.Ua.Bindings
             }
 
             return channel.EndSendRequest(result);
+        }
+
+        /// <summary>
+        /// Completes an asynchronous operation to send a request over the secure channel.
+        /// </summary>
+        /// <param name="result">The result returned from the BeginSendRequest call.</param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
+        /// <seealso cref="SendRequest"/>
+        public Task<IServiceResponse> EndSendRequestAsync(IAsyncResult result, CancellationToken ct)
+        {
+            UaSCUaBinaryClientChannel channel = m_channel;
+
+            if (channel == null)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadSecureChannelClosed, "Channel has been closed.");
+            }
+
+            return channel.EndSendRequestAsync(result, ct);
         }
 
         /// <summary>
@@ -457,7 +478,7 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private Uri m_url;
         private int m_operationTimeout;
         private TransportChannelSettings m_settings;

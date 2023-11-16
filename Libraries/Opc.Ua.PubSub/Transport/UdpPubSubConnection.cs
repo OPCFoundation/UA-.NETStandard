@@ -52,7 +52,7 @@ namespace Opc.Ua.PubSub.Transport
 
         private static int s_sequenceNumber = 0;
         private static int s_dataSetSequenceNumber = 0;
-       
+
         #endregion
 
         #region Constructor
@@ -104,7 +104,7 @@ namespace Opc.Ua.PubSub.Transport
             //publisher initialization    
             if (Publishers.Count > 0)
             {
-                lock (m_lock)
+                lock (Lock)
                 {
                     m_publisherUdpClients = UdpClientCreator.GetUdpClients(UsedInContext.Publisher, NetworkInterfaceName, NetworkAddressEndPoint);
                 }
@@ -116,7 +116,7 @@ namespace Opc.Ua.PubSub.Transport
             //subscriber initialization   
             if (GetAllDataSetReaders().Count > 0)
             {
-                lock (m_lock)
+                lock (Lock)
                 {
                     m_subscriberUdpClients = UdpClientCreator.GetUdpClients(UsedInContext.Subscriber, NetworkInterfaceName, NetworkAddressEndPoint);
 
@@ -141,14 +141,14 @@ namespace Opc.Ua.PubSub.Transport
                 // add handler to metaDataReceived event
                 this.Application.MetaDataReceived += Application_MetaDataReceived;
             }
-        }       
+        }
 
         /// <summary>
         /// Perform specific Stop tasks
         /// </summary>
         protected override async Task InternalStop()
         {
-            lock (m_lock)
+            lock (Lock)
             {
                 foreach (var list in new List<List<UdpClient>>() { m_publisherUdpClients, m_subscriberUdpClients })
                 {
@@ -166,7 +166,7 @@ namespace Opc.Ua.PubSub.Transport
 
             if (m_udpDiscoveryPublisher != null)
             {
-               await m_udpDiscoveryPublisher.StopAsync().ConfigureAwait(false);
+                await m_udpDiscoveryPublisher.StopAsync().ConfigureAwait(false);
             }
 
             if (m_udpDiscoverySubscriber != null)
@@ -174,7 +174,7 @@ namespace Opc.Ua.PubSub.Transport
                 await m_udpDiscoverySubscriber.StopAsync().ConfigureAwait(false);
 
                 // remove handler to metaDataReceived event
-                this.Application.MetaDataReceived -= Application_MetaDataReceived;               
+                this.Application.MetaDataReceived -= Application_MetaDataReceived;
             }
         }
 
@@ -183,17 +183,13 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         public override IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration, WriterGroupPublishState state)
         {
-            UadpWriterGroupMessageDataType messageSettings = ExtensionObject.ToEncodeable(writerGroupConfiguration.MessageSettings)
-                as UadpWriterGroupMessageDataType;
-            if (messageSettings == null)
+            if (!(ExtensionObject.ToEncodeable(writerGroupConfiguration.MessageSettings) is UadpWriterGroupMessageDataType messageSettings))
             {
                 //Wrong configuration of writer group MessageSettings
                 return null;
             }
-            DatagramWriterGroupTransportDataType transportSettings = ExtensionObject.ToEncodeable(writerGroupConfiguration.TransportSettings)
-                as DatagramWriterGroupTransportDataType;
 
-            if (transportSettings == null)
+            if (!(ExtensionObject.ToEncodeable(writerGroupConfiguration.TransportSettings) is DatagramWriterGroupTransportDataType transportSettings))
             {
                 //Wrong configuration of writer group TransportSettings
                 return null;
@@ -207,25 +203,23 @@ namespace Opc.Ua.PubSub.Transport
                 //check if dataSetWriter enabled
                 if (dataSetWriter.Enabled)
                 {
-                    DataSet dataSet = CreateDataSet(dataSetWriter, state);  
+                    DataSet dataSet = CreateDataSet(dataSetWriter, state);
 
                     if (dataSet != null)
                     {
-                        bool hasMetaDataChanged =  state.HasMetaDataChanged(dataSetWriter, dataSet.DataSetMetaData);
+                        bool hasMetaDataChanged = state.HasMetaDataChanged(dataSetWriter, dataSet.DataSetMetaData);
 
                         if (hasMetaDataChanged)
                         {
                             // add metadata network message
-                            networkMessages.Add( new UadpNetworkMessage(writerGroupConfiguration, dataSet.DataSetMetaData) {
+                            networkMessages.Add(new UadpNetworkMessage(writerGroupConfiguration, dataSet.DataSetMetaData) {
                                 PublisherId = PubSubConnectionConfiguration.PublisherId.Value,
                                 DataSetWriterId = dataSetWriter.DataSetWriterId
                             });
                         }
 
-                        UadpDataSetWriterMessageDataType dataSetMessageSettings = ExtensionObject.ToEncodeable(dataSetWriter.MessageSettings) as
-                                UadpDataSetWriterMessageDataType;
                         // check MessageSettings to see how to encode DataSet
-                        if (dataSetMessageSettings != null)
+                        if (ExtensionObject.ToEncodeable(dataSetWriter.MessageSettings) is UadpDataSetWriterMessageDataType dataSetMessageSettings)
                         {
                             UadpDataSetMessage uadpDataSetMessage = new UadpDataSetMessage(dataSet);
                             uadpDataSetMessage.DataSetWriterId = dataSetWriter.DataSetWriterId;
@@ -263,7 +257,7 @@ namespace Opc.Ua.PubSub.Transport
 
             networkMessages.Add(uadpNetworkMessage);
 
-            
+
             return networkMessages;
         }
 
@@ -277,7 +271,7 @@ namespace Opc.Ua.PubSub.Transport
             List<UaNetworkMessage> networkMessages = new List<UaNetworkMessage>();
             var writers = GetAllDataSetWriters();
 
-            foreach(UInt16 dataSetWriterId in dataSetWriterIds)
+            foreach (UInt16 dataSetWriterId in dataSetWriterIds)
             {
                 DataSetWriterDataType writer = writers.Where(w => w.DataSetWriterId == dataSetWriterId).FirstOrDefault();
                 if (writer != null)
@@ -294,9 +288,9 @@ namespace Opc.Ua.PubSub.Transport
 
                             networkMessages.Add(networkMessage);
                         }
-                    }                    
+                    }
                 }
-            }          
+            }
 
             return networkMessages;
         }
@@ -313,7 +307,7 @@ namespace Opc.Ua.PubSub.Transport
 
             try
             {
-                lock (m_lock)
+                lock (Lock)
                 {
                     if (m_publisherUdpClients != null && m_publisherUdpClients.Count > 0)
                     {
@@ -362,9 +356,7 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         private void Initialize()
         {
-            NetworkAddressUrlDataType networkAddressUrlState = ExtensionObject.ToEncodeable(PubSubConnectionConfiguration.Address)
-                       as NetworkAddressUrlDataType;
-            if (networkAddressUrlState == null)
+            if (!(ExtensionObject.ToEncodeable(PubSubConnectionConfiguration.Address) is NetworkAddressUrlDataType networkAddressUrlState))
             {
                 Utils.Trace(Utils.TraceMasks.Error, "The configuration for connection {0} has invalid Address configuration.",
                           PubSubConnectionConfiguration.Name);
@@ -378,7 +370,7 @@ namespace Opc.Ua.PubSub.Transport
             {
                 Utils.Trace(Utils.TraceMasks.Error, "The configuration for connection {0} with Url:'{1}' resulted in an invalid endpoint.",
                           PubSubConnectionConfiguration.Name, networkAddressUrlState.Url);
-            }            
+            }
         }
 
         /// <summary>
@@ -392,23 +384,23 @@ namespace Opc.Ua.PubSub.Transport
 
             List<DataSetReaderDataType> dataSetReaders = GetOperationalDataSetReaders();
             List<DataSetReaderDataType> dataSetReadersToDecode = new List<DataSetReaderDataType>();
-            
+
             foreach (DataSetReaderDataType dataSetReader in dataSetReaders)
             {
                 // check if dataSetReaders have metadata information
-                if (!ConfigurationVersionUtils.IsUsable(dataSetReader.DataSetMetaData)) 
+                if (!ConfigurationVersionUtils.IsUsable(dataSetReader.DataSetMetaData))
                 {
                     // check if it is possible to request the metadata information
                     if (dataSetReader.DataSetWriterId != 0)
                     {
-                        m_udpDiscoverySubscriber.AddWriterIdForDataSetMetadata(dataSetReader.DataSetWriterId);                       
+                        m_udpDiscoverySubscriber.AddWriterIdForDataSetMetadata(dataSetReader.DataSetWriterId);
                     }
                 }
                 else
                 {
                     dataSetReadersToDecode.Add(dataSetReader);
                 }
-            }          
+            }
 
             UadpNetworkMessage networkMessage = new UadpNetworkMessage();
             networkMessage.DataSetDecodeErrorOccurred += NetworkMessage_DataSetDecodeErrorOccurred;
@@ -426,7 +418,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="result"></param>
         private void OnUadpReceive(IAsyncResult result)
         {
-            lock (m_lock)
+            lock (Lock)
             {
                 if (m_subscriberUdpClients == null || m_subscriberUdpClients.Count == 0)
                 {
@@ -435,9 +427,8 @@ namespace Opc.Ua.PubSub.Transport
             }
 
             // this is what had been passed into BeginReceive as the second parameter:
-            UdpClient socket = result.AsyncState as UdpClient;
 
-            if (socket == null)
+            if (!(result.AsyncState is UdpClient socket))
             {
                 return;
             }
@@ -451,7 +442,7 @@ namespace Opc.Ua.PubSub.Transport
 
                 if (message != null)
                 {
-                    Utils.Trace("OnUadpReceive received message with length {0} from {1}", message.Length, source.Address);       
+                    Utils.Trace("OnUadpReceive received message with length {0} from {1}", message.Length, source.Address);
 
                     if (message.Length > 1)
                     {
@@ -495,7 +486,7 @@ namespace Opc.Ua.PubSub.Transport
             {
                 Utils.Trace(Utils.TraceMasks.Information, "OnUadpReceive BeginReceive threw Exception {0}", ex.Message);
 
-                lock (m_lock)
+                lock (Lock)
                 {
                     Renew(socket);
                 }
@@ -531,12 +522,12 @@ namespace Opc.Ua.PubSub.Transport
             {
                 newsocket.BeginReceive(new AsyncCallback(OnUadpReceive), newsocket);
             }
-        }       
+        }
 
         /// <summary>
         /// Resets SequenceNumber 
         /// </summary>
-        internal void ResetSequenceNumber()
+        internal static void ResetSequenceNumber()
         {
             s_sequenceNumber = 0;
             s_dataSetSequenceNumber = 0;
@@ -548,7 +539,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="sender"></param>
         /// <param name="e"></param>
         private void Application_MetaDataReceived(object sender, SubscribedDataEventArgs e)
-        {           
+        {
             if (m_udpDiscoverySubscriber != null && e.NetworkMessage.DataSetWriterId != null)
             {
                 m_udpDiscoverySubscriber.RemoveWriterIdForDataSetMetadata(e.NetworkMessage.DataSetWriterId.Value);
