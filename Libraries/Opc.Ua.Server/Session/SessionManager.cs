@@ -153,6 +153,7 @@ namespace Opc.Ua.Server
             ApplicationDescription clientDescription,
             string endpointUrl,
             X509Certificate2 clientCertificate,
+            X509Certificate2Collection clientCertificateChain,
             double requestedSessionTimeout,
             uint maxResponseMessageSize,
             out NodeId sessionId,
@@ -241,10 +242,9 @@ namespace Opc.Ua.Server
                     clientDescription,
                     endpointUrl,
                     clientCertificate,
+                    clientCertificateChain,
                     revisedSessionTimeout,
-                    maxResponseMessageSize,
-                    m_maxRequestAge,
-                    m_maxBrowseContinuationPoints);
+                    maxResponseMessageSize);
 #else
                 session = CreateSession(
                     context,
@@ -258,9 +258,7 @@ namespace Opc.Ua.Server
                     endpointUrl,
                     clientCertificate,
                     revisedSessionTimeout,
-                    maxResponseMessageSize,
-                    m_maxRequestAge,
-                    m_maxBrowseContinuationPoints);
+                    maxResponseMessageSize);
 #endif
 
                 // get the session id.
@@ -278,6 +276,42 @@ namespace Opc.Ua.Server
 
             // return session.
             return session;
+        }
+
+        /// <summary>
+        /// Creates a new session.
+        /// </summary>
+        [Obsolete("Use CreateSession that passes X509Certificate2Collection)")]
+        public virtual Session CreateSession(
+            OperationContext context,
+            X509Certificate2 serverCertificate,
+            string sessionName,
+            byte[] clientNonce,
+            ApplicationDescription clientDescription,
+            string endpointUrl,
+            X509Certificate2 clientCertificate,
+            double requestedSessionTimeout,
+            uint maxResponseMessageSize,
+            out NodeId sessionId,
+            out NodeId authenticationToken,
+            out byte[] serverNonce,
+            out double revisedSessionTimeout)
+        {
+            return CreateSession(
+              context,
+              serverCertificate,
+              sessionName,
+              clientNonce,
+              clientDescription,
+              endpointUrl,
+              clientCertificate,
+              null,
+              requestedSessionTimeout,
+              maxResponseMessageSize,
+              out sessionId,
+              out authenticationToken,
+              out serverNonce,
+              out revisedSessionTimeout);
         }
 
         /// <summary>
@@ -542,12 +576,12 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(e, StatusCodes.BadUnexpectedError);
             }
         }
-#endregion
+        #endregion
 
-#region Protected Methods
-/// <summary>
-/// Creates a new instance of a session.
-/// </summary>
+        #region Protected Methods
+        /// <summary>
+        /// Creates a new instance of a session.
+        /// </summary>
 #if ECC_SUPPORT
         protected virtual Session CreateSession(
             OperationContext context,
@@ -560,10 +594,30 @@ namespace Opc.Ua.Server
             ApplicationDescription clientDescription,
             string endpointUrl,
             X509Certificate2 clientCertificate,
+            X509Certificate2Collection clientCertificateChain,
             double sessionTimeout,
-            uint maxResponseMessageSize,
-            int maxRequestAge, // TBD - Remove unused parameter.
-            int maxContinuationPoints) // TBD - Remove unused parameter.
+            uint maxResponseMessageSize)
+        {
+            Session session = new Session(
+                context,
+                m_server,
+                serverCertificate,
+                sessionCookie,
+                clientNonce,
+                serverNonce,
+                sessionName,
+                clientDescription,
+                endpointUrl,
+                clientCertificate,
+                clientCertificateChain,
+                sessionTimeout,
+                maxResponseMessageSize,
+                m_maxRequestAge,
+                m_maxBrowseContinuationPoints,
+                m_maxHistoryContinuationPoints);
+
+            return session;
+        }
 #else
         protected virtual Session CreateSession(
             OperationContext context,
@@ -577,10 +631,8 @@ namespace Opc.Ua.Server
             string endpointUrl,
             X509Certificate2 clientCertificate,
             double sessionTimeout,
-            uint maxResponseMessageSize,
-            int maxRequestAge, // TBD - Remove unused parameter.
-            int maxContinuationPoints) // TBD - Remove unused parameter.
-#endif
+            uint maxResponseMessageSize)
+
         {
             Session session = new Session(
                 context,
@@ -601,6 +653,7 @@ namespace Opc.Ua.Server
 
             return session;
         }
+#endif
 
         /// <summary>
         /// Raises an event related to a session.

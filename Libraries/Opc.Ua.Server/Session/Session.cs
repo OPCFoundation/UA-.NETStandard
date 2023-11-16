@@ -42,6 +42,45 @@ namespace Opc.Ua.Server
     {
         #region Constructors
 
+#if ECC_SUPPORT 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Session"/> class.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="server">The Server object.</param>
+        /// <param name="serverCertificate">The server certificate.</param>
+        /// <param name="authenticationToken">The unique private identifier assigned to the Session.</param>
+        /// <param name="clientNonce">The client nonce.</param>
+        /// <param name="serverNonce">The server nonce.</param>
+        /// <param name="sessionName">The name assigned to the Session.</param>
+        /// <param name="clientDescription">Application description for the client application.</param>
+        /// <param name="endpointUrl">The endpoint URL.</param>
+        /// <param name="clientCertificate">The client certificate.</param>
+        /// <param name="clientCertificateChain">The client certifiate chain</param>
+        /// <param name="sessionTimeout">The session timeout.</param>
+        /// <param name="maxResponseMessageSize">The maximum size of a response message</param>
+        /// <param name="maxRequestAge">The max request age.</param>
+        /// <param name="maxBrowseContinuationPoints">The maximum number of browse continuation points.</param>
+        /// <param name="maxHistoryContinuationPoints">The maximum number of history continuation points.</param>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
+        public Session(
+            OperationContext context,
+            IServerInternal server,
+            X509Certificate2 serverCertificate,
+            NodeId authenticationToken,
+            byte[] clientNonce,
+            Nonce serverNonce,
+            string sessionName,
+            ApplicationDescription clientDescription,
+            string endpointUrl,
+            X509Certificate2 clientCertificate,
+            X509Certificate2Collection clientCertificateChain,
+            double sessionTimeout,
+            uint maxResponseMessageSize,
+            double maxRequestAge,
+            int maxBrowseContinuationPoints,
+            int maxHistoryContinuationPoints)
+#else
         /// <summary>
         /// Initializes a new instance of the <see cref="Session"/> class.
         /// </summary>
@@ -61,24 +100,6 @@ namespace Opc.Ua.Server
         /// <param name="maxBrowseContinuationPoints">The maximum number of browse continuation points.</param>
         /// <param name="maxHistoryContinuationPoints">The maximum number of history continuation points.</param>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
-        #if ECC_SUPPORT 
-        public Session(
-            OperationContext context,
-            IServerInternal server,
-            X509Certificate2 serverCertificate,
-            NodeId authenticationToken,
-            byte[] clientNonce,
-            Nonce  serverNonce,
-            string sessionName,
-            ApplicationDescription clientDescription,
-            string endpointUrl,
-            X509Certificate2 clientCertificate,
-            double sessionTimeout,
-            uint maxResponseMessageSize,
-            double maxRequestAge,
-            int maxBrowseContinuationPoints,
-            int maxHistoryContinuationPoints)
-#else
         public Session(
             OperationContext context,
             IServerInternal server,
@@ -115,9 +136,9 @@ namespace Opc.Ua.Server
             m_clientCertificate = clientCertificate;
 
 #if ECC_SUPPORT
-            m_clientIssuerCertificates = null;
+            m_clientIssuerCertificates = clientCertificateChain;
 #endif
-            
+
             m_secureChannelId = context.ChannelContext.SecureChannelId;
             m_maxResponseMessageSize = maxResponseMessageSize;
             m_maxRequestAge = maxRequestAge;

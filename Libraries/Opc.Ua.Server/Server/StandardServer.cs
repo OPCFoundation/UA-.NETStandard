@@ -367,6 +367,8 @@ namespace Opc.Ua.Server
                     requireEncryption = true;
                 }
 
+                X509Certificate2Collection clientIssuerCertifficates = null;
+
                 // validate client application instance certificate.
                 X509Certificate2 parsedClientCertificate = null;
 
@@ -376,6 +378,15 @@ namespace Opc.Ua.Server
                     {
                         X509Certificate2Collection clientCertificateChain = Utils.ParseCertificateChainBlob(clientCertificate);
                         parsedClientCertificate = clientCertificateChain[0];
+
+                        if (clientCertificateChain.Count > 1)
+                        {
+                            clientIssuerCertifficates = new X509Certificate2Collection();
+                            for (int i = 1; i < clientCertificateChain.Count; i++)
+                            {
+                                clientIssuerCertifficates.Add(clientCertificateChain[i]);
+                            }
+                        }
 
                         if (context.SecurityPolicyUri != SecurityPolicies.None)
                         {
@@ -434,6 +445,7 @@ namespace Opc.Ua.Server
                     clientDescription,
                     endpointUrl,
                     parsedClientCertificate,
+                    clientIssuerCertifficates,
                     requestedSessionTimeout,
                     maxResponseMessageSize,
                     out sessionId,
