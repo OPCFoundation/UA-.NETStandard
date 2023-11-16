@@ -533,6 +533,53 @@ namespace Opc.Ua.Configuration.Tests
                 }
             }
         }
+
+        /// <summary>
+        /// Test to verify that a new cert is not recreated/replaced if DisableCertificateAutoCreation is set.
+        /// </summary>
+        [Theory]
+        public async Task TestDisableCertificateAutoCreationAsync(bool server, bool disableCertificateAutoCreation)
+        {
+            // pki directory root for test runs. 
+            var pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
+
+            var applicationInstance = new ApplicationInstance() {
+                ApplicationName = ApplicationName,
+                DisableCertificateAutoCreation = disableCertificateAutoCreation
+            };
+            Assert.NotNull(applicationInstance);
+            ApplicationConfiguration config;
+            if (server)
+            {
+                config = await applicationInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer(new string[] { "opc.tcp://localhost:12345/Configuration" })
+                    .AddSecurityConfiguration(SubjectName, pkiRoot)
+                    .Create().ConfigureAwait(false);
+            }
+            else
+            {
+                config = await applicationInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(SubjectName, pkiRoot)
+                    .Create().ConfigureAwait(false);
+            }
+            Assert.NotNull(config);
+
+            CertificateIdentifier applicationCertificate = applicationInstance.ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate;
+            Assert.IsNull(applicationCertificate.Certificate);
+
+            if (disableCertificateAutoCreation)
+            {
+                var sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false));
+                Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
+            }
+            else
+            {
+                bool certOK = await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
+                Assert.True(certOK);
+            }
+        }
         #endregion
 
         #region Private Methods

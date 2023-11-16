@@ -28,14 +28,14 @@ namespace Opc.Ua
         {
             EndpointConfiguration configuration = new EndpointConfiguration();
 
-            configuration.OperationTimeout      = 120000;
-            configuration.UseBinaryEncoding     = true;
-            configuration.MaxArrayLength        = UInt16.MaxValue;
-            configuration.MaxByteStringLength   = UInt16.MaxValue*16;
-            configuration.MaxMessageSize        = UInt16.MaxValue*64;
-            configuration.MaxStringLength       = UInt16.MaxValue;
-            configuration.MaxBufferSize         = UInt16.MaxValue;
-            configuration.ChannelLifetime       = 120000;
+            configuration.OperationTimeout = 120000;
+            configuration.UseBinaryEncoding = true;
+            configuration.MaxArrayLength = UInt16.MaxValue;
+            configuration.MaxByteStringLength = UInt16.MaxValue * 16;
+            configuration.MaxMessageSize = UInt16.MaxValue * 64;
+            configuration.MaxStringLength = UInt16.MaxValue;
+            configuration.MaxBufferSize = UInt16.MaxValue;
+            configuration.ChannelLifetime = 120000;
             configuration.SecurityTokenLifetime = 3600000;
 
             return configuration;
@@ -52,16 +52,16 @@ namespace Opc.Ua
             }
 
             EndpointConfiguration configuration = new EndpointConfiguration();
-            
-            configuration.OperationTimeout      = applicationConfiguration.TransportQuotas.OperationTimeout;
-            configuration.UseBinaryEncoding     = true;
-            configuration.MaxArrayLength        = applicationConfiguration.TransportQuotas.MaxArrayLength;
-            configuration.MaxByteStringLength   = applicationConfiguration.TransportQuotas.MaxByteStringLength;
-            configuration.MaxMessageSize        = applicationConfiguration.TransportQuotas.MaxMessageSize;
-            configuration.MaxStringLength       = applicationConfiguration.TransportQuotas.MaxStringLength;
-            configuration.MaxBufferSize         = applicationConfiguration.TransportQuotas.MaxBufferSize;
-            configuration.ChannelLifetime       = applicationConfiguration.TransportQuotas.ChannelLifetime;
-            configuration.SecurityTokenLifetime = applicationConfiguration.TransportQuotas.SecurityTokenLifetime; 
+
+            configuration.OperationTimeout = applicationConfiguration.TransportQuotas.OperationTimeout;
+            configuration.UseBinaryEncoding = true;
+            configuration.MaxArrayLength = applicationConfiguration.TransportQuotas.MaxArrayLength;
+            configuration.MaxByteStringLength = applicationConfiguration.TransportQuotas.MaxByteStringLength;
+            configuration.MaxMessageSize = applicationConfiguration.TransportQuotas.MaxMessageSize;
+            configuration.MaxStringLength = applicationConfiguration.TransportQuotas.MaxStringLength;
+            configuration.MaxBufferSize = applicationConfiguration.TransportQuotas.MaxBufferSize;
+            configuration.ChannelLifetime = applicationConfiguration.TransportQuotas.ChannelLifetime;
+            configuration.SecurityTokenLifetime = applicationConfiguration.TransportQuotas.SecurityTokenLifetime;
 
             return configuration;
         }

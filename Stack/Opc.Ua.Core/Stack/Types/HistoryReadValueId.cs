@@ -17,9 +17,9 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
 {
-	/// <summary>
-	/// The description of a value to read.
-	/// </summary>
+    /// <summary>
+    /// The description of a value to read.
+    /// </summary>
     public partial class HistoryReadValueId
     {
         #region Supporting Properties and Methods
@@ -28,16 +28,16 @@ namespace Opc.Ua
         /// </summary>
         public object Handle
         {
-            get { return m_handle;  }
+            get { return m_handle; }
             set { m_handle = value; }
         }
-        
+
         /// <summary>
         /// Whether the value has been processed.
         /// </summary>
         public bool Processed
         {
-            get { return m_processed;  }
+            get { return m_processed; }
             set { m_processed = value; }
         }
 
@@ -46,10 +46,10 @@ namespace Opc.Ua
         /// </summary>
         public NumericRange ParsedIndexRange
         {
-            get { return m_parsedIndexRange;  }
+            get { return m_parsedIndexRange; }
             set { m_parsedIndexRange = value; }
         }
-                
+
         /// <summary>
         /// Validates a read value id parameter.
         /// </summary>
@@ -86,12 +86,12 @@ namespace Opc.Ua
             {
                 valueId.ParsedIndexRange = NumericRange.Empty;
             }
-            
+
             // passed basic validation.
             return null;
         }
         #endregion
-                            
+
         #region Private Fields
         private object m_handle;
         private bool m_processed;

@@ -774,17 +774,18 @@ namespace Opc.Ua
             get
             {
                 // create encoder.
-                XmlEncoder encoder = new XmlEncoder(MessageContextExtension.CurrentContext);
+                using (XmlEncoder encoder = new XmlEncoder(MessageContextExtension.CurrentContext))
+                {
+                    // write value.
+                    encoder.WriteVariantContents(m_value, m_typeInfo);
 
-                // write value.
-                encoder.WriteVariantContents(m_value, m_typeInfo);
+                    // create document from encoder.
+                    XmlDocument document = new XmlDocument();
+                    document.LoadInnerXml(encoder.CloseAndReturnText());
 
-                // create document from encoder.
-                XmlDocument document = new XmlDocument();
-                document.LoadInnerXml(encoder.Close());
-
-                // return element.
-                return document.DocumentElement;
+                    // return element.
+                    return document.DocumentElement;
+                }
             }
 
             set
@@ -909,9 +910,8 @@ namespace Opc.Ua
             }
 
             // recusrively write individual elements of an array.
-            Array array = value as Array;
 
-            if (array != null && m_typeInfo.ValueRank <= 1)
+            if (value is Array array && m_typeInfo.ValueRank <= 1)
             {
                 buffer.Append('{');
 
@@ -2287,9 +2287,8 @@ namespace Opc.Ua
                     }
 
                     // check for matrix
-                    Matrix matrix = value as Matrix;
 
-                    if (matrix != null)
+                    if (value is Matrix matrix)
                     {
                         m_value = matrix;
                         return;
@@ -2319,9 +2318,7 @@ namespace Opc.Ua
                 // convert encodeables to extension objects.
                 case BuiltInType.ExtensionObject:
                 {
-                    IEncodeable encodeable = value as IEncodeable;
-
-                    if (encodeable != null)
+                    if (value is IEncodeable encodeable)
                     {
                         m_value = new ExtensionObject(encodeable);
                         return;
@@ -2383,9 +2380,7 @@ namespace Opc.Ua
                 // convert Guids to Uuids.
                 case BuiltInType.Guid:
                 {
-                    Guid[] guids = array as Guid[];
-
-                    if (guids != null)
+                    if (array is Guid[] guids)
                     {
                         Set(guids);
                         return;
@@ -2398,9 +2393,7 @@ namespace Opc.Ua
                 // convert encodeables to extension objects.
                 case BuiltInType.ExtensionObject:
                 {
-                    IEncodeable[] encodeables = array as IEncodeable[];
-
-                    if (encodeables != null)
+                    if (array is IEncodeable[] encodeables)
                     {
                         ExtensionObject[] extensions = new ExtensionObject[encodeables.Length];
 
@@ -2420,9 +2413,7 @@ namespace Opc.Ua
                 // convert objects to variants objects.
                 case BuiltInType.Variant:
                 {
-                    object[] objects = array as object[];
-
-                    if (objects != null)
+                    if (array is object[] objects)
                     {
                         Variant[] variants = new Variant[objects.Length];
 
@@ -2461,9 +2452,7 @@ namespace Opc.Ua
             {
                 if (typeInfo.BuiltInType == BuiltInType.ExtensionObject)
                 {
-                    IEncodeable encodeable = value[ii] as IEncodeable;
-
-                    if (encodeable != null)
+                    if (value[ii] is IEncodeable encodeable)
                     {
                         array.SetValue(new ExtensionObject(encodeable), ii);
                         continue;
@@ -2509,9 +2498,8 @@ namespace Opc.Ua
                 }
 
                 // handle lists.
-                IList list = value as IList;
 
-                if (list != null)
+                if (value is IList list)
                 {
                     SetList(list, typeInfo);
                     return;
@@ -2527,9 +2515,8 @@ namespace Opc.Ua
             }
 
             // handle matrix.
-            Matrix matrix = value as Matrix;
 
-            if (matrix != null)
+            if (value is Matrix matrix)
             {
                 m_value = matrix;
                 m_typeInfo = matrix.TypeInfo;

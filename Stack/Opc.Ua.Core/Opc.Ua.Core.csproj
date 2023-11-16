@@ -20,7 +20,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Schema\Opc.Ua.NodeSet2.xml" />
+    <None Remove="Schema\Opc.Ua.NodeSet2.xml.zip" />
     <None Remove="Schema\Opc.Ua.Types.bsd" />
     <None Remove="Schema\Opc.Ua.Types.xsd" />
     <None Remove="Schema\UANodeSet.xsd" />
@@ -29,7 +29,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Schema\Opc.Ua.NodeSet2.xml" />
     <EmbeddedResource Include="Schema\Opc.Ua.Types.bsd" />
     <EmbeddedResource Include="Schema\Opc.Ua.Types.xsd" />
     <EmbeddedResource Include="Schema\UANodeSet.xsd" />
@@ -41,11 +40,16 @@
   </ItemGroup>
 
   <Choose>
-    <!-- Note: Due to incompatibilities of Microsoft.Extensions Nuget packages between versions 3.x and 6.0,
+    <!-- Note: Due to incompatibilities of Microsoft.Extensions Nuget packages between versions 3.x and 7.0,
          use latest versions only on .NET 5/6, otherwise 3.1.x -->
-    <When Condition="'$(TargetFramework)' == 'net5.0' OR '$(TargetFramework)' == 'net6.0'">
+    <When Condition="'$(TargetFramework)' == 'net7.0'">
       <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.3" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.1" />
+      </ItemGroup>
+    </When>
+    <When Condition="'$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'net5.0' OR '$(TargetFramework)' == 'net6.0'">
+      <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.4" />
       </ItemGroup>
     </When>
     <Otherwise>
@@ -72,5 +76,23 @@
   </ItemGroup>
 
   <Target Name="GetPackagingOutputs" />
+
+  <!-- Produces a zipped version of the Nodeset 2 to reduce assembly size by 2.7MB ! -->
+  <ItemGroup>
+    <EmbeddedResource Include="Schema\Opc.Ua.NodeSet2.xml.zip" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <ZipTmp>$(BaseIntermediateOutputPath)/zipnodeset2</ZipTmp>
+    <ZipNodeSet2XML>Schema/Opc.Ua.NodeSet2.xml</ZipNodeSet2XML>
+  </PropertyGroup>
+
+  <Target Name="ZipNodeSet2" BeforeTargets="PrepareForBuild" Inputs="$(ZipNodeSet2XML)" Outputs="$(ZipNodeSet2XML).zip">
+    <Message Text="Zip $(ZipNodeSet2XML) in $(ZipTmp)." Importance="high" />
+    <Copy SourceFiles="$(ZipNodeSet2XML)" DestinationFolder="$(ZipTmp)" />
+    <ZipDirectory SourceDirectory="$(ZipTmp)" DestinationFile="$(ZipNodeSet2XML).zip" Overwrite="true" />
+    <RemoveDir Directories="$(ZipTmp)" />
+    <Message Text="Zip NodeSet2 completed, $(ZipTmp) removed." Importance="high" />
+  </Target>
 
 </Project>

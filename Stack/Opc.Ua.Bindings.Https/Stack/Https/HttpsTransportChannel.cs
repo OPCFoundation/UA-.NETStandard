@@ -273,7 +273,8 @@ namespace Opc.Ua.Bindings
                 }
 
                 var result = new HttpsAsyncResult(callback, callbackData, m_operationTimeout, request, null);
-                Task.Run(async () => {
+
+                _ = Task.Run(async () => {
                     try
                     {
                         using (var cts = new CancellationTokenSource(m_operationTimeout))
@@ -318,7 +319,11 @@ namespace Opc.Ua.Bindings
                 result2.WaitForComplete();
                 if (result2.Response != null)
                 {
-                    Stream responseContent = result2.Response.Content.ReadAsStreamAsync().Result;
+#if NET6_0_OR_GREATER
+                    Stream responseContent = result2.Response.Content.ReadAsStream();
+#else
+                    Stream responseContent = result2.Response.Content.ReadAsStreamAsync().GetAwaiter().GetResult();
+#endif
                     return BinaryDecoder.DecodeMessage(responseContent, null, m_quotas.MessageContext) as IServiceResponse;
                 }
             }
@@ -328,6 +333,12 @@ namespace Opc.Ua.Bindings
                 result2.Exception = ex;
             }
             return result2 as IServiceResponse;
+        }
+
+        /// <inheritdoc/>
+        public Task<IServiceResponse> EndSendRequestAsync(IAsyncResult result, CancellationToken ct)
+        {
+            throw new NotImplementedException();
         }
 
         /// <inheritdoc/>

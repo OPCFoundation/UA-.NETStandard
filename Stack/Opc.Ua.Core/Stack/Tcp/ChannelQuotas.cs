@@ -166,7 +166,7 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private int m_maxMessageSize;
         private int m_maxBufferSize;
         private int m_channelLifetime;

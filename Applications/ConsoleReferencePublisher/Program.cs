@@ -61,7 +61,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                     { "u|udp_uadp", "Use UDP with UADP encoding Profile", v => useUdpUadp = v != null },
                     { "url|publisher_url=", "Publisher Url Address", v => publisherUrl = v},
                 };
-            
+
             try
             {
                 IList<string> extraArgs = options.Parse(args);
@@ -125,7 +125,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                         // Create configuration using MQTT protocol and JSON Encoding
                         pubSubConfiguration = CreatePublisherConfiguration_MqttJson(publisherUrl);
                         Console.WriteLine("The PubSub Connection was initialized using MQTT & JSON Profile.");
-                    }                    
+                    }
                 }
 
                 // Create the UA Publisher application using configuration file
@@ -226,7 +226,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             dataSetWriter1.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
             dataSetWriter1.DataSetName = "Simple";
             dataSetWriter1.KeyFrameCount = 1;
-            UadpDataSetWriterMessageDataType uadpDataSetWriterMessage = new UadpDataSetWriterMessageDataType() {               
+            UadpDataSetWriterMessageDataType uadpDataSetWriterMessage = new UadpDataSetWriterMessageDataType() {
                 NetworkMessageNumber = 1,
                 DataSetMessageContentMask = (uint)(UadpDataSetMessageContentMask.Status | UadpDataSetMessageContentMask.SequenceNumber),
             };
@@ -242,7 +242,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             dataSetWriter2.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
             dataSetWriter2.DataSetName = "AllTypes";
             dataSetWriter2.KeyFrameCount = 1;
-            uadpDataSetWriterMessage = new UadpDataSetWriterMessageDataType() {               
+            uadpDataSetWriterMessage = new UadpDataSetWriterMessageDataType() {
                 NetworkMessageNumber = 1,
                 DataSetMessageContentMask = (uint)(UadpDataSetMessageContentMask.Status | UadpDataSetMessageContentMask.SequenceNumber),
             };
@@ -301,7 +301,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             string brokerMetaData = "$Metadata";
 
             #region Define WriterGroup1 - Json
-            
+
             WriterGroupDataType writerGroup1 = new WriterGroupDataType();
             writerGroup1.Name = "WriterGroup 1";
             writerGroup1.Enabled = true;
@@ -369,8 +369,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             };
             dataSetWriter2.MessageSettings = new ExtensionObject(jsonDataSetWriterMessage);
 
-            jsonDataSetWriterTransport = new BrokerDataSetWriterTransportDataType()
-            {
+            jsonDataSetWriterTransport = new BrokerDataSetWriterTransportDataType() {
                 QueueName = brokerQueueName,
                 RequestedDeliveryGuarantee = BrokerTransportQualityOfService.BestEffort,
                 MetaDataQueueName = $"{brokerQueueName}/{brokerMetaData}",

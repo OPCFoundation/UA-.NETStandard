@@ -2759,7 +2759,7 @@ namespace Opc.Ua
                         return CurrentUser + m_storeName;
                     }
 
-                    return Utils.Format("{1}\\{0}", m_storeName, m_storeLocation);
+                    return Utils.Format("{0}\\{1}", m_storeLocation, m_storeName);
                 }
 
                 return m_storePath;
@@ -3002,7 +3002,7 @@ namespace Opc.Ua
                         return Utils.Format("LocalMachine\\{0}", m_storeName);
                     }
 
-                    return Utils.Format("{1}\\{0}", m_storeName, m_storeLocation);
+                    return Utils.Format("{0}\\{1}", m_storeLocation, m_storeName);
                 }
 
                 return m_storePath;

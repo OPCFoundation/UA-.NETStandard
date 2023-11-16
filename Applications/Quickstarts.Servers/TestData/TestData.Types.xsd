@@ -7,7 +7,7 @@
 >
   <xs:annotation>
     <xs:appinfo>
-      <ua:Model ModelUri="http://test.org/UA/Data/" Version="1.0.0" PublicationDate="2023-06-06T06:33:51.5769629Z" />
+      <ua:Model ModelUri="http://test.org/UA/Data/" Version="1.0.0" PublicationDate="2023-10-09T08:51:24.5237088Z" />
     </xs:appinfo>
   </xs:annotation>
   
@@ -234,6 +234,60 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ListOfVector" type="tns:ListOfVector" nillable="true"></xs:element>
+
+  <xs:complexType name="VectorUnion">
+    <xs:sequence>
+      <xs:element name="SwitchField" type="xs:unsignedInt" minOccurs="0" />
+      <xs:choice>
+        <xs:element name="X" type="xs:double" minOccurs="0" />
+        <xs:element name="Y" type="xs:double" minOccurs="0" />
+        <xs:element name="Z" type="xs:double" minOccurs="0" />
+      </xs:choice>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="VectorUnion" type="tns:VectorUnion" />
+
+  <xs:complexType name="ListOfVectorUnion">
+    <xs:sequence>
+      <xs:element name="VectorUnion" type="tns:VectorUnion" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfVectorUnion" type="tns:ListOfVectorUnion" nillable="true"></xs:element>
+
+  <xs:complexType name="VectorWithOptionalFields">
+    <xs:sequence>
+      <xs:element name="X" type="xs:double" minOccurs="0" />
+      <xs:element name="Y" type="xs:double" minOccurs="0" />
+      <xs:element name="Z" type="xs:double" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="VectorWithOptionalFields" type="tns:VectorWithOptionalFields" />
+
+  <xs:complexType name="ListOfVectorWithOptionalFields">
+    <xs:sequence>
+      <xs:element name="VectorWithOptionalFields" type="tns:VectorWithOptionalFields" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfVectorWithOptionalFields" type="tns:ListOfVectorWithOptionalFields" nillable="true"></xs:element>
+
+  <xs:complexType name="MultipleVectors">
+    <xs:sequence>
+      <xs:element name="Vector" type="tns:Vector" minOccurs="0" nillable="true" />
+      <xs:element name="VectorUnion" type="tns:VectorUnion" minOccurs="0" nillable="true" />
+      <xs:element name="VectorWithOptionalFields" type="tns:VectorWithOptionalFields" minOccurs="0" nillable="true" />
+      <xs:element name="VectorArray" type="tns:ListOfVector" minOccurs="0" nillable="true" />
+      <xs:element name="VectorUnionArray" type="tns:ListOfVectorUnion" minOccurs="0" nillable="true" />
+      <xs:element name="VectorWithOptionalFieldsArray" type="tns:ListOfVectorWithOptionalFields" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="MultipleVectors" type="tns:MultipleVectors" />
+
+  <xs:complexType name="ListOfMultipleVectors">
+    <xs:sequence>
+      <xs:element name="MultipleVectors" type="tns:MultipleVectors" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfMultipleVectors" type="tns:ListOfMultipleVectors" nillable="true"></xs:element>
 
   <xs:complexType name="WorkOrderStatusType">
     <xs:sequence>

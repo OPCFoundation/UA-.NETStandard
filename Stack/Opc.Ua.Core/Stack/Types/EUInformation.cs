@@ -29,8 +29,8 @@ namespace Opc.Ua
         {
             Initialize();
 
-            m_displayName  = new LocalizedText(unitName);
-            m_description  = new LocalizedText(unitName);
+            m_displayName = new LocalizedText(unitName);
+            m_description = new LocalizedText(unitName);
             m_namespaceUri = namespaceUri;
         }
 
@@ -41,8 +41,8 @@ namespace Opc.Ua
         {
             Initialize();
 
-            m_displayName  = new LocalizedText(shortName);
-            m_description  = new LocalizedText(longName);
+            m_displayName = new LocalizedText(shortName);
+            m_description = new LocalizedText(longName);
             m_namespaceUri = namespaceUri;
         }
     }

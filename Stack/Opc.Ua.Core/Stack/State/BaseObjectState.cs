@@ -75,9 +75,7 @@ namespace Opc.Ua
         /// </summary>
         protected override void Initialize(ISystemContext context, NodeState source)
         {
-            BaseObjectState instance = source as BaseObjectState;
-
-            if (instance != null)
+            if (source is BaseObjectState instance)
             {
                 m_eventNotifier = instance.m_eventNotifier;
             }
@@ -159,9 +157,8 @@ namespace Opc.Ua
         {
             base.Export(context, node);
 
-            ObjectNode objectNode = node as ObjectNode;
 
-            if (objectNode != null)
+            if (node is ObjectNode objectNode)
             {
                 objectNode.EventNotifier = this.EventNotifier;
             }

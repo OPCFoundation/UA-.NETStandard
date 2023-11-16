@@ -72,7 +72,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubState conState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(publisherConnection);
             PubSubState wgState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(writerGroup);
             PubSubState dswState = uaPubSubApplication.UaPubSubConfigurator.FindStateForObject(datasetWriter);
-            Assert.That(psState  == PubSubState.Disabled, Is.True);
+            Assert.That(psState == PubSubState.Disabled, Is.True);
             Assert.That(conState == PubSubState.Disabled, Is.True);
             Assert.That(wgState == PubSubState.Disabled, Is.True);
             Assert.That(dswState == PubSubState.Disabled, Is.True);

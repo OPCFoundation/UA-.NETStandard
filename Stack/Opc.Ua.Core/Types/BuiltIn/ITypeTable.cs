@@ -11,11 +11,13 @@
 */
 
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
     /// <summary>
-    /// Stores the type tree for a server. 
+    /// Stores the type tree for a server.
     /// </summary>
     public interface ITypeTable
     {
@@ -50,6 +52,24 @@ namespace Opc.Ua
         /// <param name="typeId">The type identifier.</param>
         /// <returns>The immediate supertype idnetyfier for <paramref name="typeId"/></returns>
         NodeId FindSuperType(NodeId typeId);
+
+#if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Returns the immediate supertype for the type.
+        /// </summary>
+        /// <param name="typeId">The extended type identifier.</param>
+        /// <param name="ct"></param>
+        /// <returns>A type identifier of the <paramref name="typeId "/></returns>
+        Task<NodeId> FindSuperTypeAsync(ExpandedNodeId typeId, CancellationToken ct = default);
+
+        /// <summary>
+        /// Returns the immediate supertype for the type.
+        /// </summary>
+        /// <param name="typeId">The type identifier.</param>
+        /// <param name="ct"></param>
+        /// <returns>The immediate supertype idnetyfier for <paramref name="typeId"/></returns>
+        Task<NodeId> FindSuperTypeAsync(NodeId typeId, CancellationToken ct = default);
+#endif
 
         /// <summary>
         /// Returns the immediate subtypes for the type.
@@ -93,7 +113,7 @@ namespace Opc.Ua
         NodeId FindReferenceType(QualifiedName browseName);
 
         /// <summary>
-        /// Checks if the identifier <paramref name="encodingId"/> represents a that provides encodings 
+        /// Checks if the identifier <paramref name="encodingId"/> represents a that provides encodings
         /// for the <paramref name="datatypeId "/>.
         /// </summary>
         /// <param name="encodingId">The id the encoding node .</param>
@@ -109,7 +129,7 @@ namespace Opc.Ua
         /// <param name="expectedTypeId">The identifier of the expected type .</param>
         /// <param name="value">The value.</param>
         /// <returns>
-        /// 	<c>true</c> if the value contained in an extension object <paramref name="value"/> matches the 
+        /// 	<c>true</c> if the value contained in an extension object <paramref name="value"/> matches the
         /// 	expected data type; otherwise, <c>false</c>.
         /// </returns>
         bool IsEncodingFor(NodeId expectedTypeId, ExtensionObject value);

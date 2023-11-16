@@ -286,7 +286,7 @@ namespace Opc.Ua
             set { m_nodeIdFactory = value; }
         }
         #endregion
-        
+
         #region Public Members
         /// <summary>
         /// The operation context associated with the system context.

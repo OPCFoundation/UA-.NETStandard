@@ -12,13 +12,14 @@
 
 using System;
 using System.IO;
+using System.Runtime.CompilerServices;
 
 namespace Opc.Ua.Bindings
 {
     /// <summary>
     /// Provides stream access to a sequence of buffers.
     /// </summary>
-    public class ArraySegmentStream : Stream
+    public class ArraySegmentStream : MemoryStream
     {
         #region Constructors
         /// <summary>
@@ -131,6 +132,31 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <summary cref="Stream.ReadByte()" />
+        public override int ReadByte()
+        {
+            do
+            {
+                // check for end of stream.
+                if (m_currentBuffer.Array == null)
+                {
+                    return -1;
+                }
+
+                int bytesLeft = GetBufferCount(m_bufferIndex) - m_currentPosition;
+
+                // copy the bytes requested.
+                if (bytesLeft > 0)
+                {
+                    return m_currentBuffer.Array[m_currentBuffer.Offset + m_currentPosition++];
+                }
+
+                // move to next buffer.
+                SetCurrentBuffer(m_bufferIndex + 1);
+
+            } while (true);
+        }
+
         /// <summary cref="Stream.Read(byte[], int, int)" />
         public override int Read(byte[] buffer, int offset, int count)
         {
@@ -199,6 +225,11 @@ namespace Opc.Ua.Bindings
 
             int position = (int)offset;
 
+            if (position >= GetAbsolutePosition())
+            {
+                CheckEndOfStream();
+            }
+
             for (int ii = 0; ii < m_buffers.Count; ii++)
             {
                 int length = GetBufferCount(ii);
@@ -222,25 +253,46 @@ namespace Opc.Ua.Bindings
             throw new NotSupportedException();
         }
 
+        /// <summary cref="Stream.WriteByte(byte)" />
+        public override void WriteByte(byte value)
+        {
+            do
+            {
+                // allocate new buffer if necessary
+                CheckEndOfStream();
+
+                int bytesLeft = m_currentBuffer.Count - m_currentPosition;
+
+                // copy the byte requested.
+                if (bytesLeft >= 1)
+                {
+                    m_currentBuffer.Array[m_currentBuffer.Offset + m_currentPosition] = value;
+                    m_currentPosition++;
+
+                    if (m_bufferIndex == m_buffers.Count - 1)
+                    {
+                        if (m_endOfLastBuffer < m_currentPosition)
+                        {
+                            m_endOfLastBuffer = m_currentPosition;
+                        }
+                    }
+
+                    return;
+                }
+
+                // move to next buffer.
+                SetCurrentBuffer(m_bufferIndex + 1);
+
+            } while (true);
+        }
+
         /// <summary cref="Stream.Write(byte[],int,int)" />
         public override void Write(byte[] buffer, int offset, int count)
         {
             while (count > 0)
             {
                 // check for end of stream.
-                if (m_currentBuffer.Array == null)
-                {
-                    if (m_bufferManager == null)
-                    {
-                        throw new IOException("Attempt to write past end of stream.");
-                    }
-
-                    byte[] newBuffer = m_bufferManager.TakeBuffer(m_bufferSize, "ArraySegmentStream.Write");
-                    m_buffers.Add(new ArraySegment<byte>(newBuffer, m_start, m_count));
-                    m_endOfLastBuffer = 0;
-
-                    SetCurrentBuffer(m_buffers.Count - 1);
-                }
+                CheckEndOfStream();
 
                 int bytesLeft = m_currentBuffer.Count - m_currentPosition;
 
@@ -272,12 +324,39 @@ namespace Opc.Ua.Bindings
                 SetCurrentBuffer(m_bufferIndex + 1);
             }
         }
+
+        /// <summary cref="MemoryStream.ToArray()" />
+        public override byte[] ToArray()
+        {
+            int absoluteLength = GetAbsoluteLength();
+            if (absoluteLength == 0)
+            {
+                return Array.Empty<byte>();
+            }
+
+#if NET6_0_OR_GREATER
+            byte[] buffer = GC.AllocateUninitializedArray<byte>(absoluteLength);
+#else
+            byte[] buffer = new byte[absoluteLength];
+#endif
+
+            int offset = 0;
+            for (int ii = 0; ii < m_buffers.Count; ii++)
+            {
+                int length = GetBufferCount(ii);
+                Array.Copy(m_buffers[ii].Array, m_buffers[ii].Offset, buffer, offset, length);
+                offset += length;
+            }
+
+            return buffer;
+        }
         #endregion
 
         #region Private Methods
         /// <summary>
         /// Sets the current buffer.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetCurrentBuffer(int index)
         {
             if (index < 0 || index >= m_buffers.Count)
@@ -334,6 +413,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the number of bytes used in the buffer.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int GetBufferCount(int index)
         {
             if (index == m_buffers.Count - 1)
@@ -342,6 +422,29 @@ namespace Opc.Ua.Bindings
             }
 
             return m_buffers[index].Count;
+        }
+
+        /// <summary>
+        /// Check if end of stream is reached and take new buffer if necessary.
+        /// </summary>
+        /// <exception cref="IOException">Throws if end of stream is reached.</exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void CheckEndOfStream()
+        {
+            // check for end of stream.
+            if (m_currentBuffer.Array == null)
+            {
+                if (m_bufferManager == null)
+                {
+                    throw new IOException("Attempt to write past end of stream.");
+                }
+
+                byte[] newBuffer = m_bufferManager.TakeBuffer(m_bufferSize, "ArraySegmentStream.Write");
+                m_buffers.Add(new ArraySegment<byte>(newBuffer, m_start, m_count));
+                m_endOfLastBuffer = 0;
+
+                SetCurrentBuffer(m_buffers.Count - 1);
+            }
         }
         #endregion
 

@@ -22,7 +22,7 @@ namespace Opc.Ua
     /// <summary>
     /// Writes objects to a XML stream.
     /// </summary>
-    public class XmlEncoder : IEncoder, IDisposable
+    public class XmlEncoder : IEncoder
     {
         #region Constructors
         /// <summary>
@@ -204,10 +204,8 @@ namespace Opc.Ua
             PopNamespace();
         }
 
-        /// <summary>
-        /// Completes writing and returns the XML text.
-        /// </summary>
-        public string Close()
+        /// <inheritdoc/>
+        public int Close()
         {
             if (m_root != null)
             {
@@ -216,6 +214,19 @@ namespace Opc.Ua
 
             m_writer.Flush();
             m_writer.Dispose();
+
+            if (m_destination != null)
+            {
+                return m_destination.Length;
+            }
+
+            return 0;
+        }
+
+        /// <inheritdoc/>
+        public string CloseAndReturnText()
+        {
+            Close();
 
             if (m_destination != null)
             {
@@ -233,6 +244,7 @@ namespace Opc.Ua
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -629,16 +641,15 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDiagnosticInfo(string fieldName, DiagnosticInfo value)
         {
-            // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
-            }
+            WriteDiagnosticInfo(fieldName, value, 0);
+        }
 
-            m_nestingLevel++;
+        /// <summary>
+        /// Writes a DiagnosticInfo to the stream.
+        /// </summary>
+        private void WriteDiagnosticInfo(string fieldName, DiagnosticInfo value, int depth)
+        {
+            CheckAndIncrementNestingLevel();
 
             if (BeginField(fieldName, value == null, true))
             {
@@ -652,7 +663,15 @@ namespace Opc.Ua
                     WriteInt32("LocalizedText", value.LocalizedText);
                     WriteString("AdditionalInfo", value.AdditionalInfo);
                     WriteStatusCode("InnerStatusCode", value.InnerStatusCode);
-                    WriteDiagnosticInfo("InnerDiagnosticInfo", value.InnerDiagnosticInfo);
+                    if (depth < DiagnosticInfo.MaxInnerDepth)
+                    {
+                        WriteDiagnosticInfo("InnerDiagnosticInfo", value.InnerDiagnosticInfo, depth + 1);
+                    }
+                    else
+                    {
+                        Utils.LogWarning("InnerDiagnosticInfo dropped because nesting exceeds maximum of {0}.",
+                            DiagnosticInfo.MaxInnerDepth);
+                    }
                 }
 
                 PopNamespace();
@@ -724,31 +743,27 @@ namespace Opc.Ua
         /// </summary>
         public void WriteVariant(string fieldName, Variant value)
         {
-            // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            CheckAndIncrementNestingLevel();
+
+            try
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
+                if (BeginField(fieldName, false, false))
+                {
+                    PushNamespace(Namespaces.OpcUaXsd);
+
+                    m_writer.WriteStartElement("Value", Namespaces.OpcUaXsd);
+                    WriteVariantContents(value.Value, value.TypeInfo);
+                    m_writer.WriteEndElement();
+
+                    PopNamespace();
+
+                    EndField(fieldName);
+                }
             }
-
-            m_nestingLevel++;
-
-            if (BeginField(fieldName, false, false))
+            finally
             {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                m_writer.WriteStartElement("Value", Namespaces.OpcUaXsd);
-                WriteVariantContents(value.Value, value.TypeInfo);
-                m_writer.WriteEndElement();
-
-                PopNamespace();
-
-                EndField(fieldName);
+                m_nestingLevel--;
             }
-
-            m_nestingLevel--;
         }
 
         /// <summary>
@@ -855,16 +870,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteEncodeable(string fieldName, IEncodeable value, System.Type systemType)
         {
-            // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
-            }
-
-            m_nestingLevel++;
+            CheckAndIncrementNestingLevel();
 
             if (BeginField(fieldName, value == null, true))
             {
@@ -1826,11 +1832,9 @@ namespace Opc.Ua
 
                         case BuiltInType.Enumeration:
                         {
-                            int[] ints = value as int[];
-                            if (ints == null)
+                            if (!(value is int[] ints))
                             {
-                                Enum[] enums = value as Enum[];
-                                if (enums == null)
+                                if (!(value is Enum[] enums))
                                 {
                                     throw new ServiceResultException(
                                         StatusCodes.BadEncodingError,
@@ -1849,17 +1853,14 @@ namespace Opc.Ua
 
                         case BuiltInType.Variant:
                         {
-                            Variant[] variants = value as Variant[];
-
-                            if (variants != null)
+                            if (value is Variant[] variants)
                             {
                                 WriteVariantArray("ListOfVariant", variants);
                                 return;
                             }
 
-                            object[] objects = value as object[];
 
-                            if (objects != null)
+                            if (value is object[] objects)
                             {
                                 WriteObjectArray("ListOfVariant", objects);
                                 return;
@@ -1903,9 +1904,8 @@ namespace Opc.Ua
             }
 
             // encode byte body.
-            byte[] bytes = body as byte[];
 
-            if (bytes != null)
+            if (body is byte[] bytes)
             {
                 m_writer.WriteStartElement("ByteString", Namespaces.OpcUaXsd);
                 m_writer.WriteString(Convert.ToBase64String(bytes, Base64FormattingOptions.InsertLineBreaks));
@@ -1914,8 +1914,7 @@ namespace Opc.Ua
             }
 
             // encode xml body.
-            XmlElement xml = body as XmlElement;
-            if (xml != null)
+            if (body is XmlElement xml)
             {
                 using (XmlReader reader = XmlReader.Create(new StringReader(xml.OuterXml), Utils.DefaultXmlReaderSettings()))
                 {
@@ -1924,8 +1923,7 @@ namespace Opc.Ua
                 }
             }
 
-            IEncodeable encodeable = body as IEncodeable;
-            if (encodeable == null)
+            if (!(body is IEncodeable encodeable))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadEncodingError,
@@ -1933,7 +1931,7 @@ namespace Opc.Ua
             }
 
             // encode extension object in xml.
-            XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(encodeable.GetType());
+            XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(encodeable, this.Context);
             m_writer.WriteStartElement(xmlName.Name, xmlName.Namespace);
             encodeable.Encode(this);
             m_writer.WriteEndElement();
@@ -1973,16 +1971,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteArray(string fieldName, object array, int valueRank, BuiltInType builtInType)
         {
-            // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
-            }
-
-            m_nestingLevel++;
+            CheckAndIncrementNestingLevel();
 
             try
             {
@@ -2024,11 +2013,9 @@ namespace Opc.Ua
                             case BuiltInType.DiagnosticInfo: { WriteDiagnosticInfoArray(fieldName, (DiagnosticInfo[])array); return; }
                             case BuiltInType.Enumeration:
                             {
-                                int[] ints = array as int[];
-                                if (ints == null)
+                                if (!(array is int[] ints))
                                 {
-                                    Enum[] enums = array as Enum[];
-                                    if (enums == null)
+                                    if (!(array is Enum[] enums))
                                     {
                                         throw new ServiceResultException(
                                             StatusCodes.BadEncodingError,
@@ -2047,25 +2034,21 @@ namespace Opc.Ua
 
                             case BuiltInType.Variant:
                             {
-                                Variant[] variants = array as Variant[];
-
-                                if (variants != null)
+                                if (array is Variant[] variants)
                                 {
                                     WriteVariantArray(fieldName, variants);
                                     return;
                                 }
 
                                 // try to write IEncodeable Array
-                                IEncodeable[] encodeableArray = array as IEncodeable[];
-                                if (encodeableArray != null)
+                                if (array is IEncodeable[] encodeableArray)
                                 {
                                     WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
                                     return;
                                 }
 
-                                object[] objects = array as object[];
 
-                                if (objects != null)
+                                if (array is object[] objects)
                                 {
                                     WriteObjectArray(fieldName, objects);
                                     return;
@@ -2080,8 +2063,7 @@ namespace Opc.Ua
                             default:
                             {
                                 // try to write IEncodeable Array
-                                IEncodeable[] encodeableArray = array as IEncodeable[];
-                                if (encodeableArray != null)
+                                if (array is IEncodeable[] encodeableArray)
                                 {
                                     WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
                                     return;
@@ -2108,11 +2090,9 @@ namespace Opc.Ua
                      * product of the dimensions.
                      * The number of values is 0 if one or more dimension is less than or equal to 0.*/
 
-                    Matrix matrix = array as Matrix;
-                    if (matrix == null)
+                    if (!(array is Matrix matrix))
                     {
-                        var multiArray = array as Array;
-                        if (multiArray != null && multiArray.Rank == valueRank)
+                        if (array is Array multiArray && multiArray.Rank == valueRank)
                         {
                             matrix = new Matrix(multiArray, builtInType);
                         }
@@ -2148,25 +2128,15 @@ namespace Opc.Ua
                 m_nestingLevel--;
             }
         }
-
         #endregion
 
         #region Private Methods
         /// <summary>
-        /// Writes an DataValue array to the stream.
+        /// Writes a DataValue array to the stream.
         /// </summary>
         private void WriteMatrix(string fieldName, Matrix value)
         {
-            // check the nesting level for avoiding a stack overflow.
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
-            }
-
-            m_nestingLevel++;
+            CheckAndIncrementNestingLevel();
 
             if (BeginField(fieldName, value == null, true, true))
             {
@@ -2228,6 +2198,21 @@ namespace Opc.Ua
             {
                 m_writer.WriteEndElement();
             }
+        }
+
+        /// <summary>
+        /// Test and increment the nesting level.
+        /// </summary>
+        private void CheckAndIncrementNestingLevel()
+        {
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
+            m_nestingLevel++;
         }
         #endregion
 

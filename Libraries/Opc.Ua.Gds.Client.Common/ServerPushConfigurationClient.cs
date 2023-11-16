@@ -53,7 +53,7 @@ namespace Opc.Ua.Gds.Client
         public ServerPushConfigurationClient(ApplicationConfiguration configuration, ISessionFactory sessionFactory = null)
         {
             m_configuration = configuration;
-            m_sessionFactory = sessionFactory ?? new DefaultSessionFactory();
+            m_sessionFactory = sessionFactory ?? DefaultSessionFactory.Instance;
         }
         #endregion
 
@@ -371,56 +371,57 @@ namespace Opc.Ua.Gds.Client
                     (uint)masks);
 
                 uint fileHandle = (uint)outputArguments[0];
-                MemoryStream ostrm = new MemoryStream();
-
-                try
+                using (MemoryStream ostrm = new MemoryStream())
                 {
-                    while (true)
+                    try
                     {
-                        int length = 256;
-
-                        outputArguments = m_session.Call(
-                            ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
-                            ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Read, m_session.NamespaceUris),
-                            fileHandle,
-                            length);
-
-                        byte[] bytes = (byte[])outputArguments[0];
-                        ostrm.Write(bytes, 0, bytes.Length);
-
-                        if (length != bytes.Length)
+                        while (true)
                         {
-                            break;
-                        }
-                    }
+                            int length = 256;
 
-                    m_session.Call(
-                        ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
-                        ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Close, m_session.NamespaceUris),
-                        fileHandle);
-                }
-                catch (Exception)
-                {
-                    if (IsConnected)
-                    {
+                            outputArguments = m_session.Call(
+                                ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
+                                ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Read, m_session.NamespaceUris),
+                                fileHandle,
+                                length);
+
+                            byte[] bytes = (byte[])outputArguments[0];
+                            ostrm.Write(bytes, 0, bytes.Length);
+
+                            if (length != bytes.Length)
+                            {
+                                break;
+                            }
+                        }
+
                         m_session.Call(
                             ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
                             ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Close, m_session.NamespaceUris),
                             fileHandle);
                     }
+                    catch (Exception)
+                    {
+                        if (IsConnected)
+                        {
+                            m_session.Call(
+                                ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
+                                ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Close, m_session.NamespaceUris),
+                                fileHandle);
+                        }
 
-                    throw;
+                        throw;
+                    }
+
+                    ostrm.Position = 0;
+
+                    TrustListDataType trustList = new TrustListDataType();
+                    using (BinaryDecoder decoder = new BinaryDecoder(ostrm, m_session.MessageContext))
+                    {
+                        trustList.Decode(decoder);
+                    }
+
+                    return trustList;
                 }
-
-                ostrm.Position = 0;
-
-                BinaryDecoder decoder = new BinaryDecoder(ostrm, m_session.MessageContext);
-                TrustListDataType trustList = new TrustListDataType();
-                trustList.Decode(decoder);
-                decoder.Close();
-                ostrm.Close();
-
-                return trustList;
             }
             finally
             {
@@ -442,60 +443,64 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                MemoryStream strm = new MemoryStream();
-                BinaryEncoder encoder = new BinaryEncoder(strm, m_session.MessageContext);
-                encoder.WriteEncodeable(null, trustList, null);
-                strm.Position = 0;
-
-                var outputArguments = m_session.Call(
-                    ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
-                    ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open, m_session.NamespaceUris),
-                    (byte)(OpenFileMode.Write | OpenFileMode.EraseExisting));
-
-                uint fileHandle = (uint)outputArguments[0];
-
-                try
+                using (MemoryStream strm = new MemoryStream())
                 {
-                    bool writing = true;
-                    byte[] buffer = new byte[256];
-
-                    while (writing)
+                    using (BinaryEncoder encoder = new BinaryEncoder(strm, m_session.MessageContext, true))
                     {
-                        int bytesWritten = strm.Read(buffer, 0, buffer.Length);
+                        encoder.WriteEncodeable(null, trustList, null);
+                    }
+                    strm.Position = 0;
 
-                        if (bytesWritten != buffer.Length)
+                    var outputArguments = m_session.Call(
+                        ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
+                        ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open, m_session.NamespaceUris),
+                        (byte)(OpenFileMode.Write | OpenFileMode.EraseExisting));
+
+                    uint fileHandle = (uint)outputArguments[0];
+
+                    try
+                    {
+                        bool writing = true;
+                        byte[] buffer = new byte[256];
+
+                        while (writing)
                         {
-                            byte[] copy = new byte[bytesWritten];
-                            Array.Copy(buffer, copy, bytesWritten);
-                            buffer = copy;
-                            writing = false;
+                            int bytesWritten = strm.Read(buffer, 0, buffer.Length);
+
+                            if (bytesWritten != buffer.Length)
+                            {
+                                byte[] copy = new byte[bytesWritten];
+                                Array.Copy(buffer, copy, bytesWritten);
+                                buffer = copy;
+                                writing = false;
+                            }
+
+                            m_session.Call(
+                                ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
+                                ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Write, m_session.NamespaceUris),
+                                fileHandle,
+                                buffer);
                         }
 
-                        m_session.Call(
+                        outputArguments = m_session.Call(
                             ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
-                            ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Write, m_session.NamespaceUris),
-                            fileHandle,
-                            buffer);
-                    }
-
-                    outputArguments = m_session.Call(
-                        ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
-                        ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_CloseAndUpdate, m_session.NamespaceUris),
-                        fileHandle);
-
-                    return (bool)outputArguments[0];
-                }
-                catch (Exception)
-                {
-                    if (IsConnected)
-                    {
-                        m_session.Call(
-                            ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
-                            ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Close, m_session.NamespaceUris),
+                            ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_CloseAndUpdate, m_session.NamespaceUris),
                             fileHandle);
-                    }
 
-                    throw;
+                        return (bool)outputArguments[0];
+                    }
+                    catch (Exception)
+                    {
+                        if (IsConnected)
+                        {
+                            m_session.Call(
+                                ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
+                                ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Close, m_session.NamespaceUris),
+                                fileHandle);
+                        }
+
+                        throw;
+                    }
                 }
             }
             finally

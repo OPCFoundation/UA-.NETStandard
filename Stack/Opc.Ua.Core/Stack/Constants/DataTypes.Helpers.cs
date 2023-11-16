@@ -16,65 +16,65 @@ using System.Xml;
 
 namespace Opc.Ua
 {
-	/// <summary>
-	/// A class that defines constants used by UA applications.
-	/// </summary>
-	public static partial class DataTypes
-	{
+    /// <summary>
+    /// A class that defines constants used by UA applications.
+    /// </summary>
+    public static partial class DataTypes
+    {
         #region Static Helper Functions
         /// <summary>
 		/// Returns the browse name for the attribute.
 		/// </summary>
         public static string GetBrowseName(int identifier)
-		{
-			FieldInfo[] fields = typeof(DataTypes).GetFields(BindingFlags.Public | BindingFlags.Static);
+        {
+            FieldInfo[] fields = typeof(DataTypes).GetFields(BindingFlags.Public | BindingFlags.Static);
 
-			foreach (FieldInfo field in fields)
-			{
+            foreach (FieldInfo field in fields)
+            {
                 if (identifier == (uint)field.GetValue(typeof(DataTypes)))
-				{
-					return field.Name;
-				}
-			}
+                {
+                    return field.Name;
+                }
+            }
 
-			return System.String.Empty;
-		}
+            return System.String.Empty;
+        }
 
-		/// <summary>
-		/// Returns the browse names for all attributes.
-		/// </summary>
-		public static string[] GetBrowseNames()
-		{
-			FieldInfo[] fields = typeof(DataTypes).GetFields(BindingFlags.Public | BindingFlags.Static);
-            
+        /// <summary>
+        /// Returns the browse names for all attributes.
+        /// </summary>
+        public static string[] GetBrowseNames()
+        {
+            FieldInfo[] fields = typeof(DataTypes).GetFields(BindingFlags.Public | BindingFlags.Static);
+
             int ii = 0;
 
             string[] names = new string[fields.Length];
-            
-			foreach (FieldInfo field in fields)
-			{
-				names[ii++] = field.Name;
-			}
 
-			return names;
-		}
+            foreach (FieldInfo field in fields)
+            {
+                names[ii++] = field.Name;
+            }
 
-		/// <summary>
-		/// Returns the id for the attribute with the specified browse name.
-		/// </summary>
+            return names;
+        }
+
+        /// <summary>
+        /// Returns the id for the attribute with the specified browse name.
+        /// </summary>
         public static uint GetIdentifier(string browseName)
-		{
-			FieldInfo[] fields = typeof(DataTypes).GetFields(BindingFlags.Public | BindingFlags.Static);
+        {
+            FieldInfo[] fields = typeof(DataTypes).GetFields(BindingFlags.Public | BindingFlags.Static);
 
-			foreach (FieldInfo field in fields)
-			{
-				if (field.Name == browseName)
-				{
+            foreach (FieldInfo field in fields)
+            {
+                if (field.Name == browseName)
+                {
                     return (uint)field.GetValue(typeof(DataTypes));
-				}
-			}
+                }
+            }
 
-			return 0;
+            return 0;
         }
 
         /// <summary>
@@ -116,15 +116,15 @@ namespace Opc.Ua
         {
             return TypeInfo.GetValueRank(type);
         }
-        
+
         /// <summary>
         /// Returns the BuiltInType type for the DataTypeId.
         /// </summary>
         public static BuiltInType GetBuiltInType(NodeId datatypeId)
         {
             return TypeInfo.GetBuiltInType(datatypeId);
-        }        
-        
+        }
+
         /// <summary>
         /// Returns the BuiltInType type for the DataTypeId.
         /// </summary>

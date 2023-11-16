@@ -265,15 +265,20 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             TestContext.Out.WriteLine("Expected:");
 
             expected = BuildExpectedResponse(data, builtInType, expected, useReversibleEncoding);
+            _ = PrettifyAndValidateJson(expected);
 
-            var formattedExpected = PrettifyAndValidateJson(expected);
-            var encoderStream = new MemoryStream();
-            IEncoder encoder = CreateEncoder(
-                EncodingType.Json, EncoderContext, encoderStream,
-                typeof(ExtensionObject), useReversibleEncoding, topLevelIsArray);
-            Encode(encoder, BuiltInType.ExtensionObject, useReversibleEncoding ? builtInType.ToString() : null, data);
-            Dispose(encoder);
-            var buffer = encoderStream.ToArray();
+            byte[] buffer;
+            using (var encoderStream = new MemoryStream())
+            {
+                using (IEncoder encoder = CreateEncoder(
+                    EncodingType.Json, EncoderContext, encoderStream,
+                    typeof(ExtensionObject), useReversibleEncoding, topLevelIsArray))
+                {
+                    Encode(encoder, BuiltInType.ExtensionObject, useReversibleEncoding ? builtInType.ToString() : null, data);
+                }
+                buffer = encoderStream.ToArray();
+            }
+
             TestContext.Out.WriteLine("Result:");
             var result = Encoding.UTF8.GetString(buffer);
             if (data.Body is UnionComplexType && !useReversibleEncoding)

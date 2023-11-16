@@ -65,7 +65,7 @@ namespace Opc.Ua.Security.Certificates
                 // search known custom extensions
                 if (typeof(T) == typeof(X509AuthorityKeyIdentifierExtension))
                 {
-                    var extension = extensions.Cast<X509Extension>().FirstOrDefault(e => (
+                    X509Extension extension = extensions.Cast<X509Extension>().FirstOrDefault(e => (
                         e.Oid.Value == X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifierOid ||
                         e.Oid.Value == X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifier2Oid)
                     );
@@ -77,7 +77,7 @@ namespace Opc.Ua.Security.Certificates
 
                 if (typeof(T) == typeof(X509SubjectAltNameExtension))
                 {
-                    var extension = extensions.Cast<X509Extension>().FirstOrDefault(e => (
+                    X509Extension extension = extensions.Cast<X509Extension>().FirstOrDefault(e => (
                         e.Oid.Value == X509SubjectAltNameExtension.SubjectAltNameOid ||
                         e.Oid.Value == X509SubjectAltNameExtension.SubjectAltName2Oid)
                     );
@@ -89,7 +89,7 @@ namespace Opc.Ua.Security.Certificates
 
                 if (typeof(T) == typeof(X509CrlNumberExtension))
                 {
-                    var extension = extensions.Cast<X509Extension>().FirstOrDefault(e => (
+                    X509Extension extension = extensions.Cast<X509Extension>().FirstOrDefault(e => (
                         e.Oid.Value == X509CrlNumberExtension.CrlNumberOid)
                     );
                     if (extension != null)
@@ -119,12 +119,12 @@ namespace Opc.Ua.Security.Certificates
                 throw new ArgumentNullException(nameof(caIssuerUrls), "One CA Issuer Url or OCSP responder is required for the extension.");
             }
 
-            Asn1Tag generalNameUriChoice = new Asn1Tag(TagClass.ContextSpecific, 6);
-            AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
+            var generalNameUriChoice = new Asn1Tag(TagClass.ContextSpecific, 6);
+            var writer = new AsnWriter(AsnEncodingRules.DER);
             writer.PushSequence();
             if (caIssuerUrls != null)
             {
-                foreach (var caIssuerUrl in caIssuerUrls)
+                foreach (string caIssuerUrl in caIssuerUrls)
                 {
                     writer.PushSequence();
                     writer.WriteObjectIdentifier(Oids.CertificateAuthorityIssuers);
@@ -171,8 +171,8 @@ namespace Opc.Ua.Security.Certificates
             var context0 = new Asn1Tag(TagClass.ContextSpecific, 0, true);
             Asn1Tag distributionPointChoice = context0;
             Asn1Tag fullNameChoice = context0;
-            Asn1Tag generalNameUriChoice = new Asn1Tag(TagClass.ContextSpecific, 6);
-            AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
+            var generalNameUriChoice = new Asn1Tag(TagClass.ContextSpecific, 6);
+            var writer = new AsnWriter(AsnEncodingRules.DER);
             writer.PushSequence();
             writer.PushSequence();
             writer.PushSequence(distributionPointChoice);
@@ -201,15 +201,15 @@ namespace Opc.Ua.Security.Certificates
             if (reader.HasData)
             {
                 var boolTag = new Asn1Tag(UniversalTagNumber.Boolean);
-                var extReader = reader.ReadSequence();
-                var extOid = extReader.ReadObjectIdentifier();
+                AsnReader extReader = reader.ReadSequence();
+                string extOid = extReader.ReadObjectIdentifier();
                 bool critical = false;
-                var peekTag = extReader.PeekTag();
+                Asn1Tag peekTag = extReader.PeekTag();
                 if (peekTag == boolTag)
                 {
                     critical = extReader.ReadBoolean();
                 }
-                var data = extReader.ReadOctetString();
+                byte[] data = extReader.ReadOctetString();
                 extReader.ThrowIfNotEmpty();
                 return new X509Extension(new Oid(extOid), data, critical);
             }
@@ -223,7 +223,7 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="extension"></param>
         public static void WriteExtension(this AsnWriter writer, X509Extension extension)
         {
-            var etag = Asn1Tag.Sequence;
+            Asn1Tag etag = Asn1Tag.Sequence;
             writer.PushSequence(etag);
             writer.WriteObjectIdentifier(extension.Oid.Value);
             if (extension.Critical)
@@ -241,7 +241,7 @@ namespace Opc.Ua.Security.Certificates
             CRLReason reason
             )
         {
-            AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
+            var writer = new AsnWriter(AsnEncodingRules.DER);
             writer.WriteEnumeratedValue<CRLReason>(reason);
             return new X509Extension(Oids.CrlReasonCode, writer.Encode(), false);
         }
@@ -253,7 +253,7 @@ namespace Opc.Ua.Security.Certificates
         public static X509Extension BuildAuthorityKeyIdentifier(X509Certificate2 issuerCaCertificate)
         {
             // force exception if SKI is not present
-            var ski = issuerCaCertificate.Extensions.OfType<X509SubjectKeyIdentifierExtension>().Single();
+            X509SubjectKeyIdentifierExtension ski = issuerCaCertificate.Extensions.OfType<X509SubjectKeyIdentifierExtension>().Single();
             return new X509AuthorityKeyIdentifierExtension(
                 ski.SubjectKeyIdentifier.FromHexString(),
                 issuerCaCertificate.IssuerName,
@@ -265,7 +265,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public static X509Extension BuildCRLNumber(BigInteger crlNumber)
         {
-            AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
+            var writer = new AsnWriter(AsnEncodingRules.DER);
             writer.WriteInteger(crlNumber);
             return new X509Extension(Oids.CrlNumber, writer.Encode(), false);
         }

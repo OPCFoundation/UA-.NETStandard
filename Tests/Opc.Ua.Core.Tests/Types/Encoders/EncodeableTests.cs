@@ -93,22 +93,30 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             string objectName = "Array";
             BuiltInType builtInType = BuiltInType.Variant;
-            var encoderStream = new MemoryStream();
-            IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, systemType);
-            encoder.WriteArray(objectName, array, ValueRanks.OneDimension, builtInType);
-            Dispose(encoder);
 
-            var buffer = encoderStream.ToArray();
+            byte[] buffer;
+            using (var encoderStream = new MemoryStream())
+            {
+                using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, systemType))
+                {
+                    encoder.WriteArray(objectName, array, ValueRanks.OneDimension, builtInType);
+                }
+                buffer = encoderStream.ToArray();
+            }
+
             switch (encoderType)
             {
                 case EncodingType.Json:
                     PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
                     break;
             }
-            var decoderStream = new MemoryStream(buffer);
-            IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, systemType);
-            object result = decoder.ReadArray(objectName, ValueRanks.OneDimension, BuiltInType.Variant, systemType, dataTypeId);
-            Dispose(decoder);
+
+            object result;
+            using (var decoderStream = new MemoryStream(buffer))
+            using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, systemType))
+            {
+                result = decoder.ReadArray(objectName, ValueRanks.OneDimension, BuiltInType.Variant, systemType, dataTypeId);
+            }
 
             TestContext.Out.WriteLine("Result:");
             TestContext.Out.WriteLine(result);
@@ -150,29 +158,36 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             Matrix matrix = new Matrix(array, builtInType, dimensions);
 
-            var encoderStream = new MemoryStream();
-            IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, systemType);
-            if (encodeAsMatrix)
+            byte[] buffer;
+            using (var encoderStream = new MemoryStream())
             {
-                encoder.WriteArray(objectName, matrix, matrix.TypeInfo.ValueRank, builtInType);
+                using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, systemType))
+                {
+                    if (encodeAsMatrix)
+                    {
+                        encoder.WriteArray(objectName, matrix, matrix.TypeInfo.ValueRank, builtInType);
+                    }
+                    else
+                    {
+                        encoder.WriteArray(objectName, matrix.ToArray(), matrix.TypeInfo.ValueRank, builtInType);
+                    }
+                }
+                buffer = encoderStream.ToArray();
             }
-            else
-            {
-                encoder.WriteArray(objectName, matrix.ToArray(), matrix.TypeInfo.ValueRank, builtInType);
-            }
-            Dispose(encoder);
 
-            var buffer = encoderStream.ToArray();
             switch (encoderType)
             {
                 case EncodingType.Json:
                     PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
                     break;
             }
-            var decoderStream = new MemoryStream(buffer);
-            IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, systemType);
-            Array result = decoder.ReadArray(objectName, matrix.TypeInfo.ValueRank, BuiltInType.Variant, systemType, dataTypeId);
-            Dispose(decoder);
+
+            Array result;
+            using (var decoderStream = new MemoryStream(buffer))
+            using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, systemType))
+            {
+                result = decoder.ReadArray(objectName, matrix.TypeInfo.ValueRank, BuiltInType.Variant, systemType, dataTypeId);
+            }
 
             TestContext.Out.WriteLine("Result:");
             TestContext.Out.WriteLine(result);

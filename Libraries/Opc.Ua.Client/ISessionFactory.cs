@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -38,7 +39,6 @@ namespace Opc.Ua.Client
     /// </summary>
     public interface ISessionFactory
     {
-        #region Public Methods
         /// <summary>
         /// Creates a new communication session with a server by invoking the CreateSession service
         /// </summary>
@@ -49,6 +49,7 @@ namespace Opc.Ua.Client
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="identity">The identity.</param>
         /// <param name="preferredLocales">The user identity to associate with the session.</param>
+        /// <param name="ct">The cancellation token</param>
         /// <returns>The new session object</returns>
         Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
@@ -57,7 +58,8 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales);
+            IList<string> preferredLocales,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Creates a new communication session with a server by invoking the CreateSession service
@@ -70,6 +72,7 @@ namespace Opc.Ua.Client
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="identity">The user identity to associate with the session.</param>
         /// <param name="preferredLocales">The preferred locales.</param>
+        /// <param name="ct">The cancellation token</param>
         /// <returns>The new session object.</returns>
         Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
@@ -79,7 +82,43 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales);
+            IList<string> preferredLocales,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Creates a new session with a server using the specified channel by invoking the CreateSession service.
+        /// </summary>
+        /// <param name="configuration">The configuration for the client application.</param>
+        /// <param name="channel">The channel for the server.</param>
+        /// <param name="endpoint">The endpoint for the server.</param>
+        /// <param name="clientCertificate">The certificate to use for the client.</param>
+        /// <param name="availableEndpoints">The list of available endpoints returned by server in GetEndpoints() response.</param>
+        /// <param name="discoveryProfileUris">The value of profileUris used in GetEndpoints() request.</param>
+        ISession Create(
+           ApplicationConfiguration configuration,
+           ITransportChannel channel,
+           ConfiguredEndpoint endpoint,
+           X509Certificate2 clientCertificate,
+           EndpointDescriptionCollection availableEndpoints = null,
+           StringCollection discoveryProfileUris = null);
+
+        /// <summary>
+        /// Creates a secure channel to the specified endpoint.
+        /// </summary>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="connection">The client endpoint for the reverse connect.</param>
+        /// <param name="endpoint">A configured endpoint to connect to.</param> 
+        /// <param name="updateBeforeConnect">Update configuration based on server prior connect.</param>
+        /// <param name="checkDomain">Check that the certificate specifies a valid domain (computer) name.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+        Task<ITransportChannel> CreateChannelAsync(
+            ApplicationConfiguration configuration,
+            ITransportWaitingConnection connection,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Creates a new communication session with a server using a reverse connection.
@@ -93,6 +132,7 @@ namespace Opc.Ua.Client
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="identity">The user identity to associate with the session.</param>
         /// <param name="preferredLocales">The preferred locales.</param>
+        /// <param name="ct">The cancellation token</param>
         /// <returns>The new session object.</returns>
         Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
@@ -103,7 +143,8 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales);
+            IList<string> preferredLocales,
+            CancellationToken ct = default);
 
         /// <summary>
         /// Creates a new communication session with a server using a reverse connect manager.
@@ -135,16 +176,26 @@ namespace Opc.Ua.Client
         /// Recreates a session based on a specified template.
         /// </summary>
         /// <param name="template">The ISession object to use as template</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
-        Task<ISession> RecreateAsync(ISession template);
+        Task<ISession> RecreateAsync(ISession template, CancellationToken ct = default);
 
         /// <summary>
         /// Recreates a session based on a specified template.
         /// </summary>
         /// <param name="template">The ISession object to use as template</param>
         /// <param name="connection">The waiting reverse connection.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
-        Task<ISession> RecreateAsync(ISession template, ITransportWaitingConnection connection);
-        #endregion
+        Task<ISession> RecreateAsync(ISession template, ITransportWaitingConnection connection, CancellationToken ct = default);
+
+        /// <summary>
+        /// Recreates a session based on a specified template using the provided channel.
+        /// </summary>
+        /// <param name="template">The Session object to use as template</param>
+        /// <param name="transportChannel">The channel to use to recreate the session.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The new session object.</returns>
+        Task<ISession> RecreateAsync(ISession template, ITransportChannel transportChannel, CancellationToken ct = default);
     }
 }

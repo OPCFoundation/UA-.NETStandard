@@ -95,7 +95,7 @@ namespace Opc.Ua.Client
         public SessionReconnectHandler(bool reconnectAbort = false, int maxReconnectPeriod = -1)
         {
             m_reconnectAbort = reconnectAbort;
-            m_reconnectTimer = new Timer(OnReconnect, this, Timeout.Infinite, Timeout.Infinite);
+            m_reconnectTimer = new Timer(OnReconnectAsync, this, Timeout.Infinite, Timeout.Infinite);
             m_state = ReconnectState.Ready;
             m_cancelReconnect = false;
             m_updateFromServer = false;
@@ -285,7 +285,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Called when the reconnect timer expires.
         /// </summary>
-        private async void OnReconnect(object state)
+        private async void OnReconnectAsync(object state)
         {
             DateTime reconnectStart = DateTime.UtcNow;
             try
@@ -320,7 +320,7 @@ namespace Opc.Ua.Client
 
                 // do the reconnect.
                 if (keepaliveRecovered ||
-                    await DoReconnect().ConfigureAwait(false))
+                    await DoReconnectAsync().ConfigureAwait(false))
                 {
                     lock (m_lock)
                     {
@@ -365,7 +365,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Reconnects to the server.
         /// </summary>
-        private async Task<bool> DoReconnect()
+        private async Task<bool> DoReconnectAsync()
         {
             // helper to override operation timeout
             int operationTimeout = m_session.OperationTimeout;
@@ -533,7 +533,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private ISession m_session;
         private ReconnectState m_state;
         private Random m_random;
