@@ -32,6 +32,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
@@ -539,7 +540,7 @@ namespace Opc.Ua.Configuration.Tests
         /// </summary>
         /// <returns></returns>
         [Test]
-        public async Task TestAddOwnCertificateToTrustedStore()
+        public async Task TestAddOwnCertificateToTrustedStore(CancellationToken ct)
         {
             //Arrange Application Instance
             var applicationInstance = new ApplicationInstance() {
@@ -562,7 +563,7 @@ namespace Opc.Ua.Configuration.Tests
                 .CreateForRSA();
 
             //Act
-            await applicationInstance.AddOwnCertificateToTrustedStoreAsync(cert).ConfigureAwait(false);
+            await applicationInstance.AddOwnCertificateToTrustedStoreAsync(cert, ct).ConfigureAwait(false);
             ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore();
             var storedCertificates = await store.FindByThumbprint(cert.Thumbprint).ConfigureAwait(false);
 
