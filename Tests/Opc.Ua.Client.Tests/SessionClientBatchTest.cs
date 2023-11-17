@@ -82,7 +82,7 @@ namespace Opc.Ua.Client.Tests
                     MaxNodesPerWrite = kOperationLimit
                 };
             }
-            m_random = new Random(0x1234);
+            m_random = new Random(0x62541);
         }
 
         /// <summary>
@@ -107,8 +107,8 @@ namespace Opc.Ua.Client.Tests
             if (Session is TestableSession testableSession)
             {
                 // set the time offset to a value from -5 to +5 days
-                testableSession.TimestampOffset = TimeSpan.FromSeconds((m_random.NextDouble() - 0.5) * 3600 * 24 * 10);
-                TestContext.Out.WriteLine("The time offset for request headers has been set to {0} seconds.", testableSession.TimestampOffset.Seconds);
+                testableSession.TimestampOffset = TimeSpan.FromSeconds((m_random.NextDouble() - 0.5) * 3600.0 * 24.0 * 10.0);
+                TestContext.Out.WriteLine("The time offset for request headers has been set to {0} offset.", testableSession.TimestampOffset.ToString());
             }
         }
 
