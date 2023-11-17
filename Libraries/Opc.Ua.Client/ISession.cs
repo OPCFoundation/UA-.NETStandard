@@ -63,7 +63,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Manages a session with a server.
     /// </summary>
-    public interface ISession : ISessionClient, IDisposable
+    public interface ISession : ISessionClient
     {
         #region Events
         /// <summary>

@@ -23,6 +23,8 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class UaSCUaBinaryTransportChannel : ITransportChannel, IMessageSocketChannel
     {
+        private const int kChannelCloseDefault = 1_000;
+
         #region Constructors
         /// <summary>
         /// Create a transport channel from a message socket factory.
@@ -223,7 +225,7 @@ namespace Opc.Ua.Bindings
                     {
                         try
                         {
-                            channel.Close(1000);
+                            channel.Close(kChannelCloseDefault);
                         }
                         catch (Exception e)
                         {
@@ -277,10 +279,31 @@ namespace Opc.Ua.Bindings
                 {
                     if (m_channel != null)
                     {
-                        m_channel.Close(1000);
+                        m_channel.Close(kChannelCloseDefault);
                         m_channel = null;
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Closes the secure channel (async).
+        /// </summary>
+        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
+        public async Task CloseAsync(CancellationToken ct)
+        {
+            UaSCUaBinaryClientChannel channel = null;
+            lock (m_lock)
+            {
+                if (m_channel != null)
+                {
+                    channel = m_channel;
+                    m_channel = null;
+                }
+            }
+            if (channel != null)
+            {
+                await channel.CloseAsync(kChannelCloseDefault, ct).ConfigureAwait(false);
             }
         }
 
