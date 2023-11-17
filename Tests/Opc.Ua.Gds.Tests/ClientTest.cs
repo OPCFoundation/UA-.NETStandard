@@ -85,6 +85,7 @@ namespace Opc.Ua.Gds.Tests
             m_goodRegistrationOk = false;
             m_invalidRegistrationOk = false;
             m_goodNewKeyPairRequestOk = false;
+            m_runApplicationSelfAdminTests = false;
         }
 
         /// <summary>
@@ -735,7 +736,9 @@ namespace Opc.Ua.Gds.Tests
             } while (requestBusy);
         }
 
-        [Test, Order(511)]
+        
+
+        [Test, Order(512)]
         public void FinishInvalidNewKeyPairRequests()
         {
             AssertIgnoreTestWithoutInvalidRegistration();
@@ -941,6 +944,31 @@ namespace Opc.Ua.Gds.Tests
                     Assert.NotNull(trustList);
                 }
             }
+
+            if (m_runApplicationSelfAdminTests)
+            {
+                AssertIgnoreTestWithoutGoodRegistration();
+                AssertIgnoreTestWithoutGoodNewKeyPairRequest();
+                DisconnectGDS();
+                //connect to GDS without Admin Privilege
+                ConnectGDS(false);
+
+                foreach (var application in m_goodApplicationTestSet)
+                {
+                    if (application.Certificate != null)
+                    {
+                        var certificateGroups = m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId);
+                        foreach (var certificateGroup in certificateGroups)
+                        {
+                            var trustListId = m_gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, certificateGroup);
+                            // Opc.Ua.TrustListDataType
+                            var trustList = m_gdsClient.GDSClient.ReadTrustList(trustListId);
+                            Assert.NotNull(trustList);
+                        }
+                    }
+                }
+
+            }
         }
 
         [Test, Order(690)]
@@ -1094,6 +1122,7 @@ namespace Opc.Ua.Gds.Tests
         private bool m_goodRegistrationOk;
         private bool m_invalidRegistrationOk;
         private bool m_goodNewKeyPairRequestOk;
+        private bool m_runApplicationSelfAdminTests;
         #endregion
     }
 
