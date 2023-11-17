@@ -686,6 +686,15 @@ namespace Opc.Ua.Client
         {
             return new MonitoredItem(this);
         }
+
+        /// <summary>
+        /// Clones a monitored item or the subclass with an option to copy event handlers.
+        /// </summary>
+        /// <returns>A cloned instance of the monitored item or a subclass.</returns>
+        public virtual MonitoredItem CloneMonitoredItem(bool copyEventHandlers, bool copyClientHandle)
+        {
+            return new MonitoredItem(this, copyEventHandlers, copyClientHandle);
+        }
         #endregion
 
         #region Public Methods

@@ -48,6 +48,8 @@ namespace Opc.Ua.Client.Tests
     public class SessionClientBatchTest : ClientTestFramework
     {
         public const uint kOperationLimit = 5;
+        private Random m_random;
+
         public SessionClientBatchTest(string uriScheme = Utils.UriSchemeOpcTcp) :
             base(uriScheme)
         {
@@ -80,6 +82,7 @@ namespace Opc.Ua.Client.Tests
                     MaxNodesPerWrite = kOperationLimit
                 };
             }
+            m_random = new Random(0x1234);
         }
 
         /// <summary>
@@ -98,6 +101,15 @@ namespace Opc.Ua.Client.Tests
         public new async Task SetUp()
         {
             await base.SetUp().ConfigureAwait(false);
+
+            // test if the server accepts RequestHeader timestampes which
+            // are up to +-5 days off.
+            if (Session is TestableSession testableSession)
+            {
+                // set the time offset to a value from -5 to +5 days
+                testableSession.TimestampOffset = TimeSpan.FromSeconds((m_random.NextDouble() - 0.5) * 3600 * 24 * 10);
+                TestContext.Out.WriteLine("The time offset for request headers has been set to {0} seconds.", testableSession.TimestampOffset.Seconds);
+            }
         }
 
         /// <summary>

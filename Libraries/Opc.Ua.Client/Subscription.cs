@@ -121,7 +121,7 @@ namespace Opc.Ua.Client
                 // copy the list of monitored items.
                 foreach (MonitoredItem monitoredItem in template.MonitoredItems)
                 {
-                    MonitoredItem clone = new MonitoredItem(monitoredItem, copyEventHandlers, true);
+                    MonitoredItem clone = monitoredItem.CloneMonitoredItem(copyEventHandlers, true);
                     clone.DisplayName = monitoredItem.DisplayName;
                     AddItem(clone);
                 }
@@ -218,8 +218,16 @@ namespace Opc.Ua.Client
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            var clone = new Subscription(this);
-            return clone;
+            return new Subscription(this);
+        }
+
+        /// <summary>
+        /// Clones a subscription or a subclass with an option to copy event handlers.
+        /// </summary>
+        /// <returns>A cloned instance of the subscription or its subclass.</returns>
+        public virtual Subscription CloneSubscription(bool copyEventHandlers)
+        {
+            return new Subscription(this, copyEventHandlers);
         }
         #endregion
 

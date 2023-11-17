@@ -157,7 +157,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             ClientFixture = new ClientFixture();
-            ClientFixture.UseTracing = true;
+            ClientFixture.UseTracing = false;
             ClientFixture.StartActivityListener();
 
             await ClientFixture.LoadClientConfiguration(PkiRoot).ConfigureAwait(false);
