@@ -321,7 +321,9 @@ namespace Opc.Ua.Client.Tests
 
             using (var client = DiscoveryClient.Create(url, endpointConfiguration))
             {
-                return await client.GetEndpointsAsync(null).ConfigureAwait(false);
+                var result = await client.GetEndpointsAsync(null).ConfigureAwait(false);
+                await client.CloseAsync().ConfigureAwait(false);
+                return result;
             }
         }
 
