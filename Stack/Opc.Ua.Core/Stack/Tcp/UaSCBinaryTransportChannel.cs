@@ -23,6 +23,8 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class UaSCUaBinaryTransportChannel : ITransportChannel, IMessageSocketChannel
     {
+        private const int kChannelCloseDefault = 1_000;
+
         #region Constructors
         /// <summary>
         /// Create a transport channel from a message socket factory.
@@ -223,7 +225,7 @@ namespace Opc.Ua.Bindings
                     {
                         try
                         {
-                            channel.Close(1000);
+                            channel.Close(kChannelCloseDefault);
                         }
                         catch (Exception e)
                         {
@@ -277,7 +279,7 @@ namespace Opc.Ua.Bindings
                 {
                     if (m_channel != null)
                     {
-                        m_channel.Close(1000);
+                        m_channel.Close(kChannelCloseDefault);
                         m_channel = null;
                     }
                 }
@@ -301,7 +303,7 @@ namespace Opc.Ua.Bindings
             }
             if (channel != null)
             {
-                await channel.CloseAsync(1000, ct).ConfigureAwait(false);
+                await channel.CloseAsync(kChannelCloseDefault, ct).ConfigureAwait(false);
             }
         }
 
