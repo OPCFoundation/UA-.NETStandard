@@ -127,7 +127,7 @@ namespace Opc.Ua.Schema.Binary
                 writer.Dispose();
             }
 
-            return new UTF8Encoding().GetString(ostrm.ToArray(), 0, (int)ostrm.Length);
+            return Encoding.UTF8.GetString(ostrm.ToArray(), 0, (int)ostrm.Length);
         }
         #endregion
 
@@ -270,9 +270,8 @@ namespace Opc.Ua.Schema.Binary
                 return true;
             }
 
-            OpaqueType opaqueType = description as OpaqueType;
 
-            if (opaqueType != null)
+            if (description is OpaqueType opaqueType)
             {
                 if (opaqueType.LengthInBitsSpecified)
                 {
@@ -307,9 +306,8 @@ namespace Opc.Ua.Schema.Binary
                 }
             }
 
-            EnumeratedType enumerated = description as EnumeratedType;
 
-            if (enumerated != null)
+            if (description is EnumeratedType enumerated)
             {
                 if (enumerated.LengthInBitsSpecified)
                 {
@@ -318,9 +316,7 @@ namespace Opc.Ua.Schema.Binary
             }
             else
             {
-                OpaqueType opaque = description as OpaqueType;
-
-                if (opaque != null)
+                if (description is OpaqueType opaque)
                 {
                     if (opaque.LengthInBitsSpecified)
                     {
@@ -407,9 +403,7 @@ namespace Opc.Ua.Schema.Binary
         /// </summary>
         private void ValidateDescription(TypeDescription description)
         {
-            OpaqueType opaque = description as OpaqueType;
-
-            if (opaque != null)
+            if (description is OpaqueType opaque)
             {
                 if (!opaque.LengthInBitsSpecified)
                 {
@@ -422,9 +416,8 @@ namespace Opc.Ua.Schema.Binary
                 }
             }
 
-            EnumeratedType enumerated = description as EnumeratedType;
 
-            if (enumerated != null)
+            if (description is EnumeratedType enumerated)
             {
 
                 if (!enumerated.LengthInBitsSpecified)
@@ -433,9 +426,8 @@ namespace Opc.Ua.Schema.Binary
                 }
             }
 
-            StructuredType structure = description as StructuredType;
 
-            if (structure != null)
+            if (description is StructuredType structure)
             {
                 if (structure.Field == null || structure.Field.Length == 0)
                 {

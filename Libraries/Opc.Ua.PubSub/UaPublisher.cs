@@ -39,7 +39,7 @@ namespace Opc.Ua.PubSub
     {
         #region Fields
         private readonly object m_lock = new object();
-        
+
         private readonly IUaPubSubConnection m_pubSubConnection;
         private readonly WriterGroupDataType m_writerGroupConfiguration;
         private readonly WriterGroupPublishState m_writerGroupPublishState;
@@ -69,7 +69,7 @@ namespace Opc.Ua.PubSub
             m_writerGroupPublishState = new WriterGroupPublishState();
 
             m_intervalRunner = new IntervalRunner(m_writerGroupConfiguration.Name, m_writerGroupConfiguration.PublishingInterval, CanPublish, PublishMessages);
-            
+
         }
 
         #endregion
@@ -141,7 +141,7 @@ namespace Opc.Ua.PubSub
         #endregion
 
         #region Private Methods
-        
+
         /// <summary>
         /// Decide if the connection can publish
         /// </summary>

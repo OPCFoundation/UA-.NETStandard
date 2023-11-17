@@ -28,7 +28,7 @@ namespace Opc.Ua
         /// </summary>
         public List<string> StringTable
         {
-            get { return m_stringTable;  }
+            get { return m_stringTable; }
             set { m_stringTable = value; }
         }
 
@@ -69,16 +69,15 @@ namespace Opc.Ua
                     continue;
                 }
 
-                DataChangeNotification notification = extension.Body as DataChangeNotification;
-                                
-                if (notification == null)
+
+                if (!(extension.Body is DataChangeNotification notification))
                 {
                     continue;
                 }
-    
+
                 if (reverse)
                 {
-                    for (int ii = notification.MonitoredItems.Count-1; ii >= 0; ii--)
+                    for (int ii = notification.MonitoredItems.Count - 1; ii >= 0; ii--)
                     {
                         MonitoredItemNotification datachange = notification.MonitoredItems[ii];
 
@@ -106,7 +105,7 @@ namespace Opc.Ua
 
             return datachanges;
         }
-        
+
         /// <summary>
         /// Returns the events contained in the notification message.
         /// </summary>
@@ -121,16 +120,15 @@ namespace Opc.Ua
                     continue;
                 }
 
-                EventNotificationList notification = extension.Body as EventNotificationList;
-                                
-                if (notification == null)
+
+                if (!(extension.Body is EventNotificationList notification))
                 {
                     continue;
-                }            
-    
+                }
+
                 if (reverse)
                 {
-                    for (int ii = notification.Events.Count-1; ii >= 0; ii--)
+                    for (int ii = notification.Events.Count - 1; ii >= 0; ii--)
                     {
                         EventFieldList eventFields = notification.Events[ii];
 

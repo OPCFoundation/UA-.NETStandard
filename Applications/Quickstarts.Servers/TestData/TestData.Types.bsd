@@ -239,6 +239,30 @@
     <opc:Field Name="Z" TypeName="opc:Double" />
   </opc:StructuredType>
 
+  <opc:StructuredType Name="VectorUnion" BaseType="ua:Union">
+    <opc:Field Name="X" TypeName="opc:Double" />
+    <opc:Field Name="Y" TypeName="opc:Double" />
+    <opc:Field Name="Z" TypeName="opc:Double" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="VectorWithOptionalFields" BaseType="ua:ExtensionObject">
+    <opc:Field Name="X" TypeName="opc:Double" />
+    <opc:Field Name="Y" TypeName="opc:Double" />
+    <opc:Field Name="Z" TypeName="opc:Double" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="MultipleVectors" BaseType="ua:ExtensionObject">
+    <opc:Field Name="Vector" TypeName="tns:Vector" />
+    <opc:Field Name="VectorUnion" TypeName="tns:VectorUnion" />
+    <opc:Field Name="VectorWithOptionalFields" TypeName="tns:VectorWithOptionalFields" />
+    <opc:Field Name="NoOfVectorArray" TypeName="opc:Int32" />
+    <opc:Field Name="VectorArray" TypeName="tns:Vector" LengthField="NoOfVectorArray" />
+    <opc:Field Name="NoOfVectorUnionArray" TypeName="opc:Int32" />
+    <opc:Field Name="VectorUnionArray" TypeName="tns:VectorUnion" LengthField="NoOfVectorUnionArray" />
+    <opc:Field Name="NoOfVectorWithOptionalFieldsArray" TypeName="opc:Int32" />
+    <opc:Field Name="VectorWithOptionalFieldsArray" TypeName="tns:VectorWithOptionalFields" LengthField="NoOfVectorWithOptionalFieldsArray" />
+  </opc:StructuredType>
+
   <opc:StructuredType Name="WorkOrderStatusType" BaseType="ua:ExtensionObject">
     <opc:Field Name="Actor" TypeName="opc:String" />
     <opc:Field Name="Timestamp" TypeName="opc:DateTime" />

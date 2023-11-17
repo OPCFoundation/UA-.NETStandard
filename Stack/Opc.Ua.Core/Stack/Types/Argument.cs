@@ -17,10 +17,10 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
 {
-	/// <summary>
-	/// The Argument class.
-	/// </summary>
-	public partial class Argument
+    /// <summary>
+    /// The Argument class.
+    /// </summary>
+    public partial class Argument
     {
         #region Public Properties
         /// <summary>
@@ -40,14 +40,14 @@ namespace Opc.Ua
 		/// The value for the argument.
 		/// </summary>
 		public object Value
-		{
-			get { return m_value;  }
-			set { m_value = value; }
-		}
-		#endregion
+        {
+            get { return m_value; }
+            set { m_value = value; }
+        }
+        #endregion
 
-		#region Private Fields
-		private object m_value;
-		#endregion
-	}
+        #region Private Fields
+        private object m_value;
+        #endregion
+    }
 }

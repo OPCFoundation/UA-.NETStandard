@@ -97,9 +97,8 @@ namespace Opc.Ua.PubSub.Transport
         private void OnUadpDiscoveryReceive(IAsyncResult result)
         {
             // this is what had been passed into BeginReceive as the second parameter:
-            UdpClient socket = result.AsyncState as UdpClient;
 
-            if (socket == null)
+            if (!(result.AsyncState is UdpClient socket))
             {
                 return;
             }
@@ -155,7 +154,7 @@ namespace Opc.Ua.PubSub.Transport
             UadpNetworkMessage networkMessage = new UadpNetworkMessage();
             // decode the received message
             networkMessage.Decode(MessageContext, messageBytes, null);
-            
+
             if (networkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest
                     && networkMessage.UADPDiscoveryType == UADPNetworkMessageDiscoveryType.DataSetMetaData
                     && networkMessage.DataSetWriterIds != null)
@@ -175,11 +174,11 @@ namespace Opc.Ua.PubSub.Transport
                     }
                 }
 
-                Task.Run(SendResponseDataSetMetaData).ConfigureAwait(false);
+                Task.Run(SendResponseDataSetMetaDataAsync).ConfigureAwait(false);
             }
         }
 
-        private async Task SendResponseDataSetMetaData()
+        private async Task SendResponseDataSetMetaDataAsync()
         {
             await Task.Delay(m_responseInterval).ConfigureAwait(false);
 

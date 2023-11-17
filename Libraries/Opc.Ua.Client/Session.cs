@@ -3054,9 +3054,9 @@ namespace Opc.Ua.Client
                 {
                     // dont throw errors on disconnect, but return them
                     // so the caller can log the error.
-                    if (e is ServiceResultException)
+                    if (e is ServiceResultException sre)
                     {
-                        result = ((ServiceResultException)e).StatusCode;
+                        result = sre.StatusCode;
                     }
                     else
                     {

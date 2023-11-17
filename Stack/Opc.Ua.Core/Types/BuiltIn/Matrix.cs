@@ -135,9 +135,8 @@ namespace Opc.Ua
                 return true;
             }
 
-            Matrix matrix = obj as Matrix;
 
-            if (matrix != null)
+            if (obj is Matrix matrix)
             {
                 if (!m_typeInfo.Equals(matrix.TypeInfo))
                 {

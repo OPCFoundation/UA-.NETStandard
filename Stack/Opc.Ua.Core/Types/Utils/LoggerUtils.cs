@@ -26,7 +26,7 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
- 
+
 //
 // Portions of this logging abstraction class were derived from:
 //
@@ -37,7 +37,7 @@
 //
 
 // Disable: 'Use the LoggerMessage delegates'
-#pragma warning disable CA1848 
+#pragma warning disable CA1848
 
 using System;
 using System.Diagnostics;
