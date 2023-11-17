@@ -569,10 +569,11 @@ namespace Opc.Ua.Configuration
         /// Adds a Certificate to the Trusted Store of the Application, needed e.g. for the GDS to trust it´s own CA
         /// </summary>
         /// <param name="certificate">The certificate to add to the store</param>
+        /// <param name="ct"></param>
         /// <returns></returns>
-        public async Task AddOwnCertificateToTrustedStoreAsync(X509Certificate2 certificate)
+        public async Task AddOwnCertificateToTrustedStoreAsync(X509Certificate2 certificate, CancellationToken ct)
         {
-            await AddToTrustedStore(m_applicationConfiguration, certificate).ConfigureAwait(false);
+            await AddToTrustedStoreAsync(m_applicationConfiguration, certificate, ct).ConfigureAwait(false);
         }
 
         /// <summary>
