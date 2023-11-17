@@ -217,54 +217,75 @@
       <Reference ReferenceType="HasTypeDefinition">i=15620</Reference>
     </References>
   </UAObject>
-  <UAVariable NodeId="ns=1;i=1662" BrowseName="Identities" ParentNodeId="ns=1;i=1661" DataType="i=15634" ValueRank="1" ArrayDimensions="0">
+  <UAVariable NodeId="ns=1;i=1662" BrowseName="Identities" AccessRestrictions="3" ParentNodeId="ns=1;i=1661" DataType="i=15634" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Identities</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1661</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1663" BrowseName="ApplicationsExclude" ParentNodeId="ns=1;i=1661" DataType="Boolean">
+  <UAVariable NodeId="ns=1;i=1663" BrowseName="ApplicationsExclude" AccessRestrictions="3" ParentNodeId="ns=1;i=1661" DataType="Boolean">
     <DisplayName>ApplicationsExclude</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1661</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1664" BrowseName="Applications" ParentNodeId="ns=1;i=1661" DataType="String" ValueRank="1" ArrayDimensions="0">
+  <UAVariable NodeId="ns=1;i=1664" BrowseName="Applications" AccessRestrictions="3" ParentNodeId="ns=1;i=1661" DataType="String" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Applications</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1661</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1665" BrowseName="EndpointsExclude" ParentNodeId="ns=1;i=1661" DataType="Boolean">
+  <UAVariable NodeId="ns=1;i=1665" BrowseName="EndpointsExclude" AccessRestrictions="3" ParentNodeId="ns=1;i=1661" DataType="Boolean">
     <DisplayName>EndpointsExclude</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1661</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1666" BrowseName="Endpoints" ParentNodeId="ns=1;i=1661" DataType="i=15528" ValueRank="1" ArrayDimensions="0">
+  <UAVariable NodeId="ns=1;i=1666" BrowseName="Endpoints" AccessRestrictions="3" ParentNodeId="ns=1;i=1661" DataType="i=15528" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Endpoints</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1661</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1668" BrowseName="AddIdentity" ParentNodeId="ns=1;i=1661" MethodDeclarationId="i=15624">
+  <UAMethod NodeId="ns=1;i=1668" BrowseName="AddIdentity" AccessRestrictions="3" ParentNodeId="ns=1;i=1661" MethodDeclarationId="i=15624">
     <DisplayName>AddIdentity</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1669</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1661</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1669" BrowseName="InputArguments" ParentNodeId="ns=1;i=1668" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1669" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1668" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1668</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -285,19 +306,25 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1670" BrowseName="RemoveIdentity" ParentNodeId="ns=1;i=1661" MethodDeclarationId="i=15626">
+  <UAMethod NodeId="ns=1;i=1670" BrowseName="RemoveIdentity" AccessRestrictions="3" ParentNodeId="ns=1;i=1661" MethodDeclarationId="i=15626">
     <DisplayName>RemoveIdentity</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1671</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1661</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1671" BrowseName="InputArguments" ParentNodeId="ns=1;i=1670" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1671" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1670" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1670</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -318,19 +345,25 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1672" BrowseName="AddApplication" ParentNodeId="ns=1;i=1661" MethodDeclarationId="i=16176">
+  <UAMethod NodeId="ns=1;i=1672" BrowseName="AddApplication" AccessRestrictions="3" ParentNodeId="ns=1;i=1661" MethodDeclarationId="i=16176">
     <DisplayName>AddApplication</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1673</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1661</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1673" BrowseName="InputArguments" ParentNodeId="ns=1;i=1672" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1673" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1672" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1672</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -351,19 +384,25 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1674" BrowseName="RemoveApplication" ParentNodeId="ns=1;i=1661" MethodDeclarationId="i=16178">
+  <UAMethod NodeId="ns=1;i=1674" BrowseName="RemoveApplication" AccessRestrictions="3" ParentNodeId="ns=1;i=1661" MethodDeclarationId="i=16178">
     <DisplayName>RemoveApplication</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1675</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1661</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1675" BrowseName="InputArguments" ParentNodeId="ns=1;i=1674" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1675" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1674" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1674</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -384,19 +423,25 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1676" BrowseName="AddEndpoint" ParentNodeId="ns=1;i=1661" MethodDeclarationId="i=16180">
+  <UAMethod NodeId="ns=1;i=1676" BrowseName="AddEndpoint" AccessRestrictions="3" ParentNodeId="ns=1;i=1661" MethodDeclarationId="i=16180">
     <DisplayName>AddEndpoint</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1677</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1661</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1677" BrowseName="InputArguments" ParentNodeId="ns=1;i=1676" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1677" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1676" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1676</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -417,19 +462,25 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1678" BrowseName="RemoveEndpoint" ParentNodeId="ns=1;i=1661" MethodDeclarationId="i=16182">
+  <UAMethod NodeId="ns=1;i=1678" BrowseName="RemoveEndpoint" AccessRestrictions="3" ParentNodeId="ns=1;i=1661" MethodDeclarationId="i=16182">
     <DisplayName>RemoveEndpoint</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1679</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1661</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1679" BrowseName="InputArguments" ParentNodeId="ns=1;i=1678" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1679" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1678" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1678</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -469,54 +520,75 @@
       <Reference ReferenceType="HasTypeDefinition">i=15620</Reference>
     </References>
   </UAObject>
-  <UAVariable NodeId="ns=1;i=1681" BrowseName="Identities" ParentNodeId="ns=1;i=1680" DataType="i=15634" ValueRank="1" ArrayDimensions="0">
+  <UAVariable NodeId="ns=1;i=1681" BrowseName="Identities" AccessRestrictions="3" ParentNodeId="ns=1;i=1680" DataType="i=15634" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Identities</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1680</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1682" BrowseName="ApplicationsExclude" ParentNodeId="ns=1;i=1680" DataType="Boolean">
+  <UAVariable NodeId="ns=1;i=1682" BrowseName="ApplicationsExclude" AccessRestrictions="3" ParentNodeId="ns=1;i=1680" DataType="Boolean">
     <DisplayName>ApplicationsExclude</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1680</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1683" BrowseName="Applications" ParentNodeId="ns=1;i=1680" DataType="String" ValueRank="1" ArrayDimensions="0">
+  <UAVariable NodeId="ns=1;i=1683" BrowseName="Applications" AccessRestrictions="3" ParentNodeId="ns=1;i=1680" DataType="String" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Applications</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1680</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1684" BrowseName="EndpointsExclude" ParentNodeId="ns=1;i=1680" DataType="Boolean">
+  <UAVariable NodeId="ns=1;i=1684" BrowseName="EndpointsExclude" AccessRestrictions="3" ParentNodeId="ns=1;i=1680" DataType="Boolean">
     <DisplayName>EndpointsExclude</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1680</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1685" BrowseName="Endpoints" ParentNodeId="ns=1;i=1680" DataType="i=15528" ValueRank="1" ArrayDimensions="0">
+  <UAVariable NodeId="ns=1;i=1685" BrowseName="Endpoints" AccessRestrictions="3" ParentNodeId="ns=1;i=1680" DataType="i=15528" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Endpoints</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1680</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1687" BrowseName="AddIdentity" ParentNodeId="ns=1;i=1680" MethodDeclarationId="i=15624">
+  <UAMethod NodeId="ns=1;i=1687" BrowseName="AddIdentity" AccessRestrictions="3" ParentNodeId="ns=1;i=1680" MethodDeclarationId="i=15624">
     <DisplayName>AddIdentity</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1688</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1680</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1688" BrowseName="InputArguments" ParentNodeId="ns=1;i=1687" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1688" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1687" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1687</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -537,19 +609,25 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1689" BrowseName="RemoveIdentity" ParentNodeId="ns=1;i=1680" MethodDeclarationId="i=15626">
+  <UAMethod NodeId="ns=1;i=1689" BrowseName="RemoveIdentity" AccessRestrictions="3" ParentNodeId="ns=1;i=1680" MethodDeclarationId="i=15626">
     <DisplayName>RemoveIdentity</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1690</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1680</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1690" BrowseName="InputArguments" ParentNodeId="ns=1;i=1689" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1690" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1689" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1689</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -570,19 +648,25 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1691" BrowseName="AddApplication" ParentNodeId="ns=1;i=1680" MethodDeclarationId="i=16176">
+  <UAMethod NodeId="ns=1;i=1691" BrowseName="AddApplication" AccessRestrictions="3" ParentNodeId="ns=1;i=1680" MethodDeclarationId="i=16176">
     <DisplayName>AddApplication</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1692</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1680</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1692" BrowseName="InputArguments" ParentNodeId="ns=1;i=1691" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1692" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1691" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1691</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -603,19 +687,25 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1693" BrowseName="RemoveApplication" ParentNodeId="ns=1;i=1680" MethodDeclarationId="i=16178">
+  <UAMethod NodeId="ns=1;i=1693" BrowseName="RemoveApplication" AccessRestrictions="3" ParentNodeId="ns=1;i=1680" MethodDeclarationId="i=16178">
     <DisplayName>RemoveApplication</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1694</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1680</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1694" BrowseName="InputArguments" ParentNodeId="ns=1;i=1693" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1694" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1693" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1693</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -636,19 +726,25 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1695" BrowseName="AddEndpoint" ParentNodeId="ns=1;i=1680" MethodDeclarationId="i=16180">
+  <UAMethod NodeId="ns=1;i=1695" BrowseName="AddEndpoint" AccessRestrictions="3" ParentNodeId="ns=1;i=1680" MethodDeclarationId="i=16180">
     <DisplayName>AddEndpoint</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1696</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1680</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1696" BrowseName="InputArguments" ParentNodeId="ns=1;i=1695" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1696" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1695" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1695</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -669,19 +765,25 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1697" BrowseName="RemoveEndpoint" ParentNodeId="ns=1;i=1680" MethodDeclarationId="i=16182">
+  <UAMethod NodeId="ns=1;i=1697" BrowseName="RemoveEndpoint" AccessRestrictions="3" ParentNodeId="ns=1;i=1680" MethodDeclarationId="i=16182">
     <DisplayName>RemoveEndpoint</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1698</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1680</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1698" BrowseName="InputArguments" ParentNodeId="ns=1;i=1697" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1698" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1697" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1697</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -721,54 +823,75 @@
       <Reference ReferenceType="HasTypeDefinition">i=15620</Reference>
     </References>
   </UAObject>
-  <UAVariable NodeId="ns=1;i=1700" BrowseName="Identities" ParentNodeId="ns=1;i=1699" DataType="i=15634" ValueRank="1" ArrayDimensions="0">
+  <UAVariable NodeId="ns=1;i=1700" BrowseName="Identities" AccessRestrictions="3" ParentNodeId="ns=1;i=1699" DataType="i=15634" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Identities</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1699</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1701" BrowseName="ApplicationsExclude" ParentNodeId="ns=1;i=1699" DataType="Boolean">
+  <UAVariable NodeId="ns=1;i=1701" BrowseName="ApplicationsExclude" AccessRestrictions="3" ParentNodeId="ns=1;i=1699" DataType="Boolean">
     <DisplayName>ApplicationsExclude</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1699</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1702" BrowseName="Applications" ParentNodeId="ns=1;i=1699" DataType="String" ValueRank="1" ArrayDimensions="0">
+  <UAVariable NodeId="ns=1;i=1702" BrowseName="Applications" AccessRestrictions="3" ParentNodeId="ns=1;i=1699" DataType="String" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Applications</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1699</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1703" BrowseName="EndpointsExclude" ParentNodeId="ns=1;i=1699" DataType="Boolean">
+  <UAVariable NodeId="ns=1;i=1703" BrowseName="EndpointsExclude" AccessRestrictions="3" ParentNodeId="ns=1;i=1699" DataType="Boolean">
     <DisplayName>EndpointsExclude</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1699</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1704" BrowseName="Endpoints" ParentNodeId="ns=1;i=1699" DataType="i=15528" ValueRank="1" ArrayDimensions="0">
+  <UAVariable NodeId="ns=1;i=1704" BrowseName="Endpoints" AccessRestrictions="3" ParentNodeId="ns=1;i=1699" DataType="i=15528" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Endpoints</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1699</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1706" BrowseName="AddIdentity" ParentNodeId="ns=1;i=1699" MethodDeclarationId="i=15624">
+  <UAMethod NodeId="ns=1;i=1706" BrowseName="AddIdentity" AccessRestrictions="3" ParentNodeId="ns=1;i=1699" MethodDeclarationId="i=15624">
     <DisplayName>AddIdentity</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1707</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1699</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1707" BrowseName="InputArguments" ParentNodeId="ns=1;i=1706" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1707" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1706" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1706</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -789,19 +912,25 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1708" BrowseName="RemoveIdentity" ParentNodeId="ns=1;i=1699" MethodDeclarationId="i=15626">
+  <UAMethod NodeId="ns=1;i=1708" BrowseName="RemoveIdentity" AccessRestrictions="3" ParentNodeId="ns=1;i=1699" MethodDeclarationId="i=15626">
     <DisplayName>RemoveIdentity</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1709</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1699</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1709" BrowseName="InputArguments" ParentNodeId="ns=1;i=1708" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1709" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1708" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1708</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -822,19 +951,25 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1710" BrowseName="AddApplication" ParentNodeId="ns=1;i=1699" MethodDeclarationId="i=16176">
+  <UAMethod NodeId="ns=1;i=1710" BrowseName="AddApplication" AccessRestrictions="3" ParentNodeId="ns=1;i=1699" MethodDeclarationId="i=16176">
     <DisplayName>AddApplication</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1711</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1699</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1711" BrowseName="InputArguments" ParentNodeId="ns=1;i=1710" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1711" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1710" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1710</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -855,19 +990,25 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1712" BrowseName="RemoveApplication" ParentNodeId="ns=1;i=1699" MethodDeclarationId="i=16178">
+  <UAMethod NodeId="ns=1;i=1712" BrowseName="RemoveApplication" AccessRestrictions="3" ParentNodeId="ns=1;i=1699" MethodDeclarationId="i=16178">
     <DisplayName>RemoveApplication</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1713</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1699</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1713" BrowseName="InputArguments" ParentNodeId="ns=1;i=1712" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1713" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1712" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1712</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -888,19 +1029,25 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1714" BrowseName="AddEndpoint" ParentNodeId="ns=1;i=1699" MethodDeclarationId="i=16180">
+  <UAMethod NodeId="ns=1;i=1714" BrowseName="AddEndpoint" AccessRestrictions="3" ParentNodeId="ns=1;i=1699" MethodDeclarationId="i=16180">
     <DisplayName>AddEndpoint</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1715</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1699</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1715" BrowseName="InputArguments" ParentNodeId="ns=1;i=1714" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1715" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1714" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1714</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -921,19 +1068,25 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1716" BrowseName="RemoveEndpoint" ParentNodeId="ns=1;i=1699" MethodDeclarationId="i=16182">
+  <UAMethod NodeId="ns=1;i=1716" BrowseName="RemoveEndpoint" AccessRestrictions="3" ParentNodeId="ns=1;i=1699" MethodDeclarationId="i=16182">
     <DisplayName>RemoveEndpoint</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1717</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1699</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1717" BrowseName="InputArguments" ParentNodeId="ns=1;i=1716" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1717" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1716" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1716</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -973,54 +1126,75 @@
       <Reference ReferenceType="HasTypeDefinition">i=15620</Reference>
     </References>
   </UAObject>
-  <UAVariable NodeId="ns=1;i=1719" BrowseName="Identities" ParentNodeId="ns=1;i=1718" DataType="i=15634" ValueRank="1" ArrayDimensions="0">
+  <UAVariable NodeId="ns=1;i=1719" BrowseName="Identities" AccessRestrictions="3" ParentNodeId="ns=1;i=1718" DataType="i=15634" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Identities</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1718</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1720" BrowseName="ApplicationsExclude" ParentNodeId="ns=1;i=1718" DataType="Boolean">
+  <UAVariable NodeId="ns=1;i=1720" BrowseName="ApplicationsExclude" AccessRestrictions="3" ParentNodeId="ns=1;i=1718" DataType="Boolean">
     <DisplayName>ApplicationsExclude</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1718</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1721" BrowseName="Applications" ParentNodeId="ns=1;i=1718" DataType="String" ValueRank="1" ArrayDimensions="0">
+  <UAVariable NodeId="ns=1;i=1721" BrowseName="Applications" AccessRestrictions="3" ParentNodeId="ns=1;i=1718" DataType="String" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Applications</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1718</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1722" BrowseName="EndpointsExclude" ParentNodeId="ns=1;i=1718" DataType="Boolean">
+  <UAVariable NodeId="ns=1;i=1722" BrowseName="EndpointsExclude" AccessRestrictions="3" ParentNodeId="ns=1;i=1718" DataType="Boolean">
     <DisplayName>EndpointsExclude</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1718</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1723" BrowseName="Endpoints" ParentNodeId="ns=1;i=1718" DataType="i=15528" ValueRank="1" ArrayDimensions="0">
+  <UAVariable NodeId="ns=1;i=1723" BrowseName="Endpoints" AccessRestrictions="3" ParentNodeId="ns=1;i=1718" DataType="i=15528" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Endpoints</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1718</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1725" BrowseName="AddIdentity" ParentNodeId="ns=1;i=1718" MethodDeclarationId="i=15624">
+  <UAMethod NodeId="ns=1;i=1725" BrowseName="AddIdentity" AccessRestrictions="3" ParentNodeId="ns=1;i=1718" MethodDeclarationId="i=15624">
     <DisplayName>AddIdentity</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1726</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1718</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1726" BrowseName="InputArguments" ParentNodeId="ns=1;i=1725" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1726" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1725" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1725</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -1041,19 +1215,25 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1727" BrowseName="RemoveIdentity" ParentNodeId="ns=1;i=1718" MethodDeclarationId="i=15626">
+  <UAMethod NodeId="ns=1;i=1727" BrowseName="RemoveIdentity" AccessRestrictions="3" ParentNodeId="ns=1;i=1718" MethodDeclarationId="i=15626">
     <DisplayName>RemoveIdentity</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1728</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1718</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1728" BrowseName="InputArguments" ParentNodeId="ns=1;i=1727" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1728" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1727" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1727</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -1074,19 +1254,25 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1729" BrowseName="AddApplication" ParentNodeId="ns=1;i=1718" MethodDeclarationId="i=16176">
+  <UAMethod NodeId="ns=1;i=1729" BrowseName="AddApplication" AccessRestrictions="3" ParentNodeId="ns=1;i=1718" MethodDeclarationId="i=16176">
     <DisplayName>AddApplication</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1730</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1718</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1730" BrowseName="InputArguments" ParentNodeId="ns=1;i=1729" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1730" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1729" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1729</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -1107,19 +1293,25 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1731" BrowseName="RemoveApplication" ParentNodeId="ns=1;i=1718" MethodDeclarationId="i=16178">
+  <UAMethod NodeId="ns=1;i=1731" BrowseName="RemoveApplication" AccessRestrictions="3" ParentNodeId="ns=1;i=1718" MethodDeclarationId="i=16178">
     <DisplayName>RemoveApplication</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1732</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1718</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1732" BrowseName="InputArguments" ParentNodeId="ns=1;i=1731" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1732" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1731" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1731</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -1140,19 +1332,25 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1733" BrowseName="AddEndpoint" ParentNodeId="ns=1;i=1718" MethodDeclarationId="i=16180">
+  <UAMethod NodeId="ns=1;i=1733" BrowseName="AddEndpoint" AccessRestrictions="3" ParentNodeId="ns=1;i=1718" MethodDeclarationId="i=16180">
     <DisplayName>AddEndpoint</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1734</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1718</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1734" BrowseName="InputArguments" ParentNodeId="ns=1;i=1733" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1734" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1733" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1733</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -1173,19 +1371,25 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1735" BrowseName="RemoveEndpoint" ParentNodeId="ns=1;i=1718" MethodDeclarationId="i=16182">
+  <UAMethod NodeId="ns=1;i=1735" BrowseName="RemoveEndpoint" AccessRestrictions="3" ParentNodeId="ns=1;i=1718" MethodDeclarationId="i=16182">
     <DisplayName>RemoveEndpoint</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1736</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1718</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1736" BrowseName="InputArguments" ParentNodeId="ns=1;i=1735" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1736" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1735" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1735</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -1225,54 +1429,75 @@
       <Reference ReferenceType="HasTypeDefinition">i=15620</Reference>
     </References>
   </UAObject>
-  <UAVariable NodeId="ns=1;i=1738" BrowseName="Identities" ParentNodeId="ns=1;i=1737" DataType="i=15634" ValueRank="1" ArrayDimensions="0">
+  <UAVariable NodeId="ns=1;i=1738" BrowseName="Identities" AccessRestrictions="3" ParentNodeId="ns=1;i=1737" DataType="i=15634" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Identities</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1737</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1739" BrowseName="ApplicationsExclude" ParentNodeId="ns=1;i=1737" DataType="Boolean">
+  <UAVariable NodeId="ns=1;i=1739" BrowseName="ApplicationsExclude" AccessRestrictions="3" ParentNodeId="ns=1;i=1737" DataType="Boolean">
     <DisplayName>ApplicationsExclude</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1737</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1740" BrowseName="Applications" ParentNodeId="ns=1;i=1737" DataType="String" ValueRank="1" ArrayDimensions="0">
+  <UAVariable NodeId="ns=1;i=1740" BrowseName="Applications" AccessRestrictions="3" ParentNodeId="ns=1;i=1737" DataType="String" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Applications</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1737</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1741" BrowseName="EndpointsExclude" ParentNodeId="ns=1;i=1737" DataType="Boolean">
+  <UAVariable NodeId="ns=1;i=1741" BrowseName="EndpointsExclude" AccessRestrictions="3" ParentNodeId="ns=1;i=1737" DataType="Boolean">
     <DisplayName>EndpointsExclude</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1737</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1742" BrowseName="Endpoints" ParentNodeId="ns=1;i=1737" DataType="i=15528" ValueRank="1" ArrayDimensions="0">
+  <UAVariable NodeId="ns=1;i=1742" BrowseName="Endpoints" AccessRestrictions="3" ParentNodeId="ns=1;i=1737" DataType="i=15528" ValueRank="1" ArrayDimensions="0">
     <DisplayName>Endpoints</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1737</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1744" BrowseName="AddIdentity" ParentNodeId="ns=1;i=1737" MethodDeclarationId="i=15624">
+  <UAMethod NodeId="ns=1;i=1744" BrowseName="AddIdentity" AccessRestrictions="3" ParentNodeId="ns=1;i=1737" MethodDeclarationId="i=15624">
     <DisplayName>AddIdentity</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1745</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1737</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1745" BrowseName="InputArguments" ParentNodeId="ns=1;i=1744" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1745" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1744" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1744</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -1293,19 +1518,25 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1746" BrowseName="RemoveIdentity" ParentNodeId="ns=1;i=1737" MethodDeclarationId="i=15626">
+  <UAMethod NodeId="ns=1;i=1746" BrowseName="RemoveIdentity" AccessRestrictions="3" ParentNodeId="ns=1;i=1737" MethodDeclarationId="i=15626">
     <DisplayName>RemoveIdentity</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1747</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1737</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1747" BrowseName="InputArguments" ParentNodeId="ns=1;i=1746" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1747" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1746" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1746</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -1326,19 +1557,25 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1748" BrowseName="AddApplication" ParentNodeId="ns=1;i=1737" MethodDeclarationId="i=16176">
+  <UAMethod NodeId="ns=1;i=1748" BrowseName="AddApplication" AccessRestrictions="3" ParentNodeId="ns=1;i=1737" MethodDeclarationId="i=16176">
     <DisplayName>AddApplication</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1749</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1737</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1749" BrowseName="InputArguments" ParentNodeId="ns=1;i=1748" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1749" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1748" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1748</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -1359,19 +1596,25 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1750" BrowseName="RemoveApplication" ParentNodeId="ns=1;i=1737" MethodDeclarationId="i=16178">
+  <UAMethod NodeId="ns=1;i=1750" BrowseName="RemoveApplication" AccessRestrictions="3" ParentNodeId="ns=1;i=1737" MethodDeclarationId="i=16178">
     <DisplayName>RemoveApplication</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1751</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1737</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1751" BrowseName="InputArguments" ParentNodeId="ns=1;i=1750" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1751" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1750" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1750</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -1392,19 +1635,25 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1752" BrowseName="AddEndpoint" ParentNodeId="ns=1;i=1737" MethodDeclarationId="i=16180">
+  <UAMethod NodeId="ns=1;i=1752" BrowseName="AddEndpoint" AccessRestrictions="3" ParentNodeId="ns=1;i=1737" MethodDeclarationId="i=16180">
     <DisplayName>AddEndpoint</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1753</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1737</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1753" BrowseName="InputArguments" ParentNodeId="ns=1;i=1752" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1753" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1752" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1752</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -1425,19 +1674,25 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=1754" BrowseName="RemoveEndpoint" ParentNodeId="ns=1;i=1737" MethodDeclarationId="i=16182">
+  <UAMethod NodeId="ns=1;i=1754" BrowseName="RemoveEndpoint" AccessRestrictions="3" ParentNodeId="ns=1;i=1737" MethodDeclarationId="i=16182">
     <DisplayName>RemoveEndpoint</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1755</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1737</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="4099">i=15704</RolePermission>
+    </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=1755" BrowseName="InputArguments" ParentNodeId="ns=1;i=1754" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=1755" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=1754" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1754</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="99">i=15704</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -4745,12 +5000,16 @@
       <RolePermission Permissions="4097">ns=1;i=1661</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=147" BrowseName="InputArguments" ParentNodeId="ns=1;i=146" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=147" BrowseName="InputArguments" AccessRestrictions="1" ParentNodeId="ns=1;i=146" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=146</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">ns=1;i=1661</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -4771,12 +5030,16 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=148" BrowseName="OutputArguments" ParentNodeId="ns=1;i=146" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=148" BrowseName="OutputArguments" AccessRestrictions="1" ParentNodeId="ns=1;i=146" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=146</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">ns=1;i=1661</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -4808,12 +5071,16 @@
       <RolePermission Permissions="4097">ns=1;i=1661</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=201" BrowseName="InputArguments" ParentNodeId="ns=1;i=200" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=201" BrowseName="InputArguments" AccessRestrictions="1" ParentNodeId="ns=1;i=200" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=200</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">ns=1;i=1661</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -4845,12 +5112,16 @@
       <RolePermission Permissions="4097">ns=1;i=1661</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=150" BrowseName="InputArguments" ParentNodeId="ns=1;i=149" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=150" BrowseName="InputArguments" AccessRestrictions="1" ParentNodeId="ns=1;i=149" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=149</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">ns=1;i=1661</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -5670,16 +5941,13 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=616</Reference>
     </References>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=638" BrowseName="OpenWithMasks" AccessRestrictions="1" ParentNodeId="ns=1;i=616" MethodDeclarationId="i=12543">
+  <UAMethod NodeId="ns=1;i=638" BrowseName="OpenWithMasks" ParentNodeId="ns=1;i=616" MethodDeclarationId="i=12543">
     <DisplayName>OpenWithMasks</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=639</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=640</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=616</Reference>
     </References>
-    <RolePermissions>
-      <RolePermission Permissions="4193">i=15704</RolePermission>
-    </RolePermissions>
   </UAMethod>
   <UAVariable NodeId="ns=1;i=639" BrowseName="InputArguments" ParentNodeId="ns=1;i=638" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
@@ -5793,15 +6061,12 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=644" BrowseName="AddCertificate" AccessRestrictions="1" ParentNodeId="ns=1;i=616" MethodDeclarationId="i=12548">
+  <UAMethod NodeId="ns=1;i=644" BrowseName="AddCertificate" ParentNodeId="ns=1;i=616" MethodDeclarationId="i=12548">
     <DisplayName>AddCertificate</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=645</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=616</Reference>
     </References>
-    <RolePermissions>
-      <RolePermission Permissions="4193">i=15704</RolePermission>
-    </RolePermissions>
   </UAMethod>
   <UAVariable NodeId="ns=1;i=645" BrowseName="InputArguments" ParentNodeId="ns=1;i=644" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
@@ -5844,15 +6109,12 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=646" BrowseName="RemoveCertificate" AccessRestrictions="1" ParentNodeId="ns=1;i=616" MethodDeclarationId="i=12550">
+  <UAMethod NodeId="ns=1;i=646" BrowseName="RemoveCertificate" ParentNodeId="ns=1;i=616" MethodDeclarationId="i=12550">
     <DisplayName>RemoveCertificate</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=647</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=616</Reference>
     </References>
-    <RolePermissions>
-      <RolePermission Permissions="4193">i=15704</RolePermission>
-    </RolePermissions>
   </UAMethod>
   <UAVariable NodeId="ns=1;i=647" BrowseName="InputArguments" ParentNodeId="ns=1;i=646" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
@@ -6293,16 +6555,13 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=650</Reference>
     </References>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=672" BrowseName="OpenWithMasks" AccessRestrictions="1" ParentNodeId="ns=1;i=650" MethodDeclarationId="i=12543">
+  <UAMethod NodeId="ns=1;i=672" BrowseName="OpenWithMasks" ParentNodeId="ns=1;i=650" MethodDeclarationId="i=12543">
     <DisplayName>OpenWithMasks</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=673</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=674</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=650</Reference>
     </References>
-    <RolePermissions>
-      <RolePermission Permissions="4193">i=15704</RolePermission>
-    </RolePermissions>
   </UAMethod>
   <UAVariable NodeId="ns=1;i=673" BrowseName="InputArguments" ParentNodeId="ns=1;i=672" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
@@ -6416,15 +6675,12 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=678" BrowseName="AddCertificate" AccessRestrictions="1" ParentNodeId="ns=1;i=650" MethodDeclarationId="i=12548">
+  <UAMethod NodeId="ns=1;i=678" BrowseName="AddCertificate" ParentNodeId="ns=1;i=650" MethodDeclarationId="i=12548">
     <DisplayName>AddCertificate</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=679</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=650</Reference>
     </References>
-    <RolePermissions>
-      <RolePermission Permissions="4193">i=15704</RolePermission>
-    </RolePermissions>
   </UAMethod>
   <UAVariable NodeId="ns=1;i=679" BrowseName="InputArguments" ParentNodeId="ns=1;i=678" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
@@ -6467,15 +6723,12 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=680" BrowseName="RemoveCertificate" AccessRestrictions="1" ParentNodeId="ns=1;i=650" MethodDeclarationId="i=12550">
+  <UAMethod NodeId="ns=1;i=680" BrowseName="RemoveCertificate" ParentNodeId="ns=1;i=650" MethodDeclarationId="i=12550">
     <DisplayName>RemoveCertificate</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=681</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=650</Reference>
     </References>
-    <RolePermissions>
-      <RolePermission Permissions="4193">i=15704</RolePermission>
-    </RolePermissions>
   </UAMethod>
   <UAVariable NodeId="ns=1;i=681" BrowseName="InputArguments" ParentNodeId="ns=1;i=680" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
@@ -6916,16 +7169,13 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=684</Reference>
     </References>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=706" BrowseName="OpenWithMasks" AccessRestrictions="1" ParentNodeId="ns=1;i=684" MethodDeclarationId="i=12543">
+  <UAMethod NodeId="ns=1;i=706" BrowseName="OpenWithMasks" ParentNodeId="ns=1;i=684" MethodDeclarationId="i=12543">
     <DisplayName>OpenWithMasks</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=707</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=708</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=684</Reference>
     </References>
-    <RolePermissions>
-      <RolePermission Permissions="4193">i=15704</RolePermission>
-    </RolePermissions>
   </UAMethod>
   <UAVariable NodeId="ns=1;i=707" BrowseName="InputArguments" ParentNodeId="ns=1;i=706" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
@@ -7039,15 +7289,12 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=712" BrowseName="AddCertificate" AccessRestrictions="1" ParentNodeId="ns=1;i=684" MethodDeclarationId="i=12548">
+  <UAMethod NodeId="ns=1;i=712" BrowseName="AddCertificate" ParentNodeId="ns=1;i=684" MethodDeclarationId="i=12548">
     <DisplayName>AddCertificate</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=713</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=684</Reference>
     </References>
-    <RolePermissions>
-      <RolePermission Permissions="4193">i=15704</RolePermission>
-    </RolePermissions>
   </UAMethod>
   <UAVariable NodeId="ns=1;i=713" BrowseName="InputArguments" ParentNodeId="ns=1;i=712" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
@@ -7090,15 +7337,12 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=714" BrowseName="RemoveCertificate" AccessRestrictions="1" ParentNodeId="ns=1;i=684" MethodDeclarationId="i=12550">
+  <UAMethod NodeId="ns=1;i=714" BrowseName="RemoveCertificate" ParentNodeId="ns=1;i=684" MethodDeclarationId="i=12550">
     <DisplayName>RemoveCertificate</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=715</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=684</Reference>
     </References>
-    <RolePermissions>
-      <RolePermission Permissions="4193">i=15704</RolePermission>
-    </RolePermissions>
   </UAMethod>
   <UAVariable NodeId="ns=1;i=715" BrowseName="InputArguments" ParentNodeId="ns=1;i=714" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
@@ -7160,12 +7404,16 @@
       <RolePermission Permissions="4097">ns=1;i=1680</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=158" BrowseName="InputArguments" ParentNodeId="ns=1;i=157" DataType="i=296" ValueRank="1" ArrayDimensions="4">
+  <UAVariable NodeId="ns=1;i=158" BrowseName="InputArguments" AccessRestrictions="1" ParentNodeId="ns=1;i=157" DataType="i=296" ValueRank="1" ArrayDimensions="4">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=157</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">ns=1;i=1680</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -7231,12 +7479,16 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=159" BrowseName="OutputArguments" ParentNodeId="ns=1;i=157" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=159" BrowseName="OutputArguments" AccessRestrictions="1" ParentNodeId="ns=1;i=157" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=157</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">ns=1;i=1680</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -7257,7 +7509,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=154" BrowseName="1:StartNewKeyPairRequest" AccessRestrictions="2" ParentNodeId="ns=1;i=141" MethodDeclarationId="ns=1;i=76">
+  <UAMethod NodeId="ns=1;i=154" BrowseName="1:StartNewKeyPairRequest" AccessRestrictions="3" ParentNodeId="ns=1;i=141" MethodDeclarationId="ns=1;i=76">
     <DisplayName>StartNewKeyPairRequest</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=155</Reference>
@@ -7269,12 +7521,16 @@
       <RolePermission Permissions="4097">ns=1;i=1680</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=155" BrowseName="InputArguments" ParentNodeId="ns=1;i=154" DataType="i=296" ValueRank="1" ArrayDimensions="7">
+  <UAVariable NodeId="ns=1;i=155" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=154" DataType="i=296" ValueRank="1" ArrayDimensions="7">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=154</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">ns=1;i=1680</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -7387,12 +7643,16 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=156" BrowseName="OutputArguments" ParentNodeId="ns=1;i=154" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=156" BrowseName="OutputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=154" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=154</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">ns=1;i=1680</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -7413,7 +7673,7 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAMethod NodeId="ns=1;i=163" BrowseName="1:FinishRequest" AccessRestrictions="2" ParentNodeId="ns=1;i=141" MethodDeclarationId="ns=1;i=85">
+  <UAMethod NodeId="ns=1;i=163" BrowseName="1:FinishRequest" AccessRestrictions="3" ParentNodeId="ns=1;i=141" MethodDeclarationId="ns=1;i=85">
     <DisplayName>FinishRequest</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=164</Reference>
@@ -7425,12 +7685,16 @@
       <RolePermission Permissions="4097">ns=1;i=1680</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=164" BrowseName="InputArguments" ParentNodeId="ns=1;i=163" DataType="i=296" ValueRank="1" ArrayDimensions="2">
+  <UAVariable NodeId="ns=1;i=164" BrowseName="InputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=163" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=163</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">ns=1;i=1680</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -7466,12 +7730,16 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=165" BrowseName="OutputArguments" ParentNodeId="ns=1;i=163" DataType="i=296" ValueRank="1" ArrayDimensions="3">
+  <UAVariable NodeId="ns=1;i=165" BrowseName="OutputArguments" AccessRestrictions="3" ParentNodeId="ns=1;i=163" DataType="i=296" ValueRank="1" ArrayDimensions="3">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=163</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">ns=1;i=1680</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -7536,12 +7804,16 @@
       <RolePermission Permissions="4097">ns=1;i=1680</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=509" BrowseName="InputArguments" ParentNodeId="ns=1;i=508" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=509" BrowseName="InputArguments" AccessRestrictions="1" ParentNodeId="ns=1;i=508" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=508</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">ns=1;i=1680</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -7562,12 +7834,16 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=510" BrowseName="OutputArguments" ParentNodeId="ns=1;i=508" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=510" BrowseName="OutputArguments" AccessRestrictions="1" ParentNodeId="ns=1;i=508" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=508</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">ns=1;i=1680</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -7602,12 +7878,16 @@
       <RolePermission Permissions="4097">ns=1;i=1680</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=205" BrowseName="InputArguments" ParentNodeId="ns=1;i=204" DataType="i=296" ValueRank="1" ArrayDimensions="2">
+  <UAVariable NodeId="ns=1;i=205" BrowseName="InputArguments" AccessRestrictions="1" ParentNodeId="ns=1;i=204" DataType="i=296" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=204</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">ns=1;i=1680</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -7643,12 +7923,16 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=206" BrowseName="OutputArguments" ParentNodeId="ns=1;i=204" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=206" BrowseName="OutputArguments" AccessRestrictions="1" ParentNodeId="ns=1;i=204" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=204</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">ns=1;i=1680</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -7681,12 +7965,16 @@
       <RolePermission Permissions="4097">ns=1;i=1680</RolePermission>
     </RolePermissions>
   </UAMethod>
-  <UAVariable NodeId="ns=1;i=226" BrowseName="InputArguments" ParentNodeId="ns=1;i=225" DataType="i=296" ValueRank="1" ArrayDimensions="3">
+  <UAVariable NodeId="ns=1;i=226" BrowseName="InputArguments" AccessRestrictions="1" ParentNodeId="ns=1;i=225" DataType="i=296" ValueRank="1" ArrayDimensions="3">
     <DisplayName>InputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=225</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">ns=1;i=1680</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>
@@ -7737,12 +8025,16 @@
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=227" BrowseName="OutputArguments" ParentNodeId="ns=1;i=225" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+  <UAVariable NodeId="ns=1;i=227" BrowseName="OutputArguments" AccessRestrictions="1" ParentNodeId="ns=1;i=225" DataType="i=296" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=225</Reference>
     </References>
+    <RolePermissions>
+      <RolePermission Permissions="1">i=15656</RolePermission>
+      <RolePermission Permissions="1">ns=1;i=1680</RolePermission>
+    </RolePermissions>
     <Value>
       <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
         <ExtensionObject>

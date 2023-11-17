@@ -37,7 +37,7 @@
 >
   <xs:annotation>
     <xs:appinfo>
-      <ua:Model ModelUri="http://opcfoundation.org/UA/" Version="1.05.03" PublicationDate="2023-07-15T00:00:00Z" />
+      <ua:Model ModelUri="http://opcfoundation.org/UA/" Version="1.05.03" PublicationDate="2023-11-15T00:00:00Z" />
     </xs:appinfo>
   </xs:annotation>
   

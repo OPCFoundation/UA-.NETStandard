@@ -1989,24 +1989,6 @@ namespace Opc.Ua
         public const uint NonExclusiveLimitAlarmType_ShelvingState_OneShotShelve = 10015;
 
         /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_ShelvingState_TimedShelve = 10170;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_ShelvingState_Unshelve = 10168;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_ShelvingState_OneShotShelve = 10169;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_ShelvingState_TimedShelve = 9592;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_ShelvingState_Unshelve = 9590;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_ShelvingState_OneShotShelve = 9591;
-
-        /// <remarks />
         public const uint NonExclusiveDeviationAlarmType_ShelvingState_TimedShelve = 10478;
 
         /// <remarks />
@@ -2043,15 +2025,6 @@ namespace Opc.Ua
         public const uint ExclusiveRateOfChangeAlarmType_ShelvingState_OneShotShelve = 9732;
 
         /// <remarks />
-        public const uint DiscreteAlarmType_ShelvingState_TimedShelve = 10633;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_ShelvingState_Unshelve = 10631;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_ShelvingState_OneShotShelve = 10632;
-
-        /// <remarks />
         public const uint OffNormalAlarmType_ShelvingState_TimedShelve = 10747;
 
         /// <remarks />
@@ -2059,42 +2032,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint OffNormalAlarmType_ShelvingState_OneShotShelve = 10746;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_ShelvingState_TimedShelve = 11846;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_ShelvingState_Unshelve = 11844;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_ShelvingState_OneShotShelve = 11845;
-
-        /// <remarks />
-        public const uint TripAlarmType_ShelvingState_TimedShelve = 10861;
-
-        /// <remarks />
-        public const uint TripAlarmType_ShelvingState_Unshelve = 10859;
-
-        /// <remarks />
-        public const uint TripAlarmType_ShelvingState_OneShotShelve = 10860;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_ShelvingState_TimedShelve = 18453;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_ShelvingState_Unshelve = 18455;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_ShelvingState_OneShotShelve = 18456;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_ShelvingState_TimedShelve = 18602;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_ShelvingState_Unshelve = 18604;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_ShelvingState_OneShotShelve = 18605;
 
         /// <remarks />
         public const uint CertificateExpirationAlarmType_ShelvingState_TimedShelve = 13320;
@@ -12359,12 +12296,6 @@ namespace Opc.Ua
         public const uint QuantityType_ServerUnits_ServerUnit_Placeholder_UnitSystem = 32485;
 
         /// <remarks />
-        public const uint QuantityType_ServerUnits_ServerUnit_Placeholder_AlternativeUnits_AlternativeUnit_Placeholder_Symbol = 32596;
-
-        /// <remarks />
-        public const uint QuantityType_ServerUnits_ServerUnit_Placeholder_AlternativeUnits_AlternativeUnit_Placeholder_UnitSystem = 32598;
-
-        /// <remarks />
         public const uint QuantityType_ServerUnits_ServerUnit_Placeholder_ConversionLimit = 32496;
 
         /// <remarks />
@@ -12377,49 +12308,7 @@ namespace Opc.Ua
         public const uint QuantitiesFolderType_Quantity_Placeholder_Dimension = 32508;
 
         /// <remarks />
-        public const uint QuantitiesFolderType_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_Symbol = 32511;
-
-        /// <remarks />
-        public const uint QuantitiesFolderType_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_UnitSystem = 32513;
-
-        /// <remarks />
-        public const uint QuantitiesFolderType_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_AlternativeUnits_AlternativeUnit_Placeholder_Symbol = 32604;
-
-        /// <remarks />
-        public const uint QuantitiesFolderType_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_AlternativeUnits_AlternativeUnit_Placeholder_UnitSystem = 32606;
-
-        /// <remarks />
-        public const uint QuantitiesFolderType_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_ConversionLimit = 32524;
-
-        /// <remarks />
-        public const uint QuantitiesFolderType_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_CoherentUnit_Symbol = 32526;
-
-        /// <remarks />
-        public const uint QuantitiesFolderType_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_CoherentUnit_UnitSystem = 32528;
-
-        /// <remarks />
         public const uint Quantities_Quantity_Placeholder_Dimension = 32536;
-
-        /// <remarks />
-        public const uint Quantities_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_Symbol = 32539;
-
-        /// <remarks />
-        public const uint Quantities_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_UnitSystem = 32541;
-
-        /// <remarks />
-        public const uint Quantities_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_AlternativeUnits_AlternativeUnit_Placeholder_Symbol = 32612;
-
-        /// <remarks />
-        public const uint Quantities_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_AlternativeUnits_AlternativeUnit_Placeholder_UnitSystem = 32614;
-
-        /// <remarks />
-        public const uint Quantities_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_ConversionLimit = 32552;
-
-        /// <remarks />
-        public const uint Quantities_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_CoherentUnit_Symbol = 32554;
-
-        /// <remarks />
-        public const uint Quantities_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_CoherentUnit_UnitSystem = 32556;
 
         /// <remarks />
         public const uint TwoStateVariableType_Id = 8996;
@@ -12438,12 +12327,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ConditionVariableType_SourceTimestamp = 9003;
-
-        /// <remarks />
-        public const uint ConditionType_ConditionClassId = 11112;
-
-        /// <remarks />
-        public const uint ConditionType_ConditionClassName = 11113;
 
         /// <remarks />
         public const uint ConditionType_ConditionName = 9009;
@@ -12851,12 +12734,6 @@ namespace Opc.Ua
         public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_Severity = 16415;
 
         /// <remarks />
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_ConditionClassId = 16416;
-
-        /// <remarks />
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_ConditionClassName = 16417;
-
-        /// <remarks />
         public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_ConditionName = 16420;
 
         /// <remarks />
@@ -12999,12 +12876,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint AlarmSuppressionGroupType_AlarmConditionInstance_Placeholder_Severity = 32074;
-
-        /// <remarks />
-        public const uint AlarmSuppressionGroupType_AlarmConditionInstance_Placeholder_ConditionClassId = 32075;
-
-        /// <remarks />
-        public const uint AlarmSuppressionGroupType_AlarmConditionInstance_Placeholder_ConditionClassName = 32076;
 
         /// <remarks />
         public const uint AlarmSuppressionGroupType_AlarmConditionInstance_Placeholder_ConditionName = 32079;
@@ -13607,207 +13478,6 @@ namespace Opc.Ua
         public const uint NonExclusiveLimitAlarmType_LowLowState_FalseState = 10055;
 
         /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_EnabledState_Id = 10074;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_Quality_SourceTimestamp = 10083;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_LastSeverity_SourceTimestamp = 10085;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_Comment_SourceTimestamp = 10087;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_AddComment_InputArguments = 10092;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_ConditionRefresh_InputArguments = 10094;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_ConditionRefresh2_InputArguments = 12993;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_AckedState_Id = 10096;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_ConfirmedState_Id = 10105;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_Acknowledge_InputArguments = 10114;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_Confirm_InputArguments = 10116;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_ActiveState_Id = 10118;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_SuppressedState_Id = 10127;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_OutOfServiceState_Id = 16659;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_ShelvingState_CurrentState = 10136;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_ShelvingState_CurrentState_Id = 10137;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_ShelvingState_LastTransition_Id = 10142;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_ShelvingState_UnshelveTime = 10146;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_ShelvingState_TimedShelve_InputArguments = 10171;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_ShelvingState_TimedShelve2_InputArguments = 24811;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_ShelvingState_Unshelve2_InputArguments = 24813;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_ShelvingState_OneShotShelve2_InputArguments = 24815;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_SilenceState_Id = 16668;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_LatchedState_Id = 18247;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_Suppress2_InputArguments = 24369;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_Unsuppress2_InputArguments = 24371;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_RemoveFromService2_InputArguments = 24373;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_PlaceInService2_InputArguments = 24375;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_Reset2_InputArguments = 24377;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_GetGroupMemberships_OutputArguments = 25162;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_HighHighState_Id = 10175;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_HighState_Id = 10184;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_LowState_Id = 10193;
-
-        /// <remarks />
-        public const uint NonExclusiveLevelAlarmType_LowLowState_Id = 10202;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_EnabledState_Id = 9496;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_Quality_SourceTimestamp = 9505;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_LastSeverity_SourceTimestamp = 9507;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_Comment_SourceTimestamp = 9509;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_AddComment_InputArguments = 9514;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_ConditionRefresh_InputArguments = 9516;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_ConditionRefresh2_InputArguments = 12995;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_AckedState_Id = 9518;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_ConfirmedState_Id = 9527;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_Acknowledge_InputArguments = 9536;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_Confirm_InputArguments = 9538;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_ActiveState_Id = 9540;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_SuppressedState_Id = 9549;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_OutOfServiceState_Id = 16699;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_ShelvingState_CurrentState = 9558;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_ShelvingState_CurrentState_Id = 9559;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_ShelvingState_LastTransition_Id = 9564;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_ShelvingState_UnshelveTime = 9568;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_ShelvingState_TimedShelve_InputArguments = 9593;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_ShelvingState_TimedShelve2_InputArguments = 24827;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_ShelvingState_Unshelve2_InputArguments = 24829;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_ShelvingState_OneShotShelve2_InputArguments = 24831;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_SilenceState_Id = 16708;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_LatchedState_Id = 18258;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_Suppress2_InputArguments = 24379;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_Unsuppress2_InputArguments = 24381;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_RemoveFromService2_InputArguments = 24383;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_PlaceInService2_InputArguments = 24385;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_Reset2_InputArguments = 24387;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_GetGroupMemberships_OutputArguments = 25163;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_LimitState_CurrentState = 9597;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_LimitState_CurrentState_Id = 9598;
-
-        /// <remarks />
-        public const uint ExclusiveLevelAlarmType_LimitState_LastTransition_Id = 9603;
-
-        /// <remarks />
         public const uint NonExclusiveDeviationAlarmType_EnabledState_Id = 10382;
 
         /// <remarks />
@@ -14228,96 +13898,6 @@ namespace Opc.Ua
         public const uint ExclusiveRateOfChangeAlarmType_EngineeringUnits = 16899;
 
         /// <remarks />
-        public const uint DiscreteAlarmType_EnabledState_Id = 10537;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_Quality_SourceTimestamp = 10546;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_LastSeverity_SourceTimestamp = 10548;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_Comment_SourceTimestamp = 10550;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_AddComment_InputArguments = 10555;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_ConditionRefresh_InputArguments = 10557;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_ConditionRefresh2_InputArguments = 13005;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_AckedState_Id = 10559;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_ConfirmedState_Id = 10568;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_Acknowledge_InputArguments = 10577;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_Confirm_InputArguments = 10579;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_ActiveState_Id = 10581;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_SuppressedState_Id = 10590;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_OutOfServiceState_Id = 16903;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_ShelvingState_CurrentState = 10599;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_ShelvingState_CurrentState_Id = 10600;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_ShelvingState_LastTransition_Id = 10605;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_ShelvingState_UnshelveTime = 10609;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_ShelvingState_TimedShelve_InputArguments = 10634;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_ShelvingState_TimedShelve2_InputArguments = 24907;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_ShelvingState_Unshelve2_InputArguments = 24909;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_ShelvingState_OneShotShelve2_InputArguments = 24911;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_SilenceState_Id = 16912;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_LatchedState_Id = 18308;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_Suppress2_InputArguments = 24429;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_Unsuppress2_InputArguments = 24431;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_RemoveFromService2_InputArguments = 24433;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_PlaceInService2_InputArguments = 24435;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_Reset2_InputArguments = 24437;
-
-        /// <remarks />
-        public const uint DiscreteAlarmType_GetGroupMemberships_OutputArguments = 25168;
-
-        /// <remarks />
         public const uint OffNormalAlarmType_EnabledState_Id = 10651;
 
         /// <remarks />
@@ -14409,366 +13989,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint OffNormalAlarmType_NormalState = 11158;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_EnabledState_Id = 11769;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_Quality_SourceTimestamp = 11778;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_LastSeverity_SourceTimestamp = 11780;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_Comment_SourceTimestamp = 11782;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_AddComment_InputArguments = 11787;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_ConditionRefresh_InputArguments = 11789;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_ConditionRefresh2_InputArguments = 13009;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_AckedState_Id = 11791;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_ConfirmedState_Id = 11800;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_Acknowledge_InputArguments = 11809;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_Confirm_InputArguments = 11811;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_ActiveState_Id = 11813;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_SuppressedState_Id = 11823;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_OutOfServiceState_Id = 16975;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_ShelvingState_CurrentState = 11832;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_ShelvingState_CurrentState_Id = 11833;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_ShelvingState_LastTransition_Id = 11838;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_ShelvingState_UnshelveTime = 11843;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_ShelvingState_TimedShelve_InputArguments = 11847;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_ShelvingState_TimedShelve2_InputArguments = 24923;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_ShelvingState_Unshelve2_InputArguments = 24925;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_ShelvingState_OneShotShelve2_InputArguments = 24927;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_SilenceState_Id = 16984;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_LatchedState_Id = 18328;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_Suppress2_InputArguments = 24449;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_Unsuppress2_InputArguments = 24451;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_RemoveFromService2_InputArguments = 24453;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_PlaceInService2_InputArguments = 24455;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_Reset2_InputArguments = 24457;
-
-        /// <remarks />
-        public const uint SystemOffNormalAlarmType_GetGroupMemberships_OutputArguments = 25170;
-
-        /// <remarks />
-        public const uint TripAlarmType_EnabledState_Id = 10765;
-
-        /// <remarks />
-        public const uint TripAlarmType_Quality_SourceTimestamp = 10774;
-
-        /// <remarks />
-        public const uint TripAlarmType_LastSeverity_SourceTimestamp = 10776;
-
-        /// <remarks />
-        public const uint TripAlarmType_Comment_SourceTimestamp = 10778;
-
-        /// <remarks />
-        public const uint TripAlarmType_AddComment_InputArguments = 10783;
-
-        /// <remarks />
-        public const uint TripAlarmType_ConditionRefresh_InputArguments = 10785;
-
-        /// <remarks />
-        public const uint TripAlarmType_ConditionRefresh2_InputArguments = 13011;
-
-        /// <remarks />
-        public const uint TripAlarmType_AckedState_Id = 10787;
-
-        /// <remarks />
-        public const uint TripAlarmType_ConfirmedState_Id = 10796;
-
-        /// <remarks />
-        public const uint TripAlarmType_Acknowledge_InputArguments = 10805;
-
-        /// <remarks />
-        public const uint TripAlarmType_Confirm_InputArguments = 10807;
-
-        /// <remarks />
-        public const uint TripAlarmType_ActiveState_Id = 10809;
-
-        /// <remarks />
-        public const uint TripAlarmType_SuppressedState_Id = 10818;
-
-        /// <remarks />
-        public const uint TripAlarmType_OutOfServiceState_Id = 17011;
-
-        /// <remarks />
-        public const uint TripAlarmType_ShelvingState_CurrentState = 10827;
-
-        /// <remarks />
-        public const uint TripAlarmType_ShelvingState_CurrentState_Id = 10828;
-
-        /// <remarks />
-        public const uint TripAlarmType_ShelvingState_LastTransition_Id = 10833;
-
-        /// <remarks />
-        public const uint TripAlarmType_ShelvingState_UnshelveTime = 10837;
-
-        /// <remarks />
-        public const uint TripAlarmType_ShelvingState_TimedShelve_InputArguments = 10862;
-
-        /// <remarks />
-        public const uint TripAlarmType_ShelvingState_TimedShelve2_InputArguments = 24931;
-
-        /// <remarks />
-        public const uint TripAlarmType_ShelvingState_Unshelve2_InputArguments = 24933;
-
-        /// <remarks />
-        public const uint TripAlarmType_ShelvingState_OneShotShelve2_InputArguments = 24935;
-
-        /// <remarks />
-        public const uint TripAlarmType_SilenceState_Id = 17020;
-
-        /// <remarks />
-        public const uint TripAlarmType_LatchedState_Id = 18338;
-
-        /// <remarks />
-        public const uint TripAlarmType_Suppress2_InputArguments = 24459;
-
-        /// <remarks />
-        public const uint TripAlarmType_Unsuppress2_InputArguments = 24461;
-
-        /// <remarks />
-        public const uint TripAlarmType_RemoveFromService2_InputArguments = 24463;
-
-        /// <remarks />
-        public const uint TripAlarmType_PlaceInService2_InputArguments = 24465;
-
-        /// <remarks />
-        public const uint TripAlarmType_Reset2_InputArguments = 24467;
-
-        /// <remarks />
-        public const uint TripAlarmType_GetGroupMemberships_OutputArguments = 25171;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_EnabledState_Id = 18365;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_Quality_SourceTimestamp = 18374;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_LastSeverity_SourceTimestamp = 18376;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_Comment_SourceTimestamp = 18378;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_AddComment_InputArguments = 18383;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_ConditionRefresh_InputArguments = 18385;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_ConditionRefresh2_InputArguments = 18387;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_AckedState_Id = 18389;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_ConfirmedState_Id = 18398;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_Acknowledge_InputArguments = 18407;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_Confirm_InputArguments = 18409;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_ActiveState_Id = 18411;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_SuppressedState_Id = 18421;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_OutOfServiceState_Id = 18430;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_ShelvingState_CurrentState = 18439;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_ShelvingState_CurrentState_Id = 18440;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_ShelvingState_LastTransition_Id = 18445;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_ShelvingState_UnshelveTime = 18452;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_ShelvingState_TimedShelve_InputArguments = 18454;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_ShelvingState_TimedShelve2_InputArguments = 24939;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_ShelvingState_Unshelve2_InputArguments = 24941;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_ShelvingState_OneShotShelve2_InputArguments = 24943;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_SilenceState_Id = 18465;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_LatchedState_Id = 18478;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_Suppress2_InputArguments = 24469;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_Unsuppress2_InputArguments = 24471;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_RemoveFromService2_InputArguments = 24473;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_PlaceInService2_InputArguments = 24475;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_Reset2_InputArguments = 24477;
-
-        /// <remarks />
-        public const uint InstrumentDiagnosticAlarmType_GetGroupMemberships_OutputArguments = 25172;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_EnabledState_Id = 18514;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_Quality_SourceTimestamp = 18523;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_LastSeverity_SourceTimestamp = 18525;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_Comment_SourceTimestamp = 18527;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_AddComment_InputArguments = 18532;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_ConditionRefresh_InputArguments = 18534;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_ConditionRefresh2_InputArguments = 18536;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_AckedState_Id = 18538;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_ConfirmedState_Id = 18547;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_Acknowledge_InputArguments = 18556;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_Confirm_InputArguments = 18558;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_ActiveState_Id = 18560;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_SuppressedState_Id = 18570;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_OutOfServiceState_Id = 18579;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_ShelvingState_CurrentState = 18588;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_ShelvingState_CurrentState_Id = 18589;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_ShelvingState_LastTransition_Id = 18594;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_ShelvingState_UnshelveTime = 18601;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_ShelvingState_TimedShelve_InputArguments = 18603;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_ShelvingState_TimedShelve2_InputArguments = 24947;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_ShelvingState_Unshelve2_InputArguments = 24949;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_ShelvingState_OneShotShelve2_InputArguments = 24951;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_SilenceState_Id = 18614;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_LatchedState_Id = 18627;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_Suppress2_InputArguments = 24479;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_Unsuppress2_InputArguments = 24481;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_RemoveFromService2_InputArguments = 24483;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_PlaceInService2_InputArguments = 24485;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_Reset2_InputArguments = 24487;
-
-        /// <remarks />
-        public const uint SystemDiagnosticAlarmType_GetGroupMemberships_OutputArguments = 25173;
 
         /// <remarks />
         public const uint CertificateExpirationAlarmType_EnabledState_Id = 13241;
@@ -15737,12 +14957,6 @@ namespace Opc.Ua
         public const uint CertificateGroupType_CertificateExpired_Severity = 19459;
 
         /// <remarks />
-        public const uint CertificateGroupType_CertificateExpired_ConditionClassId = 19460;
-
-        /// <remarks />
-        public const uint CertificateGroupType_CertificateExpired_ConditionClassName = 19461;
-
-        /// <remarks />
         public const uint CertificateGroupType_CertificateExpired_ConditionName = 19464;
 
         /// <remarks />
@@ -15897,12 +15111,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint CertificateGroupType_TrustListOutOfDate_Severity = 20152;
-
-        /// <remarks />
-        public const uint CertificateGroupType_TrustListOutOfDate_ConditionClassId = 20153;
-
-        /// <remarks />
-        public const uint CertificateGroupType_TrustListOutOfDate_ConditionClassName = 20154;
 
         /// <remarks />
         public const uint CertificateGroupType_TrustListOutOfDate_ConditionName = 20157;
@@ -16127,12 +15335,6 @@ namespace Opc.Ua
         public const uint CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_Severity = 20300;
 
         /// <remarks />
-        public const uint CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_ConditionClassId = 20301;
-
-        /// <remarks />
-        public const uint CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_ConditionClassName = 20302;
-
-        /// <remarks />
         public const uint CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_ConditionName = 20305;
 
         /// <remarks />
@@ -16287,12 +15489,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_Severity = 20450;
-
-        /// <remarks />
-        public const uint CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = 20451;
-
-        /// <remarks />
-        public const uint CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = 20452;
 
         /// <remarks />
         public const uint CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = 20455;
@@ -16517,12 +15713,6 @@ namespace Opc.Ua
         public const uint CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_Severity = 20598;
 
         /// <remarks />
-        public const uint CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_ConditionClassId = 20599;
-
-        /// <remarks />
-        public const uint CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_ConditionClassName = 20600;
-
-        /// <remarks />
         public const uint CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_ConditionName = 20603;
 
         /// <remarks />
@@ -16677,12 +15867,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_Severity = 20746;
-
-        /// <remarks />
-        public const uint CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = 20747;
-
-        /// <remarks />
-        public const uint CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = 20748;
 
         /// <remarks />
         public const uint CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = 20751;
@@ -16907,12 +16091,6 @@ namespace Opc.Ua
         public const uint CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_Severity = 20894;
 
         /// <remarks />
-        public const uint CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = 20895;
-
-        /// <remarks />
-        public const uint CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = 20896;
-
-        /// <remarks />
         public const uint CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_ConditionName = 20899;
 
         /// <remarks />
@@ -17067,12 +16245,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_Severity = 21245;
-
-        /// <remarks />
-        public const uint CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = 21246;
-
-        /// <remarks />
-        public const uint CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = 21247;
 
         /// <remarks />
         public const uint CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = 21250;
@@ -17297,12 +16469,6 @@ namespace Opc.Ua
         public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_Severity = 21393;
 
         /// <remarks />
-        public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_ConditionClassId = 21394;
-
-        /// <remarks />
-        public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_ConditionClassName = 21395;
-
-        /// <remarks />
         public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_ConditionName = 21398;
 
         /// <remarks />
@@ -17457,12 +16623,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_Severity = 21541;
-
-        /// <remarks />
-        public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ConditionClassId = 21542;
-
-        /// <remarks />
-        public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ConditionClassName = 21543;
 
         /// <remarks />
         public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ConditionName = 21546;
@@ -17708,12 +16868,6 @@ namespace Opc.Ua
         public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity = 21689;
 
         /// <remarks />
-        public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId = 21690;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = 21691;
-
-        /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = 21694;
 
         /// <remarks />
@@ -17868,12 +17022,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity = 21837;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = 21838;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = 21839;
 
         /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = 21842;
@@ -18098,12 +17246,6 @@ namespace Opc.Ua
         public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity = 21985;
 
         /// <remarks />
-        public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId = 21986;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = 21987;
-
-        /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = 21990;
 
         /// <remarks />
@@ -18258,12 +17400,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity = 22133;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = 22134;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = 22135;
 
         /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = 22138;
@@ -18488,12 +17624,6 @@ namespace Opc.Ua
         public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity = 22281;
 
         /// <remarks />
-        public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = 22282;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = 22283;
-
-        /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = 22286;
 
         /// <remarks />
@@ -18648,12 +17778,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity = 22429;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = 22430;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = 22431;
 
         /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = 22434;
@@ -18947,12 +18071,6 @@ namespace Opc.Ua
         public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity = 22577;
 
         /// <remarks />
-        public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId = 22578;
-
-        /// <remarks />
-        public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = 22579;
-
-        /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = 22582;
 
         /// <remarks />
@@ -19107,12 +18225,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity = 22725;
-
-        /// <remarks />
-        public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = 22726;
-
-        /// <remarks />
-        public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = 22727;
 
         /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = 22730;
@@ -19337,12 +18449,6 @@ namespace Opc.Ua
         public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity = 22873;
 
         /// <remarks />
-        public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId = 22874;
-
-        /// <remarks />
-        public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = 22875;
-
-        /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = 22878;
 
         /// <remarks />
@@ -19497,12 +18603,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity = 23021;
-
-        /// <remarks />
-        public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = 23022;
-
-        /// <remarks />
-        public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = 23023;
 
         /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = 23026;
@@ -19727,12 +18827,6 @@ namespace Opc.Ua
         public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity = 23169;
 
         /// <remarks />
-        public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = 23170;
-
-        /// <remarks />
-        public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = 23171;
-
-        /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = 23174;
 
         /// <remarks />
@@ -19887,12 +18981,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity = 23317;
-
-        /// <remarks />
-        public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = 23318;
-
-        /// <remarks />
-        public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = 23319;
 
         /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = 23322;
@@ -24998,12 +24086,6 @@ namespace Opc.Ua
         public const uint ApplicationConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity = 25783;
 
         /// <remarks />
-        public const uint ApplicationConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId = 25784;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = 25785;
-
-        /// <remarks />
         public const uint ApplicationConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = 25788;
 
         /// <remarks />
@@ -25158,12 +24240,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ApplicationConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity = 25949;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = 25950;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = 25951;
 
         /// <remarks />
         public const uint ApplicationConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = 25954;
@@ -25388,12 +24464,6 @@ namespace Opc.Ua
         public const uint ApplicationConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity = 26155;
 
         /// <remarks />
-        public const uint ApplicationConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId = 26156;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = 26157;
-
-        /// <remarks />
         public const uint ApplicationConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = 26160;
 
         /// <remarks />
@@ -25548,12 +24618,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ApplicationConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity = 26321;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = 26322;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = 26323;
 
         /// <remarks />
         public const uint ApplicationConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = 26326;
@@ -25778,12 +24842,6 @@ namespace Opc.Ua
         public const uint ApplicationConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity = 26527;
 
         /// <remarks />
-        public const uint ApplicationConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = 26528;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = 26529;
-
-        /// <remarks />
         public const uint ApplicationConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = 26532;
 
         /// <remarks />
@@ -25938,12 +24996,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ApplicationConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity = 26693;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = 26694;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = 26695;
 
         /// <remarks />
         public const uint ApplicationConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = 26698;
@@ -26228,12 +25280,6 @@ namespace Opc.Ua
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity = 26930;
 
         /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId = 26931;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = 26932;
-
-        /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = 26935;
 
         /// <remarks />
@@ -26388,12 +25434,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity = 27096;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = 27097;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = 27098;
 
         /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = 27101;
@@ -26618,12 +25658,6 @@ namespace Opc.Ua
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity = 27302;
 
         /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId = 27303;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = 27304;
-
-        /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = 27307;
 
         /// <remarks />
@@ -26778,12 +25812,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity = 27468;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = 27469;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = 27470;
 
         /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = 27473;
@@ -27008,12 +26036,6 @@ namespace Opc.Ua
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity = 27674;
 
         /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = 27675;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = 27676;
-
-        /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = 27679;
 
         /// <remarks />
@@ -27168,12 +26190,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity = 27840;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = 27841;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = 27842;
 
         /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = 27845;
@@ -27470,12 +26486,6 @@ namespace Opc.Ua
         public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity = 29937;
 
         /// <remarks />
-        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId = 29938;
-
-        /// <remarks />
-        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = 29939;
-
-        /// <remarks />
         public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = 29942;
 
         /// <remarks />
@@ -27630,12 +26640,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity = 30103;
-
-        /// <remarks />
-        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = 30104;
-
-        /// <remarks />
-        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = 30105;
 
         /// <remarks />
         public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = 30108;
@@ -27860,12 +26864,6 @@ namespace Opc.Ua
         public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity = 30309;
 
         /// <remarks />
-        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId = 30310;
-
-        /// <remarks />
-        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = 30311;
-
-        /// <remarks />
         public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = 30314;
 
         /// <remarks />
@@ -28020,12 +27018,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity = 30475;
-
-        /// <remarks />
-        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = 30476;
-
-        /// <remarks />
-        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = 30477;
 
         /// <remarks />
         public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = 30480;
@@ -28250,12 +27242,6 @@ namespace Opc.Ua
         public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity = 30681;
 
         /// <remarks />
-        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = 30682;
-
-        /// <remarks />
-        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = 30683;
-
-        /// <remarks />
         public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = 30686;
 
         /// <remarks />
@@ -28410,12 +27396,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity = 30847;
-
-        /// <remarks />
-        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = 30848;
-
-        /// <remarks />
-        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = 30849;
 
         /// <remarks />
         public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = 30852;
@@ -31991,24 +30971,6 @@ namespace Opc.Ua
         public static readonly NodeId NonExclusiveLimitAlarmType_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.NonExclusiveLimitAlarmType_ShelvingState_OneShotShelve);
 
         /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_ShelvingState_TimedShelve = new NodeId(Opc.Ua.Methods.NonExclusiveLevelAlarmType_ShelvingState_TimedShelve);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_ShelvingState_Unshelve = new NodeId(Opc.Ua.Methods.NonExclusiveLevelAlarmType_ShelvingState_Unshelve);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.NonExclusiveLevelAlarmType_ShelvingState_OneShotShelve);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_ShelvingState_TimedShelve = new NodeId(Opc.Ua.Methods.ExclusiveLevelAlarmType_ShelvingState_TimedShelve);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_ShelvingState_Unshelve = new NodeId(Opc.Ua.Methods.ExclusiveLevelAlarmType_ShelvingState_Unshelve);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.ExclusiveLevelAlarmType_ShelvingState_OneShotShelve);
-
-        /// <remarks />
         public static readonly NodeId NonExclusiveDeviationAlarmType_ShelvingState_TimedShelve = new NodeId(Opc.Ua.Methods.NonExclusiveDeviationAlarmType_ShelvingState_TimedShelve);
 
         /// <remarks />
@@ -32045,15 +31007,6 @@ namespace Opc.Ua
         public static readonly NodeId ExclusiveRateOfChangeAlarmType_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.ExclusiveRateOfChangeAlarmType_ShelvingState_OneShotShelve);
 
         /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_ShelvingState_TimedShelve = new NodeId(Opc.Ua.Methods.DiscreteAlarmType_ShelvingState_TimedShelve);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_ShelvingState_Unshelve = new NodeId(Opc.Ua.Methods.DiscreteAlarmType_ShelvingState_Unshelve);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.DiscreteAlarmType_ShelvingState_OneShotShelve);
-
-        /// <remarks />
         public static readonly NodeId OffNormalAlarmType_ShelvingState_TimedShelve = new NodeId(Opc.Ua.Methods.OffNormalAlarmType_ShelvingState_TimedShelve);
 
         /// <remarks />
@@ -32061,42 +31014,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId OffNormalAlarmType_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.OffNormalAlarmType_ShelvingState_OneShotShelve);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_ShelvingState_TimedShelve = new NodeId(Opc.Ua.Methods.SystemOffNormalAlarmType_ShelvingState_TimedShelve);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_ShelvingState_Unshelve = new NodeId(Opc.Ua.Methods.SystemOffNormalAlarmType_ShelvingState_Unshelve);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.SystemOffNormalAlarmType_ShelvingState_OneShotShelve);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_ShelvingState_TimedShelve = new NodeId(Opc.Ua.Methods.TripAlarmType_ShelvingState_TimedShelve);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_ShelvingState_Unshelve = new NodeId(Opc.Ua.Methods.TripAlarmType_ShelvingState_Unshelve);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.TripAlarmType_ShelvingState_OneShotShelve);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_ShelvingState_TimedShelve = new NodeId(Opc.Ua.Methods.InstrumentDiagnosticAlarmType_ShelvingState_TimedShelve);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_ShelvingState_Unshelve = new NodeId(Opc.Ua.Methods.InstrumentDiagnosticAlarmType_ShelvingState_Unshelve);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.InstrumentDiagnosticAlarmType_ShelvingState_OneShotShelve);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_ShelvingState_TimedShelve = new NodeId(Opc.Ua.Methods.SystemDiagnosticAlarmType_ShelvingState_TimedShelve);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_ShelvingState_Unshelve = new NodeId(Opc.Ua.Methods.SystemDiagnosticAlarmType_ShelvingState_Unshelve);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.SystemDiagnosticAlarmType_ShelvingState_OneShotShelve);
 
         /// <remarks />
         public static readonly NodeId CertificateExpirationAlarmType_ShelvingState_TimedShelve = new NodeId(Opc.Ua.Methods.CertificateExpirationAlarmType_ShelvingState_TimedShelve);
@@ -42361,12 +41278,6 @@ namespace Opc.Ua
         public static readonly NodeId QuantityType_ServerUnits_ServerUnit_Placeholder_UnitSystem = new NodeId(Opc.Ua.Variables.QuantityType_ServerUnits_ServerUnit_Placeholder_UnitSystem);
 
         /// <remarks />
-        public static readonly NodeId QuantityType_ServerUnits_ServerUnit_Placeholder_AlternativeUnits_AlternativeUnit_Placeholder_Symbol = new NodeId(Opc.Ua.Variables.QuantityType_ServerUnits_ServerUnit_Placeholder_AlternativeUnits_AlternativeUnit_Placeholder_Symbol);
-
-        /// <remarks />
-        public static readonly NodeId QuantityType_ServerUnits_ServerUnit_Placeholder_AlternativeUnits_AlternativeUnit_Placeholder_UnitSystem = new NodeId(Opc.Ua.Variables.QuantityType_ServerUnits_ServerUnit_Placeholder_AlternativeUnits_AlternativeUnit_Placeholder_UnitSystem);
-
-        /// <remarks />
         public static readonly NodeId QuantityType_ServerUnits_ServerUnit_Placeholder_ConversionLimit = new NodeId(Opc.Ua.Variables.QuantityType_ServerUnits_ServerUnit_Placeholder_ConversionLimit);
 
         /// <remarks />
@@ -42379,49 +41290,7 @@ namespace Opc.Ua
         public static readonly NodeId QuantitiesFolderType_Quantity_Placeholder_Dimension = new NodeId(Opc.Ua.Variables.QuantitiesFolderType_Quantity_Placeholder_Dimension);
 
         /// <remarks />
-        public static readonly NodeId QuantitiesFolderType_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_Symbol = new NodeId(Opc.Ua.Variables.QuantitiesFolderType_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_Symbol);
-
-        /// <remarks />
-        public static readonly NodeId QuantitiesFolderType_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_UnitSystem = new NodeId(Opc.Ua.Variables.QuantitiesFolderType_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_UnitSystem);
-
-        /// <remarks />
-        public static readonly NodeId QuantitiesFolderType_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_AlternativeUnits_AlternativeUnit_Placeholder_Symbol = new NodeId(Opc.Ua.Variables.QuantitiesFolderType_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_AlternativeUnits_AlternativeUnit_Placeholder_Symbol);
-
-        /// <remarks />
-        public static readonly NodeId QuantitiesFolderType_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_AlternativeUnits_AlternativeUnit_Placeholder_UnitSystem = new NodeId(Opc.Ua.Variables.QuantitiesFolderType_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_AlternativeUnits_AlternativeUnit_Placeholder_UnitSystem);
-
-        /// <remarks />
-        public static readonly NodeId QuantitiesFolderType_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_ConversionLimit = new NodeId(Opc.Ua.Variables.QuantitiesFolderType_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_ConversionLimit);
-
-        /// <remarks />
-        public static readonly NodeId QuantitiesFolderType_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_CoherentUnit_Symbol = new NodeId(Opc.Ua.Variables.QuantitiesFolderType_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_CoherentUnit_Symbol);
-
-        /// <remarks />
-        public static readonly NodeId QuantitiesFolderType_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_CoherentUnit_UnitSystem = new NodeId(Opc.Ua.Variables.QuantitiesFolderType_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_CoherentUnit_UnitSystem);
-
-        /// <remarks />
         public static readonly NodeId Quantities_Quantity_Placeholder_Dimension = new NodeId(Opc.Ua.Variables.Quantities_Quantity_Placeholder_Dimension);
-
-        /// <remarks />
-        public static readonly NodeId Quantities_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_Symbol = new NodeId(Opc.Ua.Variables.Quantities_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_Symbol);
-
-        /// <remarks />
-        public static readonly NodeId Quantities_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_UnitSystem = new NodeId(Opc.Ua.Variables.Quantities_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_UnitSystem);
-
-        /// <remarks />
-        public static readonly NodeId Quantities_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_AlternativeUnits_AlternativeUnit_Placeholder_Symbol = new NodeId(Opc.Ua.Variables.Quantities_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_AlternativeUnits_AlternativeUnit_Placeholder_Symbol);
-
-        /// <remarks />
-        public static readonly NodeId Quantities_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_AlternativeUnits_AlternativeUnit_Placeholder_UnitSystem = new NodeId(Opc.Ua.Variables.Quantities_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_AlternativeUnits_AlternativeUnit_Placeholder_UnitSystem);
-
-        /// <remarks />
-        public static readonly NodeId Quantities_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_ConversionLimit = new NodeId(Opc.Ua.Variables.Quantities_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_ConversionLimit);
-
-        /// <remarks />
-        public static readonly NodeId Quantities_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_CoherentUnit_Symbol = new NodeId(Opc.Ua.Variables.Quantities_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_CoherentUnit_Symbol);
-
-        /// <remarks />
-        public static readonly NodeId Quantities_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_CoherentUnit_UnitSystem = new NodeId(Opc.Ua.Variables.Quantities_Quantity_Placeholder_ServerUnits_ServerUnit_Placeholder_CoherentUnit_UnitSystem);
 
         /// <remarks />
         public static readonly NodeId TwoStateVariableType_Id = new NodeId(Opc.Ua.Variables.TwoStateVariableType_Id);
@@ -42440,12 +41309,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ConditionVariableType_SourceTimestamp = new NodeId(Opc.Ua.Variables.ConditionVariableType_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId ConditionType_ConditionClassId = new NodeId(Opc.Ua.Variables.ConditionType_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ConditionType_ConditionClassName = new NodeId(Opc.Ua.Variables.ConditionType_ConditionClassName);
 
         /// <remarks />
         public static readonly NodeId ConditionType_ConditionName = new NodeId(Opc.Ua.Variables.ConditionType_ConditionName);
@@ -42853,12 +41716,6 @@ namespace Opc.Ua
         public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_Severity = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_Severity);
 
         /// <remarks />
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_ConditionClassId = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_ConditionClassName = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_ConditionClassName);
-
-        /// <remarks />
         public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_ConditionName = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_ConditionName);
 
         /// <remarks />
@@ -43001,12 +41858,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId AlarmSuppressionGroupType_AlarmConditionInstance_Placeholder_Severity = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmConditionInstance_Placeholder_Severity);
-
-        /// <remarks />
-        public static readonly NodeId AlarmSuppressionGroupType_AlarmConditionInstance_Placeholder_ConditionClassId = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmConditionInstance_Placeholder_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId AlarmSuppressionGroupType_AlarmConditionInstance_Placeholder_ConditionClassName = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmConditionInstance_Placeholder_ConditionClassName);
 
         /// <remarks />
         public static readonly NodeId AlarmSuppressionGroupType_AlarmConditionInstance_Placeholder_ConditionName = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_AlarmConditionInstance_Placeholder_ConditionName);
@@ -43609,207 +42460,6 @@ namespace Opc.Ua
         public static readonly NodeId NonExclusiveLimitAlarmType_LowLowState_FalseState = new NodeId(Opc.Ua.Variables.NonExclusiveLimitAlarmType_LowLowState_FalseState);
 
         /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_EnabledState_Id = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_EnabledState_Id);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_Quality_SourceTimestamp = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_Quality_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_LastSeverity_SourceTimestamp = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_LastSeverity_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_Comment_SourceTimestamp = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_Comment_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_AddComment_InputArguments = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_AddComment_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_ConditionRefresh_InputArguments = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_ConditionRefresh_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_ConditionRefresh2_InputArguments = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_ConditionRefresh2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_AckedState_Id = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_AckedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_ConfirmedState_Id = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_ConfirmedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_Acknowledge_InputArguments = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_Acknowledge_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_Confirm_InputArguments = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_Confirm_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_ActiveState_Id = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_ActiveState_Id);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_SuppressedState_Id = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_SuppressedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_OutOfServiceState_Id = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_OutOfServiceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_ShelvingState_CurrentState = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_ShelvingState_CurrentState);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_ShelvingState_CurrentState_Id = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_ShelvingState_CurrentState_Id);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_ShelvingState_LastTransition_Id = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_ShelvingState_LastTransition_Id);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_ShelvingState_UnshelveTime = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_ShelvingState_UnshelveTime);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_ShelvingState_TimedShelve_InputArguments = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_ShelvingState_TimedShelve_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_ShelvingState_TimedShelve2_InputArguments = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_ShelvingState_TimedShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_ShelvingState_Unshelve2_InputArguments = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_ShelvingState_Unshelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_ShelvingState_OneShotShelve2_InputArguments = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_ShelvingState_OneShotShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_SilenceState_Id = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_SilenceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_LatchedState_Id = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_LatchedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_Suppress2_InputArguments = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_Suppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_Unsuppress2_InputArguments = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_Unsuppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_RemoveFromService2_InputArguments = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_RemoveFromService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_PlaceInService2_InputArguments = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_PlaceInService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_Reset2_InputArguments = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_Reset2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_GetGroupMemberships_OutputArguments = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_GetGroupMemberships_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_HighHighState_Id = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_HighHighState_Id);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_HighState_Id = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_HighState_Id);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_LowState_Id = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_LowState_Id);
-
-        /// <remarks />
-        public static readonly NodeId NonExclusiveLevelAlarmType_LowLowState_Id = new NodeId(Opc.Ua.Variables.NonExclusiveLevelAlarmType_LowLowState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_EnabledState_Id = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_EnabledState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_Quality_SourceTimestamp = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_Quality_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_LastSeverity_SourceTimestamp = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_LastSeverity_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_Comment_SourceTimestamp = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_Comment_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_AddComment_InputArguments = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_AddComment_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_ConditionRefresh_InputArguments = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_ConditionRefresh_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_ConditionRefresh2_InputArguments = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_ConditionRefresh2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_AckedState_Id = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_AckedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_ConfirmedState_Id = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_ConfirmedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_Acknowledge_InputArguments = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_Acknowledge_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_Confirm_InputArguments = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_Confirm_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_ActiveState_Id = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_ActiveState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_SuppressedState_Id = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_SuppressedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_OutOfServiceState_Id = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_OutOfServiceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_ShelvingState_CurrentState = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_ShelvingState_CurrentState);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_ShelvingState_CurrentState_Id = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_ShelvingState_CurrentState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_ShelvingState_LastTransition_Id = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_ShelvingState_LastTransition_Id);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_ShelvingState_UnshelveTime = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_ShelvingState_UnshelveTime);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_ShelvingState_TimedShelve_InputArguments = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_ShelvingState_TimedShelve_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_ShelvingState_TimedShelve2_InputArguments = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_ShelvingState_TimedShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_ShelvingState_Unshelve2_InputArguments = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_ShelvingState_Unshelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_ShelvingState_OneShotShelve2_InputArguments = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_ShelvingState_OneShotShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_SilenceState_Id = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_SilenceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_LatchedState_Id = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_LatchedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_Suppress2_InputArguments = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_Suppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_Unsuppress2_InputArguments = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_Unsuppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_RemoveFromService2_InputArguments = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_RemoveFromService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_PlaceInService2_InputArguments = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_PlaceInService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_Reset2_InputArguments = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_Reset2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_GetGroupMemberships_OutputArguments = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_GetGroupMemberships_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_LimitState_CurrentState = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_LimitState_CurrentState);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_LimitState_CurrentState_Id = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_LimitState_CurrentState_Id);
-
-        /// <remarks />
-        public static readonly NodeId ExclusiveLevelAlarmType_LimitState_LastTransition_Id = new NodeId(Opc.Ua.Variables.ExclusiveLevelAlarmType_LimitState_LastTransition_Id);
-
-        /// <remarks />
         public static readonly NodeId NonExclusiveDeviationAlarmType_EnabledState_Id = new NodeId(Opc.Ua.Variables.NonExclusiveDeviationAlarmType_EnabledState_Id);
 
         /// <remarks />
@@ -44230,96 +42880,6 @@ namespace Opc.Ua
         public static readonly NodeId ExclusiveRateOfChangeAlarmType_EngineeringUnits = new NodeId(Opc.Ua.Variables.ExclusiveRateOfChangeAlarmType_EngineeringUnits);
 
         /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_EnabledState_Id = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_EnabledState_Id);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_Quality_SourceTimestamp = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_Quality_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_LastSeverity_SourceTimestamp = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_LastSeverity_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_Comment_SourceTimestamp = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_Comment_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_AddComment_InputArguments = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_AddComment_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_ConditionRefresh_InputArguments = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_ConditionRefresh_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_ConditionRefresh2_InputArguments = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_ConditionRefresh2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_AckedState_Id = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_AckedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_ConfirmedState_Id = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_ConfirmedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_Acknowledge_InputArguments = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_Acknowledge_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_Confirm_InputArguments = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_Confirm_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_ActiveState_Id = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_ActiveState_Id);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_SuppressedState_Id = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_SuppressedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_OutOfServiceState_Id = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_OutOfServiceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_ShelvingState_CurrentState = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_ShelvingState_CurrentState);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_ShelvingState_CurrentState_Id = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_ShelvingState_CurrentState_Id);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_ShelvingState_LastTransition_Id = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_ShelvingState_LastTransition_Id);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_ShelvingState_UnshelveTime = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_ShelvingState_UnshelveTime);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_ShelvingState_TimedShelve_InputArguments = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_ShelvingState_TimedShelve_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_ShelvingState_TimedShelve2_InputArguments = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_ShelvingState_TimedShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_ShelvingState_Unshelve2_InputArguments = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_ShelvingState_Unshelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_ShelvingState_OneShotShelve2_InputArguments = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_ShelvingState_OneShotShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_SilenceState_Id = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_SilenceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_LatchedState_Id = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_LatchedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_Suppress2_InputArguments = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_Suppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_Unsuppress2_InputArguments = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_Unsuppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_RemoveFromService2_InputArguments = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_RemoveFromService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_PlaceInService2_InputArguments = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_PlaceInService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_Reset2_InputArguments = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_Reset2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId DiscreteAlarmType_GetGroupMemberships_OutputArguments = new NodeId(Opc.Ua.Variables.DiscreteAlarmType_GetGroupMemberships_OutputArguments);
-
-        /// <remarks />
         public static readonly NodeId OffNormalAlarmType_EnabledState_Id = new NodeId(Opc.Ua.Variables.OffNormalAlarmType_EnabledState_Id);
 
         /// <remarks />
@@ -44411,366 +42971,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId OffNormalAlarmType_NormalState = new NodeId(Opc.Ua.Variables.OffNormalAlarmType_NormalState);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_EnabledState_Id = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_EnabledState_Id);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_Quality_SourceTimestamp = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_Quality_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_LastSeverity_SourceTimestamp = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_LastSeverity_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_Comment_SourceTimestamp = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_Comment_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_AddComment_InputArguments = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_AddComment_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_ConditionRefresh_InputArguments = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_ConditionRefresh_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_ConditionRefresh2_InputArguments = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_ConditionRefresh2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_AckedState_Id = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_AckedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_ConfirmedState_Id = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_ConfirmedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_Acknowledge_InputArguments = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_Acknowledge_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_Confirm_InputArguments = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_Confirm_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_ActiveState_Id = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_ActiveState_Id);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_SuppressedState_Id = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_SuppressedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_OutOfServiceState_Id = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_OutOfServiceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_ShelvingState_CurrentState = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_ShelvingState_CurrentState);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_ShelvingState_CurrentState_Id = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_ShelvingState_CurrentState_Id);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_ShelvingState_LastTransition_Id = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_ShelvingState_LastTransition_Id);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_ShelvingState_UnshelveTime = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_ShelvingState_UnshelveTime);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_ShelvingState_TimedShelve_InputArguments = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_ShelvingState_TimedShelve_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_ShelvingState_TimedShelve2_InputArguments = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_ShelvingState_TimedShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_ShelvingState_Unshelve2_InputArguments = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_ShelvingState_Unshelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_ShelvingState_OneShotShelve2_InputArguments = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_ShelvingState_OneShotShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_SilenceState_Id = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_SilenceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_LatchedState_Id = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_LatchedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_Suppress2_InputArguments = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_Suppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_Unsuppress2_InputArguments = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_Unsuppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_RemoveFromService2_InputArguments = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_RemoveFromService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_PlaceInService2_InputArguments = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_PlaceInService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_Reset2_InputArguments = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_Reset2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemOffNormalAlarmType_GetGroupMemberships_OutputArguments = new NodeId(Opc.Ua.Variables.SystemOffNormalAlarmType_GetGroupMemberships_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_EnabledState_Id = new NodeId(Opc.Ua.Variables.TripAlarmType_EnabledState_Id);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_Quality_SourceTimestamp = new NodeId(Opc.Ua.Variables.TripAlarmType_Quality_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_LastSeverity_SourceTimestamp = new NodeId(Opc.Ua.Variables.TripAlarmType_LastSeverity_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_Comment_SourceTimestamp = new NodeId(Opc.Ua.Variables.TripAlarmType_Comment_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_AddComment_InputArguments = new NodeId(Opc.Ua.Variables.TripAlarmType_AddComment_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_ConditionRefresh_InputArguments = new NodeId(Opc.Ua.Variables.TripAlarmType_ConditionRefresh_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_ConditionRefresh2_InputArguments = new NodeId(Opc.Ua.Variables.TripAlarmType_ConditionRefresh2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_AckedState_Id = new NodeId(Opc.Ua.Variables.TripAlarmType_AckedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_ConfirmedState_Id = new NodeId(Opc.Ua.Variables.TripAlarmType_ConfirmedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_Acknowledge_InputArguments = new NodeId(Opc.Ua.Variables.TripAlarmType_Acknowledge_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_Confirm_InputArguments = new NodeId(Opc.Ua.Variables.TripAlarmType_Confirm_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_ActiveState_Id = new NodeId(Opc.Ua.Variables.TripAlarmType_ActiveState_Id);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_SuppressedState_Id = new NodeId(Opc.Ua.Variables.TripAlarmType_SuppressedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_OutOfServiceState_Id = new NodeId(Opc.Ua.Variables.TripAlarmType_OutOfServiceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_ShelvingState_CurrentState = new NodeId(Opc.Ua.Variables.TripAlarmType_ShelvingState_CurrentState);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_ShelvingState_CurrentState_Id = new NodeId(Opc.Ua.Variables.TripAlarmType_ShelvingState_CurrentState_Id);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_ShelvingState_LastTransition_Id = new NodeId(Opc.Ua.Variables.TripAlarmType_ShelvingState_LastTransition_Id);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_ShelvingState_UnshelveTime = new NodeId(Opc.Ua.Variables.TripAlarmType_ShelvingState_UnshelveTime);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_ShelvingState_TimedShelve_InputArguments = new NodeId(Opc.Ua.Variables.TripAlarmType_ShelvingState_TimedShelve_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_ShelvingState_TimedShelve2_InputArguments = new NodeId(Opc.Ua.Variables.TripAlarmType_ShelvingState_TimedShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_ShelvingState_Unshelve2_InputArguments = new NodeId(Opc.Ua.Variables.TripAlarmType_ShelvingState_Unshelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_ShelvingState_OneShotShelve2_InputArguments = new NodeId(Opc.Ua.Variables.TripAlarmType_ShelvingState_OneShotShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_SilenceState_Id = new NodeId(Opc.Ua.Variables.TripAlarmType_SilenceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_LatchedState_Id = new NodeId(Opc.Ua.Variables.TripAlarmType_LatchedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_Suppress2_InputArguments = new NodeId(Opc.Ua.Variables.TripAlarmType_Suppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_Unsuppress2_InputArguments = new NodeId(Opc.Ua.Variables.TripAlarmType_Unsuppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_RemoveFromService2_InputArguments = new NodeId(Opc.Ua.Variables.TripAlarmType_RemoveFromService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_PlaceInService2_InputArguments = new NodeId(Opc.Ua.Variables.TripAlarmType_PlaceInService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_Reset2_InputArguments = new NodeId(Opc.Ua.Variables.TripAlarmType_Reset2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId TripAlarmType_GetGroupMemberships_OutputArguments = new NodeId(Opc.Ua.Variables.TripAlarmType_GetGroupMemberships_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_EnabledState_Id = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_EnabledState_Id);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_Quality_SourceTimestamp = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_Quality_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_LastSeverity_SourceTimestamp = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_LastSeverity_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_Comment_SourceTimestamp = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_Comment_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_AddComment_InputArguments = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_AddComment_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_ConditionRefresh_InputArguments = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_ConditionRefresh_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_ConditionRefresh2_InputArguments = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_ConditionRefresh2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_AckedState_Id = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_AckedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_ConfirmedState_Id = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_ConfirmedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_Acknowledge_InputArguments = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_Acknowledge_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_Confirm_InputArguments = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_Confirm_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_ActiveState_Id = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_ActiveState_Id);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_SuppressedState_Id = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_SuppressedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_OutOfServiceState_Id = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_OutOfServiceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_ShelvingState_CurrentState = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_ShelvingState_CurrentState);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_ShelvingState_CurrentState_Id = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_ShelvingState_CurrentState_Id);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_ShelvingState_LastTransition_Id = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_ShelvingState_LastTransition_Id);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_ShelvingState_UnshelveTime = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_ShelvingState_UnshelveTime);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_ShelvingState_TimedShelve_InputArguments = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_ShelvingState_TimedShelve_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_ShelvingState_TimedShelve2_InputArguments = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_ShelvingState_TimedShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_ShelvingState_Unshelve2_InputArguments = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_ShelvingState_Unshelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_ShelvingState_OneShotShelve2_InputArguments = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_ShelvingState_OneShotShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_SilenceState_Id = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_SilenceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_LatchedState_Id = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_LatchedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_Suppress2_InputArguments = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_Suppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_Unsuppress2_InputArguments = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_Unsuppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_RemoveFromService2_InputArguments = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_RemoveFromService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_PlaceInService2_InputArguments = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_PlaceInService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_Reset2_InputArguments = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_Reset2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId InstrumentDiagnosticAlarmType_GetGroupMemberships_OutputArguments = new NodeId(Opc.Ua.Variables.InstrumentDiagnosticAlarmType_GetGroupMemberships_OutputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_EnabledState_Id = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_EnabledState_Id);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_Quality_SourceTimestamp = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_Quality_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_LastSeverity_SourceTimestamp = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_LastSeverity_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_Comment_SourceTimestamp = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_Comment_SourceTimestamp);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_AddComment_InputArguments = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_AddComment_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_ConditionRefresh_InputArguments = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_ConditionRefresh_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_ConditionRefresh2_InputArguments = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_ConditionRefresh2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_AckedState_Id = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_AckedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_ConfirmedState_Id = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_ConfirmedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_Acknowledge_InputArguments = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_Acknowledge_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_Confirm_InputArguments = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_Confirm_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_ActiveState_Id = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_ActiveState_Id);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_SuppressedState_Id = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_SuppressedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_OutOfServiceState_Id = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_OutOfServiceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_ShelvingState_CurrentState = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_ShelvingState_CurrentState);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_ShelvingState_CurrentState_Id = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_ShelvingState_CurrentState_Id);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_ShelvingState_LastTransition_Id = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_ShelvingState_LastTransition_Id);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_ShelvingState_UnshelveTime = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_ShelvingState_UnshelveTime);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_ShelvingState_TimedShelve_InputArguments = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_ShelvingState_TimedShelve_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_ShelvingState_TimedShelve2_InputArguments = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_ShelvingState_TimedShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_ShelvingState_Unshelve2_InputArguments = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_ShelvingState_Unshelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_ShelvingState_OneShotShelve2_InputArguments = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_ShelvingState_OneShotShelve2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_SilenceState_Id = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_SilenceState_Id);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_LatchedState_Id = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_LatchedState_Id);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_Suppress2_InputArguments = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_Suppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_Unsuppress2_InputArguments = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_Unsuppress2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_RemoveFromService2_InputArguments = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_RemoveFromService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_PlaceInService2_InputArguments = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_PlaceInService2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_Reset2_InputArguments = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_Reset2_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId SystemDiagnosticAlarmType_GetGroupMemberships_OutputArguments = new NodeId(Opc.Ua.Variables.SystemDiagnosticAlarmType_GetGroupMemberships_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId CertificateExpirationAlarmType_EnabledState_Id = new NodeId(Opc.Ua.Variables.CertificateExpirationAlarmType_EnabledState_Id);
@@ -45739,12 +43939,6 @@ namespace Opc.Ua
         public static readonly NodeId CertificateGroupType_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.CertificateGroupType_CertificateExpired_Severity);
 
         /// <remarks />
-        public static readonly NodeId CertificateGroupType_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.CertificateGroupType_CertificateExpired_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupType_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.CertificateGroupType_CertificateExpired_ConditionClassName);
-
-        /// <remarks />
         public static readonly NodeId CertificateGroupType_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.CertificateGroupType_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -45899,12 +44093,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId CertificateGroupType_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.CertificateGroupType_TrustListOutOfDate_Severity);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupType_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.CertificateGroupType_TrustListOutOfDate_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupType_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.CertificateGroupType_TrustListOutOfDate_ConditionClassName);
 
         /// <remarks />
         public static readonly NodeId CertificateGroupType_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.CertificateGroupType_TrustListOutOfDate_ConditionName);
@@ -46129,12 +44317,6 @@ namespace Opc.Ua
         public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_Severity);
 
         /// <remarks />
-        public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_ConditionClassName);
-
-        /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -46289,12 +44471,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_Severity);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName);
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_ConditionName);
@@ -46519,12 +44695,6 @@ namespace Opc.Ua
         public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_Severity);
 
         /// <remarks />
-        public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_ConditionClassName);
-
-        /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -46679,12 +44849,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_Severity);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName);
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_ConditionName);
@@ -46909,12 +45073,6 @@ namespace Opc.Ua
         public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_Severity);
 
         /// <remarks />
-        public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_ConditionClassName);
-
-        /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -47069,12 +45227,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_Severity);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName);
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName);
@@ -47299,12 +45451,6 @@ namespace Opc.Ua
         public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_Severity);
 
         /// <remarks />
-        public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_ConditionClassName);
-
-        /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -47459,12 +45605,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_Severity);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ConditionClassName);
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ConditionName);
@@ -47710,12 +45850,6 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity);
 
         /// <remarks />
-        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName);
-
-        /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -47870,12 +46004,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName);
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName);
@@ -48100,12 +46228,6 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity);
 
         /// <remarks />
-        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName);
-
-        /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -48260,12 +46382,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName);
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName);
@@ -48490,12 +46606,6 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity);
 
         /// <remarks />
-        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName);
-
-        /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -48650,12 +46760,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName);
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName);
@@ -48949,12 +47053,6 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity);
 
         /// <remarks />
-        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName);
-
-        /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -49109,12 +47207,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName);
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName);
@@ -49339,12 +47431,6 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity);
 
         /// <remarks />
-        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName);
-
-        /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -49499,12 +47585,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName);
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName);
@@ -49729,12 +47809,6 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity);
 
         /// <remarks />
-        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName);
-
-        /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -49889,12 +47963,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName);
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName);
@@ -55000,12 +53068,6 @@ namespace Opc.Ua
         public static readonly NodeId ApplicationConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity);
 
         /// <remarks />
-        public static readonly NodeId ApplicationConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName);
-
-        /// <remarks />
         public static readonly NodeId ApplicationConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -55160,12 +53222,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ApplicationConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName);
 
         /// <remarks />
         public static readonly NodeId ApplicationConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName);
@@ -55390,12 +53446,6 @@ namespace Opc.Ua
         public static readonly NodeId ApplicationConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity);
 
         /// <remarks />
-        public static readonly NodeId ApplicationConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName);
-
-        /// <remarks />
         public static readonly NodeId ApplicationConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -55550,12 +53600,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ApplicationConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName);
 
         /// <remarks />
         public static readonly NodeId ApplicationConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName);
@@ -55780,12 +53824,6 @@ namespace Opc.Ua
         public static readonly NodeId ApplicationConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity);
 
         /// <remarks />
-        public static readonly NodeId ApplicationConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName);
-
-        /// <remarks />
         public static readonly NodeId ApplicationConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -55940,12 +53978,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ApplicationConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName);
 
         /// <remarks />
         public static readonly NodeId ApplicationConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ApplicationConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName);
@@ -56230,12 +54262,6 @@ namespace Opc.Ua
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity);
 
         /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName);
-
-        /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -56390,12 +54416,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName);
 
         /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName);
@@ -56620,12 +54640,6 @@ namespace Opc.Ua
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity);
 
         /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName);
-
-        /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -56780,12 +54794,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName);
 
         /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName);
@@ -57010,12 +55018,6 @@ namespace Opc.Ua
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity);
 
         /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName);
-
-        /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -57170,12 +55172,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName);
 
         /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName);
@@ -57472,12 +55468,6 @@ namespace Opc.Ua
         public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity);
 
         /// <remarks />
-        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName);
-
-        /// <remarks />
         public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -57632,12 +55622,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName);
 
         /// <remarks />
         public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName);
@@ -57862,12 +55846,6 @@ namespace Opc.Ua
         public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity);
 
         /// <remarks />
-        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName);
-
-        /// <remarks />
         public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -58022,12 +56000,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName);
 
         /// <remarks />
         public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName);
@@ -58252,12 +56224,6 @@ namespace Opc.Ua
         public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity);
 
         /// <remarks />
-        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName);
-
-        /// <remarks />
         public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -58412,12 +56378,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName);
 
         /// <remarks />
         public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName);
