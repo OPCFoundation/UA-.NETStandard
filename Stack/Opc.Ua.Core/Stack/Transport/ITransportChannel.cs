@@ -139,6 +139,12 @@ namespace Opc.Ua
         void Close();
 
         /// <summary>
+        /// Closes the secure channel (async).
+        /// </summary>
+        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
+        Task CloseAsync(CancellationToken ct);
+
+        /// <summary>
         /// Begins an asynchronous operation to close the secure channel.
         /// </summary>
         /// <param name="callback">The callback to call when the operation completes.</param>

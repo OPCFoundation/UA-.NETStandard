@@ -357,6 +357,20 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Closes any existing secure channel.
+        /// </summary>
+        public async Task CloseAsync(CancellationToken ct)
+        {
+            if (m_uaBypassChannel != null)
+            {
+                await m_uaBypassChannel.CloseAsync(ct).ConfigureAwait(false);
+                return;
+            }
+
+            CloseChannel();
+        }
+
+        /// <summary>
         /// Begins an asynchronous operation to close the secure channel.
         /// </summary>
         public IAsyncResult BeginClose(AsyncCallback callback, object callbackData)
@@ -991,9 +1005,7 @@ namespace Opc.Ua
             /// <returns>The oject that </returns>
             public static new UaChannelAsyncResult WaitForComplete(IAsyncResult ar)
             {
-                UaChannelAsyncResult asyncResult = ar as UaChannelAsyncResult;
-
-                if (asyncResult == null)
+                if (!(ar is UaChannelAsyncResult asyncResult))
                 {
                     throw new ArgumentException("End called with an invalid IAsyncResult object.", nameof(ar));
                 }

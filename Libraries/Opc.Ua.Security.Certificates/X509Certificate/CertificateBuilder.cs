@@ -30,7 +30,6 @@
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -96,13 +95,13 @@ namespace Opc.Ua.Security.Certificates
                 rsaPublicKey = rsaKeyPair;
             }
 
-            var padding = RSASignaturePadding.Pkcs1;
+            RSASignaturePadding padding = RSASignaturePadding.Pkcs1;
             var request = new CertificateRequest(SubjectName, rsaPublicKey, HashAlgorithmName, padding);
 
             CreateX509Extensions(request, false);
 
             X509Certificate2 signedCert;
-            var serialNumber = m_serialNumber.Reverse().ToArray();
+            byte[] serialNumber = m_serialNumber.Reverse().ToArray();
             if (IssuerCAKeyCert != null)
             {
                 using (RSA rsaIssuerKey = IssuerCAKeyCert.GetRSAPrivateKey())
@@ -140,7 +139,7 @@ namespace Opc.Ua.Security.Certificates
                 throw new NotSupportedException("Need an issuer certificate or a public key for a signature generator.");
             }
 
-            var issuerSubjectName = SubjectName;
+            X500DistinguishedName issuerSubjectName = SubjectName;
             if (IssuerCAKeyCert != null)
             {
                 issuerSubjectName = IssuerCAKeyCert.SubjectName;
@@ -197,7 +196,7 @@ namespace Opc.Ua.Security.Certificates
 
             CreateX509Extensions(request, true);
 
-            var serialNumber = m_serialNumber.Reverse().ToArray();
+            byte[] serialNumber = m_serialNumber.Reverse().ToArray();
             if (IssuerCAKeyCert != null)
             {
                 using (ECDsa issuerKey = IssuerCAKeyCert.GetECDsaPrivateKey())
@@ -418,7 +417,7 @@ namespace Opc.Ua.Security.Certificates
                 }
             }
 
-            foreach (var extension in m_extensions)
+            foreach (X509Extension extension in m_extensions)
             {
                 request.CertificateExtensions.Add(extension);
             }

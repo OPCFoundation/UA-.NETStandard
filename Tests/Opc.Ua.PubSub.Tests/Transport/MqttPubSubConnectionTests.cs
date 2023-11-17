@@ -148,7 +148,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //Act
             // it will signal if the uadp message was received from local ip
             m_uaDataShutdownEvent = new ManualResetEvent(false);
-            
+
             subscriberApplication.DataReceived += UaPubSubApplication_DataReceived;
             subscriberConnection.Start();
 
@@ -159,10 +159,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
             {
                 Assert.Fail("The UADP message was not received");
             }
-            
+
             subscriberConnection.Stop();
             publisherConnection.Stop();
-            
+
         }
 
         [Test(Description = "Validate mqtt local pub/sub connection with json data.")]

@@ -433,6 +433,35 @@ namespace Opc.Ua.Client
 
             return targets;
         }
+
+        /// <inheritdoc/>
+        public async Task FetchSuperTypesAsync(ExpandedNodeId nodeId, CancellationToken ct)
+        {
+            // find the target node,
+            ILocalNode source = await FindAsync(nodeId, ct).ConfigureAwait(false) as ILocalNode;
+
+            if (source == null)
+            {
+                return;
+            }
+
+            // follow the tree.
+            ILocalNode subType = source;
+
+            while (subType != null)
+            {
+                ILocalNode superType = null;
+
+                IList<IReference> references = subType.References.Find(ReferenceTypeIds.HasSubtype, true, true, this);
+
+                if (references != null && references.Count > 0)
+                {
+                    superType = await FindAsync(references[0].TargetId, ct).ConfigureAwait(false) as ILocalNode;
+                }
+
+                subType = superType;
+            }
+        }
         #endregion
     }
 }

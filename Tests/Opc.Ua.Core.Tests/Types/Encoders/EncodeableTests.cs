@@ -99,7 +99,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, systemType))
                 {
+                    encoder.PushNamespace("urn:This:is:another:namespace");
                     encoder.WriteArray(objectName, array, ValueRanks.OneDimension, builtInType);
+                    encoder.PopNamespace();
                 }
                 buffer = encoderStream.ToArray();
             }
@@ -109,13 +111,19 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 case EncodingType.Json:
                     PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
                     break;
+                case EncodingType.Xml:
+                    var xml = Encoding.UTF8.GetString(buffer);
+                    Assert.IsTrue(xml.Contains("<Array xmlns=\"urn:This:is:another:namespace\">"));
+                    break;
             }
 
             object result;
             using (var decoderStream = new MemoryStream(buffer))
             using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, systemType))
             {
+                decoder.PushNamespace("urn:This:is:another:namespace");
                 result = decoder.ReadArray(objectName, ValueRanks.OneDimension, BuiltInType.Variant, systemType, dataTypeId);
+                decoder.PopNamespace();
             }
 
             TestContext.Out.WriteLine("Result:");

@@ -48,7 +48,7 @@ namespace Opc.Ua
             }
         }
         #endregion
-        
+
         #region Public Methods
         /// <summary>
         /// Gets or sets a value indicating whether the condition will automatically report an event when a method call completes.
@@ -152,19 +152,19 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         /// <param name="branchId">The Desired Branch Id</param>
         /// <returns>ConditionState newly created branch</returns>
-        public virtual ConditionState CreateBranch( ISystemContext context, NodeId branchId )
+        public virtual ConditionState CreateBranch(ISystemContext context, NodeId branchId)
         {
             ConditionState state = null;
 
             Type alarmType = this.GetType();
             object branchedAlarm = Activator.CreateInstance(alarmType, this);
-            if ( branchedAlarm != null )
+            if (branchedAlarm != null)
             {
                 ConditionState branchedNodeState = (ConditionState)branchedAlarm;
                 branchedNodeState.Initialize(context, this);
                 branchedNodeState.BranchId.Value = branchId;
                 branchedNodeState.AutoReportStateChanges = AutoReportStateChanges;
-                branchedNodeState.ReportStateChange(context, false );
+                branchedNodeState.ReportStateChange(context, false);
 
                 string postEventId = Utils.ToHexString(branchedNodeState.EventId.Value as byte[]);
 
@@ -186,7 +186,7 @@ namespace Opc.Ua
         /// Function exists because constructor is in auto generated code.
         /// </remarks>
         /// <returns></returns>
-        public Dictionary< string, ConditionState >GetBranches()
+        public Dictionary<string, ConditionState> GetBranches()
         {
             if (m_branches == null)
             {
@@ -288,7 +288,7 @@ namespace Opc.Ua
         {
             bool retainState = GetRetainState();
 
-            if ( this.Retain.Value != retainState )
+            if (this.Retain.Value != retainState)
             {
                 this.Retain.Value = retainState;
             }
@@ -339,11 +339,11 @@ namespace Opc.Ua
         /// </summary>
         /// <returns>
         /// Boolean determining if this event is monitored, and should be reported</returns>
-        public bool EventsMonitored( )
+        public bool EventsMonitored()
         {
             bool areEventsMonitored = this.AreEventsMonitored;
 
-            if ( IsBranch() )
+            if (IsBranch())
             {
                 areEventsMonitored = Parent.AreEventsMonitored;
             }
@@ -402,7 +402,7 @@ namespace Opc.Ua
             {
                 return;
             }
-                   
+
             if (AutoReportStateChanges)
             {
                 // create a new event instance.
@@ -428,7 +428,7 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         protected virtual void UpdateEffectiveState(ISystemContext context)
         {
-            SetEffectiveSubState(context, this.EnabledState.Value, DateTime.MinValue); 
+            SetEffectiveSubState(context, this.EnabledState.Value, DateTime.MinValue);
         }
 
         /// <summary>
@@ -453,7 +453,7 @@ namespace Opc.Ua
             {
                 string currentUserId = GetCurrentUserId(context);
                 ConditionState branch = GetBranch(eventId);
-                if ( branch != null )
+                if (branch != null)
                 {
                     branch.OnAddCommentCalled(context, method, objectId, eventId, comment);
                 }
@@ -507,9 +507,7 @@ namespace Opc.Ua
         /// <returns>The display name for the current user.</returns>
         protected string GetCurrentUserId(ISystemContext context)
         {
-            IOperationContext operationContext = context as IOperationContext;
-
-            if (operationContext != null && operationContext.UserIdentity != null)
+            if (context is IOperationContext operationContext && operationContext.UserIdentity != null)
             {
                 return operationContext.UserIdentity.DisplayName;
             }
@@ -524,7 +522,7 @@ namespace Opc.Ua
         /// <param name="eventId">The identifier for the event which is the target for the comment.</param>
         /// <param name="comment">The comment.</param>
         protected virtual ServiceResult ProcessBeforeAddComment(
-            ISystemContext context, 
+            ISystemContext context,
             byte[] eventId,
             LocalizedText comment)
         {
@@ -569,7 +567,7 @@ namespace Opc.Ua
                 Dictionary<string, ConditionState> branches = GetBranches();
 
                 // Enable all branches
-                foreach ( ConditionState branch in branches.Values )
+                foreach (ConditionState branch in branches.Values)
                 {
                     branch.OnEnableCalled(context, method, inputArguments, outputArguments);
                 }
@@ -600,7 +598,7 @@ namespace Opc.Ua
                     new LocalizedText(info),
                     ServiceResult.IsGood(error),
                     DateTime.UtcNow);
-                
+
                 e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
                 e.SetChildValue(context, BrowseNames.SourceName, "Method/Enable", false);
                 e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
@@ -669,7 +667,7 @@ namespace Opc.Ua
 
             return error;
         }
-        
+
         /// <summary>
         /// Does any processing before a condition is enabled or disabled.
         /// </summary>
@@ -775,7 +773,7 @@ namespace Opc.Ua
     /// <param name="condition">The condition that raised the event.</param>
     /// <param name="enabling">True if the condition is moving/has moved to the Enabled state.</param>
     public delegate ServiceResult ConditionEnableEventHandler(
-        ISystemContext context, 
+        ISystemContext context,
         ConditionState condition,
         bool enabling);
 

@@ -393,17 +393,15 @@ namespace Opc.Ua
             }
 
             // for structure types must try to determine the subtype.
-            ExtensionObject extension = value as ExtensionObject;
 
-            if (extension != null)
+            if (value is ExtensionObject extension)
             {
                 return IsEncodingFor(expectedTypeId, extension);
             }
 
             // every element in an array must match.
-            ExtensionObject[] extensions = value as ExtensionObject[];
 
-            if (extensions != null)
+            if (value is ExtensionObject[] extensions)
             {
                 for (int ii = 0; ii < extensions.Length; ii++)
                 {
@@ -849,7 +847,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private NamespaceTable m_namespaceUris;
         private SortedDictionary<QualifiedName, TypeInfo> m_referenceTypes;
         private NodeIdDictionary<TypeInfo> m_nodes;

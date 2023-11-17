@@ -196,7 +196,7 @@ namespace Opc.Ua
                 m_references.Add(reference);
             }
         }
-        
+
         /// <summary>
         /// Adds a reference to target entity.
         /// </summary>
@@ -248,7 +248,7 @@ namespace Opc.Ua
         {
             get { return m_context; }
         }
-        
+
         /// <summary>
         /// The view being browsed.
         /// </summary>
@@ -299,7 +299,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private ISystemContext m_context;
         private ViewDescription m_view;
         private NodeId m_referenceType;

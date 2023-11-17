@@ -74,9 +74,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.IsTrue(connection.Publishers != null, "connection.Publishers is null");
             Assert.IsTrue(connection.Publishers.Count == 1, "connection.Publishers count is not 2");
             int index = 0;
-            foreach(IUaPublisher publisher in connection.Publishers)
+            foreach (IUaPublisher publisher in connection.Publishers)
             {
-                Assert.IsTrue(publisher!= null, "connection.Publishers[{0}] is null", index);
+                Assert.IsTrue(publisher != null, "connection.Publishers[{0}] is null", index);
                 Assert.IsTrue(publisher.PubSubConnection == connection, "connection.Publishers[{0}].PubSubConnection is not set correctly", index);
                 Assert.IsTrue(publisher.WriterGroupConfiguration.WriterGroupId == m_pubSubConfiguration.Connections.First().WriterGroups[index].WriterGroupId, "connection.Publishers[{0}].WriterGroupConfiguration is not set correctly", index);
                 index++;

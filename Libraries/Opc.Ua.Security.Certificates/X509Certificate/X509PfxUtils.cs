@@ -49,7 +49,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private static X509KeyUsageFlags GetKeyUsage(X509Certificate2 cert)
         {
-            var allFlags = X509KeyUsageFlags.None;
+            X509KeyUsageFlags allFlags = X509KeyUsageFlags.None;
             foreach (X509KeyUsageExtension ext in cert.Extensions.OfType<X509KeyUsageExtension>())
             {
                 allFlags |= ext.KeyUsages;
@@ -133,7 +133,7 @@ namespace Opc.Ua.Security.Certificates
             };
 
             // try some combinations of storage flags, support is platform dependent
-            foreach (var flag in storageFlags)
+            foreach (X509KeyStorageFlags flag in storageFlags)
             {
                 try
                 {

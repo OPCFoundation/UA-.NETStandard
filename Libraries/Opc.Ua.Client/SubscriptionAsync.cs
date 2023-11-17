@@ -452,7 +452,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Tells the server to refresh all conditions being monitored by the subscription.
         /// </summary>
-        public async Task ConditionRefreshAsync(CancellationToken ct = default(CancellationToken))
+        public async Task ConditionRefreshAsync(CancellationToken ct = default)
         {
             VerifySubscriptionState(true);
 

@@ -171,8 +171,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void EndConnect(IAsyncResult result)
         {
-            var operation = result as WriteOperation;
-            if (operation == null) throw new ArgumentNullException(nameof(result));
+            if (!(result is WriteOperation operation)) throw new ArgumentNullException(nameof(result));
 
             try
             {
@@ -195,8 +194,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public async Task EndConnectAsync(IAsyncResult result, CancellationToken ct = default)
         {
-            var operation = result as WriteOperation;
-            if (operation == null) throw new ArgumentNullException(nameof(result));
+            if (!(result is WriteOperation operation)) throw new ArgumentNullException(nameof(result));
 
             try
             {
@@ -297,6 +295,47 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Closes a connection with the server (async).
+        /// </summary>
+        public async Task CloseAsync(int timeout)
+        {
+            WriteOperation operation = InternalClose(timeout);
+
+            // wait for the close to succeed.
+            if (operation != null)
+            {
+                try
+                {
+                    await operation.EndAsync(timeout, false).ConfigureAwait(false);
+                }
+                catch (ServiceResultException e)
+                {
+                    switch (e.StatusCode)
+                    {
+                        case StatusCodes.BadRequestInterrupted:
+                        case StatusCodes.BadSecureChannelClosed:
+                        {
+                            break;
+                        }
+
+                        default:
+                        {
+                            Utils.LogWarning(e, "ChannelId {0}: Could not gracefully close the channel. Reason={1}", ChannelId, e.Result.StatusCode);
+                            break;
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    Utils.LogError(e, "ChannelId {0}: Could not gracefully close the channel.", ChannelId);
+                }
+            }
+
+            // shutdown.
+            Shutdown(StatusCodes.BadConnectionClosed);
+        }
+
+        /// <summary>
         /// Sends a request to the server.
         /// </summary>
         public IAsyncResult BeginSendRequest(IServiceRequest request, int timeout, AsyncCallback callback, object state)
@@ -364,9 +403,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public IServiceResponse EndSendRequest(IAsyncResult result)
         {
-            WriteOperation operation = result as WriteOperation;
-
-            if (operation == null)
+            if (!(result is WriteOperation operation))
             {
                 throw new ArgumentNullException(nameof(result));
             }
@@ -388,9 +425,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public async Task<IServiceResponse> EndSendRequestAsync(IAsyncResult result, CancellationToken ct)
         {
-            WriteOperation operation = result as WriteOperation;
-
-            if (operation == null)
+            if (!(result is WriteOperation operation))
             {
                 throw new ArgumentNullException(nameof(result));
             }
@@ -431,7 +466,7 @@ namespace Opc.Ua.Bindings
                     encoder.WriteUInt32(null, (uint)MaxResponseMessageSize);
                     encoder.WriteUInt32(null, (uint)MaxResponseChunkCount);
 
-                    byte[] endpointUrl = new UTF8Encoding().GetBytes(m_url.ToString());
+                    byte[] endpointUrl = Encoding.UTF8.GetBytes(m_url.ToString());
 
                     if (endpointUrl.Length > TcpMessageLimits.MaxEndpointUrlLength)
                     {
@@ -665,9 +700,8 @@ namespace Opc.Ua.Bindings
                 chunksToProcess = GetSavedChunks(requestId, messageBody, false);
 
                 // read message body.
-                OpenSecureChannelResponse response = ParseResponse(chunksToProcess) as OpenSecureChannelResponse;
 
-                if (response == null)
+                if (!(ParseResponse(chunksToProcess) is OpenSecureChannelResponse response))
                 {
                     throw ServiceResultException.Create(StatusCodes.BadTypeMismatch, "Server did not return a valid OpenSecureChannelResponse.");
                 }
@@ -762,9 +796,7 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-                WriteOperation operation = state as WriteOperation;
-
-                if (operation != null)
+                if (state is WriteOperation operation)
                 {
                     if (ServiceResult.IsBad(result))
                     {
@@ -1058,8 +1090,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private IServiceResponse ParseResponse(BufferCollection chunksToProcess)
         {
-            IServiceResponse response = BinaryDecoder.DecodeMessage(new ArraySegmentStream(chunksToProcess), null, Quotas.MessageContext) as IServiceResponse;
-            if (response == null)
+            if (!(BinaryDecoder.DecodeMessage(new ArraySegmentStream(chunksToProcess), null, Quotas.MessageContext) is IServiceResponse response))
             {
                 throw ServiceResultException.Create(StatusCodes.BadStructureMissing, "Could not parse response body.");
             }
@@ -1144,14 +1175,14 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                Utils.LogWarning("ChannelId {0}: Force reconnect reason={1}", Id, reason);
-
                 // check if reconnects are disabled.
                 if (State == TcpChannelState.Closing || m_waitBetweenReconnects == Timeout.Infinite)
                 {
                     Shutdown(reason);
                     return;
                 }
+
+                Utils.LogWarning("ChannelId {0}: Force reconnect reason={1}", Id, reason);
 
                 // cancel all requests.
                 List<WriteOperation> operations = new List<WriteOperation>(m_requests.Values);

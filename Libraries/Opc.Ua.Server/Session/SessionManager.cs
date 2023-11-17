@@ -624,7 +624,7 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private IServerInternal m_server;
         private Dictionary<NodeId, Session> m_sessions;
         private long m_lastSessionId;
@@ -638,7 +638,7 @@ namespace Opc.Ua.Server
         private int m_maxHistoryContinuationPoints;
         private int m_minNonceLength;
 
-        private object m_eventLock = new object();
+        private readonly object m_eventLock = new object();
         private event SessionEventHandler m_sessionCreated;
         private event SessionEventHandler m_sessionActivated;
         private event SessionEventHandler m_sessionClosing;
