@@ -32,6 +32,9 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Client.Tests
 {
+    /// <summary>
+    /// A subclass of a session for testing purposes, e.g. to override some implementations.
+    /// </summary>
     public class TestableSession : Session
     {
         #region Constructors
@@ -91,17 +94,83 @@ namespace Opc.Ua.Client.Tests
         }
         #endregion
 
+        /// <summary>
+        /// The timespan offset to be used to modify the request header timestamp.
+        /// </summary>
         public TimeSpan TimestampOffset { get; set; } = new TimeSpan(0);
 
+        /// <inheritdoc/>
         protected override void UpdateRequestHeader(IServiceRequest request, bool useDefaults, string serviceName)
         {
             base.UpdateRequestHeader(request, useDefaults, serviceName);
             request.RequestHeader.Timestamp = request.RequestHeader.Timestamp + TimestampOffset;
         }
 
-        protected override Session CloneSession(ITransportChannel channel, bool copyEventHandlers)
+        /// <inheritdoc/>
+        public override Session CloneSession(ITransportChannel channel, bool copyEventHandlers)
         {
-            return new TestableSession(channel, this, copyEventHandlers);
+            return new TestableSession(channel, this, copyEventHandlers) {
+                TimestampOffset = this.TimestampOffset,
+            };
         }
     }
+
+    /// <summary>
+    /// A subclass of the subscription for testing purposes.
+    /// </summary>
+    public class TestableSubscription : Subscription
+    {
+        #region Constructors
+        /// <summary>
+        /// Constructs a new instance of the <see cref="TestableSubscription"/> class.
+        /// </summary>
+        public TestableSubscription()
+        {
+        }
+
+        /// <summary>
+        /// Constructs a new instance of the <see cref="TestableSubscription"/> class.
+        /// </summary>
+        public TestableSubscription(Subscription template, bool copyEventHandlers)
+            : base(template, copyEventHandlers)
+        {
+        }
+        #endregion
+
+        /// <inheritdoc/>
+        public override Subscription CloneSubscription(bool copyEventHandlers)
+        {
+            return new TestableSubscription(this, copyEventHandlers);
+        }
+    }
+
+    /// <summary>
+    /// A subclass of a monitored item for testing purposes.
+    /// </summary>
+    public class TestableMonitoredItem : MonitoredItem
+    {
+        #region Constructors
+        /// <summary>
+        /// Constructs a new instance of the <see cref="TestableMonitoredItem"/> class.
+        /// </summary>
+        public TestableMonitoredItem()
+        {
+        }
+
+        /// <summary>
+        /// Constructs a new instance of the <see cref="TestableMonitoredItem"/> class.
+        /// </summary>
+        public TestableMonitoredItem(MonitoredItem template, bool copyEventHandlers, bool copyClientHandle)
+            : base(template, copyEventHandlers, copyClientHandle)
+        {
+        }
+        #endregion
+
+        /// <inheritdoc/>
+        public override MonitoredItem CloneMonitoredItem(bool copyEventHandlers, bool copyClientHandle)
+        {
+            return new TestableMonitoredItem(this, copyEventHandlers, copyClientHandle);
+        }
+    }
+
 }

@@ -2961,6 +2961,17 @@ namespace Opc.Ua.Client
             clone.AddRange(this.Select(item => (Subscription)item.Clone()));
             return clone;
         }
+
+        /// <summary>
+        /// Helper to clone a SubscriptionCollection with event handlers using the
+        /// <see cref="Subscription.CloneSubscription(bool)"/> method.
+        /// </summary>
+        public virtual SubscriptionCollection CloneSubscriptions(bool copyEventhandlers)
+        {
+            SubscriptionCollection clone = new SubscriptionCollection();
+            clone.AddRange(this.Select(item => (Subscription)item.CloneSubscription(copyEventhandlers)));
+            return clone;
+        }
         #endregion
     }
 }

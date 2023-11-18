@@ -3093,9 +3093,9 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// An overrideable version of a session clone which is used
-        /// to create new subclassed clones from a Session class.
+        /// internally to create new subclassed clones from a Session class.
         /// </summary>
-        protected virtual Session CloneSession(ITransportChannel channel, bool copyEventHandlers)
+        public virtual Session CloneSession(ITransportChannel channel, bool copyEventHandlers)
         {
             return new Session(channel, this, copyEventHandlers);
         }
