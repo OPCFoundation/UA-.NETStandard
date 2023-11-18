@@ -540,7 +540,7 @@ namespace Opc.Ua.Configuration.Tests
         /// </summary>
         /// <returns></returns>
         [Test]
-        public async Task TestAddOwnCertificateToTrustedStore(CancellationToken ct)
+        public async Task TestAddOwnCertificateToTrustedStore()
         {
             //Arrange Application Instance
             var applicationInstance = new ApplicationInstance() {
@@ -563,7 +563,7 @@ namespace Opc.Ua.Configuration.Tests
                 .CreateForRSA();
 
             //Act
-            await applicationInstance.AddOwnCertificateToTrustedStoreAsync(cert, ct).ConfigureAwait(false);
+            await applicationInstance.AddOwnCertificateToTrustedStoreAsync(cert, new CancellationToken()).ConfigureAwait(false);
             ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore();
             var storedCertificates = await store.FindByThumbprint(cert.Thumbprint).ConfigureAwait(false);
 
