@@ -301,7 +301,6 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public void Save(string filePath)
         public void Save(string filePath, IEnumerable<Type> knownTypes = null)
         {
             using (Activity activity = ActivitySource.StartActivity(nameof(Save)))
