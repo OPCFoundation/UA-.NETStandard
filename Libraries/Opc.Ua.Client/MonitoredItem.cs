@@ -143,7 +143,7 @@ namespace Opc.Ua.Client
         /// Called by the .NET framework during deserialization.
         /// </summary>
         [OnDeserializing]
-        private void Initialize(StreamingContext context)
+        protected void Initialize(StreamingContext context)
         {
             // object initializers are not called during deserialization.
             m_cache = new object();

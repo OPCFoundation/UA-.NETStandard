@@ -318,33 +318,36 @@ namespace Opc.Ua.Client
         /// Saves all the subscriptions of the session.
         /// </summary>
         /// <param name="filePath">The file path.</param>
-        void Save(string filePath);
+        /// <param name="knownTypes"></param>
+        void Save(string filePath, IEnumerable<Type> knownTypes = null);
 
         /// <summary>
         /// Saves a set of subscriptions to a stream.
         /// </summary>
-        void Save(Stream stream, IEnumerable<Subscription> subscriptions);
+        void Save(Stream stream, IEnumerable<Subscription> subscriptions, IEnumerable<Type> knownTypes = null);
 
         /// <summary>
         /// Saves a set of subscriptions to a file.
         /// </summary>
-        void Save(string filePath, IEnumerable<Subscription> subscriptions);
+        void Save(string filePath, IEnumerable<Subscription> subscriptions, IEnumerable<Type> knownTypes = null);
 
         /// <summary>
         /// Load the list of subscriptions saved in a stream.
         /// </summary>
         /// <param name="stream">The stream.</param>
         /// <param name="transferSubscriptions">Load the subscriptions for transfer after load.</param>
+        /// <param name="knownTypes">Additional known types that may be needed to read the saved subscriptions.</param>
         /// <returns>The list of loaded subscriptions</returns>
-        IEnumerable<Subscription> Load(Stream stream, bool transferSubscriptions = false);
+        IEnumerable<Subscription> Load(Stream stream, bool transferSubscriptions = false, IEnumerable<Type> knownTypes = null);
 
         /// <summary>
         /// Load the list of subscriptions saved in a file.
         /// </summary>
         /// <param name="filePath">The file path.</param>
         /// <param name="transferSubscriptions">Load the subscriptions for transfer after load.</param>
+        /// <param name="knownTypes">Additional known types that may be needed to read the saved subscriptions.</param>
         /// <returns>The list of loaded subscriptions</returns>
-        IEnumerable<Subscription> Load(string filePath, bool transferSubscriptions = false);
+        IEnumerable<Subscription> Load(string filePath, bool transferSubscriptions = false, IEnumerable<Type> knownTypes = null);
 
         /// <summary>
         /// Returns the active session configuration and writes it to a stream.

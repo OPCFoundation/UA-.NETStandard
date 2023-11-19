@@ -302,46 +302,47 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public void Save(string filePath)
+        public void Save(string filePath, IEnumerable<Type> knownTypes = null)
         {
             using (Activity activity = ActivitySource.StartActivity(nameof(Save)))
             {
-                m_session.Save(filePath);
+                m_session.Save(filePath, knownTypes);
             }
         }
 
         /// <inheritdoc/>
-        public void Save(Stream stream, IEnumerable<Subscription> subscriptions)
+        public void Save(Stream stream, IEnumerable<Subscription> subscriptions, IEnumerable<Type> knownTypes = null)
         {
             using (Activity activity = ActivitySource.StartActivity(nameof(Save)))
             {
-                m_session.Save(stream, subscriptions);
+                m_session.Save(stream, subscriptions, knownTypes);
             }
         }
 
         /// <inheritdoc/>
-        public void Save(string filePath, IEnumerable<Subscription> subscriptions)
+        public void Save(string filePath, IEnumerable<Subscription> subscriptions, IEnumerable<Type> knownTypes = null)
         {
             using (Activity activity = ActivitySource.StartActivity(nameof(Save)))
             {
-                m_session.Save(filePath, subscriptions);
+                m_session.Save(filePath, subscriptions, knownTypes);
             }
         }
 
         /// <inheritdoc/>
-        public IEnumerable<Subscription> Load(Stream stream, bool transferSubscriptions = false)
+        public IEnumerable<Subscription> Load(Stream stream, bool transferSubscriptions = false, IEnumerable<Type> knownTypes = null)
         {
             using (Activity activity = ActivitySource.StartActivity(nameof(Load)))
             {
-                return m_session.Load(stream, transferSubscriptions);
+                return m_session.Load(stream, transferSubscriptions, knownTypes);
             }
         }
 
         /// <inheritdoc/>
-        public IEnumerable<Subscription> Load(string filePath, bool transferSubscriptions = false)
+        public IEnumerable<Subscription> Load(string filePath, bool transferSubscriptions = false, IEnumerable<Type> knownTypes = null)
         {
             using (Activity activity = ActivitySource.StartActivity(nameof(Load)))
             {
-                return m_session.Load(filePath, transferSubscriptions);
+                return m_session.Load(filePath, transferSubscriptions, knownTypes);
             }
         }
 

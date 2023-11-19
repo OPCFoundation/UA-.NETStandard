@@ -168,7 +168,7 @@ namespace Opc.Ua.Client.Tests
         }
         #endregion
 
-        #region ISessionConstructor Members
+        #region ISessionInstantiator Members
         /// <inheritdoc/>
         public override Session Create(
             ISessionChannel channel,

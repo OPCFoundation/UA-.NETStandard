@@ -59,6 +59,7 @@ namespace Opc.Ua.Client.Tests
         public TokenValidatorMock TokenValidator { get; set; } = new TokenValidatorMock();
 
         public bool SingleSession { get; set; } = true;
+        public bool UseTracing { get; set; } = true;
         public bool SupportsExternalServerUrl { get; set; } = false;
         public ServerFixture<ReferenceServer> ServerFixture { get; set; }
         public ClientFixture ClientFixture { get; set; }
@@ -157,8 +158,11 @@ namespace Opc.Ua.Client.Tests
             }
 
             ClientFixture = new ClientFixture();
-            ClientFixture.UseTracing = false;
+            ClientFixture.UseTracing = UseTracing;
+            if (UseTracing)
+            {
             ClientFixture.StartActivityListener();
+            }
 
             await ClientFixture.LoadClientConfiguration(PkiRoot).ConfigureAwait(false);
             ClientFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;

@@ -95,7 +95,7 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(100)]
         public void AddSubscription()
         {
-            var subscription = new Subscription();
+            var subscription = new TestableSubscription();
 
             // check keepAlive
             int keepAlive = 0;
@@ -103,7 +103,7 @@ namespace Opc.Ua.Client.Tests
 
             // add current time
             var list = new List<MonitoredItem> {
-                new MonitoredItem(subscription.DefaultItem)
+                new TestableMonitoredItem(subscription.DefaultItem)
                 {
                     DisplayName = "ServerStatusCurrentTime", StartNodeId = VariableIds.Server_ServerStatus_CurrentTime
                 }
@@ -115,7 +115,7 @@ namespace Opc.Ua.Client.Tests
                 }
             });
 
-            subscription = new Subscription(Session.DefaultSubscription);
+            subscription = new TestableSubscription(Session.DefaultSubscription);
             TestContext.Out.WriteLine("MaxMessageCount: {0}", subscription.MaxMessageCount);
             TestContext.Out.WriteLine("MaxNotificationsPerPublish: {0}", subscription.MaxNotificationsPerPublish);
             TestContext.Out.WriteLine("MinLifetimeInterval: {0}", subscription.MinLifetimeInterval);
@@ -133,7 +133,7 @@ namespace Opc.Ua.Client.Tests
 
             // add state
             var list2 = new List<MonitoredItem> {
-                new MonitoredItem(subscription.DefaultItem)
+                new TestableMonitoredItem(subscription.DefaultItem)
                 {
                     DisplayName = "ServerStatusState", StartNodeId = VariableIds.Server_ServerStatus_State
                 },
@@ -158,8 +158,8 @@ namespace Opc.Ua.Client.Tests
             subscription.Priority = 200;
             subscription.Modify();
 
-            // save
-            Session.Save(m_subscriptionTestXml);
+            // save with custom Subscription subclass information
+            Session.Save(m_subscriptionTestXml, new[] { typeof(TestableSubscription) });
 
             Thread.Sleep(5000);
             OutputSubscriptionInfo(TestContext.Out, subscription);
@@ -167,6 +167,16 @@ namespace Opc.Ua.Client.Tests
             subscription.ConditionRefresh();
             var sre = Assert.Throws<ServiceResultException>(() => subscription.Republish(subscription.SequenceNumber + 100));
             Assert.AreEqual(StatusCodes.BadMessageNotAvailable, sre.StatusCode);
+
+            // verify that reconnect created subclassed version of subscription and monitored item
+            foreach (var s in Session.Subscriptions)
+            {
+                Assert.AreEqual(typeof(TestableSubscription), s.GetType());
+                foreach (var m in s.MonitoredItems)
+                {
+                    Assert.AreEqual(typeof(TestableMonitoredItem), m.GetType());
+                }
+            }
 
             subscription.RemoveItems(list);
             subscription.ApplyChanges();
@@ -180,7 +190,7 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(110)]
         public async Task AddSubscriptionAsync()
         {
-            var subscription = new Subscription();
+            var subscription = new TestableSubscription();
 
             // check keepAlive
             int keepAlive = 0;
@@ -191,7 +201,7 @@ namespace Opc.Ua.Client.Tests
 
             // add current time
             var list = new List<MonitoredItem> {
-                new MonitoredItem(subscription.DefaultItem)
+                new TestableMonitoredItem(subscription.DefaultItem)
                 {
                     DisplayName = "ServerStatusCurrentTime", StartNodeId = VariableIds.Server_ServerStatus_CurrentTime
                 }
@@ -203,7 +213,7 @@ namespace Opc.Ua.Client.Tests
                 }
             });
 
-            subscription = new Subscription(Session.DefaultSubscription);
+            subscription = new TestableSubscription(Session.DefaultSubscription);
 
             TestContext.Out.WriteLine("MaxMessageCount: {0}", subscription.MaxMessageCount);
             TestContext.Out.WriteLine("MaxNotificationsPerPublish: {0}", subscription.MaxNotificationsPerPublish);
@@ -234,7 +244,7 @@ namespace Opc.Ua.Client.Tests
 
             // add state
             var list2 = new List<MonitoredItem> {
-                new MonitoredItem(subscription.DefaultItem)
+                new TestableMonitoredItem(subscription.DefaultItem)
                 {
                     DisplayName = "ServerStatusState", StartNodeId = VariableIds.Server_ServerStatus_State
                 },
@@ -259,8 +269,8 @@ namespace Opc.Ua.Client.Tests
             subscription.Priority = 200;
             await subscription.ModifyAsync().ConfigureAwait(false);
 
-            // save
-            Session.Save(m_subscriptionTestXml);
+            // save with custom Subscription subclass information
+            Session.Save(m_subscriptionTestXml, new[] { typeof(TestableSubscription) });
 
             await Task.Delay(5000).ConfigureAwait(false);
             OutputSubscriptionInfo(TestContext.Out, subscription);
@@ -268,6 +278,16 @@ namespace Opc.Ua.Client.Tests
             await subscription.ConditionRefreshAsync().ConfigureAwait(false);
             var sre = Assert.Throws<ServiceResultException>(() => subscription.Republish(subscription.SequenceNumber));
             Assert.AreEqual(StatusCodes.BadMessageNotAvailable, sre.StatusCode, $"Expected BadMessageNotAvailable, but received {sre.Message}");
+
+            // verify that reconnect created subclassed version of subscription and monitored item
+            foreach (var s in Session.Subscriptions)
+            {
+                Assert.AreEqual(typeof(TestableSubscription), s.GetType());
+                foreach (var m in s.MonitoredItems)
+                {
+                    Assert.AreEqual(typeof(TestableMonitoredItem), m.GetType());
+                }
+            }
 
             subscription.RemoveItems(list);
             await subscription.ApplyChangesAsync().ConfigureAwait(false);
@@ -284,7 +304,7 @@ namespace Opc.Ua.Client.Tests
             if (!File.Exists(m_subscriptionTestXml)) Assert.Ignore("Save file {0} does not exist yet", m_subscriptionTestXml);
 
             // load
-            var subscriptions = Session.Load(m_subscriptionTestXml);
+            var subscriptions = Session.Load(m_subscriptionTestXml, false, new[] { typeof(TestableSubscription) });
             Assert.NotNull(subscriptions);
             Assert.IsNotEmpty(subscriptions);
 
@@ -343,7 +363,7 @@ namespace Opc.Ua.Client.Tests
             // multiple Subscriptions to enforce multiple queued publish requests
             for (int i = 0; i < subscriptions; i++)
             {
-                var s = new Subscription(Session.DefaultSubscription) {
+                var s = new TestableSubscription(Session.DefaultSubscription) {
                     SequentialPublishing = enabled,
                     KeepAliveCount = 10,
                     PublishingInterval = 100,
@@ -491,7 +511,7 @@ namespace Opc.Ua.Client.Tests
             var originSubscriptionFastDataCounters = new int[kTestSubscriptions];
             var targetSubscriptionCounters = new int[kTestSubscriptions];
             var targetSubscriptionFastDataCounters = new int[kTestSubscriptions];
-            var subscriptionTemplate = new Subscription(session1.DefaultSubscription) {
+            var subscriptionTemplate = new TestableSubscription(session1.DefaultSubscription) {
                 PublishingInterval = 1_000,
                 KeepAliveCount = 5,
                 PublishingEnabled = true,
@@ -515,7 +535,7 @@ namespace Opc.Ua.Client.Tests
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(configStreamArray));
 
             var subscriptionStream = new MemoryStream();
-            session1.Save(subscriptionStream, session1.Subscriptions);
+            session1.Save(subscriptionStream, session1.Subscriptions, new[] { typeof(TestableSubscription) });
 
             var subscriptionStreamArray = subscriptionStream.ToArray();
             TestContext.Out.WriteLine($"Subscriptions: {subscriptionStreamArray.Length} bytes");
@@ -540,7 +560,7 @@ namespace Opc.Ua.Client.Tests
 
             // restore the subscriptions
             var loadSubscriptionStream = new MemoryStream(subscriptionStreamArray);
-            var restoredSubscriptions = new SubscriptionCollection(session2.Load(loadSubscriptionStream, true));
+            var restoredSubscriptions = new SubscriptionCollection(session2.Load(loadSubscriptionStream, true, new[] { typeof(TestableSubscription) }));
 
             // hook notifications for log output
             int ii = 0;
@@ -622,6 +642,16 @@ namespace Opc.Ua.Client.Tests
 
             await Task.Delay(kDelay).ConfigureAwait(false);
 
+            // verify that reconnect created subclassed version of subscription and monitored item
+            foreach (var s in session2.Subscriptions)
+            {
+                Assert.AreEqual(typeof(TestableSubscription), s.GetType());
+                foreach (var m in s.MonitoredItems)
+                {
+                    Assert.AreEqual(typeof(TestableMonitoredItem), m.GetType());
+                }
+            }
+
             // cannot read using a closed channel, validate the status code
             if (endpoint.EndpointUrl.ToString().StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
             {
@@ -659,7 +689,7 @@ namespace Opc.Ua.Client.Tests
 
             for (int i = 0; i < subscriptions; i++)
             {
-                var subscription = new Subscription(Session.DefaultSubscription) {
+                var subscription = new TestableSubscription(Session.DefaultSubscription) {
                     PublishingInterval = 0,
                     DisableMonitoredItemCache = true,
                     PublishingEnabled = true
@@ -678,7 +708,7 @@ namespace Opc.Ua.Client.Tests
                 for (int ii = 0; ii < monitoredItemsPerSubscription; ii++)
                 {
                     var nextNode = nodeSet[ii % nodeSet.Count];
-                    list.Add(new MonitoredItem(subscription.DefaultItem) {
+                    list.Add(new TestableMonitoredItem(subscription.DefaultItem) {
                         StartNodeId = nextNode,
                         SamplingInterval = 0
                     });
@@ -769,7 +799,7 @@ namespace Opc.Ua.Client.Tests
             var targetSubscriptionCounters = new int[kTestSubscriptions];
             var targetSubscriptionFastDataCounters = new int[kTestSubscriptions];
             var originSubscriptionTransferred = new int[kTestSubscriptions];
-            var subscriptionTemplate = new Subscription(originSession.DefaultSubscription) {
+            var subscriptionTemplate = new TestableSubscription(originSession.DefaultSubscription) {
                 PublishingInterval = 1_000,
                 LifetimeCount = 30,
                 KeepAliveCount = 5,
@@ -807,7 +837,10 @@ namespace Opc.Ua.Client.Tests
             if (transferType != TransferType.KeepOpen)
             {
                 originSession.DeleteSubscriptionsOnClose = false;
-                originSession.Save(filePath);
+
+                // save with custom Subscription subclass information
+                originSession.Save(filePath, new[] { typeof(TestableSubscription) });
+
                 if (transferType == TransferType.CloseSession)
                 {
                     // graceful close
@@ -850,7 +883,7 @@ namespace Opc.Ua.Client.Tests
             if (transferType != TransferType.KeepOpen)
             {
                 // load subscriptions for transfer
-                transferSubscriptions.AddRange(targetSession.Load(filePath, true));
+                transferSubscriptions.AddRange(targetSession.Load(filePath, true, new[] { typeof(TestableSubscription) }));
 
                 // hook notifications for log output
                 int ii = 0;
@@ -1054,10 +1087,8 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(1000)]
         public void FastKeepAliveCallback()
         {
-            var subscription = new Subscription();
-
             // add current time
-            subscription = new Subscription(Session.DefaultSubscription) {
+            var subscription = new TestableSubscription(Session.DefaultSubscription) {
                 KeepAliveCount = 1,
                 PublishingInterval = 250,
             };
@@ -1067,7 +1098,7 @@ namespace Opc.Ua.Client.Tests
 
             // add static nodes
             var list = new List<MonitoredItem> {
-                new MonitoredItem(subscription.DefaultItem)
+                new TestableMonitoredItem(subscription.DefaultItem)
                 {
                     DisplayName = "ServerStatusState", StartNodeId = VariableIds.Server_ServerStatus_State
                 },
@@ -1157,7 +1188,7 @@ namespace Opc.Ua.Client.Tests
             for (int ii = 0; ii < subscriptionCount; ii++)
             {
                 // create subscription with static monitored items
-                var subscription = new Subscription(template) {
+                var subscription = new TestableSubscription(template) {
                     PublishingEnabled = true,
                     Handle = ii,
                     FastDataChangeCallback = (s, n, _) => {
@@ -1213,7 +1244,7 @@ namespace Opc.Ua.Client.Tests
             var list = new List<MonitoredItem>();
             foreach (NodeId nodeId in nodeIds)
             {
-                var item = new MonitoredItem(subscription.DefaultItem) {
+                var item = new TestableMonitoredItem(subscription.DefaultItem) {
                     StartNodeId = nodeId
                 };
                 list.Add(item);

@@ -28,13 +28,28 @@
  * ======================================================================*/
 
 using System;
+using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Client.Tests
 {
+    #region Namespace Declarations
+    /// <remarks />
+    public static partial class Namespaces
+    {
+        /// <summary>
+        /// The URI for the OpcUaClient namespace (.NET code namespace is 'Opc.Ua.Client').
+        /// </summary>
+        public const string OpcUaClient = "http://opcfoundation.org/UA/Client/Types.xsd";
+    }
+    #endregion
+
     /// <summary>
     /// A subclass of a session for testing purposes, e.g. to override some implementations.
     /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaClient)]
+    [KnownType(typeof(TestableSubscription))]
+    [KnownType(typeof(TestableMonitoredItem))]
     public class TestableSession : Session
     {
         #region Constructors
@@ -97,6 +112,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// The timespan offset to be used to modify the request header timestamp.
         /// </summary>
+        [DataMember]
         public TimeSpan TimestampOffset { get; set; } = new TimeSpan(0);
 
         /// <inheritdoc/>
@@ -118,6 +134,8 @@ namespace Opc.Ua.Client.Tests
     /// <summary>
     /// A subclass of the subscription for testing purposes.
     /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaClient)]
+    [KnownType(typeof(TestableMonitoredItem))]
     public class TestableSubscription : Subscription
     {
         #region Constructors
@@ -131,8 +149,34 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Constructs a new instance of the <see cref="TestableSubscription"/> class.
         /// </summary>
+        public TestableSubscription(Subscription template)
+            : this (template, false)
+        {
+        }
+
+        /// <summary>
+        /// Constructs a new instance of the <see cref="TestableSubscription"/> class.
+        /// </summary>
         public TestableSubscription(Subscription template, bool copyEventHandlers)
             : base(template, copyEventHandlers)
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Called by the .NET framework during deserialization.
+        /// </summary>
+        [OnDeserializing]
+        protected new void Initialize(StreamingContext context)
+        {
+            base.Initialize(context);
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets the private members to default values.
+        /// </summary>
+        private void Initialize()
         {
         }
         #endregion
@@ -147,6 +191,8 @@ namespace Opc.Ua.Client.Tests
     /// <summary>
     /// A subclass of a monitored item for testing purposes.
     /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaClient)]
+    [KnownType(typeof(TestableMonitoredItem))]
     public class TestableMonitoredItem : MonitoredItem
     {
         #region Constructors
@@ -160,8 +206,34 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Constructs a new instance of the <see cref="TestableMonitoredItem"/> class.
         /// </summary>
+        public TestableMonitoredItem(MonitoredItem template)
+            : this(template, false, false)
+        {
+
+        }
+
+        /// <summary>
+        /// Constructs a new instance of the <see cref="TestableMonitoredItem"/> class.
+        /// </summary>
         public TestableMonitoredItem(MonitoredItem template, bool copyEventHandlers, bool copyClientHandle)
             : base(template, copyEventHandlers, copyClientHandle)
+        {
+        }
+
+        /// <summary>
+        /// Called by the .NET framework during deserialization.
+        /// </summary>
+        [OnDeserializing]
+        protected new void Initialize(StreamingContext context)
+        {
+            base.Initialize(context);
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets the private members to default values.
+        /// </summary>
+        private void Initialize()
         {
         }
         #endregion

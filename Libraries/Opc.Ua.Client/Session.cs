@@ -936,7 +936,7 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Creates a new session with a server using the specified channel by invoking the CreateSession service.
-        /// With the sessionConstructor subclasses of Sessions can be created.
+        /// With the sessionInstantiator subclasses of Sessions can be created.
         /// </summary>
         /// <param name="sessionInstantiator">The Session constructor to use to create the session.</param>
         /// <param name="configuration">The configuration for the client application.</param>
@@ -1386,9 +1386,7 @@ namespace Opc.Ua.Client
                 XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
                 using (XmlWriter writer = XmlWriter.Create(stream, settings))
                 {
-                    DataContractSerializer serializer = new DataContractSerializer(typeof(SessionConfiguration),
-                        new[] { typeof(UserIdentityToken), typeof(AnonymousIdentityToken), typeof(X509IdentityToken),
-                        typeof(IssuedIdentityToken), typeof(UserIdentity) });
+                    DataContractSerializer serializer = new DataContractSerializer(typeof(SessionConfiguration));
                     serializer.WriteObject(writer, sessionConfiguration);
                 }
             }
@@ -1609,35 +1607,35 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public void Save(string filePath)
+        public void Save(string filePath, IEnumerable<Type> knownTypes = null)
         {
-            Save(filePath, Subscriptions);
+            Save(filePath, Subscriptions, knownTypes);
         }
 
         /// <inheritdoc/>
-        public void Save(Stream stream, IEnumerable<Subscription> subscriptions)
+        public void Save(Stream stream, IEnumerable<Subscription> subscriptions, IEnumerable<Type> knownTypes = null)
         {
             SubscriptionCollection subscriptionList = new SubscriptionCollection(subscriptions);
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
 
             using (XmlWriter writer = XmlWriter.Create(stream, settings))
             {
-                DataContractSerializer serializer = new DataContractSerializer(typeof(SubscriptionCollection));
+                DataContractSerializer serializer = new DataContractSerializer(typeof(SubscriptionCollection), knownTypes);
                 serializer.WriteObject(writer, subscriptionList);
             }
         }
 
         /// <inheritdoc/>
-        public void Save(string filePath, IEnumerable<Subscription> subscriptions)
+        public void Save(string filePath, IEnumerable<Subscription> subscriptions, IEnumerable<Type> knownTypes = null)
         {
             using (FileStream stream = new FileStream(filePath, FileMode.Create))
             {
-                Save(stream, subscriptions);
+                Save(stream, subscriptions, knownTypes);
             }
         }
 
         /// <inheritdoc/>
-        public IEnumerable<Subscription> Load(Stream stream, bool transferSubscriptions = false)
+        public IEnumerable<Subscription> Load(Stream stream, bool transferSubscriptions = false, IEnumerable<Type> knownTypes = null)
         {
             // secure settings
             XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
@@ -1645,7 +1643,7 @@ namespace Opc.Ua.Client
 
             using (XmlReader reader = XmlReader.Create(stream, settings))
             {
-                DataContractSerializer serializer = new DataContractSerializer(typeof(SubscriptionCollection));
+                DataContractSerializer serializer = new DataContractSerializer(typeof(SubscriptionCollection), knownTypes);
                 SubscriptionCollection subscriptions = (SubscriptionCollection)serializer.ReadObject(reader);
                 foreach (Subscription subscription in subscriptions)
                 {
@@ -1665,11 +1663,11 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public IEnumerable<Subscription> Load(string filePath, bool transferSubscriptions = false)
+        public IEnumerable<Subscription> Load(string filePath, bool transferSubscriptions = false, IEnumerable<Type> knownTypes = null)
         {
             using (FileStream stream = File.OpenRead(filePath))
             {
-                return Load(stream, transferSubscriptions);
+                return Load(stream, transferSubscriptions, knownTypes);
             }
         }
 
