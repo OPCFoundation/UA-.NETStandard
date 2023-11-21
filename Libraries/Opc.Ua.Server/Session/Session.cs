@@ -1011,7 +1011,7 @@ namespace Opc.Ua.Server
                         throw ServiceResultException.Create(StatusCodes.BadUserAccessDenied, "Invalid user identity token provided.");
                     }
 
-                    policy = m_endpoint.FindUserTokenPolicy(newToken.PolicyId);
+                    policy = m_endpoint.FindUserTokenPolicy(newToken.PolicyId, m_endpoint.SecurityPolicyUri);
                     if (policy == null)
                     {
                         throw ServiceResultException.Create(StatusCodes.BadUserAccessDenied, "User token policy not supported.", "Opc.Ua.Server.Session.ValidateUserIdentityToken");
@@ -1046,7 +1046,7 @@ namespace Opc.Ua.Server
             }
 
             // find the user token policy.
-            policy = m_endpoint.FindUserTokenPolicy(token.PolicyId);
+            policy = m_endpoint.FindUserTokenPolicy(token.PolicyId, m_endpoint.SecurityPolicyUri);
 
             if (policy == null)
             {

@@ -33,7 +33,10 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text.RegularExpressions;
+using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.X509;
+using Org.BouncyCastle.Asn1.X9;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Math;
@@ -168,14 +171,37 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         {
             ECParameters ecParams = ec.ExportParameters(true);
             BigInteger d = new BigInteger(1, ecParams.D);
-            throw new NotImplementedException(nameof(GetECPrivateKeyParameter));
-#if TODO
-            ECDomainParameters parameters = new ECDomainParameters(
-                new Org.BouncyCastle.Math.EC.ECCurve(
-                new BigInteger(1, ecParams.Q));
 
-            return new ECPrivateKeyParameters(d, parameters);
-#endif
+            X9ECParameters curve = null;
+            if (!string.IsNullOrEmpty(ecParams.Curve.Oid.Value))
+            {
+                var oid = new DerObjectIdentifier(ecParams.Curve.Oid.Value);
+                curve = ECNamedCurveTable.GetByOid(oid);
+            }
+            else if (!string.IsNullOrEmpty(ecParams.Curve.Oid.FriendlyName))
+            {
+                // nist curve names do not contain "nist" in the bouncy castle ECNamedCurveTable
+                // for ex: the form is "P-256" while the microsoft is "nistP256" 
+                // brainpool bouncy castle curve names are identic to the microsoft ones
+                string msFriendlyName = ecParams.Curve.Oid.FriendlyName;
+                string bcFriendlyName = msFriendlyName;
+                string nistCurveName = "nist";
+                if (msFriendlyName.StartsWith(nistCurveName))
+                {
+                    string patternMatch = @"(.*?)(\d+)$"; // divide string in two capture groups (string & numeric)
+                    bcFriendlyName = Regex.Replace(msFriendlyName, patternMatch, m => {
+                        string lastChar = m.Groups[1].Value.Length > 0 ? m.Groups[1].Value.Last().ToString() : "";
+                        string number = m.Groups[2].Value;
+                        return lastChar + "-" + number;
+                    });
+                }
+                curve = ECNamedCurveTable.GetByName(bcFriendlyName);
+            }
+
+            if (curve == null) throw new ArgumentException("Curve OID is not recognized ", ecParams.Curve.Oid.ToString());
+            ECDomainParameters domainParameters = new ECDomainParameters(curve.Curve, curve.G, curve.N, curve.H);
+            return new ECPrivateKeyParameters(d, domainParameters);
+
         }
 #endif
 

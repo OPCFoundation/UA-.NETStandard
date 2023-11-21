@@ -615,7 +615,9 @@ namespace Opc.Ua.Client.Tests
             ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
             Assert.NotNull(endpoint);
 
-            UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentity.TokenType, userIdentity.IssuedTokenType);
+            UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentity.TokenType,
+                userIdentity.IssuedTokenType,
+                endpoint.Description.SecurityPolicyUri);
             if (identityPolicy == null)
             {
                 Assert.Ignore($"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
@@ -1364,7 +1366,9 @@ namespace Opc.Ua.Client.Tests
                 ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
                 Assert.NotNull(endpoint);
 
-                UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentity.TokenType, userIdentity.IssuedTokenType);
+                UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentity.TokenType,
+                    userIdentity.IssuedTokenType,
+                    endpoint.Description.SecurityPolicyUri);
                 if (identityPolicy == null)
                 {
                     Assert.Ignore($"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
@@ -1401,7 +1405,7 @@ namespace Opc.Ua.Client.Tests
                 var issuedToken = new IssuedIdentityToken() {
                     IssuedTokenType = IssuedTokenType.JWT,
                     PolicyId = Profiles.JwtUserToken,
-                    DecryptedTokenData = Encoding.UTF8.GetBytes(identityToken)
+                    DecryptedTokenData = Encoding.UTF8.GetBytes(identityToken),
                 };
 
                 IUserIdentity userIdentity = new UserIdentity(issuedToken);
@@ -1410,7 +1414,10 @@ namespace Opc.Ua.Client.Tests
                 ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
                 Assert.NotNull(endpoint);
 
-                UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentity.TokenType, userIdentity.IssuedTokenType);
+                UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentity.TokenType,
+                    userIdentity.IssuedTokenType,
+                    securityPolicy);
+
                 if (identityPolicy == null)
                 {
                     Assert.Ignore($"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
@@ -1466,7 +1473,9 @@ namespace Opc.Ua.Client.Tests
                     ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
                     Assert.NotNull(endpoint);
 
-                    UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentity.TokenType, userIdentity.IssuedTokenType);
+                    UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentity.TokenType,
+                        userIdentity.IssuedTokenType,
+                        endpoint.Description.SecurityPolicyUri);
                     if (identityPolicy == null)
                     {
                         Assert.Ignore($"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");

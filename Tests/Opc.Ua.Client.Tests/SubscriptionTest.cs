@@ -470,7 +470,9 @@ namespace Opc.Ua.Client.Tests
             ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
             Assert.NotNull(endpoint);
 
-            UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentity.TokenType, userIdentity.IssuedTokenType);
+            UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentity.TokenType,
+                userIdentity.IssuedTokenType,
+                endpoint.Description.SecurityPolicyUri);
             if (identityPolicy == null)
             {
                 Assert.Ignore($"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");

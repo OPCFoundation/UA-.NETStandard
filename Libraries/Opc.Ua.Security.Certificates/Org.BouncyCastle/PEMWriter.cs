@@ -52,14 +52,32 @@ namespace Opc.Ua.Security.Certificates
             string password = null
             )
         {
-            if (!String.IsNullOrEmpty(password)) throw new ArgumentException("Export with password not supported on this platform.", nameof(password));
-            RsaPrivateCrtKeyParameters privateKeyParameter = X509Utils.GetRsaPrivateKeyParameter(certificate);
-            // write private key as PKCS#8
-            PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);
-            byte[] serializedPrivateBytes = privateKeyInfo.ToAsn1Object().GetDerEncoded();
-            return EncodeAsPEM(serializedPrivateBytes, "PRIVATE KEY");
+            bool isECDsaSignature = X509PfxUtils.IsECDsaSignature(certificate);
+            // check if certificate is valid for use as app/sw or user cert
+            if (!isECDsaSignature)
+            {
+                if (!String.IsNullOrEmpty(password)) throw new ArgumentException("Export with password not supported on this platform.", nameof(password));
+                RsaPrivateCrtKeyParameters privateKeyParameter = X509Utils.GetRsaPrivateKeyParameter(certificate);
+                // write private key as PKCS#8
+                PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);
+                byte[] serializedPrivateBytes = privateKeyInfo.ToAsn1Object().GetDerEncoded();
+                return EncodeAsPEM(serializedPrivateBytes, "PRIVATE KEY");
+            }
+#if ECC_SUPPORT
+            else
+            {
+                if (!String.IsNullOrEmpty(password)) throw new ArgumentException("Export with password not supported on this platform.", nameof(password));
+                ECPrivateKeyParameters privateKeyParameter = X509Utils.GetECPrivateKeyParameter(certificate.GetECDsaPrivateKey());
+                // write private key as PKCS#8
+                PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);
+                byte[] serializedPrivateBytes = privateKeyInfo.ToAsn1Object().GetDerEncoded();
+                return EncodeAsPEM(serializedPrivateBytes, "PRIVATE KEY");
+            }
+#else
+            return null; // Only on NETSTANDARD2_0
+#endif            
         }
-        #endregion
+#endregion
     }
 }
 #endif

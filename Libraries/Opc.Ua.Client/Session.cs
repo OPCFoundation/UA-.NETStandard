@@ -1344,7 +1344,9 @@ namespace Opc.Ua.Client
                 SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, endpoint.SecurityPolicyUri, dataToSign);
 
                 // check that the user identity is supported by the endpoint.
-                UserTokenPolicy identityPolicy = endpoint.FindUserTokenPolicy(m_identity.TokenType, m_identity.IssuedTokenType);
+                UserTokenPolicy identityPolicy = endpoint.FindUserTokenPolicy(m_identity.TokenType,
+                    m_identity.IssuedTokenType,
+                    endpoint.SecurityPolicyUri);
 
                 if (identityPolicy == null)
                 {
@@ -1362,6 +1364,7 @@ namespace Opc.Ua.Client
                 {
                     securityPolicyUri = endpoint.SecurityPolicyUri;
                 }
+                m_userTokenSecurityPolicyUri = securityPolicyUri;
 
                 // need to refresh the identity (reprompt for password, refresh token).
                 if (m_RenewUserIdentity != null)
@@ -2680,7 +2683,9 @@ namespace Opc.Ua.Client
             }
 
             // check that the user identity is supported by the endpoint.
-            UserTokenPolicy identityPolicy = m_endpoint.Description.FindUserTokenPolicy(identity.TokenType, identity.IssuedTokenType);
+            UserTokenPolicy identityPolicy = m_endpoint.Description.FindUserTokenPolicy(identity.TokenType,
+                identity.IssuedTokenType,
+                securityPolicyUri);
 
             if (identityPolicy == null)
             {
@@ -5304,12 +5309,12 @@ namespace Opc.Ua.Client
             identityToken = identity.GetIdentityToken();
 
             // check that the user identity is supported by the endpoint.
-            identityPolicy = m_endpoint.Description.FindUserTokenPolicy(identityToken.PolicyId);
+            identityPolicy = m_endpoint.Description.FindUserTokenPolicy(identityToken.PolicyId, securityPolicyUri);
 
             if (identityPolicy == null)
             {
                 // try looking up by TokenType if the policy id was not found.
-                identityPolicy = m_endpoint.Description.FindUserTokenPolicy(identity.TokenType, identity.IssuedTokenType);
+                identityPolicy = m_endpoint.Description.FindUserTokenPolicy(identity.TokenType, identity.IssuedTokenType, securityPolicyUri);
 
                 if (identityPolicy == null)
                 {

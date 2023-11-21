@@ -1009,6 +1009,7 @@ namespace Opc.Ua.Gds.Tests
         [Test, Order(920)]
         public void UnregisterUnregisteredGoodApplications()
         {
+            AssertIgnoreTestWithoutGoodRegistration();
             ConnectGDS(true);
             foreach (var application in m_goodApplicationTestSet)
             {
