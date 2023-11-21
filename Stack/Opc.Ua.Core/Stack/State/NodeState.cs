@@ -66,7 +66,7 @@ namespace Opc.Ua
         /// </summary>
         protected object CloneChildren(NodeState clone)
         {
-            lock(m_children)
+            lock(m_childrenLock)
             {
                 if (m_children != null)
                 {
