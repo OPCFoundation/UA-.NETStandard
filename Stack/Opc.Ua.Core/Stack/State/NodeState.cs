@@ -66,20 +66,25 @@ namespace Opc.Ua
         /// </summary>
         protected object CloneChildren(NodeState clone)
         {
-            lock(m_childrenLock)
-            {
-                if (m_children != null)
-                {
-                    clone.m_children = new List<BaseInstanceState>(m_children.Count);
 
-                    for (int ii = 0; ii < m_children.Count; ii++)
-                    {
-                        BaseInstanceState child = (BaseInstanceState)m_children[ii].Clone();
-                        clone.m_children.Add(child);
-                    }
+            List<BaseInstanceState> children;
+
+            lock (m_childrenLock)
+            {
+                children = m_children != null ? new List<BaseInstanceState>(m_children) : null;
+            }
+
+            if (children != null)
+            {
+                clone.m_children = new List<BaseInstanceState>(children.Count);
+
+                for (int ii = 0; ii < children.Count; ii++)
+                {
+                    BaseInstanceState child = (BaseInstanceState)children[ii].Clone();
+                    clone.m_children.Add(child);
                 }
             }
-            
+
             clone.m_changeMasks = NodeStateChangeMasks.None;
 
             return clone;
