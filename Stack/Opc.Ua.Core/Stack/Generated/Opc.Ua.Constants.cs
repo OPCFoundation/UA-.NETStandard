@@ -4115,6 +4115,9 @@ namespace Opc.Ua
         public const uint DefaultHAConfiguration_AggregateConfiguration = 32638;
 
         /// <remarks />
+        public const uint DefaultHAConfiguration_AggregateFunctions = 32643;
+
+        /// <remarks />
         public const uint DefaultHEConfiguration = 32754;
 
         /// <remarks />
@@ -10832,6 +10835,9 @@ namespace Opc.Ua
         public const uint HistoryServerCapabilities_InsertAnnotationCapability = 11275;
 
         /// <remarks />
+        public const uint HistoryServerCapabilities_ServerTimestampSupported = 19091;
+
+        /// <remarks />
         public const uint StateMachineType_CurrentState = 2769;
 
         /// <remarks />
@@ -11900,6 +11906,18 @@ namespace Opc.Ua
         public const uint ConditionVariableType_SourceTimestamp = 9003;
 
         /// <remarks />
+        public const uint ConditionType_ConditionClassId = 11112;
+
+        /// <remarks />
+        public const uint ConditionType_ConditionClassName = 11113;
+
+        /// <remarks />
+        public const uint ConditionType_ConditionSubClassId = 16363;
+
+        /// <remarks />
+        public const uint ConditionType_ConditionSubClassName = 16364;
+
+        /// <remarks />
         public const uint ConditionType_ConditionName = 9009;
 
         /// <remarks />
@@ -12237,6 +12255,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_Severity = 16415;
+
+        /// <remarks />
+        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_ConditionClassId = 16416;
+
+        /// <remarks />
+        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_ConditionClassName = 16417;
+
+        /// <remarks />
+        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_ConditionSubClassId = 16418;
+
+        /// <remarks />
+        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_ConditionSubClassName = 16419;
 
         /// <remarks />
         public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_ConditionName = 16420;
@@ -12989,6 +13019,42 @@ namespace Opc.Ua
         public const uint DefaultHAConfiguration_Stepped = 32644;
 
         /// <remarks />
+        public const uint DefaultHAConfiguration_Definition = 32645;
+
+        /// <remarks />
+        public const uint DefaultHAConfiguration_MaxTimeInterval = 32646;
+
+        /// <remarks />
+        public const uint DefaultHAConfiguration_MinTimeInterval = 32647;
+
+        /// <remarks />
+        public const uint DefaultHAConfiguration_ExceptionDeviation = 32648;
+
+        /// <remarks />
+        public const uint DefaultHAConfiguration_ExceptionDeviationFormat = 32649;
+
+        /// <remarks />
+        public const uint DefaultHAConfiguration_StartOfArchive = 32650;
+
+        /// <remarks />
+        public const uint DefaultHAConfiguration_StartOfOnlineArchive = 32656;
+
+        /// <remarks />
+        public const uint DefaultHAConfiguration_ServerTimestampSupported = 32682;
+
+        /// <remarks />
+        public const uint DefaultHAConfiguration_MaxTimeStoredValues = 32752;
+
+        /// <remarks />
+        public const uint DefaultHAConfiguration_MaxCountStoredValues = 32753;
+
+        /// <remarks />
+        public const uint DefaultHEConfiguration_StartOfArchive = 32756;
+
+        /// <remarks />
+        public const uint DefaultHEConfiguration_StartOfOnlineArchive = 32757;
+
+        /// <remarks />
         public const uint HistoricalEventFilter = 11215;
 
         /// <remarks />
@@ -13244,6 +13310,18 @@ namespace Opc.Ua
         public const uint CertificateGroupType_CertificateExpired_Severity = 19459;
 
         /// <remarks />
+        public const uint CertificateGroupType_CertificateExpired_ConditionClassId = 19460;
+
+        /// <remarks />
+        public const uint CertificateGroupType_CertificateExpired_ConditionClassName = 19461;
+
+        /// <remarks />
+        public const uint CertificateGroupType_CertificateExpired_ConditionSubClassId = 19462;
+
+        /// <remarks />
+        public const uint CertificateGroupType_CertificateExpired_ConditionSubClassName = 19463;
+
+        /// <remarks />
         public const uint CertificateGroupType_CertificateExpired_ConditionName = 19464;
 
         /// <remarks />
@@ -13398,6 +13476,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint CertificateGroupType_TrustListOutOfDate_Severity = 20152;
+
+        /// <remarks />
+        public const uint CertificateGroupType_TrustListOutOfDate_ConditionClassId = 20153;
+
+        /// <remarks />
+        public const uint CertificateGroupType_TrustListOutOfDate_ConditionClassName = 20154;
+
+        /// <remarks />
+        public const uint CertificateGroupType_TrustListOutOfDate_ConditionSubClassId = 20155;
+
+        /// <remarks />
+        public const uint CertificateGroupType_TrustListOutOfDate_ConditionSubClassName = 20156;
 
         /// <remarks />
         public const uint CertificateGroupType_TrustListOutOfDate_ConditionName = 20157;
@@ -13622,6 +13712,18 @@ namespace Opc.Ua
         public const uint CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_Severity = 20300;
 
         /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_ConditionClassId = 20301;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_ConditionClassName = 20302;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_ConditionSubClassId = 20303;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_ConditionSubClassName = 20304;
+
+        /// <remarks />
         public const uint CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_ConditionName = 20305;
 
         /// <remarks />
@@ -13776,6 +13878,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_Severity = 20450;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = 20451;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = 20452;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassId = 20453;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassName = 20454;
 
         /// <remarks />
         public const uint CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = 20455;
@@ -14000,6 +14114,18 @@ namespace Opc.Ua
         public const uint CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_Severity = 20598;
 
         /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_ConditionClassId = 20599;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_ConditionClassName = 20600;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_ConditionSubClassId = 20601;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_ConditionSubClassName = 20602;
+
+        /// <remarks />
         public const uint CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_ConditionName = 20603;
 
         /// <remarks />
@@ -14154,6 +14280,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_Severity = 20746;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = 20747;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = 20748;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassId = 20749;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassName = 20750;
 
         /// <remarks />
         public const uint CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = 20751;
@@ -14378,6 +14516,18 @@ namespace Opc.Ua
         public const uint CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_Severity = 20894;
 
         /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = 20895;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = 20896;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassId = 20897;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassName = 20898;
+
+        /// <remarks />
         public const uint CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_ConditionName = 20899;
 
         /// <remarks />
@@ -14532,6 +14682,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_Severity = 21245;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = 21246;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = 21247;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassId = 21248;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassName = 21249;
 
         /// <remarks />
         public const uint CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = 21250;
@@ -14756,6 +14918,18 @@ namespace Opc.Ua
         public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_Severity = 21393;
 
         /// <remarks />
+        public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_ConditionClassId = 21394;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_ConditionClassName = 21395;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_ConditionSubClassId = 21396;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_ConditionSubClassName = 21397;
+
+        /// <remarks />
         public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_ConditionName = 21398;
 
         /// <remarks />
@@ -14910,6 +15084,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_Severity = 21541;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ConditionClassId = 21542;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ConditionClassName = 21543;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ConditionSubClassId = 21544;
+
+        /// <remarks />
+        public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ConditionSubClassName = 21545;
 
         /// <remarks />
         public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ConditionName = 21546;
@@ -15155,6 +15341,18 @@ namespace Opc.Ua
         public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity = 21689;
 
         /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId = 21690;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = 21691;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassId = 21692;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassName = 21693;
+
+        /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = 21694;
 
         /// <remarks />
@@ -15309,6 +15507,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity = 21837;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = 21838;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = 21839;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassId = 21840;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassName = 21841;
 
         /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = 21842;
@@ -15533,6 +15743,18 @@ namespace Opc.Ua
         public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity = 21985;
 
         /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId = 21986;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = 21987;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassId = 21988;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassName = 21989;
+
+        /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = 21990;
 
         /// <remarks />
@@ -15687,6 +15909,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity = 22133;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = 22134;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = 22135;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassId = 22136;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassName = 22137;
 
         /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = 22138;
@@ -15911,6 +16145,18 @@ namespace Opc.Ua
         public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity = 22281;
 
         /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = 22282;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = 22283;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassId = 22284;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassName = 22285;
+
+        /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = 22286;
 
         /// <remarks />
@@ -16065,6 +16311,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity = 22429;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = 22430;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = 22431;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassId = 22432;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassName = 22433;
 
         /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = 22434;
@@ -16358,6 +16616,18 @@ namespace Opc.Ua
         public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity = 22577;
 
         /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId = 22578;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = 22579;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassId = 22580;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassName = 22581;
+
+        /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = 22582;
 
         /// <remarks />
@@ -16512,6 +16782,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity = 22725;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = 22726;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = 22727;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassId = 22728;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassName = 22729;
 
         /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = 22730;
@@ -16736,6 +17018,18 @@ namespace Opc.Ua
         public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity = 22873;
 
         /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId = 22874;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = 22875;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassId = 22876;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassName = 22877;
+
+        /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = 22878;
 
         /// <remarks />
@@ -16890,6 +17184,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity = 23021;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = 23022;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = 23023;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassId = 23024;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassName = 23025;
 
         /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = 23026;
@@ -17114,6 +17420,18 @@ namespace Opc.Ua
         public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity = 23169;
 
         /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = 23170;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = 23171;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassId = 23172;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassName = 23173;
+
+        /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = 23174;
 
         /// <remarks />
@@ -17268,6 +17586,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity = 23317;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = 23318;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = 23319;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassId = 23320;
+
+        /// <remarks />
+        public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassName = 23321;
 
         /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = 23322;
@@ -21764,6 +22094,18 @@ namespace Opc.Ua
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity = 26930;
 
         /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId = 26931;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = 26932;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassId = 26933;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassName = 26934;
+
+        /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = 26935;
 
         /// <remarks />
@@ -21918,6 +22260,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity = 27096;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = 27097;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = 27098;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassId = 27099;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassName = 27100;
 
         /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = 27101;
@@ -22142,6 +22496,18 @@ namespace Opc.Ua
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity = 27302;
 
         /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId = 27303;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = 27304;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassId = 27305;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassName = 27306;
+
+        /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = 27307;
 
         /// <remarks />
@@ -22296,6 +22662,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity = 27468;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = 27469;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = 27470;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassId = 27471;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassName = 27472;
 
         /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = 27473;
@@ -22520,6 +22898,18 @@ namespace Opc.Ua
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity = 27674;
 
         /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = 27675;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = 27676;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassId = 27677;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassName = 27678;
+
+        /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = 27679;
 
         /// <remarks />
@@ -22674,6 +23064,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity = 27840;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = 27841;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = 27842;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassId = 27843;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassName = 27844;
 
         /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = 27845;
@@ -22970,6 +23372,18 @@ namespace Opc.Ua
         public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity = 29937;
 
         /// <remarks />
+        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId = 29938;
+
+        /// <remarks />
+        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = 29939;
+
+        /// <remarks />
+        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassId = 29940;
+
+        /// <remarks />
+        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassName = 29941;
+
+        /// <remarks />
         public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = 29942;
 
         /// <remarks />
@@ -23124,6 +23538,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity = 30103;
+
+        /// <remarks />
+        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = 30104;
+
+        /// <remarks />
+        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = 30105;
+
+        /// <remarks />
+        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassId = 30106;
+
+        /// <remarks />
+        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassName = 30107;
 
         /// <remarks />
         public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = 30108;
@@ -23348,6 +23774,18 @@ namespace Opc.Ua
         public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity = 30309;
 
         /// <remarks />
+        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId = 30310;
+
+        /// <remarks />
+        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = 30311;
+
+        /// <remarks />
+        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassId = 30312;
+
+        /// <remarks />
+        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassName = 30313;
+
+        /// <remarks />
         public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = 30314;
 
         /// <remarks />
@@ -23502,6 +23940,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity = 30475;
+
+        /// <remarks />
+        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = 30476;
+
+        /// <remarks />
+        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = 30477;
+
+        /// <remarks />
+        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassId = 30478;
+
+        /// <remarks />
+        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassName = 30479;
 
         /// <remarks />
         public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = 30480;
@@ -23726,6 +24176,18 @@ namespace Opc.Ua
         public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity = 30681;
 
         /// <remarks />
+        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = 30682;
+
+        /// <remarks />
+        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = 30683;
+
+        /// <remarks />
+        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassId = 30684;
+
+        /// <remarks />
+        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassName = 30685;
+
+        /// <remarks />
         public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = 30686;
 
         /// <remarks />
@@ -23880,6 +24342,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity = 30847;
+
+        /// <remarks />
+        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = 30848;
+
+        /// <remarks />
+        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = 30849;
+
+        /// <remarks />
+        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassId = 30850;
+
+        /// <remarks />
+        public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassName = 30851;
 
         /// <remarks />
         public const uint ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = 30852;
@@ -29579,6 +30053,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId DefaultHAConfiguration_AggregateConfiguration = new NodeId(Opc.Ua.Objects.DefaultHAConfiguration_AggregateConfiguration);
+
+        /// <remarks />
+        public static readonly NodeId DefaultHAConfiguration_AggregateFunctions = new NodeId(Opc.Ua.Objects.DefaultHAConfiguration_AggregateFunctions);
 
         /// <remarks />
         public static readonly NodeId DefaultHEConfiguration = new NodeId(Opc.Ua.Objects.DefaultHEConfiguration);
@@ -36298,6 +36775,9 @@ namespace Opc.Ua
         public static readonly NodeId HistoryServerCapabilities_InsertAnnotationCapability = new NodeId(Opc.Ua.Variables.HistoryServerCapabilities_InsertAnnotationCapability);
 
         /// <remarks />
+        public static readonly NodeId HistoryServerCapabilities_ServerTimestampSupported = new NodeId(Opc.Ua.Variables.HistoryServerCapabilities_ServerTimestampSupported);
+
+        /// <remarks />
         public static readonly NodeId StateMachineType_CurrentState = new NodeId(Opc.Ua.Variables.StateMachineType_CurrentState);
 
         /// <remarks />
@@ -37366,6 +37846,18 @@ namespace Opc.Ua
         public static readonly NodeId ConditionVariableType_SourceTimestamp = new NodeId(Opc.Ua.Variables.ConditionVariableType_SourceTimestamp);
 
         /// <remarks />
+        public static readonly NodeId ConditionType_ConditionClassId = new NodeId(Opc.Ua.Variables.ConditionType_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId ConditionType_ConditionClassName = new NodeId(Opc.Ua.Variables.ConditionType_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId ConditionType_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ConditionType_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId ConditionType_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ConditionType_ConditionSubClassName);
+
+        /// <remarks />
         public static readonly NodeId ConditionType_ConditionName = new NodeId(Opc.Ua.Variables.ConditionType_ConditionName);
 
         /// <remarks />
@@ -37703,6 +38195,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_Severity = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_Severity);
+
+        /// <remarks />
+        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_ConditionClassId = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_ConditionClassName = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_ConditionSubClassId = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_ConditionSubClassName = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_ConditionSubClassName);
 
         /// <remarks />
         public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_ConditionName = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_ConditionName);
@@ -38455,6 +38959,42 @@ namespace Opc.Ua
         public static readonly NodeId DefaultHAConfiguration_Stepped = new NodeId(Opc.Ua.Variables.DefaultHAConfiguration_Stepped);
 
         /// <remarks />
+        public static readonly NodeId DefaultHAConfiguration_Definition = new NodeId(Opc.Ua.Variables.DefaultHAConfiguration_Definition);
+
+        /// <remarks />
+        public static readonly NodeId DefaultHAConfiguration_MaxTimeInterval = new NodeId(Opc.Ua.Variables.DefaultHAConfiguration_MaxTimeInterval);
+
+        /// <remarks />
+        public static readonly NodeId DefaultHAConfiguration_MinTimeInterval = new NodeId(Opc.Ua.Variables.DefaultHAConfiguration_MinTimeInterval);
+
+        /// <remarks />
+        public static readonly NodeId DefaultHAConfiguration_ExceptionDeviation = new NodeId(Opc.Ua.Variables.DefaultHAConfiguration_ExceptionDeviation);
+
+        /// <remarks />
+        public static readonly NodeId DefaultHAConfiguration_ExceptionDeviationFormat = new NodeId(Opc.Ua.Variables.DefaultHAConfiguration_ExceptionDeviationFormat);
+
+        /// <remarks />
+        public static readonly NodeId DefaultHAConfiguration_StartOfArchive = new NodeId(Opc.Ua.Variables.DefaultHAConfiguration_StartOfArchive);
+
+        /// <remarks />
+        public static readonly NodeId DefaultHAConfiguration_StartOfOnlineArchive = new NodeId(Opc.Ua.Variables.DefaultHAConfiguration_StartOfOnlineArchive);
+
+        /// <remarks />
+        public static readonly NodeId DefaultHAConfiguration_ServerTimestampSupported = new NodeId(Opc.Ua.Variables.DefaultHAConfiguration_ServerTimestampSupported);
+
+        /// <remarks />
+        public static readonly NodeId DefaultHAConfiguration_MaxTimeStoredValues = new NodeId(Opc.Ua.Variables.DefaultHAConfiguration_MaxTimeStoredValues);
+
+        /// <remarks />
+        public static readonly NodeId DefaultHAConfiguration_MaxCountStoredValues = new NodeId(Opc.Ua.Variables.DefaultHAConfiguration_MaxCountStoredValues);
+
+        /// <remarks />
+        public static readonly NodeId DefaultHEConfiguration_StartOfArchive = new NodeId(Opc.Ua.Variables.DefaultHEConfiguration_StartOfArchive);
+
+        /// <remarks />
+        public static readonly NodeId DefaultHEConfiguration_StartOfOnlineArchive = new NodeId(Opc.Ua.Variables.DefaultHEConfiguration_StartOfOnlineArchive);
+
+        /// <remarks />
         public static readonly NodeId HistoricalEventFilter = new NodeId(Opc.Ua.Variables.HistoricalEventFilter);
 
         /// <remarks />
@@ -38710,6 +39250,18 @@ namespace Opc.Ua
         public static readonly NodeId CertificateGroupType_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.CertificateGroupType_CertificateExpired_Severity);
 
         /// <remarks />
+        public static readonly NodeId CertificateGroupType_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.CertificateGroupType_CertificateExpired_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupType_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.CertificateGroupType_CertificateExpired_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupType_CertificateExpired_ConditionSubClassId = new NodeId(Opc.Ua.Variables.CertificateGroupType_CertificateExpired_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupType_CertificateExpired_ConditionSubClassName = new NodeId(Opc.Ua.Variables.CertificateGroupType_CertificateExpired_ConditionSubClassName);
+
+        /// <remarks />
         public static readonly NodeId CertificateGroupType_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.CertificateGroupType_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -38864,6 +39416,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId CertificateGroupType_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.CertificateGroupType_TrustListOutOfDate_Severity);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupType_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.CertificateGroupType_TrustListOutOfDate_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupType_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.CertificateGroupType_TrustListOutOfDate_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupType_TrustListOutOfDate_ConditionSubClassId = new NodeId(Opc.Ua.Variables.CertificateGroupType_TrustListOutOfDate_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupType_TrustListOutOfDate_ConditionSubClassName = new NodeId(Opc.Ua.Variables.CertificateGroupType_TrustListOutOfDate_ConditionSubClassName);
 
         /// <remarks />
         public static readonly NodeId CertificateGroupType_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.CertificateGroupType_TrustListOutOfDate_ConditionName);
@@ -39088,6 +39652,18 @@ namespace Opc.Ua
         public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_Severity);
 
         /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_ConditionSubClassId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_ConditionSubClassName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_ConditionSubClassName);
+
+        /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -39242,6 +39818,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_Severity);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassName);
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultApplicationGroup_TrustListOutOfDate_ConditionName);
@@ -39466,6 +40054,18 @@ namespace Opc.Ua
         public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_Severity);
 
         /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_ConditionSubClassId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_ConditionSubClassName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_ConditionSubClassName);
+
+        /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -39620,6 +40220,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_Severity);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassName);
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultHttpsGroup_TrustListOutOfDate_ConditionName);
@@ -39844,6 +40456,18 @@ namespace Opc.Ua
         public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_Severity);
 
         /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassName);
+
+        /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -39998,6 +40622,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_Severity);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassName);
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName);
@@ -40222,6 +40858,18 @@ namespace Opc.Ua
         public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_Severity);
 
         /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_ConditionSubClassId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_ConditionSubClassName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_ConditionSubClassName);
+
+        /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -40376,6 +41024,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_Severity);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ConditionSubClassId = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ConditionSubClassName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ConditionSubClassName);
 
         /// <remarks />
         public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ConditionName);
@@ -40621,6 +41281,18 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity);
 
         /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassName);
+
+        /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -40775,6 +41447,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassName);
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName);
@@ -40999,6 +41683,18 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity);
 
         /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassName);
+
+        /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -41153,6 +41849,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassName);
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName);
@@ -41377,6 +42085,18 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity);
 
         /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassName);
+
+        /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -41531,6 +42251,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassName);
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ServerConfigurationType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName);
@@ -41824,6 +42556,18 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity);
 
         /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassName);
+
+        /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -41978,6 +42722,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassName);
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName);
@@ -42202,6 +42958,18 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity);
 
         /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassName);
+
+        /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -42356,6 +43124,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassName);
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName);
@@ -42580,6 +43360,18 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity);
 
         /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassName);
+
+        /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -42734,6 +43526,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassName);
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName);
@@ -47230,6 +48034,18 @@ namespace Opc.Ua
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity);
 
         /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassName);
+
+        /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -47384,6 +48200,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassName);
 
         /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName);
@@ -47608,6 +48436,18 @@ namespace Opc.Ua
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity);
 
         /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassName);
+
+        /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -47762,6 +48602,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassName);
 
         /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName);
@@ -47986,6 +48838,18 @@ namespace Opc.Ua
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity);
 
         /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassName);
+
+        /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -48140,6 +49004,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassName);
 
         /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName);
@@ -48436,6 +49312,18 @@ namespace Opc.Ua
         public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_Severity);
 
         /// <remarks />
+        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassName);
+
+        /// <remarks />
         public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -48590,6 +49478,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_Severity);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassName);
 
         /// <remarks />
         public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName);
@@ -48814,6 +49714,18 @@ namespace Opc.Ua
         public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_Severity);
 
         /// <remarks />
+        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassName);
+
+        /// <remarks />
         public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -48968,6 +49880,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_Severity);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassName);
 
         /// <remarks />
         public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName);
@@ -49192,6 +50116,18 @@ namespace Opc.Ua
         public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_Severity);
 
         /// <remarks />
+        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassName);
+
+        /// <remarks />
         public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName);
 
         /// <remarks />
@@ -49346,6 +50282,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_Severity);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassId);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassId);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassName);
 
         /// <remarks />
         public static readonly NodeId ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = new NodeId(Opc.Ua.Variables.ProvisionableDevice_ApplicationName_Placeholder_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName);
