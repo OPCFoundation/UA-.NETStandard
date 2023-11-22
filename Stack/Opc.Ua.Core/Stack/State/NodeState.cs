@@ -1208,7 +1208,6 @@ namespace Opc.Ua
 
                 references.Add(new NodeStateReference(referenceTypeId, isInverse, targetId));
 
-                
             }
 
             lock(m_referencesLock)
@@ -4623,9 +4622,6 @@ namespace Opc.Ua
                         break;
                     }
                 }
-
-
-
 
                 if (sourceRef != null)
                 {
