@@ -443,7 +443,7 @@ namespace Opc.Ua.Server
         private int m_connectTimeout;
         private int m_rejectTimeout;
         private Dictionary<Uri, ReverseConnectProperty> m_connections;
-        private object m_connectionsLock = new object();
+        private readonly object m_connectionsLock = new object();
         #endregion
     }
 }

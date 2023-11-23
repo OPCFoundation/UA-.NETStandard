@@ -423,7 +423,7 @@ namespace Opc.Ua.Bindings
 
             if (securityPolicyUri != null)
             {
-                headerSize += new UTF8Encoding().GetByteCount(securityPolicyUri);
+                headerSize += Encoding.UTF8.GetByteCount(securityPolicyUri);
             }
 
             headerSize += TcpMessageLimits.StringLengthSize;
@@ -462,7 +462,7 @@ namespace Opc.Ua.Bindings
 
             if (securityPolicyUri != null)
             {
-                headerSize += new UTF8Encoding().GetByteCount(securityPolicyUri);
+                headerSize += Encoding.UTF8.GetByteCount(securityPolicyUri);
             }
 
             headerSize += TcpMessageLimits.StringLengthSize;
@@ -622,7 +622,7 @@ namespace Opc.Ua.Bindings
 
             if (securityPolicyUri != null)
             {
-                occupiedSize += new UTF8Encoding().GetByteCount(securityPolicyUri);   //security policy uri size
+                occupiedSize += Encoding.UTF8.GetByteCount(securityPolicyUri);   //security policy uri size
             }
 
             occupiedSize += TcpMessageLimits.StringLengthSize; //SenderCertificateLength
@@ -845,7 +845,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex)
             {
-                throw new Exception("Could not write async message", ex);
+                throw new ServiceResultException("Could not write async message", ex);
             }
             finally
             {
@@ -1066,9 +1066,7 @@ namespace Opc.Ua.Bindings
             // validate the sender certificate.
             if (senderCertificate != null && Quotas.CertificateValidator != null && securityPolicyUri != SecurityPolicies.None)
             {
-                CertificateValidator certificateValidator = Quotas.CertificateValidator as CertificateValidator;
-
-                if (certificateValidator != null)
+                if (Quotas.CertificateValidator is CertificateValidator certificateValidator)
                 {
                     certificateValidator.Validate(senderCertificateChain);
                 }

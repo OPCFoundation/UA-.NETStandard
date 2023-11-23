@@ -91,5 +91,5 @@ namespace Opc.Ua.PubSub
         /// Get current list of dataset readers available in this UaSubscriber component
         /// </summary>
         List<DataSetReaderDataType> GetOperationalDataSetReaders();
-    }    
+    }
 }

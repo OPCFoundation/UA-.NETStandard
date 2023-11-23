@@ -264,6 +264,7 @@ namespace Opc.Ua
                 if (m_reader != null)
                 {
                     m_reader.Close();
+                    m_reader = null;
                 }
             }
         }
@@ -309,9 +310,8 @@ namespace Opc.Ua
                 return true;
             }
 
-            var context = m_stack.Peek() as Dictionary<string, object>;
 
-            if (context == null || !context.TryGetValue(fieldName, out token))
+            if (!(m_stack.Peek() is Dictionary<string, object> context) || !context.TryGetValue(fieldName, out token))
             {
                 return false;
             }
@@ -492,10 +492,9 @@ namespace Opc.Ua
 
             if (value == null)
             {
-                var text = token as string;
                 uint number = 0;
 
-                if (text == null || !UInt32.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
+                if (!(token is string text) || !UInt32.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
                 {
                     return 0;
                 }
@@ -527,10 +526,9 @@ namespace Opc.Ua
 
             if (value == null)
             {
-                var text = token as string;
                 long number = 0;
 
-                if (text == null || !Int64.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
+                if (!(token is string text) || !Int64.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
                 {
                     return 0;
                 }
@@ -562,10 +560,9 @@ namespace Opc.Ua
 
             if (value == null)
             {
-                var text = token as string;
                 ulong number = 0;
 
-                if (text == null || !UInt64.TryParse(text,
+                if (!(token is string text) || !UInt64.TryParse(text,
                     NumberStyles.Integer,
                     CultureInfo.InvariantCulture, out number))
                 {
@@ -705,9 +702,8 @@ namespace Opc.Ua
                 return null;
             }
 
-            var value = token as string;
 
-            if (value == null)
+            if (!(token is string value))
             {
                 return null;
             }
@@ -738,8 +734,7 @@ namespace Opc.Ua
                 return value.Value >= m_dateTimeMaxJsonValue ? DateTime.MaxValue : value.Value;
             }
 
-            var text = token as string;
-            if (text != null)
+            if (token is string text)
             {
                 var result = XmlConvert.ToDateTime(text, XmlDateTimeSerializationMode.Utc);
                 return result >= m_dateTimeMaxJsonValue ? DateTime.MaxValue : result;
@@ -760,9 +755,8 @@ namespace Opc.Ua
                 return Uuid.Empty;
             }
 
-            var value = token as string;
 
-            if (value == null)
+            if (!(token is string value))
             {
                 return Uuid.Empty;
             }
@@ -787,8 +781,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            var value = token as string;
-            if (value == null)
+            if (!(token is string value))
             {
                 return Array.Empty<byte>();
             }
@@ -815,9 +808,8 @@ namespace Opc.Ua
                 return null;
             }
 
-            var value = token as string;
 
-            if (value == null)
+            if (!(token is string value))
             {
                 return null;
             }
@@ -827,7 +819,7 @@ namespace Opc.Ua
             if (bytes != null && bytes.Length > 0)
             {
                 XmlDocument document = new XmlDocument();
-                string xmlString = new UTF8Encoding().GetString(bytes, 0, bytes.Length);
+                string xmlString = Encoding.UTF8.GetString(bytes, 0, bytes.Length);
 
                 using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), Utils.DefaultXmlReaderSettings()))
                 {
@@ -852,9 +844,8 @@ namespace Opc.Ua
                 return NodeId.Null;
             }
 
-            var value = token as Dictionary<string, object>;
 
-            if (value == null)
+            if (!(token is Dictionary<string, object> value))
             {
                 return NodeId.Null;
             }
@@ -879,8 +870,7 @@ namespace Opc.Ua
 
                     if (index == null)
                     {
-                        string namespaceUri = namespaceToken as string;
-                        if (namespaceUri != null)
+                        if (namespaceToken is string namespaceUri)
                         {
                             namespaceIndex = m_context.NamespaceUris.GetIndexOrAppend(namespaceUri);
                         }
@@ -940,9 +930,8 @@ namespace Opc.Ua
                 return ExpandedNodeId.Null;
             }
 
-            var value = token as Dictionary<string, object>;
 
-            if (value == null)
+            if (!(token is Dictionary<string, object> value))
             {
                 return ExpandedNodeId.Null;
             }
@@ -1073,9 +1062,8 @@ namespace Opc.Ua
                 return QualifiedName.Null;
             }
 
-            var value = token as Dictionary<string, object>;
 
-            if (value == null)
+            if (!(token is Dictionary<string, object> value))
             {
                 return QualifiedName.Null;
             }
@@ -1100,8 +1088,7 @@ namespace Opc.Ua
                     if (index == null)
                     {
                         // handle non reversible encoding
-                        string namespaceUri = namespaceToken as string;
-                        if (namespaceUri != null)
+                        if (namespaceToken is string namespaceUri)
                         {
                             namespaceIndex = m_context.NamespaceUris.GetIndexOrAppend(namespaceUri);
                         }
@@ -1138,9 +1125,8 @@ namespace Opc.Ua
             string locale = null;
             string text = null;
 
-            var value = token as Dictionary<string, object>;
 
-            if (value == null)
+            if (!(token is Dictionary<string, object> value))
             {
                 // read non reversible encoding
                 text = token as string;
@@ -1187,9 +1173,8 @@ namespace Opc.Ua
                 return Variant.Null;
             }
 
-            var value = token as Dictionary<string, object>;
 
-            if (value == null)
+            if (!(token is Dictionary<string, object> value))
             {
                 return Variant.Null;
             }
@@ -1248,9 +1233,8 @@ namespace Opc.Ua
                 return null;
             }
 
-            var value = token as Dictionary<string, object>;
 
-            if (value == null)
+            if (!(token is Dictionary<string, object> value))
             {
                 return null;
             }
@@ -1289,9 +1273,8 @@ namespace Opc.Ua
                 return extension;
             }
 
-            var value = token as Dictionary<string, object>;
 
-            if (value == null)
+            if (!(token is Dictionary<string, object> value))
             {
                 return extension;
             }
@@ -1394,9 +1377,8 @@ namespace Opc.Ua
                 return null;
             }
 
-            IEncodeable value = Activator.CreateInstance(systemType) as IEncodeable;
 
-            if (value == null)
+            if (!(Activator.CreateInstance(systemType) is IEncodeable value))
             {
                 throw new ServiceResultException(StatusCodes.BadDecodingError, Utils.Format("Type does not support IEncodeable interface: '{0}'", systemType.FullName));
             }
@@ -1404,9 +1386,8 @@ namespace Opc.Ua
             if (encodeableTypeId != null)
             {
                 // set type identifier for custom complex data types before decode.
-                IComplexTypeInstance complexTypeInstance = value as IComplexTypeInstance;
 
-                if (complexTypeInstance != null)
+                if (value is IComplexTypeInstance complexTypeInstance)
                 {
                     complexTypeInstance.TypeId = encodeableTypeId;
                 }
@@ -2608,9 +2589,8 @@ namespace Opc.Ua
                 return null;
             }
 
-            var value = token as Dictionary<string, object>;
 
-            if (value == null)
+            if (!(token is Dictionary<string, object> value))
             {
                 return null;
             }
@@ -2993,17 +2973,14 @@ namespace Opc.Ua
 
         private void EncodeAsJson(JsonTextWriter writer, object value)
         {
-            var map = value as Dictionary<string, object>;
-
-            if (map != null)
+            if (value is Dictionary<string, object> map)
             {
                 EncodeAsJson(writer, map);
                 return;
             }
 
-            var list = value as List<object>;
 
-            if (list != null)
+            if (value is List<object> list)
             {
                 writer.WriteStartArray();
 

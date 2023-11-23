@@ -486,14 +486,14 @@ namespace Opc.Ua
         /// Validates a certificate.
         /// </summary>
         /// <remarks>
-        /// Each UA application may have a list of trusted certificates that is different from 
+        /// Each UA application may have a list of trusted certificates that is different from
         /// all other UA applications that may be running on the same machine. As a result, the
         /// certificate validator cannot rely completely on the Windows certificate store and
         /// user or machine specific CTLs (certificate trust lists).
         /// </remarks>
-        public virtual void Validate(X509Certificate2Collection chain)
+        public virtual void Validate(X509Certificate2Collection certificateChain)
         {
-            Validate(chain, null);
+            Validate(certificateChain, null);
         }
 
         /// <inheritdoc/>
@@ -522,7 +522,7 @@ namespace Opc.Ua
                 {
                     await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
 
-                    await InternalValidate(chain, endpoint, ct).ConfigureAwait(false);
+                    await InternalValidateAsync(chain, endpoint, ct).ConfigureAwait(false);
 
                     // add to list of validated certificates.
                     m_validatedCertificates[certificate.Thumbprint] = new X509Certificate2(certificate.RawData);
@@ -567,7 +567,7 @@ namespace Opc.Ua
                 {
                     m_semaphore.Wait();
 
-                    InternalValidate(chain, endpoint).GetAwaiter().GetResult();
+                    InternalValidateAsync(chain, endpoint).GetAwaiter().GetResult();
 
                     // add to list of validated certificates.
                     m_validatedCertificates[certificate.Thumbprint] = new X509Certificate2(certificate.RawData);
@@ -599,7 +599,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="se"></param>
         /// <param name="certificate"></param>
@@ -787,7 +787,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the certificate information for a trusted peer certificate.
         /// </summary>
-        private async Task<CertificateIdentifier> GetTrustedCertificate(X509Certificate2 certificate)
+        private async Task<CertificateIdentifier> GetTrustedCertificateAsync(X509Certificate2 certificate)
         {
             // check if explicitly trusted.
             if (m_trustedCertificateList != null)
@@ -888,11 +888,11 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the issuers for the certificates.
         /// </summary>
-        public Task<bool> GetIssuers(X509Certificate2Collection certificates, List<CertificateIdentifier> issuers, bool checkRevocationStatus)
+        public Task<bool> GetIssuers(X509Certificate2Collection certificates, List<CertificateIdentifier> issuers)
         {
             return GetIssuersNoExceptionsOnGetIssuer(certificates, issuers,
                 null, // ensures legacy behavior is respected
-                checkRevocationStatus
+                true
                 );
         }
 
@@ -900,7 +900,7 @@ namespace Opc.Ua
         /// Returns the issuers for the certificates.
         /// </summary>
         public async Task<bool> GetIssuersNoExceptionsOnGetIssuer(X509Certificate2Collection certificates,
-            List<CertificateIdentifier> issuers, Dictionary<X509Certificate2, ServiceResultException> validationErrors, bool checkRevocationStatus)
+            List<CertificateIdentifier> issuers, Dictionary<X509Certificate2, ServiceResultException> validationErrors)
         {
             bool isTrusted = false;
             CertificateIdentifier issuer = null;
@@ -923,29 +923,29 @@ namespace Opc.Ua
 
                 if (validationErrors != null)
                 {
-                    (issuer, revocationStatus) = await GetIssuerNoException(certificate, m_trustedCertificateList, m_trustedCertificateStore, checkRevocationStatus).ConfigureAwait(false);
+                    (issuer, revocationStatus) = await GetIssuerNoExceptionAsync(certificate, m_trustedCertificateList, m_trustedCertificateStore, true).ConfigureAwait(false);
                 }
                 else
                 {
-                    issuer = await GetIssuer(certificate, m_trustedCertificateList, m_trustedCertificateStore, checkRevocationStatus).ConfigureAwait(false);
+                    issuer = await GetIssuer(certificate, m_trustedCertificateList, m_trustedCertificateStore, true).ConfigureAwait(false);
                 }
 
                 if (issuer == null)
                 {
                     if (validationErrors != null)
                     {
-                        (issuer, revocationStatus) = await GetIssuerNoException(certificate, m_issuerCertificateList, m_issuerCertificateStore, checkRevocationStatus).ConfigureAwait(false);
+                        (issuer, revocationStatus) = await GetIssuerNoExceptionAsync(certificate, m_issuerCertificateList, m_issuerCertificateStore, true).ConfigureAwait(false);
                     }
                     else
                     {
-                        issuer = await GetIssuer(certificate, m_issuerCertificateList, m_issuerCertificateStore, checkRevocationStatus).ConfigureAwait(false);
+                        issuer = await GetIssuer(certificate, m_issuerCertificateList, m_issuerCertificateStore, true).ConfigureAwait(false);
                     }
 
                     if (issuer == null)
                     {
                         if (validationErrors != null)
                         {
-                            (issuer, revocationStatus) = await GetIssuerNoException(certificate, untrustedCollection, null, true).ConfigureAwait(false);
+                            (issuer, revocationStatus) = await GetIssuerNoExceptionAsync(certificate, untrustedCollection, null, true).ConfigureAwait(false);
                         }
                         else
                         {
@@ -996,7 +996,7 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate.</param>
         /// <param name="issuers">The issuers.</param>
         /// <param name="checkRevocationStatus">If the revocation status of the issuers should be checked.</param>
-        public Task<bool> GetIssuers(X509Certificate2 certificate, List<CertificateIdentifier> issuers, bool checkRevocationStatus)
+        public Task<bool> GetIssuers(X509Certificate2 certificate, List<CertificateIdentifier> issuers)
         {
             return GetIssuers(new X509Certificate2Collection { certificate }, issuers, checkRevocationStatus);
         }
@@ -1009,13 +1009,13 @@ namespace Opc.Ua
         /// <returns></returns>
         public Task<bool> GetIssuers(X509Certificate2 certificate, List<CertificateIdentifier> issuers)
         {
-            return GetIssuers(new X509Certificate2Collection { certificate }, issuers, true);
+            return GetIssuers(new X509Certificate2Collection { certificate }, issuers);
         }
 
         /// <summary>
         /// Returns the certificate information for a trusted issuer certificate.
         /// </summary>
-        private async Task<(CertificateIdentifier, ServiceResultException)> GetIssuerNoException(
+        private async Task<(CertificateIdentifier, ServiceResultException)> GetIssuerNoExceptionAsync(
             X509Certificate2 certificate,
             CertificateIdentifierCollection explicitList,
             CertificateStoreIdentifier certificateStore,
@@ -1150,7 +1150,7 @@ namespace Opc.Ua
             }
 
             (CertificateIdentifier result, ServiceResultException srex) =
-                await GetIssuerNoException(certificate, explicitList, certificateStore, checkRecovationStatus
+                await GetIssuerNoExceptionAsync(certificate, explicitList, certificateStore, checkRecovationStatus
                 ).ConfigureAwait(false);
             if (srex != null)
             {
@@ -1166,7 +1166,7 @@ namespace Opc.Ua
         /// <param name="endpoint">The endpoint for domain validation.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <exception cref="ServiceResultException">If certificate[0] cannot be accepted</exception>
-        protected virtual async Task InternalValidate(X509Certificate2Collection certificates, ConfiguredEndpoint endpoint, CancellationToken ct = default)
+        protected virtual async Task InternalValidateAsync(X509Certificate2Collection certificates, ConfiguredEndpoint endpoint, CancellationToken ct = default)
         {
             X509Certificate2 certificate = certificates[0];
 
@@ -1182,13 +1182,13 @@ namespace Opc.Ua
                 }
             }
 
-            CertificateIdentifier trustedCertificate = await GetTrustedCertificate(certificate).ConfigureAwait(false);
+            CertificateIdentifier trustedCertificate = await GetTrustedCertificateAsync(certificate).ConfigureAwait(false);
 
             // get the issuers (checks the revocation lists if using directory stores).
             List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
             Dictionary<X509Certificate2, ServiceResultException> validationErrors = new Dictionary<X509Certificate2, ServiceResultException>();
 
-            bool isIssuerTrusted = await GetIssuersNoExceptionsOnGetIssuer(certificates, issuers, validationErrors, true).ConfigureAwait(false);
+            bool isIssuerTrusted = await GetIssuersNoExceptionsOnGetIssuer(certificates, issuers, validationErrors).ConfigureAwait(false);
 
             ServiceResult sresult = PopulateSresultWithValidationErrors(validationErrors);
 
@@ -1266,6 +1266,23 @@ namespace Opc.Ua
                                 chainStatus.StatusInformation);
                             sresult = new ServiceResult(result, sresult);
                             break;
+
+                        // unexpected error status
+                        case X509ChainStatusFlags.CtlNotSignatureValid:
+                        case X509ChainStatusFlags.CtlNotTimeValid:
+                        case X509ChainStatusFlags.CtlNotValidForUsage:
+                        case X509ChainStatusFlags.Cyclic:
+                        case X509ChainStatusFlags.ExplicitDistrust:
+                        case X509ChainStatusFlags.HasExcludedNameConstraint:
+                        case X509ChainStatusFlags.HasNotDefinedNameConstraint:
+                        case X509ChainStatusFlags.HasNotPermittedNameConstraint:
+                        case X509ChainStatusFlags.HasNotSupportedCriticalExtension:
+                        case X509ChainStatusFlags.HasNotSupportedNameConstraint:
+                        case X509ChainStatusFlags.HasWeakSignature:
+                        case X509ChainStatusFlags.InvalidExtension:
+                        case X509ChainStatusFlags.InvalidNameConstraints:
+                        case X509ChainStatusFlags.InvalidPolicyConstraints:
+                        case X509ChainStatusFlags.NoIssuanceChainPolicy:
 
                         // unexpected error status
                         default:
@@ -1609,7 +1626,7 @@ namespace Opc.Ua
                 case X509ChainStatusFlags.NotValidForUsage:
                 {
                     return ServiceResult.Create(
-                        (isIssuer) ? StatusCodes.BadCertificateUseNotAllowed : StatusCodes.BadCertificateIssuerUseNotAllowed,
+                        isIssuer ? StatusCodes.BadCertificateUseNotAllowed : StatusCodes.BadCertificateIssuerUseNotAllowed,
                         "Certificate may not be used as an application instance certificate. {0}: {1}",
                         status.Status,
                         status.StatusInformation);
@@ -1626,8 +1643,8 @@ namespace Opc.Ua
                     goto case X509ChainStatusFlags.UntrustedRoot;
                 case X509ChainStatusFlags.UntrustedRoot:
                 {
-                    // self signed cert signature validation 
-                    // .NET Core ChainStatus returns NotSignatureValid only on Windows, 
+                    // self signed cert signature validation
+                    // .NET Core ChainStatus returns NotSignatureValid only on Windows,
                     // so we have to do the extra cert signature check on all platforms
                     if (issuer == null && id.Certificate != null &&
                         X509Utils.IsSelfSigned(id.Certificate))
@@ -1917,9 +1934,9 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private SemaphoreSlim m_semaphore = new SemaphoreSlim(1, 1);
-        private object m_callbackLock = new object();
-        private Dictionary<string, X509Certificate2> m_validatedCertificates;
+        private readonly SemaphoreSlim m_semaphore = new SemaphoreSlim(1, 1);
+        private readonly object m_callbackLock = new object();
+        private readonly Dictionary<string, X509Certificate2> m_validatedCertificates;
         private CertificateStoreIdentifier m_trustedCertificateStore;
         private CertificateIdentifierCollection m_trustedCertificateList;
         private CertificateStoreIdentifier m_issuerCertificateStore;
@@ -1949,7 +1966,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        internal CertificateValidationEventArgs(ServiceResult error, X509Certificate2 certificate)
+        public CertificateValidationEventArgs(ServiceResult error, X509Certificate2 certificate)
         {
             m_error = error;
             m_certificate = certificate;
@@ -1998,8 +2015,8 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private ServiceResult m_error;
-        private X509Certificate2 m_certificate;
+        private readonly ServiceResult m_error;
+        private readonly X509Certificate2 m_certificate;
         private bool m_accept;
         private bool m_acceptAll;
         private string m_applicationErrorMsg;
@@ -2022,7 +2039,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        internal CertificateUpdateEventArgs(
+        public CertificateUpdateEventArgs(
             SecurityConfiguration configuration,
             ICertificateValidator validator)
         {

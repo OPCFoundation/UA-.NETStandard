@@ -281,9 +281,9 @@ namespace Opc.Ua.Client.Controls
             }
 
             // check for byte strings.
-            if (value.Value is byte[])
+            if (value.Value is byte[] byteArray)
             {
-                return Utils.ToHexString(value.Value as byte[]);
+                return Utils.ToHexString(byteArray);
             }
 
             // use default format.

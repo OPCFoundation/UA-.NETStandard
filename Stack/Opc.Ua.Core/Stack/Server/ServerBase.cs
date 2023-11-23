@@ -1629,7 +1629,7 @@ namespace Opc.Ua
             private int m_minThreadCount;
             private int m_maxRequestCount;
 #if THREAD_SCHEDULER
-            private object m_lock = new object();
+            private readonly object m_lock = new object();
             private Queue<IEndpointIncomingRequest> m_queue;
             private int m_totalThreadCount;
 #endif

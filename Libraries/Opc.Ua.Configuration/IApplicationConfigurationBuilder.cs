@@ -580,7 +580,7 @@ namespace Opc.Ua.Configuration
         IApplicationConfigurationBuilderTraceConfiguration SetDeleteOnLoad(bool deleteOnLoad);
 
         /// <inheritdoc cref="TraceConfiguration.TraceMasks"/>
-        IApplicationConfigurationBuilderTraceConfiguration SetTraceMasks(int TraceMasks);
+        IApplicationConfigurationBuilderTraceConfiguration SetTraceMasks(int traceMasks);
     }
 
     /// <summary>

@@ -37,9 +37,7 @@ namespace Opc.Ua
         /// </summary>
         protected override void Initialize(ISystemContext context, NodeState source)
         {
-            BaseInstanceState instance = source as BaseInstanceState;
-
-            if (instance != null)
+            if (source is BaseInstanceState instance)
             {
                 m_referenceTypeId = instance.m_referenceTypeId;
                 m_typeDefinitionId = instance.m_typeDefinitionId;
@@ -137,9 +135,7 @@ namespace Opc.Ua
 
                 while (parent != null)
                 {
-                    BaseInstanceState instance = parent as BaseInstanceState;
-
-                    if (instance == null)
+                    if (!(parent is BaseInstanceState instance))
                     {
                         break;
                     }
@@ -376,9 +372,7 @@ namespace Opc.Ua
                     // save the variable value.
                     if (field.AttributeId == Attributes.Value)
                     {
-                        BaseVariableState variable = child as BaseVariableState;
-
-                        if (variable != null && field.AttributeId == Attributes.Value)
+                        if (child is BaseVariableState variable && field.AttributeId == Attributes.Value)
                         {
                             try
                             {
@@ -406,9 +400,7 @@ namespace Opc.Ua
         /// <param name="minimumSamplingInterval">The minimum sampling interval.</param>
         public void SetMinimumSamplingInterval(ISystemContext context, double minimumSamplingInterval)
         {
-            BaseVariableState variable = this as BaseVariableState;
-
-            if (variable != null)
+            if (this is BaseVariableState variable)
             {
                 variable.MinimumSamplingInterval = minimumSamplingInterval;
             }
@@ -630,27 +622,27 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="decoder">The decoder.</param>
-        /// <param name="attibutesToLoad">The attributes to load.</param>
-        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attibutesToLoad)
+        /// <param name="attributesToLoad">The attributes to load.</param>
+        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attributesToLoad)
         {
-            base.Update(context, decoder, attibutesToLoad);
+            base.Update(context, decoder, attributesToLoad);
 
-            if ((attibutesToLoad & AttributesToSave.ReferenceTypeId) != 0)
+            if ((attributesToLoad & AttributesToSave.ReferenceTypeId) != 0)
             {
                 m_referenceTypeId = decoder.ReadNodeId(null);
             }
 
-            if ((attibutesToLoad & AttributesToSave.TypeDefinitionId) != 0)
+            if ((attributesToLoad & AttributesToSave.TypeDefinitionId) != 0)
             {
                 m_typeDefinitionId = decoder.ReadNodeId(null);
             }
 
-            if ((attibutesToLoad & AttributesToSave.ModellingRuleId) != 0)
+            if ((attributesToLoad & AttributesToSave.ModellingRuleId) != 0)
             {
                 m_modellingRuleId = decoder.ReadNodeId(null);
             }
 
-            if ((attibutesToLoad & AttributesToSave.NumericId) != 0)
+            if ((attributesToLoad & AttributesToSave.NumericId) != 0)
             {
                 m_numericId = decoder.ReadUInt32(null);
             }

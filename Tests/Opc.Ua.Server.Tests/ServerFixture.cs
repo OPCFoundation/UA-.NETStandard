@@ -68,6 +68,8 @@ namespace Opc.Ua.Server.Tests
             var serverConfig = Application.Build(
                 "urn:localhost:UA:" + typeof(T).Name,
                 "uri:opcfoundation.org:" + typeof(T).Name)
+                .SetMaxByteStringLength(4 * 1024 * 1024)
+                .SetMaxArrayLength(1024 * 1024)
                 .AsServer(
                     new string[] {
                     endpointUrl
@@ -102,6 +104,12 @@ namespace Opc.Ua.Server.Tests
                     MaxNodesPerWrite = 1000,
                     MaxNodesPerMethodCall = 1000,
                     MaxMonitoredItemsPerCall = 1000,
+                    MaxNodesPerHistoryReadData = 1000,
+                    MaxNodesPerHistoryReadEvents = 1000,
+                    MaxNodesPerHistoryUpdateData = 1000,
+                    MaxNodesPerHistoryUpdateEvents = 1000,
+                    MaxNodesPerNodeManagement = 1000,
+                    MaxNodesPerRegisterNodes = 1000,
                     MaxNodesPerTranslateBrowsePathsToNodeIds = 1000
                 });
             }

@@ -45,6 +45,6 @@ namespace Opc.Ua
         /// <summary>
         /// The alarm is in the LowLow state.
         /// </summary>
-        LowLow  =0x8
+        LowLow = 0x8
     }
 }

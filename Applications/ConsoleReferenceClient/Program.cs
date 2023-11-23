@@ -129,8 +129,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 // Define the UA Client application
                 ApplicationInstance.MessageDlg = new ApplicationMessageDlg(output);
                 CertificatePasswordProvider PasswordProvider = new CertificatePasswordProvider(password);
-                ApplicationInstance application = new ApplicationInstance
-                {
+                ApplicationInstance application = new ApplicationInstance {
                     ApplicationName = applicationName,
                     ApplicationType = ApplicationType.Client,
                     ConfigSectionName = configSectionName,
@@ -220,7 +219,7 @@ namespace Quickstarts.ConsoleReferenceClient
                             var samples = new ClientSamples(output, ClientBase.ValidateResponse, quitEvent, verbose);
                             if (loadTypes)
                             {
-                                await samples.LoadTypeSystem(uaClient.Session).ConfigureAwait(false);
+                                await samples.LoadTypeSystemAsync(uaClient.Session).ConfigureAwait(false);
                             }
 
                             if (browseall || fetchall || jsonvalues)
@@ -230,7 +229,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                 if (browseall)
                                 {
                                     referenceDescriptions =
-                                        samples.BrowseFullAddressSpace(uaClient, Objects.RootFolder);
+                                        await samples.BrowseFullAddressSpaceAsync(uaClient, Objects.RootFolder).ConfigureAwait(false);
                                     variableIds = new NodeIdCollection(referenceDescriptions
                                         .Where(r => r.NodeClass == NodeClass.Variable && r.TypeDefinition.NamespaceIndex != 0)
                                         .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, uaClient.Session.NamespaceUris)));
@@ -239,8 +238,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                 IList<INode> allNodes = null;
                                 if (fetchall)
                                 {
-                                    allNodes = samples.FetchAllNodesNodeCache(
-                                        uaClient, Objects.RootFolder, true, true, false);
+                                    allNodes = await samples.FetchAllNodesNodeCacheAsync(uaClient, Objects.RootFolder, true, true, false).ConfigureAwait(false);
                                     variableIds = new NodeIdCollection(allNodes
                                         .Where(r => r.NodeClass == NodeClass.Variable && r is VariableNode && ((VariableNode)r).DataType.NamespaceIndex != 0)
                                         .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, uaClient.Session.NamespaceUris)));
@@ -248,7 +246,7 @@ namespace Quickstarts.ConsoleReferenceClient
 
                                 if (jsonvalues && variableIds != null)
                                 {
-                                    await samples.ReadAllValuesAsync(uaClient, variableIds).ConfigureAwait(false);
+                                    var (allValues, results) = await samples.ReadAllValuesAsync(uaClient, variableIds).ConfigureAwait(false);
                                 }
 
                                 if (subscribe && (browseall || fetchall))

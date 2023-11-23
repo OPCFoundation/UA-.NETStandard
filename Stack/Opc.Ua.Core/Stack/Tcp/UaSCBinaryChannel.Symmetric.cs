@@ -489,9 +489,8 @@ namespace Opc.Ua.Bindings
                     maxPayloadSize);
 
                 // check for encodeable body.
-                IEncodeable encodeable = messageBody as IEncodeable;
 
-                if (encodeable != null)
+                if (messageBody is IEncodeable encodeable)
                 {
                     // debug code used to verify that message aborts are handled correctly.
                     // int maxMessageSize = Quotas.MessageContext.MaxMessageSize;
@@ -1076,7 +1075,7 @@ namespace Opc.Ua.Bindings
             {
                 if (computedSignature[ii] != signature[ii])
                 {
-                    string messageType = new UTF8Encoding().GetString(dataToVerify.Array, dataToVerify.Offset, 4);
+                    string messageType = Encoding.UTF8.GetString(dataToVerify.Array, dataToVerify.Offset, 4);
                     int messageLength = BitConverter.ToInt32(dataToVerify.Array, dataToVerify.Offset + 4);
                     string expectedSignature = Utils.ToHexString(computedSignature);
                     string actualSignature = Utils.ToHexString(signature);

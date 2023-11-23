@@ -246,9 +246,8 @@ namespace Opc.Ua.Client.Controls.Common
             TypeInfo currentType = info.TypeInfo;
             object currentValue = info.Value;
 
-            if (info.Value is Variant)
+            if (info.Value is Variant variant)
             {
-                Variant variant = (Variant)info.Value;
                 currentValue = variant.Value;
 
                 if (currentValue != null)
@@ -395,9 +394,8 @@ namespace Opc.Ua.Client.Controls.Common
                 currentValue = TypeInfo.GetDefaultValue(currentType.BuiltInType);
             }
 
-            if (info.Value is Variant)
+            if (info.Value is Variant variant)
             {
-                Variant variant = (Variant)info.Value;
                 currentValue = variant.Value;
 
                 if (currentValue != null)
@@ -680,9 +678,8 @@ namespace Opc.Ua.Client.Controls.Common
             TypeInfo typeInfo = parent.TypeInfo;
             object value = parent.Value;
 
-            if (value is Variant)
+            if (value is Variant variant)
             {
-                Variant variant = (Variant)value;
                 value = variant.Value;
 
                 if (value != null)
@@ -797,58 +794,58 @@ namespace Opc.Ua.Client.Controls.Common
             }
 
             // check for XmlElements.
-            if (structure is XmlElement)
+            if (structure is XmlElement xmlElement)
             {
-                ShowTextValue((XmlElement)structure);
+                ShowTextValue((XmlElement)xmlElement);
                 return;
             }
 
             // check for ByteString.
-            if (structure is byte[])
+            if (structure is byte[] byteString)
             {
-                ShowTextValue((byte[])structure);
+                ShowTextValue(byteString);
                 return;
             }
 
             // check for NodeId.
-            if (structure is NodeId)
+            if (structure is NodeId nodeId)
             {
-                ShowTextValue(((NodeId)structure).ToString());
+                ShowTextValue(nodeId.ToString());
                 return;
             }
 
             // check for ExpandedNodeId.
-            if (structure is ExpandedNodeId)
+            if (structure is ExpandedNodeId expandedNodeId)
             {
-                ShowTextValue(((ExpandedNodeId)structure).ToString());
+                ShowTextValue(expandedNodeId.ToString());
                 return;
             }
 
             // check for QualifiedName.
-            if (structure is QualifiedName)
+            if (structure is QualifiedName qualifiedName)
             {
-                ShowTextValue(((QualifiedName)structure).ToString());
+                ShowTextValue(qualifiedName.ToString());
                 return;
             }
 
             // check for Guid.
-            if (structure is Guid)
+            if (structure is Guid guid)
             {
-                ShowTextValue(((Guid)structure).ToString());
+                ShowTextValue(guid.ToString());
                 return;
             }
 
             // check for Uuid.
-            if (structure is Uuid)
+            if (structure is Uuid uuid)
             {
-                ShowTextValue(((Uuid)structure).ToString());
+                ShowTextValue(uuid.ToString());
                 return;
             }
 
             // check for StatusCode.
-            if (structure is StatusCode)
+            if (structure is StatusCode statusCode)
             {
-                ShowTextValue(Utils.Format("0x{0:X8}", ((StatusCode)structure).Code));
+                ShowTextValue(Utils.Format("0x{0:X8}", statusCode.Code));
                 return;
             }
 
@@ -1008,15 +1005,13 @@ namespace Opc.Ua.Client.Controls.Common
 
                 if (accessInfo.Parent != null)
                 {
-                    if (accessInfo.Parent.Value is Array)
+                    if (accessInfo.Parent.Value is Array array)
                     {
-                        Array array = (Array)accessInfo.Parent.Value;
                         return array.GetType().GetElementType();
                     }
 
-                    if (accessInfo.Parent.Value is IList)
+                    if (accessInfo.Parent.Value is IList list)
                     {
-                        IList list = (IList)accessInfo.Parent.Value;
                         return GetListElementType(list);
                     }
                 }
@@ -1179,9 +1174,8 @@ namespace Opc.Ua.Client.Controls.Common
                 return String.Empty;
             }
 
-            if (value is Variant)
+            if (value is Variant variant)
             {
-                Variant variant = (Variant)value;
                 value = variant.Value;
 
                 if (value != null)

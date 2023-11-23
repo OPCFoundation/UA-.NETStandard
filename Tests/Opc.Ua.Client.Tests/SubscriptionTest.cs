@@ -267,7 +267,7 @@ namespace Opc.Ua.Client.Tests
 
             await subscription.ConditionRefreshAsync().ConfigureAwait(false);
             var sre = Assert.Throws<ServiceResultException>(() => subscription.Republish(subscription.SequenceNumber));
-            Assert.AreEqual(StatusCodes.BadMessageNotAvailable, sre.StatusCode);
+            Assert.AreEqual(StatusCodes.BadMessageNotAvailable, sre.StatusCode, $"Expected BadMessageNotAvailable, but received {sre.Message}");
 
             subscription.RemoveItems(list);
             await subscription.ApplyChangesAsync().ConfigureAwait(false);
@@ -790,13 +790,13 @@ namespace Opc.Ua.Client.Tests
                 originSubscriptions, originSubscriptionCounters, originSubscriptionFastDataCounters,
                 kTestSubscriptions, kQueueSize);
 
-            if(TransferType.KeepOpen == transferType)
+            if (TransferType.KeepOpen == transferType)
             {
                 foreach (var subscription in originSubscriptions)
                 {
                     subscription.PublishStatusChanged += (s, e) => {
                         TestContext.Out.WriteLine($"PublishStatusChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
-                        if ((e.Status & PublishStateChangedMask.Transferred)!=0)
+                        if ((e.Status & PublishStateChangedMask.Transferred) != 0)
                         {
                             // subscription transferred
                             Interlocked.Increment(ref originSubscriptionTransferred[(int)s.Handle]);

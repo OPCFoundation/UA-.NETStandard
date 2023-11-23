@@ -1820,7 +1820,7 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Members
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private IServerInternal m_server;
         private INodeManager m_nodeManager;
         private object m_managerHandle;

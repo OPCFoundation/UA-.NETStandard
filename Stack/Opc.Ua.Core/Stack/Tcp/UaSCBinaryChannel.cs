@@ -103,7 +103,7 @@ namespace Opc.Ua.Bindings
                 serverCertificateChain = serverCertificateTypesProvider.LoadCertificateChainAsync(serverCertificate).GetAwaiter().GetResult();
             }
 
-            if (new UTF8Encoding().GetByteCount(securityPolicyUri) > TcpMessageLimits.MaxSecurityPolicyUriSize)
+            if (Encoding.UTF8.GetByteCount(securityPolicyUri) > TcpMessageLimits.MaxSecurityPolicyUriSize)
             {
                 throw new ArgumentException(
                     Utils.Format("UTF-8 form of the security policy URI may not be more than {0} bytes.", TcpMessageLimits.MaxSecurityPolicyUriSize),
@@ -577,11 +577,9 @@ namespace Opc.Ua.Bindings
             // check that length is not exceeded.
             if (reason != null)
             {
-                UTF8Encoding encoding = new UTF8Encoding();
-
-                if (encoding.GetByteCount(reason) > TcpMessageLimits.MaxErrorReasonLength)
+                if (Encoding.UTF8.GetByteCount(reason) > TcpMessageLimits.MaxErrorReasonLength)
                 {
-                    reason = reason.Substring(0, TcpMessageLimits.MaxErrorReasonLength / encoding.GetMaxByteCount(1));
+                    reason = reason.Substring(0, TcpMessageLimits.MaxErrorReasonLength / Encoding.UTF8.GetMaxByteCount(1));
                 }
             }
 
@@ -611,7 +609,12 @@ namespace Opc.Ua.Bindings
                     reasonBytes[ii] = decoder.ReadByte(null);
                 }
 
-                reason = new UTF8Encoding().GetString(reasonBytes, 0, reasonLength);
+                reason = Encoding.UTF8.GetString(reasonBytes, 0, reasonLength);
+            }
+
+            if (reason == null)
+            {
+                reason = new ServiceResult(statusCode).ToString();
             }
 
             return ServiceResult.Create(statusCode, "Error received from remote host: {0}", reason);
@@ -798,7 +801,6 @@ namespace Opc.Ua.Bindings
                 m_globalChannelId = Utils.Format("{0}-{1}", m_contextId, m_channelId);
             }
         }
-
         #endregion
 
         #region WriteOperation Class
@@ -864,7 +866,7 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private IMessageSocket m_socket;
         private BufferManager m_bufferManager;
         private ChannelQuotas m_quotas;

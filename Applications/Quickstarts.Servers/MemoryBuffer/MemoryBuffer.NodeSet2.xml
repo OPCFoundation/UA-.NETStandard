@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2023-02-23T10:07:27.7824728Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2023-10-06T12:57:31.2901182Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <NamespaceUris>
     <Uri>http://samples.org/UA/MemoryBuffer</Uri>
   </NamespaceUris>
   <Models>
-    <Model ModelUri="http://samples.org/UA/MemoryBuffer" Version="1.0.0" PublicationDate="2023-02-23T10:07:27.7824728Z">
+    <Model ModelUri="http://samples.org/UA/MemoryBuffer" Version="1.0.0" PublicationDate="2023-10-06T12:57:31.2901182Z">
       <RequiredModel ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" />
     </Model>
   </Models>

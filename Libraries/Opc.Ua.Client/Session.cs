@@ -1896,8 +1896,8 @@ else
             {
                 if (StatusCode.IsNotBad(errors[ii].StatusCode))
                 {
-                    namespaces[((NodeId)referenceNodeIds[ii])] = (string)nameSpaceValues[ii];
-                }
+                        namespaces[((NodeId)referenceNodeIds[ii])] = (string)nameSpaceValues[ii];
+                    }
                 else
                 {
                     Utils.LogWarning("Failed to load namespace {0}: {1}", namespaceNodeIds[ii], errors[ii]);
@@ -3131,9 +3131,9 @@ else
                 {
                     // dont throw errors on disconnect, but return them
                     // so the caller can log the error.
-                    if (e is ServiceResultException)
+                    if (e is ServiceResultException sre)
                     {
-                        result = ((ServiceResultException)e).StatusCode;
+                        result = sre.StatusCode;
                     }
                     else
                     {
@@ -5723,13 +5723,13 @@ else
                 // Validate publish time and reject old values.
                 if (notificationMessage.PublishTime.AddMilliseconds(subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount) < DateTime.UtcNow)
                 {
-                    Utils.LogWarning("PublishTime {0} in publish response is too old for SubscriptionId {1}.", notificationMessage.PublishTime.ToLocalTime(), subscription.Id);
+                    Utils.LogTrace("PublishTime {0} in publish response is too old for SubscriptionId {1}.", notificationMessage.PublishTime.ToLocalTime(), subscription.Id);
                 }
 
                 // Validate publish time and reject old values.
                 if (notificationMessage.PublishTime > DateTime.UtcNow.AddMilliseconds(subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount))
                 {
-                    Utils.LogWarning("PublishTime {0} in publish response is newer than actual time for SubscriptionId {1}.", notificationMessage.PublishTime.ToLocalTime(), subscription.Id);
+                    Utils.LogTrace("PublishTime {0} in publish response is newer than actual time for SubscriptionId {1}.", notificationMessage.PublishTime.ToLocalTime(), subscription.Id);
                 }
 
                 // update subscription cache.
