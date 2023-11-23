@@ -5901,7 +5901,7 @@ else
             {
                 clientCertificateChain = new X509Certificate2Collection(clientCertificate);
                 List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
-                await configuration.CertificateValidator.GetIssuers(clientCertificate, issuers, false).ConfigureAwait(false);
+                await configuration.CertificateValidator.GetIssuers(clientCertificate, issuers).ConfigureAwait(false);
 
                 for (int i = 0; i < issuers.Count; i++)
                 {

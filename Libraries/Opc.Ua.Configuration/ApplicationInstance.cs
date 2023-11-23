@@ -448,6 +448,7 @@ namespace Opc.Ua.Configuration
         /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
         /// <param name="minimumKeySize">Minimum size of the key.</param>
         /// <param name="lifeTimeInMonths">The lifetime in months.</param>
+        /// <param name="ct"></param>
         [Obsolete("This method is obsolete since an application now supports different minKey sizes depending on certificate type")]
         public async Task<bool> CheckApplicationInstanceCertificate(
             bool silent,
@@ -463,6 +464,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
         /// <param name="lifeTimeInMonths">The lifetime in months.</param>
+        /// <param name="ct"></param>
         public async Task<bool> CheckApplicationInstanceCertificates(
             bool silent,
             ushort lifeTimeInMonths,
@@ -503,6 +505,7 @@ namespace Opc.Ua.Configuration
         /// <param name="silent"></param>
         /// <param name="minimumKeySize"></param>
         /// <param name="lifeTimeInMonths"></param>
+        /// <param name="ct"></param>
         /// <returns></returns>
         private async Task<bool> CheckCertificateTypeAsync(
             CertificateIdentifier id,
@@ -955,7 +958,7 @@ namespace Opc.Ua.Configuration
 
             await configuration.CertificateValidator.Update(configuration.SecurityConfiguration).ConfigureAwait(false);
 
-            Utils.LogCertificate("Certificate created for {0}.", certificate, configuration.ApplicationUri);
+            Utils.LogCertificate("Certificate created for {0}.", id.Certificate, configuration.ApplicationUri);
 
             // do not dispose temp cert, or X509Store certs become unusable
 

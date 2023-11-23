@@ -888,17 +888,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the issuers for the certificates.
         /// </summary>
-        public Task<bool> GetIssuers(X509Certificate2Collection certificates, List<CertificateIdentifier> issuers)
-        {
-            return GetIssuersNoExceptionsOnGetIssuer(certificates, issuers,
-                null, // ensures legacy behavior is respected
-                true
-                );
-        }
-
-        /// <summary>
-        /// Returns the issuers for the certificates.
-        /// </summary>
         public async Task<bool> GetIssuersNoExceptionsOnGetIssuer(X509Certificate2Collection certificates,
             List<CertificateIdentifier> issuers, Dictionary<X509Certificate2, ServiceResultException> validationErrors)
         {
@@ -986,19 +975,8 @@ namespace Opc.Ua
         public Task<bool> GetIssuers(X509Certificate2Collection certificates, List<CertificateIdentifier> issuers)
         {
             return GetIssuersNoExceptionsOnGetIssuer(
-                certificates, issuers, null, true // ensures legacy behavior is respected
+                certificates, issuers, null // ensures legacy behavior is respected
                 );
-        }
-
-        /// <summary>
-        /// Returns the issuers for the certificate.
-        /// </summary>
-        /// <param name="certificate">The certificate.</param>
-        /// <param name="issuers">The issuers.</param>
-        /// <param name="checkRevocationStatus">If the revocation status of the issuers should be checked.</param>
-        public Task<bool> GetIssuers(X509Certificate2 certificate, List<CertificateIdentifier> issuers)
-        {
-            return GetIssuers(new X509Certificate2Collection { certificate }, issuers, checkRevocationStatus);
         }
 
         /// <summary>

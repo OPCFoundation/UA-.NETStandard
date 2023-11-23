@@ -603,18 +603,23 @@ namespace Opc.Ua.Configuration.Tests
             };
             Assert.NotNull(applicationInstance);
             ApplicationConfiguration config;
+
+            CertificateIdentifierCollection applicationCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(SubjectName,
+                CertificateStoreType.Directory,
+                m_pkiRoot);
+
             if (server)
             {
                 config = await applicationInstance.Build(ApplicationUri, ProductUri)
                     .AsServer(new string[] { "opc.tcp://localhost:12345/Configuration" })
-                    .AddSecurityConfiguration(SubjectName, pkiRoot)
+                    .AddSecurityConfiguration(applicationCerts, pkiRoot)
                     .Create().ConfigureAwait(false);
             }
             else
             {
                 config = await applicationInstance.Build(ApplicationUri, ProductUri)
                     .AsClient()
-                    .AddSecurityConfiguration(SubjectName, pkiRoot)
+                    .AddSecurityConfiguration(applicationCerts, pkiRoot)
                     .Create().ConfigureAwait(false);
             }
             Assert.NotNull(config);
@@ -625,12 +630,12 @@ namespace Opc.Ua.Configuration.Tests
             if (disableCertificateAutoCreation)
             {
                 var sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false));
+                    await applicationInstance.CheckApplicationInstanceCertificates(true).ConfigureAwait(false));
                 Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
             }
             else
             {
-                bool certOK = await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
+                bool certOK = await applicationInstance.CheckApplicationInstanceCertificates(true).ConfigureAwait(false);
                 Assert.True(certOK);
             }
         }
