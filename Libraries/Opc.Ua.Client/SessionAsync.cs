@@ -265,7 +265,7 @@ namespace Opc.Ua.Client
                     serverCertificate,
                     serverNonce,
                     userTokenSecurityPolicyUri,
-                    m_eccServerEphermalKey,
+                    m_eccServerEphemeralKey,
                     m_instanceCertificate,
                     m_instanceCertificateChain,
                     m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
@@ -291,6 +291,9 @@ namespace Opc.Ua.Client
                     new ExtensionObject(identityToken),
                     userTokenSignature,
                     ct).ConfigureAwait(false);
+
+                //  process additional header
+                ProcessResponseAdditionalHeader(activateResponse.ResponseHeader, serverCertificate);
 
                 serverNonce = activateResponse.ServerNonce;
                 StatusCodeCollection certificateResults = activateResponse.Results;

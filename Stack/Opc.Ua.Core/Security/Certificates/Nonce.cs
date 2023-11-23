@@ -18,6 +18,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Security.Certificates;
+using System.Runtime.Serialization;
 
 #if CURVE25519
 using Org.BouncyCastle.Pkcs;
@@ -39,9 +40,11 @@ namespace Opc.Ua
     /// Represents a cryptographic nonce used for secure communication.
     /// </summary>
 
-    public class Nonce : IDisposable
+    [Serializable]
+    public class Nonce : IDisposable, ISerializable
     {
         private ECDiffieHellman m_ecdh;
+        
 
 #if CURVE25519
         private AsymmetricCipherKeyPair m_bcKeyPair;
@@ -421,6 +424,46 @@ namespace Opc.Ua
             nonce.m_ecdh = ECDiffieHellman.Create(ecdhParameters);
 
             return nonce;
+        }
+
+        /// <summary>
+        /// Custom deserialization
+        /// </summary>
+        /// <param name="info"></param>
+        /// <param name="context"></param>
+        protected Nonce(SerializationInfo info, StreamingContext context)
+        {
+            var curveName = info.GetString("CurveName");
+            var ecParams = new ECParameters {
+                Curve = ECCurve.CreateFromFriendlyName(curveName),
+                Q = new ECPoint {
+                    X = (byte[])info.GetValue("QX", typeof(byte[])),
+                    Y = (byte[])info.GetValue("QY", typeof(byte[])),
+                }
+            };
+            m_ecdh = ECDiffieHellman.Create(ecParams);
+
+            Data = (byte[])info.GetValue("Data", typeof (byte[]));
+        }
+
+        /// <summary>
+        /// Custom serializarion
+        /// </summary>
+        /// <param name="info"></param>
+        /// <param name="context"></param>
+        public void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            if (m_ecdh != null)
+            {
+                var ecParams = m_ecdh.ExportParameters(false);
+                info.AddValue("CurveName", ecParams.Curve.Oid.FriendlyName);
+                info.AddValue("QX", ecParams.Q.X);
+                info.AddValue("QY", ecParams.Q.Y);
+            }
+            if (Data != null)
+            {
+                info.AddValue("Data", Data);
+            }
         }
     }
 }

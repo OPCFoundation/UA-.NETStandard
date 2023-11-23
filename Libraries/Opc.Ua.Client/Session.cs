@@ -34,6 +34,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1269,6 +1270,10 @@ namespace Opc.Ua.Client
             m_identity = sessionConfiguration.Identity;
             m_checkDomain = sessionConfiguration.CheckDomain;
             m_serverNonce = sessionConfiguration.ServerNonce;
+# if ECC_SUPPORT
+            m_userTokenSecurityPolicyUri = sessionConfiguration.UserIdentityTokenPolicy;
+            m_eccServerEphemeralKey = sessionConfiguration.ServerEccEphemeralKey;
+# endif
             SessionCreated(sessionConfiguration.SessionId, sessionConfiguration.AuthenticationToken);
 
             return true;
@@ -1277,7 +1282,25 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public SessionConfiguration SaveSessionConfiguration(Stream stream = null)
         {
+#if ECC_SUPPORT
+            var sessionConfiguration = new SessionConfiguration(this, m_serverNonce, m_userTokenSecurityPolicyUri, m_eccServerEphemeralKey, AuthenticationToken);
+#else
             var sessionConfiguration = new SessionConfiguration(this, m_serverNonce, AuthenticationToken);
+# endif
+
+#if ECC_SUPPORT
+            if (stream != null)
+            {
+                XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
+                using (XmlWriter writer = XmlWriter.Create(stream, settings))
+                {
+                    DataContractSerializer serializer = new DataContractSerializer(typeof(SessionConfiguration),
+                        new[] { typeof(UserIdentityToken), typeof(AnonymousIdentityToken), typeof(X509IdentityToken),
+                        typeof(IssuedIdentityToken), typeof(UserIdentity), typeof(ECParameters) });
+                    serializer.WriteObject(writer, sessionConfiguration);
+                }
+            }
+else
             if (stream != null)
             {
                 XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
@@ -1289,6 +1312,7 @@ namespace Opc.Ua.Client
                     serializer.WriteObject(writer, sessionConfiguration);
                 }
             }
+#endif
             return sessionConfiguration;
         }
 
@@ -1386,12 +1410,12 @@ namespace Opc.Ua.Client
                 SignatureData userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
 
                 // encrypt token.
-#if ECC_SUPPORT 
+#if ECC_SUPPORT
                 identityToken.Encrypt(
                     m_serverCertificate,
                     m_serverNonce,
                     m_userTokenSecurityPolicyUri,
-                    m_eccServerEphermalKey,
+                    m_eccServerEphemeralKey,
                     m_instanceCertificate,
                     m_instanceCertificateChain,
                     m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
@@ -2542,12 +2566,12 @@ namespace Opc.Ua.Client
                 SignatureData userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
 
                 // encrypt token.
-#if ECC_SUPPORT 
+#if ECC_SUPPORT
                 identityToken.Encrypt(
                     serverCertificate,
                     serverNonce,
                     userTokenSecurityPolicyUri,
-                    m_eccServerEphermalKey,
+                    m_eccServerEphemeralKey,
                     m_instanceCertificate,
                     m_instanceCertificateChain,
                     m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
@@ -2567,7 +2591,7 @@ namespace Opc.Ua.Client
                 DiagnosticInfoCollection certificateDiagnosticInfos = null;
 
                 // activate session.
-                ActivateSession(
+                responseHeader = ActivateSession(
                     null,
                     clientSignature,
                     clientSoftwareCertificates,
@@ -2577,6 +2601,8 @@ namespace Opc.Ua.Client
                     out serverNonce,
                     out certificateResults,
                     out certificateDiagnosticInfos);
+
+                ProcessResponseAdditionalHeader(responseHeader, serverCertificate);
 
                 if (certificateResults != null)
                 {
@@ -2724,12 +2750,12 @@ namespace Opc.Ua.Client
             userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
 
             // encrypt token.
-#if ECC_SUPPORT 
+#if ECC_SUPPORT
             identityToken.Encrypt(
                 m_serverCertificate,
                 serverNonce,
                 m_userTokenSecurityPolicyUri,
-                m_eccServerEphermalKey,
+                m_eccServerEphemeralKey,
                 m_instanceCertificate,
                 m_instanceCertificateChain,
                 m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
@@ -2743,7 +2769,7 @@ namespace Opc.Ua.Client
             DiagnosticInfoCollection certificateDiagnosticInfos = null;
 
             // activate session.
-            ActivateSession(
+            ResponseHeader responseHeader = ActivateSession(
                 null,
                 clientSignature,
                 clientSoftwareCertificates,
@@ -2753,6 +2779,8 @@ namespace Opc.Ua.Client
                 out serverNonce,
                 out certificateResults,
                 out certificateDiagnosticInfos);
+
+            ProcessResponseAdditionalHeader(responseHeader, m_serverCertificate);
 
             // save nonce and new values.
             lock (SyncRoot)
@@ -6077,7 +6105,7 @@ namespace Opc.Ua.Client
                                 "Could not verify signature on ECDHKey. User authentication not possible.");
                         }
 #if ECC_SUPPORT
-                        m_eccServerEphermalKey = Nonce.CreateNonce(m_userTokenSecurityPolicyUri, key.PublicKey);
+                        m_eccServerEphemeralKey = Nonce.CreateNonce(m_userTokenSecurityPolicyUri, key.PublicKey);
 #endif
                     }
                 }
@@ -6170,7 +6198,7 @@ namespace Opc.Ua.Client
         private LinkedList<AsyncRequestState> m_outstandingRequests;
         private string m_userTokenSecurityPolicyUri;
 #if ECC_SUPPORT
-        private Nonce m_eccServerEphermalKey;
+        private Nonce m_eccServerEphemeralKey;
 #endif
         private readonly EndpointDescriptionCollection m_discoveryServerEndpoints;
         private readonly StringCollection m_discoveryProfileUris;

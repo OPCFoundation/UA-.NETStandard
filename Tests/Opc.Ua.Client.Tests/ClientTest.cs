@@ -605,6 +605,14 @@ namespace Opc.Ua.Client.Tests
         [TestCase(SecurityPolicies.None, false)]
         [TestCase(SecurityPolicies.Basic256Sha256, true)]
         [TestCase(SecurityPolicies.Basic256Sha256, false)]
+        [TestCase(SecurityPolicies.ECC_brainpoolP256r1, true)]
+        [TestCase(SecurityPolicies.ECC_brainpoolP256r1, false)]
+        [TestCase(SecurityPolicies.ECC_brainpoolP384r1, true)]
+        [TestCase(SecurityPolicies.ECC_brainpoolP384r1, false)]
+        [TestCase(SecurityPolicies.ECC_nistP256, true)]
+        [TestCase(SecurityPolicies.ECC_nistP256, false)]
+        [TestCase(SecurityPolicies.ECC_nistP384, true)]
+        [TestCase(SecurityPolicies.ECC_nistP384, false)]
         public async Task ReconnectSessionOnAlternateChannelWithSavedSessionSecrets(string securityPolicy, bool anonymous)
         {
             ServiceResultException sre;
@@ -632,6 +640,7 @@ namespace Opc.Ua.Client.Tests
 
             // save the session configuration
             var stream = new MemoryStream();
+
             session1.SaveSessionConfiguration(stream);
 
             var streamArray = stream.ToArray();
