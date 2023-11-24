@@ -234,7 +234,7 @@ namespace Opc.Ua.Gds.Tests
                     gdsRoot)
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)
-                .SetRejectUnknownRevocationStatus(true)
+                .SetRejectUnknownRevocationStatus(false)
                 .SetMinimumCertificateKeySize(1024)
                 .AddExtension<GlobalDiscoveryServerConfiguration>(null, gdsConfig)
                 .SetDeleteOnLoad(true)
