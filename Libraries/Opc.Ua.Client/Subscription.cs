@@ -796,9 +796,10 @@ namespace Opc.Ua.Client
             {
                 lock (m_cache)
                 {
-                    int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * m_currentKeepAliveCount, Int32.MaxValue - 500));
+                    int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * (m_currentKeepAliveCount + 1), Int32.MaxValue - 500));
+                    TimeSpan timeSinceLastNotification = DateTime.UtcNow - m_lastNotificationTime;
 
-                    if (m_lastNotificationTime.AddMilliseconds(keepAliveInterval + 500) < DateTime.UtcNow)
+                    if (timeSinceLastNotification.TotalMilliseconds > keepAliveInterval + 500)
                     {
                         return true;
                     }

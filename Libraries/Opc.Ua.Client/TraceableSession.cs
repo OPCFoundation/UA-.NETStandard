@@ -301,6 +301,33 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        public async Task ReconnectAsync(CancellationToken ct = default)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(ReconnectAsync)))
+            {
+                await m_session.ReconnectAsync(ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task ReconnectAsync(ITransportWaitingConnection connection, CancellationToken ct = default)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(ReconnectAsync)))
+            {
+                await m_session.ReconnectAsync(connection, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task ReconnectAsync(ITransportChannel channel, CancellationToken ct = default)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(ReconnectAsync)))
+            {
+                await m_session.ReconnectAsync(channel, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
         public void Save(string filePath)
         {
             using (Activity activity = ActivitySource.StartActivity(nameof(Save)))

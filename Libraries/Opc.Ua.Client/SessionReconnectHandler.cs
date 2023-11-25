@@ -384,11 +384,11 @@ namespace Opc.Ua.Client
                                 m_session.Endpoint.Server.ApplicationUri
                             ).ConfigureAwait(false);
 
-                        m_session.Reconnect(connection);
+                        await m_session.ReconnectAsync(connection).ConfigureAwait(false);
                     }
                     else
                     {
-                        m_session.Reconnect();
+                        await m_session.ReconnectAsync().ConfigureAwait(false);
                     }
 
                     // monitored items should start updating on their own.

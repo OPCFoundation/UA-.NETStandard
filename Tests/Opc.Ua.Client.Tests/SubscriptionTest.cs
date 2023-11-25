@@ -569,7 +569,14 @@ namespace Opc.Ua.Client.Tests
             };
 
             // activate the session from saved sesson secrets on the new channel
-            session2.Reconnect(channel2);
+            if (asyncTest)
+            {
+                await session2.ReconnectAsync(channel2).ConfigureAwait(false);
+            }
+            else
+            {
+                session2.Reconnect(channel2);
+            }
 
             // reactivate restored subscriptions
             if (asyncTest)

@@ -36,6 +36,7 @@ using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Client
 {
@@ -1471,6 +1472,107 @@ namespace Opc.Ua.Client
         }
         #endregion
 
+        #region Reconnect Async Methods
+        /// <inheritdoc/>
+        public Task ReconnectAsync(CancellationToken ct)
+            => ReconnectAsync(null, null, ct);
+
+        /// <inheritdoc/>
+        public Task ReconnectAsync(ITransportWaitingConnection connection, CancellationToken ct)
+            => ReconnectAsync(connection, null, ct);
+
+        /// <inheritdoc/>
+        public Task ReconnectAsync(ITransportChannel channel, CancellationToken ct)
+            => ReconnectAsync(null, channel, ct);
+
+        /// <summary>
+        /// Reconnects to the server after a network failure using a waiting connection.
+        /// </summary>
+        private async Task ReconnectAsync(ITransportWaitingConnection connection, ITransportChannel transportChannel, CancellationToken ct)
+        {
+            bool resetReconnect = false;
+            try
+            {
+                // check if already connecting.
+                if (m_reconnecting)
+                {
+                    Utils.LogWarning("Session is already attempting to reconnect.");
+
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadInvalidState,
+                        "Session is already attempting to reconnect.");
+                }
+
+                Utils.LogInfo("Session RECONNECT {0} starting.", SessionId);
+
+                await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+                m_reconnecting = true;
+                resetReconnect = true;
+                m_reconnectLock.Release();
+
+                IAsyncResult result=PrepareReconnectBeginActivate(
+                    connection,
+                    transportChannel);
+
+                if (!(result is ChannelAsyncOperation<int> operation)) throw new ArgumentNullException(nameof(result));
+
+                try
+                {
+                    _ = await operation.EndAsync(kReconnectTimeout / 2, true, ct).ConfigureAwait(false);
+                }
+                catch (ServiceResultException)
+                {
+                    Utils.LogWarning("WARNING: ACTIVATE SESSION {0} timed out. {1}/{2}", SessionId, GoodPublishRequestCount, OutstandingRequestCount);
+                }
+
+                // reactivate session.
+                byte[] serverNonce = null;
+                StatusCodeCollection certificateResults = null;
+                DiagnosticInfoCollection certificateDiagnosticInfos = null;
+
+                EndActivateSession(
+                    result,
+                    out serverNonce,
+                    out certificateResults,
+                    out certificateDiagnosticInfos);
+
+                int publishCount = 0;
+
+                Utils.LogInfo("Session RECONNECT {0} completed successfully.", SessionId);
+
+                lock (SyncRoot)
+                {
+                    m_previousServerNonce = m_serverNonce;
+                    m_serverNonce = serverNonce;
+                    publishCount = GetMinPublishRequestCount(true);
+                }
+
+                await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+                m_reconnecting = false;
+                resetReconnect = false;
+                m_reconnectLock.Release();
+
+                // refill pipeline.
+                for (int ii = 0; ii < publishCount; ii++)
+                {
+                    BeginPublish(OperationTimeout);
+                }
+
+                StartKeepAliveTimer();
+
+                IndicateSessionConfigurationChanged();
+            }
+            finally
+            {
+                if (resetReconnect)
+                {
+                    await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+                    m_reconnecting = false;
+                    m_reconnectLock.Release();
+                }
+            }
+        }
+
         /// <summary>
         /// Recreate the subscriptions in a reconnected session.
         /// Uses Transfer service if <see cref="TransferSubscriptionsOnReconnect"/> is set to <c>true</c>.
@@ -1516,6 +1618,7 @@ namespace Opc.Ua.Client
                 }
             }
         }
+        #endregion
     }
 }
 #endif
