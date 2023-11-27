@@ -117,7 +117,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             var structureBuilder = m_moduleBuilder.DefineType(
                 GetFullQualifiedTypeName(name),
-                TypeAttributes.Public | TypeAttributes.Class | TypeAttributes.Serializable,
+                TypeAttributes.Public | TypeAttributes.Class,
                 baseType);
             structureBuilder.DataContractAttribute(m_targetNamespace);
             structureBuilder.StructureDefinitionAttribute(structureDefinition);
