@@ -99,7 +99,7 @@ namespace Quickstarts
         /// <summary>
         /// The reconnect period to be used in ms.
         /// </summary>
-        public int ReconnectPeriod { get; set; } = 5000;
+        public int ReconnectPeriod { get; set; } = 1000;
 
         /// <summary>
         /// The reconnect period exponential backoff to be used in ms.
