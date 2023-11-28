@@ -44,7 +44,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Manages a session with a server.
     /// </summary>
-    public partial class Session : SessionClientBatched, ISession, IDisposable
+    public partial class Session : SessionClientBatched, ISession
     {
         #region Constructors
         /// <summary>
@@ -137,7 +137,7 @@ namespace Opc.Ua.Client
 
             foreach (Subscription subscription in template.Subscriptions)
             {
-                AddSubscription(new Subscription(subscription, copyEventHandlers));
+                AddSubscription(subscription.CloneSubscription(copyEventHandlers));
             }
         }
         #endregion
@@ -923,7 +923,6 @@ namespace Opc.Ua.Client
         /// <param name="clientCertificate">The certificate to use for the client.</param>
         /// <param name="availableEndpoints">The list of available endpoints returned by server in GetEndpoints() response.</param>
         /// <param name="discoveryProfileUris">The value of profileUris used in GetEndpoints() request.</param>
-        /// <returns></returns>
         public static Session Create(
            ApplicationConfiguration configuration,
            ITransportChannel channel,
@@ -932,7 +931,30 @@ namespace Opc.Ua.Client
            EndpointDescriptionCollection availableEndpoints = null,
            StringCollection discoveryProfileUris = null)
         {
-            return new Session(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
+            return Create(DefaultSessionFactory.Instance, configuration, channel, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
+        }
+
+        /// <summary>
+        /// Creates a new session with a server using the specified channel by invoking the CreateSession service.
+        /// With the sessionInstantiator subclasses of Sessions can be created.
+        /// </summary>
+        /// <param name="sessionInstantiator">The Session constructor to use to create the session.</param>
+        /// <param name="configuration">The configuration for the client application.</param>
+        /// <param name="channel">The channel for the server.</param>
+        /// <param name="endpoint">The endpoint for the server.</param>
+        /// <param name="clientCertificate">The certificate to use for the client.</param>
+        /// <param name="availableEndpoints">The list of available endpoints returned by server in GetEndpoints() response.</param>
+        /// <param name="discoveryProfileUris">The value of profileUris used in GetEndpoints() request.</param>
+        public static Session Create(
+            ISessionInstantiator sessionInstantiator,
+            ApplicationConfiguration configuration,
+            ITransportChannel channel,
+            ConfiguredEndpoint endpoint,
+            X509Certificate2 clientCertificate,
+            EndpointDescriptionCollection availableEndpoints = null,
+            StringCollection discoveryProfileUris = null)
+        {
+            return sessionInstantiator.Create(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
         }
 
         /// <summary>
@@ -1036,7 +1058,38 @@ namespace Opc.Ua.Client
         /// <param name="preferredLocales">The preferred locales.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
+        public static Task<Session> Create(
+            ApplicationConfiguration configuration,
+            ITransportWaitingConnection connection,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales,
+            CancellationToken ct = default)
+        {
+            return Create(DefaultSessionFactory.Instance, configuration, connection, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, identity, preferredLocales, ct);
+        }
+
+        /// <summary>
+        /// Creates a new communication session with a server using a reverse connection.
+        /// </summary>
+        /// <param name="sessionInstantiator">The Session constructor to use to create the session.</param>
+        /// <param name="configuration">The configuration for the client application.</param>
+        /// <param name="connection">The client endpoint for the reverse connect.</param>
+        /// <param name="endpoint">The endpoint for the server.</param>
+        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
+        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="sessionName">The name to assign to the session.</param>
+        /// <param name="sessionTimeout">The timeout period for the session.</param>
+        /// <param name="identity">The user identity to associate with the session.</param>
+        /// <param name="preferredLocales">The preferred locales.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The new session object.</returns>
         public static async Task<Session> Create(
+            ISessionInstantiator sessionInstantiator,
             ApplicationConfiguration configuration,
             ITransportWaitingConnection connection,
             ConfiguredEndpoint endpoint,
@@ -1052,7 +1105,7 @@ namespace Opc.Ua.Client
             ITransportChannel channel = await Session.CreateChannelAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain, ct).ConfigureAwait(false);
 
             // create the session object.
-            Session session = new Session(channel, configuration, endpoint, null);
+            Session session = sessionInstantiator.Create(channel, configuration, endpoint, null);
 
             // create the session.
             try
@@ -1082,7 +1135,39 @@ namespace Opc.Ua.Client
         /// <param name="preferredLocales">The preferred locales.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
+        public static Task<Session> Create(
+            ApplicationConfiguration configuration,
+            ReverseConnectManager reverseConnectManager,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity userIdentity,
+            IList<string> preferredLocales,
+            CancellationToken ct = default
+            )
+        {
+            return Create(DefaultSessionFactory.Instance, configuration, reverseConnectManager, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales, ct);
+        }
+
+        /// <summary>
+        /// Creates a new communication session with a server using a reverse connect manager.
+        /// </summary>
+        /// <param name="sessionInstantiator">The Session constructor to use to create the session.</param>
+        /// <param name="configuration">The configuration for the client application.</param>
+        /// <param name="reverseConnectManager">The reverse connect manager for the client connection.</param>
+        /// <param name="endpoint">The endpoint for the server.</param>
+        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
+        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="sessionName">The name to assign to the session.</param>
+        /// <param name="sessionTimeout">The timeout period for the session.</param>
+        /// <param name="userIdentity">The user identity to associate with the session.</param>
+        /// <param name="preferredLocales">The preferred locales.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The new session object.</returns>
         public static async Task<Session> Create(
+            ISessionInstantiator sessionInstantiator,
             ApplicationConfiguration configuration,
             ReverseConnectManager reverseConnectManager,
             ConfiguredEndpoint endpoint,
@@ -1097,7 +1182,7 @@ namespace Opc.Ua.Client
         {
             if (reverseConnectManager == null)
             {
-                return await Create(configuration, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales, ct).ConfigureAwait(false);
+                return await Create(sessionInstantiator, configuration, (ITransportWaitingConnection)null, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales, ct).ConfigureAwait(false);
             }
 
             ITransportWaitingConnection connection = null;
@@ -1121,6 +1206,7 @@ namespace Opc.Ua.Client
             } while (connection == null);
 
             return await Create(
+                sessionInstantiator,
                 configuration,
                 connection,
                 endpoint,
@@ -1154,7 +1240,7 @@ namespace Opc.Ua.Client
                 messageContext);
 
             // create the session object.
-            Session session = new Session(channel, template, true);
+            Session session = template.CloneSession(channel, true);
 
             try
             {
@@ -1200,7 +1286,7 @@ namespace Opc.Ua.Client
                 messageContext);
 
             // create the session object.
-            Session session = new Session(channel, template, true);
+            Session session = template.CloneSession(channel, true);
 
             try
             {
@@ -1235,7 +1321,7 @@ namespace Opc.Ua.Client
             messageContext.Factory = template.Factory;
 
             // create the session object.
-            Session session = new Session(transportChannel, template, true);
+            Session session = template.CloneSession(transportChannel, true);
 
             try
             {
@@ -1300,9 +1386,7 @@ namespace Opc.Ua.Client
                 XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
                 using (XmlWriter writer = XmlWriter.Create(stream, settings))
                 {
-                    DataContractSerializer serializer = new DataContractSerializer(typeof(SessionConfiguration),
-                        new[] { typeof(UserIdentityToken), typeof(AnonymousIdentityToken), typeof(X509IdentityToken),
-                        typeof(IssuedIdentityToken), typeof(UserIdentity) });
+                    DataContractSerializer serializer = new DataContractSerializer(typeof(SessionConfiguration));
                     serializer.WriteObject(writer, sessionConfiguration);
                 }
             }
@@ -1523,35 +1607,35 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public void Save(string filePath)
+        public void Save(string filePath, IEnumerable<Type> knownTypes = null)
         {
-            Save(filePath, Subscriptions);
+            Save(filePath, Subscriptions, knownTypes);
         }
 
         /// <inheritdoc/>
-        public void Save(Stream stream, IEnumerable<Subscription> subscriptions)
+        public void Save(Stream stream, IEnumerable<Subscription> subscriptions, IEnumerable<Type> knownTypes = null)
         {
             SubscriptionCollection subscriptionList = new SubscriptionCollection(subscriptions);
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
 
             using (XmlWriter writer = XmlWriter.Create(stream, settings))
             {
-                DataContractSerializer serializer = new DataContractSerializer(typeof(SubscriptionCollection));
+                DataContractSerializer serializer = new DataContractSerializer(typeof(SubscriptionCollection), knownTypes);
                 serializer.WriteObject(writer, subscriptionList);
             }
         }
 
         /// <inheritdoc/>
-        public void Save(string filePath, IEnumerable<Subscription> subscriptions)
+        public void Save(string filePath, IEnumerable<Subscription> subscriptions, IEnumerable<Type> knownTypes = null)
         {
             using (FileStream stream = new FileStream(filePath, FileMode.Create))
             {
-                Save(stream, subscriptions);
+                Save(stream, subscriptions, knownTypes);
             }
         }
 
         /// <inheritdoc/>
-        public IEnumerable<Subscription> Load(Stream stream, bool transferSubscriptions = false)
+        public IEnumerable<Subscription> Load(Stream stream, bool transferSubscriptions = false, IEnumerable<Type> knownTypes = null)
         {
             // secure settings
             XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
@@ -1559,7 +1643,7 @@ namespace Opc.Ua.Client
 
             using (XmlReader reader = XmlReader.Create(stream, settings))
             {
-                DataContractSerializer serializer = new DataContractSerializer(typeof(SubscriptionCollection));
+                DataContractSerializer serializer = new DataContractSerializer(typeof(SubscriptionCollection), knownTypes);
                 SubscriptionCollection subscriptions = (SubscriptionCollection)serializer.ReadObject(reader);
                 foreach (Subscription subscription in subscriptions)
                 {
@@ -1579,11 +1663,11 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public IEnumerable<Subscription> Load(string filePath, bool transferSubscriptions = false)
+        public IEnumerable<Subscription> Load(string filePath, bool transferSubscriptions = false, IEnumerable<Type> knownTypes = null)
         {
             using (FileStream stream = File.OpenRead(filePath))
             {
-                return Load(stream, transferSubscriptions);
+                return Load(stream, transferSubscriptions, knownTypes);
             }
         }
 
@@ -1873,8 +1957,12 @@ namespace Opc.Ua.Client
             {
                 if (StatusCode.IsNotBad(errors[ii].StatusCode))
                 {
+                    // servers may optimize space by not returning a dictionary
+                    if (nameSpaceValues[ii] != null)
+                    {
                         namespaces[((NodeId)referenceNodeIds[ii])] = (string)nameSpaceValues[ii];
                     }
+                }
                 else
                 {
                     Utils.LogWarning("Failed to load namespace {0}: {1}", namespaceNodeIds[ii], errors[ii]);
@@ -2976,6 +3064,38 @@ namespace Opc.Ua.Client
                     displayNames[ii] = displayName.Text;
                 }
             }
+        }
+
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(this, obj)) return true;
+
+            if (obj is ISession session)
+            {
+                if (!m_endpoint.Equals(session.Endpoint)) return false;
+                if (!m_sessionName.Equals(session.SessionName)) return false;
+                if (!SessionId.Equals(session.SessionId)) return false;
+
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(m_endpoint, m_sessionName, SessionId);
+        }
+
+        /// <summary>
+        /// An overrideable version of a session clone which is used
+        /// internally to create new subclassed clones from a Session class.
+        /// </summary>
+        public virtual Session CloneSession(ITransportChannel channel, bool copyEventHandlers)
+        {
+            return new Session(channel, this, copyEventHandlers);
         }
         #endregion
 
