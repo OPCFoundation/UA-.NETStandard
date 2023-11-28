@@ -66,6 +66,7 @@ namespace Opc.Ua.Server
             m_subscriptions = new Dictionary<uint, Subscription>();
             m_publishQueues = new Dictionary<NodeId, SessionPublishQueue>();
             m_statusMessages = new Dictionary<NodeId, Queue<StatusMessage>>();
+            m_lastSubscriptionId = BitConverter.ToInt64(Utils.Nonce.CreateNonce(sizeof(long)), 0);
 
             // create a event to signal shutdown.
             m_shutdownEvent = new ManualResetEvent(true);

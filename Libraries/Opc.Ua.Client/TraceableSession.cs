@@ -917,6 +917,15 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        public async Task<bool> RepublishAsync(uint subscriptionId, uint sequenceNumber, CancellationToken ct = default)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(RepublishAsync)))
+            {
+                return await m_session.RepublishAsync(subscriptionId, sequenceNumber, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
         public ResponseHeader CreateSession(RequestHeader requestHeader, ApplicationDescription clientDescription, string serverUri, string endpointUrl, string sessionName, byte[] clientNonce, byte[] clientCertificate, double requestedSessionTimeout, uint maxResponseMessageSize, out NodeId sessionId, out NodeId authenticationToken, out double revisedSessionTimeout, out byte[] serverNonce, out byte[] serverCertificate, out EndpointDescriptionCollection serverEndpoints, out SignedSoftwareCertificateCollection serverSoftwareCertificates, out SignatureData serverSignature, out uint maxRequestMessageSize)
         {
             using (Activity activity = ActivitySource.StartActivity(nameof(CreateSession)))

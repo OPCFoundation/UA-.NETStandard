@@ -949,6 +949,11 @@ namespace Opc.Ua.Client
 
 #if CLIENT_ASYNC
         /// <summary>
+        /// Sends a republish request.
+        /// </summary>
+        Task<bool> RepublishAsync(uint subscriptionId, uint sequenceNumber, CancellationToken ct = default);
+
+        /// <summary>
         /// Call the ResendData method on the server for all subscriptions.
         /// </summary>
         Task<(bool, IList<ServiceResult>)> ResendDataAsync(IEnumerable<Subscription> subscriptions, CancellationToken ct = default);

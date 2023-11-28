@@ -1886,7 +1886,8 @@ namespace Opc.Ua.Client
                         Utils.LogTrace("SubscriptionId {0} - Publish Thread {1:X8} Exited Normally.", m_id, Environment.CurrentManagedThreadId);
                         break;
                     }
-                    OnMessageReceived();
+
+                    await OnMessageReceivedAsync(CancellationToken.None).ConfigureAwait(false);
                 }
                 while (true);
             }
@@ -2084,7 +2085,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Processes the incoming messages.
         /// </summary>
-        private void OnMessageReceived()
+        private async Task OnMessageReceivedAsync(CancellationToken ct)
         {
             try
             {
@@ -2303,7 +2304,7 @@ namespace Opc.Ua.Client
                 {
                     for (int ii = 0; ii < messagesToRepublish.Count; ii++)
                     {
-                        if (!session.Republish(subscriptionId, messagesToRepublish[ii].SequenceNumber))
+                        if (!await session.RepublishAsync(subscriptionId, messagesToRepublish[ii].SequenceNumber, ct).ConfigureAwait(false))
                         {
                             messagesToRepublish[ii].Republished = false;
                         }

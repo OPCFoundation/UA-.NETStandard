@@ -423,7 +423,9 @@ namespace Opc.Ua.Client
                             m_updateFromServer = true;
                             Utils.LogInfo("Reconnect failed due to security check. Request endpoint update from server. {0}", sre.Message);
                         }
-                        else
+                        // wait for next scheduled reconnect if connection failed,
+                        // otherwise recreate session immediately
+                        else if (sre.StatusCode != StatusCodes.BadSessionIdInvalid)
                         {
                             // next attempt is to recreate session
                             m_reconnectFailed = true;
@@ -486,7 +488,7 @@ namespace Opc.Ua.Client
 
                     session = await m_session.SessionFactory.RecreateAsync(m_session).ConfigureAwait(false);
                 }
-                m_session.Close();
+                m_session.Dispose();
                 m_session = session;
                 return true;
             }

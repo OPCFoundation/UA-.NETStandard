@@ -5002,59 +5002,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                ServiceResult error = new ServiceResult(e);
-
-                bool result = true;
-                switch (error.StatusCode.Code)
-                {
-                    case StatusCodes.BadMessageNotAvailable:
-                        Utils.LogWarning("Message {0}-{1} no longer available.", subscriptionId, sequenceNumber);
-                        break;
-                    // if encoding limits are exceeded, the issue is logged and
-                    // the published data is acknowledged to prevent the endless republish loop.
-                    case StatusCodes.BadEncodingLimitsExceeded:
-                        Utils.LogError(e, "Message {0}-{1} exceeded size limits, ignored.", subscriptionId, sequenceNumber);
-                        var ack = new SubscriptionAcknowledgement {
-                            SubscriptionId = subscriptionId,
-                            SequenceNumber = sequenceNumber
-                        };
-                        lock (SyncRoot)
-                        {
-                            m_acknowledgementsToSend.Add(ack);
-                        }
-                        break;
-                    default:
-                        result = false;
-                        Utils.LogError(e, "Unexpected error sending republish request.");
-                        break;
-                }
-
-                PublishErrorEventHandler callback = null;
-
-                lock (m_eventLock)
-                {
-                    callback = m_PublishError;
-                }
-
-                // raise an error event.
-                if (callback != null)
-                {
-                    try
-                    {
-                        PublishErrorEventArgs args = new PublishErrorEventArgs(
-                            error,
-                            subscriptionId,
-                            sequenceNumber);
-
-                        callback(this, args);
-                    }
-                    catch (Exception e2)
-                    {
-                        Utils.LogError(e2, "Session: Unexpected error invoking PublishErrorCallback.");
-                    }
-                }
-
-                return result;
+                return ProcessRepublishResponseError(e, subscriptionId, sequenceNumber);
             }
         }
 
@@ -5505,6 +5453,71 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Process Republish error response.
+        /// </summary>
+        /// <param name="e">The exception that occurred during the republish operation.</param>
+        /// <param name="subscriptionId">The subscription Id for which the republish was requested. </param>
+        /// <param name="sequenceNumber">The sequencenumber for which the republish was requested.</param>
+        private bool ProcessRepublishResponseError(Exception e, uint subscriptionId, uint sequenceNumber)
+        {
+
+            ServiceResult error = new ServiceResult(e);
+
+            bool result = true;
+            switch (error.StatusCode.Code)
+            {
+                case StatusCodes.BadMessageNotAvailable:
+                    Utils.LogWarning("Message {0}-{1} no longer available.", subscriptionId, sequenceNumber);
+                    break;
+
+                // if encoding limits are exceeded, the issue is logged and
+                // the published data is acknowledged to prevent the endless republish loop.
+                case StatusCodes.BadEncodingLimitsExceeded:
+                    Utils.LogError(e, "Message {0}-{1} exceeded size limits, ignored.", subscriptionId, sequenceNumber);
+                    var ack = new SubscriptionAcknowledgement {
+                        SubscriptionId = subscriptionId,
+                        SequenceNumber = sequenceNumber
+                    };
+                    lock (SyncRoot)
+                    {
+                        m_acknowledgementsToSend.Add(ack);
+                    }
+                    break;
+                default:
+                    result = false;
+                    Utils.LogError(e, "Unexpected error sending republish request.");
+                    break;
+            }
+
+            PublishErrorEventHandler callback = null;
+
+            lock (m_eventLock)
+            {
+                callback = m_PublishError;
+            }
+
+            // raise an error event.
+            if (callback != null)
+            {
+                try
+                {
+                    PublishErrorEventArgs args = new PublishErrorEventArgs(
+                        error,
+                        subscriptionId,
+                        sequenceNumber);
+
+                    callback(this, args);
+                }
+                catch (Exception e2)
+                {
+                    Utils.LogError(e2, "Session: Unexpected error invoking PublishErrorCallback.");
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
         /// Handles the validation of server software certificates and application callback.
         /// </summary>
         private void HandleSignedSoftwareCertificates(SignedSoftwareCertificateCollection serverSoftwareCertificates)
@@ -5888,6 +5901,7 @@ namespace Opc.Ua.Client
             {
                 if (m_subscriptions.Count == 0)
                 {
+                    Utils.LogWarning("PUBLISH - No subscriptions, no publish requests will be sent.");
                     return 0;
                 }
 
