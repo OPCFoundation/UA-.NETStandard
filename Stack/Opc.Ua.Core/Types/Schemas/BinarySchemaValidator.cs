@@ -482,24 +482,24 @@ namespace Opc.Ua.Schema.Binary
 
             if (IsNull(field.TypeName))
             {
-                throw Exception("Field '{1}' in structured type '{0}' has no type specified.", description.Name, field.Name);
+                throw Exception("Field '{0}' in structured type '{1}' has no type specified.", field.Name, description.Name);
             }
 
             if (!m_descriptions.ContainsKey(field.TypeName))
             {
-                throw Exception("Field '{1}' in structured type '{0}' has an unrecognized type '{2}'.", description.Name, field.Name, field.TypeName);
+                throw Exception("Field '{0}' in structured type '{1}' has an unrecognized type '{2}'.", field.Name, description.Name, field.TypeName);
             }
 
             if (!String.IsNullOrEmpty(field.LengthField))
             {
                 if (!fields.ContainsKey(field.LengthField))
                 {
-                    throw Exception("Field '{1}' in structured type '{0}' references an unknownn length field '{2}'.", description.Name, field.Name, field.LengthField);
+                    throw Exception("Field '{0}' in structured type '{1}' references an unknownn length field '{2}'.", field.Name, description.Name, field.LengthField);
                 }
 
                 if (!IsIntegerType(fields[field.LengthField]))
                 {
-                    throw Exception("Field '{1}' in structured type '{0}' references a length field '{2}' which is not an integer value.", description.Name, field.Name, field.SwitchField);
+                    throw Exception("Field '{0}' in structured type '{1}' references a length field '{2}' which is not an integer value.", field.Name, description.Name, field.SwitchField);
                 }
             }
 
@@ -507,12 +507,12 @@ namespace Opc.Ua.Schema.Binary
             {
                 if (!fields.ContainsKey(field.SwitchField))
                 {
-                    throw Exception("Field '{1}' in structured type '{0}' references an unknownn switch field '{2}'.", description.Name, field.Name, field.SwitchField);
+                    throw Exception("Field '{0}' in structured type '{1}' references an unknownn switch field '{2}'.", field.Name, description.Name, field.SwitchField);
                 }
 
                 if (!IsIntegerType(fields[field.SwitchField]))
                 {
-                    throw Exception("Field '{1}' in structured type '{0}' references a switch field '{2}' which is not an integer value.", description.Name, field.Name, field.SwitchField);
+                    throw Exception("Field '{0}' in structured type '{1}' references a switch field '{2}' which is not an integer value.", field.Name, description.Name, field.SwitchField);
                 }
             }
         }

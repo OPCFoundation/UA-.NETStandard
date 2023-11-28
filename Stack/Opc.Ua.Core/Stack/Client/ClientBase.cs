@@ -20,7 +20,7 @@ namespace Opc.Ua
     /// <summary>
 	/// The client side interface with a UA server.
 	/// </summary>
-    public partial class ClientBase : IClientBase, IDisposable
+    public partial class ClientBase : IClientBase
     {
         #region Constructors
         /// <summary>

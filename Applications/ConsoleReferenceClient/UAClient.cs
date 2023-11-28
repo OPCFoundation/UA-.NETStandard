@@ -178,7 +178,7 @@ namespace Quickstarts
                     EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_configuration);
                     ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
-                    var sessionFactory = DefaultSessionFactory.Instance;
+                    var sessionFactory = TraceableSessionFactory.Instance;
 
                     // Create the session
                     var session = await sessionFactory.CreateAsync(
@@ -270,7 +270,7 @@ namespace Quickstarts
             try
             {
                 // check for events from discarded sessions.
-                if (!Object.ReferenceEquals(session, m_session))
+                if (!m_session.Equals(session))
                 {
                     return;
                 }

@@ -44,7 +44,7 @@ namespace Opc.Ua.Client
     /// Manages a session with a server.
     /// Contains the async versions of the public session api.
     /// </summary>
-    public partial class Session : SessionClientBatched, ISession, IDisposable
+    public partial class Session : SessionClientBatched, ISession
     {
         #region Open Async Methods
         /// <inheritdoc/>
@@ -1256,7 +1256,7 @@ namespace Opc.Ua.Client
                 messageContext);
 
             // create the session object.
-            Session session = new Session(channel, sessionTemplate, true);
+            Session session = sessionTemplate.CloneSession(channel, true);
 
             try
             {
@@ -1304,7 +1304,7 @@ namespace Opc.Ua.Client
                 messageContext);
 
             // create the session object.
-            Session session = new Session(channel, sessionTemplate, true);
+            Session session = sessionTemplate.CloneSession(channel, true);
 
             try
             {
@@ -1341,7 +1341,7 @@ namespace Opc.Ua.Client
             messageContext.Factory = sessionTemplate.Factory;
 
             // create the session object.
-            Session session = new Session(transportChannel, sessionTemplate, true);
+            Session session = sessionTemplate.CloneSession(transportChannel, true);
 
             try
             {
