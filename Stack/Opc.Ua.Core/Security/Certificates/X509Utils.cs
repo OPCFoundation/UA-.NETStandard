@@ -17,6 +17,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 
@@ -555,6 +556,43 @@ namespace Opc.Ua
 
                     store.Open(storePath, false);
                     store.Add(certificate, password).Wait();
+                    store.Close();
+                }
+            }
+            return certificate;
+        }
+
+        /// <summary>e
+        /// Extension to add a certificate to a <see cref="ICertificateStore"/>.
+        /// </summary>
+        /// <remarks>
+        /// Saves also the private key, if available.
+        /// If written to a Pfx file, the password is used for protection.
+        /// </remarks>
+        /// <param name="certificate">The certificate to store.</param>
+        /// <param name="storeType">Type of certificate store (Directory) <see cref="CertificateStoreType"/>.</param>
+        /// <param name="storePath">The store path (syntax depends on storeType).</param>
+        /// <param name="password">The password to use to protect the certificate.</param>
+        /// <param name="ct">The cancellation token.</param>
+        public static async Task<X509Certificate2> AddToStoreAsync(
+            this X509Certificate2 certificate,
+            string storeType,
+            string storePath,
+            string password = null,
+            CancellationToken ct = default)
+        {
+            // add cert to the store.
+            if (!String.IsNullOrEmpty(storePath) && !String.IsNullOrEmpty(storeType))
+            {
+                using (ICertificateStore store = Opc.Ua.CertificateStoreIdentifier.CreateStore(storeType))
+                {
+                    if (store == null)
+                    {
+                        throw new ArgumentException("Invalid store type");
+                    }
+
+                    store.Open(storePath, false);
+                    await store.Add(certificate, password).ConfigureAwait(false);
                     store.Close();
                 }
             }
