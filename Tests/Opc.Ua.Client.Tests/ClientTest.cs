@@ -1267,17 +1267,16 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(900)]
         public void TestTraceContextIsPropagated()
         {
-            using (var activity = TraceableSession.ActivitySource.StartActivity("Test_Activity"))
+            using (var activity = new Activity("TestActivity").Start())
             {
                 // Create a custom TraceContext using the current activity's context and an empty baggage (as an example).
                 var currentContext = new TraceableSession.TraceContext(activity.Context, new Dictionary<string, string>());
 
-                // Inject the current trace context
-                var traceData = new Dictionary<string, string>();
-                TraceableSession.InjectTraceContext(currentContext, traceData);
+                // Inject the current trace context into an AdditionalParametersType
+                TraceableSession.InjectTraceIntoAdditionalParameters(currentContext, out AdditionalParametersType parameters);
 
                 // Simulate extraction
-                var extractedContext = TraceableSession.ExtractTraceContext(traceData);
+                var extractedContext = TraceableSession.ExtractTraceContextFromParameters(parameters);
 
                 // Verify that the trace context is propagated.
                 Assert.AreEqual(Activity.Current.Context.TraceId, extractedContext.ActivityContext.TraceId);

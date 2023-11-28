@@ -51,15 +51,15 @@ namespace Opc.Ua.Client
         public TraceableSession(ISession session)
         {
             // Check if the given session is a SessionClient or its derivative
-            if (session is SessionClient sessionClient)
-            {
-                // Create the proxy around the sessionClient and assign to m_tracingClientProxy
-                m_tracingClientProxy = new TracingClientProxy(this, sessionClient);
+            //if (session is SessionClient sessionClient)
+            //{
+            //    // Create the proxy around the sessionClient and assign to m_tracingClientProxy
+            //    m_tracingClientProxy = new TracingClientProxy(this, sessionClient);
 
-                // Point m_session to the proxy so that future calls on m_session use the proxy
-                m_session = m_tracingClientProxy;
-            }
-            else
+            //    // Point m_session to the proxy so that future calls on m_session use the proxy
+            //    m_session = m_tracingClientProxy;
+            //}
+            //else
             {
                 m_session = session;
             }
@@ -78,7 +78,7 @@ namespace Opc.Ua.Client
         private static readonly Lazy<ActivitySource> s_activitySource = new Lazy<ActivitySource>(() => new ActivitySource(ActivitySourceName, "1.0.0"));
 
 
-        private TracingClientProxy m_tracingClientProxy;
+       // private TracingClientProxy m_tracingClientProxy;
 
         /// <summary>
         /// The ISession which is being traced.
@@ -318,107 +318,84 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Injects the current trace context into a user properties dictionary.
+        /// Populates AdditionalParameters with details from the TraceContext
         /// </summary>
-        public static void InjectTraceContext(TraceContext context, IDictionary<string, string> traceData)
+        public static void InjectTraceIntoAdditionalParameters(TraceContext context, out AdditionalParametersType traceData)
         {
+            traceData = new AdditionalParametersType();
+
             // Determine the trace flag based on the 'Recorded' status.
             string traceFlags = (context.ActivityContext.TraceFlags & ActivityTraceFlags.Recorded) != 0 ? "01" : "00";
 
             // Construct the traceparent header, adhering to the W3C Trace Context format.
             string traceparent = $"00-{context.ActivityContext.TraceId}-{context.ActivityContext.SpanId}-{traceFlags}";
-            traceData["traceparent"] = traceparent;
+            traceData.Parameters.Add(new KeyValuePair() { Key = "traceparent", Value = traceparent });
 
             // If baggage (tracestate) exists, include it as a single concatenated string.
             if (context.Baggage != null && context.Baggage.Count > 0)
             {
-                traceData["tracestate"] = string.Join(",", context.Baggage.Select(kv => $"{kv.Key}={kv.Value}"));
+                var tracestate = string.Join(",", context.Baggage.Select(kv => $"{kv.Key}={kv.Value}"));
+                traceData.Parameters.Add(new KeyValuePair() { Key = "tracestate", Value = tracestate });
             }
-
         }
 
         /// <summary>
         /// Extracts the trace and baggage details from the given dictionary
         /// </summary>
-        public static TraceContext ExtractTraceContext(IDictionary<string, string> traceData)
+        public static TraceContext ExtractTraceContextFromParameters(AdditionalParametersType parameters)
         {
-            // Attempt to retrieve the traceparent value.
-            if (!traceData.TryGetValue("traceparent", out var traceparentValue) || string.IsNullOrEmpty(traceparentValue))
+            if (parameters == null)
             {
-                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Failed to extract trace context");
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Parameters are null");
             }
 
-            // Split the traceparent value and validate.
-            var parts = traceparentValue.Split('-');
-            if (parts.Length != 4)
-            {
-                throw new ServiceResultException(StatusCodes.BadDecodingError, "Invalid traceparent format");
-            }
-
-            // Extract core trace identifiers.
-            var traceIdSpan = parts[1].AsSpan();
-            var spanIdSpan = parts[2].AsSpan();
-            var flagsValue = parts[3];
-
-            var traceId = ActivityTraceId.CreateFromString(traceIdSpan);
-            var spanId = ActivitySpanId.CreateFromString(spanIdSpan);
-            ActivityTraceFlags traceFlags = flagsValue == "01" ? ActivityTraceFlags.Recorded : ActivityTraceFlags.None;
-
-            var activityContext = new ActivityContext(
-                traceId,
-                spanId,
-                traceFlags
-            );
-
-            // Inline retrieval and parsing of baggage (tracestate).
+            ActivityTraceId traceId = default;
+            ActivitySpanId spanId = default;
+            ActivityTraceFlags traceFlags = ActivityTraceFlags.None;
             Dictionary<string, string> baggage = new Dictionary<string, string>();
-            if (traceData.TryGetValue("tracestate", out var tracestateValue) && !string.IsNullOrEmpty(tracestateValue))
+
+            foreach (var item in parameters.Parameters)
             {
-                var baggageItems = tracestateValue.Split(',');
-                foreach (var item in baggageItems)
+                if (item.Key == "traceparent")
                 {
-                    var keyValue = item.Split('=');
-                    if (keyValue.Length == 2)
+                    var parts = item.Value.ToString().Split('-');
+                    if (parts.Length != 4)
                     {
-                        baggage[keyValue[0].Trim()] = keyValue[1].Trim();
+                        throw new ServiceResultException(StatusCodes.BadDecodingError, "Invalid traceparent format");
+                    }
+                    traceId = ActivityTraceId.CreateFromString(parts[1].AsSpan());
+                    spanId = ActivitySpanId.CreateFromString(parts[2].AsSpan());
+                    traceFlags = parts[3] == "01" ? ActivityTraceFlags.Recorded : ActivityTraceFlags.None;
+                }
+                else if (item.Key == "tracestate")
+                {
+                    var baggageItems = item.Value.ToString().Split(',');
+                    foreach (var baggageItem in baggageItems)
+                    {
+                        var keyValue = baggageItem.Split('=');
+                        if (keyValue.Length == 2)
+                        {
+                            baggage[keyValue[0].Trim()] = keyValue[1].Trim();
+                        }
                     }
                 }
             }
 
+            if (traceId == default || spanId == default)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Failed to extract trace context");
+            }
+
+            var activityContext = new ActivityContext(traceId, spanId, traceFlags);
             return new TraceContext(activityContext, baggage);
         }
-
-
-        /// <summary>
-        /// Convert Trace Data to an Extension Object.
-        /// </summary>
-        internal ExtensionObject ConvertTraceDataToExtensionObject(Dictionary<string, string> traceData)
-        {
-            // Convert the dictionary into a key=value format.
-            string[] keyValuePairs = traceData.Select(kvp => $"{kvp.Key}={kvp.Value}").ToArray();
-            string traceDataString = string.Join(";", keyValuePairs);
-
-            using (MemoryStream memoryStream = new MemoryStream())
-            {
-                // Encode the trace data string into the memory stream.
-                BinaryEncoder encoder = new BinaryEncoder(memoryStream, m_session.MessageContext, false);
-                encoder.WriteString("TraceData", traceDataString);
-
-                // Return the encoded data as an ExtensionObject.
-                return new ExtensionObject {
-                    Body = memoryStream.ToArray()
-                };
-            }
-        }
-
-        //  private readonly TracingClientBase m_tracingClientBase;
 
         /// <summary>
         /// Tracing implementation of the ClientBase class.
         /// </summary>
         public class TracingClientProxy : ClientBase
         {
--           private readonly TraceableSession m_traceableSession;
+            private readonly TraceableSession m_traceableSession;
 
             /// <summary>
             /// Initialize TracingClientProxy
@@ -444,9 +421,8 @@ namespace Opc.Ua.Client
 
                 if (Activity.Current != null)
                 {
-                    var traceData = new Dictionary<string, string>();
-                    TraceableSession.InjectTraceContext(new TraceContext(Activity.Current.Context, new Dictionary<string, string>()), traceData);
-                    request.RequestHeader.AdditionalHeader = m_traceableSession.ConvertTraceDataToExtensionObject(traceData);
+                    TraceableSession.InjectTraceIntoAdditionalParameters(new TraceContext(Activity.Current.Context, new Dictionary<string, string>()), out AdditionalParametersType traceData);
+                    request.RequestHeader.AdditionalHeader = new ExtensionObject(traceData);
                 }
             }
 
@@ -457,9 +433,8 @@ namespace Opc.Ua.Client
 
                 if (Activity.Current != null)
                 {
-                    var traceData = new Dictionary<string, string>();
-                    TraceableSession.InjectTraceContext(new TraceContext(Activity.Current.Context, new Dictionary<string, string>()), traceData);
-                    request.RequestHeader.AdditionalHeader = m_traceableSession.ConvertTraceDataToExtensionObject(traceData);
+                    TraceableSession.InjectTraceIntoAdditionalParameters(new TraceContext(Activity.Current.Context, new Dictionary<string, string>()), out AdditionalParametersType traceData);
+                    request.RequestHeader.AdditionalHeader = new ExtensionObject(traceData);
                 }
             }
         }
