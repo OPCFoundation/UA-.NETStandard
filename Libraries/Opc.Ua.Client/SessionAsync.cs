@@ -1493,8 +1493,14 @@ namespace Opc.Ua.Client
             bool resetReconnect = false;
             try
             {
+                await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+                bool reconnecting = m_reconnecting;
+                m_reconnecting = true;
+                resetReconnect = true;
+                m_reconnectLock.Release();
+
                 // check if already connecting.
-                if (m_reconnecting)
+                if (reconnecting)
                 {
                     Utils.LogWarning("Session is already attempting to reconnect.");
 
@@ -1502,13 +1508,6 @@ namespace Opc.Ua.Client
                         StatusCodes.BadInvalidState,
                         "Session is already attempting to reconnect.");
                 }
-
-                Utils.LogInfo("Session RECONNECT {0} starting.", SessionId);
-
-                await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
-                m_reconnecting = true;
-                resetReconnect = true;
-                m_reconnectLock.Release();
 
                 IAsyncResult result = PrepareReconnectBeginActivate(
                     connection,

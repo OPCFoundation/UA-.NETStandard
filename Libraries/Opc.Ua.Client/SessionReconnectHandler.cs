@@ -418,7 +418,8 @@ namespace Opc.Ua.Client
                         }
 
                         // check if the security configuration may have changed
-                        if (sre.StatusCode == StatusCodes.BadSecurityChecksFailed)
+                        if (sre.StatusCode == StatusCodes.BadSecurityChecksFailed ||
+                            sre.StatusCode == StatusCodes.BadCertificateInvalid)
                         {
                             m_updateFromServer = true;
                             Utils.LogInfo("Reconnect failed due to security check. Request endpoint update from server. {0}", sre.Message);
@@ -494,7 +495,8 @@ namespace Opc.Ua.Client
             }
             catch (ServiceResultException sre)
             {
-                if (sre.InnerResult?.StatusCode == StatusCodes.BadSecurityChecksFailed)
+                if (sre.InnerResult?.StatusCode == StatusCodes.BadSecurityChecksFailed ||
+                    sre.InnerResult?.StatusCode == StatusCodes.BadCertificateInvalid)
                 {
                     // schedule endpoint update and retry
                     m_updateFromServer = true;

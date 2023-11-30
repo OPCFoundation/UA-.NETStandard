@@ -294,6 +294,9 @@ namespace Quickstarts
                         Utils.LogInfo("KeepAlive status {0}, reconnect status {1}.", e.Status, state);
                     }
 
+                    // cancel sending a new keep alive request, because reconnect is triggered.
+                    e.CancelKeepAlive = true;
+
                     return;
                 }
             }

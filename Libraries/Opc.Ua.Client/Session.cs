@@ -374,8 +374,7 @@ namespace Opc.Ua.Client
         {
             if (disposing)
             {
-                Utils.SilentDispose(m_keepAliveTimer);
-                m_keepAliveTimer = null;
+                StopKeepAliveTimer();
 
                 Utils.SilentDispose(m_defaultSubscription);
                 m_defaultSubscription = null;
@@ -1413,8 +1412,16 @@ namespace Opc.Ua.Client
             bool resetReconnect = false;
             try
             {
+                Utils.LogInfo("Session RECONNECT {0} starting.", SessionId);
+
+                m_reconnectLock.Wait();
+                bool reconnecting = m_reconnecting;
+                m_reconnecting = true;
+                resetReconnect = true;
+                m_reconnectLock.Release();
+
                 // check if already connecting.
-                if (m_reconnecting)
+                if (reconnecting)
                 {
                     Utils.LogWarning("Session is already attempting to reconnect.");
 
@@ -1422,13 +1429,6 @@ namespace Opc.Ua.Client
                         StatusCodes.BadInvalidState,
                         "Session is already attempting to reconnect.");
                 }
-
-                Utils.LogInfo("Session RECONNECT {0} starting.", SessionId);
-
-                m_reconnectLock.Wait();
-                m_reconnecting = true;
-                resetReconnect = true;
-                m_reconnectLock.Release();
 
                 IAsyncResult result = PrepareReconnectBeginActivate(
                     connection,
@@ -2955,7 +2955,7 @@ namespace Opc.Ua.Client
             if (obj is ISession session)
             {
                 if (!m_endpoint.Equals(session.Endpoint)) return false;
-                if (!m_sessionName.Equals(session.SessionName)) return false;
+                if (!m_sessionName.Equals(session.SessionName, StringComparison.Ordinal)) return false;
                 if (!SessionId.Equals(session.SessionId)) return false;
 
                 return true;
@@ -3009,8 +3009,7 @@ namespace Opc.Ua.Client
             StatusCode result = StatusCodes.Good;
 
             // stop the keep alive timer.
-            Utils.SilentDispose(m_keepAliveTimer);
-            m_keepAliveTimer = null;
+            StopKeepAliveTimer();
 
             // check if currectly connected.
             bool connected = Connected;
@@ -3745,8 +3744,7 @@ namespace Opc.Ua.Client
             // restart the publish timer.
             lock (SyncRoot)
             {
-                Utils.SilentDispose(m_keepAliveTimer);
-                m_keepAliveTimer = null;
+                StopKeepAliveTimer();
 
                 // start timer.
                 m_keepAliveTimer = new Timer(OnKeepAlive, nodesToRead, keepAliveInterval, keepAliveInterval);
@@ -3754,6 +3752,17 @@ namespace Opc.Ua.Client
 
             // send initial keep alive.
             OnKeepAlive(nodesToRead);
+        }
+
+        private void StopKeepAliveTimer()
+        {
+            Utils.SilentDispose(m_keepAliveTimer);
+            m_keepAliveTimer = null;
+        }
+
+        private void ReportKeepAliveTimer([CallerMemberName] string callerName = default)
+        {
+            Utils.LogInfo("*******  Session {0}: Keep alive timer {1}, called by [{2}].", SessionId, m_keepAliveTimer != null ? "enabled" : "disabled", callerName);
         }
 
         /// <summary>
@@ -5057,6 +5066,8 @@ namespace Opc.Ua.Client
                     case StatusCodes.BadSessionIdInvalid:
                     case StatusCodes.BadSecureChannelIdInvalid:
                     case StatusCodes.BadSecureChannelClosed:
+                    case StatusCodes.BadSecurityChecksFailed:
+                    case StatusCodes.BadCertificateInvalid:
                     case StatusCodes.BadServerHalted:
                         return;
 
@@ -5449,11 +5460,12 @@ namespace Opc.Ua.Client
             ITransportChannel transportChannel
             )
         {
+            Utils.LogInfo("Session RECONNECT {0} starting.", SessionId);
+
             lock (SyncRoot)
             {
                 // stop keep alives.
-                Utils.SilentDispose(m_keepAliveTimer);
-                m_keepAliveTimer = null;
+                StopKeepAliveTimer();
             }
 
             // create the client signature.
