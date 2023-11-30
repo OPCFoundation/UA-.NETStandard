@@ -489,7 +489,8 @@ namespace Opc.Ua.Client
 
                     session = await m_session.SessionFactory.RecreateAsync(m_session).ConfigureAwait(false);
                 }
-                m_session.Dispose();
+                // note: the template session is not connected at this point
+                //       and must be disposed by the owner
                 m_session = session;
                 return true;
             }
