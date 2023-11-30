@@ -12,6 +12,18 @@ namespace Opc.Ua.Gds.Tests
     [Parallelizable]
     public class CertificateGroupTests
     {
+
+        private string _path;
+
+        public CertificateGroupTests()
+        {
+            _path = Utils.ReplaceSpecialFolderNames("%LocalApplicationData%/OPC/GDS/Teststore");
+        }
+
+        public void Dispose()
+        {
+            Directory.Delete(_path, true);
+        }
         #region Test Methods
 
         [Test]
@@ -19,8 +31,7 @@ namespace Opc.Ua.Gds.Tests
         {
             var configuration = new CertificateGroupConfiguration();
             configuration.SubjectName = "CN=GDS Test CA, O=OPC Foundation";
-            string path = Utils.ReplaceSpecialFolderNames("%LocalApplicationData%/OPC/GDS/Teststore");
-            var certificateGroup = new CertificateGroup().Create(path, configuration);
+            var certificateGroup = new CertificateGroup().Create(_path, configuration);
             Assert.That(() => certificateGroup.CreateCACertificateAsync("This is not the ValidSubjectName for my CertificateGroup"), Throws.TypeOf<ArgumentException>());
         }
 
@@ -29,8 +40,7 @@ namespace Opc.Ua.Gds.Tests
         {
             var configuration = new CertificateGroupConfiguration();
             configuration.SubjectName = "CN=GDS Test CA, O=OPC Foundation";
-            string path = Utils.ReplaceSpecialFolderNames("%LocalApplicationData%/OPC/GDS/Teststore");
-            var certificateGroup = new CertificateGroup().Create(path, configuration);
+            var certificateGroup = new CertificateGroup().Create(_path, configuration);
             var certificate = await certificateGroup.CreateCACertificateAsync(configuration.SubjectName).ConfigureAwait(false);
             Assert.NotNull(certificate);
             using (ICertificateStore trustedStore = CertificateStoreIdentifier.OpenStore(configuration.TrustedListPath))
@@ -38,7 +48,6 @@ namespace Opc.Ua.Gds.Tests
                 X509Certificate2Collection certs = await trustedStore.FindByThumbprint(certificate.Thumbprint).ConfigureAwait(false);
                 Assert.IsTrue(certs.Count == 1);
             }
-            Directory.Delete(path, true);
         }
         #endregion
     }
