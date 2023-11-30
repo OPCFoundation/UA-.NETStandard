@@ -48,7 +48,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
     }
 
     [Serializable]
-    public class LinQUsersDatabase : IUsersDatabase, IPasswordHasher
+    public class LinQUsersDatabase : IUsersDatabase
     {
         #region IUsersDatabase
         public virtual void Initialize()
@@ -57,13 +57,13 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         public bool CreateUser(string userName, string password, GdsRole role)
         {
-            if (userName == null|| userName == string.Empty)
+            if (string.IsNullOrEmpty(userName))
             {
-                throw new ArgumentNullException(nameof(userName));
+                throw new ArgumentException("UserName cannot be empty.", nameof(userName));
             }
-            if (password == null || password == string.Empty)
+            if (string.IsNullOrEmpty(password))
             {
-                throw new ArgumentNullException(nameof(password));
+                throw new ArgumentException("Password cannot be empty.", nameof(password));
             }
             if (//User Exists
                 Users.SingleOrDefault(x => x.UserName == userName) != null)
@@ -84,9 +84,9 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         public bool DeleteUser(string userName)
         {
-            if (userName == null || userName == string.Empty)
+            if (string.IsNullOrEmpty(userName))
             {
-                throw new ArgumentNullException(nameof(userName));
+                throw new ArgumentException("UserName cannot be empty.", nameof(userName));
             }
 
             var user = Users.SingleOrDefault(x => x.UserName == userName);
@@ -101,13 +101,13 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         public bool CheckCredentials(string userName, string password)
         {
-            if (userName == null || userName == string.Empty)
+            if (string.IsNullOrEmpty(userName))
             {
-                throw new ArgumentNullException(nameof(userName));
+                throw new ArgumentException("UserName cannot be empty.", nameof(userName));
             }
-            if (password == null || password == string.Empty)
+            if (string.IsNullOrEmpty(password))
             {
-                throw new ArgumentNullException(nameof(password));
+                throw new ArgumentException("Password cannot be empty.", nameof(password));
             }
 
             var user = Users.SingleOrDefault(x => x.UserName == userName);
@@ -122,9 +122,9 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         public GdsRole GetUserRole(string userName)
         {
-            if (userName == null || userName == string.Empty)
+            if (string.IsNullOrEmpty(userName))
             {
-                throw new ArgumentNullException(nameof(userName));
+                throw new ArgumentException("UserName cannot be empty.", nameof(userName));
             }
             var user = Users.SingleOrDefault(x => x.UserName == userName);
 
@@ -138,17 +138,17 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         public bool ChangePassword(string userName, string oldPassword, string newPassword)
         {
-            if (userName == null || userName == string.Empty)
+            if (string.IsNullOrEmpty(userName))
             {
-                throw new ArgumentNullException(nameof(userName));
+                throw new ArgumentException("UserName cannot be empty.", nameof(userName));
             }
-            if (oldPassword == null || oldPassword == string.Empty)
+            if (string.IsNullOrEmpty(oldPassword))
             {
-                throw new ArgumentNullException(nameof(oldPassword));
+                throw new ArgumentException("Current Password cannot be empty.", nameof(oldPassword));
             }
-            if (newPassword == null || newPassword == string.Empty)
+            if (string.IsNullOrEmpty(newPassword))
             {
-                throw new ArgumentNullException(nameof(newPassword));
+                throw new ArgumentException("New Password cannot be empty.", nameof(newPassword));
             }
 
             var user = Users.SingleOrDefault(x => x.UserName == userName);
@@ -160,7 +160,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             if (Check(user.Hash, oldPassword))
             {
-
+                var newHash = Hash(newPassword);
+                user.Hash = newHash;
                 return true;
             }
             return false;
@@ -196,7 +197,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         #endregion
 
         #region IPasswordHasher
-        public string Hash(string password)
+        private string Hash(string password)
         {
 #if NETSTANDARD2_0
             using (var algorithm = new Rfc2898DeriveBytes(
@@ -219,7 +220,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             }
         }
 
-        public bool Check(string hash, string password)
+        private bool Check(string hash, string password)
         {
             var separator = new Char[] { '.' };
             var parts = hash.Split(separator, 3);
@@ -282,5 +283,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         internal ICollection<User> Users = new HashSet<User>();
         #endregion
     }
+
+
 }
 

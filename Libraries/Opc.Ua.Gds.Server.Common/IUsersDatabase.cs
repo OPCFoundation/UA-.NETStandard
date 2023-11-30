@@ -78,22 +78,4 @@ namespace Opc.Ua.Gds.Server.Database
         /// <returns>true if change was sucessfull</returns>
         bool ChangePassword(string userName, string oldPassword, string newPassword);
     }
-
-    public interface IPasswordHasher
-    {
-        /// <summary>
-        /// hash cleartext Password
-        /// </summary>
-        /// <param name="password">cleartext password</param>
-        /// <returns>the hashed password</returns>
-        string Hash(string password);
-
-        /// <summary>
-        /// Check if the password machtes the provided hash
-        /// </summary>
-        /// <param name="hash">the hash to check agianst</param>
-        /// <param name="password">the cleartext password</param>
-        /// <returns>true if correct</returns>
-        bool Check(string hash, string password);
-    }
 }
