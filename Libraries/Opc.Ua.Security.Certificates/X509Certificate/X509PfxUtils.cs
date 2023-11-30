@@ -174,8 +174,8 @@ namespace Opc.Ua.Security.Certificates
             byte[] testBlock = new byte[TestBlockSize];
             var rnd = new Random();
             rnd.NextBytes(testBlock);
-            byte[] encryptedBlock = rsaPublicKey.Encrypt(testBlock, RSAEncryptionPadding.OaepSHA1);
-            byte[] decryptedBlock = rsaPrivateKey.Decrypt(encryptedBlock, RSAEncryptionPadding.OaepSHA1);
+            byte[] encryptedBlock = rsaPublicKey.Encrypt(testBlock, RSAEncryptionPadding.OaepSHA256);
+            byte[] decryptedBlock = rsaPrivateKey.Decrypt(encryptedBlock, RSAEncryptionPadding.OaepSHA256);
             if (decryptedBlock != null)
             {
                 return testBlock.SequenceEqual(decryptedBlock);
@@ -193,8 +193,8 @@ namespace Opc.Ua.Security.Certificates
             byte[] testBlock = new byte[TestBlockSize];
             var rnd = new Random();
             rnd.NextBytes(testBlock);
-            byte[] signature = rsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
-            return rsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
+            byte[] signature = rsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            return rsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         }
 
 #if ECC_SUPPORT
