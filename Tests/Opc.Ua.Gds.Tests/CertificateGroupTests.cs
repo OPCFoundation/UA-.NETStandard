@@ -19,7 +19,8 @@ namespace Opc.Ua.Gds.Tests
         {
             var configuration = new CertificateGroupConfiguration();
             configuration.SubjectName = "CN=GDS Test CA, O=OPC Foundation";
-            string path = Path.Combine(Path.GetTempPath(), "TestStore");
+            string basePath = Utils.ReplaceSpecialFolderNames("%LocalApplicationData%/OPC/GDS/");
+            string path = Path.Combine(basePath, "TestStore");
             var certificateGroup = new CertificateGroup().Create(path, configuration);
             Assert.That(() => certificateGroup.CreateCACertificateAsync("This is not the ValidSubjectName for my CertificateGroup"), Throws.TypeOf<ArgumentException>());
         }
@@ -29,7 +30,8 @@ namespace Opc.Ua.Gds.Tests
         {
             var configuration = new CertificateGroupConfiguration();
             configuration.SubjectName = "CN=GDS Test CA, O=OPC Foundation";
-            string path = Path.Combine(Path.GetTempPath(), "./TestStore");
+            string basePath = Utils.ReplaceSpecialFolderNames("%LocalApplicationData%/OPC/GDS/");
+            string path = Path.Combine(basePath, "TestStore");
             var certificateGroup = new CertificateGroup().Create(path, configuration);
             var certificate = await certificateGroup.CreateCACertificateAsync(configuration.SubjectName).ConfigureAwait(false);
             Assert.NotNull(certificate);
