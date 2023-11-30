@@ -3754,15 +3754,13 @@ namespace Opc.Ua.Client
             OnKeepAlive(nodesToRead);
         }
 
+        /// <summary>
+        /// Stops the keep alive timer.
+        /// </summary>
         private void StopKeepAliveTimer()
         {
             Utils.SilentDispose(m_keepAliveTimer);
             m_keepAliveTimer = null;
-        }
-
-        private void ReportKeepAliveTimer([CallerMemberName] string callerName = default)
-        {
-            Utils.LogInfo("*******  Session {0}: Keep alive timer {1}, called by [{2}].", SessionId, m_keepAliveTimer != null ? "enabled" : "disabled", callerName);
         }
 
         /// <summary>
