@@ -175,27 +175,27 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Recreates a session based on a specified template.
         /// </summary>
-        /// <param name="template">The ISession object to use as template</param>
+        /// <param name="sessionTemplate">The ISession object to use as template</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
-        Task<ISession> RecreateAsync(ISession template, CancellationToken ct = default);
+        Task<ISession> RecreateAsync(ISession sessionTemplate, CancellationToken ct = default);
 
         /// <summary>
         /// Recreates a session based on a specified template.
         /// </summary>
-        /// <param name="template">The ISession object to use as template</param>
+        /// <param name="sessionTemplate">The ISession object to use as template</param>
         /// <param name="connection">The waiting reverse connection.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
-        Task<ISession> RecreateAsync(ISession template, ITransportWaitingConnection connection, CancellationToken ct = default);
+        Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportWaitingConnection connection, CancellationToken ct = default);
 
         /// <summary>
         /// Recreates a session based on a specified template using the provided channel.
         /// </summary>
-        /// <param name="template">The Session object to use as template</param>
+        /// <param name="sessionTemplate">The Session object to use as template</param>
         /// <param name="transportChannel">The channel to use to recreate the session.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
-        Task<ISession> RecreateAsync(ISession template, ITransportChannel transportChannel, CancellationToken ct = default);
+        Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportChannel transportChannel, CancellationToken ct = default);
     }
 }

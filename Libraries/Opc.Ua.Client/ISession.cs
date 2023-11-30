@@ -314,6 +314,23 @@ namespace Opc.Ua.Client
         /// </summary>
         void Reconnect(ITransportChannel channel);
 
+#if (CLIENT_ASYNC)
+        /// <summary>
+        /// Reconnects to the server after a network failure.
+        /// </summary>
+        Task ReconnectAsync(CancellationToken ct = default);
+
+        /// <summary>
+        /// Reconnects to the server after a network failure using a waiting connection.
+        /// </summary>
+        Task ReconnectAsync(ITransportWaitingConnection connection, CancellationToken ct = default);
+
+        /// <summary>
+        /// Reconnects to the server using a new channel.
+        /// </summary>
+        Task ReconnectAsync(ITransportChannel channel, CancellationToken ct = default);
+#endif
+
         /// <summary>
         /// Saves all the subscriptions of the session.
         /// </summary>
@@ -934,6 +951,11 @@ namespace Opc.Ua.Client
         bool ResendData(IEnumerable<Subscription> subscriptions, out IList<ServiceResult> errors);
 
 #if CLIENT_ASYNC
+        /// <summary>
+        /// Sends a republish request.
+        /// </summary>
+        Task<bool> RepublishAsync(uint subscriptionId, uint sequenceNumber, CancellationToken ct = default);
+
         /// <summary>
         /// Call the ResendData method on the server for all subscriptions.
         /// </summary>

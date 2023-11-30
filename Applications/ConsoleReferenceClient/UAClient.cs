@@ -99,7 +99,7 @@ namespace Quickstarts
         /// <summary>
         /// The reconnect period to be used in ms.
         /// </summary>
-        public int ReconnectPeriod { get; set; } = 5000;
+        public int ReconnectPeriod { get; set; } = 1000;
 
         /// <summary>
         /// The reconnect period exponential backoff to be used in ms.
@@ -293,6 +293,9 @@ namespace Quickstarts
                     {
                         Utils.LogInfo("KeepAlive status {0}, reconnect status {1}.", e.Status, state);
                     }
+
+                    // cancel sending a new keep alive request, because reconnect is triggered.
+                    e.CancelKeepAlive = true;
 
                     return;
                 }

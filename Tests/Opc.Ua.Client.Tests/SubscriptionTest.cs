@@ -589,7 +589,14 @@ namespace Opc.Ua.Client.Tests
             };
 
             // activate the session from saved sesson secrets on the new channel
-            session2.Reconnect(channel2);
+            if (asyncTest)
+            {
+                await session2.ReconnectAsync(channel2).ConfigureAwait(false);
+            }
+            else
+            {
+                session2.Reconnect(channel2);
+            }
 
             // reactivate restored subscriptions
             if (asyncTest)
@@ -621,22 +628,23 @@ namespace Opc.Ua.Client.Tests
             for (ii = 0; ii < kTestSubscriptions; ii++)
             {
                 var monitoredItemCount = restoredSubscriptions[ii].MonitoredItemCount;
+                string errorText = $"Error in test subscription {ii}";
 
                 // the static subscription doesn't resend data until there is a data change
                 if (ii == 0 && !sendInitialValues)
                 {
-                    Assert.AreEqual(0, targetSubscriptionCounters[ii]);
-                    Assert.AreEqual(0, targetSubscriptionFastDataCounters[ii]);
+                    Assert.AreEqual(0, targetSubscriptionCounters[ii], errorText);
+                    Assert.AreEqual(0, targetSubscriptionFastDataCounters[ii], errorText);
                 }
                 else if (ii == 0)
                 {
-                    Assert.AreEqual(10, targetSubscriptionCounters[ii]);
-                    Assert.AreEqual(1, targetSubscriptionFastDataCounters[ii]);
+                    Assert.AreEqual(10, targetSubscriptionCounters[ii], errorText);
+                    Assert.AreEqual(1, targetSubscriptionFastDataCounters[ii], errorText);
                 }
                 else
                 {
-                    Assert.LessOrEqual(monitoredItemCount, targetSubscriptionCounters[ii]);
-                    Assert.LessOrEqual(1, targetSubscriptionFastDataCounters[ii]);
+                    Assert.LessOrEqual(monitoredItemCount, targetSubscriptionCounters[ii], errorText);
+                    Assert.LessOrEqual(1, targetSubscriptionFastDataCounters[ii], errorText);
                 }
             }
 

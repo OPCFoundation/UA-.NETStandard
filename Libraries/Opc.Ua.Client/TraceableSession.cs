@@ -317,6 +317,33 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        public async Task ReconnectAsync(CancellationToken ct = default)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(ReconnectAsync)))
+            {
+                await m_session.ReconnectAsync(ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task ReconnectAsync(ITransportWaitingConnection connection, CancellationToken ct = default)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(ReconnectAsync)))
+            {
+                await m_session.ReconnectAsync(connection, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task ReconnectAsync(ITransportChannel channel, CancellationToken ct = default)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(ReconnectAsync)))
+            {
+                await m_session.ReconnectAsync(channel, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
         public void Save(string filePath, IEnumerable<Type> knownTypes = null)
         {
             using (Activity activity = ActivitySource.StartActivity(nameof(Save)))
@@ -902,6 +929,15 @@ namespace Opc.Ua.Client
             using (Activity activity = ActivitySource.StartActivity(nameof(Republish)))
             {
                 return m_session.Republish(subscriptionId, sequenceNumber);
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<bool> RepublishAsync(uint subscriptionId, uint sequenceNumber, CancellationToken ct = default)
+        {
+            using (Activity activity = ActivitySource.StartActivity(nameof(RepublishAsync)))
+            {
+                return await m_session.RepublishAsync(subscriptionId, sequenceNumber, ct).ConfigureAwait(false);
             }
         }
 
