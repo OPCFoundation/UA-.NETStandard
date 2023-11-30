@@ -174,8 +174,8 @@ namespace Opc.Ua.Security.Certificates
             byte[] testBlock = new byte[TestBlockSize];
             var rnd = new Random();
             rnd.NextBytes(testBlock);
-            byte[] encryptedBlock = rsaPublicKey.Encrypt(testBlock, RSAEncryptionPadding.OaepSHA256);
-            byte[] decryptedBlock = rsaPrivateKey.Decrypt(encryptedBlock, RSAEncryptionPadding.OaepSHA256);
+            byte[] encryptedBlock = rsaPublicKey.Encrypt(testBlock, RSAEncryptionPadding.OaepSHA1);
+            byte[] decryptedBlock = rsaPrivateKey.Decrypt(encryptedBlock, RSAEncryptionPadding.OaepSHA1);
             if (decryptedBlock != null)
             {
                 return testBlock.SequenceEqual(decryptedBlock);
