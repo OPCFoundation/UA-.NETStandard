@@ -198,7 +198,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private int m_maxStringLength;
         private int m_maxByteStringLength;
         private int m_maxArrayLength;

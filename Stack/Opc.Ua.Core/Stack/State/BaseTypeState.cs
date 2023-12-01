@@ -43,9 +43,7 @@ namespace Opc.Ua
         /// </summary>
         protected override void Initialize(ISystemContext context, NodeState source)
         {
-            BaseTypeState type = source as BaseTypeState;
-
-            if (type != null)
+            if (source is BaseTypeState type)
             {
                 m_superTypeId = type.m_superTypeId;
                 m_isAbstract = type.m_isAbstract;
@@ -270,17 +268,17 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="decoder">The decoder.</param>
-        /// <param name="attibutesToLoad">The attributes to load.</param>
-        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attibutesToLoad)
+        /// <param name="attributesToLoad">The attributes to load.</param>
+        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attributesToLoad)
         {
-            base.Update(context, decoder, attibutesToLoad);
+            base.Update(context, decoder, attributesToLoad);
 
-            if ((attibutesToLoad & AttributesToSave.SuperTypeId) != 0)
+            if ((attributesToLoad & AttributesToSave.SuperTypeId) != 0)
             {
                 m_superTypeId = decoder.ReadNodeId(null);
             }
 
-            if ((attibutesToLoad & AttributesToSave.IsAbstract) != 0)
+            if ((attributesToLoad & AttributesToSave.IsAbstract) != 0)
             {
                 m_isAbstract = decoder.ReadBoolean(null);
             }

@@ -146,7 +146,7 @@ namespace Opc.Ua.Client.Controls
         #endregion
 
         #region Private Fields
-        private static object m_lock = new object();
+        private static readonly object m_lock = new object();
         private static string m_format = null;
         private static object m_data = null;
         private static Exception m_error = null;

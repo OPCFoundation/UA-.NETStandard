@@ -44,7 +44,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Manages a session with a server.
     /// </summary>
-    public partial class Session : SessionClientBatched, ISession, IDisposable
+    public partial class Session : SessionClientBatched, ISession
     {
         #region Constructors
         /// <summary>
@@ -137,7 +137,7 @@ namespace Opc.Ua.Client
 
             foreach (Subscription subscription in template.Subscriptions)
             {
-                AddSubscription(new Subscription(subscription, copyEventHandlers));
+                AddSubscription(subscription.CloneSubscription(copyEventHandlers));
             }
         }
         #endregion
@@ -374,8 +374,7 @@ namespace Opc.Ua.Client
         {
             if (disposing)
             {
-                Utils.SilentDispose(m_keepAliveTimer);
-                m_keepAliveTimer = null;
+                StopKeepAliveTimer();
 
                 Utils.SilentDispose(m_defaultSubscription);
                 m_defaultSubscription = null;
@@ -923,7 +922,6 @@ namespace Opc.Ua.Client
         /// <param name="clientCertificate">The certificate to use for the client.</param>
         /// <param name="availableEndpoints">The list of available endpoints returned by server in GetEndpoints() response.</param>
         /// <param name="discoveryProfileUris">The value of profileUris used in GetEndpoints() request.</param>
-        /// <returns></returns>
         public static Session Create(
            ApplicationConfiguration configuration,
            ITransportChannel channel,
@@ -932,7 +930,30 @@ namespace Opc.Ua.Client
            EndpointDescriptionCollection availableEndpoints = null,
            StringCollection discoveryProfileUris = null)
         {
-            return new Session(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
+            return Create(DefaultSessionFactory.Instance, configuration, channel, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
+        }
+
+        /// <summary>
+        /// Creates a new session with a server using the specified channel by invoking the CreateSession service.
+        /// With the sessionInstantiator subclasses of Sessions can be created.
+        /// </summary>
+        /// <param name="sessionInstantiator">The Session constructor to use to create the session.</param>
+        /// <param name="configuration">The configuration for the client application.</param>
+        /// <param name="channel">The channel for the server.</param>
+        /// <param name="endpoint">The endpoint for the server.</param>
+        /// <param name="clientCertificate">The certificate to use for the client.</param>
+        /// <param name="availableEndpoints">The list of available endpoints returned by server in GetEndpoints() response.</param>
+        /// <param name="discoveryProfileUris">The value of profileUris used in GetEndpoints() request.</param>
+        public static Session Create(
+            ISessionInstantiator sessionInstantiator,
+            ApplicationConfiguration configuration,
+            ITransportChannel channel,
+            ConfiguredEndpoint endpoint,
+            X509Certificate2 clientCertificate,
+            EndpointDescriptionCollection availableEndpoints = null,
+            StringCollection discoveryProfileUris = null)
+        {
+            return sessionInstantiator.Create(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
         }
 
         /// <summary>
@@ -1036,7 +1057,38 @@ namespace Opc.Ua.Client
         /// <param name="preferredLocales">The preferred locales.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
+        public static Task<Session> Create(
+            ApplicationConfiguration configuration,
+            ITransportWaitingConnection connection,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales,
+            CancellationToken ct = default)
+        {
+            return Create(DefaultSessionFactory.Instance, configuration, connection, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, identity, preferredLocales, ct);
+        }
+
+        /// <summary>
+        /// Creates a new communication session with a server using a reverse connection.
+        /// </summary>
+        /// <param name="sessionInstantiator">The Session constructor to use to create the session.</param>
+        /// <param name="configuration">The configuration for the client application.</param>
+        /// <param name="connection">The client endpoint for the reverse connect.</param>
+        /// <param name="endpoint">The endpoint for the server.</param>
+        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
+        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="sessionName">The name to assign to the session.</param>
+        /// <param name="sessionTimeout">The timeout period for the session.</param>
+        /// <param name="identity">The user identity to associate with the session.</param>
+        /// <param name="preferredLocales">The preferred locales.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The new session object.</returns>
         public static async Task<Session> Create(
+            ISessionInstantiator sessionInstantiator,
             ApplicationConfiguration configuration,
             ITransportWaitingConnection connection,
             ConfiguredEndpoint endpoint,
@@ -1052,7 +1104,7 @@ namespace Opc.Ua.Client
             ITransportChannel channel = await Session.CreateChannelAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain, ct).ConfigureAwait(false);
 
             // create the session object.
-            Session session = new Session(channel, configuration, endpoint, null);
+            Session session = sessionInstantiator.Create(channel, configuration, endpoint, null);
 
             // create the session.
             try
@@ -1082,7 +1134,39 @@ namespace Opc.Ua.Client
         /// <param name="preferredLocales">The preferred locales.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
+        public static Task<Session> Create(
+            ApplicationConfiguration configuration,
+            ReverseConnectManager reverseConnectManager,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity userIdentity,
+            IList<string> preferredLocales,
+            CancellationToken ct = default
+            )
+        {
+            return Create(DefaultSessionFactory.Instance, configuration, reverseConnectManager, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales, ct);
+        }
+
+        /// <summary>
+        /// Creates a new communication session with a server using a reverse connect manager.
+        /// </summary>
+        /// <param name="sessionInstantiator">The Session constructor to use to create the session.</param>
+        /// <param name="configuration">The configuration for the client application.</param>
+        /// <param name="reverseConnectManager">The reverse connect manager for the client connection.</param>
+        /// <param name="endpoint">The endpoint for the server.</param>
+        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
+        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="sessionName">The name to assign to the session.</param>
+        /// <param name="sessionTimeout">The timeout period for the session.</param>
+        /// <param name="userIdentity">The user identity to associate with the session.</param>
+        /// <param name="preferredLocales">The preferred locales.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The new session object.</returns>
         public static async Task<Session> Create(
+            ISessionInstantiator sessionInstantiator,
             ApplicationConfiguration configuration,
             ReverseConnectManager reverseConnectManager,
             ConfiguredEndpoint endpoint,
@@ -1097,7 +1181,7 @@ namespace Opc.Ua.Client
         {
             if (reverseConnectManager == null)
             {
-                return await Create(configuration, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales, ct).ConfigureAwait(false);
+                return await Create(sessionInstantiator, configuration, (ITransportWaitingConnection)null, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales, ct).ConfigureAwait(false);
             }
 
             ITransportWaitingConnection connection = null;
@@ -1121,6 +1205,7 @@ namespace Opc.Ua.Client
             } while (connection == null);
 
             return await Create(
+                sessionInstantiator,
                 configuration,
                 connection,
                 endpoint,
@@ -1154,7 +1239,7 @@ namespace Opc.Ua.Client
                 messageContext);
 
             // create the session object.
-            Session session = new Session(channel, template, true);
+            Session session = template.CloneSession(channel, true);
 
             try
             {
@@ -1200,7 +1285,7 @@ namespace Opc.Ua.Client
                 messageContext);
 
             // create the session object.
-            Session session = new Session(channel, template, true);
+            Session session = template.CloneSession(channel, true);
 
             try
             {
@@ -1235,7 +1320,7 @@ namespace Opc.Ua.Client
             messageContext.Factory = template.Factory;
 
             // create the session object.
-            Session session = new Session(transportChannel, template, true);
+            Session session = template.CloneSession(transportChannel, true);
 
             try
             {
@@ -1300,9 +1385,7 @@ namespace Opc.Ua.Client
                 XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
                 using (XmlWriter writer = XmlWriter.Create(stream, settings))
                 {
-                    DataContractSerializer serializer = new DataContractSerializer(typeof(SessionConfiguration),
-                        new[] { typeof(UserIdentityToken), typeof(AnonymousIdentityToken), typeof(X509IdentityToken),
-                        typeof(IssuedIdentityToken), typeof(UserIdentity) });
+                    DataContractSerializer serializer = new DataContractSerializer(typeof(SessionConfiguration));
                     serializer.WriteObject(writer, sessionConfiguration);
                 }
             }
@@ -1311,9 +1394,7 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public void Reconnect()
-        {
-            Reconnect(null, null);
-        }
+            => Reconnect(null, null);
 
         /// <inheritdoc/>
         public void Reconnect(ITransportWaitingConnection connection)
@@ -1331,8 +1412,16 @@ namespace Opc.Ua.Client
             bool resetReconnect = false;
             try
             {
+                Utils.LogInfo("Session RECONNECT {0} starting.", SessionId);
+
+                m_reconnectLock.Wait();
+                bool reconnecting = m_reconnecting;
+                m_reconnecting = true;
+                resetReconnect = true;
+                m_reconnectLock.Release();
+
                 // check if already connecting.
-                if (m_reconnecting)
+                if (reconnecting)
                 {
                     Utils.LogWarning("Session is already attempting to reconnect.");
 
@@ -1341,144 +1430,19 @@ namespace Opc.Ua.Client
                         "Session is already attempting to reconnect.");
                 }
 
-                Utils.LogInfo("Session RECONNECT starting.");
+                IAsyncResult result = PrepareReconnectBeginActivate(
+                    connection,
+                    transportChannel);
 
-                m_reconnectLock.Wait();
-                m_reconnecting = true;
-                resetReconnect = true;
-                m_reconnectLock.Release();
-
-                lock (SyncRoot)
+                if (!result.AsyncWaitHandle.WaitOne(kReconnectTimeout / 2))
                 {
-                    // stop keep alives.
-                    Utils.SilentDispose(m_keepAliveTimer);
-                    m_keepAliveTimer = null;
-                }
-
-                // create the client signature.
-                byte[] dataToSign = Utils.Append(m_serverCertificate != null ? m_serverCertificate.RawData : null, m_serverNonce);
-                EndpointDescription endpoint = m_endpoint.Description;
-                SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, endpoint.SecurityPolicyUri, dataToSign);
-
-                // check that the user identity is supported by the endpoint.
-                UserTokenPolicy identityPolicy = endpoint.FindUserTokenPolicy(m_identity.TokenType, m_identity.IssuedTokenType);
-
-                if (identityPolicy == null)
-                {
-                    Utils.LogError("Reconnect: Endpoint does not support the user identity type provided.");
-
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadUserAccessDenied,
-                        "Endpoint does not support the user identity type provided.");
-                }
-
-                // select the security policy for the user token.
-                string securityPolicyUri = identityPolicy.SecurityPolicyUri;
-
-                if (String.IsNullOrEmpty(securityPolicyUri))
-                {
-                    securityPolicyUri = endpoint.SecurityPolicyUri;
-                }
-
-                // need to refresh the identity (reprompt for password, refresh token).
-                if (m_RenewUserIdentity != null)
-                {
-                    m_identity = m_RenewUserIdentity(this, m_identity);
-                }
-
-                // validate server nonce and security parameters for user identity.
-                ValidateServerNonce(
-                    m_identity,
-                    m_serverNonce,
-                    securityPolicyUri,
-                    m_previousServerNonce,
-                    m_endpoint.Description.SecurityMode);
-
-                // sign data with user token.
-                UserIdentityToken identityToken = m_identity.GetIdentityToken();
-                identityToken.PolicyId = identityPolicy.PolicyId;
-                SignatureData userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
-
-                // encrypt token.
-                identityToken.Encrypt(m_serverCertificate, m_serverNonce, securityPolicyUri);
-
-                // send the software certificates assigned to the client.
-                SignedSoftwareCertificateCollection clientSoftwareCertificates = GetSoftwareCertificates();
-
-                Utils.LogInfo("Session REPLACING channel.");
-
-                if (connection != null)
-                {
-                    // check if the channel supports reconnect.
-                    if ((TransportChannel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
-                    {
-                        TransportChannel.Reconnect(connection);
-                    }
-                    else
-                    {
-                        // initialize the channel which will be created with the server.
-                        ITransportChannel channel = SessionChannel.Create(
-                            m_configuration,
-                            connection,
-                            m_endpoint.Description,
-                            m_endpoint.Configuration,
-                            m_instanceCertificate,
-                            m_configuration.SecurityConfiguration.SendCertificateChain ? m_instanceCertificateChain : null,
-                            MessageContext);
-
-                        // disposes the existing channel.
-                        TransportChannel = channel;
-                    }
-                }
-                else if (transportChannel != null)
-                {
-                    TransportChannel = transportChannel;
-                }
-                else
-                {
-                    // check if the channel supports reconnect.
-                    if (TransportChannel != null && (TransportChannel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
-                    {
-                        TransportChannel.Reconnect();
-                    }
-                    else
-                    {
-                        // initialize the channel which will be created with the server.
-                        ITransportChannel channel = SessionChannel.Create(
-                            m_configuration,
-                            m_endpoint.Description,
-                            m_endpoint.Configuration,
-                            m_instanceCertificate,
-                            m_configuration.SecurityConfiguration.SendCertificateChain ? m_instanceCertificateChain : null,
-                            MessageContext);
-
-                        // disposes the existing channel.
-                        TransportChannel = channel;
-                    }
+                    Utils.LogWarning("WARNING: ACTIVATE SESSION timed out. {0}/{1}", GoodPublishRequestCount, OutstandingRequestCount);
                 }
 
                 // reactivate session.
                 byte[] serverNonce = null;
                 StatusCodeCollection certificateResults = null;
                 DiagnosticInfoCollection certificateDiagnosticInfos = null;
-
-                Utils.LogInfo("Session RE-ACTIVATING session.");
-
-                RequestHeader header = new RequestHeader() { TimeoutHint = kReconnectTimeout };
-                IAsyncResult result = BeginActivateSession(
-                    header,
-                    clientSignature,
-                    null,
-                    m_preferredLocales,
-                    new ExtensionObject(identityToken),
-                    userTokenSignature,
-                    null,
-                    null);
-
-                if (!result.AsyncWaitHandle.WaitOne(kReconnectTimeout / 2))
-                {
-                    Utils.LogWarning("WARNING: ACTIVATE SESSION timed out. {0}/{1}", GoodPublishRequestCount, OutstandingRequestCount);
-                }
 
                 EndActivateSession(
                     result,
@@ -1488,9 +1452,10 @@ namespace Opc.Ua.Client
 
                 int publishCount = 0;
 
+                Utils.LogInfo("Session RECONNECT {0} completed successfully.", SessionId);
+
                 lock (SyncRoot)
                 {
-                    Utils.LogInfo("Session RECONNECT completed successfully.");
                     m_previousServerNonce = m_serverNonce;
                     m_serverNonce = serverNonce;
                     publishCount = GetMinPublishRequestCount(true);
@@ -1523,35 +1488,35 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public void Save(string filePath)
+        public void Save(string filePath, IEnumerable<Type> knownTypes = null)
         {
-            Save(filePath, Subscriptions);
+            Save(filePath, Subscriptions, knownTypes);
         }
 
         /// <inheritdoc/>
-        public void Save(Stream stream, IEnumerable<Subscription> subscriptions)
+        public void Save(Stream stream, IEnumerable<Subscription> subscriptions, IEnumerable<Type> knownTypes = null)
         {
             SubscriptionCollection subscriptionList = new SubscriptionCollection(subscriptions);
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
 
             using (XmlWriter writer = XmlWriter.Create(stream, settings))
             {
-                DataContractSerializer serializer = new DataContractSerializer(typeof(SubscriptionCollection));
+                DataContractSerializer serializer = new DataContractSerializer(typeof(SubscriptionCollection), knownTypes);
                 serializer.WriteObject(writer, subscriptionList);
             }
         }
 
         /// <inheritdoc/>
-        public void Save(string filePath, IEnumerable<Subscription> subscriptions)
+        public void Save(string filePath, IEnumerable<Subscription> subscriptions, IEnumerable<Type> knownTypes = null)
         {
             using (FileStream stream = new FileStream(filePath, FileMode.Create))
             {
-                Save(stream, subscriptions);
+                Save(stream, subscriptions, knownTypes);
             }
         }
 
         /// <inheritdoc/>
-        public IEnumerable<Subscription> Load(Stream stream, bool transferSubscriptions = false)
+        public IEnumerable<Subscription> Load(Stream stream, bool transferSubscriptions = false, IEnumerable<Type> knownTypes = null)
         {
             // secure settings
             XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
@@ -1559,7 +1524,7 @@ namespace Opc.Ua.Client
 
             using (XmlReader reader = XmlReader.Create(stream, settings))
             {
-                DataContractSerializer serializer = new DataContractSerializer(typeof(SubscriptionCollection));
+                DataContractSerializer serializer = new DataContractSerializer(typeof(SubscriptionCollection), knownTypes);
                 SubscriptionCollection subscriptions = (SubscriptionCollection)serializer.ReadObject(reader);
                 foreach (Subscription subscription in subscriptions)
                 {
@@ -1579,11 +1544,11 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public IEnumerable<Subscription> Load(string filePath, bool transferSubscriptions = false)
+        public IEnumerable<Subscription> Load(string filePath, bool transferSubscriptions = false, IEnumerable<Type> knownTypes = null)
         {
             using (FileStream stream = File.OpenRead(filePath))
             {
-                return Load(stream, transferSubscriptions);
+                return Load(stream, transferSubscriptions, knownTypes);
             }
         }
 
@@ -1873,7 +1838,11 @@ namespace Opc.Ua.Client
             {
                 if (StatusCode.IsNotBad(errors[ii].StatusCode))
                 {
-                    namespaces[((NodeId)referenceNodeIds[ii])] = (string)nameSpaceValues[ii];
+                    // servers may optimize space by not returning a dictionary
+                    if (nameSpaceValues[ii] != null)
+                    {
+                        namespaces[((NodeId)referenceNodeIds[ii])] = (string)nameSpaceValues[ii];
+                    }
                 }
                 else
                 {
@@ -2977,6 +2946,38 @@ namespace Opc.Ua.Client
                 }
             }
         }
+
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(this, obj)) return true;
+
+            if (obj is ISession session)
+            {
+                if (!m_endpoint.Equals(session.Endpoint)) return false;
+                if (!m_sessionName.Equals(session.SessionName, StringComparison.Ordinal)) return false;
+                if (!SessionId.Equals(session.SessionId)) return false;
+
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(m_endpoint, m_sessionName, SessionId);
+        }
+
+        /// <summary>
+        /// An overrideable version of a session clone which is used
+        /// internally to create new subclassed clones from a Session class.
+        /// </summary>
+        public virtual Session CloneSession(ITransportChannel channel, bool copyEventHandlers)
+        {
+            return new Session(channel, this, copyEventHandlers);
+        }
         #endregion
 
         #region Close Methods
@@ -3008,8 +3009,7 @@ namespace Opc.Ua.Client
             StatusCode result = StatusCodes.Good;
 
             // stop the keep alive timer.
-            Utils.SilentDispose(m_keepAliveTimer);
-            m_keepAliveTimer = null;
+            StopKeepAliveTimer();
 
             // check if currectly connected.
             bool connected = Connected;
@@ -3054,9 +3054,9 @@ namespace Opc.Ua.Client
                 {
                     // dont throw errors on disconnect, but return them
                     // so the caller can log the error.
-                    if (e is ServiceResultException)
+                    if (e is ServiceResultException sre)
                     {
-                        result = ((ServiceResultException)e).StatusCode;
+                        result = sre.StatusCode;
                     }
                     else
                     {
@@ -3744,8 +3744,7 @@ namespace Opc.Ua.Client
             // restart the publish timer.
             lock (SyncRoot)
             {
-                Utils.SilentDispose(m_keepAliveTimer);
-                m_keepAliveTimer = null;
+                StopKeepAliveTimer();
 
                 // start timer.
                 m_keepAliveTimer = new Timer(OnKeepAlive, nodesToRead, keepAliveInterval, keepAliveInterval);
@@ -3753,6 +3752,15 @@ namespace Opc.Ua.Client
 
             // send initial keep alive.
             OnKeepAlive(nodesToRead);
+        }
+
+        /// <summary>
+        /// Stops the keep alive timer.
+        /// </summary>
+        private void StopKeepAliveTimer()
+        {
+            Utils.SilentDispose(m_keepAliveTimer);
+            m_keepAliveTimer = null;
         }
 
         /// <summary>
@@ -5056,6 +5064,8 @@ namespace Opc.Ua.Client
                     case StatusCodes.BadSessionIdInvalid:
                     case StatusCodes.BadSecureChannelIdInvalid:
                     case StatusCodes.BadSecureChannelClosed:
+                    case StatusCodes.BadSecurityChecksFailed:
+                    case StatusCodes.BadCertificateInvalid:
                     case StatusCodes.BadServerHalted:
                         return;
 
@@ -5121,59 +5131,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                ServiceResult error = new ServiceResult(e);
-
-                bool result = true;
-                switch (error.StatusCode.Code)
-                {
-                    case StatusCodes.BadMessageNotAvailable:
-                        Utils.LogWarning("Message {0}-{1} no longer available.", subscriptionId, sequenceNumber);
-                        break;
-                    // if encoding limits are exceeded, the issue is logged and
-                    // the published data is acknowledged to prevent the endless republish loop.
-                    case StatusCodes.BadEncodingLimitsExceeded:
-                        Utils.LogError(e, "Message {0}-{1} exceeded size limits, ignored.", subscriptionId, sequenceNumber);
-                        var ack = new SubscriptionAcknowledgement {
-                            SubscriptionId = subscriptionId,
-                            SequenceNumber = sequenceNumber
-                        };
-                        lock (SyncRoot)
-                        {
-                            m_acknowledgementsToSend.Add(ack);
-                        }
-                        break;
-                    default:
-                        result = false;
-                        Utils.LogError(e, "Unexpected error sending republish request.");
-                        break;
-                }
-
-                PublishErrorEventHandler callback = null;
-
-                lock (m_eventLock)
-                {
-                    callback = m_PublishError;
-                }
-
-                // raise an error event.
-                if (callback != null)
-                {
-                    try
-                    {
-                        PublishErrorEventArgs args = new PublishErrorEventArgs(
-                            error,
-                            subscriptionId,
-                            sequenceNumber);
-
-                        callback(this, args);
-                    }
-                    catch (Exception e2)
-                    {
-                        Utils.LogError(e2, "Session: Unexpected error invoking PublishErrorCallback.");
-                    }
-                }
-
-                return result;
+                return ProcessRepublishResponseError(e, subscriptionId, sequenceNumber);
             }
         }
 
@@ -5492,6 +5450,204 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Helper to prepare the reconnect channel
+        /// and signature data before activate.
+        /// </summary>
+        private IAsyncResult PrepareReconnectBeginActivate(
+            ITransportWaitingConnection connection,
+            ITransportChannel transportChannel
+            )
+        {
+            Utils.LogInfo("Session RECONNECT {0} starting.", SessionId);
+
+            lock (SyncRoot)
+            {
+                // stop keep alives.
+                StopKeepAliveTimer();
+            }
+
+            // create the client signature.
+            byte[] dataToSign = Utils.Append(m_serverCertificate != null ? m_serverCertificate.RawData : null, m_serverNonce);
+            EndpointDescription endpoint = m_endpoint.Description;
+            SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, endpoint.SecurityPolicyUri, dataToSign);
+
+            // check that the user identity is supported by the endpoint.
+            UserTokenPolicy identityPolicy = endpoint.FindUserTokenPolicy(m_identity.TokenType, m_identity.IssuedTokenType);
+
+            if (identityPolicy == null)
+            {
+                Utils.LogError("Reconnect: Endpoint does not support the user identity type provided.");
+
+                throw ServiceResultException.Create(
+                    StatusCodes.BadUserAccessDenied,
+                    "Endpoint does not support the user identity type provided.");
+            }
+
+            // select the security policy for the user token.
+            string securityPolicyUri = identityPolicy.SecurityPolicyUri;
+
+            if (String.IsNullOrEmpty(securityPolicyUri))
+            {
+                securityPolicyUri = endpoint.SecurityPolicyUri;
+            }
+
+            // need to refresh the identity (reprompt for password, refresh token).
+            if (m_RenewUserIdentity != null)
+            {
+                m_identity = m_RenewUserIdentity(this, m_identity);
+            }
+
+            // validate server nonce and security parameters for user identity.
+            ValidateServerNonce(
+                m_identity,
+                m_serverNonce,
+                securityPolicyUri,
+                m_previousServerNonce,
+                m_endpoint.Description.SecurityMode);
+
+            // sign data with user token.
+            UserIdentityToken identityToken = m_identity.GetIdentityToken();
+            identityToken.PolicyId = identityPolicy.PolicyId;
+            SignatureData userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
+
+            // encrypt token.
+            identityToken.Encrypt(m_serverCertificate, m_serverNonce, securityPolicyUri);
+
+            // send the software certificates assigned to the client.
+            SignedSoftwareCertificateCollection clientSoftwareCertificates = GetSoftwareCertificates();
+
+            Utils.LogInfo("Session REPLACING channel for {0}.", SessionId);
+
+            if (connection != null)
+            {
+                // check if the channel supports reconnect.
+                if ((TransportChannel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
+                {
+                    TransportChannel.Reconnect(connection);
+                }
+                else
+                {
+                    // initialize the channel which will be created with the server.
+                    ITransportChannel channel = SessionChannel.Create(
+                        m_configuration,
+                        connection,
+                        m_endpoint.Description,
+                        m_endpoint.Configuration,
+                        m_instanceCertificate,
+                        m_configuration.SecurityConfiguration.SendCertificateChain ? m_instanceCertificateChain : null,
+                        MessageContext);
+
+                    // disposes the existing channel.
+                    TransportChannel = channel;
+                }
+            }
+            else if (transportChannel != null)
+            {
+                TransportChannel = transportChannel;
+            }
+            else
+            {
+                // check if the channel supports reconnect.
+                if (TransportChannel != null && (TransportChannel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
+                {
+                    TransportChannel.Reconnect();
+                }
+                else
+                {
+                    // initialize the channel which will be created with the server.
+                    ITransportChannel channel = SessionChannel.Create(
+                        m_configuration,
+                        m_endpoint.Description,
+                        m_endpoint.Configuration,
+                        m_instanceCertificate,
+                        m_configuration.SecurityConfiguration.SendCertificateChain ? m_instanceCertificateChain : null,
+                        MessageContext);
+
+                    // disposes the existing channel.
+                    TransportChannel = channel;
+                }
+            }
+
+            Utils.LogInfo("Session RE-ACTIVATING {0}.", SessionId);
+
+            RequestHeader header = new RequestHeader() { TimeoutHint = kReconnectTimeout };
+            return BeginActivateSession(
+                header,
+                clientSignature,
+                null,
+                m_preferredLocales,
+                new ExtensionObject(identityToken),
+                userTokenSignature,
+                null,
+                null);
+        }
+
+        /// <summary>
+        /// Process Republish error response.
+        /// </summary>
+        /// <param name="e">The exception that occurred during the republish operation.</param>
+        /// <param name="subscriptionId">The subscription Id for which the republish was requested. </param>
+        /// <param name="sequenceNumber">The sequencenumber for which the republish was requested.</param>
+        private bool ProcessRepublishResponseError(Exception e, uint subscriptionId, uint sequenceNumber)
+        {
+
+            ServiceResult error = new ServiceResult(e);
+
+            bool result = true;
+            switch (error.StatusCode.Code)
+            {
+                case StatusCodes.BadMessageNotAvailable:
+                    Utils.LogWarning("Message {0}-{1} no longer available.", subscriptionId, sequenceNumber);
+                    break;
+
+                // if encoding limits are exceeded, the issue is logged and
+                // the published data is acknowledged to prevent the endless republish loop.
+                case StatusCodes.BadEncodingLimitsExceeded:
+                    Utils.LogError(e, "Message {0}-{1} exceeded size limits, ignored.", subscriptionId, sequenceNumber);
+                    var ack = new SubscriptionAcknowledgement {
+                        SubscriptionId = subscriptionId,
+                        SequenceNumber = sequenceNumber
+                    };
+                    lock (SyncRoot)
+                    {
+                        m_acknowledgementsToSend.Add(ack);
+                    }
+                    break;
+                default:
+                    result = false;
+                    Utils.LogError(e, "Unexpected error sending republish request.");
+                    break;
+            }
+
+            PublishErrorEventHandler callback = null;
+
+            lock (m_eventLock)
+            {
+                callback = m_PublishError;
+            }
+
+            // raise an error event.
+            if (callback != null)
+            {
+                try
+                {
+                    PublishErrorEventArgs args = new PublishErrorEventArgs(
+                        error,
+                        subscriptionId,
+                        sequenceNumber);
+
+                    callback(this, args);
+                }
+                catch (Exception e2)
+                {
+                    Utils.LogError(e2, "Session: Unexpected error invoking PublishErrorCallback.");
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
         /// Handles the validation of server software certificates and application callback.
         /// </summary>
         private void HandleSignedSoftwareCertificates(SignedSoftwareCertificateCollection serverSoftwareCertificates)
@@ -5646,13 +5802,13 @@ namespace Opc.Ua.Client
                 // Validate publish time and reject old values.
                 if (notificationMessage.PublishTime.AddMilliseconds(subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount) < DateTime.UtcNow)
                 {
-                    Utils.LogWarning("PublishTime {0} in publish response is too old for SubscriptionId {1}.", notificationMessage.PublishTime.ToLocalTime(), subscription.Id);
+                    Utils.LogTrace("PublishTime {0} in publish response is too old for SubscriptionId {1}.", notificationMessage.PublishTime.ToLocalTime(), subscription.Id);
                 }
 
                 // Validate publish time and reject old values.
                 if (notificationMessage.PublishTime > DateTime.UtcNow.AddMilliseconds(subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount))
                 {
-                    Utils.LogWarning("PublishTime {0} in publish response is newer than actual time for SubscriptionId {1}.", notificationMessage.PublishTime.ToLocalTime(), subscription.Id);
+                    Utils.LogTrace("PublishTime {0} in publish response is newer than actual time for SubscriptionId {1}.", notificationMessage.PublishTime.ToLocalTime(), subscription.Id);
                 }
 
                 // update subscription cache.

@@ -466,7 +466,7 @@ namespace Quickstarts
                         }
                         else
                         {
-                            nodeDictionary[node.NodeId] = node; ;
+                            nodeDictionary[node.NodeId] = node;
                         }
                     }
                     else

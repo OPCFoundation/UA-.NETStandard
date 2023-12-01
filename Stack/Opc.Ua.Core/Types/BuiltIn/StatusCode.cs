@@ -119,9 +119,7 @@ namespace Opc.Ua
         /// <param name="e">The exception to convert to a status code</param>
         public StatusCode(Exception e, uint defaultCode)
         {
-            ServiceResultException sre = e as ServiceResultException;
-
-            if (sre != null)
+            if (e is ServiceResultException sre)
             {
                 m_code = sre.StatusCode;
             }

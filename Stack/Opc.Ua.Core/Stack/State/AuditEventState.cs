@@ -32,8 +32,8 @@ namespace Opc.Ua
         /// <param name="status">Whether the operation that caused the event succeeded.</param>
         /// <param name="actionTimestamp">When the operation started.</param>
         public virtual void Initialize(
-            ISystemContext context, 
-            NodeState source, 
+            ISystemContext context,
+            NodeState source,
             EventSeverity severity,
             LocalizedText message,
             bool status,

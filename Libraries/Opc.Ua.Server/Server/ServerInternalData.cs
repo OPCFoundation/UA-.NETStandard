@@ -876,7 +876,7 @@ namespace Opc.Ua.Server
         private SessionManager m_sessionManager;
         private SubscriptionManager m_subscriptionManager;
 
-        private object m_dataLock = new object();
+        private readonly object m_dataLock = new object();
         private ServerObjectState m_serverObject;
         private ServerStatusValue m_serverStatus;
         private bool m_auditing;

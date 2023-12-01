@@ -678,7 +678,7 @@ namespace MemoryBuffer
         #endregion
 
         #region Private Fields
-        private object m_dataLock = new object();
+        private readonly object m_dataLock = new object();
         private IServerInternal m_server;
         private INodeManager m_nodeManager;
         private MemoryBufferMonitoredItem[][] m_monitoringTable;

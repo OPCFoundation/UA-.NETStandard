@@ -324,3 +324,13 @@ dotnet_diagnostic.IDE0049.severity                                            = 
 # CA1507: Use nameof in place of string
 dotnet_diagnostic.CA1507.severity                                             = warning
 
+# exclude generated code
+[**/Generated/*.cs]
+generated_code = true
+dotnet_diagnostic.severity = none
+dotnet_analyzer.severity = none
+
+[*.{Classes,DataTypes,Constants}.cs]
+generated_code = true
+dotnet_diagnostic.severity = none
+dotnet_analyzer.severity = none

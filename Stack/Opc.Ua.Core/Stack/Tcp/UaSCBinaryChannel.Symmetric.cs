@@ -277,9 +277,8 @@ namespace Opc.Ua.Bindings
                     maxPayloadSize);
 
                 // check for encodeable body.
-                IEncodeable encodeable = messageBody as IEncodeable;
 
-                if (encodeable != null)
+                if (messageBody is IEncodeable encodeable)
                 {
                     // debug code used to verify that message aborts are handled correctly.
                     // int maxMessageSize = Quotas.MessageContext.MaxMessageSize;
