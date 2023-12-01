@@ -31,7 +31,6 @@ jobs:
   variables:
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
-    CustomTestTarget: ${{ parameters.customtestarget }}
   pool:
     vmImage: $(poolImage)
   steps:
@@ -64,6 +63,8 @@ jobs:
   - task: DotNetCoreCLI@2
     displayName: Restore ${{ parameters.configuration }}
     inputs:
+      env: 
+        CustomTestTarget: ${{ parameters.customtestarget }}
       command: restore
       projects: '**/*.Tests.csproj'
       arguments: '--configuration ${{ parameters.configuration }}'
@@ -71,6 +72,8 @@ jobs:
     displayName: Test ${{ parameters.configuration }}
     timeoutInMinutes: 45
     inputs:
+      env: 
+        CustomTestTarget: ${{ parameters.customtestarget }}
       command: test
       projects: '**/*.Tests.csproj'
       arguments: '--no-restore --configuration ${{ parameters.configuration }}'
