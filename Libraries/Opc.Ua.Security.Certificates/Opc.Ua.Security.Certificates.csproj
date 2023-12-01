@@ -15,29 +15,27 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
-    <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
-  </PropertyGroup>
+  <Choose>
+    <When Condition="'$(TargetFramework)' == 'net462'">
+      <ItemGroup>
+        <PackageReference Include="BouncyCastle.Cryptography" Version="2.2.1" />
+      </ItemGroup>
+    </When>
+    <When Condition="'$(TargetFramework)' == 'netstandard2.0'">
+      <ItemGroup>
+        <PackageReference Include="BouncyCastle.Cryptography" Version="2.2.1" />
+      </ItemGroup>
+    </When>
+    <Otherwise>
+      <PropertyGroup>
+        <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
+      </PropertyGroup>
+      <ItemGroup>
+        <PackageReference Include="System.Security.Cryptography.Cng" Version="5.0.0" />
+      </ItemGroup>
+    </Otherwise>
+  </Choose>
 
-  <PropertyGroup Condition="'$(TargetFramework)' == 'net472'">
-    <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(TargetFramework)' == 'net48'">
-    <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
-  </PropertyGroup>
-  
-  <PropertyGroup Condition="'$(TargetFramework)' == 'net5.0'">
-    <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
-  </PropertyGroup>
-  
-  <PropertyGroup Condition="'$(TargetFramework)' == 'net6.0'">
-    <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0'">
-    <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
-  </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
@@ -50,19 +48,12 @@
   <ItemGroup>
     <PackageReference Include="System.Formats.Asn1" Version="6.0.0" />
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
-    <PackageReference Include="BouncyCastle.Cryptography" Version="2.2.1" />
-  </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.2.1" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
-    <PackageReference Include="BouncyCastle.Cryptography" Version="2.2.1" />
-  </ItemGroup>
-  
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.2.1" />
   </ItemGroup>
 
