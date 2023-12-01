@@ -9,9 +9,6 @@ schedules:
     include:
     - master
   always: true
-  variables:
-    FullBuild: true
-    ScheduledBuild: true
 
 trigger:
   batch: 'true'
