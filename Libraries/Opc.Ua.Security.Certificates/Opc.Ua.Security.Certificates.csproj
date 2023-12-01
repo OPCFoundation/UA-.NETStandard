@@ -36,7 +36,6 @@
     </Otherwise>
   </Choose>
 
-
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
@@ -56,7 +55,6 @@
   <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.2.1" />
   </ItemGroup>
-
 
   <Target Name="GetPackagingOutputs" />
 
