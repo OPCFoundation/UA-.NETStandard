@@ -100,22 +100,22 @@ stages:
       configuration: Debug
       jobnamesuffix: net60debug
 - stage: testnet80
-  dependsOn: [build]
+  dependsOn: # [build]
   displayName: 'Test Core and SDK .NET 8.0'
   condition: # and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
-  - template: .azurepipelines/test.yml
+  - template: .azurepipelines/customtest.yml
     parameters:
       framework: net8.0
       configuration: Release
       jobnamesuffix: net80
       customtestarget: net80
 - stage: testnet462
-  dependsOn: [build]
+  dependsOn: # [build]
   displayName: 'Test Core and SDK .NET 4.6.2'
   condition: # and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
-  - template: .azurepipelines/test.yml
+  - template: .azurepipelines/customtest.yml
     parameters:
       framework: net462
       configuration: Release
@@ -123,11 +123,11 @@ stages:
       agents: '@{ windows = "windows-2022" }'
       customtestarget: net462
 - stage: testnetstandard20
-  dependsOn: [build]
+  dependsOn: # [build]
   displayName: 'Test Core and SDK .NET Standard 2.0'
   condition: # and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
-  - template: .azurepipelines/test.yml
+  - template: .azurepipelines/customtest.yml
     parameters:
       framework: net48
       configuration: Release
@@ -135,11 +135,11 @@ stages:
       agents: '@{ windows = "windows-2022" }'
       customtestarget: netstandard2.0
 - stage: testnetstandard21
-  dependsOn: [build]
+  dependsOn: # [build]
   displayName: 'Test Core and SDK .NET Standard 2.1'
   condition: # and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
-  - template: .azurepipelines/test.yml
+  - template: .azurepipelines/customtest.yml
     parameters:
       framework: net6.0
       configuration: Release

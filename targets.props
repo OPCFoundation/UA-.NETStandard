@@ -43,6 +43,17 @@
         <HttpsTargetFrameworks>netstandard2.1</HttpsTargetFrameworks>
       </PropertyGroup>
     </When>
+    <When  Condition="'$(CustomTestTarget)' == 'net48'">
+      <PropertyGroup>
+        <AnalysisLevel>preview-all</AnalysisLevel>
+        <AppTargetFrameworks>net48</AppTargetFrameworks>
+        <AppTargetFramework>net48</AppTargetFramework>
+        <TestsTargetFrameworks>net48</TestsTargetFrameworks>
+        <LibTargetFrameworks>net48</LibTargetFrameworks>
+        <LibxTargetFrameworks>net48</LibxTargetFrameworks>
+        <HttpsTargetFrameworks>net48</HttpsTargetFrameworks>
+      </PropertyGroup>
+    </When>
     <When  Condition="'$(CustomTestTarget)' == 'net6.0'">
       <PropertyGroup>
         <AnalysisLevel>preview-all</AnalysisLevel>
