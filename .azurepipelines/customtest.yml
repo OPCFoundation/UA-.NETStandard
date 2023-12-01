@@ -66,11 +66,11 @@ jobs:
     inputs:
       command: restore
       projects: '**/*.Tests.csproj'
-      arguments: '--configuration ${{ parameters.configuration }}'
+      arguments: '--configuration ${{ parameters.configuration }} /p:CustomTestTarget=${{ parameters.customtestarget }}'
   - task: DotNetCoreCLI@2
     displayName: Test ${{ parameters.configuration }}
     timeoutInMinutes: 45
     inputs:
       command: test
       projects: '**/*.Tests.csproj'
-      arguments: '--no-restore --configuration ${{ parameters.configuration }}'
+      arguments: '--no-restore --configuration ${{ parameters.configuration }} /p:CustomTestTarget=${{ parameters.customtestarget }}'
