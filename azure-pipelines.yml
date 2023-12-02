@@ -109,7 +109,7 @@ stages:
       framework: net8.0
       configuration: Release
       jobnamesuffix: net80
-      customtestarget: net80
+      customtestarget: net8.0
 - stage: testnet462
   dependsOn: # [build]
   displayName: 'Test Core and SDK .NET 4.6.2'
