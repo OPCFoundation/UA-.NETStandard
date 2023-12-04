@@ -96,7 +96,7 @@ stages:
   displayName: 'Test .NET 8.0'
   condition: # and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
-  - template: .azurepipelines/customtest.yml
+  - template: .azurepipelines/test.yml
     parameters:
       framework: net8.0
       configuration: Release
@@ -107,7 +107,7 @@ stages:
   displayName: 'Test .NET 4.6.2'
   condition: # and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
-  - template: .azurepipelines/customtest.yml
+  - template: .azurepipelines/test.yml
     parameters:
       framework: net462
       configuration: Release
@@ -119,7 +119,7 @@ stages:
   displayName: 'Test .NETStandard 2.0'
   condition: # and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
-  - template: .azurepipelines/customtest.yml
+  - template: .azurepipelines/test.yml
     parameters:
       framework: net6.0
       configuration: Release
@@ -130,20 +130,21 @@ stages:
   displayName: 'Test .NETStandard 2.1'
   condition: # and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
-  - template: .azurepipelines/customtest.yml
+  - template: .azurepipelines/test.yml
     parameters:
       framework: net6.0
       configuration: Release
       jobnamesuffix: netstandard21
       customtestarget: netstandard2.1
 - stage: coverage
-  dependsOn: [testdebug,testrelease]
+  dependsOn: # [testdebug,testrelease]
   displayName: 'Code Coverage'
-  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
+  condition: # and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
   - template: .azurepipelines/testcc.yml
     parameters:
       configuration: Release
       poolImage: 'ubuntu-22.04'
-      framework: net6.0
+      framework: net8.0
       jobnamesuffix: net60cc
+      customtestarget: net8.0
