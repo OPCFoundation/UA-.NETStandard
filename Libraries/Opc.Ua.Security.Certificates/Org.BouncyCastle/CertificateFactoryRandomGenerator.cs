@@ -58,6 +58,11 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             m_prg.Dispose();
         }
 
+#if NETCOREAPP2_1_OR_GREATER || NETSTANDARD2_0_OR_GREATER
+        /// <summary>Add more seed material to the generator. Not needed here.</summary>
+        public void AddSeedMaterial(ReadOnlySpan<byte> seed) { }
+#endif
+
         /// <summary>Add more seed material to the generator. Not needed here.</summary>
         public void AddSeedMaterial(byte[] seed) { }
 
@@ -73,6 +78,19 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         {
             m_prg.GetBytes(bytes);
         }
+
+#if NETCOREAPP2_1_OR_GREATER || NETSTANDARD2_0_OR_GREATER
+        /// <inheritdoc/>
+        public void NextBytes(Span<byte> bytes)
+        {
+            byte[] temp = new byte[bytes.Length];
+            m_prg.GetBytes(temp);
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                bytes[i] = temp[i];
+            }
+        }
+#endif
 
         /// <summary>
         /// Fills an array of bytes with a cryptographically strong
