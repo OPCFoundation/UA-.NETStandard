@@ -1,7 +1,7 @@
-﻿FROM mcr.microsoft.com/dotnet/runtime:6.0-bullseye-slim AS base
+﻿FROM mcr.microsoft.com/dotnet/runtime:8.0-bookworm-slim AS base
 WORKDIR /app
 
-FROM mcr.microsoft.com/dotnet/sdk:6.0-bullseye-slim AS build
+FROM mcr.microsoft.com/dotnet/sdk:8.0-bookworm-slim AS build
 WORKDIR /src
 
 # copy csproj and restore as distinct layers
@@ -19,7 +19,7 @@ WORKDIR "/src/Applications/ConsoleReferenceServer"
 ARG Version
 ARG SimpleVersion
 ARG InformationalVersion
-ENV OPTIONS="-c Release -f net6.0 -p:NoHttps=true -p:Dockerbuild=true -p:Version=${Version} -p:AssemblyVersion=${SimpleVersion} -p:FileVersion=${Version} -p:InformationalVersion=${InformationalVersion}"
+ENV OPTIONS="-c Release -f net8.0 -p:NoHttps=true -p:Dockerbuild=true -p:Version=${Version} -p:AssemblyVersion=${SimpleVersion} -p:FileVersion=${Version} -p:InformationalVersion=${InformationalVersion}"
 
 FROM build AS publish
 RUN dotnet publish "ConsoleReferenceServer.csproj" --no-restore ${OPTIONS} -o /app/publish 

@@ -38,10 +38,10 @@ jobs:
       with:
         fetch-depth: 0
         
-    - name: Set up .NET 6
+    - name: Set up .NET 8
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: '6.x'
+        dotnet-version: '8.x'
         
     - name: Set Version
       shell: pwsh
