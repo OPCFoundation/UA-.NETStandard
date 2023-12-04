@@ -39,7 +39,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
-#if NETCOREAPP2_1
+#if NETCOREAPP2_1 || !ECC_SUPPORT
 using X509SignatureGenerator = Opc.Ua.Security.Certificates.X509SignatureGenerator;
 #endif
 
@@ -777,7 +777,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
-#if NETCOREAPP3_1_OR_GREATER
+#if NETCOREAPP3_1_OR_GREATER && ECC_SUPPORT
         /// <summary>
         /// Verify the PEM Writer, no password.
         /// </summary>

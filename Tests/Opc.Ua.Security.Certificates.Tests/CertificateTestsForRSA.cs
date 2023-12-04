@@ -500,7 +500,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 password = null;
 #endif
                 PEMWriter.ExportPrivateKeyAsPEM(certificate, password);
-#if NETCOREAPP3_1_OR_GREATER
+#if NETCOREAPP3_1_OR_GREATER && ECC_SUPPORT
                 PEMWriter.ExportRSAPrivateKeyAsPEM(certificate);
 #endif
             }

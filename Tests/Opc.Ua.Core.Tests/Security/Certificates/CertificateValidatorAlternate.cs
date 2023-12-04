@@ -40,6 +40,9 @@ using EmbedIO;
 using EmbedIO.Actions;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
+#if !ECC_SUPPORT
+using X509SignatureGenerator = Opc.Ua.Security.Certificates.X509SignatureGenerator;
+#endif
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
