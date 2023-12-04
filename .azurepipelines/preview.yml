@@ -69,7 +69,7 @@ jobs:
     inputs:
       command: restore
       projects: 'UA Core Library.sln'
-      arguments: '--configuration ${{parameters.config}}'
+      restoreArguments: '--configuration ${{parameters.config}}'
   - task: DotNetCoreCLI@2
     displayName: Build ${{parameters.config}}
     inputs:
