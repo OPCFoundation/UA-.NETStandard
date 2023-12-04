@@ -197,7 +197,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var ski = m_rootCert.Extensions.OfType<X509SubjectKeyIdentifierExtension>().Single();
 
             // create a certificate with special key info
-            X509Extension authorityKeyIdentifier = new X509AuthorityKeyIdentifierExtension(
+            var authorityKeyIdentifier = new Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension(
                     (byte[])(subjectKeyIdentifier ? ski.SubjectKeyIdentifier.FromHexString() : null),
                     (X500DistinguishedName)(issuerName ? m_rootCert.IssuerName : null),
                     (byte[])(serialNumber ? m_rootCert.GetSerialNumber() : null));
@@ -262,7 +262,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var ski = m_rootAltCert.Extensions.OfType<X509SubjectKeyIdentifierExtension>().Single();
 
             // create a certificate with special key info / no key id
-            X509Extension authorityKeyIdentifier = new X509AuthorityKeyIdentifierExtension(
+            var authorityKeyIdentifier = new Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension(
                     (byte[])(subjectKeyIdentifier ? ski.SubjectKeyIdentifier.FromHexString() : null),
                     (X500DistinguishedName)(issuerName ? m_rootAltCert.IssuerName : null),
                     (byte[])(serialNumber ? m_rootAltCert.GetSerialNumber() : null));

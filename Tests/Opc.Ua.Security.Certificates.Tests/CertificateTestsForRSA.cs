@@ -84,9 +84,9 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void VerifyOneSelfSignedAppCertForAll()
         {
             var builder = CertificateBuilder.Create(Subject)
-                .SetNotBefore(DateTime.Today.AddYears(-1))
-                .SetNotAfter(DateTime.Today.AddYears(25))
-                .AddExtension(new X509SubjectAltNameExtension("urn:opcfoundation.org:mypc", new string[] { "mypc", "mypc.opcfoundation.org", "192.168.1.100" }));
+                            .SetNotBefore(DateTime.Today.AddYears(-1))
+                            .SetNotAfter(DateTime.Today.AddYears(25))
+                            .AddExtension(new X509SubjectAltNameExtension("urn:opcfoundation.org:mypc", new string[] { "mypc", "mypc.opcfoundation.org", "192.168.1.100" }));
             byte[] previousSerialNumber = null;
             foreach (var keyHash in KeyHashPairs)
             {
@@ -143,21 +143,30 @@ namespace Opc.Ua.Security.Certificates.Tests
 
         [Theory]
         public void CreateSelfSignedForRSADefaultHashCustomKey(
-            KeyHashPair keyHashPair
+            KeyHashPair keyHashPair,
+            bool signOnly
             )
         {
             // default cert with custom key
-            X509Certificate2 cert = CertificateBuilder.Create(Subject)
-                .SetRSAKeySize(keyHashPair.KeySize)
-                .CreateForRSA();
+            var builder = CertificateBuilder.Create(Subject);
+
+            if (signOnly)
+            {
+                // Key usage for sign only
+                X509KeyUsageFlags keyUsageFlags = X509KeyUsageFlags.KeyEncipherment | X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation;
+                builder.AddExtension(new X509KeyUsageExtension(keyUsageFlags, true));
+            }
+
+            X509Certificate2 cert = builder.SetRSAKeySize(keyHashPair.KeySize).CreateForRSA();
             WriteCertificate(cert, $"Default RSA {keyHashPair.KeySize} cert");
+
+            X509Utils.VerifyRSAKeyPair(cert, cert, true);
             Assert.AreEqual(Subject, cert.Subject);
             Assert.AreEqual(keyHashPair.KeySize, cert.GetRSAPublicKey().KeySize);
             Assert.AreEqual(X509Defaults.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
             TestUtils.ValidateSelSignedBasicConstraints(cert);
             Assert.AreEqual(cert.SubjectName.Name, cert.IssuerName.Name);
             Assert.AreEqual(cert.SubjectName.RawData, cert.IssuerName.RawData);
-            X509Utils.VerifyRSAKeyPair(cert, cert, true);
             Assert.True(X509Utils.VerifySelfSigned(cert));
         }
 
