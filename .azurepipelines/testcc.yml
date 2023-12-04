@@ -15,6 +15,7 @@ jobs:
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
     disable.coverage.autogenerate: true
+    CustomTestTarget: ${{ parameters.customtestarget }}
     ${{ if eq( parameters.customtestarget, '' ) }}: 
       DotCliCommandline: '--framework ${{ parameters.framework }}'
     ${{ else }}: 
@@ -49,7 +50,7 @@ jobs:
     inputs:
       command: restore
       projects: 'UA Core Library.sln'
-      restoreArguments: '${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }}'
+      arguments: '${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }}'
   - task: DotNetCoreCLI@2
     displayName: Test ${{ parameters.framework }}
     timeoutInMinutes: 45
