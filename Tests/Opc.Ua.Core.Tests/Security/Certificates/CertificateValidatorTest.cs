@@ -771,7 +771,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 var pemDataBlob = PEMWriter.ExportCertificateAsPEM(appCert);
                 var pemString = Encoding.UTF8.GetString(pemDataBlob);
                 TestContext.Out.WriteLine(pemString);
-#if NETCOREAPP3_1_OR_GREATER
+#if NETCOREAPP3_1_OR_GREATER && ECC_SUPPORT
                 var exception = Assert.Throws<ArgumentException>(() => CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert), pemDataBlob));
 #endif
             }
