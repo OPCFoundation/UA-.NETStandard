@@ -113,7 +113,7 @@ jobs:
           InformationalVersion=${{ env.NBGV_AssemblyInformationalVersion }}
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ env.TAG_BRANCH }},${{ env.TAG_LATEST }}${{ env.TAG_RELEASE }}
-        platforms: linux/amd64 #,linux/arm64 
+        platforms: linux/amd64,linux/arm64/v8 
         file: ./Applications/ConsoleReferenceServer/Dockerfile
         labels: ${{ steps.meta.outputs.labels }}
         provenance: false

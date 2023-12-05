@@ -30,7 +30,7 @@ REM Delete 'obj' and 'bin' folders
 for /d /r "%root%" %%d in (*obj *bin) do (
     echo Deleting "%%d"
 	del /S /F /Q "%%d\*.*"
-    rmdir /s "%%d"
+    rmdir /s /q "%%d"
 )
 
 echo Clean up complete.
