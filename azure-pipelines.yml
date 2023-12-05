@@ -92,9 +92,9 @@ stages:
       configuration: Debug
       jobnamesuffix: net60debug
 - stage: testnet80
-  dependsOn: # [build]
+  dependsOn: [build]
   displayName: 'Test .NET 8.0'
-  condition: # and(succeeded(), ne(variables.ScheduledBuild, 'False'))
+  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
@@ -103,9 +103,9 @@ stages:
       jobnamesuffix: net80
       customtestarget: net8.0
 - stage: testnet462
-  dependsOn: # [build]
+  dependsOn: [build]
   displayName: 'Test .NET 4.6.2'
-  condition: # and(succeeded(), ne(variables.ScheduledBuild, 'False'))
+  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
@@ -115,9 +115,9 @@ stages:
       agents: '@{ windows = "windows-2022" }'
       customtestarget: net462
 - stage: testnetstandard20
-  dependsOn: # [build]
+  dependsOn: [build]
   displayName: 'Test .NETStandard 2.0'
-  condition: # and(succeeded(), ne(variables.ScheduledBuild, 'False'))
+  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
@@ -126,9 +126,9 @@ stages:
       jobnamesuffix: netstandard20
       customtestarget: netstandard2.0
 - stage: testnetstandard21
-  dependsOn: # [build]
+  dependsOn: [build]
   displayName: 'Test .NETStandard 2.1'
-  condition: # and(succeeded(), ne(variables.ScheduledBuild, 'False'))
+  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
@@ -137,9 +137,9 @@ stages:
       jobnamesuffix: netstandard21
       customtestarget: netstandard2.1
 - stage: coverage
-  dependsOn: # [testdebug,testrelease]
+  dependsOn: [testdebug,testrelease]
   displayName: 'Code Coverage'
-  condition: # and(succeeded(), ne(variables.ScheduledBuild, 'False'))
+  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
   - template: .azurepipelines/testcc.yml
     parameters:
