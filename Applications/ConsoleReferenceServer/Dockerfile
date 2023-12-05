@@ -1,7 +1,7 @@
-﻿FROM mcr.microsoft.com/dotnet/runtime:8.0-bookworm-slim AS base
+﻿FROM mcr.microsoft.com/dotnet/runtime:8.0-jammy AS base
 WORKDIR /app
 
-FROM mcr.microsoft.com/dotnet/sdk:8.0-bookworm-slim AS build
+FROM mcr.microsoft.com/dotnet/sdk:8.0-jammy AS build
 WORKDIR /src
 
 # copy csproj and restore as distinct layers
