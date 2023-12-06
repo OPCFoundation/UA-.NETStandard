@@ -569,7 +569,7 @@ namespace Opc.Ua.Configuration
         /// Adds a Certificate to the Trusted Store of the Application, needed e.g. for the GDS to trust it´s own CA
         /// </summary>
         /// <param name="certificate">The certificate to add to the store</param>
-        /// <param name="ct"></param>
+        /// <param name="ct">The cancellation token</param>
         /// <returns></returns>
         public async Task AddOwnCertificateToTrustedStoreAsync(X509Certificate2 certificate, CancellationToken ct)
         {
