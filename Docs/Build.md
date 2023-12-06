@@ -12,6 +12,7 @@ The following Nuget packages are released in a monthly cadence, unless security 
 [OPCFoundation.NetStandard.Opc.Ua.Bindings.Https](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Bindings.Https/)
 [OPCFoundation.NetStandard.Opc.Ua.PubSub](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.PubSub/) (Beta)
 
+The OPCFoundation prefix is reserved and the assemblies and the Nuget packages are signed by the OPC Foundation. 
 For the licenses please see the information in the packages.
 
 In addition to the released packages on Nuget.org, for every successful build in main there are preview packages available on a [preview feed](https://opcfoundation.visualstudio.com/opcua-netstandard/_artifacts/feed/opcua-preview) in Azure DevOps.
@@ -40,20 +41,37 @@ The following .NET versions are currently supported by the class libraries
 - .NET Standard 2.1
 - .NET Framework 4.8 *
 - .NET 6.0 *
-- .NET 8.0 *
+- .NET 8.0 **
 
 The following platform is deprecated but can still be built and tested:
 - .NET Framework 4.6.2
 
-To reduce the ci build overhead and the number of tests to be run in Visual Studio, only the latest (*) are part of a qualifying ci build to pass a pull request.
-All other platforms are only tested in weekly scheduled ci builds.
+To reduce the ci build overhead and the number of tests to be run in Visual Studio, only the tagged versions (* and **) are part of a qualifying ci build to pass a pull request. 
+All other platforms are only tested in weekly scheduled or manual ci builds.
 
-In order to test the other platforms in a command line window or in VS, there is a custom build variable defined to target a specific build. E.g. to target a .NETStandard2.0 build, the test applications are compile with .NET 6.0 but the class libraries are only built with netstandard2.0, to force the use of this class library target.
-To test run such a platform a batch file [CustomTest.bat]() is provided to clean up and restore the project. To run the custom tests in Visual Studio a section in [target.props]() needs to be uncommented and the test platform must be set.
+By default, in Visual Studio only the platforms tagged with (*) are tested. In order to test the other platforms in a command line window or in VS, there is a custom build variable defined to target a specific build. E.g. to target a .NETStandard2.0 build, the test runners are compiled with .NET 6.0 but the class libraries target only netstandard2.0, to force the use of that target.
+Another option is to test run such a custom target in a command window with a batch file [CustomTest.bat](../blob/customtests/Tests/customtest.bat) which is provided to clean up, restore the project and to run the tests. To run the custom tests in Visual Studio a section in [target.props](../blob/master/targets.props) needs to be uncommented and the target platform value must be set. 
 
+```xml
+<!-- 
+  Uncomment the following lines to test a custom test target 
+  supported values: net462, netstandard2.0, netstandard2.1, net48, net6.0, net8.0
+ -->
+  
+  <PropertyGroup>
+    <CustomTestTarget>netstandard2.0</CustomTestTarget>
+  </PropertyGroup> 
+```
+
+Due to the limitations of the build system it is recommended to run the CustomTest batch file as well to force a clean build of the project for the test target.
 
 
 ## Further information on the supported Nuget packages
+
+The OPCFoundation prefix is reserved and the assemblies and the Nuget packages are signed by the OPC Foundation. 
+
+For improved source level debugging in Visual Studio, symbol packages are available for packages on Nuget in the 'snupkg' format. A reference to the Nuget symbol server may have to be added in Visual Studio to enable the support.
+In addition packages compiled as Debug are available on Nuget with a '.Debug' extension to the package name.
 
 [OPCFoundation.NetStandard.Opc.Ua](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/)
 
@@ -79,8 +97,10 @@ The client is used to build a client. The complex type library extends the clien
 
 [OPCFoundation.NetStandard.Opc.Ua.Bindings.Https](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Bindings.Https/)
 
-The Https binding is a optional component to support UA over Https.
+The Https binding is an optional component to support UA over Https for 'opc.https' endpoints.
 
 [OPCFoundation.NetStandard.Opc.Ua.PubSub](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.PubSub/) (Beta)
 
 The PubSub library can be used to implement the publisher subscriber model. 
+
+For the licenses please see the information in the packages.
