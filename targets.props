@@ -1,5 +1,6 @@
 <Project>
   <!-- Uncomment to suppress warning that .NET Core 2.1 is used with .NET 6 library. -->
+  
   <!--
   <PropertyGroup>
     <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
@@ -10,7 +11,7 @@
   A custom target can be used to test a future or legacy target.
   A build with all custom targets which are not part of a regular build
   is scheduled once a week in the DevOps build pipeline.
-  uncomment these lines to test a custom test target 
+  Uncomment the following lines to test a custom test target 
   supported values: net462, netstandard2.0, netstandard2.1, net48, net6.0, net8.0
    -->
   <!--
