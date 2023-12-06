@@ -2,23 +2,15 @@
 
 The following Nuget packages are released in a monthly cadence, unless security issues require hotfixes.
 
-[OPCFoundation.NetStandard.Opc.Ua](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/)
-
-[OPCFoundation.NetStandard.Opc.Ua.Core](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Core/)
-
-[OPCFoundation.NetStandard.Opc.Ua.Security.Certificates](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Security.Certificates/)
-
-[OPCFoundation.NetStandard.Opc.Ua.Configuration](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Configuration/)
-
-[OPCFoundation.NetStandard.Opc.Ua.Server](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Server/)
-
-[OPCFoundation.NetStandard.Opc.Ua.Client](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Client/)
-
-[OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes/)
-
-[OPCFoundation.NetStandard.Opc.Ua.Bindings.Https](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Bindings.Https/)
-
-[OPCFoundation.NetStandard.Opc.Ua.PubSub](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.PubSub/) (Beta)
+[OPCFoundation.NetStandard.Opc.Ua](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/)  
+[OPCFoundation.NetStandard.Opc.Ua.Core](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Core/)  
+[OPCFoundation.NetStandard.Opc.Ua.Security.Certificates](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Security.Certificates/)  
+[OPCFoundation.NetStandard.Opc.Ua.Configuration](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Configuration/)  
+[OPCFoundation.NetStandard.Opc.Ua.Server](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Server/)  
+[OPCFoundation.NetStandard.Opc.Ua.Client](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Client/)  
+[OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes/)  
+[OPCFoundation.NetStandard.Opc.Ua.Bindings.Https](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Bindings.Https/)  
+[OPCFoundation.NetStandard.Opc.Ua.PubSub](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.PubSub/) (Beta)  
 
 The OPCFoundation prefix is reserved and the assemblies and the Nuget packages are signed by the OPC Foundation. 
 For the licenses please see the information in the packages.
@@ -37,10 +29,11 @@ The OPC UA spec is committed to backward compatibility, so the 1.04 releases wor
 Once the UA working group releases the spec V1.05.03, the Nuget packages will be updated to be based on a 1.05 Nodeset (ETA Q1 2024), which can still be used to certify a V1.04 UA application.
 
 The next digits in the Nuget package version represent the API level and the build number. 
-An API level is mapped to a dedicated branch for a release, e.g. [1.4.372](https://github.com/OPCFoundation/UA-.NETStandard/tree/release/1.4.372). 
-Thus for hotfixes, a released API level can easily receive cherry picks or security updates from the main branch. 
-An API level remains in itself consistent, that it should not receive breaking changes that would require code changes in applications. However, internal improvements or even small features which extend existing APIs that may not require application changes may be included in build updates.
-So the versioning doesn't map to the MAJOR.MINOR.PATCH semantic versioning. The build number corresponds to a mix of MINOR and PATCH, the API level corresponds to MAJOR (breaking changes). The spec version prefix however is guaranteed to be downwards compatible, and it should be possible to certify a UA Server that is built with a 1.5 library with a 1.4 certification test.
+An API level is mapped to a dedicated branch for a release, e.g. [release/1.4.372](https://github.com/OPCFoundation/UA-.NETStandard/tree/release/1.4.372). 
+Thus for hotfixes, a released API level can easily receive cherry picks or security updates from the main branch.   
+An API level remains in itself consistent, that it should not receive breaking changes that would require code changes in applications.  
+However, internal improvements or even small features which extend existing APIs that may not require application changes may be included in build updates.
+In fact the versioning doesn't map to the MAJOR.MINOR.PATCH semantic versioning. The build number corresponds to a mix of MINOR and PATCH, the API level corresponds to MAJOR (breaking changes). The spec version prefix however is guaranteed to be downwards compatible, and it should be possible to certify a UA Server that is built with a 1.5 library with a 1.4 certification test.
 
 Currently the released Nuget packages support a wide variety of .NET platforms:
 
@@ -78,12 +71,12 @@ Due to the limitations of the build system it is recommended to run the CustomTe
 
 The OPCFoundation prefix is reserved and the assemblies and the Nuget packages are signed by the OPC Foundation. 
 
-For improved source level debugging in Visual Studio, symbol packages are available for packages on Nuget in the 'snupkg' format. A reference to the Nuget symbol server may have to be added in Visual Studio to enable the support.
-In addition packages compiled as Debug are available on Nuget with a '.Debug' extension to the package name.
+For improved source level debugging in Visual Studio, symbol packages are available on Nuget.org in the 'snupkg' format. A reference to the Nuget symbol server may have to be added in Visual Studio to enable the source level debug support.
+In addition packages compiled as Debug are available on Nuget.org with a '.Debug' extension to the package name.
 
 [OPCFoundation.NetStandard.Opc.Ua](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/)
 
-This is a wrapper to include all the available packages from this repository, except PubSub. It is recommended to rather include the individual packages as below to reduce the number of dependencies.
+This is a wrapper package to include all the available packages from this repository, except PubSub. It is recommended to rather include the individual packages as below to reduce the number of dependencies.
 
 [OPCFoundation.NetStandard.Opc.Ua.Core](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Core/)
 [OPCFoundation.NetStandard.Opc.Ua.Security.Certificates](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Security.Certificates/)
