@@ -5,6 +5,7 @@
 Here is a list of available documentation for different topics:
 
 UA Core stack related:
+* About [.NET platform](PlatformBuild.md) support, Nuget packages and versioning.
 * How X.509 [Certificates](Certificates.md) are used in the certificate stores.
 * Using the [Reverse Connect](ReverseConnect.md) for the UA-TCP transport.
 * Support for the [TransferSubscriptions](TransferSubscription.md) service set.
