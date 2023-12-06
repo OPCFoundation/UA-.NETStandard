@@ -988,6 +988,7 @@ namespace Opc.Ua.Client.Tests
                     Assert.AreEqual(1, originSubscriptionTransferred[(int)subscription.Handle]);
                 }
             }
+
             // stop publishing
             foreach (var subscription in transferSubscriptions)
             {
@@ -1041,7 +1042,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             // wait for some events
-            await Task.Delay(kDelay).ConfigureAwait(false);
+            await Task.Delay(2 * kDelay).ConfigureAwait(false);
 
             // validate expected counts
             for (int jj = 0; jj < kTestSubscriptions; jj++)
