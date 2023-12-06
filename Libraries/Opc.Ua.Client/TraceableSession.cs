@@ -51,15 +51,12 @@ namespace Opc.Ua.Client
         public TraceableSession(ISession session)
         {
             // Check if the given session is a SessionClient or its derivative
-            //if (session is SessionClient sessionClient)
-            //{
-            //    // Create the proxy around the sessionClient and assign to m_tracingClientProxy
-            //    m_tracingClientProxy = new TracingClientProxy(this, sessionClient);
-
-            //    // Point m_session to the proxy so that future calls on m_session use the proxy
-            //    m_session = m_tracingClientProxy;
-            //}
-            //else
+            if (session is SessionClient sessionClient)
+            {
+                // Create the proxy around the sessionClient and assign to m_tracingClientProxy
+                m_tracingClientProxy = new TracingClientProxy(this, sessionClient);
+            }
+            else
             {
                 m_session = session;
             }
@@ -78,7 +75,7 @@ namespace Opc.Ua.Client
         private static readonly Lazy<ActivitySource> s_activitySource = new Lazy<ActivitySource>(() => new ActivitySource(ActivitySourceName, "1.0.0"));
 
 
-       // private TracingClientProxy m_tracingClientProxy;
+        private TracingClientProxy m_tracingClientProxy;
 
         /// <summary>
         /// The ISession which is being traced.
@@ -469,7 +466,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task ReconnectAsync(CancellationToken ct = default)
         {
-            using (Activity activity = ActivitySource.StartActivity()
+            using (Activity activity = ActivitySource.StartActivity())
             {
                 await m_session.ReconnectAsync(ct).ConfigureAwait(false);
             }
@@ -478,7 +475,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task ReconnectAsync(ITransportWaitingConnection connection, CancellationToken ct = default)
         {
-            using (Activity activity = ActivitySource.StartActivity()
+            using (Activity activity = ActivitySource.StartActivity())
             {
                 await m_session.ReconnectAsync(connection, ct).ConfigureAwait(false);
             }
@@ -487,7 +484,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task ReconnectAsync(ITransportChannel channel, CancellationToken ct = default)
         {
-            using (Activity activity = ActivitySource.StartActivity()
+            using (Activity activity = ActivitySource.StartActivity())
             {
                 await m_session.ReconnectAsync(channel, ct).ConfigureAwait(false);
             }
@@ -496,7 +493,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void Save(string filePath, IEnumerable<Type> knownTypes = null)
         {
-            using (Activity activity = ActivitySource.StartActivity()
+            using (Activity activity = ActivitySource.StartActivity())
             {
                 m_session.Save(filePath, knownTypes);
             }
@@ -505,7 +502,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void Save(Stream stream, IEnumerable<Subscription> subscriptions, IEnumerable<Type> knownTypes = null)
         {
-            using (Activity activity = ActivitySource.StartActivity()
+            using (Activity activity = ActivitySource.StartActivity())
             {
                 m_session.Save(stream, subscriptions, knownTypes);
             }
@@ -514,7 +511,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void Save(string filePath, IEnumerable<Subscription> subscriptions, IEnumerable<Type> knownTypes = null)
         {
-            using (Activity activity = ActivitySource.StartActivity()
+            using (Activity activity = ActivitySource.StartActivity())
             {
                 m_session.Save(filePath, subscriptions, knownTypes);
             }
@@ -532,7 +529,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IEnumerable<Subscription> Load(string filePath, bool transferSubscriptions = false, IEnumerable<Type> knownTypes = null)
         {
-            using (Activity activity = ActivitySource.StartActivity()
+            using (Activity activity = ActivitySource.StartActivity())
             {
                 return m_session.Load(filePath, transferSubscriptions, knownTypes);
             }
@@ -1085,7 +1082,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<bool> RepublishAsync(uint subscriptionId, uint sequenceNumber, CancellationToken ct = default)
         {
-            using (Activity activity = ActivitySource.StartActivity()
+            using (Activity activity = ActivitySource.StartActivity())
             {
                 return await m_session.RepublishAsync(subscriptionId, sequenceNumber, ct).ConfigureAwait(false);
             }
