@@ -40,14 +40,8 @@ jobs:
     vmImage: $(poolImage)
   steps:
   - task: UseDotNet@2
-    displayName: 'Install .NET Core 3.1'
-    condition: eq('${{parameters.framework}}', 'netcoreapp3.1')
-    inputs:
-      packageType: 'sdk'
-      version: '3.1.x'
-  - task: UseDotNet@2
     displayName: 'Install .NET 6.0'
-    condition: or(eq('${{parameters.framework}}', 'netcoreapp3.1'), eq('${{parameters.framework}}', 'net6.0'))
+    condition: eq('${{parameters.framework}}', 'net6.0')
     inputs:
       packageType: 'sdk'
       version: '6.0.x'

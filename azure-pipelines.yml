@@ -25,7 +25,7 @@ pr:
 
 variables:
   FullBuild: ${{ or(ne(variables['Build.Reason'], 'PullRequest'), ne(variables['System.PullRequest.IsFork'], 'False')) }}
-  ScheduledBuild: ${{ eq(variables['Build.Reason'], 'Schedule') }}
+  ScheduledBuild: ${{ in(variables['Build.Reason'], 'Schedule', 'Manual') }}
 
 stages:
 - stage: build
