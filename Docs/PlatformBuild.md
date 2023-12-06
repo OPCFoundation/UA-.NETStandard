@@ -3,13 +3,21 @@
 The following Nuget packages are released in a monthly cadence, unless security issues require hotfixes.
 
 [OPCFoundation.NetStandard.Opc.Ua](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/)
+
 [OPCFoundation.NetStandard.Opc.Ua.Core](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Core/)
+
 [OPCFoundation.NetStandard.Opc.Ua.Security.Certificates](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Security.Certificates/)
+
 [OPCFoundation.NetStandard.Opc.Ua.Configuration](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Configuration/)
+
 [OPCFoundation.NetStandard.Opc.Ua.Server](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Server/)
+
 [OPCFoundation.NetStandard.Opc.Ua.Client](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Client/)
+
 [OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes/)
+
 [OPCFoundation.NetStandard.Opc.Ua.Bindings.Https](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Bindings.Https/)
+
 [OPCFoundation.NetStandard.Opc.Ua.PubSub](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.PubSub/) (Beta)
 
 The OPCFoundation prefix is reserved and the assemblies and the Nuget packages are signed by the OPC Foundation. 
@@ -50,7 +58,7 @@ To reduce the ci build overhead and the number of tests to be run in Visual Stud
 All other platforms are only tested in weekly scheduled or manual ci builds.
 
 By default, in Visual Studio only the platforms tagged with (*) are tested. In order to test the other platforms in a command line window or in VS, there is a custom build variable defined to target a specific build. E.g. to target a .NETStandard2.0 build, the test runners are compiled with .NET 6.0 but the class libraries target only netstandard2.0, to force the use of that target.
-Another option is to test run such a custom target in a command window with a batch file [CustomTest.bat](../blob/customtests/Tests/customtest.bat) which is provided to clean up, restore the project and to run the tests. To run the custom tests in Visual Studio a section in [target.props](../blob/master/targets.props) needs to be uncommented and the target platform value must be set. 
+Another option is to test run such a custom target in a command window with a batch file [CustomTest.bat](../blob/master/customtests/Tests/customtest.bat) which is provided to clean up, restore the project and to run the tests. To run the custom tests in Visual Studio a section in [target.props](../blob/master/targets.props) needs to be uncommented and the target platform value must be set. 
 
 ```xml
 <!-- 
