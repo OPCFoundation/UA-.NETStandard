@@ -27,34 +27,33 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Opc.Ua.Client
+namespace Opc.Ua.Client.Tests
 {
     /// <summary>
     /// Object that creates instances of an Opc.Ua.Client.Session object.
     /// </summary>
-    public class DefaultSessionFactory : ISessionFactory, ISessionInstantiator
+    public class TestableSessionFactory : DefaultSessionFactory
     {
         /// <summary>
         /// The default instance of the factory.
         /// </summary>
-        public static readonly DefaultSessionFactory Instance = new DefaultSessionFactory();
+        public new static readonly TestableSessionFactory Instance = new TestableSessionFactory();
 
         /// <summary>
         /// Force use of the default instance.
         /// </summary>
-        protected DefaultSessionFactory()
+        protected TestableSessionFactory()
         {
         }
 
         #region ISessionFactory Members
         /// <inheritdoc/>
-        public virtual Task<ISession> CreateAsync(
+        public override Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
@@ -68,7 +67,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async virtual Task<ISession> CreateAsync(
+        public async override Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
@@ -85,7 +84,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async virtual Task<ISession> CreateAsync(
+        public async override Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
             ITransportWaitingConnection connection,
             ConfiguredEndpoint endpoint,
@@ -104,7 +103,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async virtual Task<ISession> CreateAsync(
+        public async override Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
             ReverseConnectManager reverseConnectManager,
             ConfiguredEndpoint endpoint,
@@ -157,7 +156,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public virtual ISession Create(
+        public override ISession Create(
            ApplicationConfiguration configuration,
            ITransportChannel channel,
            ConfiguredEndpoint endpoint,
@@ -167,64 +166,20 @@ namespace Opc.Ua.Client
         {
             return Session.Create(this, configuration, channel, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
         }
-
-        /// <inheritdoc/>
-        public virtual Task<ITransportChannel> CreateChannelAsync(
-            ApplicationConfiguration configuration,
-            ITransportWaitingConnection connection,
-            ConfiguredEndpoint endpoint,
-            bool updateBeforeConnect,
-            bool checkDomain,
-            CancellationToken ct = default)
-        {
-            return Session.CreateChannelAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain, ct);
-        }
-
-        /// <inheritdoc/>
-        public virtual async Task<ISession> RecreateAsync(ISession sessionTemplate, CancellationToken ct = default)
-        {
-            if (!(sessionTemplate is Session template))
-            {
-                throw new ArgumentOutOfRangeException(nameof(sessionTemplate), "The ISession provided is not of a supported type.");
-            }
-
-            return await Session.RecreateAsync(template, ct).ConfigureAwait(false);
-        }
-
-        /// <inheritdoc/>
-        public virtual async Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportWaitingConnection connection, CancellationToken ct = default)
-        {
-            if (!(sessionTemplate is Session template))
-            {
-                throw new ArgumentOutOfRangeException(nameof(sessionTemplate), "The ISession provided is not of a supported type");
-            }
-
-            return await Session.RecreateAsync(template, connection, ct).ConfigureAwait(false);
-        }
-
-        /// <inheritdoc/>
-        public virtual async Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportChannel transportChannel, CancellationToken ct = default)
-        {
-            if (!(sessionTemplate is Session template))
-            {
-                throw new ArgumentOutOfRangeException(nameof(sessionTemplate), "The ISession provided is not of a supported type");
-            }
-            return await Session.RecreateAsync(template, transportChannel, ct).ConfigureAwait(false);
-        }
         #endregion
 
         #region ISessionInstantiator Members
         /// <inheritdoc/>
-        public virtual Session Create(
+        public override Session Create(
             ISessionChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint)
         {
-            return new Session(channel, configuration, endpoint);
+            return new TestableSession(channel, configuration, endpoint);
         }
 
         /// <inheritdoc/>
-        public virtual Session Create(
+        public override Session Create(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
@@ -232,7 +187,7 @@ namespace Opc.Ua.Client
             EndpointDescriptionCollection availableEndpoints = null,
             StringCollection discoveryProfileUris = null)
         {
-            return new Session(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
+            return new TestableSession(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
         }
         #endregion
     }
