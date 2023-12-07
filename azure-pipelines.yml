@@ -124,6 +124,7 @@ stages:
       framework: net6.0
       configuration: Release
       jobnamesuffix: netstandard20
+      agents: '@{ windows = "windows-2019"; linux="ubuntu-20.04"}'
       customtestarget: netstandard2.0
 - stage: testnetstandard21
   dependsOn: [build]
