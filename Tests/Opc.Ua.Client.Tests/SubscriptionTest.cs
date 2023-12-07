@@ -276,7 +276,7 @@ namespace Opc.Ua.Client.Tests
             OutputSubscriptionInfo(TestContext.Out, subscription);
 
             await subscription.ConditionRefreshAsync().ConfigureAwait(false);
-            var sre = Assert.Throws<ServiceResultException>(() => subscription.Republish(subscription.SequenceNumber));
+            var sre = Assert.ThrowsAsync<ServiceResultException>(async () => await subscription.RepublishAsync(subscription.SequenceNumber).ConfigureAwait(false));
             Assert.AreEqual(StatusCodes.BadMessageNotAvailable, sre.StatusCode, $"Expected BadMessageNotAvailable, but received {sre.Message}");
 
             // verify that reconnect created subclassed version of subscription and monitored item
@@ -589,7 +589,14 @@ namespace Opc.Ua.Client.Tests
             };
 
             // activate the session from saved sesson secrets on the new channel
-            session2.Reconnect(channel2);
+            if (asyncTest)
+            {
+                await session2.ReconnectAsync(channel2).ConfigureAwait(false);
+            }
+            else
+            {
+                session2.Reconnect(channel2);
+            }
 
             // reactivate restored subscriptions
             if (asyncTest)
@@ -603,7 +610,7 @@ namespace Opc.Ua.Client.Tests
                 Assert.IsTrue(reactivateResult);
             }
 
-            await Task.Delay(kDelay).ConfigureAwait(false);
+            await Task.Delay(2 * kDelay).ConfigureAwait(false);
 
             Assert.AreEqual(session1.SessionId, session2.SessionId);
 
@@ -621,22 +628,23 @@ namespace Opc.Ua.Client.Tests
             for (ii = 0; ii < kTestSubscriptions; ii++)
             {
                 var monitoredItemCount = restoredSubscriptions[ii].MonitoredItemCount;
+                string errorText = $"Error in test subscription {ii}";
 
                 // the static subscription doesn't resend data until there is a data change
                 if (ii == 0 && !sendInitialValues)
                 {
-                    Assert.AreEqual(0, targetSubscriptionCounters[ii]);
-                    Assert.AreEqual(0, targetSubscriptionFastDataCounters[ii]);
+                    Assert.AreEqual(0, targetSubscriptionCounters[ii], errorText);
+                    Assert.AreEqual(0, targetSubscriptionFastDataCounters[ii], errorText);
                 }
                 else if (ii == 0)
                 {
-                    Assert.AreEqual(10, targetSubscriptionCounters[ii]);
-                    Assert.AreEqual(1, targetSubscriptionFastDataCounters[ii]);
+                    Assert.AreEqual(monitoredItemCount, targetSubscriptionCounters[ii], errorText);
+                    Assert.AreEqual(1, targetSubscriptionFastDataCounters[ii], errorText);
                 }
                 else
                 {
-                    Assert.LessOrEqual(monitoredItemCount, targetSubscriptionCounters[ii]);
-                    Assert.LessOrEqual(1, targetSubscriptionFastDataCounters[ii]);
+                    Assert.LessOrEqual(monitoredItemCount, targetSubscriptionCounters[ii], errorText);
+                    Assert.LessOrEqual(1, targetSubscriptionFastDataCounters[ii], errorText);
                 }
             }
 
@@ -665,11 +673,18 @@ namespace Opc.Ua.Client.Tests
             }
 
             session1.DeleteSubscriptionsOnClose = true;
-            session1.Close(1000);
-            Utils.SilentDispose(session1);
-
             session2.DeleteSubscriptionsOnClose = true;
-            session2.Close(1000);
+            if (asyncTest)
+            {
+                await session1.CloseAsync(1000).ConfigureAwait(false);
+                await session2.CloseAsync(1000).ConfigureAwait(false);
+            }
+            else
+            {
+                session1.Close(1000);
+                session2.Close(1000);
+            }
+            Utils.SilentDispose(session1);
             Utils.SilentDispose(session2);
 
             Assert.AreEqual(0, session1ConfigChanged);
@@ -963,7 +978,7 @@ namespace Opc.Ua.Client.Tests
             TestContext.Out.WriteLine("TargetSession is now SessionId={0}", targetSession.SessionId);
 
             // wait for some events
-            await Task.Delay(kDelay).ConfigureAwait(false);
+            await Task.Delay(2 * kDelay).ConfigureAwait(false);
 
             if (TransferType.KeepOpen == transferType)
             {
@@ -973,6 +988,7 @@ namespace Opc.Ua.Client.Tests
                     Assert.AreEqual(1, originSubscriptionTransferred[(int)subscription.Handle]);
                 }
             }
+
             // stop publishing
             foreach (var subscription in transferSubscriptions)
             {
@@ -1026,7 +1042,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             // wait for some events
-            await Task.Delay(kDelay).ConfigureAwait(false);
+            await Task.Delay(2 * kDelay).ConfigureAwait(false);
 
             // validate expected counts
             for (int jj = 0; jj < kTestSubscriptions; jj++)
