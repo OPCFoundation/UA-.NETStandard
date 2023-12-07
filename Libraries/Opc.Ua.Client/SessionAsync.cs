@@ -36,6 +36,7 @@ using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Client
 {
@@ -43,7 +44,7 @@ namespace Opc.Ua.Client
     /// Manages a session with a server.
     /// Contains the async versions of the public session api.
     /// </summary>
-    public partial class Session : SessionClientBatched, ISession, IDisposable
+    public partial class Session : SessionClientBatched, ISession
     {
         #region Open Async Methods
         /// <inheritdoc/>
@@ -384,9 +385,9 @@ namespace Opc.Ua.Client
 
             if (subscriptionIds.Count > 0)
             {
+                await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
                 try
                 {
-                    await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
                     m_reconnecting = true;
 
                     for (int ii = 0; ii < subscriptions.Count; ii++)
@@ -484,9 +485,9 @@ namespace Opc.Ua.Client
 
             if (subscriptionIds.Count > 0)
             {
+                await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
                 try
                 {
-                    await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
                     m_reconnecting = true;
 
                     TransferSubscriptionsResponse response = await base.TransferSubscriptionsAsync(null, subscriptionIds, sendInitialValues, ct).ConfigureAwait(false);
@@ -1236,44 +1237,44 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Recreates a session based on a specified template.
         /// </summary>
-        /// <param name="template">The Session object to use as template</param>
+        /// <param name="sessionTemplate">The Session object to use as template</param>
         /// <param name="ct"></param>
         /// <returns>The new session object.</returns>
-        public static async Task<Session> RecreateAsync(Session template, CancellationToken ct = default)
+        public static async Task<Session> RecreateAsync(Session sessionTemplate, CancellationToken ct = default)
         {
-            ServiceMessageContext messageContext = template.m_configuration.CreateMessageContext();
-            messageContext.Factory = template.Factory;
+            ServiceMessageContext messageContext = sessionTemplate.m_configuration.CreateMessageContext();
+            messageContext.Factory = sessionTemplate.Factory;
 
             // create the channel object used to connect to the server.
             ITransportChannel channel = SessionChannel.Create(
-                template.m_configuration,
-                template.ConfiguredEndpoint.Description,
-                template.ConfiguredEndpoint.Configuration,
-                template.m_instanceCertificate,
-                template.m_configuration.SecurityConfiguration.SendCertificateChain ?
-                    template.m_instanceCertificateChain : null,
+                sessionTemplate.m_configuration,
+                sessionTemplate.ConfiguredEndpoint.Description,
+                sessionTemplate.ConfiguredEndpoint.Configuration,
+                sessionTemplate.m_instanceCertificate,
+                sessionTemplate.m_configuration.SecurityConfiguration.SendCertificateChain ?
+                    sessionTemplate.m_instanceCertificateChain : null,
                 messageContext);
 
             // create the session object.
-            Session session = new Session(channel, template, true);
+            Session session = sessionTemplate.CloneSession(channel, true);
 
             try
             {
                 // open the session.
                 await session.OpenAsync(
-                    template.SessionName,
-                    (uint)template.SessionTimeout,
-                    template.Identity,
-                    template.PreferredLocales,
-                    template.m_checkDomain,
+                    sessionTemplate.SessionName,
+                    (uint)sessionTemplate.SessionTimeout,
+                    sessionTemplate.Identity,
+                    sessionTemplate.PreferredLocales,
+                    sessionTemplate.m_checkDomain,
                     ct).ConfigureAwait(false);
 
-                await session.RecreateSubscriptionsAsync(template.Subscriptions, ct).ConfigureAwait(false);
+                await session.RecreateSubscriptionsAsync(sessionTemplate.Subscriptions, ct).ConfigureAwait(false);
             }
             catch (Exception e)
             {
                 session.Dispose();
-                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", template.SessionName);
+                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", sessionTemplate.SessionName);
             }
 
             return session;
@@ -1282,46 +1283,46 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Recreates a session based on a specified template.
         /// </summary>
-        /// <param name="template">The Session object to use as template</param>
+        /// <param name="sessionTemplate">The Session object to use as template</param>
         /// <param name="connection">The waiting reverse connection.</param>
         /// <param name="ct"></param>
         /// <returns>The new session object.</returns>
-        public static async Task<Session> RecreateAsync(Session template, ITransportWaitingConnection connection, CancellationToken ct = default)
+        public static async Task<Session> RecreateAsync(Session sessionTemplate, ITransportWaitingConnection connection, CancellationToken ct = default)
         {
-            ServiceMessageContext messageContext = template.m_configuration.CreateMessageContext();
-            messageContext.Factory = template.Factory;
+            ServiceMessageContext messageContext = sessionTemplate.m_configuration.CreateMessageContext();
+            messageContext.Factory = sessionTemplate.Factory;
 
             // create the channel object used to connect to the server.
             ITransportChannel channel = SessionChannel.Create(
-                template.m_configuration,
+                sessionTemplate.m_configuration,
                 connection,
-                template.m_endpoint.Description,
-                template.m_endpoint.Configuration,
-                template.m_instanceCertificate,
-                template.m_configuration.SecurityConfiguration.SendCertificateChain ?
-                    template.m_instanceCertificateChain : null,
+                sessionTemplate.m_endpoint.Description,
+                sessionTemplate.m_endpoint.Configuration,
+                sessionTemplate.m_instanceCertificate,
+                sessionTemplate.m_configuration.SecurityConfiguration.SendCertificateChain ?
+                    sessionTemplate.m_instanceCertificateChain : null,
                 messageContext);
 
             // create the session object.
-            Session session = new Session(channel, template, true);
+            Session session = sessionTemplate.CloneSession(channel, true);
 
             try
             {
                 // open the session.
                 await session.OpenAsync(
-                    template.m_sessionName,
-                    (uint)template.m_sessionTimeout,
-                    template.m_identity,
-                    template.m_preferredLocales,
-                    template.m_checkDomain,
+                    sessionTemplate.m_sessionName,
+                    (uint)sessionTemplate.m_sessionTimeout,
+                    sessionTemplate.m_identity,
+                    sessionTemplate.m_preferredLocales,
+                    sessionTemplate.m_checkDomain,
                     ct).ConfigureAwait(false);
 
-                await session.RecreateSubscriptionsAsync(template.Subscriptions, ct).ConfigureAwait(false);
+                await session.RecreateSubscriptionsAsync(sessionTemplate.Subscriptions, ct).ConfigureAwait(false);
             }
             catch (Exception e)
             {
                 session.Dispose();
-                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", template.m_sessionName);
+                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", sessionTemplate.m_sessionName);
             }
 
             return session;
@@ -1330,27 +1331,27 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Recreates a session based on a specified template using the provided channel.
         /// </summary>
-        /// <param name="template">The Session object to use as template</param>
+        /// <param name="sessionTemplate">The Session object to use as template</param>
         /// <param name="transportChannel">The waiting reverse connection.</param>
         /// <param name="ct"></param>
         /// <returns>The new session object.</returns>
-        public static async Task<Session> RecreateAsync(Session template, ITransportChannel transportChannel, CancellationToken ct = default)
+        public static async Task<Session> RecreateAsync(Session sessionTemplate, ITransportChannel transportChannel, CancellationToken ct = default)
         {
-            ServiceMessageContext messageContext = template.m_configuration.CreateMessageContext();
-            messageContext.Factory = template.Factory;
+            ServiceMessageContext messageContext = sessionTemplate.m_configuration.CreateMessageContext();
+            messageContext.Factory = sessionTemplate.Factory;
 
             // create the session object.
-            Session session = new Session(transportChannel, template, true);
+            Session session = sessionTemplate.CloneSession(transportChannel, true);
 
             try
             {
                 // open the session.
                 await session.OpenAsync(
-                    template.m_sessionName,
-                    (uint)template.m_sessionTimeout,
-                    template.m_identity,
-                    template.m_preferredLocales,
-                    template.m_checkDomain,
+                    sessionTemplate.m_sessionName,
+                    (uint)sessionTemplate.m_sessionTimeout,
+                    sessionTemplate.m_identity,
+                    sessionTemplate.m_preferredLocales,
+                    sessionTemplate.m_checkDomain,
                     ct).ConfigureAwait(false);
 
                 // create the subscriptions.
@@ -1362,7 +1363,7 @@ namespace Opc.Ua.Client
             catch (Exception e)
             {
                 session.Dispose();
-                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", template.m_sessionName);
+                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", sessionTemplate.m_sessionName);
             }
 
             return session;
@@ -1471,6 +1472,147 @@ namespace Opc.Ua.Client
         }
         #endregion
 
+        #region Reconnect Async Methods
+        /// <inheritdoc/>
+        public Task ReconnectAsync(CancellationToken ct)
+            => ReconnectAsync(null, null, ct);
+
+        /// <inheritdoc/>
+        public Task ReconnectAsync(ITransportWaitingConnection connection, CancellationToken ct)
+            => ReconnectAsync(connection, null, ct);
+
+        /// <inheritdoc/>
+        public Task ReconnectAsync(ITransportChannel channel, CancellationToken ct)
+            => ReconnectAsync(null, channel, ct);
+
+        /// <summary>
+        /// Reconnects to the server after a network failure using a waiting connection.
+        /// </summary>
+        private async Task ReconnectAsync(ITransportWaitingConnection connection, ITransportChannel transportChannel, CancellationToken ct)
+        {
+            bool resetReconnect = false;
+            await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                bool reconnecting = m_reconnecting;
+                m_reconnecting = true;
+                resetReconnect = true;
+                m_reconnectLock.Release();
+
+                // check if already connecting.
+                if (reconnecting)
+                {
+                    Utils.LogWarning("Session is already attempting to reconnect.");
+
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadInvalidState,
+                        "Session is already attempting to reconnect.");
+                }
+
+                IAsyncResult result = PrepareReconnectBeginActivate(
+                    connection,
+                    transportChannel);
+
+                if (!(result is ChannelAsyncOperation<int> operation)) throw new ArgumentNullException(nameof(result));
+
+                try
+                {
+                    _ = await operation.EndAsync(kReconnectTimeout / 2, true, ct).ConfigureAwait(false);
+                }
+                catch (ServiceResultException)
+                {
+                    Utils.LogWarning("WARNING: ACTIVATE SESSION {0} timed out. {1}/{2}", SessionId, GoodPublishRequestCount, OutstandingRequestCount);
+                }
+
+                // reactivate session.
+                byte[] serverNonce = null;
+                StatusCodeCollection certificateResults = null;
+                DiagnosticInfoCollection certificateDiagnosticInfos = null;
+
+                EndActivateSession(
+                    result,
+                    out serverNonce,
+                    out certificateResults,
+                    out certificateDiagnosticInfos);
+
+                int publishCount = 0;
+
+                Utils.LogInfo("Session RECONNECT {0} completed successfully.", SessionId);
+
+                lock (SyncRoot)
+                {
+                    m_previousServerNonce = m_serverNonce;
+                    m_serverNonce = serverNonce;
+                    publishCount = GetMinPublishRequestCount(true);
+                }
+
+                await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+                m_reconnecting = false;
+                resetReconnect = false;
+                m_reconnectLock.Release();
+
+                // refill pipeline.
+                for (int ii = 0; ii < publishCount; ii++)
+                {
+                    BeginPublish(OperationTimeout);
+                }
+
+                StartKeepAliveTimer();
+
+                IndicateSessionConfigurationChanged();
+            }
+            finally
+            {
+                if (resetReconnect)
+                {
+                    await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+                    m_reconnecting = false;
+                    m_reconnectLock.Release();
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<bool> RepublishAsync(uint subscriptionId, uint sequenceNumber, CancellationToken ct)
+        {
+            // send republish request.
+            RequestHeader requestHeader = new RequestHeader {
+                TimeoutHint = (uint)OperationTimeout,
+                ReturnDiagnostics = (uint)(int)ReturnDiagnostics,
+                RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter)
+            };
+
+            try
+            {
+                Utils.LogInfo("Requesting RepublishAsync for {0}-{1}", subscriptionId, sequenceNumber);
+
+                // request republish.
+                RepublishResponse response = await RepublishAsync(
+                    requestHeader,
+                    subscriptionId,
+                    sequenceNumber,
+                    ct).ConfigureAwait(false);
+                ResponseHeader responseHeader = response.ResponseHeader;
+                NotificationMessage notificationMessage = response.NotificationMessage;
+
+                Utils.LogInfo("Received RepublishAsync for {0}-{1}-{2}", subscriptionId, sequenceNumber, responseHeader.ServiceResult);
+
+                // process response.
+                ProcessPublishResponse(
+                    responseHeader,
+                    subscriptionId,
+                    null,
+                    false,
+                    notificationMessage);
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                return ProcessRepublishResponseError(e, subscriptionId, sequenceNumber);
+            }
+        }
+
         /// <summary>
         /// Recreate the subscriptions in a reconnected session.
         /// Uses Transfer service if <see cref="TransferSubscriptionsOnReconnect"/> is set to <c>true</c>.
@@ -1516,6 +1658,7 @@ namespace Opc.Ua.Client
                 }
             }
         }
+        #endregion
     }
 }
 #endif

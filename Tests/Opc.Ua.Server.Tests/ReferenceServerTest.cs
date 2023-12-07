@@ -59,6 +59,7 @@ namespace Opc.Ua.Server.Tests
         ReferenceDescriptionCollection m_referenceDescriptions;
         RandomSource m_random;
         DataGenerator m_generator;
+        bool m_sessionClosed;
 
 
         #region Test Setup
@@ -106,9 +107,12 @@ namespace Opc.Ua.Server.Tests
         [TearDown]
         public void TearDown()
         {
-            m_requestHeader.Timestamp = DateTime.UtcNow;
-            m_server.CloseSession(m_requestHeader);
-            m_requestHeader = null;
+            if (!m_sessionClosed)
+            {
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                m_server.CloseSession(m_requestHeader);
+                m_requestHeader = null;
+            }
         }
         #endregion
 
@@ -142,12 +146,12 @@ namespace Opc.Ua.Server.Tests
         /// Test for expected exceptions.
         /// </summary>
         [Test]
-        public void ServiceResultException()
+        public void NoInvalidTimestampException()
         {
-            // test invalid timestamp
+            // test that the server accepts an invalid timestamp
             m_requestHeader.Timestamp = DateTime.UtcNow - TimeSpan.FromDays(30);
-            var sre = Assert.Throws<ServiceResultException>(() => m_server.CloseSession(m_requestHeader, false));
-            Assert.AreEqual(StatusCodes.BadInvalidTimestamp, sre.StatusCode);
+            m_server.CloseSession(m_requestHeader, false);
+            m_sessionClosed = true;
         }
 
         /// <summary>

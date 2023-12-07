@@ -86,6 +86,9 @@ namespace Opc.Ua.Gds.Server
 
         [DataMember(Order = 7)]
         public string DatabaseStorePath { get; set; }
+
+        [DataMember(Order = 8)]
+        public string UsersDatabaseStorePath { get; set; }
         #endregion
 
         #region Private Members
