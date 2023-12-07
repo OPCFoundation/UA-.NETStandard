@@ -385,9 +385,9 @@ namespace Opc.Ua.Client
 
             if (subscriptionIds.Count > 0)
             {
+                await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
                 try
                 {
-                    await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
                     m_reconnecting = true;
 
                     for (int ii = 0; ii < subscriptions.Count; ii++)
@@ -485,9 +485,9 @@ namespace Opc.Ua.Client
 
             if (subscriptionIds.Count > 0)
             {
+                await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
                 try
                 {
-                    await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
                     m_reconnecting = true;
 
                     TransferSubscriptionsResponse response = await base.TransferSubscriptionsAsync(null, subscriptionIds, sendInitialValues, ct).ConfigureAwait(false);
@@ -1491,9 +1491,9 @@ namespace Opc.Ua.Client
         private async Task ReconnectAsync(ITransportWaitingConnection connection, ITransportChannel transportChannel, CancellationToken ct)
         {
             bool resetReconnect = false;
+            await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
                 bool reconnecting = m_reconnecting;
                 m_reconnecting = true;
                 resetReconnect = true;
