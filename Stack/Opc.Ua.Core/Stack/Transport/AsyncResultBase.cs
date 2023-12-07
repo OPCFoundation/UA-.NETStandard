@@ -76,6 +76,13 @@ namespace Opc.Ua
 
                 // signal any waiting threads.
                 DisposeWaitHandle(true);
+
+                // dispose the cancellation token.
+                if (m_cts != null)
+                {
+                    Utils.SilentDispose(m_cts);
+                    m_cts = null;
+                }
             }
         }
         #endregion
@@ -118,9 +125,7 @@ namespace Opc.Ua
         /// <param name="ar">The result object returned from the Begin method.</param>
         public static void WaitForComplete(IAsyncResult ar)
         {
-            AsyncResultBase result = ar as AsyncResultBase;
-
-            if (result == null)
+            if (!(ar is AsyncResultBase result))
             {
                 throw new ArgumentException("IAsyncResult passed to call is not an instance of AsyncResultBase.");
             }

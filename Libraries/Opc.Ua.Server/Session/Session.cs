@@ -407,13 +407,6 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                // verify timestamp.
-                if (requestHeader.Timestamp.AddMilliseconds(m_maxRequestAge) < DateTime.UtcNow)
-                {
-                    UpdateDiagnosticCounters(requestType, true, false);
-                    throw new ServiceResultException(StatusCodes.BadInvalidTimestamp);
-                }
-
                 // request accepted.
                 UpdateDiagnosticCounters(requestType, false, false);
             }
@@ -1143,7 +1136,7 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private NodeId m_sessionId;
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
         private NodeId m_authenticationToken;

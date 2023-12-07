@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -23,7 +23,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * The complete license agreement can be found here: 
+ * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
@@ -56,9 +56,14 @@ namespace Opc.Ua.Client
     public delegate void PublishErrorEventHandler(ISession session, PublishErrorEventArgs e);
 
     /// <summary>
+    /// The delegate used to modify publish response sequence numbers to acknowledge.
+    /// </summary>
+    public delegate void PublishSequenceNumbersToAcknowledgeEventHandler(ISession session, PublishSequenceNumbersToAcknowledgeEventArgs e);
+
+    /// <summary>
     /// Manages a session with a server.
     /// </summary>
-    public interface ISession : ISessionClient, IDisposable
+    public interface ISession : ISessionClient
     {
         #region Events
         /// <summary>
@@ -94,6 +99,15 @@ namespace Opc.Ua.Client
         event PublishErrorEventHandler PublishError;
 
         /// <summary>
+        /// Raised when a publish request is about to acknowledge sequence numbers.
+        /// </summary>
+        /// <remarks>
+        /// If the client chose to defer acknowledge of sequenece numbers, it is responsible
+        /// to transfer these <see cref="SubscriptionAcknowledgement"/> to the deferred list.
+        /// </remarks>
+        event PublishSequenceNumbersToAcknowledgeEventHandler PublishSequenceNumbersToAcknowledge;
+
+        /// <summary>
         /// Raised when a subscription is added or removed
         /// </summary>
         event EventHandler SubscriptionsChanged;
@@ -102,6 +116,15 @@ namespace Opc.Ua.Client
         /// Raised to indicate the session is closing.
         /// </summary>
         event EventHandler SessionClosing;
+
+        /// <summary>
+        /// Raised to indicate the session configuration changed.
+        /// </summary>
+        /// <remarks>
+        /// An example for a session configuration change is a new user identity,
+        /// a new server nonce, a new locale etc.
+        /// </remarks>
+        event EventHandler SessionConfigurationChanged;
         #endregion
 
         #region Public Properties
@@ -196,7 +219,7 @@ namespace Opc.Ua.Client
         int SubscriptionCount { get; }
 
         /// <summary>
-        /// If the subscriptions are deleted when a session is closed. 
+        /// If the subscriptions are deleted when a session is closed.
         /// </summary>
         bool DeleteSubscriptionsOnClose { get; set; }
 
@@ -244,18 +267,28 @@ namespace Opc.Ua.Client
         int GoodPublishRequestCount { get; }
 
         /// <summary>
+        /// Gets and sets the minimum number of publish requests to be used in the session.
+        /// </summary>
+        int MinPublishRequestCount { get; set; }
+
+        /// <summary>
         /// Stores the operation limits of a OPC UA Server.
         /// </summary>
         OperationLimits OperationLimits { get; }
 
         /// <summary>
-        /// If the subscriptions are transferred when a session is reconnected. 
+        /// If the subscriptions are transferred when a session is reconnected.
         /// </summary>
         /// <remarks>
         /// Default <c>false</c>, set to <c>true</c> if subscriptions should
         /// be transferred after reconnect. Service must be supported by server.
-        /// </remarks>   
+        /// </remarks>
         bool TransferSubscriptionsOnReconnect { get; set; }
+
+        /// <summary>
+        /// Whether the endpoint Url domain is checked in the certificate.
+        /// </summary>
+        bool CheckDomain { get; }
         #endregion
 
         #region Delegates and Events
@@ -277,36 +310,72 @@ namespace Opc.Ua.Client
         void Reconnect(ITransportWaitingConnection connection);
 
         /// <summary>
+        /// Reconnects to the server using a new channel.
+        /// </summary>
+        void Reconnect(ITransportChannel channel);
+
+#if (CLIENT_ASYNC)
+        /// <summary>
+        /// Reconnects to the server after a network failure.
+        /// </summary>
+        Task ReconnectAsync(CancellationToken ct = default);
+
+        /// <summary>
+        /// Reconnects to the server after a network failure using a waiting connection.
+        /// </summary>
+        Task ReconnectAsync(ITransportWaitingConnection connection, CancellationToken ct = default);
+
+        /// <summary>
+        /// Reconnects to the server using a new channel.
+        /// </summary>
+        Task ReconnectAsync(ITransportChannel channel, CancellationToken ct = default);
+#endif
+
+        /// <summary>
         /// Saves all the subscriptions of the session.
         /// </summary>
         /// <param name="filePath">The file path.</param>
-        void Save(string filePath);
+        /// <param name="knownTypes"></param>
+        void Save(string filePath, IEnumerable<Type> knownTypes = null);
 
         /// <summary>
         /// Saves a set of subscriptions to a stream.
         /// </summary>
-        void Save(Stream stream, IEnumerable<Subscription> subscriptions);
+        void Save(Stream stream, IEnumerable<Subscription> subscriptions, IEnumerable<Type> knownTypes = null);
 
         /// <summary>
         /// Saves a set of subscriptions to a file.
         /// </summary>
-        void Save(string filePath, IEnumerable<Subscription> subscriptions);
+        void Save(string filePath, IEnumerable<Subscription> subscriptions, IEnumerable<Type> knownTypes = null);
 
         /// <summary>
-        /// Load the list of subscriptions saved in a file.
+        /// Load the list of subscriptions saved in a stream.
         /// </summary>
         /// <param name="stream">The stream.</param>
         /// <param name="transferSubscriptions">Load the subscriptions for transfer after load.</param>
+        /// <param name="knownTypes">Additional known types that may be needed to read the saved subscriptions.</param>
         /// <returns>The list of loaded subscriptions</returns>
-        IEnumerable<Subscription> Load(Stream stream, bool transferSubscriptions = false);
+        IEnumerable<Subscription> Load(Stream stream, bool transferSubscriptions = false, IEnumerable<Type> knownTypes = null);
 
         /// <summary>
         /// Load the list of subscriptions saved in a file.
         /// </summary>
         /// <param name="filePath">The file path.</param>
         /// <param name="transferSubscriptions">Load the subscriptions for transfer after load.</param>
+        /// <param name="knownTypes">Additional known types that may be needed to read the saved subscriptions.</param>
         /// <returns>The list of loaded subscriptions</returns>
-        IEnumerable<Subscription> Load(string filePath, bool transferSubscriptions = false);
+        IEnumerable<Subscription> Load(string filePath, bool transferSubscriptions = false, IEnumerable<Type> knownTypes = null);
+
+        /// <summary>
+        /// Returns the active session configuration and writes it to a stream.
+        /// </summary>
+        SessionConfiguration SaveSessionConfiguration(Stream stream = null);
+
+        /// <summary>
+        /// Applies a session configuration.
+        /// Using a secure channel, with the session configuration a session can be reconnected.
+        /// </summary>
+        bool ApplySessionConfiguration(SessionConfiguration sessionConfiguration);
 
         /// <summary>
         /// Updates the local copy of the server's namespace uri and server uri tables.
@@ -329,6 +398,30 @@ namespace Opc.Ua.Client
         /// </remarks>
         void FetchTypeTree(ExpandedNodeIdCollection typeIds);
 
+#if (CLIENT_ASYNC)
+        /// <summary>
+        /// Updates the local copy of the server's namespace uri and server uri tables.
+        /// </summary>
+        /// <param name="ct">The cancellation token.</param>
+        Task FetchNamespaceTablesAsync(CancellationToken ct = default);
+
+        /// <summary>
+        /// Updates the cache with the type and its subtypes.
+        /// </summary>
+        /// <remarks>
+        /// This method can be used to ensure the TypeTree is populated.
+        /// </remarks>
+        Task FetchTypeTreeAsync(ExpandedNodeId typeId, CancellationToken ct = default);
+
+        /// <summary>
+        /// Updates the cache with the types and its subtypes.
+        /// </summary>
+        /// <remarks>
+        /// This method can be used to ensure the TypeTree is populated.
+        /// </remarks>
+        Task FetchTypeTreeAsync(ExpandedNodeIdCollection typeIds, CancellationToken ct = default);
+#endif
+
         /// <summary>
         /// Returns the available encodings for a node
         /// </summary>
@@ -341,11 +434,13 @@ namespace Opc.Ua.Client
         /// <param name="encodingId">The encoding Id.</param>
         ReferenceDescription FindDataDescription(NodeId encodingId);
 
+#if (CLIENT_ASYNC)
         /// <summary>
         ///  Returns the data dictionary that contains the description.
         /// </summary>
         /// <param name="descriptionId">The description id.</param>
-        Task<DataDictionary> FindDataDictionary(NodeId descriptionId);
+        /// <param name="ct"></param>
+        Task<DataDictionary> FindDataDictionary(NodeId descriptionId, CancellationToken ct = default);
 
         /// <summary>
         ///  Returns the data dictionary that contains the description.
@@ -353,13 +448,19 @@ namespace Opc.Ua.Client
         /// <param name="dictionaryNode">The dictionary id.</param>
         /// <param name="forceReload"></param>
         /// <returns>The dictionary.</returns>
-        Task<DataDictionary> LoadDataDictionary(ReferenceDescription dictionaryNode, bool forceReload = false);
+        DataDictionary LoadDataDictionary(
+            ReferenceDescription dictionaryNode,
+            bool forceReload = false);
 
         /// <summary>
         /// Loads all dictionaries of the OPC binary or Xml schema type system.
         /// </summary>
         /// <param name="dataTypeSystem">The type system.</param>
-        Task<Dictionary<NodeId, DataDictionary>> LoadDataTypeSystem(NodeId dataTypeSystem = null);
+        /// <param name="ct"></param>
+        Task<Dictionary<NodeId, DataDictionary>> LoadDataTypeSystem(
+            NodeId dataTypeSystem = null,
+            CancellationToken ct = default);
+#endif
 
         /// <summary>
         /// Reads the values for the node attributes and returns a node object.
@@ -439,6 +540,23 @@ namespace Opc.Ua.Client
         /// <param name="errors">The errors reported by the server.</param>
         void FetchReferences(IList<NodeId> nodeIds, out IList<ReferenceDescriptionCollection> referenceDescriptions, out IList<ServiceResult> errors);
 
+#if (CLIENT_ASYNC)
+        /// <summary>
+        /// Fetches all references for the specified node.
+        /// </summary>
+        /// <param name="nodeId">The node id.</param>
+        /// <param name="ct"></param>
+        Task<ReferenceDescriptionCollection> FetchReferencesAsync(NodeId nodeId, CancellationToken ct);
+
+        /// <summary>
+        /// Fetches all references for the specified nodes.
+        /// </summary>
+        /// <param name="nodeIds">The node id collection.</param>
+        /// <param name="ct"></param>
+        /// <returns>A list of reference collections and the errors reported by the server.</returns>
+        Task<(IList<ReferenceDescriptionCollection>, IList<ServiceResult>)> FetchReferencesAsync(IList<NodeId> nodeIds, CancellationToken ct);
+#endif
+
         /// <summary>
         /// Establishes a session with the server.
         /// </summary>
@@ -498,6 +616,35 @@ namespace Opc.Ua.Client
         void ReadDisplayName(IList<NodeId> nodeIds, out IList<string> displayNames, out IList<ServiceResult> errors);
 
 #if (CLIENT_ASYNC)
+        /// <summary>
+        /// Establishes a session with the server.
+        /// </summary>
+        /// <param name="sessionName">The name to assign to the session.</param>
+        /// <param name="identity">The user identity.</param>
+        /// <param name="ct">The cancellation token.</param>
+        Task OpenAsync(string sessionName, IUserIdentity identity, CancellationToken ct);
+
+        /// <summary>
+        /// Establishes a session with the server.
+        /// </summary>
+        /// <param name="sessionName">The name to assign to the session.</param>
+        /// <param name="sessionTimeout">The session timeout.</param>
+        /// <param name="identity">The user identity.</param>
+        /// <param name="preferredLocales">The list of preferred locales.</param>
+        /// <param name="ct">The cancellation token.</param>
+        Task OpenAsync(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, CancellationToken ct);
+
+        /// <summary>
+        /// Establishes a session with the server.
+        /// </summary>
+        /// <param name="sessionName">The name to assign to the session.</param>
+        /// <param name="sessionTimeout">The session timeout.</param>
+        /// <param name="identity">The user identity.</param>
+        /// <param name="preferredLocales">The list of preferred locales.</param>
+        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="ct">The cancellation token.</param>
+        Task OpenAsync(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain, CancellationToken ct);
+
         /// <summary>
         /// Reads the values for the node attributes and returns a node object collection.
         /// </summary>
@@ -617,8 +764,17 @@ namespace Opc.Ua.Client
         bool RemoveSubscriptions(IEnumerable<Subscription> subscriptions);
 
         /// <summary>
-        /// Transfers a list of Subscriptions from another session.
+        /// Reactivates a list of subscriptions loaded from storage.
         /// </summary>
+        /// <param name="subscriptions">The list of subscriptions to reactivate.</param>
+        /// <param name="sendInitialValues">Send the last value of each monitored item in the subscriptions.</param>
+        bool ReactivateSubscriptions(SubscriptionCollection subscriptions, bool sendInitialValues);
+
+        /// <summary>
+        /// Transfers a list of subscriptions from another session.
+        /// </summary>
+        /// <param name="subscriptions">The list of subscriptions to transfer.</param>
+        /// <param name="sendInitialValues">Send the last value of each monitored item in the subscriptions.</param>
         bool TransferSubscriptions(SubscriptionCollection subscriptions, bool sendInitialValues);
 
         /// <summary>
@@ -634,13 +790,31 @@ namespace Opc.Ua.Client
         /// Removes a subscription from the session.
         /// </summary>
         /// <param name="subscription">The subscription to remove.</param>
-        Task<bool> RemoveSubscriptionAsync(Subscription subscription);
+        /// <param name="ct">The cancellation token for the request.</param>
+        Task<bool> RemoveSubscriptionAsync(Subscription subscription, CancellationToken ct = default);
 
         /// <summary>
-        /// Removes a list of subscriptions from the sessiont.
+        /// Removes a list of subscriptions from the session.
         /// </summary>
         /// <param name="subscriptions">The list of subscriptions to remove.</param>
-        Task<bool> RemoveSubscriptionsAsync(IEnumerable<Subscription> subscriptions);
+        /// <param name="ct">The cancellation token for the request.</param>
+        Task<bool> RemoveSubscriptionsAsync(IEnumerable<Subscription> subscriptions, CancellationToken ct = default);
+
+        /// <summary>
+        /// Reactivates a list of subscriptions loaded from storage.
+        /// </summary>
+        /// <param name="subscriptions">The list of subscriptions to reactivate.</param>
+        /// <param name="sendInitialValues">Send the last value of each monitored item in the subscriptions.</param>
+        /// <param name="ct">The cancellation token for the request.</param>
+        Task<bool> ReactivateSubscriptionsAsync(SubscriptionCollection subscriptions, bool sendInitialValues, CancellationToken ct = default);
+
+        /// <summary>
+        /// Transfers a list of subscriptions from another session.
+        /// </summary>
+        /// <param name="subscriptions">The list of subscriptions to transfer.</param>
+        /// <param name="sendInitialValues">Send the last value of each monitored item in the subscriptions.</param>
+        /// <param name="ct">The cancellation token for the request.</param>
+        Task<bool> TransferSubscriptionsAsync(SubscriptionCollection subscriptions, bool sendInitialValues, CancellationToken ct = default);
 #endif
         #endregion
 
@@ -746,6 +920,18 @@ namespace Opc.Ua.Client
         /// <param name="args">The input arguments.</param>
         /// <returns>The list of output argument values.</returns>
         IList<object> Call(NodeId objectId, NodeId methodId, params object[] args);
+
+#if CLIENT_ASYNC
+        /// <summary>
+        /// Calls the specified method and returns the output arguments.
+        /// </summary>
+        /// <param name="objectId">The NodeId of the object that provides the method.</param>
+        /// <param name="methodId">The NodeId of the method to call.</param>
+        /// <param name="ct">The cancellation token for the request.</param>
+        /// <param name="args">The input arguments.</param>
+        /// <returns>The list of output argument values.</returns>
+        Task<IList<object>> CallAsync(NodeId objectId, NodeId methodId, CancellationToken ct = default, params object[] args);
+#endif
         #endregion
 
         #region Publish Methods
@@ -758,6 +944,23 @@ namespace Opc.Ua.Client
         /// Sends a republish request.
         /// </summary>
         bool Republish(uint subscriptionId, uint sequenceNumber);
+
+        /// <summary>
+        /// Call the ResendData method on the server for all subscriptions.
+        /// </summary>
+        bool ResendData(IEnumerable<Subscription> subscriptions, out IList<ServiceResult> errors);
+
+#if CLIENT_ASYNC
+        /// <summary>
+        /// Sends a republish request.
+        /// </summary>
+        Task<bool> RepublishAsync(uint subscriptionId, uint sequenceNumber, CancellationToken ct = default);
+
+        /// <summary>
+        /// Call the ResendData method on the server for all subscriptions.
+        /// </summary>
+        Task<(bool, IList<ServiceResult>)> ResendDataAsync(IEnumerable<Subscription> subscriptions, CancellationToken ct = default);
+#endif
         #endregion
     }
 }

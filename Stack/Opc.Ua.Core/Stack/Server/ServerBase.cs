@@ -213,7 +213,7 @@ namespace Opc.Ua
                     if (ii.UriScheme == url.Scheme)
                     {
                         listener = ii;
-                        break;
+                        listener.CreateReverseConnection(url, timeout);
                     }
                 }
             }
@@ -222,8 +222,6 @@ namespace Opc.Ua
             {
                 throw new ArgumentException("No suitable listener found.", nameof(url));
             }
-
-            listener.CreateReverseConnection(url, timeout);
         }
 
         /// <summary>
@@ -395,6 +393,7 @@ namespace Opc.Ua
                 switch (address.Url.Scheme)
                 {
                     case Utils.UriSchemeHttps:
+                    case Utils.UriSchemeOpcHttps:
                     {
                         address.ProfileUri = Profiles.HttpsBinaryTransport;
                         address.DiscoveryUrl = address.Url;
@@ -404,6 +403,13 @@ namespace Opc.Ua
                     case Utils.UriSchemeOpcTcp:
                     {
                         address.ProfileUri = Profiles.UaTcpTransport;
+                        address.DiscoveryUrl = address.Url;
+                        break;
+                    }
+
+                    case Utils.UriSchemeOpcWss:
+                    {
+                        address.ProfileUri = Profiles.UaWssTransport;
                         address.DiscoveryUrl = address.Url;
                         break;
                     }
@@ -1055,7 +1061,9 @@ namespace Opc.Ua
         {
             string url = baseAddress.Url.ToString();
 
-            if ((baseAddress.ProfileUri == Profiles.HttpsBinaryTransport) && (!(url.EndsWith("discovery"))))
+            if ((baseAddress.ProfileUri == Profiles.HttpsBinaryTransport) &&
+                url.StartsWith(Utils.UriSchemeHttp) &&
+                (!(url.EndsWith("discovery"))))
             {
                 url += "/discovery";
             }
@@ -1515,8 +1523,16 @@ namespace Opc.Ua
                 bool monitorExit = true;
                 try
                 {
-                    // check able to schedule requests.
-                    if (m_stopped || m_queue.Count >= m_maxRequestCount)
+                    // check if the server is stopped
+                    if (m_stopped)
+                    {
+                        monitorExit = false;
+                        Monitor.Exit(m_lock);
+                        request.OperationCompleted(null, StatusCodes.BadServerHalted);
+                        Utils.LogTrace("Server halted.");
+                    }
+                    // check if we're able to schedule requests.
+                    else if (m_queue.Count >= m_maxRequestCount)
                     {
                         // too many operations
                         totalThreadCount = m_totalThreadCount;
@@ -1524,7 +1540,7 @@ namespace Opc.Ua
                         monitorExit = false;
                         Monitor.Exit(m_lock);
 
-                        request.OperationCompleted(null, StatusCodes.BadTooManyOperations);
+                        request.OperationCompleted(null, StatusCodes.BadServerTooBusy);
 
                         Utils.LogTrace("Too many operations. Total: {0} Active: {1}",
                             totalThreadCount, activeThreadCount);
@@ -1568,7 +1584,8 @@ namespace Opc.Ua
 #else
                 if (m_stopped)
                 {
-                    request.OperationCompleted(null, StatusCodes.BadTooManyOperations);
+                    request.OperationCompleted(null, StatusCodes.BadServerHalted);
+                    Utils.LogTrace("Server halted.");
                     return;
                 }
 
@@ -1576,7 +1593,7 @@ namespace Opc.Ua
                 if (activeThreadCount >= m_maxRequestCount)
                 {
                     Interlocked.Decrement(ref m_activeThreadCount);
-                    request.OperationCompleted(null, StatusCodes.BadTooManyOperations);
+                    request.OperationCompleted(null, StatusCodes.BadServerTooBusy);
                     Utils.LogWarning("Too many operations. Active thread count: {0}", m_activeThreadCount);
                     return;
                 }
@@ -1654,7 +1671,7 @@ namespace Opc.Ua
             private int m_minThreadCount;
             private int m_maxRequestCount;
 #if THREAD_SCHEDULER
-            private object m_lock = new object();
+            private readonly object m_lock = new object();
             private Queue<IEndpointIncomingRequest> m_queue;
             private int m_totalThreadCount;
 #endif

@@ -20,17 +20,22 @@ charset                  = utf-8
 trim_trailing_whitespace = true
 end_of_line              = crlf
 insert_final_newline     = true
+max_line_length          = 120
 
 # Xml project files
 [*.{csproj,vbproj,vcxproj,vcxproj.filters,proj,projitems,shproj}]
 indent_size = 2
 
 # Xml config files
-[*.{props,targets,ruleset,config,nuspec,resx,vsixmanifest,vsct}]
+[*.{xml,props,targets,ruleset,config,nuspec,resx,vsixmanifest,vsct}]
 indent_size = 2
 
 # JSON files
 [*.json]
+indent_size = 2
+
+# YAML files
+[*.{yml,yaml}]
 indent_size = 2
 
 ###############################
@@ -81,6 +86,8 @@ csharp_space_between_square_brackets                                          = 
 
 dotnet_sort_system_directives_first                                           = true
 dotnet_separate_import_directive_groups                                       = false
+csharp_style_prefer_method_group_conversion                                   = true : silent
+csharp_style_prefer_top_level_statements                                      = true : silent
 
 #Formatting - spacing options
 
@@ -95,7 +102,6 @@ csharp_space_between_method_declaration_empty_parameter_list_parentheses      = 
 csharp_space_between_method_declaration_parameter_list_parentheses            = false
 
 #Formatting - wrapping options
-
 csharp_preserve_single_line_blocks                                            = true
 csharp_preserve_single_line_statements                                        = true
 
@@ -123,9 +129,9 @@ csharp_style_inlined_variable_declaration                                     = 
 csharp_prefer_simple_using_statement                                          = false : suggestion
 
 #Style - implicit and explicit types
-csharp_style_var_for_built_in_types                                           = false : silent
-csharp_style_var_when_type_is_apparent                                        = true : silent
-csharp_style_var_elsewhere                                                    = false : silent
+csharp_style_var_for_built_in_types                                           = false : suggestion
+csharp_style_var_when_type_is_apparent                                        = true : suggestion
+csharp_style_var_elsewhere                                                    = false : suggestion
 
 #Style - language keyword and framework type options
 
@@ -164,10 +170,22 @@ dotnet_style_prefer_conditional_expression_over_assignment                    = 
 dotnet_style_prefer_conditional_expression_over_return                        = true : suggestion
 
 # 'using' directive preferences
-csharp_using_directive_placement                                              = outside_namespace : silent
-csharp_style_namespace_declarations                                           = block_scoped : silent
+csharp_using_directive_placement                                              = outside_namespace : suggestion
+csharp_style_namespace_declarations                                           = block_scoped : suggestion
 
 # Naming rules
+
+# Async methods should have "Async" suffix
+dotnet_naming_rule.async_methods_end_in_async.severity                        = suggestion
+dotnet_naming_rule.async_methods_end_in_async.symbols                         = any_async_methods
+dotnet_naming_rule.async_methods_end_in_async.style                           = end_in_async
+
+dotnet_naming_symbols.any_async_methods.applicable_kinds                      = method, interface
+dotnet_naming_symbols.any_async_methods.applicable_accessibilities            = *
+dotnet_naming_symbols.any_async_methods.required_modifiers                    = async
+
+dotnet_naming_style.end_in_async.required_suffix                              = Async
+dotnet_naming_style.end_in_async.capitalization                               = pascal_case
 
 # Private Constants are PascalCase and start with k
 dotnet_naming_rule.constants_private_should_start_with_k.severity             = suggestion
@@ -297,8 +315,22 @@ dotnet_code_quality.CA1822.api_surface                                        = 
 dotnet_diagnostic.CA3075.severity                                             = error
 dotnet_diagnostic.CA3077.severity                                             = error
 
+# CA2007: Do not directly await a Task
+dotnet_diagnostic.CA2007.severity                                             = warning
+
 # IDE0049: Simplify Names
 dotnet_diagnostic.IDE0049.severity                                            = silent
 
 # CA1507: Use nameof in place of string
 dotnet_diagnostic.CA1507.severity                                             = warning
+
+# exclude generated code
+[**/Generated/*.cs]
+generated_code = true
+dotnet_diagnostic.severity = none
+dotnet_analyzer.severity = none
+
+[*.{Classes,DataTypes,Constants}.cs]
+generated_code = true
+dotnet_diagnostic.severity = none
+dotnet_analyzer.severity = none

@@ -18,86 +18,86 @@ namespace Opc.Ua
 	/// The properties of the current server instance.
 	/// </summary>
 	public class ServerProperties
-	{
-#region Constructors
+    {
+        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
         public ServerProperties()
-		{
-			m_productUri = String.Empty;
-		    m_manufacturerName = String.Empty;
-		    m_productName = String.Empty;
-		    m_softwareVersion = String.Empty;
-		    m_buildNumber = String.Empty;
-		    m_buildDate = DateTime.MinValue;
+        {
+            m_productUri = String.Empty;
+            m_manufacturerName = String.Empty;
+            m_productName = String.Empty;
+            m_softwareVersion = String.Empty;
+            m_buildNumber = String.Empty;
+            m_buildDate = DateTime.MinValue;
             m_datatypeAssemblies = new StringCollection();
             m_softwareCertificates = new SignedSoftwareCertificateCollection();
-		}
-#endregion
+        }
+        #endregion
 
-#region Public Properties
-		/// <summary>
-		/// The unique identifier for the product.
-		/// </summary>
-		public string ProductUri
-		{
-			get { return m_productUri;  }
-			set { m_productUri = value; }
-		}
-     
-		/// <summary>
-		/// The name of the product
-		/// </summary>
-		public string ProductName
-		{
-			get { return m_productName;  }
-			set { m_productName = value; }
-		}     
-     
-		/// <summary>
-		/// The name of the manufacturer
-		/// </summary>
-		public string ManufacturerName
-		{
-			get { return m_manufacturerName;  }
-			set { m_manufacturerName = value; }
-		}  
-     
-		/// <summary>
-		/// The software version for the application
-		/// </summary>
-		public string SoftwareVersion
-		{
-			get { return m_softwareVersion;  }
-			set { m_softwareVersion = value; }
-		}       
-     
-		/// <summary>
-		/// The build number for the application
-		/// </summary>
-		public string BuildNumber
-		{
-			get { return m_buildNumber;  }
-			set { m_buildNumber = value; }
-		}       
-     
-		/// <summary>
-		/// When the application was built.
+        #region Public Properties
+        /// <summary>
+        /// The unique identifier for the product.
         /// </summary>
-		public DateTime BuildDate
-		{
-			get { return m_buildDate;  }
-			set { m_buildDate = value; }
-		}       
-                
-		/// <summary>
-		/// The assemblies that contain encodeable types that could be uses a variable values.
-		/// </summary>
-		public StringCollection DatatypeAssemblies
-		{
-			get { return m_datatypeAssemblies; }
-		}
+        public string ProductUri
+        {
+            get { return m_productUri; }
+            set { m_productUri = value; }
+        }
+
+        /// <summary>
+        /// The name of the product
+        /// </summary>
+        public string ProductName
+        {
+            get { return m_productName; }
+            set { m_productName = value; }
+        }
+
+        /// <summary>
+        /// The name of the manufacturer
+        /// </summary>
+        public string ManufacturerName
+        {
+            get { return m_manufacturerName; }
+            set { m_manufacturerName = value; }
+        }
+
+        /// <summary>
+        /// The software version for the application
+        /// </summary>
+        public string SoftwareVersion
+        {
+            get { return m_softwareVersion; }
+            set { m_softwareVersion = value; }
+        }
+
+        /// <summary>
+        /// The build number for the application
+        /// </summary>
+        public string BuildNumber
+        {
+            get { return m_buildNumber; }
+            set { m_buildNumber = value; }
+        }
+
+        /// <summary>
+        /// When the application was built.
+        /// </summary>
+        public DateTime BuildDate
+        {
+            get { return m_buildDate; }
+            set { m_buildDate = value; }
+        }
+
+        /// <summary>
+        /// The assemblies that contain encodeable types that could be uses a variable values.
+        /// </summary>
+        public StringCollection DatatypeAssemblies
+        {
+            get { return m_datatypeAssemblies; }
+        }
 
         /// <summary>
         /// The software certificates granted to the server.
@@ -106,17 +106,17 @@ namespace Opc.Ua
         {
             get { return m_softwareCertificates; }
         }
-#endregion
+        #endregion
 
-#region Private Members
-		private string m_productUri;
-		private string m_productName;
-		private string m_manufacturerName;
-		private string m_softwareVersion;
-		private string m_buildNumber;
-		private DateTime m_buildDate;
+        #region Private Members
+        private string m_productUri;
+        private string m_productName;
+        private string m_manufacturerName;
+        private string m_softwareVersion;
+        private string m_buildNumber;
+        private DateTime m_buildDate;
         private StringCollection m_datatypeAssemblies;
         private SignedSoftwareCertificateCollection m_softwareCertificates;
-#endregion
-	}
+        #endregion
+    }
 }

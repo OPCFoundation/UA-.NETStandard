@@ -278,9 +278,8 @@ namespace Opc.Ua.Bindings
                 }
 
                 // get reason for cleanup.
-                ServiceResult reason = state as ServiceResult;
 
-                if (reason == null)
+                if (!(state is ServiceResult reason))
                 {
                     reason = new ServiceResult(StatusCodes.BadTimeout);
                 }
@@ -333,18 +332,19 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                BinaryEncoder encoder = new BinaryEncoder(buffer, 0, SendBufferSize, Quotas.MessageContext);
+                using (BinaryEncoder encoder = new BinaryEncoder(buffer, 0, SendBufferSize, Quotas.MessageContext))
+                {
+                    encoder.WriteUInt32(null, TcpMessageType.Error);
+                    encoder.WriteUInt32(null, 0);
 
-                encoder.WriteUInt32(null, TcpMessageType.Error);
-                encoder.WriteUInt32(null, 0);
+                    WriteErrorMessageBody(encoder, error);
 
-                WriteErrorMessageBody(encoder, error);
+                    int size = encoder.Close();
+                    UpdateMessageSize(buffer, 0, size);
 
-                int size = encoder.Close();
-                UpdateMessageSize(buffer, 0, size);
-
-                BeginWriteMessage(new ArraySegment<byte>(buffer, 0, size), null);
-                buffer = null;
+                    BeginWriteMessage(new ArraySegment<byte>(buffer, 0, size), null);
+                    buffer = null;
+                }
             }
             finally
             {

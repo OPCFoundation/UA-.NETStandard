@@ -18,7 +18,7 @@ namespace Opc.Ua
     /// <summary>
     /// Defines functions used to dencode objects from a stream.
     /// </summary>
-    public interface IDecoder
+    public interface IDecoder : IDisposable
     {
         /// <summary>
         /// The type of encoding being used.
@@ -29,6 +29,11 @@ namespace Opc.Ua
         /// The message context associated with the decoder.
         /// </summary>
         IServiceMessageContext Context { get; }
+
+        /// <summary>
+        /// Closes the stream used for reading.
+        /// </summary>
+        void Close();
 
         /// <summary>
         /// Initializes the tables used to map namespace and server uris during decoding.

@@ -376,7 +376,7 @@ namespace Quickstarts
         /// <param name="addRootNode">Adds the root node to the result.</param>
         /// <param name="filterUATypes">Filters nodes from namespace 0 from the result.</param>
         /// <returns>The list of nodes on the server.</returns>
-        public IList<INode> FetchAllNodesNodeCache(
+        public async Task<IList<INode>> FetchAllNodesNodeCacheAsync(
             IUAClient uaClient,
             NodeId startingNode,
             bool fetchTree = false,
@@ -398,13 +398,13 @@ namespace Quickstarts
             {
                 // clear NodeCache to fetch all nodes from server
                 uaClient.Session.NodeCache.Clear();
-                FetchReferenceIdTypes(uaClient.Session);
+                await FetchReferenceIdTypesAsync(uaClient.Session).ConfigureAwait(false);
             }
 
             // add root node
             if (addRootNode)
             {
-                var rootNode = uaClient.Session.NodeCache.Find(startingNode);
+                var rootNode = await uaClient.Session.NodeCache.FindAsync(startingNode).ConfigureAwait(false);
                 nodeDictionary[rootNode.NodeId] = rootNode;
             }
 
@@ -419,11 +419,11 @@ namespace Quickstarts
 
                 searchDepth++;
                 Utils.LogInfo("{0}: Find {1} references after {2}ms", searchDepth, nodesToBrowse.Count, stopwatch.ElapsedMilliseconds);
-                IList<INode> response = uaClient.Session.NodeCache.FindReferences(
+                IList<INode> response = await uaClient.Session.NodeCache.FindReferencesAsync(
                     nodesToBrowse,
                     references,
                     false,
-                    true);
+                    true).ConfigureAwait(false);
 
                 var nextNodesToBrowse = new ExpandedNodeIdCollection();
                 int duplicates = 0;
@@ -466,7 +466,7 @@ namespace Quickstarts
                         }
                         else
                         {
-                            nodeDictionary[node.NodeId] = node; ;
+                            nodeDictionary[node.NodeId] = node;
                         }
                     }
                     else
@@ -511,10 +511,11 @@ namespace Quickstarts
         /// <param name="uaClient">The UAClient with a session to use.</param>
         /// <param name="startingNode">The node where the browse operation starts.</param>
         /// <param name="browseDescription">An optional BrowseDescription to use.</param>
-        public ReferenceDescriptionCollection BrowseFullAddressSpace(
+        public async Task<ReferenceDescriptionCollection> BrowseFullAddressSpaceAsync(
             IUAClient uaClient,
             NodeId startingNode = null,
-            BrowseDescription browseDescription = null)
+            BrowseDescription browseDescription = null,
+            CancellationToken ct = default)
         {
             Stopwatch stopWatch = new Stopwatch();
             stopWatch.Start();
@@ -563,9 +564,10 @@ namespace Quickstarts
                     repeatBrowse = false;
                     try
                     {
-                        _ = uaClient.Session.Browse(null, null,
-                            kMaxReferencesPerNode, browseCollection,
-                            out browseResultCollection, out diagnosticsInfoCollection);
+                        var browseResponse = await uaClient.Session.BrowseAsync(null, null,
+                            kMaxReferencesPerNode, browseCollection, ct).ConfigureAwait(false);
+                        browseResultCollection = browseResponse.Results;
+                        diagnosticsInfoCollection = browseResponse.DiagnosticInfos;
                         ClientBase.ValidateResponse(browseResultCollection, browseCollection);
                         ClientBase.ValidateDiagnosticInfos(diagnosticsInfoCollection, browseCollection);
 
@@ -629,8 +631,9 @@ namespace Quickstarts
                     }
 
                     Utils.LogInfo("BrowseNext {0} continuation points.", continuationPoints.Count);
-                    _ = uaClient.Session.BrowseNext(null, false, continuationPoints,
-                        out var browseNextResultCollection, out diagnosticsInfoCollection);
+                    var browseNextResult = await uaClient.Session.BrowseNextAsync(null, false, continuationPoints, ct).ConfigureAwait(false);
+                    var browseNextResultCollection = browseNextResult.Results;
+                    diagnosticsInfoCollection = browseNextResult.DiagnosticInfos;
                     ClientBase.ValidateResponse(browseNextResultCollection, continuationPoints);
                     ClientBase.ValidateDiagnosticInfos(diagnosticsInfoCollection, continuationPoints);
                     allBrowseResults.AddRange(browseNextResultCollection);
@@ -696,7 +699,7 @@ namespace Quickstarts
         /// Outputs elapsed time information for perf testing and lists all
         /// types that were successfully added to the session encodeable type factory.
         /// </remarks>
-        public async Task LoadTypeSystem(ISession session)
+        public async Task LoadTypeSystemAsync(ISession session)
         {
             m_output.WriteLine("Load the server type system.");
 
@@ -729,6 +732,28 @@ namespace Quickstarts
                     }
                 }
             }
+        }
+        #endregion
+
+        #region Fetch ReferenceId Types
+        /// <summary>
+        /// Read all ReferenceTypeIds from the server that are not known by the client.
+        /// To reduce the number of calls due to traversal call pyramid, start with all
+        /// known reference types to reduce the number of FetchReferences/FetchNodes calls.
+        /// </summary>
+        /// <remarks>
+        /// The NodeCache needs this information to function properly with subtypes of hierarchical calls.
+        /// </remarks>
+        /// <param name="session">The session to use</param>
+        Task FetchReferenceIdTypesAsync(ISession session)
+        {
+            // fetch the reference types first, otherwise browse for e.g. hierarchical references with subtypes won't work
+            var bindingFlags = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
+            var namespaceUris = session.NamespaceUris;
+            var referenceTypes = typeof(ReferenceTypeIds)
+                     .GetFields(bindingFlags)
+                     .Select(field => NodeId.ToExpandedNodeId((NodeId)field.GetValue(null), namespaceUris));
+            return session.FetchTypeTreeAsync(new ExpandedNodeIdCollection(referenceTypes));
         }
         #endregion
 
@@ -839,6 +864,86 @@ namespace Quickstarts
 
         #region Subscribe Values
         /// <summary>
+        /// Subscribe to all variables in the list.
+        /// </summary>
+        /// <param name="uaClient">The UAClient with a session to use.</param>
+        /// <param name="variableIds">The variables to subscribe.</param>
+        public async Task SubscribeAllValuesAsync(
+            IUAClient uaClient,
+            NodeCollection variableIds,
+            int samplingInterval,
+            int publishingInterval,
+            uint queueSize,
+            uint lifetimeCount,
+            uint keepAliveCount)
+        {
+            if (uaClient.Session == null || !uaClient.Session.Connected)
+            {
+                m_output.WriteLine("Session not connected!");
+                return;
+            }
+
+            try
+            {
+                // Create a subscription for receiving data change notifications
+                var session = uaClient.Session;
+
+                // test for deferred ack of sequence numbers
+                session.PublishSequenceNumbersToAcknowledge += DeferSubscriptionAcknowledge;
+
+                // set a minimum amount of three publish requests per session
+                session.MinPublishRequestCount = 3;
+
+                // Define Subscription parameters
+                Subscription subscription = new Subscription(session.DefaultSubscription) {
+                    DisplayName = "Console ReferenceClient Subscription",
+                    PublishingEnabled = true,
+                    PublishingInterval = publishingInterval,
+                    LifetimeCount = lifetimeCount,
+                    KeepAliveCount = keepAliveCount,
+                    SequentialPublishing = true,
+                    RepublishAfterTransfer = true,
+                    DisableMonitoredItemCache = true,
+                    MaxNotificationsPerPublish = 1000,
+                    MinLifetimeInterval = (uint)session.SessionTimeout,
+                    FastDataChangeCallback = FastDataChangeNotification,
+                    FastKeepAliveCallback = FastKeepAliveNotification,
+                };
+                session.AddSubscription(subscription);
+
+                // Create the subscription on Server side
+                await subscription.CreateAsync().ConfigureAwait(false);
+                m_output.WriteLine("New Subscription created with SubscriptionId = {0}.", subscription.Id);
+
+                // Create MonitoredItems for data changes
+                foreach (Node item in variableIds)
+                {
+                    MonitoredItem monitoredItem = new MonitoredItem(subscription.DefaultItem) {
+                        StartNodeId = item.NodeId,
+                        AttributeId = Attributes.Value,
+                        SamplingInterval = samplingInterval,
+                        DisplayName = item.DisplayName?.Text ?? item.BrowseName.Name,
+                        QueueSize = queueSize,
+                        DiscardOldest = true,
+                        MonitoringMode = MonitoringMode.Reporting,
+                    };
+                    subscription.AddItem(monitoredItem);
+                    if (subscription.CurrentKeepAliveCount > 1000) break;
+                }
+
+                // Create the monitored items on Server side
+                await subscription.ApplyChangesAsync().ConfigureAwait(false);
+                m_output.WriteLine("MonitoredItems {0} created for SubscriptionId = {1}.", subscription.MonitoredItemCount, subscription.Id);
+            }
+            catch (Exception ex)
+            {
+                m_output.WriteLine("Subscribe error: {0}", ex.Message);
+            }
+        }
+        #endregion
+
+        #region Subscribe Values
+        /// <summary>
         /// Output all values as JSON.
         /// </summary>
         /// <param name="uaClient">The UAClient with a session to use.</param>
@@ -925,9 +1030,13 @@ namespace Quickstarts
         DataValue value,
         bool jsonReversible)
         {
-            var jsonEncoder = new JsonEncoder(messageContext, jsonReversible);
-            jsonEncoder.WriteDataValue(name, value);
-            var textbuffer = jsonEncoder.CloseAndReturnText();
+            string textbuffer;
+            using (var jsonEncoder = new JsonEncoder(messageContext, jsonReversible))
+            {
+                jsonEncoder.WriteDataValue(name, value);
+                textbuffer = jsonEncoder.CloseAndReturnText();
+            }
+
             // prettify
             using (var stringWriter = new StringWriter())
             {
@@ -957,6 +1066,39 @@ namespace Quickstarts
 
         #region Private Methods
         /// <summary>
+        /// The fast keep alive notification callback.
+        /// </summary>
+        private void FastKeepAliveNotification(Subscription subscription, NotificationData notification)
+        {
+            try
+            {
+                m_output.WriteLine("Keep Alive  : Id={0} PublishTime={1} SequenceNumber={2}.",
+                    subscription.Id, notification.PublishTime, notification.SequenceNumber);
+            }
+            catch (Exception ex)
+            {
+                m_output.WriteLine("FastKeepAliveNotification error: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// The fast data change notification callback.
+        /// </summary>
+        private void FastDataChangeNotification(Subscription subscription, DataChangeNotification notification, IList<string> stringTable)
+        {
+            try
+            {
+                m_output.WriteLine("Notification: Id={0} PublishTime={1} SequenceNumber={2} Items={3}.",
+                    subscription.Id, notification.PublishTime,
+                    notification.SequenceNumber, notification.MonitoredItems.Count);
+            }
+            catch (Exception ex)
+            {
+                m_output.WriteLine("FastDataChangeNotification error: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
         /// Handle DataChange notifications from Server
         /// </summary>
         private void OnMonitoredItemNotification(MonitoredItem monitoredItem, MonitoredItemNotificationEventArgs e)
@@ -965,11 +1107,30 @@ namespace Quickstarts
             {
                 // Log MonitoredItem Notification event
                 MonitoredItemNotification notification = e.NotificationValue as MonitoredItemNotification;
-                m_output.WriteLine("Notification: {0} \"{1}\" and Value = {2}.", notification.Message.SequenceNumber, monitoredItem.DisplayName, notification.Value);
+                m_output.WriteLine("Notification: {0} \"{1}\" and Value = {2}.", notification.Message.SequenceNumber, monitoredItem.ResolvedNodeId, notification.Value);
             }
             catch (Exception ex)
             {
                 m_output.WriteLine("OnMonitoredItemNotification error: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Event handler to defer publish response sequence number acknowledge.
+        /// </summary>
+        private void DeferSubscriptionAcknowledge(ISession session, PublishSequenceNumbersToAcknowledgeEventArgs e)
+        {
+            // for testing keep the latest sequence numbers for a while
+            const int AckDelay = 5;
+            if (e.AcknowledgementsToSend.Count > 0)
+            {
+                // defer latest sequence numbers
+                var deferredItems = e.AcknowledgementsToSend.OrderByDescending(s => s.SequenceNumber).Take(AckDelay).ToList();
+                e.DeferredAcknowledgementsToSend.AddRange(deferredItems);
+                foreach (var deferredItem in deferredItems)
+                {
+                    e.AcknowledgementsToSend.Remove(deferredItem);
+                }
             }
         }
 

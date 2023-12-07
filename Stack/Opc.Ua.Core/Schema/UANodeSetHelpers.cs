@@ -165,14 +165,15 @@ namespace Opc.Ua.Export
 
                     if (o.Value != null)
                     {
-                        XmlEncoder encoder = CreateEncoder(context);
+                        using (XmlEncoder encoder = CreateEncoder(context))
+                        {
+                            Variant variant = new Variant(o.Value);
+                            encoder.WriteVariantContents(variant.Value, variant.TypeInfo);
 
-                        Variant variant = new Variant(o.Value);
-                        encoder.WriteVariantContents(variant.Value, variant.TypeInfo);
-
-                        XmlDocument document = new XmlDocument();
-                        document.LoadInnerXml(encoder.Close());
-                        value.Value = document.DocumentElement;
+                            XmlDocument document = new XmlDocument();
+                            document.LoadInnerXml(encoder.CloseAndReturnText());
+                            value.Value = document.DocumentElement;
+                        }
                     }
 
                     exportedNode = value;
@@ -228,14 +229,15 @@ namespace Opc.Ua.Export
 
                     if (o.Value != null)
                     {
-                        XmlEncoder encoder = CreateEncoder(context);
+                        using (XmlEncoder encoder = CreateEncoder(context))
+                        {
+                            Variant variant = new Variant(o.Value);
+                            encoder.WriteVariantContents(variant.Value, variant.TypeInfo);
 
-                        Variant variant = new Variant(o.Value);
-                        encoder.WriteVariantContents(variant.Value, variant.TypeInfo);
-
-                        XmlDocument document = new XmlDocument();
-                        document.LoadInnerXml(encoder.Close());
-                        value.Value = document.DocumentElement;
+                            XmlDocument document = new XmlDocument();
+                            document.LoadInnerXml(encoder.CloseAndReturnText());
+                            value.Value = document.DocumentElement;
+                        }
                     }
 
                     exportedNode = value;
@@ -416,7 +418,7 @@ namespace Opc.Ua.Export
                         encoder.WriteVariantContents(o.Value, o.Value.TypeInfo);
 
                         XmlDocument document = new XmlDocument();
-                        document.LoadInnerXml(encoder.Close());
+                        document.LoadInnerXml(encoder.CloseAndReturnText());
                         value.Value = document.DocumentElement;
                     }
 
@@ -478,7 +480,7 @@ namespace Opc.Ua.Export
                         encoder.WriteVariantContents(o.Value, o.Value.TypeInfo);
 
                         XmlDocument document = new XmlDocument();
-                        document.LoadInnerXml(encoder.Close());
+                        document.LoadInnerXml(encoder.CloseAndReturnText());
                         value.Value = document.DocumentElement;
                     }
 
@@ -866,16 +868,13 @@ namespace Opc.Ua.Export
 
             if (node.References != null)
             {
-                BaseInstanceState instance = importedNode as BaseInstanceState;
-                BaseTypeState type = importedNode as BaseTypeState;
-
                 for (int ii = 0; ii < node.References.Length; ii++)
                 {
                     Opc.Ua.NodeId referenceTypeId = ImportNodeId(node.References[ii].ReferenceType, context.NamespaceUris, true);
                     bool isInverse = !node.References[ii].IsForward;
                     Opc.Ua.ExpandedNodeId targetId = ImportExpandedNodeId(node.References[ii].Value, context.NamespaceUris, context.ServerUris);
 
-                    if (instance != null)
+                    if (importedNode is BaseInstanceState instance)
                     {
                         if (referenceTypeId == ReferenceTypeIds.HasModellingRule && !isInverse)
                         {
@@ -890,7 +889,7 @@ namespace Opc.Ua.Export
                         }
                     }
 
-                    if (type != null)
+                    if (importedNode is BaseTypeState type)
                     {
                         if (referenceTypeId == ReferenceTypeIds.HasSubtype && isInverse)
                         {
@@ -1127,9 +1126,8 @@ namespace Opc.Ua.Export
                 definition.SymbolicName = dataType.SymbolicName;
             }
 
-            StructureDefinition sd = source.Body as StructureDefinition;
 
-            if (sd != null)
+            if (source.Body is StructureDefinition sd)
             {
                 if (sd.StructureType == StructureType.Union || sd.StructureType == StructureType.UnionWithSubtypedValues)
                 {
@@ -1194,9 +1192,8 @@ namespace Opc.Ua.Export
                 }
             }
 
-            EnumDefinition ed = source.Body as EnumDefinition;
 
-            if (ed != null)
+            if (source.Body is EnumDefinition ed)
             {
                 definition.IsOptionSet = ed.IsOptionSet;
 

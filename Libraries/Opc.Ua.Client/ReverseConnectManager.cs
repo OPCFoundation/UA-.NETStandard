@@ -189,7 +189,6 @@ namespace Opc.Ua.Client
         {
             m_state = ReverseConnectManagerState.New;
             m_registrations = new List<Registration>();
-            m_registrationsLock = new object();
             m_endpointUrls = new Dictionary<Uri, ReverseConnectInfo>();
             m_cts = new CancellationTokenSource();
         }
@@ -215,6 +214,11 @@ namespace Opc.Ua.Client
             {
                 Utils.SilentDispose(m_configurationWatcher);
                 m_configurationWatcher = null;
+            }
+            if (m_cts != null)
+            {
+                Utils.SilentDispose(m_cts);
+                m_cts = null;
             }
             DisposeHosts();
         }
@@ -461,7 +465,7 @@ namespace Opc.Ua.Client
         public async Task<ITransportWaitingConnection> WaitForConnection(
             Uri endpointUrl,
             string serverUri,
-            CancellationToken ct = default(CancellationToken))
+            CancellationToken ct = default)
         {
             var tcs = new TaskCompletionSource<ITransportWaitingConnection>();
             int hashCode = RegisterWaitingConnection(endpointUrl, serverUri,
@@ -469,7 +473,7 @@ namespace Opc.Ua.Client
                 ReverseConnectStrategy.Once);
 
             Func<Task> listenForCancelTaskFnc = async () => {
-                if (ct == default(CancellationToken))
+                if (ct == default)
                 {
                     var waitTimeout = m_configuration.WaitTimeout > 0 ? m_configuration.WaitTimeout : DefaultWaitTimeout;
                     await Task.Delay(waitTimeout).ConfigureAwait(false);
@@ -725,6 +729,7 @@ namespace Opc.Ua.Client
             CancellationTokenSource cts = m_cts;
             m_cts = new CancellationTokenSource();
             cts.Cancel();
+            cts.Dispose();
         }
         #endregion
 

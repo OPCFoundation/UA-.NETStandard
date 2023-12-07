@@ -12,6 +12,8 @@
 
 using System;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Xml;
 
 namespace Opc.Ua
@@ -225,9 +227,7 @@ namespace Opc.Ua
 
             if (dataTypeId == Opc.Ua.NodeId.Null)
             {
-                Matrix matrix = value as Matrix;
-
-                if (matrix != null)
+                if (value is Matrix matrix)
                 {
                     return GetDataTypeId(matrix.TypeInfo);
                 }
@@ -317,9 +317,7 @@ namespace Opc.Ua
 
             if (typeInfo.BuiltInType == BuiltInType.Null)
             {
-                Matrix matrix = value as Matrix;
-
-                if (matrix != null)
+                if (value is Matrix matrix)
                 {
                     return matrix.TypeInfo.ValueRank;
                 }
@@ -511,6 +509,44 @@ namespace Opc.Ua
 
             return BuiltInType.Null;
         }
+
+#if (NET_STANDARD_ASYNC)
+        /// <summary>
+        /// Returns the BuiltInType type for the DataTypeId.
+        /// </summary>
+        /// <param name="datatypeId">The data type identyfier for a node in a server's address space..</param>
+        /// <param name="typeTree">The type tree for a server. .</param>
+        /// <param name="ct"></param>
+        /// <returns>
+        /// A <see cref="BuiltInType"/> value for <paramref name="datatypeId"/>
+        /// </returns>
+        public static async Task<BuiltInType> GetBuiltInTypeAsync(NodeId datatypeId, ITypeTable typeTree, CancellationToken ct = default)
+        {
+            NodeId typeId = datatypeId;
+
+            while (!Opc.Ua.NodeId.IsNull(typeId))
+            {
+                if (typeId != null && typeId.NamespaceIndex == 0 && typeId.IdType == Opc.Ua.IdType.Numeric)
+                {
+                    BuiltInType id = (BuiltInType)(int)(uint)typeId.Identifier;
+
+                    if (id > BuiltInType.Null && id <= BuiltInType.Enumeration && id != BuiltInType.DiagnosticInfo)
+                    {
+                        return id;
+                    }
+                }
+
+                if (typeTree == null)
+                {
+                    break;
+                }
+
+                typeId = await typeTree.FindSuperTypeAsync(typeId, ct).ConfigureAwait(false);
+            }
+
+            return BuiltInType.Null;
+        }
+#endif
 
         /// <summary>
         /// Returns the system type for the datatype.
@@ -886,12 +922,11 @@ namespace Opc.Ua
                 return null;
             }
 
-            // check every element in the array or matrix.     
+            // check every element in the array or matrix.
             Array array = value as Array;
             if (array == null)
             {
-                Matrix matrix = value as Matrix;
-                if (matrix != null)
+                if (value is Matrix matrix)
                 {
                     array = matrix.Elements;
                 }
@@ -977,14 +1012,12 @@ namespace Opc.Ua
 
             if (BuiltInType == BuiltInType.ExtensionObject)
             {
-                IEncodeable encodeable = value as IEncodeable;
-                if (encodeable != null)
+                if (value is IEncodeable encodeable)
                 {
                     return ExpandedNodeId.ToNodeId(encodeable.TypeId, namespaceUris);
                 }
 
-                ExtensionObject extension = value as ExtensionObject;
-                if (extension != null)
+                if (value is ExtensionObject extension)
                 {
                     encodeable = extension.Body as IEncodeable;
                     if (encodeable != null)
@@ -1138,9 +1171,7 @@ namespace Opc.Ua
             // check for instances of matrices.
             if (typeInfo.BuiltInType == BuiltInType.Null)
             {
-                Matrix matrix = value as Matrix;
-
-                if (matrix != null)
+                if (value is Matrix matrix)
                 {
                     return matrix.TypeInfo;
                 }
@@ -1214,7 +1245,7 @@ namespace Opc.Ua
                     return TypeInfo.Unknown;
                 }
 
-                // check for generic type.                
+                // check for generic type.
                 if (systemType.GetTypeInfo().IsGenericType)
                 {
                     Type[] argTypes = systemType.GetGenericArguments();
@@ -1310,7 +1341,7 @@ namespace Opc.Ua
                 }
             }
 
-            // unknown type.   
+            // unknown type.
             return TypeInfo.Unknown;
         }
 
@@ -3085,8 +3116,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            TypeInfo typeInfo = obj as TypeInfo;
-            if (typeInfo != null)
+            if (obj is TypeInfo typeInfo)
             {
                 return (m_builtInType == typeInfo.BuiltInType &&
                     m_valueRank == typeInfo.ValueRank);

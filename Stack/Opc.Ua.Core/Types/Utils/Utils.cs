@@ -43,9 +43,15 @@ namespace Opc.Ua
         public const string UriSchemeHttp = "http";
 
         /// <summary>
-        /// The URI scheme for the HTTPS protocol.
+        /// The URI scheme for the HTTPS protocol, used in some legacy https
+        /// clients and servers but not compliant to spec version 1.04.
         /// </summary>
         public const string UriSchemeHttps = "https";
+
+        /// <summary>
+        /// The URI scheme for the UA HTTPS protocol.
+        /// </summary>
+        public const string UriSchemeOpcHttps = "opc.https";
 
         /// <summary>
         /// The URI scheme for the UA TCP protocol.
@@ -78,7 +84,9 @@ namespace Opc.Ua
         public static readonly string[] DefaultUriSchemes = new string[]
         {
             Utils.UriSchemeOpcTcp,
-            Utils.UriSchemeHttps
+            Utils.UriSchemeOpcHttps,
+            Utils.UriSchemeHttps,
+            Utils.UriSchemeOpcWss
         };
 
         /// <summary>
@@ -141,8 +149,19 @@ namespace Opc.Ua
         /// </summary>
         public static readonly ReadOnlyDictionary<string, string> DefaultBindings = new ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>() {
-                { Utils.UriSchemeHttps, "Opc.Ua.Bindings.Https"}
+                { Utils.UriSchemeHttps, "Opc.Ua.Bindings.Https"},
+                { Utils.UriSchemeOpcHttps, "Opc.Ua.Bindings.Https"}
             });
+
+        /// <summary>
+        /// Returns <c>true</c> if the url starts with opc.https or https.
+        /// </summary>
+        /// <param name="url">The url</param>
+        public static bool IsUriHttpsScheme(string url)
+        {
+            return url.StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal) ||
+                url.StartsWith(Utils.UriSchemeOpcHttps, StringComparison.Ordinal);
+        }
         #endregion
 
         #region Trace Support
@@ -155,7 +174,7 @@ namespace Opc.Ua
 #endif
 
         private static string s_traceFileName = string.Empty;
-        private static object s_traceFileLock = new object();
+        private readonly static object s_traceFileLock = new object();
 
         /// <summary>
         /// The possible trace output mechanisms.
@@ -473,9 +492,7 @@ namespace Opc.Ua
             // append exception information.
             if (e != null)
             {
-                ServiceResultException sre = e as ServiceResultException;
-
-                if (sre != null)
+                if (e is ServiceResultException sre)
                 {
                     message.AppendFormat(CultureInfo.InvariantCulture, " {0} '{1}'", StatusCodes.GetBrowseName(sre.StatusCode), sre.Message);
                 }
@@ -1712,8 +1729,7 @@ namespace Opc.Ua
             }
 
             // copy arrays, any dimension.
-            Array array = value as Array;
-            if (array != null)
+            if (value is Array array)
             {
                 if (array.Rank == 1)
                 {
@@ -1754,15 +1770,13 @@ namespace Opc.Ua
             }
 
             // copy XmlNode.
-            XmlNode node = value as XmlNode;
-            if (node != null)
+            if (value is XmlNode node)
             {
                 return node.CloneNode(true);
             }
 
             // use ICloneable if supported
-            ICloneable cloneable = value as ICloneable;
-            if (cloneable != null)
+            if (value is ICloneable cloneable)
             {
                 return cloneable.Clone();
             }
@@ -1901,17 +1915,15 @@ namespace Opc.Ua
             }
 
             // check for compareable objects.
-            IComparable comparable1 = value1 as IComparable;
 
-            if (comparable1 != null)
+            if (value1 is IComparable comparable1)
             {
                 return comparable1.CompareTo(value2) == 0;
             }
 
             // check for encodeable objects.
-            IEncodeable encodeable1 = value1 as IEncodeable;
 
-            if (encodeable1 != null)
+            if (value1 is IEncodeable encodeable1)
             {
                 if (!(value2 is IEncodeable encodeable2))
                 {
@@ -1922,9 +1934,8 @@ namespace Opc.Ua
             }
 
             // check for XmlElement objects.
-            XmlElement element1 = value1 as XmlElement;
 
-            if (element1 != null)
+            if (value1 is XmlElement element1)
             {
                 if (!(value2 is XmlElement element2))
                 {
@@ -1935,9 +1946,8 @@ namespace Opc.Ua
             }
 
             // check for arrays.
-            Array array1 = value1 as Array;
 
-            if (array1 != null)
+            if (value1 is Array array1)
             {
                 // arrays are greater than non-arrays.
                 if (!(value2 is Array array2))
@@ -1989,9 +1999,8 @@ namespace Opc.Ua
             }
 
             // check enumerables.
-            IEnumerable enumerable1 = value1 as IEnumerable;
 
-            if (enumerable1 != null)
+            if (value1 is IEnumerable enumerable1)
             {
                 // collections are greater than non-collections.
                 if (!(value2 is IEnumerable enumerable2))
@@ -2295,7 +2304,7 @@ namespace Opc.Ua
             // check if nothing to search for.
             if (extensions == null || extensions.Count == 0)
             {
-                return default(T);
+                return default;
             }
 
             // use the type name as the default.
@@ -2341,7 +2350,7 @@ namespace Opc.Ua
                 }
             }
 
-            return default(T);
+            return default;
         }
 
         /// <summary>
@@ -2458,9 +2467,7 @@ namespace Opc.Ua
             {
                 for (int ii = 0; ii < attributes.Length; ii++)
                 {
-                    DataMemberAttribute contract = attributes[ii] as DataMemberAttribute;
-
-                    if (contract != null)
+                    if (attributes[ii] is DataMemberAttribute contract)
                     {
                         if (String.IsNullOrEmpty(contract.Name))
                         {
@@ -2612,9 +2619,14 @@ namespace Opc.Ua
         /// </summary>
         public static X509Certificate2 ParseCertificateBlob(byte[] certificateData)
         {
+
             // macOS X509Certificate2 constructor throws exception if a certchain is encoded
             // use AsnParser on macOS to parse for byteblobs,
+#if !NETFRAMEWORK
             bool useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+#else
+            bool useAsnParser = false;
+#endif
             try
             {
                 if (useAsnParser)
@@ -2647,7 +2659,11 @@ namespace Opc.Ua
             List<byte> certificatesBytes = new List<byte>(certificateData);
             // macOS X509Certificate2 constructor throws exception if a certchain is encoded
             // use AsnParser on macOS to parse for byteblobs,
+#if !NETFRAMEWORK
             bool useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+#else
+            bool useAsnParser = false;
+#endif
             while (certificatesBytes.Count > 0)
             {
                 X509Certificate2 certificate;
@@ -2815,7 +2831,7 @@ namespace Opc.Ua
             // convert label to UTF-8 byte sequence.
             if (!String.IsNullOrEmpty(label))
             {
-                seed = new UTF8Encoding().GetBytes(label);
+                seed = Encoding.UTF8.GetBytes(label);
             }
 
             // append data to label.

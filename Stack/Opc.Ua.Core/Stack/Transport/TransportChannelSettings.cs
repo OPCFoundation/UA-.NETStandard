@@ -72,7 +72,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets or sets the certificate validator.
+        /// Gets or sets the certificate validator for the application.
         /// </summary>
         /// <remarks>
         /// May be null if no security is used.

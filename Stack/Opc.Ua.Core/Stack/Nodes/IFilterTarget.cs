@@ -21,7 +21,7 @@ namespace Opc.Ua
     /// ContentFilter must implement this interface.
     /// </summary>
     public interface IFilterTarget
-    {        
+    {
         /// <summary>
         /// Checks whether the target is an instance of the specified type.
         /// </summary>
@@ -31,8 +31,8 @@ namespace Opc.Ua
         /// True if the object is an instance of the specified type.
         /// </returns>
         bool IsTypeOf(
-            FilterContext context, 
-            NodeId        typeDefinitionId);
+            FilterContext context,
+            NodeId typeDefinitionId);
 
         /// <summary>
         /// Returns the value of an attribute identified by the operand.
@@ -46,11 +46,11 @@ namespace Opc.Ua
         /// The attribute value. Returns null if the attribute does not exist.
         /// </returns>
         object GetAttributeValue(
-            FilterContext        context, 
-            NodeId               typeDefinitionId,
+            FilterContext context,
+            NodeId typeDefinitionId,
             IList<QualifiedName> relativePath,
-            uint                 attributeId,
-            NumericRange         indexRange);
+            uint attributeId,
+            NumericRange indexRange);
     }
 
     /// <summary>
@@ -114,7 +114,7 @@ namespace Opc.Ua
             uint attributeId,
             NumericRange indexRange);
     }
-        
+
     /// <summary>
     /// Provides context information to used when searching the address space.
     /// </summary>
@@ -193,8 +193,8 @@ namespace Opc.Ua
         /// <value>The session identifier.</value>
         public NodeId SessionId
         {
-            get 
-            { 
+            get
+            {
                 if (m_context != null)
                 {
                     return m_context.SessionId;
@@ -210,8 +210,8 @@ namespace Opc.Ua
         /// <value>The user identity.</value>
         public IUserIdentity UserIdentity
         {
-            get 
-            { 
+            get
+            {
                 if (m_context != null)
                 {
                     return m_context.UserIdentity;
@@ -227,8 +227,8 @@ namespace Opc.Ua
         /// <value>The preferred locales.</value>
         public IList<string> PreferredLocales
         {
-            get 
-            { 
+            get
+            {
                 if (m_context != null)
                 {
                     return m_context.PreferredLocales;
@@ -244,8 +244,8 @@ namespace Opc.Ua
         /// <value>The diagnostics mask.</value>
         public DiagnosticsMasks DiagnosticsMask
         {
-            get 
-            { 
+            get
+            {
                 if (m_context != null)
                 {
                     return m_context.DiagnosticsMask;
@@ -261,8 +261,8 @@ namespace Opc.Ua
         /// <value>The string table.</value>
         public StringTable StringTable
         {
-            get 
-            { 
+            get
+            {
                 if (m_context != null)
                 {
                     return m_context.StringTable;
@@ -278,8 +278,8 @@ namespace Opc.Ua
         /// <value>The operation deadline.</value>
         public DateTime OperationDeadline
         {
-            get 
-            { 
+            get
+            {
                 if (m_context != null)
                 {
                     return m_context.OperationDeadline;
@@ -295,8 +295,8 @@ namespace Opc.Ua
         /// <value>The operation status.</value>
         public StatusCode OperationStatus
         {
-            get 
-            { 
+            get
+            {
                 if (m_context != null)
                 {
                     return m_context.OperationStatus;
@@ -312,8 +312,8 @@ namespace Opc.Ua
         /// <value>The audit entry identifier.</value>
         public string AuditEntryId
         {
-            get 
-            { 
+            get
+            {
                 if (m_context != null)
                 {
                     return m_context.AuditEntryId;

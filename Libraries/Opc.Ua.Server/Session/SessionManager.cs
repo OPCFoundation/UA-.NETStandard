@@ -63,6 +63,7 @@ namespace Opc.Ua.Server
             m_minNonceLength = configuration.SecurityConfiguration.NonceLength;
 
             m_sessions = new Dictionary<NodeId, Session>();
+            m_lastSessionId = BitConverter.ToInt64(Utils.Nonce.CreateNonce(sizeof(long)), 0);
 
             // create a event to signal shutdown.
             m_shutdownEvent = new ManualResetEvent(true);
@@ -183,9 +184,9 @@ namespace Opc.Ua.Server
                         }
                     }
                 }
+
                 // can assign a simple identifier if secured.
                 authenticationToken = null;
-
                 if (!String.IsNullOrEmpty(context.ChannelContext.SecureChannelId))
                 {
                     if (context.ChannelContext.EndpointDescription.SecurityMode != MessageSecurityMode.None)
@@ -623,7 +624,7 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private IServerInternal m_server;
         private Dictionary<NodeId, Session> m_sessions;
         private long m_lastSessionId;
@@ -637,7 +638,7 @@ namespace Opc.Ua.Server
         private int m_maxHistoryContinuationPoints;
         private int m_minNonceLength;
 
-        private object m_eventLock = new object();
+        private readonly object m_eventLock = new object();
         private event SessionEventHandler m_sessionCreated;
         private event SessionEventHandler m_sessionActivated;
         private event SessionEventHandler m_sessionClosing;

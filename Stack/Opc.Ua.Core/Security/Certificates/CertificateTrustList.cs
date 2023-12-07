@@ -107,7 +107,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Members
-        private object m_lock;
+        private object m_lock = new object();
         private ICertificateStore m_store;
         #endregion
     }

@@ -137,7 +137,7 @@ namespace Opc.Ua
                 //ignore errors
             }
 
-            ITransportChannel channel = DiscoveryChannel.Create(discoveryUrl, endpointConfiguration, new ServiceMessageContext(), clientCertificate);
+            ITransportChannel channel = DiscoveryChannel.Create(applicationConfiguration, discoveryUrl, endpointConfiguration, new ServiceMessageContext(), clientCertificate);
             return new DiscoveryClient(channel);
         }
         #endregion
@@ -162,16 +162,18 @@ namespace Opc.Ua
             return PatchEndpointUrls(endpoints);
         }
 
+#if NET_STANDARD_ASYNC
         /// <summary>
         /// Invokes the GetEndpoints service async.
         /// </summary>
         /// <param name="profileUris">The collection of profile URIs.</param>
-        /// <returns></returns>
-        public async virtual Task<EndpointDescriptionCollection> GetEndpointsAsync(StringCollection profileUris)
+        /// <param name="ct">The cancellation token.</param>
+        public async virtual Task<EndpointDescriptionCollection> GetEndpointsAsync(StringCollection profileUris, CancellationToken ct = default)
         {
-            var endpoints = await GetEndpointsAsync(null, this.Endpoint.EndpointUrl, null, profileUris).ConfigureAwait(false);
-            return PatchEndpointUrls(endpoints);
+            var response = await GetEndpointsAsync(null, this.Endpoint.EndpointUrl, null, profileUris, ct).ConfigureAwait(false);
+            return PatchEndpointUrls(response.Endpoints);
         }
+#endif
 
         /// <summary>
         /// Invokes the FindServers service.
@@ -192,21 +194,24 @@ namespace Opc.Ua
             return servers;
         }
 
+#if NET_STANDARD_ASYNC
         /// <summary>
         /// Invokes the FindServers service async.
         /// </summary>
         /// <param name="serverUris">The collection of server URIs.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns></returns>
-        public virtual async Task<ApplicationDescriptionCollection> FindServersAsync(StringCollection serverUris)
+        public virtual async Task<ApplicationDescriptionCollection> FindServersAsync(StringCollection serverUris, CancellationToken ct = default)
         {
             var response = await FindServersAsync(
                 null,
                 this.Endpoint.EndpointUrl,
                 null,
                 serverUris,
-                CancellationToken.None).ConfigureAwait(false);
+                ct).ConfigureAwait(false);
             return response.Servers;
         }
+#endif
 
         /// <summary>
         /// Invokes the FindServersOnNetwork service.
@@ -237,26 +242,6 @@ namespace Opc.Ua
         #endregion
 
         #region Private Methods
-        /// <summary>
-        /// Helper to get endpoints async.
-        /// </summary>
-        private Task<EndpointDescriptionCollection> GetEndpointsAsync(
-            RequestHeader requestHeader,
-            string endpointUrl,
-            StringCollection localeIds,
-            StringCollection profileUris)
-        {
-            return Task.Factory.FromAsync(
-                (callback, state) => BeginGetEndpoints(requestHeader,
-                    endpointUrl, localeIds, profileUris, callback, state),
-                result => {
-                    EndpointDescriptionCollection endpoints;
-                    var response = EndGetEndpoints(result, out endpoints);
-                    return endpoints;
-                },
-                TaskCreationOptions.DenyChildAttach);
-        }
-
         /// <summary>
         /// Patch returned endpoints urls with url used to reached the endpoint.
         /// </summary>

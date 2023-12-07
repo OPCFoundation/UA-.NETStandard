@@ -30,15 +30,17 @@ namespace Opc.Ua
     /// <br/></para>
     /// </remarks>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class DiagnosticInfo : ICloneable, IFormattable
+    public sealed class DiagnosticInfo : ICloneable, IFormattable
     {
+        /// <summary>
+        /// Limits the recursion depth for the InnerDiagnosticInfo field.
+        /// </summary>
+        public static readonly int MaxInnerDepth = 5;
+
         #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with default values.
-        /// </remarks>
         public DiagnosticInfo()
         {
             Initialize();
@@ -49,10 +51,18 @@ namespace Opc.Ua
         /// </summary>
         /// <remarks>
         /// Creates a new instance of the object while copying the value passed in.
+        /// If InnerDiagnosticInfo exceeds the recursion limit, it is not copied.
         /// </remarks>
         /// <param name="value">The value to copy</param>
         /// <exception cref="ArgumentNullException">Thrown when the value is null</exception>
-        public DiagnosticInfo(DiagnosticInfo value)
+        public DiagnosticInfo(DiagnosticInfo value) : this(value, 0)
+        {
+        }
+
+        /// <summary>
+        /// Creates a deep copy of the value, but limits the recursion depth.
+        /// </summary>
+        private DiagnosticInfo(DiagnosticInfo value, int depth)
         {
             if (value == null) throw new ArgumentNullException(nameof(value));
 
@@ -63,18 +73,15 @@ namespace Opc.Ua
             m_additionalInfo = value.m_additionalInfo;
             m_innerStatusCode = value.m_innerStatusCode;
 
-            if (value.m_innerDiagnosticInfo != null)
+            if (value.m_innerDiagnosticInfo != null && depth < MaxInnerDepth)
             {
-                m_innerDiagnosticInfo = new DiagnosticInfo(value.m_innerDiagnosticInfo);
+                m_innerDiagnosticInfo = new DiagnosticInfo(value.m_innerDiagnosticInfo, depth + 1);
             }
         }
 
         /// <summary>
         /// Initializes the object with specific values.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with specific values.
-        /// </remarks>
         /// <param name="symbolicId">The symbolic ID</param>
         /// <param name="namespaceUri">The namespace URI applicable</param>
         /// <param name="locale">The locale for the localized text value</param>
@@ -95,11 +102,8 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Initializes the object with an exception.
+        /// Initializes the object with a ServiceResult.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with an exception.
-        /// </remarks>
         /// <param name="diagnosticsMask">The bitmask describing the diagnostic data</param>
         /// <param name="result">The overall transaction result</param>
         /// <param name="serviceLevel">The service level</param>
@@ -109,6 +113,25 @@ namespace Opc.Ua
             DiagnosticsMasks diagnosticsMask,
             bool serviceLevel,
             StringTable stringTable)
+            : this(result, diagnosticsMask, serviceLevel, stringTable, 0)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with a ServiceResult.
+        /// Limits the recursion depth for the InnerDiagnosticInfo field.
+        /// </summary>
+        /// <param name="diagnosticsMask">The bitmask describing the diagnostic data</param>
+        /// <param name="result">The overall transaction result</param>
+        /// <param name="serviceLevel">The service level</param>
+        /// <param name="stringTable">A table of strings carrying more diagnostic data</param>
+        /// <param name="depth">The recursion depth of the inner diagnostics field</param>
+        private DiagnosticInfo(
+            ServiceResult result,
+            DiagnosticsMasks diagnosticsMask,
+            bool serviceLevel,
+            StringTable stringTable,
+            int depth)
         {
             uint mask = (uint)diagnosticsMask;
 
@@ -119,15 +142,12 @@ namespace Opc.Ua
 
             diagnosticsMask = (DiagnosticsMasks)mask;
 
-            Initialize(result, diagnosticsMask, stringTable);
+            Initialize(result, diagnosticsMask, stringTable, depth);
         }
 
         /// <summary>
         /// Initializes the object with an exception.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with an exception.
-        /// </remarks>
         /// <param name="diagnosticsMask">A bitmask describing the type of diagnostic data</param>
         /// <param name="exception">The exception to associated with the diagnostic data</param>
         /// <param name="serviceLevel">The service level</param>
@@ -147,15 +167,12 @@ namespace Opc.Ua
 
             diagnosticsMask = (DiagnosticsMasks)mask;
 
-            Initialize(new ServiceResult(exception), diagnosticsMask, stringTable);
+            Initialize(new ServiceResult(exception), diagnosticsMask, stringTable, 0);
         }
 
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object during deserialization.
-        /// </remarks>
         /// <param name="context">The context information of an underlying data-stream</param>
         [OnDeserializing()]
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "context")]
@@ -184,26 +201,19 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a service result.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with a service result.
-        /// </remarks>
         /// <param name="diagnosticsMask">The bitmask describing the type of diagnostic data</param>
         /// <param name="result">The transaction result</param>
         /// <param name="stringTable">An array of strings that may be used to provide additional diagnostic details</param>
+        /// <param name="depth">The depth of the inner diagnostics property</param>
         private void Initialize(
             ServiceResult result,
             DiagnosticsMasks diagnosticsMask,
-            StringTable stringTable)
+            StringTable stringTable,
+            int depth)
         {
             if (stringTable == null) throw new ArgumentNullException(nameof(stringTable));
 
-            m_symbolicId = -1;
-            m_namespaceUri = -1;
-            m_locale = -1;
-            m_localizedText = -1;
-            m_additionalInfo = null;
-            m_innerStatusCode = StatusCodes.Good;
-            m_innerDiagnosticInfo = null;
+            Initialize();
 
             if ((DiagnosticsMasks.ServiceSymbolicId & diagnosticsMask) != 0)
             {
@@ -274,11 +284,21 @@ namespace Opc.Ua
                 // recursively append the inner diagnostics.
                 if ((DiagnosticsMasks.ServiceInnerDiagnostics & diagnosticsMask) != 0)
                 {
-                    m_innerDiagnosticInfo = new DiagnosticInfo(
-                        result.InnerResult,
-                        diagnosticsMask,
-                        true,
-                        stringTable);
+                    if (depth < MaxInnerDepth)
+                    {
+                        m_innerDiagnosticInfo = new DiagnosticInfo(
+                            result.InnerResult,
+                            diagnosticsMask,
+                            true,
+                            stringTable,
+                            depth + 1);
+                    }
+                    else
+                    {
+                        Utils.LogWarning(
+                            "Inner diagnostics truncated. Max depth of {0} exceeded.",
+                            MaxInnerDepth);
+                    }
                 }
             }
         }
@@ -288,9 +308,6 @@ namespace Opc.Ua
         /// <summary>
         /// The index of the symbolic id in the string table.
         /// </summary>
-        /// <remarks>
-        /// The index of the symbolic id in the string table.
-        /// </remarks>
         [DataMember(Order = 1, IsRequired = false)]
         public int SymbolicId
         {
@@ -301,9 +318,6 @@ namespace Opc.Ua
         /// <summary>
         /// The index of the namespace uri in the string table.
         /// </summary>
-        /// <remarks>
-        /// The index of the namespace uri in the string table.
-        /// </remarks>
         [DataMember(Order = 2, IsRequired = false)]
         public int NamespaceUri
         {
@@ -334,9 +348,6 @@ namespace Opc.Ua
         /// <summary>
         /// The additional debugging or trace information.
         /// </summary>
-        /// <remarks>
-        /// The additional debugging or trace information.
-        /// </remarks>
         [DataMember(Order = 5, IsRequired = false, EmitDefaultValue = false)]
         public string AdditionalInfo
         {
@@ -347,9 +358,6 @@ namespace Opc.Ua
         /// <summary>
         /// The status code returned from an underlying system.
         /// </summary>
-        /// <remarks>
-        /// The status code returned from an underlying system.
-        /// </remarks>
         [DataMember(Order = 6, IsRequired = false)]
         public StatusCode InnerStatusCode
         {
@@ -360,14 +368,32 @@ namespace Opc.Ua
         /// <summary>
         /// The diagnostic info returned from a underlying system.
         /// </summary>
-        /// <remarks>
-        /// The diagnostic info returned from a underlying system.
-        /// </remarks>
         [DataMember(Order = 7, IsRequired = false, EmitDefaultValue = false)]
         public DiagnosticInfo InnerDiagnosticInfo
         {
             get { return m_innerDiagnosticInfo; }
             set { m_innerDiagnosticInfo = value; }
+        }
+
+        /// <summary>
+        /// Whether the object represents a Null DiagnosticInfo.
+        /// </summary>
+        public bool IsNullDiagnosticInfo
+        {
+            get
+            {
+                if (m_symbolicId == -1 &&
+                    m_locale == -1 &&
+                    m_localizedText == -1 &&
+                    m_namespaceUri == -1 &&
+                    m_additionalInfo == null &&
+                    m_innerDiagnosticInfo == null &&
+                    m_innerStatusCode == StatusCodes.Good)
+                {
+                    return true;
+                }
+                return false;
+            }
         }
         #endregion
 
@@ -375,59 +401,9 @@ namespace Opc.Ua
         /// <summary>
         /// Determines if the specified object is equal to the object.
         /// </summary>
-        /// <remarks>
-        /// Determines if the specified object is equal to the object.
-        /// </remarks>
         public override bool Equals(object obj)
         {
-            if (Object.ReferenceEquals(this, obj))
-            {
-                return true;
-            }
-
-            DiagnosticInfo value = obj as DiagnosticInfo;
-
-            if (value != null)
-            {
-                if (this.m_symbolicId != value.m_symbolicId)
-                {
-                    return false;
-                }
-
-                if (this.m_namespaceUri != value.m_namespaceUri)
-                {
-                    return false;
-                }
-
-                if (this.m_locale != value.m_locale)
-                {
-                    return false;
-                }
-
-                if (this.m_localizedText != value.m_localizedText)
-                {
-                    return false;
-                }
-
-                if (this.m_additionalInfo != value.m_additionalInfo)
-                {
-                    return false;
-                }
-
-                if (this.m_innerStatusCode != value.m_innerStatusCode)
-                {
-                    return false;
-                }
-
-                if (this.m_innerDiagnosticInfo != null)
-                {
-                    return this.m_innerDiagnosticInfo.Equals(value.m_innerDiagnosticInfo);
-                }
-
-                return value.m_innerDiagnosticInfo == null;
-            }
-
-            return false;
+            return Equals(obj, 0);
         }
 
         /// <summary>
@@ -436,23 +412,7 @@ namespace Opc.Ua
         public override int GetHashCode()
         {
             var hash = new HashCode();
-            hash.Add(this.m_symbolicId);
-            hash.Add(this.m_namespaceUri);
-            hash.Add(this.m_locale);
-            hash.Add(this.m_localizedText);
-
-            if (this.m_additionalInfo != null)
-            {
-                hash.Add(this.m_additionalInfo);
-            }
-
-            hash.Add(this.m_innerStatusCode);
-
-            if (this.m_innerDiagnosticInfo != null)
-            {
-                hash.Add(this.m_innerDiagnosticInfo);
-            }
-
+            GetHashCode(ref hash, 0);
             return hash.ToHashCode();
         }
 
@@ -491,7 +451,7 @@ namespace Opc.Ua
 
         #region ICloneable Members
         /// <inheritdoc/>
-        public virtual object Clone()
+        public object Clone()
         {
             return this.MemberwiseClone();
         }
@@ -499,12 +459,104 @@ namespace Opc.Ua
         /// <summary>
         /// Makes a deep copy of the object.
         /// </summary>
-        /// <remarks>
-        /// Makes a deep copy of this object.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             return new DiagnosticInfo(this);
+        }
+        #endregion
+
+        #region Private Methods
+        /// <summary>
+        /// Adds the hashcodes for the object.
+        /// Limits the recursion depth to prevent stack overflow.
+        /// </summary>
+        private void GetHashCode(ref HashCode hash, int depth)
+        {
+            hash.Add(this.m_symbolicId);
+            hash.Add(this.m_namespaceUri);
+            hash.Add(this.m_locale);
+            hash.Add(this.m_localizedText);
+
+            if (this.m_additionalInfo != null)
+            {
+                hash.Add(this.m_additionalInfo);
+            }
+
+            hash.Add(this.m_innerStatusCode);
+
+            if (this.m_innerDiagnosticInfo != null && depth < MaxInnerDepth)
+            {
+                this.m_innerDiagnosticInfo.GetHashCode(ref hash, depth + 1);
+            }
+        }
+
+        /// <summary>
+        /// Determines if the specified object is equal to this object.
+        /// Limits the depth of the comparison to avoid infinite recursion.
+        /// </summary>
+        private bool Equals(object obj, int depth)
+        {
+            if (Object.ReferenceEquals(this, obj))
+            {
+                return true;
+            }
+
+            if (obj == null && IsNullDiagnosticInfo)
+            {
+                return true;
+            }
+
+
+            if (obj is DiagnosticInfo value)
+            {
+
+                if (this.m_symbolicId != value.m_symbolicId)
+                {
+                    return false;
+                }
+
+                if (this.m_namespaceUri != value.m_namespaceUri)
+                {
+                    return false;
+                }
+
+                if (this.m_locale != value.m_locale)
+                {
+                    return false;
+                }
+
+                if (this.m_localizedText != value.m_localizedText)
+                {
+                    return false;
+                }
+
+                if (this.m_additionalInfo != value.m_additionalInfo)
+                {
+                    return false;
+                }
+
+                if (this.m_innerStatusCode != value.m_innerStatusCode)
+                {
+                    return false;
+                }
+
+                if (this.m_innerDiagnosticInfo != null)
+                {
+                    if (depth < MaxInnerDepth)
+                    {
+                        return this.m_innerDiagnosticInfo.Equals(value.m_innerDiagnosticInfo, depth + 1);
+                    }
+                    else
+                    {
+                        // ignore the remaining inner diagnostic info and consider it equal.
+                        return true;
+                    }
+                }
+
+                return value.m_innerDiagnosticInfo == null;
+            }
+
+            return false;
         }
         #endregion
 
@@ -609,6 +661,7 @@ namespace Opc.Ua
             return clone;
         }
         #endregion
+
     }//class
     #endregion
 

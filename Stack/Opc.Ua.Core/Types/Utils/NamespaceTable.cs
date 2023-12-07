@@ -259,7 +259,7 @@ namespace Opc.Ua
         #endregion                        
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private List<string> m_strings;
 
 #if DEBUG

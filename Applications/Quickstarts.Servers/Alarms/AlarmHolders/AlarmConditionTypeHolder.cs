@@ -200,9 +200,9 @@ namespace Alarms
             return retainState;
         }
 
-        protected override void SetActive(BaseEventState baseEvent, bool activeState)
+        protected override void SetActive(BaseEventState state, bool activeState)
         {
-            AlarmConditionState alarm = GetAlarm(baseEvent);
+            AlarmConditionState alarm = GetAlarm(state);
             alarm.SetActiveState(SystemContext, activeState);
         }
 

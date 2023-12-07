@@ -36,6 +36,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using Opc.Ua.Export;
 
@@ -77,16 +78,19 @@ namespace Quickstarts.ConsoleReferenceClient
             bool fetchall = false;
             bool jsonvalues = false;
             bool verbose = false;
+            bool noSecurity = false;
             bool assets = false;
             bool subscribe = false;
             string password = null;
             int timeout = Timeout.Infinite;
             string logFile = null;
+            string reverseConnectUrlString = null;
 
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                 usage,
                 { "h|help", "show this message and exit", h => showHelp = h != null },
                 { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
+                { "nsec|nosecurity", "select endpoint with security NONE, least secure if unavailable", s => noSecurity = s != null },
                 { "un|username=", "the name of the user identity for the connection", (string u) => username = u },
                 { "up|userpassword=", "the password of the user identity for the connection", (string u) => userpassword = u },
                 { "c|console", "log to console", c => logConsole = c != null },
@@ -102,7 +106,10 @@ namespace Quickstarts.ConsoleReferenceClient
                 { "j|json", "Output all Values as JSON", j => { if (j != null) jsonvalues = true; } },
                 { "v|verbose", "Verbose output", v => { if (v != null) verbose = true; } },
                 { "s|subscribe", "Subscribe", s => { if (s != null) subscribe = true; } },
+                { "rc|reverseconnect=", "Connect using the reverse connect endpoint. (e.g. rc=opc.tcp://localhost:65300)", (string url) => reverseConnectUrlString = url},
             };
+
+            ReverseConnectManager reverseConnectManager = null;
 
             try
             {
@@ -133,7 +140,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 };
 
                 // load the application configuration.
-                var config = await application.LoadApplicationConfiguration(silent: false);
+                var config = await application.LoadApplicationConfiguration(silent: false).ConfigureAwait(false);
 
                 // override logfile
                 if (logFile != null)
@@ -161,8 +168,18 @@ namespace Quickstarts.ConsoleReferenceClient
                     throw new ErrorExitException("Application instance certificate invalid!", ExitCode.ErrorCertificate);
                 }
 
+                if (reverseConnectUrlString != null)
+                {
+                    // start the reverse connection manager
+                    output.WriteLine("Create reverse connection endpoint at {0}.", reverseConnectUrlString);
+                    reverseConnectManager = new ReverseConnectManager();
+                    reverseConnectManager.AddEndpoint(new Uri(reverseConnectUrlString));
+                    reverseConnectManager.StartService(config);
+                }
+
                 // wait for timeout or Ctrl-C
-                var quitEvent = ConsoleUtils.CtrlCHandler();
+                var quitCTS = new CancellationTokenSource();
+                var quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
 
                 // connect to a server until application stops
                 bool quit = false;
@@ -181,10 +198,10 @@ namespace Quickstarts.ConsoleReferenceClient
                         }
 
                         // create the UA Client object and connect to configured server.
-                        using (UAClient uaClient = new UAClient(
-                            application.ApplicationConfiguration, output, ClientBase.ValidateResponse) {
+
+                        using (UAClient uaClient = new UAClient(application.ApplicationConfiguration, reverseConnectManager, output, ClientBase.ValidateResponse) {
                             AutoAccept = autoAccept,
-                            SessionLifeTime = 60000,
+                            SessionLifeTime = 60_000,
                         })
                         {
                             // set user identity
@@ -193,39 +210,38 @@ namespace Quickstarts.ConsoleReferenceClient
                                 uaClient.UserIdentity = new UserIdentity(username, userpassword ?? string.Empty);
                             }
 
-                            bool connected = await uaClient.ConnectAsync(serverUrl.ToString(), true);
+                            bool connected = await uaClient.ConnectAsync(serverUrl.ToString(), !noSecurity, quitCTS.Token).ConfigureAwait(false);
                             if (connected)
                             {
                                 output.WriteLine("Connected! Ctrl-C to quit.");
 
                                 // enable subscription transfer
                                 uaClient.ReconnectPeriod = 1000;
+                                uaClient.ReconnectPeriodExponentialBackoff = 10000;
+                                uaClient.Session.MinPublishRequestCount = 3;
                                 uaClient.Session.TransferSubscriptionsOnReconnect = true;
-
                                 var samples = new ClientSamples(output, ClientBase.ValidateResponse, quitEvent, verbose);
                                 if (loadTypes)
                                 {
-                                    await samples.LoadTypeSystem(uaClient.Session).ConfigureAwait(false);
+                                    await samples.LoadTypeSystemAsync(uaClient.Session).ConfigureAwait(false);
                                 }
 
-                                if (browseall || fetchall || jsonvalues || assets)
+                                if (browseall || fetchall || jsonvalues)
                                 {
                                     NodeIdCollection variableIds = null;
                                     ReferenceDescriptionCollection referenceDescriptions = null;
                                     if (browseall)
                                     {
                                         referenceDescriptions =
-                                            samples.BrowseFullAddressSpace(uaClient, Objects.RootFolder);
+                                            await samples.BrowseFullAddressSpaceAsync(uaClient, Objects.RootFolder).ConfigureAwait(false);
                                         variableIds = new NodeIdCollection(referenceDescriptions
                                             .Where(r => r.NodeClass == NodeClass.Variable && r.TypeDefinition.NamespaceIndex != 0)
                                             .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, uaClient.Session.NamespaceUris)));
                                     }
-
                                     IList<INode> allNodes = null;
                                     if (fetchall)
                                     {
-                                        allNodes = samples.FetchAllNodesNodeCache(
-                                            uaClient, Objects.RootFolder, true, true, false);
+                                        allNodes = await samples.FetchAllNodesNodeCacheAsync(uaClient, Objects.RootFolder, true, true, false).ConfigureAwait(false);
                                         variableIds = new NodeIdCollection(allNodes
                                             .Where(r => r.NodeClass == NodeClass.Variable && r is VariableNode && ((VariableNode)r).DataType.NamespaceIndex != 0)
                                             .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, uaClient.Session.NamespaceUris)));
@@ -234,8 +250,8 @@ namespace Quickstarts.ConsoleReferenceClient
                                     if (assets)
                                     {
                                         // cache all ObjectTypes
-                                        var objectNodes = samples.FetchAllNodesNodeCache(
-                                                uaClient, ObjectIds.ObjectTypesFolder, true, true, false, !fetchall);
+                                        var objectNodes = await samples.FetchAllNodesNodeCacheAsync(
+                                                uaClient, ObjectIds.ObjectTypesFolder, true, true, false, !fetchall).ConfigureAwait(false);
 
                                         // get all subtypes of IVendorNamePlate, ITagNameplateType, IDeviceHealthType
                                         var nodeCache = uaClient.Session.NodeCache;
@@ -243,10 +259,10 @@ namespace Quickstarts.ConsoleReferenceClient
                                         if (namespaceIndex > 0)
                                         {
                                             ushort opcUaDI = (ushort)namespaceIndex;
-                                            var componentTypeSubTypes = FetchSubTypes(uaClient.Session, Opc.Ua.DI.ObjectTypeIds.ComponentType).Select(o => (ObjectTypeNode)o).ToList();
-                                            var vendorNameplateTypeSubTypes = FetchSubTypes(uaClient.Session, Opc.Ua.DI.ObjectTypeIds.IVendorNameplateType).Select(o => (ObjectTypeNode)o).ToList();
-                                            var tagNameplateTypeSubTypes = FetchSubTypes(uaClient.Session, Opc.Ua.DI.ObjectTypeIds.ITagNameplateType).Select(o => (ObjectTypeNode)o).ToList();
-                                            var deviceHealthSubTypes = FetchSubTypes(uaClient.Session, Opc.Ua.DI.ObjectTypeIds.IDeviceHealthType).Select(o => (ObjectTypeNode)o).ToList();
+                                            var componentTypeSubTypes = await FetchSubTypesAsync(uaClient.Session, Opc.Ua.DI.ObjectTypeIds.ComponentType).ConfigureAwait(false);
+                                            var vendorNameplateTypeSubTypes = await FetchSubTypesAsync(uaClient.Session, Opc.Ua.DI.ObjectTypeIds.IVendorNameplateType).ConfigureAwait(false);
+                                            var tagNameplateTypeSubTypes = await FetchSubTypesAsync(uaClient.Session, Opc.Ua.DI.ObjectTypeIds.ITagNameplateType).ConfigureAwait(false);
+                                            var deviceHealthSubTypes = await FetchSubTypesAsync(uaClient.Session, Opc.Ua.DI.ObjectTypeIds.IDeviceHealthType).ConfigureAwait(false);
                                             List<List<ObjectTypeNode>> interfaceTypes = new List<List<ObjectTypeNode>>()
                                             {
                                                     vendorNameplateTypeSubTypes, tagNameplateTypeSubTypes, deviceHealthSubTypes
@@ -268,7 +284,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                                             var newTypeDefinitions = interfaceSubTypes.FirstOrDefault(n => n.NodeId.Equals(nt.TargetId));
                                                             if (newTypeDefinitions != null)
                                                             {
-                                                                var newSubTypes = FetchSubTypes(uaClient.Session, objectTypeNode.NodeId).Select(o => (ObjectTypeNode)o).ToList();
+                                                                var newSubTypes = await FetchSubTypesAsync(uaClient.Session, objectTypeNode.NodeId).ConfigureAwait(false);
                                                                 componentTypeSubTypes.AddRange(newSubTypes);
                                                                 foundSubTypes = true;
                                                                 break;
@@ -392,26 +408,50 @@ namespace Quickstarts.ConsoleReferenceClient
 
                                     if (jsonvalues && variableIds != null)
                                     {
-                                        await samples.ReadAllValuesAsync(uaClient, variableIds);
+                                        var (allValues, results) = await samples.ReadAllValuesAsync(uaClient, variableIds).ConfigureAwait(false);
                                     }
 
-                                    if (subscribe && fetchall)
+                                    if (subscribe && (browseall || fetchall))
                                     {
-                                        var variables = new NodeCollection(allNodes
-                                            .Where(r => r.NodeClass == NodeClass.Variable && r is VariableNode && ((VariableNode)r).DataType.NamespaceIndex != 0)
-                                            .Select(r => ((VariableNode)r)));
-
-                                        await samples.SubscribeAllValuesAsync(uaClient, variables, 1000, 300, 10);
-
-                                        for (int ii = 0; ii < 10; ii++)
+                                        // subscribe to 100 random variables
+                                        const int MaxVariables = 100;
+                                        NodeCollection variables = new NodeCollection();
+                                        Random random = new Random(62541);
+                                        if (fetchall)
                                         {
-                                            await Task.Delay(1000);
+                                            variables.AddRange(allNodes
+                                                .Where(r => r.NodeClass == NodeClass.Variable && r.NodeId.NamespaceIndex > 1)
+                                                .Select(r => ((VariableNode)r))
+                                                .OrderBy(o => random.Next())
+                                                .Take(MaxVariables));
                                         }
+                                        else if (browseall)
+                                        {
+                                            var variableReferences = referenceDescriptions
+                                                .Where(r => r.NodeClass == NodeClass.Variable && r.NodeId.NamespaceIndex > 1)
+                                                .Select(r => r.NodeId)
+                                                .OrderBy(o => random.Next())
+                                                .Take(MaxVariables)
+                                                .ToList();
+                                            variables.AddRange(uaClient.Session.NodeCache.Find(variableReferences).Cast<Node>());
+                                        }
+
+                                        await samples.SubscribeAllValuesAsync(uaClient,
+                                            variableIds: new NodeCollection(variables),
+                                            samplingInterval: 1000,
+                                            publishingInterval: 5000,
+                                            queueSize: 10,
+                                            lifetimeCount: 12,
+                                            keepAliveCount: 2).ConfigureAwait(false);
+
+                                        // Wait for DataChange notifications from MonitoredItems
+                                        output.WriteLine("Subscribed to {0} variables. Press Ctrl-C to exit.", MaxVariables);
+                                        quit = quitEvent.WaitOne(timeout > 0 ? waitTime : Timeout.Infinite);
                                     }
-
-                                    // Wait for some DataChange notifications from MonitoredItems
-                                    quit = quitEvent.WaitOne(timeout > 0 ? waitTime : 3600_000);
-
+                                    else
+                                    {
+                                        quit = true;
+                                    }
                                 }
                                 else
                                 {
@@ -449,10 +489,10 @@ namespace Quickstarts.ConsoleReferenceClient
             }
         }
 
-        private static List<Node> FetchSubTypes(Opc.Ua.Client.ISession session, ExpandedNodeId startNode)
+        private static async Task<List<ObjectTypeNode>> FetchSubTypesAsync(Opc.Ua.Client.ISession session, ExpandedNodeId startNode)
         {
             var nodeCache = session.NodeCache;
-            var node = nodeCache.FetchNode(startNode);
+            var node = await nodeCache.FetchNodeAsync(startNode).ConfigureAwait(false);
             var allSubTypeNodes = new List<Node>() { node };
             var rootTypes = new List<ExpandedNodeId>() { startNode };
             while (rootTypes.Count > 0)
@@ -462,12 +502,12 @@ namespace Quickstarts.ConsoleReferenceClient
                 {
                     IList<NodeId> subTypes = nodeCache.FindSubTypes(rootType);
                     nextRootTypesNodeId.AddRange(subTypes);
-                    var subTypesNodes = nodeCache.FetchNodes(subTypes.Select(n => NodeId.ToExpandedNodeId(n, session.NamespaceUris)).ToList());
+                    var subTypesNodes = await nodeCache.FetchNodesAsync(subTypes.Select(n => NodeId.ToExpandedNodeId(n, session.NamespaceUris)).ToList()).ConfigureAwait(false);
                     allSubTypeNodes.AddRange(subTypesNodes);
                 }
                 rootTypes = nextRootTypesNodeId.Select(nodeId => NodeId.ToExpandedNodeId(nodeId, session.NamespaceUris)).ToList();
             }
-            return allSubTypeNodes;
+            return allSubTypeNodes.Select(o => (ObjectTypeNode)o).ToList();
         }
     }
 

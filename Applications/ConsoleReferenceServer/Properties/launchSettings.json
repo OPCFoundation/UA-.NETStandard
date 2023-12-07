@@ -1,0 +1,17 @@
+{
+  "profiles": {
+    "ConsoleReferenceServer": {
+      "commandName": "Project",
+      "commandLineArgs": "-c "
+    },
+    "Docker": {
+      "commandName": "Docker",
+      "commandLineArgs": "-s"
+    },
+    "WSL": {
+      "commandName": "WSL2",
+      "environmentVariables": {},
+      "distributionName": "Ubuntu-20.04"
+    }
+  }
+}

@@ -81,9 +81,8 @@ namespace Opc.Ua
                 if (encodeables == null)
                 {
                     // check for array of extension objects.
-                    IList<ExtensionObject> extensions = value as IList<ExtensionObject>;
 
-                    if (extensions != null)
+                    if (value is IList<ExtensionObject> extensions)
                     {
                         // convert extension objects to encodeables.
                         encodeables = new IEncodeable[extensions.Count];
@@ -96,9 +95,8 @@ namespace Opc.Ua
                                 continue;
                             }
 
-                            IEncodeable element = extensions[ii].Body as IEncodeable;
 
-                            if (element == null)
+                            if (!(extensions[ii].Body is IEncodeable element))
                             {
                                 return StatusCodes.BadTypeMismatch;
                             }
@@ -127,9 +125,7 @@ namespace Opc.Ua
 
                 if (encodeable == null)
                 {
-                    ExtensionObject extension = value as ExtensionObject;
-
-                    if (extension == null)
+                    if (!(value is ExtensionObject extension))
                     {
                         return StatusCodes.BadDataEncodingUnsupported;
                     }
@@ -175,17 +171,18 @@ namespace Opc.Ua
         public static XmlElement EncodeXml(IEncodeable encodeable, IServiceMessageContext context)
         {
             // create encoder.
-            XmlEncoder encoder = new XmlEncoder(context);
+            using (XmlEncoder encoder = new XmlEncoder(context))
+            {
+                // write body.
+                encoder.WriteExtensionObjectBody(encodeable);
 
-            // write body.
-            encoder.WriteExtensionObjectBody(encodeable);
+                // create document from encoder.
+                XmlDocument document = new XmlDocument();
+                document.LoadInnerXml(encoder.CloseAndReturnText());
 
-            // create document from encoder.
-            XmlDocument document = new XmlDocument();
-            document.LoadInnerXml(encoder.Close());
-
-            // return root element.
-            return document.DocumentElement;
+                // return root element.
+                return document.DocumentElement;
+            }
         }
 
         /// <summary>
@@ -193,9 +190,11 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] EncodeBinary(IEncodeable encodeable, IServiceMessageContext context)
         {
-            BinaryEncoder encoder = new BinaryEncoder(context);
-            encoder.WriteEncodeable(null, encodeable, null);
-            return encoder.CloseAndReturnBuffer();
+            using (BinaryEncoder encoder = new BinaryEncoder(context))
+            {
+                encoder.WriteEncodeable(null, encodeable, null);
+                return encoder.CloseAndReturnBuffer();
+            }
         }
         #endregion
 

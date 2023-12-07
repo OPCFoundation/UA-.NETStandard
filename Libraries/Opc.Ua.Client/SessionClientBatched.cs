@@ -85,7 +85,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
             InitResponseCollections<AddNodesResult, AddNodesResultCollection>(
-                out results, out diagnosticInfos,
+                out results, out diagnosticInfos, out var stringTable,
                 nodesToAdd.Count, operationLimit
                 );
 
@@ -106,9 +106,10 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToAdd);
 
                 AddResponses<AddNodesResult, AddNodesResultCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, responseHeader.StringTable);
             }
 
+            responseHeader.StringTable = stringTable;
             return responseHeader;
         }
 
@@ -123,7 +124,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
             InitResponseCollections<AddNodesResult, AddNodesResultCollection>(
-                out var results, out var diagnosticInfos,
+                out var results, out var diagnosticInfos, out var stringTable,
                 nodesToAdd.Count, operationLimit
                 );
 
@@ -144,11 +145,12 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToAdd);
 
                 AddResponses<AddNodesResult, AddNodesResultCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
 
             response.Results = results;
             response.DiagnosticInfos = diagnosticInfos;
+            response.ResponseHeader.StringTable = stringTable;
 
             return response;
         }
@@ -167,7 +169,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out results, out diagnosticInfos,
+                out results, out diagnosticInfos, out var stringTable,
                 referencesToAdd.Count, operationLimit
                 );
 
@@ -188,9 +190,10 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchReferencesToAdd);
 
                 AddResponses<StatusCode, StatusCodeCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, responseHeader.StringTable);
             }
 
+            responseHeader.StringTable = stringTable;
             return responseHeader;
         }
 
@@ -205,7 +208,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out var results, out var diagnosticInfos,
+                out var results, out var diagnosticInfos, out var stringTable,
                 referencesToAdd.Count, operationLimit
                 );
 
@@ -226,11 +229,12 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchReferencesToAdd);
 
                 AddResponses<StatusCode, StatusCodeCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
 
             response.Results = results;
             response.DiagnosticInfos = diagnosticInfos;
+            response.ResponseHeader.StringTable = stringTable;
 
             return response;
         }
@@ -249,7 +253,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out results, out diagnosticInfos,
+                out results, out diagnosticInfos, out var stringTable,
                 nodesToDelete.Count, operationLimit
                 );
 
@@ -270,9 +274,10 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToDelete);
 
                 AddResponses<StatusCode, StatusCodeCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, responseHeader.StringTable);
             }
 
+            responseHeader.StringTable = stringTable;
             return responseHeader;
         }
 
@@ -287,7 +292,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out var results, out var diagnosticInfos,
+                out var results, out var diagnosticInfos, out var stringTable,
                 nodesToDelete.Count, operationLimit
                 );
 
@@ -309,11 +314,12 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToDelete);
 
                 AddResponses<StatusCode, StatusCodeCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
 
             response.Results = results;
             response.DiagnosticInfos = diagnosticInfos;
+            response.ResponseHeader.StringTable = stringTable;
 
             return response;
         }
@@ -332,7 +338,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out results, out diagnosticInfos,
+                out results, out diagnosticInfos, out var stringTable,
                 referencesToDelete.Count, operationLimit
                 );
 
@@ -353,9 +359,10 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchReferencesToDelete);
 
                 AddResponses<StatusCode, StatusCodeCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, responseHeader.StringTable);
             }
 
+            responseHeader.StringTable = stringTable;
             return responseHeader;
         }
 
@@ -370,7 +377,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out var results, out var diagnosticInfos,
+                out var results, out var diagnosticInfos, out var stringTable,
                 referencesToDelete.Count, operationLimit
                 );
 
@@ -392,11 +399,12 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchReferencesToDelete);
 
                 AddResponses<StatusCode, StatusCodeCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
 
             response.Results = results;
             response.DiagnosticInfos = diagnosticInfos;
+            response.ResponseHeader.StringTable = stringTable;
 
             return response;
         }
@@ -417,7 +425,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerBrowse;
             InitResponseCollections<BrowseResult, BrowseResultCollection>(
-                out results, out diagnosticInfos,
+                out results, out diagnosticInfos, out var stringTable,
                 nodesToBrowse.Count, operationLimit
                 );
 
@@ -440,9 +448,10 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, nodesToBrowseBatch);
 
                 AddResponses<BrowseResult, BrowseResultCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, responseHeader.StringTable);
             }
 
+            responseHeader.StringTable = stringTable;
             return responseHeader;
         }
 
@@ -459,7 +468,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerBrowse;
             InitResponseCollections<BrowseResult, BrowseResultCollection>(
-                out var results, out var diagnosticInfos,
+                out var results, out var diagnosticInfos, out var stringTable,
                 nodesToBrowse.Count, operationLimit
                 );
 
@@ -484,11 +493,12 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, nodesToBrowseBatch);
 
                 AddResponses<BrowseResult, BrowseResultCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
 
             response.Results = results;
             response.DiagnosticInfos = diagnosticInfos;
+            response.ResponseHeader.StringTable = stringTable;
 
             return response;
         }
@@ -507,7 +517,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds;
             InitResponseCollections<BrowsePathResult, BrowsePathResultCollection>(
-                out results, out diagnosticInfos,
+                out results, out diagnosticInfos, out var stringTable,
                 browsePaths.Count, operationLimit
                 );
 
@@ -528,9 +538,10 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchBrowsePaths);
 
                 AddResponses<BrowsePathResult, BrowsePathResultCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, responseHeader.StringTable);
             }
 
+            responseHeader.StringTable = stringTable;
             return responseHeader;
         }
 
@@ -545,7 +556,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds;
             InitResponseCollections<BrowsePathResult, BrowsePathResultCollection>(
-                out var results, out var diagnosticInfos,
+                out var results, out var diagnosticInfos, out var stringTable,
                 browsePaths.Count, operationLimit
                 );
 
@@ -569,11 +580,12 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchBrowsePaths);
 
                 AddResponses<BrowsePathResult, BrowsePathResultCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
 
             response.Results = results;
             response.DiagnosticInfos = diagnosticInfos;
+            response.ResponseHeader.StringTable = stringTable;
 
             return response;
         }
@@ -708,7 +720,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerRead;
             InitResponseCollections<DataValue, DataValueCollection>(
-                out results, out diagnosticInfos,
+                out results, out diagnosticInfos, out var stringTable,
                 nodesToRead.Count, operationLimit
                 );
 
@@ -732,9 +744,10 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchAttributesToRead);
 
                 AddResponses<DataValue, DataValueCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, responseHeader.StringTable);
             }
 
+            responseHeader.StringTable = stringTable;
             return responseHeader;
         }
 
@@ -751,7 +764,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerRead;
             InitResponseCollections<DataValue, DataValueCollection>(
-                out var results, out var diagnosticInfos,
+                out var results, out var diagnosticInfos, out var stringTable,
                 nodesToRead.Count, operationLimit
                 );
 
@@ -776,11 +789,12 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchAttributesToRead);
 
                 AddResponses<DataValue, DataValueCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
 
             response.Results = results;
             response.DiagnosticInfos = diagnosticInfos;
+            response.ResponseHeader.StringTable = stringTable;
 
             return response;
         }
@@ -807,7 +821,7 @@ namespace Opc.Ua
             }
 
             InitResponseCollections<HistoryReadResult, HistoryReadResultCollection>(
-                out results, out diagnosticInfos,
+                out results, out diagnosticInfos, out var stringTable,
                 nodesToRead.Count, operationLimit
                 );
 
@@ -831,9 +845,10 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToRead);
 
                 AddResponses<HistoryReadResult, HistoryReadResultCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, responseHeader.StringTable);
             }
 
+            responseHeader.StringTable = stringTable;
             return responseHeader;
         }
 
@@ -856,7 +871,7 @@ namespace Opc.Ua
             }
 
             InitResponseCollections<HistoryReadResult, HistoryReadResultCollection>(
-                out var results, out var diagnosticInfos,
+                out var results, out var diagnosticInfos, out var stringTable,
                 nodesToRead.Count, operationLimit
                 );
 
@@ -881,11 +896,12 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToRead);
 
                 AddResponses<HistoryReadResult, HistoryReadResultCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
 
             response.Results = results;
             response.DiagnosticInfos = diagnosticInfos;
+            response.ResponseHeader.StringTable = stringTable;
 
             return response;
         }
@@ -904,7 +920,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerWrite;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out results, out diagnosticInfos,
+                out results, out diagnosticInfos, out var stringTable,
                 nodesToWrite.Count, operationLimit
                 );
 
@@ -925,9 +941,10 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToWrite);
 
                 AddResponses<StatusCode, StatusCodeCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, responseHeader.StringTable);
             }
 
+            responseHeader.StringTable = stringTable;
             return responseHeader;
         }
 
@@ -942,7 +959,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerWrite;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out var results, out var diagnosticInfos,
+                out var results, out var diagnosticInfos, out var stringTable,
                 nodesToWrite.Count, operationLimit
                 );
 
@@ -964,11 +981,12 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchNodesToWrite);
 
                 AddResponses<StatusCode, StatusCodeCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
 
             response.Results = results;
             response.DiagnosticInfos = diagnosticInfos;
+            response.ResponseHeader.StringTable = stringTable;
 
             return response;
         }
@@ -997,7 +1015,7 @@ namespace Opc.Ua
             }
 
             InitResponseCollections<HistoryUpdateResult, HistoryUpdateResultCollection>(
-                out results, out diagnosticInfos,
+                out results, out diagnosticInfos, out var stringTable,
                 historyUpdateDetails.Count, operationLimit
                 );
 
@@ -1018,9 +1036,10 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchHistoryUpdateDetails);
 
                 AddResponses<HistoryUpdateResult, HistoryUpdateResultCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, responseHeader.StringTable);
             }
 
+            responseHeader.StringTable = stringTable;
             return responseHeader;
         }
 
@@ -1041,7 +1060,7 @@ namespace Opc.Ua
             }
 
             InitResponseCollections<HistoryUpdateResult, HistoryUpdateResultCollection>(
-                out var results, out var diagnosticInfos,
+                out var results, out var diagnosticInfos, out var stringTable,
                 historyUpdateDetails.Count, operationLimit
                 );
 
@@ -1062,11 +1081,12 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchHistoryUpdateDetails);
 
                 AddResponses<HistoryUpdateResult, HistoryUpdateResultCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
 
             response.Results = results;
             response.DiagnosticInfos = diagnosticInfos;
+            response.ResponseHeader.StringTable = stringTable;
 
             return response;
         }
@@ -1085,7 +1105,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerMethodCall;
             InitResponseCollections<CallMethodResult, CallMethodResultCollection>(
-                out results, out diagnosticInfos,
+                out results, out diagnosticInfos, out var stringTable,
                 methodsToCall.Count, operationLimit
                 );
 
@@ -1106,9 +1126,10 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchMethodsToCall);
 
                 AddResponses<CallMethodResult, CallMethodResultCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, responseHeader.StringTable);
             }
 
+            responseHeader.StringTable = stringTable;
             return responseHeader;
         }
 
@@ -1123,7 +1144,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerMethodCall;
             InitResponseCollections<CallMethodResult, CallMethodResultCollection>(
-                out var results, out var diagnosticInfos,
+                out var results, out var diagnosticInfos, out var stringTable,
                 methodsToCall.Count, operationLimit
                 );
 
@@ -1145,11 +1166,12 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchMethodsToCall);
 
                 AddResponses<CallMethodResult, CallMethodResultCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
 
             response.Results = results;
             response.DiagnosticInfos = diagnosticInfos;
+            response.ResponseHeader.StringTable = stringTable;
 
             return response;
         }
@@ -1170,7 +1192,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
             InitResponseCollections<MonitoredItemCreateResult, MonitoredItemCreateResultCollection>(
-                out results, out diagnosticInfos,
+                out results, out diagnosticInfos, out var stringTable,
                 itemsToCreate.Count, operationLimit
                 );
 
@@ -1193,9 +1215,10 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchItemsToCreate);
 
                 AddResponses<MonitoredItemCreateResult, MonitoredItemCreateResultCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, responseHeader.StringTable);
             }
 
+            responseHeader.StringTable = stringTable;
             return responseHeader;
         }
 
@@ -1212,7 +1235,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
             InitResponseCollections<MonitoredItemCreateResult, MonitoredItemCreateResultCollection>(
-                out var results, out var diagnosticInfos,
+                out var results, out var diagnosticInfos, out var stringTable,
                 itemsToCreate.Count, operationLimit
                 );
 
@@ -1236,11 +1259,12 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchItemsToCreate);
 
                 AddResponses<MonitoredItemCreateResult, MonitoredItemCreateResultCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
 
             response.Results = results;
             response.DiagnosticInfos = diagnosticInfos;
+            response.ResponseHeader.StringTable = stringTable;
 
             return response;
         }
@@ -1261,7 +1285,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
             InitResponseCollections<MonitoredItemModifyResult, MonitoredItemModifyResultCollection>(
-                out results, out diagnosticInfos,
+                out results, out diagnosticInfos, out var stringTable,
                 itemsToModify.Count, operationLimit
                 );
 
@@ -1284,9 +1308,10 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchItemsToModify);
 
                 AddResponses<MonitoredItemModifyResult, MonitoredItemModifyResultCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, responseHeader.StringTable);
             }
 
+            responseHeader.StringTable = stringTable;
             return responseHeader;
         }
 
@@ -1303,7 +1328,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
             InitResponseCollections<MonitoredItemModifyResult, MonitoredItemModifyResultCollection>(
-                out var results, out var diagnosticInfos,
+                out var results, out var diagnosticInfos, out var stringTable,
                 itemsToModify.Count, operationLimit
                 );
 
@@ -1327,11 +1352,12 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchItemsToModify);
 
                 AddResponses<MonitoredItemModifyResult, MonitoredItemModifyResultCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
 
             response.Results = results;
             response.DiagnosticInfos = diagnosticInfos;
+            response.ResponseHeader.StringTable = stringTable;
 
             return response;
         }
@@ -1352,7 +1378,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out results, out diagnosticInfos,
+                out results, out diagnosticInfos, out var stringTable,
                 monitoredItemIds.Count, operationLimit
                 );
 
@@ -1375,9 +1401,10 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchMonitoredItemIds);
 
                 AddResponses<StatusCode, StatusCodeCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, responseHeader.StringTable);
             }
 
+            responseHeader.StringTable = stringTable;
             return responseHeader;
         }
 
@@ -1394,7 +1421,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out var results, out var diagnosticInfos,
+                out var results, out var diagnosticInfos, out var stringTable,
                 monitoredItemIds.Count, operationLimit
                 );
 
@@ -1418,11 +1445,12 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchMonitoredItemIds);
 
                 AddResponses<StatusCode, StatusCodeCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
 
             response.Results = results;
             response.DiagnosticInfos = diagnosticInfos;
+            response.ResponseHeader.StringTable = stringTable;
 
             return response;
         }
@@ -1446,12 +1474,12 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out addResults, out addDiagnosticInfos,
+                out addResults, out addDiagnosticInfos, out var stringTable,
                 linksToAdd.Count, operationLimit
                 );
 
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out removeResults, out removeDiagnosticInfos,
+                out removeResults, out removeDiagnosticInfos, out _,
                 linksToRemove.Count, operationLimit
                 );
 
@@ -1496,10 +1524,10 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchRemoveDiagnosticInfos, batchLinksToRemove);
 
                 AddResponses<StatusCode, StatusCodeCollection>(
-                    ref addResults, ref addDiagnosticInfos, batchAddResults, batchAddDiagnosticInfos);
+                    ref addResults, ref addDiagnosticInfos, ref stringTable, batchAddResults, batchAddDiagnosticInfos, responseHeader.StringTable);
 
                 AddResponses<StatusCode, StatusCodeCollection>(
-                    ref removeResults, ref removeDiagnosticInfos, batchRemoveResults, batchRemoveDiagnosticInfos);
+                    ref removeResults, ref removeDiagnosticInfos, ref stringTable, batchRemoveResults, batchRemoveDiagnosticInfos, responseHeader.StringTable);
             }
 
             if (linksToRemove.Count > 0)
@@ -1530,12 +1558,14 @@ namespace Opc.Ua
                     ClientBase.ValidateDiagnosticInfos(batchRemoveDiagnosticInfos, batchLinksToRemove);
 
                     AddResponses<StatusCode, StatusCodeCollection>(
-                        ref addResults, ref addDiagnosticInfos, batchAddResults, batchAddDiagnosticInfos);
+                        ref addResults, ref addDiagnosticInfos, ref stringTable, batchAddResults, batchAddDiagnosticInfos, responseHeader.StringTable);
 
                     AddResponses<StatusCode, StatusCodeCollection>(
-                        ref removeResults, ref removeDiagnosticInfos, batchRemoveResults, batchRemoveDiagnosticInfos);
+                        ref removeResults, ref removeDiagnosticInfos, ref stringTable, batchRemoveResults, batchRemoveDiagnosticInfos, responseHeader.StringTable);
                 }
             }
+
+            responseHeader.StringTable = stringTable;
             return responseHeader;
         }
 #if (CLIENT_ASYNC)
@@ -1552,12 +1582,12 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out var addResults, out var addDiagnosticInfos,
+                out var addResults, out var addDiagnosticInfos, out var stringTable,
                 linksToAdd.Count, operationLimit
                 );
 
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out var removeResults, out var removeDiagnosticInfos,
+                out var removeResults, out var removeDiagnosticInfos, out _,
                 linksToRemove.Count, operationLimit
                 );
 
@@ -1603,10 +1633,10 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchRemoveDiagnosticInfos, batchLinksToRemove);
 
                 AddResponses<StatusCode, StatusCodeCollection>(
-                    ref addResults, ref addDiagnosticInfos, batchAddResults, batchAddDiagnosticInfos);
+                    ref addResults, ref addDiagnosticInfos, ref stringTable, batchAddResults, batchAddDiagnosticInfos, response.ResponseHeader.StringTable);
 
                 AddResponses<StatusCode, StatusCodeCollection>(
-                    ref removeResults, ref removeDiagnosticInfos, batchRemoveResults, batchRemoveDiagnosticInfos);
+                    ref removeResults, ref removeDiagnosticInfos, ref stringTable, batchRemoveResults, batchRemoveDiagnosticInfos, response.ResponseHeader.StringTable);
             }
 
             if (linksToRemove.Count > 0)
@@ -1638,10 +1668,10 @@ namespace Opc.Ua
                     ClientBase.ValidateDiagnosticInfos(batchRemoveDiagnosticInfos, batchLinksToRemove);
 
                     AddResponses<StatusCode, StatusCodeCollection>(
-                        ref addResults, ref addDiagnosticInfos, batchAddResults, batchAddDiagnosticInfos);
+                        ref addResults, ref addDiagnosticInfos, ref stringTable, batchAddResults, batchAddDiagnosticInfos, response.ResponseHeader.StringTable);
 
                     AddResponses<StatusCode, StatusCodeCollection>(
-                        ref removeResults, ref removeDiagnosticInfos, batchRemoveResults, batchRemoveDiagnosticInfos);
+                        ref removeResults, ref removeDiagnosticInfos, ref stringTable, batchRemoveResults, batchRemoveDiagnosticInfos, response.ResponseHeader.StringTable);
                 }
             }
 
@@ -1649,6 +1679,7 @@ namespace Opc.Ua
             response.AddDiagnosticInfos = addDiagnosticInfos;
             response.RemoveResults = removeResults;
             response.RemoveDiagnosticInfos = removeDiagnosticInfos;
+            response.ResponseHeader.StringTable = stringTable;
 
             return response;
         }
@@ -1668,7 +1699,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out results, out diagnosticInfos,
+                out results, out diagnosticInfos, out var stringTable,
                 monitoredItemIds.Count, operationLimit
                 );
 
@@ -1690,9 +1721,10 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchMonitoredItemIds);
 
                 AddResponses<StatusCode, StatusCodeCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, responseHeader.StringTable);
             }
 
+            responseHeader.StringTable = stringTable;
             return responseHeader;
         }
 
@@ -1708,7 +1740,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out var results, out var diagnosticInfos,
+                out var results, out var diagnosticInfos, out var stringTable,
                 monitoredItemIds.Count, operationLimit
                 );
 
@@ -1732,11 +1764,12 @@ namespace Opc.Ua
                 ClientBase.ValidateDiagnosticInfos(batchDiagnosticInfos, batchMonitoredItemIds);
 
                 AddResponses<StatusCode, StatusCodeCollection>(
-                    ref results, ref diagnosticInfos, batchResults, batchDiagnosticInfos);
+                    ref results, ref diagnosticInfos, ref stringTable, batchResults, batchDiagnosticInfos, response.ResponseHeader.StringTable);
             }
 
             response.Results = results;
             response.DiagnosticInfos = diagnosticInfos;
+            response.ResponseHeader.StringTable = stringTable;
 
             return response;
         }
@@ -1754,18 +1787,23 @@ namespace Opc.Ua
         private static void InitResponseCollections<T, C>(
             out C results,
             out DiagnosticInfoCollection diagnosticInfos,
+            out StringCollection stringTable,
             int count,
             uint operationLimit) where C : List<T>, new()
         {
-            results = null;
-            diagnosticInfos = null;
-
-            if (count > operationLimit)
+            if (count <= operationLimit)
+            {
+                results = null;
+                diagnosticInfos = null;
+                stringTable = null;
+            }
+            else
             {
                 results = new C() {
                     Capacity = count
                 };
                 diagnosticInfos = new DiagnosticInfoCollection(count);
+                stringTable = new StringCollection();
             }
         }
 
@@ -1776,22 +1814,83 @@ namespace Opc.Ua
         /// Assigns the batched collection result to the result if the result
         /// collection is not initialized, adds the range to the result
         /// collections otherwise.
+        /// The string table indexes are updated in the diagnostic infos if necessary.
         /// </remarks>
         private static void AddResponses<T, C>(
             ref C results,
             ref DiagnosticInfoCollection diagnosticInfos,
+            ref StringCollection stringTable,
             C batchedResults,
-            DiagnosticInfoCollection batchedDiagnosticInfos) where C : List<T>
+            DiagnosticInfoCollection batchedDiagnosticInfos,
+            StringCollection batchedStringTable) where C : List<T>
         {
             if (results == null)
             {
                 results = batchedResults;
                 diagnosticInfos = batchedDiagnosticInfos;
+                stringTable = batchedStringTable;
             }
             else
             {
+                bool hasDiagnosticInfos = diagnosticInfos.Count > 0;
+                bool hasEmptyDiagnosticInfos = diagnosticInfos.Count == 0 && results.Count > 0;
+                bool hasBatchDiagnosticInfos = batchedDiagnosticInfos.Count > 0;
+                int correctionCount = 0;
+                if (hasBatchDiagnosticInfos && hasEmptyDiagnosticInfos)
+                {
+                    correctionCount = results.Count;
+                }
+                else if (!hasBatchDiagnosticInfos && hasDiagnosticInfos)
+                {
+                    correctionCount = batchedResults.Count;
+                }
+                if (correctionCount > 0)
+                {
+                    // fill missing diagnostics infos with null entries
+                    for (int i = 0; i < correctionCount; i++)
+                    {
+                        diagnosticInfos.Add(null);
+                    }
+                }
+                else if (batchedStringTable.Count > 0)
+                {
+                    // correct indexes in the string table
+                    int stringTableOffset = stringTable.Count;
+                    foreach (DiagnosticInfo diagnosticInfo in batchedDiagnosticInfos)
+                    {
+                        UpdateDiagnosticInfoIndexes(diagnosticInfo, stringTableOffset);
+                    }
+                }
                 results.AddRange(batchedResults);
                 diagnosticInfos.AddRange(batchedDiagnosticInfos);
+                stringTable.AddRange(batchedStringTable);
+            }
+        }
+
+        private static void UpdateDiagnosticInfoIndexes(
+            DiagnosticInfo diagnosticInfo,
+            int stringTableOffset)
+        {
+            int depth = 0;
+            while (diagnosticInfo != null && depth++ < DiagnosticInfo.MaxInnerDepth)
+            {
+                if (diagnosticInfo.LocalizedText >= 0)
+                {
+                    diagnosticInfo.LocalizedText += stringTableOffset;
+                }
+                if (diagnosticInfo.Locale >= 0)
+                {
+                    diagnosticInfo.Locale += stringTableOffset;
+                }
+                if (diagnosticInfo.NamespaceUri >= 0)
+                {
+                    diagnosticInfo.NamespaceUri += stringTableOffset;
+                }
+                if (diagnosticInfo.SymbolicId >= 0)
+                {
+                    diagnosticInfo.SymbolicId += stringTableOffset;
+                }
+                diagnosticInfo = diagnosticInfo.InnerDiagnosticInfo;
             }
         }
         #endregion

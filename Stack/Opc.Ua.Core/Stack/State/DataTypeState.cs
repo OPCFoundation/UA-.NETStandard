@@ -221,6 +221,11 @@ namespace Opc.Ua
                         value = dataTypeDefinition;
                     }
 
+                    if (value == null && result == null)
+                    {
+                        return StatusCodes.BadAttributeIdInvalid;
+                    }
+
                     return result;
                 }
             }

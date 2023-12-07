@@ -54,13 +54,17 @@ namespace Opc.Ua.Gds.Server
             IApplicationsDatabase database,
             ICertificateRequest request,
             ICertificateGroup certificateGroup,
-            bool autoApprove = true
+            IUsersDatabase userDatabase,
+            bool autoApprove = true,
+            bool createStandardUsers = true
             )
         {
             m_database = database;
             m_request = request;
             m_certificateGroup = certificateGroup;
+            m_userDatabase = userDatabase;
             m_autoApprove = autoApprove;
+            m_createStandardUsers = createStandardUsers;
         }
 
         #region Overridden Methods
@@ -71,6 +75,12 @@ namespace Opc.Ua.Gds.Server
         {
             base.OnServerStarted(server);
 
+            //ToDo delete this code in a production environment as this creates hardcoded passwords
+            if (m_createStandardUsers)
+            {
+
+                RegisterDefaultUsers();
+            }
             // request notifications when the user identity is changed. all valid users are accepted by default.
             server.SessionManager.ImpersonateUser += SessionManager_ImpersonateUser;
         }
@@ -189,31 +199,30 @@ namespace Opc.Ua.Gds.Server
             {
                 if (VerifyPassword(userNameToken))
                 {
-                    switch (userNameToken.UserName)
+                    if (userNameToken.UserName == "sysadmin")
                     {
                         // Server configuration administrator, manages the GDS server security
-                        case "sysadmin":
-                            {
-                                args.Identity = new SystemConfigurationIdentity(new UserIdentity(userNameToken));
-                                Utils.LogInfo("SystemConfigurationAdmin Token Accepted: {0}", args.Identity.DisplayName);
-                                return;
-                            }
-
+                        args.Identity = new SystemConfigurationIdentity(new UserIdentity(userNameToken));
+                        Utils.LogInfo("SystemConfigurationAdmin Token Accepted: {0}", args.Identity.DisplayName);
+                        return;
+                    }
+                    switch (m_userDatabase.GetUserRole(userNameToken.UserName))
+                    {
                         // GDS administrator
-                        case "appadmin":
-                            {
-                                args.Identity = new RoleBasedIdentity(new UserIdentity(userNameToken), GdsRole.ApplicationAdmin);
-                                Utils.LogInfo("ApplicationAdmin Token Accepted: {0}", args.Identity.DisplayName);
-                                return;
-                            }
+                        case GdsRole.ApplicationAdmin:
+                        {
+                            args.Identity = new RoleBasedIdentity(new UserIdentity(userNameToken), GdsRole.ApplicationAdmin);
+                            Utils.LogInfo("ApplicationAdmin Token Accepted: {0}", args.Identity.DisplayName);
+                            return;
+                        }
 
                         // GDS user
-                        case "appuser":
-                            {
-                                args.Identity = new RoleBasedIdentity(new UserIdentity(userNameToken), GdsRole.ApplicationUser);
-                                Utils.LogInfo("ApplicationUser Token Accepted: {0}", args.Identity.DisplayName);
-                                return;
-                            }
+                        case GdsRole.ApplicationUser:
+                        {
+                            args.Identity = new RoleBasedIdentity(new UserIdentity(userNameToken), GdsRole.ApplicationUser);
+                            Utils.LogInfo("ApplicationUser Token Accepted: {0}", args.Identity.DisplayName);
+                            return;
+                        }
                     }
                 }
             }
@@ -279,8 +288,18 @@ namespace Opc.Ua.Gds.Server
 
         private bool VerifyPassword(UserNameIdentityToken userNameToken)
         {
-            // TODO: check username/password permissions
-            return userNameToken.DecryptedPassword == "demo";
+            return m_userDatabase.CheckCredentials(userNameToken.UserName, userNameToken.DecryptedPassword);
+        }
+
+        /// <summary>
+        /// registers the default GDS users
+        /// ToDo delete this in a production environment
+        /// </summary>
+        private void RegisterDefaultUsers()
+        {
+            m_userDatabase.CreateUser("sysadmin", "demo", GdsRole.ApplicationAdmin);
+            m_userDatabase.CreateUser("appadmin", "demo", GdsRole.ApplicationAdmin);
+            m_userDatabase.CreateUser("appuser", "demo", GdsRole.ApplicationUser);
         }
         #endregion
 
@@ -289,7 +308,9 @@ namespace Opc.Ua.Gds.Server
         private IApplicationsDatabase m_database = null;
         private ICertificateRequest m_request = null;
         private ICertificateGroup m_certificateGroup = null;
+        private IUsersDatabase m_userDatabase = null;
         private bool m_autoApprove;
+        private bool m_createStandardUsers;
         #endregion 
     }
 }

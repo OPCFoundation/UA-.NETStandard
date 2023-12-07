@@ -60,12 +60,12 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             SecureRandom random)
         {
             // create pkcs12 store for cert and private key
-            using (MemoryStream pfxData = new MemoryStream())
+            using (var pfxData = new MemoryStream())
             {
-                Pkcs12StoreBuilder builder = new Pkcs12StoreBuilder();
+                var builder = new Pkcs12StoreBuilder();
                 builder.SetUseDerEncoding(true);
                 Pkcs12Store pkcsStore = builder.Build();
-                X509CertificateEntry[] chain = new X509CertificateEntry[1];
+                var chain = new X509CertificateEntry[1];
                 chain[0] = new X509CertificateEntry(certificate);
                 if (string.IsNullOrEmpty(friendlyName))
                 {
@@ -170,7 +170,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// </summary>
         internal static string GetCertificateCommonName(Org.BouncyCastle.X509.X509Certificate certificate)
         {
-            var subjectDN = certificate.SubjectDN.GetValueList(X509Name.CN);
+            System.Collections.Generic.IList<string> subjectDN = certificate.SubjectDN.GetValueList(X509Name.CN);
             if (subjectDN.Count > 0)
             {
                 return subjectDN[0].ToString();
@@ -184,7 +184,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         internal static string GeneratePasscode()
         {
             const int kLength = 18;
-            using (RandomNumberGenerator rng = RandomNumberGenerator.Create())
+            using (var rng = RandomNumberGenerator.Create())
             {
                 byte[] tokenBuffer = new byte[kLength];
                 rng.GetBytes(tokenBuffer);
@@ -197,13 +197,13 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// </summary>
         internal static RSA SetRSAPublicKey(byte[] publicKey)
         {
-            var asymmetricKeyParameter = PublicKeyFactory.CreateKey(publicKey);
+            AsymmetricKeyParameter asymmetricKeyParameter = PublicKeyFactory.CreateKey(publicKey);
             var rsaKeyParameters = asymmetricKeyParameter as RsaKeyParameters;
             var parameters = new RSAParameters {
                 Exponent = rsaKeyParameters.Exponent.ToByteArrayUnsigned(),
                 Modulus = rsaKeyParameters.Modulus.ToByteArrayUnsigned()
             };
-            RSA rsaPublicKey = RSA.Create();
+            var rsaPublicKey = RSA.Create();
             rsaPublicKey.ImportParameters(parameters);
             return rsaPublicKey;
         }

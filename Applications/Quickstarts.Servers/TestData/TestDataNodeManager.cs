@@ -207,12 +207,20 @@ namespace TestData
 
                 // Initialize Root Variable for structures with variables
                 {
-                    var variable = FindTypeState<ScalarValueVariableState>(Variables.Data_Static_StructureScalar);
-                    m_dataStaticStructureScalarValue = new ScalarValueVariableValue(variable, m_system.GetRandomScalarValueDataType(), null);
+                    var variable = FindTypeState<ScalarStructureVariableState>(Variables.Data_Static_Structure_ScalarStructure);
+                    m_dataStaticStructureScalarStructure = new ScalarStructureVariableValue(variable, m_system.GetRandomScalarStructureDataType(), null);
                 }
                 {
-                    var variable = FindTypeState<ScalarValueVariableState>(Variables.Data_Dynamic_StructureScalar);
-                    m_dataDynamicStructureScalarValue = new ScalarValueVariableValue(variable, m_system.GetRandomScalarValueDataType(), null);
+                    var variable = FindTypeState<ScalarStructureVariableState>(Variables.Data_Dynamic_Structure_ScalarStructure);
+                    m_dataDynamicStructureScalarStructure = new ScalarStructureVariableValue(variable, m_system.GetRandomScalarStructureDataType(), null);
+                }
+                {
+                    var variable = FindTypeState<VectorVariableState>(Variables.Data_Static_Structure_VectorStructure);
+                    m_dataStaticStructureVectorStructure = new VectorVariableValue(variable, m_system.GetRandomVector(), null);
+                }
+                {
+                    var variable = FindTypeState<VectorVariableState>(Variables.Data_Dynamic_Structure_VectorStructure);
+                    m_dataDynamicStructureVectorStructure = new VectorVariableValue(variable, m_system.GetRandomVector(), null);
                 }
                 {
                     var variable = FindTypeState<VectorVariableState>(Variables.Data_Static_Scalar_VectorValue);
@@ -277,6 +285,24 @@ namespace TestData
                         }
 
                         ScalarValueObjectState activeNode = new ScalarValueObjectState(passiveNode.Parent);
+                        activeNode.Create(context, passiveNode);
+
+                        if (passiveNode.Parent != null)
+                        {
+                            passiveNode.Parent.ReplaceChild(context, activeNode);
+                        }
+
+                        return activeNode;
+                    }
+
+                    case ObjectTypes.StructureValueObjectType:
+                    {
+                        if (passiveNode is StructureValueObjectState)
+                        {
+                            break;
+                        }
+
+                        StructureValueObjectState activeNode = new StructureValueObjectState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
                         if (passiveNode.Parent != null)
@@ -408,14 +434,14 @@ namespace TestData
 
                 switch ((uint)typeId.Identifier)
                 {
-                    case VariableTypes.ScalarValueVariableType:
+                    case VariableTypes.ScalarStructureVariableType:
                     {
-                        if (variableNode is ScalarValueVariableState)
+                        if (variableNode is ScalarStructureVariableState)
                         {
                             break;
                         }
 
-                        ScalarValueVariableState activeNode = new ScalarValueVariableState(variableNode.Parent);
+                        ScalarStructureVariableState activeNode = new ScalarStructureVariableState(variableNode.Parent);
                         activeNode.Create(context, variableNode);
 
                         if (variableNode.Parent != null)
@@ -598,8 +624,8 @@ namespace TestData
                 return false;
             }
 
-            // only care about variables.
-            BaseDataVariableState source = monitoredNode.Node as BaseDataVariableState;
+            // only care about variables and properties.
+            var source = monitoredNode.Node as BaseVariableState;
 
             if (source == null)
             {
@@ -610,26 +636,17 @@ namespace TestData
             if (monitoredItem.AttributeId == Attributes.Value)
             {
                 TestDataObjectState test = source.Parent as TestDataObjectState;
-
                 if (test != null && test.SimulationActive.Value)
                 {
                     return true;
                 }
 
-                TestDataVariableState testRoot = source as TestDataVariableState;
-
-                if (testRoot != null && testRoot.SimulationActive.Value)
+                var sourcesource = source.Parent as BaseVariableState;
+                TestDataObjectState testtest = sourcesource?.Parent as TestDataObjectState;
+                if (testtest != null && testtest.SimulationActive.Value)
                 {
                     return true;
                 }
-
-                TestDataVariableState testChildren = source.Parent as TestDataVariableState;
-
-                if (testChildren != null && testChildren.SimulationActive.Value)
-                {
-                    return true;
-                }
-
             }
 
             return false;
@@ -843,8 +860,10 @@ namespace TestData
         private TestSystemConditionState m_systemStatusCondition;
         private DialogConditionState m_dialog;
 #endif
-        private ScalarValueVariableValue m_dataStaticStructureScalarValue;
-        private ScalarValueVariableValue m_dataDynamicStructureScalarValue;
+        private ScalarStructureVariableValue m_dataStaticStructureScalarStructure;
+        private ScalarStructureVariableValue m_dataDynamicStructureScalarStructure;
+        private VectorVariableValue m_dataStaticStructureVectorStructure;
+        private VectorVariableValue m_dataDynamicStructureVectorStructure;
         private VectorVariableValue m_dataStaticVectorScalarValue;
         private VectorVariableValue m_dataDynamicVectorScalarValue;
         #endregion

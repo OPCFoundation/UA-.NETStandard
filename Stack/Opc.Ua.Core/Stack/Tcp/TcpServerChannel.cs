@@ -122,9 +122,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void EndReverseConnect(IAsyncResult result)
         {
-            var ar = result as ReverseConnectAsyncResult;
-
-            if (ar == null)
+            if (!(result is ReverseConnectAsyncResult ar))
             {
                 throw new ArgumentException("EndReverseConnect is called with invalid IAsyncResult.", nameof(result));
             }
@@ -162,20 +160,22 @@ namespace Opc.Ua.Bindings
                 ar.Socket.ReadNextMessage();
 
                 // send reverse hello message.
-                BinaryEncoder encoder = new BinaryEncoder(buffer, 0, SendBufferSize, Quotas.MessageContext);
-                encoder.WriteUInt32(null, TcpMessageType.ReverseHello);
-                encoder.WriteUInt32(null, 0);
-                encoder.WriteString(null, EndpointDescription.Server.ApplicationUri);
-                encoder.WriteString(null, EndpointDescription.EndpointUrl);
-                int size = encoder.Close();
-                UpdateMessageSize(buffer, 0, size);
+                using (BinaryEncoder encoder = new BinaryEncoder(buffer, 0, SendBufferSize, Quotas.MessageContext))
+                {
+                    encoder.WriteUInt32(null, TcpMessageType.ReverseHello);
+                    encoder.WriteUInt32(null, 0);
+                    encoder.WriteString(null, EndpointDescription.Server.ApplicationUri);
+                    encoder.WriteString(null, EndpointDescription.EndpointUrl);
+                    int size = encoder.Close();
+                    UpdateMessageSize(buffer, 0, size);
 
-                // set state to waiting for hello.
-                State = TcpChannelState.Connecting;
-                m_pendingReverseHello = ar;
+                    // set state to waiting for hello.
+                    State = TcpChannelState.Connecting;
+                    m_pendingReverseHello = ar;
 
-                BeginWriteMessage(new ArraySegment<byte>(buffer, 0, size), null);
-                buffer = null;
+                    BeginWriteMessage(new ArraySegment<byte>(buffer, 0, size), null);
+                    buffer = null;
+                }
             }
             catch (Exception e)
             {
@@ -310,9 +310,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void OnChannelReconnected(object state)
         {
-            SortedDictionary<uint, IServiceResponse> responses = state as SortedDictionary<uint, IServiceResponse>;
-
-            if (responses == null)
+            if (!(state is SortedDictionary<uint, IServiceResponse> responses))
             {
                 return;
             }
@@ -338,6 +336,9 @@ namespace Opc.Ua.Bindings
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "protocolVersion")]
         private bool ProcessHelloMessage(ArraySegment<byte> messageChunk)
         {
+            const UInt32 kProtocolVersion = 0;
+            const int kResponseBufferSize = 127;
+
             // validate the channel state.
             if (State != TcpChannelState.Connecting)
             {
@@ -347,98 +348,100 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                MemoryStream istrm = new MemoryStream(messageChunk.Array, messageChunk.Offset, messageChunk.Count, false);
-                BinaryDecoder decoder = new BinaryDecoder(istrm, Quotas.MessageContext);
-                istrm.Seek(TcpMessageLimits.MessageTypeAndSize, SeekOrigin.Current);
-
-                // read requested buffer sizes.
-                uint protocolVersion = decoder.ReadUInt32(null);
-                uint receiveBufferSize = decoder.ReadUInt32(null);
-                uint sendBufferSize = decoder.ReadUInt32(null);
-                uint maxMessageSize = decoder.ReadUInt32(null);
-                uint maxChunkCount = decoder.ReadUInt32(null);
-
-                // read the endpoint url.
-                int length = decoder.ReadInt32(null);
-
-                if (length > 0)
+                using (MemoryStream istrm = new MemoryStream(messageChunk.Array, messageChunk.Offset, messageChunk.Count, false))
                 {
-                    if (length > TcpMessageLimits.MaxEndpointUrlLength)
+                    BinaryDecoder decoder = new BinaryDecoder(istrm, Quotas.MessageContext);
+                    istrm.Seek(TcpMessageLimits.MessageTypeAndSize, SeekOrigin.Current);
+
+                    // read requested buffer sizes.
+                    uint protocolVersion = decoder.ReadUInt32(null);
+                    uint receiveBufferSize = decoder.ReadUInt32(null);
+                    uint sendBufferSize = decoder.ReadUInt32(null);
+                    uint maxMessageSize = decoder.ReadUInt32(null);
+                    uint maxChunkCount = decoder.ReadUInt32(null);
+
+                    // read the endpoint url.
+                    int length = decoder.ReadInt32(null);
+
+                    if (length > 0)
                     {
-                        ForceChannelFault(StatusCodes.BadTcpEndpointUrlInvalid);
-                        return false;
+                        if (length > TcpMessageLimits.MaxEndpointUrlLength)
+                        {
+                            ForceChannelFault(StatusCodes.BadTcpEndpointUrlInvalid);
+                            return false;
+                        }
+
+                        byte[] endpointUrl = new byte[length];
+
+                        for (int ii = 0; ii < endpointUrl.Length; ii++)
+                        {
+                            endpointUrl[ii] = decoder.ReadByte(null);
+                        }
+
+                        if (!SetEndpointUrl(new UTF8Encoding().GetString(endpointUrl, 0, endpointUrl.Length)))
+                        {
+                            ForceChannelFault(StatusCodes.BadTcpEndpointUrlInvalid);
+                            return false;
+                        }
                     }
 
-                    byte[] endpointUrl = new byte[length];
+                    decoder.Close();
 
-                    for (int ii = 0; ii < endpointUrl.Length; ii++)
+                    // update receive buffer size.
+                    if (receiveBufferSize < ReceiveBufferSize)
                     {
-                        endpointUrl[ii] = decoder.ReadByte(null);
+                        ReceiveBufferSize = (int)receiveBufferSize;
                     }
 
-                    if (!SetEndpointUrl(new UTF8Encoding().GetString(endpointUrl, 0, endpointUrl.Length)))
+                    if (ReceiveBufferSize < TcpMessageLimits.MinBufferSize)
                     {
-                        ForceChannelFault(StatusCodes.BadTcpEndpointUrlInvalid);
-                        return false;
+                        ReceiveBufferSize = TcpMessageLimits.MinBufferSize;
                     }
+
+                    // update send buffer size.
+                    if (sendBufferSize < SendBufferSize)
+                    {
+                        SendBufferSize = (int)sendBufferSize;
+                    }
+
+                    if (SendBufferSize < TcpMessageLimits.MinBufferSize)
+                    {
+                        SendBufferSize = TcpMessageLimits.MinBufferSize;
+                    }
+
+                    // update the max message size.
+                    if (maxMessageSize > 0 && maxMessageSize < MaxResponseMessageSize)
+                    {
+                        MaxResponseMessageSize = (int)maxMessageSize;
+                    }
+
+                    if (MaxResponseMessageSize < SendBufferSize)
+                    {
+                        MaxResponseMessageSize = SendBufferSize;
+                    }
+
+                    // update the max chunk count.
+                    MaxResponseChunkCount = CalculateChunkCount(MaxResponseMessageSize, SendBufferSize);
+
+                    if (maxChunkCount > 0 && maxChunkCount < MaxResponseChunkCount)
+                    {
+                        MaxResponseChunkCount = (int)maxChunkCount;
+                    }
+
+                    MaxRequestChunkCount = CalculateChunkCount(MaxRequestMessageSize, ReceiveBufferSize);
                 }
-
-                decoder.Close();
-
-                // update receive buffer size.
-                if (receiveBufferSize < ReceiveBufferSize)
-                {
-                    ReceiveBufferSize = (int)receiveBufferSize;
-                }
-
-                if (ReceiveBufferSize < TcpMessageLimits.MinBufferSize)
-                {
-                    ReceiveBufferSize = TcpMessageLimits.MinBufferSize;
-                }
-
-                // update send buffer size.
-                if (sendBufferSize < SendBufferSize)
-                {
-                    SendBufferSize = (int)sendBufferSize;
-                }
-
-                if (SendBufferSize < TcpMessageLimits.MinBufferSize)
-                {
-                    SendBufferSize = TcpMessageLimits.MinBufferSize;
-                }
-
-                // update the max message size.
-                if (maxMessageSize > 0 && maxMessageSize < MaxResponseMessageSize)
-                {
-                    MaxResponseMessageSize = (int)maxMessageSize;
-                }
-
-                if (MaxResponseMessageSize < SendBufferSize)
-                {
-                    MaxResponseMessageSize = SendBufferSize;
-                }
-
-                // update the max chunk count.
-                MaxResponseChunkCount = CalculateChunkCount(MaxResponseMessageSize, SendBufferSize);
-
-                if (maxChunkCount > 0 && maxChunkCount < MaxResponseChunkCount)
-                {
-                    MaxResponseChunkCount = (int)maxChunkCount;
-                }
-
-                MaxRequestChunkCount = CalculateChunkCount(MaxRequestMessageSize, ReceiveBufferSize);
 
                 // send acknowledge.
-                byte[] buffer = BufferManager.TakeBuffer(SendBufferSize, "ProcessHelloMessage");
+                byte[] buffer = BufferManager.TakeBuffer(kResponseBufferSize, nameof(ProcessHelloMessage));
 
                 try
                 {
-                    using (MemoryStream ostrm = new MemoryStream(buffer, 0, SendBufferSize))
-                    using (BinaryEncoder encoder = new BinaryEncoder(ostrm, Quotas.MessageContext))
+                    using (MemoryStream ostrm = new MemoryStream(buffer, 0, kResponseBufferSize))
+                    using (BinaryEncoder encoder = new BinaryEncoder(ostrm, Quotas.MessageContext, false))
                     {
                         encoder.WriteUInt32(null, TcpMessageType.Acknowledge);
                         encoder.WriteUInt32(null, 0);
-                        encoder.WriteUInt32(null, 0); // ProtocolVersion
+                        encoder.WriteUInt32(null, kProtocolVersion);
                         encoder.WriteUInt32(null, (uint)ReceiveBufferSize);
                         encoder.WriteUInt32(null, (uint)SendBufferSize);
                         encoder.WriteUInt32(null, (uint)MaxRequestMessageSize);
@@ -458,7 +461,7 @@ namespace Opc.Ua.Bindings
                 {
                     if (buffer != null)
                     {
-                        BufferManager.ReturnBuffer(buffer, "ProcessHelloMessage");
+                        BufferManager.ReturnBuffer(buffer, nameof(ProcessHelloMessage));
                     }
                 }
             }
@@ -509,7 +512,6 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 const string errorSecurityChecksFailed = "Could not verify security on OpenSecureChannel request.";
-                ServiceResultException innerException = e.InnerException as ServiceResultException;
 
                 // report the audit event for open secure channel
                 ReportAuditOpenSecureChannelEvent?.Invoke(this, null, clientCertificate, e);
@@ -519,7 +521,7 @@ namespace Opc.Ua.Bindings
 
                 // If the certificate structure, signature and trust list checks pass,
                 // return the other specific validation errors instead of BadSecurityChecksFailed
-                if (innerException != null)
+                if (e.InnerException is ServiceResultException innerException)
                 {
                     if (innerException.StatusCode == StatusCodes.BadCertificateUntrusted ||
                         innerException.StatusCode == StatusCodes.BadCertificateChainIncomplete ||
@@ -839,12 +841,11 @@ namespace Opc.Ua.Bindings
                 // get the chunks to process.
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
-                CloseSecureChannelRequest request = BinaryDecoder.DecodeMessage(
+
+                if (!(BinaryDecoder.DecodeMessage(
                     new ArraySegmentStream(chunksToProcess),
                     typeof(CloseSecureChannelRequest),
-                    Quotas.MessageContext) as CloseSecureChannelRequest;
-
-                if (request == null)
+                    Quotas.MessageContext) is CloseSecureChannelRequest request))
                 {
                     throw ServiceResultException.Create(StatusCodes.BadStructureMissing, "Could not parse CloseSecureChannel request body.");
                 }
@@ -993,9 +994,8 @@ namespace Opc.Ua.Bindings
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
                 // decode the request.
-                IServiceRequest request = BinaryDecoder.DecodeMessage(new ArraySegmentStream(chunksToProcess), null, Quotas.MessageContext) as IServiceRequest;
 
-                if (request == null)
+                if (!(BinaryDecoder.DecodeMessage(new ArraySegmentStream(chunksToProcess), null, Quotas.MessageContext) is IServiceRequest request))
                 {
                     SendServiceFault(token, requestId, ServiceResult.Create(StatusCodes.BadStructureMissing, "Could not parse request body."));
                     return true;

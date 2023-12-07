@@ -56,7 +56,7 @@ namespace Opc.Ua.Client.Controls
             BrowseCTRL.BrowseTV.CheckBoxes = true;
             BrowseCTRL.BrowseTV.AfterCheck += new TreeViewEventHandler(BrowseTV_AfterCheck);
 
-            m_PublishStatusChanged = new EventHandler(OnPublishStatusChanged);
+            m_PublishStatusChanged = new PublishStateChangedEventHandler(OnPublishStatusChanged);
             ItemsDV.AutoGenerateColumns = false;
             ImageList = new ClientUtils().ImageList;
 
@@ -74,14 +74,14 @@ namespace Opc.Ua.Client.Controls
             ItemsDV.DataSource = m_dataset.Tables[0];
         }
         #endregion
-        
+
         #region Private Fields
         private DataSet m_dataset;
         private FilterDeclaration m_filter;
         private DisplayState m_state;
         private Session m_session;
         private Subscription m_subscription;
-        private EventHandler m_PublishStatusChanged;
+        private PublishStateChangedEventHandler m_PublishStatusChanged;
         #endregion
 
         private enum DisplayState
@@ -389,9 +389,9 @@ namespace Opc.Ua.Client.Controls
             buffer.Append(" (");
             buffer.Append(subscription.CurrentPublishingInterval);
             buffer.Append("ms/");
-            buffer.Append(subscription.CurrentPublishingInterval*subscription.CurrentKeepAliveCount/1000);
+            buffer.Append(subscription.CurrentPublishingInterval * subscription.CurrentKeepAliveCount / 1000);
             buffer.Append("s/");
-            buffer.Append(subscription.CurrentPublishingInterval*subscription.CurrentLifetimeCount/1000);
+            buffer.Append(subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount / 1000);
             buffer.Append("s}");
 
             return buffer.ToString();
@@ -504,7 +504,7 @@ namespace Opc.Ua.Client.Controls
 
                 fields.Add(field);
             }
-            
+
             // update filter.
             m_filter.EventTypeId = eventTypeId;
             m_filter.Fields = fields;
@@ -644,7 +644,7 @@ namespace Opc.Ua.Client.Controls
         #endregion
 
         #region Event Handlers
-        private void OnPublishStatusChanged(object sender, EventArgs e)
+        private void OnPublishStatusChanged(object sender, PublishStateChangedEventArgs e)
         {
             if (!Object.ReferenceEquals(sender, m_subscription))
             {
@@ -659,12 +659,12 @@ namespace Opc.Ua.Client.Controls
 
             try
             {
-                if (m_subscription.PublishingStopped)
+                if ((e.Status & PublishStateChangedMask.Stopped) != 0)
                 {
                     SubscriptionStateTB.Text = "STOPPED";
                     SubscriptionStateTB.ForeColor = Color.Red;
                 }
-                else
+                else if ((e.Status & PublishStateChangedMask.Recovered) != 0)
                 {
                     SubscriptionStateTB.Text = GetDisplayString(m_subscription);
                     SubscriptionStateTB.ForeColor = Color.Empty;

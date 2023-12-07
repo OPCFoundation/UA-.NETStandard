@@ -16,7 +16,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Serialization;
 
@@ -72,21 +71,21 @@ namespace Opc.Ua.Schema.Binary
         /// <summary>
         /// Generates the code from the contents of the address space.
         /// </summary>
-        public async Task Validate(Stream stream)
+        public void Validate(Stream stream)
         {
             // read and parse the file.
             Dictionary = (TypeDictionary)LoadInput(typeof(TypeDictionary), stream);
-            await Validate().ConfigureAwait(false);
+            Validate();
         }
 
         /// <summary>
         /// Generates the code from the contents of the address space.
         /// </summary>
-        public async Task Validate(string inputPath)
+        public void Validate(string inputPath)
         {
             // read and parse the file.
             Dictionary = (TypeDictionary)LoadInput(typeof(TypeDictionary), inputPath);
-            await Validate().ConfigureAwait(false);
+            Validate();
         }
 
         /// <summary>
@@ -128,7 +127,7 @@ namespace Opc.Ua.Schema.Binary
                 writer.Dispose();
             }
 
-            return new UTF8Encoding().GetString(ostrm.ToArray(), 0, (int)ostrm.Length);
+            return Encoding.UTF8.GetString(ostrm.ToArray(), 0, (int)ostrm.Length);
         }
         #endregion
 
@@ -136,7 +135,7 @@ namespace Opc.Ua.Schema.Binary
         /// <summary>
         /// Generates the code from the contents of the address space.
         /// </summary>
-        private async Task Validate()
+        private void Validate()
         {
             m_descriptions = new Dictionary<XmlQualifiedName, TypeDescription>();
             m_validatedDescriptions = new List<TypeDescription>();
@@ -147,7 +146,7 @@ namespace Opc.Ua.Schema.Binary
             {
                 foreach (ImportDirective directive in Dictionary.Import)
                 {
-                    await Import(directive).ConfigureAwait(false);
+                    Import(directive);
                 }
             }
             else
@@ -156,7 +155,7 @@ namespace Opc.Ua.Schema.Binary
                 if (!WellKnownDictionaries.Any(n => string.Equals(n[0], Dictionary.TargetNamespace, StringComparison.Ordinal)))
                 {
                     ImportDirective directive = new ImportDirective { Namespace = Namespaces.OpcUa };
-                    await Import(directive).ConfigureAwait(false);
+                    Import(directive);
                 }
             }
 
@@ -187,7 +186,7 @@ namespace Opc.Ua.Schema.Binary
         /// <summary>
         /// Imports a dictionary identified by an import directive.
         /// </summary>
-        private async Task Import(ImportDirective directive)
+        private void Import(ImportDirective directive)
         {
             // check if already loaded.
             if (LoadedFiles.ContainsKey(directive.Namespace))
@@ -211,7 +210,7 @@ namespace Opc.Ua.Schema.Binary
             {
                 for (int ii = 0; ii < dictionary.Import.Length; ii++)
                 {
-                    await Import(dictionary.Import[ii]).ConfigureAwait(false);
+                    Import(dictionary.Import[ii]);
                 }
             }
 
@@ -271,9 +270,8 @@ namespace Opc.Ua.Schema.Binary
                 return true;
             }
 
-            OpaqueType opaqueType = description as OpaqueType;
 
-            if (opaqueType != null)
+            if (description is OpaqueType opaqueType)
             {
                 if (opaqueType.LengthInBitsSpecified)
                 {
@@ -308,9 +306,8 @@ namespace Opc.Ua.Schema.Binary
                 }
             }
 
-            EnumeratedType enumerated = description as EnumeratedType;
 
-            if (enumerated != null)
+            if (description is EnumeratedType enumerated)
             {
                 if (enumerated.LengthInBitsSpecified)
                 {
@@ -319,9 +316,7 @@ namespace Opc.Ua.Schema.Binary
             }
             else
             {
-                OpaqueType opaque = description as OpaqueType;
-
-                if (opaque != null)
+                if (description is OpaqueType opaque)
                 {
                     if (opaque.LengthInBitsSpecified)
                     {
@@ -408,9 +403,7 @@ namespace Opc.Ua.Schema.Binary
         /// </summary>
         private void ValidateDescription(TypeDescription description)
         {
-            OpaqueType opaque = description as OpaqueType;
-
-            if (opaque != null)
+            if (description is OpaqueType opaque)
             {
                 if (!opaque.LengthInBitsSpecified)
                 {
@@ -423,9 +416,8 @@ namespace Opc.Ua.Schema.Binary
                 }
             }
 
-            EnumeratedType enumerated = description as EnumeratedType;
 
-            if (enumerated != null)
+            if (description is EnumeratedType enumerated)
             {
 
                 if (!enumerated.LengthInBitsSpecified)
@@ -434,9 +426,8 @@ namespace Opc.Ua.Schema.Binary
                 }
             }
 
-            StructuredType structure = description as StructuredType;
 
-            if (structure != null)
+            if (description is StructuredType structure)
             {
                 if (structure.Field == null || structure.Field.Length == 0)
                 {
@@ -491,24 +482,24 @@ namespace Opc.Ua.Schema.Binary
 
             if (IsNull(field.TypeName))
             {
-                throw Exception("Field '{1}' in structured type '{0}' has no type specified.", description.Name, field.Name);
+                throw Exception("Field '{0}' in structured type '{1}' has no type specified.", field.Name, description.Name);
             }
 
             if (!m_descriptions.ContainsKey(field.TypeName))
             {
-                throw Exception("Field '{1}' in structured type '{0}' has an unrecognized type '{2}'.", description.Name, field.Name, field.TypeName);
+                throw Exception("Field '{0}' in structured type '{1}' has an unrecognized type '{2}'.", field.Name, description.Name, field.TypeName);
             }
 
             if (!String.IsNullOrEmpty(field.LengthField))
             {
                 if (!fields.ContainsKey(field.LengthField))
                 {
-                    throw Exception("Field '{1}' in structured type '{0}' references an unknownn length field '{2}'.", description.Name, field.Name, field.LengthField);
+                    throw Exception("Field '{0}' in structured type '{1}' references an unknownn length field '{2}'.", field.Name, description.Name, field.LengthField);
                 }
 
                 if (!IsIntegerType(fields[field.LengthField]))
                 {
-                    throw Exception("Field '{1}' in structured type '{0}' references a length field '{2}' which is not an integer value.", description.Name, field.Name, field.SwitchField);
+                    throw Exception("Field '{0}' in structured type '{1}' references a length field '{2}' which is not an integer value.", field.Name, description.Name, field.SwitchField);
                 }
             }
 
@@ -516,12 +507,12 @@ namespace Opc.Ua.Schema.Binary
             {
                 if (!fields.ContainsKey(field.SwitchField))
                 {
-                    throw Exception("Field '{1}' in structured type '{0}' references an unknownn switch field '{2}'.", description.Name, field.Name, field.SwitchField);
+                    throw Exception("Field '{0}' in structured type '{1}' references an unknownn switch field '{2}'.", field.Name, description.Name, field.SwitchField);
                 }
 
                 if (!IsIntegerType(fields[field.SwitchField]))
                 {
-                    throw Exception("Field '{1}' in structured type '{0}' references a switch field '{2}' which is not an integer value.", description.Name, field.Name, field.SwitchField);
+                    throw Exception("Field '{0}' in structured type '{1}' references a switch field '{2}' which is not an integer value.", field.Name, description.Name, field.SwitchField);
                 }
             }
         }

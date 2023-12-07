@@ -40,7 +40,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Obsolete warnings for service calls which should not be used when using the Session API.
     /// </summary>
-    public partial class Session : SessionClientBatched, ISession, IDisposable
+    public partial class Session : SessionClientBatched, ISession
     {
         /// <inheritdoc/>
         [Obsolete("Call Create instead. Service Call doesn't create Session.")]
@@ -99,6 +99,24 @@ namespace Opc.Ua.Client
             RequestHeader requestHeader,
             bool deleteSubscriptions,
             CancellationToken ct) => base.CloseSessionAsync(requestHeader, deleteSubscriptions, ct);
+
+        /// <inheritdoc/>
+        [Obsolete("Call ISession.TransferSubscriptions(SubscriptionIds, bool) instead.")]
+        public override ResponseHeader TransferSubscriptions(
+            RequestHeader requestHeader,
+            UInt32Collection subscriptionIds,
+            bool sendInitialValues,
+            out TransferResultCollection results,
+            out DiagnosticInfoCollection diagnosticInfos) => base.TransferSubscriptions(
+                requestHeader, subscriptionIds, sendInitialValues, out results, out diagnosticInfos);
+
+        /// <inheritdoc/>
+        [Obsolete("Call ISession.TransferSubscriptionsAsync(SubscriptionIds, bool) instead.")]
+        public override Task<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
+            RequestHeader requestHeader,
+            UInt32Collection subscriptionIds,
+            bool sendInitialValues,
+            CancellationToken ct) => base.TransferSubscriptionsAsync(requestHeader, subscriptionIds, sendInitialValues, ct);
     }
 }
 #endif

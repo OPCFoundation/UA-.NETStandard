@@ -44,7 +44,7 @@ namespace MemoryBuffer
     public static partial class Objects
     {
         /// <remarks />
-        public const uint MemoryBuffers = 1025;
+        public const uint MemoryBuffers = 1005;
     }
     #endregion
 
@@ -55,7 +55,7 @@ namespace MemoryBuffer
     public static partial class ObjectTypes
     {
         /// <remarks />
-        public const uint MemoryBufferType = 1000;
+        public const uint MemoryBufferType = 1002;
     }
     #endregion
 
@@ -80,7 +80,7 @@ namespace MemoryBuffer
     public static partial class VariableTypes
     {
         /// <remarks />
-        public const uint MemoryTagType = 1018;
+        public const uint MemoryTagType = 1001;
     }
     #endregion
 

@@ -32,6 +32,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
@@ -355,7 +356,7 @@ namespace Opc.Ua.Configuration.Tests
             };
             Assert.NotNull(applicationInstance);
             ApplicationConfiguration config = await applicationInstance.Build(ApplicationUri, ProductUri)
-                .AsServer(new string[] { EndpointUrl, "https://localhost:51001" }, new string[] { "opc.tcp://192.168.1.100:51000" })
+                .AsServer(new string[] { EndpointUrl, "opc.https://localhost:51001" }, new string[] { "opc.tcp://192.168.1.100:51000" })
                 .AddSecurityConfiguration(SubjectName, m_pkiRoot)
                 .SetAddAppCertToTrustedStore(true)
                 .Create().ConfigureAwait(false);
@@ -531,6 +532,89 @@ namespace Opc.Ua.Configuration.Tests
                         await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false));
                     Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Tests that a supplied certifiacte is stored in the Trusted store of the Server after calling method AddOwnCertificateToTrustedStoreAsync
+        /// </summary>
+        /// <returns></returns>
+        [Test]
+        public async Task TestAddOwnCertificateToTrustedStore()
+        {
+            //Arrange Application Instance
+            var applicationInstance = new ApplicationInstance() {
+                ApplicationName = ApplicationName
+            };
+            ApplicationConfiguration configuration = await applicationInstance.Build(ApplicationUri, ProductUri)
+                .SetOperationTimeout(10000)
+                .AsServer(new string[] { EndpointUrl })
+                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                .Create().ConfigureAwait(false);
+
+            //Arrange cert
+            DateTime notBefore = DateTime.Today.AddDays(-30);
+            DateTime notAfter = DateTime.Today.AddDays(30);
+
+            var cert = CertificateFactory.CreateCertificate(SubjectName)
+                .SetNotBefore(notBefore)
+                .SetNotAfter(notAfter)
+                .SetCAConstraint(-1)
+                .CreateForRSA();
+
+            //Act
+            await applicationInstance.AddOwnCertificateToTrustedStoreAsync(cert, new CancellationToken()).ConfigureAwait(false);
+            ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore();
+            var storedCertificates = await store.FindByThumbprint(cert.Thumbprint).ConfigureAwait(false);
+
+            //Assert
+            Assert.IsTrue(storedCertificates.Contains(cert));
+        }
+      
+        /// <summary>
+        /// Test to verify that a new cert is not recreated/replaced if DisableCertificateAutoCreation is set.
+        /// </summary>
+        [Theory]
+        public async Task TestDisableCertificateAutoCreationAsync(bool server, bool disableCertificateAutoCreation)
+        {
+            // pki directory root for test runs. 
+            var pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
+
+            var applicationInstance = new ApplicationInstance() {
+                ApplicationName = ApplicationName,
+                DisableCertificateAutoCreation = disableCertificateAutoCreation
+            };
+            Assert.NotNull(applicationInstance);
+            ApplicationConfiguration config;
+            if (server)
+            {
+                config = await applicationInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer(new string[] { "opc.tcp://localhost:12345/Configuration" })
+                    .AddSecurityConfiguration(SubjectName, pkiRoot)
+                    .Create().ConfigureAwait(false);
+            }
+            else
+            {
+                config = await applicationInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(SubjectName, pkiRoot)
+                    .Create().ConfigureAwait(false);
+            }
+            Assert.NotNull(config);
+
+            CertificateIdentifier applicationCertificate = applicationInstance.ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate;
+            Assert.IsNull(applicationCertificate.Certificate);
+
+            if (disableCertificateAutoCreation)
+            {
+                var sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false));
+                Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
+            }
+            else
+            {
+                bool certOK = await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
+                Assert.True(certOK);
             }
         }
         #endregion

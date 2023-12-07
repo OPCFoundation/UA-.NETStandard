@@ -229,9 +229,7 @@ namespace Opc.Ua
 
                 case BuiltInType.ExtensionObject:
                 {
-                    Argument argument = ExtensionObject.ToEncodeable((ExtensionObject)value) as Argument;
-
-                    if (argument != null)
+                    if (ExtensionObject.ToEncodeable((ExtensionObject)value) is Argument argument)
                     {
                         argument.DataType = Translate(argument.DataType, m_namespaceUris, namespaceUris);
                     }
@@ -260,9 +258,8 @@ namespace Opc.Ua
             node.NodeId = Translate(nodeToExport.NodeId, m_namespaceUris, namespaceUris);
             node.BrowseName = Translate(nodeToExport.BrowseName, m_namespaceUris, namespaceUris);
 
-            VariableNode variableToExport = nodeToExport as VariableNode;
 
-            if (variableToExport != null)
+            if (nodeToExport is VariableNode variableToExport)
             {
                 VariableNode variableNode = (VariableNode)node;
 
@@ -272,9 +269,8 @@ namespace Opc.Ua
                 variableNode.DataType = Translate(variableToExport.DataType, m_namespaceUris, namespaceUris);
             }
 
-            VariableTypeNode variableTypeToExport = nodeToExport as VariableTypeNode;
 
-            if (variableTypeToExport != null)
+            if (nodeToExport is VariableTypeNode variableTypeToExport)
             {
                 VariableTypeNode variableTypeNode = (VariableTypeNode)node;
 
@@ -427,9 +423,8 @@ namespace Opc.Ua
             node.NodeId = Translate(nodeToImport.NodeId, namespaceUris, m_namespaceUris);
             node.BrowseName = Translate(nodeToImport.BrowseName, namespaceUris, m_namespaceUris);
 
-            VariableNode variableToImport = nodeToImport as VariableNode;
 
-            if (variableToImport != null)
+            if (nodeToImport is VariableNode variableToImport)
             {
                 VariableNode variable = (VariableNode)node;
 
@@ -441,9 +436,8 @@ namespace Opc.Ua
                 }
             }
 
-            VariableTypeNode variableTypeToImport = nodeToImport as VariableTypeNode;
 
-            if (variableTypeToImport != null)
+            if (nodeToImport is VariableTypeNode variableTypeToImport)
             {
                 VariableTypeNode variableType = (VariableTypeNode)node;
 
@@ -478,9 +472,7 @@ namespace Opc.Ua
         /// <returns></returns>
         private object ImportValue(object value, NamespaceTable namespaceUris, StringTable serverUris)
         {
-            Array array = value as Array;
-
-            if (array != null)
+            if (value is Array array)
             {
                 Type elementType = array.GetType().GetElementType();
 
@@ -513,13 +505,10 @@ namespace Opc.Ua
                 return Import(expandedNodeId, namespaceUris, serverUris);
             }
 
-            ExtensionObject extension = value as ExtensionObject;
 
-            if (extension != null)
+            if (value is ExtensionObject extension)
             {
-                Argument argument = ExtensionObject.ToEncodeable(extension) as Argument;
-
-                if (argument != null)
+                if (ExtensionObject.ToEncodeable(extension) is Argument argument)
                 {
                     argument.DataType = Import(argument.DataType, namespaceUris);
                 }

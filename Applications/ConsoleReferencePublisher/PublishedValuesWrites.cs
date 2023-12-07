@@ -309,8 +309,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                     }
                     else if (variable.ValueRank == ValueRanks.OneDimension)
                     {
-                        uint[] values = dataValue.Value as uint[];
-                        if (values != null)
+                        if (dataValue.Value is uint[] values)
                         {
                             for (int i = 0; i < values.Length; i++)
                             {

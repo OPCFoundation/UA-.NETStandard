@@ -30,6 +30,7 @@
 using System;
 using System.Collections;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Client;
@@ -51,6 +52,19 @@ namespace Quickstarts
             m_output = writer;
             m_configuration = configuration;
             m_configuration.CertificateValidator.CertificateValidation += CertificateValidation;
+            m_reverseConnectManager = null;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the UAClient class for reverse connections.
+        /// </summary>
+        public UAClient(ApplicationConfiguration configuration, ReverseConnectManager reverseConnectManager, TextWriter writer, Action<IList, IList> validateResponse)
+        {
+            m_validateResponse = validateResponse;
+            m_output = writer;
+            m_configuration = configuration;
+            m_configuration.CertificateValidator.CertificateValidation += CertificateValidation;
+            m_reverseConnectManager = reverseConnectManager;
         }
         #endregion
 
@@ -85,7 +99,12 @@ namespace Quickstarts
         /// <summary>
         /// The reconnect period to be used in ms.
         /// </summary>
-        public int ReconnectPeriod { get; set; } = 10000;
+        public int ReconnectPeriod { get; set; } = 1000;
+
+        /// <summary>
+        /// The reconnect period exponential backoff to be used in ms.
+        /// </summary>
+        public int ReconnectPeriodExponentialBackoff { get; set; } = 15000;
 
         /// <summary>
         /// The session lifetime.
@@ -112,7 +131,7 @@ namespace Quickstarts
         /// <summary>
         /// Creates a session with the UA server
         /// </summary>
-        public async Task<bool> ConnectAsync(string serverUrl, bool useSecurity = true)
+        public async Task<bool> ConnectAsync(string serverUrl, bool useSecurity = true, CancellationToken ct = default)
         {
             if (serverUrl == null) throw new ArgumentNullException(nameof(serverUrl));
 
@@ -124,19 +143,49 @@ namespace Quickstarts
                 }
                 else
                 {
-                    m_output.WriteLine("Connecting to... {0}", serverUrl);
+                    ITransportWaitingConnection connection = null;
+                    EndpointDescription endpointDescription = null;
+                    if (m_reverseConnectManager != null)
+                    {
+                        m_output.WriteLine("Waiting for reverse connection to.... {0}", serverUrl);
+                        do
+                        {
+                            using (var cts = new CancellationTokenSource(30_000))
+                            using (var linkedCTS = CancellationTokenSource.CreateLinkedTokenSource(ct, cts.Token))
+                            {
+                                connection = await m_reverseConnectManager.WaitForConnection(new Uri(serverUrl), null, linkedCTS.Token).ConfigureAwait(false);
+                                if (connection == null)
+                                {
+                                    throw new ServiceResultException(StatusCodes.BadTimeout, "Waiting for a reverse connection timed out.");
+                                }
+                                if (endpointDescription == null)
+                                {
+                                    m_output.WriteLine("Discover reverse connection endpoints....");
+                                    endpointDescription = CoreClientUtils.SelectEndpoint(m_configuration, connection, useSecurity);
+                                    connection = null;
+                                }
+                            }
+                        } while (connection == null);
+                    }
+                    else
+                    {
+                        m_output.WriteLine("Connecting to... {0}", serverUrl);
+                        endpointDescription = CoreClientUtils.SelectEndpoint(m_configuration, serverUrl, useSecurity);
+                    }
 
                     // Get the endpoint by connecting to server's discovery endpoint.
                     // Try to find the first endopint with security.
-                    EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(m_configuration, serverUrl, useSecurity);
                     EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_configuration);
                     ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
+                    var sessionFactory = TraceableSessionFactory.Instance;
+
                     // Create the session
-                    var session = await Opc.Ua.Client.Session.Create(
+                    var session = await sessionFactory.CreateAsync(
                         m_configuration,
+                        connection,
                         endpoint,
-                        true,
+                        connection == null,
                         false,
                         m_configuration.ApplicationName,
                         SessionLifeTime,
@@ -154,14 +203,14 @@ namespace Quickstarts
 
                         // support transfer
                         m_session.DeleteSubscriptionsOnClose = false;
-                        m_session.RepublishAfterTransfer = true;
+                        // m_session.RepublishAfterTransfer = true;
                         m_session.TransferSubscriptionsOnReconnect = true;
 
                         // set up keep alive callback.
                         m_session.KeepAlive += Session_KeepAlive;
 
                         // prepare a reconnect handler
-                        m_reconnectHandler = new SessionReconnectHandler(true);
+                        m_reconnectHandler = new SessionReconnectHandler(true, ReconnectPeriodExponentialBackoff);
                     }
 
                     // Session created successfully.
@@ -222,7 +271,7 @@ namespace Quickstarts
             try
             {
                 // check for events from discarded sessions.
-                if (!Object.ReferenceEquals(session, m_session))
+                if (!m_session.Equals(session))
                 {
                     return;
                 }
@@ -236,7 +285,7 @@ namespace Quickstarts
                         return;
                     }
 
-                    var state = m_reconnectHandler.BeginReconnect(m_session, ReconnectPeriod, Client_ReconnectComplete);
+                    var state = m_reconnectHandler.BeginReconnect(m_session, m_reverseConnectManager, ReconnectPeriod, Client_ReconnectComplete);
                     if (state == SessionReconnectHandler.ReconnectState.Triggered)
                     {
                         Utils.LogInfo("KeepAlive status {0}, reconnect status {1}, reconnect period {2}ms.", e.Status, state, ReconnectPeriod);
@@ -245,6 +294,9 @@ namespace Quickstarts
                     {
                         Utils.LogInfo("KeepAlive status {0}, reconnect status {1}.", e.Status, state);
                     }
+
+                    // cancel sending a new keep alive request, because reconnect is triggered.
+                    e.CancelKeepAlive = true;
 
                     return;
                 }
@@ -271,11 +323,25 @@ namespace Quickstarts
                 // if session recovered, Session property is null
                 if (m_reconnectHandler.Session != null)
                 {
-                    m_session = m_reconnectHandler.Session as Session;
+                    // ensure only a new instance is disposed
+                    // after reactivate, the same session instance may be returned
+                    if (!Object.ReferenceEquals(m_session, m_reconnectHandler.Session))
+                    {
+                        m_output.WriteLine("--- RECONNECTED TO NEW SESSION --- {0}", m_reconnectHandler.Session.SessionId);
+                        var session = m_session;
+                        m_session = m_reconnectHandler.Session;
+                        Utils.SilentDispose(session);
+                    }
+                    else
+                    {
+                        m_output.WriteLine("--- REACTIVATED SESSION --- {0}", m_reconnectHandler.Session.SessionId);
+                    }
+                }
+                else
+                {
+                    m_output.WriteLine("--- RECONNECT KeepAlive recovered ---");
                 }
             }
-
-            m_output.WriteLine("--- RECONNECTED ---");
         }
         #endregion
 
@@ -314,10 +380,11 @@ namespace Quickstarts
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
+        private ReverseConnectManager m_reverseConnectManager;
         private ApplicationConfiguration m_configuration;
         private SessionReconnectHandler m_reconnectHandler;
-        private Session m_session;
+        private ISession m_session;
         private readonly TextWriter m_output;
         private readonly Action<IList, IList> m_validateResponse;
         #endregion

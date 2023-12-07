@@ -36,9 +36,7 @@ namespace Opc.Ua
         /// </summary>
         protected override void Initialize(ISystemContext context, NodeState source)
         {
-            BaseVariableTypeState type = source as BaseVariableTypeState;
-
-            if (type != null)
+            if (source is BaseVariableTypeState type)
             {
                 m_value = Utils.Clone(type.m_value);
                 m_dataType = type.m_dataType;
@@ -239,9 +237,8 @@ namespace Opc.Ua
         {
             base.Export(context, node);
 
-            VariableTypeNode variableTypeNode = node as VariableTypeNode;
 
-            if (variableTypeNode != null)
+            if (node is VariableTypeNode variableTypeNode)
             {
                 variableTypeNode.Value = new Variant(Utils.Clone(this.Value));
                 variableTypeNode.DataType = this.DataType;
@@ -794,7 +791,7 @@ namespace Opc.Ua
         {
             base.Initialize(context);
 
-            Value = default(T);
+            Value = default;
             DataType = TypeInfo.GetDataTypeId(typeof(T));
             ValueRank = TypeInfo.GetValueRank(typeof(T));
         }
@@ -895,7 +892,7 @@ namespace Opc.Ua
         {
             base.Initialize(context);
 
-            Value = default(T);
+            Value = default;
             DataType = TypeInfo.GetDataTypeId(typeof(T));
             ValueRank = TypeInfo.GetValueRank(typeof(T));
         }

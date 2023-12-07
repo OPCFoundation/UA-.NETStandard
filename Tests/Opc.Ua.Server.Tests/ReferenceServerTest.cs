@@ -59,6 +59,7 @@ namespace Opc.Ua.Server.Tests
         ReferenceDescriptionCollection m_referenceDescriptions;
         RandomSource m_random;
         DataGenerator m_generator;
+        bool m_sessionClosed;
 
 
         #region Test Setup
@@ -106,9 +107,12 @@ namespace Opc.Ua.Server.Tests
         [TearDown]
         public void TearDown()
         {
-            m_requestHeader.Timestamp = DateTime.UtcNow;
-            m_server.CloseSession(m_requestHeader);
-            m_requestHeader = null;
+            if (!m_sessionClosed)
+            {
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                m_server.CloseSession(m_requestHeader);
+                m_requestHeader = null;
+            }
         }
         #endregion
 
@@ -142,12 +146,12 @@ namespace Opc.Ua.Server.Tests
         /// Test for expected exceptions.
         /// </summary>
         [Test]
-        public void ServiceResultException()
+        public void NoInvalidTimestampException()
         {
-            // test invalid timestamp
+            // test that the server accepts an invalid timestamp
             m_requestHeader.Timestamp = DateTime.UtcNow - TimeSpan.FromDays(30);
-            var sre = Assert.Throws<ServiceResultException>(() => m_server.CloseSession(m_requestHeader, false));
-            Assert.AreEqual(StatusCodes.BadInvalidTimestamp, sre.StatusCode);
+            m_server.CloseSession(m_requestHeader, false);
+            m_sessionClosed = true;
         }
 
         /// <summary>
@@ -184,8 +188,8 @@ namespace Opc.Ua.Server.Tests
             var requestHeader = m_requestHeader;
             requestHeader.Timestamp = DateTime.UtcNow;
             var response = m_server.Read(requestHeader, kMaxAge, TimestampsToReturn.Neither, readIdCollection, out var results, out var diagnosticInfos);
-            ServerFixtureUtils.ValidateResponse(response);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, results);
+            ServerFixtureUtils.ValidateResponse(response, results, readIdCollection);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, results, response.StringTable);
 
             Assert.NotNull(results);
             Assert.AreEqual(readIdCollection.Count, results.Count);
@@ -224,8 +228,8 @@ namespace Opc.Ua.Server.Tests
             }
             var response = m_server.Read(requestHeader, kMaxAge, TimestampsToReturn.Neither, nodesToRead,
                 out var dataValues, out var diagnosticInfos);
-            ServerFixtureUtils.ValidateResponse(response);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, dataValues);
+            ServerFixtureUtils.ValidateResponse(response, dataValues, nodesToRead);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, dataValues, response.StringTable);
         }
 
         /// <summary>
@@ -258,8 +262,8 @@ namespace Opc.Ua.Server.Tests
                 TestContext.Out.WriteLine("NodeId {0} {1}", reference.NodeId, reference.BrowseName);
                 var response = m_server.Read(requestHeader, kMaxAge, TimestampsToReturn.Both, nodesToRead,
                     out var dataValues, out var diagnosticInfos);
-                ServerFixtureUtils.ValidateResponse(response);
-                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, dataValues);
+                ServerFixtureUtils.ValidateResponse(response, dataValues, nodesToRead);
+                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, dataValues, response.StringTable);
 
                 foreach (var dataValue in dataValues)
                 {
@@ -283,8 +287,8 @@ namespace Opc.Ua.Server.Tests
             nodesToWrite.Add(new WriteValue() { NodeId = nodeId, AttributeId = Attributes.Value, Value = new DataValue(1234) });
             var response = m_server.Write(requestHeader, nodesToWrite,
                 out var dataValues, out var diagnosticInfos);
-            ServerFixtureUtils.ValidateResponse(response);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, dataValues);
+            ServerFixtureUtils.ValidateResponse(response, dataValues, nodesToWrite);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, dataValues, response.StringTable);
         }
 
         /// <summary>
@@ -479,7 +483,7 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
                 ServerFixtureUtils.ValidateResponse(response);
-                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
+                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements, response.StringTable);
                 Assert.AreEqual(subscriptionIds[0], publishedId);
                 Assert.AreEqual(1, notificationMessage.NotificationData.Count);
 
@@ -495,7 +499,7 @@ namespace Opc.Ua.Server.Tests
 
                     Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
                     ServerFixtureUtils.ValidateResponse(response);
-                    ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
+                    ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements, response.StringTable);
                     Assert.AreEqual(subscriptionIds[0], publishedId);
                     Assert.AreEqual(0, notificationMessage.NotificationData.Count);
                 }
@@ -513,7 +517,8 @@ namespace Opc.Ua.Server.Tests
                 SecureChannelContext.Current = securityContext;
 
                 Assert.AreEqual(StatusCodes.BadUserAccessDenied, results[0].StatusCode.Code);
-                ServerFixtureUtils.ValidateResponse(response);
+                ServerFixtureUtils.ValidateResponse(response, results, nodesToCall);
+                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, nodesToCall, response.StringTable);
 
                 // Still nothing to publish since previous ResendData call did not execute
                 m_requestHeader.Timestamp = DateTime.UtcNow;
@@ -524,7 +529,7 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
                 ServerFixtureUtils.ValidateResponse(response);
-                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
+                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements, response.StringTable);
                 Assert.AreEqual(subscriptionIds[0], publishedId);
                 Assert.AreEqual(0, notificationMessage.NotificationData.Count);
 
@@ -551,7 +556,7 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
                 ServerFixtureUtils.ValidateResponse(response);
-                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
+                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements, response.StringTable);
                 Assert.AreEqual(subscriptionIds[0], publishedId);
                 Assert.AreEqual(1, notificationMessage.NotificationData.Count);
                 var items = notificationMessage.NotificationData.FirstOrDefault();
@@ -572,7 +577,7 @@ namespace Opc.Ua.Server.Tests
 
                     Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
                     ServerFixtureUtils.ValidateResponse(response);
-                    ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
+                    ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements, response.StringTable);
                     Assert.AreEqual(subscriptionIds[0], publishedId);
                     Assert.AreEqual(1, notificationMessage.NotificationData.Count);
                     items = notificationMessage.NotificationData.FirstOrDefault();
@@ -593,7 +598,7 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
                 ServerFixtureUtils.ValidateResponse(response);
-                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
+                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements, response.StringTable);
                 Assert.AreEqual(subscriptionIds[0], publishedId);
                 Assert.AreEqual(0, notificationMessage.NotificationData.Count);
 
@@ -631,7 +636,8 @@ namespace Opc.Ua.Server.Tests
                 out var diagnosticInfos);
 
             Assert.AreEqual(expectedStatus, results[0].StatusCode.Code);
-            ServerFixtureUtils.ValidateResponse(response);
+            ServerFixtureUtils.ValidateResponse(response, results, nodesToCall);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, nodesToCall, response.StringTable);
 
             return nodesToCall;
         }
@@ -652,8 +658,8 @@ namespace Opc.Ua.Server.Tests
             var response = m_server.Read(requestHeader, kMaxAge, TimestampsToReturn.Neither, nodesToRead,
                 out var readDataValues, out var diagnosticInfos);
 
-            ServerFixtureUtils.ValidateResponse(response);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, readDataValues);
+            ServerFixtureUtils.ValidateResponse(response, readDataValues, nodesToRead);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, readDataValues, response.StringTable);
             Assert.AreEqual(testSet.Length, readDataValues.Count);
 
             var modifiedValues = new DataValueCollection();
@@ -677,8 +683,8 @@ namespace Opc.Ua.Server.Tests
             requestHeader.Timestamp = DateTime.UtcNow;
             response = m_server.Write(requestHeader, nodesToWrite,
                 out var writeDataValues, out diagnosticInfos);
-            ServerFixtureUtils.ValidateResponse(response);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, writeDataValues);
+            ServerFixtureUtils.ValidateResponse(response, writeDataValues, nodesToWrite);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, writeDataValues, response.StringTable);
         }
         #endregion
     }

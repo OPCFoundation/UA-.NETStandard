@@ -1,4 +1,4 @@
-name: Build and Test .NET 6.0
+name: Build and Test .NET 8.0
 
 on:
   push:
@@ -25,9 +25,10 @@ jobs:
         os: [ubuntu-latest, windows-latest, macOS-latest]    
         csproj: [Security.Certificates, Core, Server, Client, Client.ComplexTypes, PubSub, Configuration, Gds]
         include:
-          - framework: 'net6.0'
-            dotnet-version: '6.0.x'
+          - framework: 'net8.0'
+            dotnet-version: '8.0.x'
             configuration: 'Release'
+            customtesttarget: net8.0
            
     env:
       OS: ${{ matrix.os }}
@@ -38,7 +39,7 @@ jobs:
       TESTRESULTS: "TestResults-${{matrix.csproj}}-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}"
       
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     
@@ -52,11 +53,11 @@ jobs:
       run: ./.azurepipelines/set-version.ps1
 
     - name: Build
-      run: dotnet build ${{ env.CSPROJECT }} --force --framework ${{ matrix.framework }} --configuration ${{ matrix.configuration }} 
+      run: dotnet build ${{ env.CSPROJECT }} --force --framework ${{ matrix.framework }} --configuration ${{ matrix.configuration }} /p:CustomTestTarget=${{ matrix.customtesttarget }}
       
     - name: Test
       # note: /p:CollectCoverage=true is only used to disable deterministc builds
-      run: dotnet test ${{ env.CSPROJECT }} --no-build --framework ${{ matrix.framework }} --logger trx --configuration ${{ matrix.configuration }} /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory ${{ env.TESTRESULTS }} 
+      run: dotnet test ${{ env.CSPROJECT }} --no-build --framework ${{ matrix.framework }} --logger trx --configuration ${{ matrix.configuration }} /p:CollectCoverage=true /p:CustomTestTarget=${{ matrix.customtesttarget }} --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory ${{ env.TESTRESULTS }} 
 
     - name: Upload test results
       uses: actions/upload-artifact@v3

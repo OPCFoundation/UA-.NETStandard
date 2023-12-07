@@ -7,7 +7,7 @@
 >
   <xs:annotation>
     <xs:appinfo>
-      <ua:Model ModelUri="http://samples.org/UA/MemoryBuffer" Version="1.0.0" PublicationDate="2021-11-02T21:05:19.9952005Z" />
+      <ua:Model ModelUri="http://samples.org/UA/MemoryBuffer" Version="1.0.0" PublicationDate="2023-10-06T12:57:31.2901182Z" />
     </xs:appinfo>
   </xs:annotation>
   

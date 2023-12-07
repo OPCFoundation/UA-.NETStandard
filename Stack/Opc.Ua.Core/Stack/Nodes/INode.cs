@@ -30,7 +30,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The node class.</value>
         NodeClass NodeClass { get; }
-        
+
         /// <summary>
         /// The locale independent browse name.
         /// </summary>
@@ -49,7 +49,7 @@ namespace Opc.Ua
         /// <value>The type definition identifier.</value>
         ExpandedNodeId TypeDefinitionId { get; }
     }
-    
+
     /// <summary>
     /// An interface to an object that describes a node local to the server.
     /// </summary>
@@ -146,7 +146,7 @@ namespace Opc.Ua
         /// <returns>The result of Write operation</returns>
         ServiceResult Write(uint attributeId, DataValue value);
     }
-        
+
     /// <summary>
     /// An interface to an object that describes an ObjectType node.
     /// </summary>
@@ -156,7 +156,7 @@ namespace Opc.Ua
         /// Whether the type is an abstract type.
         /// </summary>
         bool IsAbstract { get; set; }
-    }        
+    }
 
     /// <summary>
     /// An interface to an object that describes an Object node.

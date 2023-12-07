@@ -16,12 +16,12 @@ using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
-{    
+{
     /// <summary>
     /// A list of event field values returned in a NotificationMessage.
     /// </summary>
-	public partial class EventFieldList
-	{
+    public partial class EventFieldList
+    {
         #region Public Properties
         /// <summary>
         /// The handle cast to a notification message.
