@@ -85,7 +85,6 @@ namespace Opc.Ua.Gds.Tests
             m_goodRegistrationOk = false;
             m_invalidRegistrationOk = false;
             m_goodNewKeyPairRequestOk = false;
-            m_runApplicationSelfAdminTests = false;
         }
 
         /// <summary>
@@ -736,7 +735,7 @@ namespace Opc.Ua.Gds.Tests
             } while (requestBusy);
         }
 
-        
+
 
         [Test, Order(512)]
         public void FinishInvalidNewKeyPairRequests()
@@ -944,31 +943,59 @@ namespace Opc.Ua.Gds.Tests
                     Assert.NotNull(trustList);
                 }
             }
+        }
 
-            if (m_runApplicationSelfAdminTests)
+        [Test, Order(620)]
+        public void FailToGetGoodCertificateGroupsWithoutPriviledges()
+        {
+            AssertIgnoreTestWithoutGoodRegistration();
+            AssertIgnoreTestWithoutGoodNewKeyPairRequest();
+
+            //connect to GDS without Admin Privilege
+            ConnectGDS(false);
+
+            foreach (var application in m_goodApplicationTestSet)
             {
-                AssertIgnoreTestWithoutGoodRegistration();
-                AssertIgnoreTestWithoutGoodNewKeyPairRequest();
-                DisconnectGDS();
-                //connect to GDS without Admin Privilege
-                ConnectGDS(false);
-
-                foreach (var application in m_goodApplicationTestSet)
+                if (application.Certificate != null)
                 {
-                    if (application.Certificate != null)
-                    {
-                        var certificateGroups = m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId);
-                        foreach (var certificateGroup in certificateGroups)
-                        {
-                            var trustListId = m_gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, certificateGroup);
-                            // Opc.Ua.TrustListDataType
-                            var trustList = m_gdsClient.GDSClient.ReadTrustList(trustListId);
-                            Assert.NotNull(trustList);
-                        }
-                    }
-                }
+                    var sre = Assert.Throws<ServiceResultException>(() => m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId));
+                    Assert.NotNull(sre);
+                    Assert.AreEqual(StatusCodes.BadUserAccessDenied, sre.StatusCode, sre.Result.ToString());
 
+                }
             }
+        }
+
+        [Test, Order(630)]
+        public void GetGoodCertificateGroupsAsSelfAdmin()
+        {
+            AssertIgnoreTestWithoutGoodRegistration();
+            AssertIgnoreTestWithoutGoodNewKeyPairRequest();
+
+            // TODO: connect to GDS as self registered application
+            // connect with issued certificate
+            ConnectGDS(false);
+
+            // ensure access to other applications is denied
+            foreach (var application in m_goodApplicationTestSet)
+            {
+                if (application.Certificate != null)
+                {
+                    var sre = Assert.Throws<ServiceResultException>(() => m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId));
+                    Assert.NotNull(sre);
+                    Assert.AreEqual(StatusCodes.BadUserAccessDenied, sre.StatusCode, sre.Result.ToString());
+                }
+            }
+
+            Assert.Ignore("TODO: Tests for other logic is not implemented yet!");
+
+            // use self registered application and get the group / trust lists
+
+            // self issue a certificate and read it back
+
+            // self issue a public/private key pair and read it back
+
+
         }
 
         [Test, Order(690)]
@@ -1122,7 +1149,6 @@ namespace Opc.Ua.Gds.Tests
         private bool m_goodRegistrationOk;
         private bool m_invalidRegistrationOk;
         private bool m_goodNewKeyPairRequestOk;
-        private bool m_runApplicationSelfAdminTests;
         #endregion
     }
 
