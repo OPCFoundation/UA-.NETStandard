@@ -7,19 +7,27 @@ echo Supported parameters: net462, netstandard2.0, netstandard2.1, net48, net6.0
 REM Check if the target framework parameter is provided
 if "%1"=="" (
     echo Usage: %0 [TargetFramework]
-    echo Allowed values for TargetFramework: net462, netstandard2.0, netstandard2.1, net48, net6.0, net8.0
+    echo Allowed values for TargetFramework: net462, netstandard2.0, netstandard2.1, net48, net6.0, net8.0, default
     goto :eof
 )
 
 REM Check if the provided TargetFramework is valid
-set "validFrameworks= net462 netstandard2.0 netstandard2.1 net48 net6.0 net8.0"
+set "validFrameworks= default net462 netstandard2.0 netstandard2.1 net48 net6.0 net8.0"
 if "!validFrameworks: %1 =!"=="%validFrameworks%" (
-    echo Invalid TargetFramework specified. Allowed values are: net462, netstandard2.0, netstandard2.1, net48, net6.0, net8.0
+    echo Invalid TargetFramework specified. Allowed values are: default, net462, netstandard2.0, netstandard2.1, net48, net6.0, net8.0
     goto :eof
 )
 
+if "%1"=="default" (
+    echo Using the default targets for the test runners.
+    goto :cleanup
+)
+
 REM this is the variable used to switch the build scripts to a dedicated target
+echo Using the %1 CustomTestTargets for the test runners.
 set CustomTestTarget=%1
+
+:cleanup
 
 REM clean up all obj and bin folders
 
