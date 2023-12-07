@@ -164,9 +164,6 @@ namespace Quickstarts.ConsoleReferenceClient
                 // wait for timeout or Ctrl-C
                 var quitEvent = ConsoleUtils.CtrlCHandler();
 
-                //ThreadPool.SetMinThreads(1000, 1000);
-                //ThreadPool.SetMaxThreads(10000, 10000);
-
                 // connect to a server until application stops
                 bool quit = false;
                 DateTime start = DateTime.UtcNow;
@@ -408,7 +405,7 @@ namespace Quickstarts.ConsoleReferenceClient
 
                                         for (int ii = 0; ii < 10; ii++)
                                         {
-                                            await Task.Delay(10000);
+                                            await Task.Delay(1000);
                                         }
                                     }
 

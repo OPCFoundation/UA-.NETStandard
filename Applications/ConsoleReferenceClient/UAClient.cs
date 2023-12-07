@@ -154,6 +154,7 @@ namespace Quickstarts
 
                         // support transfer
                         m_session.DeleteSubscriptionsOnClose = false;
+                        m_session.RepublishAfterTransfer = true;
                         m_session.TransferSubscriptionsOnReconnect = true;
 
                         // set up keep alive callback.

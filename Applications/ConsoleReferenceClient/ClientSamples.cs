@@ -844,7 +844,7 @@ namespace Quickstarts
         /// <param name="uaClient">The UAClient with a session to use.</param>
         /// <param name="variableIds">The variables to subscribe.</param>
         public async Task SubscribeAllValuesAsync(
-            UAClient uaClient,
+            IUAClient uaClient,
             NodeCollection variableIds,
             int publishingInterval,
             uint lifetimeCount,
