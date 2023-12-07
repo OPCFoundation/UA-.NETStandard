@@ -72,10 +72,21 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quickstarts.Servers", "Applications\Quickstarts.Servers\Quickstarts.Servers.csproj", "{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Libraries", "Libraries", "{ACBF012E-08A7-4939-88CF-D6B610E35AC5}"
+	ProjectSection(SolutionItems) = preProject
+		Libraries\Opc.Ua.Gds.Client.Common\Opc.Ua.Gds.Client.Common.csproj = Libraries\Opc.Ua.Gds.Client.Common\Opc.Ua.Gds.Client.Common.csproj
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Applications", "Applications", "{07AA31A3-97A1-4A6F-9E88-97B5198997B7}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Stack", "Stack", "{2DC9F7F3-6698-4875-88A3-50678170A810}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "actions", "actions", "{272722CD-6139-4A4C-9567-83F235C58AAC}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\buildandtest.yml = .github\workflows\buildandtest.yml
+		.github\workflows\codeql-analysis.yml = .github\workflows\codeql-analysis.yml
+		.github\dependabot.yml = .github\dependabot.yml
+		.github\workflows\docker-image.yml = .github\workflows\docker-image.yml
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -277,6 +288,7 @@ Global
 		{92D98D3D-2A7D-4F4B-8C72-1A98908D0221} = {2DC9F7F3-6698-4875-88A3-50678170A810}
 		{4B72937F-5A57-4CEA-B9FE-B4C45CF7B284} = {ACBF012E-08A7-4939-88CF-D6B610E35AC5}
 		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69} = {07AA31A3-97A1-4A6F-9E88-97B5198997B7}
+		{272722CD-6139-4A4C-9567-83F235C58AAC} = {857A6774-6F49-4220-AC55-D53D60FCCB3B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {33FA5BCB-C827-4D44-AECF-F51342DFE64A}

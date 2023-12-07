@@ -92,4 +92,51 @@ namespace Opc.Ua
             nodeSet.Write(ostrm);
         }
     }
+
+    public partial class NodeCollection
+    {
+        /// <summary>
+        /// Writes the collection to a stream using the Opc.Ua.Schema.UANodeSet schema.
+        /// </summary>
+        public void SaveAsNodeSet2(
+            ISystemContext context,
+            Opc.Ua.Export.INodeClientBrowser nodeBrowser,
+            Stream ostrm,
+            Export.ModelTableEntry model,
+            DateTime lastModified,
+            bool outputRedundantNames)
+        {
+            Opc.Ua.Export.UANodeSet nodeSet = new Opc.Ua.Export.UANodeSet();
+
+            if (lastModified != DateTime.MinValue)
+            {
+                nodeSet.LastModified = lastModified;
+                nodeSet.LastModifiedSpecified = true;
+            }
+
+            nodeSet.NamespaceUris = (context.NamespaceUris != null) ? context.NamespaceUris.ToArray().Where(x => x != Namespaces.OpcUa).ToArray() : null;
+            nodeSet.ServerUris = (context.ServerUris != null) ? context.ServerUris.ToArray() : null;
+
+            if (nodeSet.NamespaceUris != null && nodeSet.NamespaceUris.Length == 0) nodeSet.NamespaceUris = null;
+            if (nodeSet.ServerUris != null && nodeSet.ServerUris.Length == 0) nodeSet.ServerUris = null;
+
+            if (model != null)
+            {
+                nodeSet.Models = new Export.ModelTableEntry[] { model };
+            }
+#if mist
+            for (int ii = 0; ii < s_AliasesToUse.Length; ii++)
+            {
+                nodeSet.AddAlias(context, s_AliasesToUse[ii].Alias, s_AliasesToUse[ii].NodeId);
+            }
+#endif
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                nodeSet.Export(context, nodeBrowser, this[ii], outputRedundantNames);
+            }
+
+            nodeSet.Write(ostrm);
+        }
+    }
+
 }

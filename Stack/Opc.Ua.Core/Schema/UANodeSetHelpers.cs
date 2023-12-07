@@ -304,7 +304,7 @@ namespace Opc.Ua.Export
             }
 
             // export references.
-            INodeBrowser browser = node.CreateBrowser(context, null, null, true, BrowseDirection.Both, null, null, true);
+            Ua.INodeBrowser browser = node.CreateBrowser(context, null, null, true, BrowseDirection.Both, null, null, true);
             List<Reference> exportedReferences = new List<Reference>();
             IReference reference = browser.Next();
 
@@ -358,6 +358,253 @@ namespace Opc.Ua.Export
             for (int ii = 0; ii < children.Count; ii++)
             {
                 Export(context, children[ii], outputRedundantNames);
+            }
+        }
+
+        /// <summary>
+        /// Adds a node to the set.
+        /// </summary>
+        public void Export(ISystemContext context, INodeClientBrowser nodeBrowser, Node node, bool outputRedundantNames = true)
+        {
+            if (node == null) throw new ArgumentNullException(nameof(node));
+
+            if (Opc.Ua.NodeId.IsNull(node.NodeId))
+            {
+                throw new ArgumentException("A non-null NodeId must be specified.");
+            }
+
+            UANode exportedNode = null;
+
+            switch (node.NodeClass)
+            {
+                case NodeClass.Object:
+                {
+                    ObjectNode o = (ObjectNode)node;
+                    UAObject value = new UAObject();
+                    value.EventNotifier = o.EventNotifier;
+
+                    var parent = nodeBrowser.GetParent(o);
+                    if (parent != null)
+                    {
+                        value.ParentNodeId = ExportAlias(parent.NodeId, context.NamespaceUris);
+                    }
+
+                    exportedNode = value;
+                    break;
+                }
+
+                case NodeClass.Variable:
+                {
+                    VariableNode o = (VariableNode)node as VariableNode;
+                    UAVariable value = new UAVariable();
+                    value.DataType = ExportAlias(o.DataType, context.NamespaceUris);
+                    value.ValueRank = o.ValueRank;
+                    value.ArrayDimensions = Export(o.ArrayDimensions);
+                    value.AccessLevel = o.AccessLevelEx;
+                    value.MinimumSamplingInterval = o.MinimumSamplingInterval;
+                    value.Historizing = o.Historizing;
+
+                    var parent = nodeBrowser.GetParent(o);
+                    if (parent != null)
+                    {
+                        value.ParentNodeId = ExportAlias(parent.NodeId, context.NamespaceUris);
+                    }
+
+                    if (o.Value.Value != null)
+                    {
+                        XmlEncoder encoder = CreateEncoder(context);
+                        encoder.WriteVariantContents(o.Value, o.Value.TypeInfo);
+
+                        XmlDocument document = new XmlDocument();
+                        document.LoadInnerXml(encoder.Close());
+                        value.Value = document.DocumentElement;
+                    }
+
+                    exportedNode = value;
+                    break;
+                }
+
+                case NodeClass.Method:
+                {
+                    MethodNode o = (MethodNode)node;
+                    UAMethod value = new UAMethod();
+                    value.Executable = o.Executable;
+#if TODO
+                    if (o.MethodDeclarationId != null && !o.MethodDeclarationId.IsNullNodeId && o.MethodDeclarationId != o.NodeId)
+                    {
+                        value.MethodDeclarationId = Export(o.MethodDeclarationId, context.NamespaceUris);
+                    }
+#endif
+                    var parent = nodeBrowser.GetParent(o);
+                    if (parent != null)
+                    {
+                        value.ParentNodeId = ExportAlias(parent.NodeId, context.NamespaceUris);
+                    }
+
+                    exportedNode = value;
+                    break;
+                }
+
+                case NodeClass.View:
+                {
+                    ViewNode o = (ViewNode)node;
+                    UAView value = new UAView();
+                    value.ContainsNoLoops = o.ContainsNoLoops;
+                    exportedNode = value;
+                    break;
+                }
+
+                case NodeClass.ObjectType:
+                {
+                    ObjectTypeNode o = (ObjectTypeNode)node;
+                    UAObjectType value = new UAObjectType();
+                    value.IsAbstract = o.IsAbstract;
+                    exportedNode = value;
+                    break;
+                }
+
+                case NodeClass.VariableType:
+                {
+                    VariableTypeNode o = (VariableTypeNode)node;
+                    UAVariableType value = new UAVariableType();
+                    value.IsAbstract = o.IsAbstract;
+                    value.DataType = ExportAlias(o.DataType, context.NamespaceUris);
+                    value.ValueRank = o.ValueRank;
+                    value.ArrayDimensions = Export(o.ArrayDimensions);
+
+                    if (o.Value.Value != null)
+                    {
+                        XmlEncoder encoder = CreateEncoder(context);
+                        encoder.WriteVariantContents(o.Value, o.Value.TypeInfo);
+
+                        XmlDocument document = new XmlDocument();
+                        document.LoadInnerXml(encoder.Close());
+                        value.Value = document.DocumentElement;
+                    }
+
+                    exportedNode = value;
+                    break;
+                }
+
+                case NodeClass.DataType:
+                {
+                    DataTypeNode o = (DataTypeNode)node;
+                    UADataType value = new UADataType();
+                    value.IsAbstract = o.IsAbstract;
+#if TODO
+                    value.Definition = Export(o, o.DataTypeDefinition, context.NamespaceUris, outputRedundantNames);
+                    value.Purpose = o.Purpose;
+#endif
+                    exportedNode = value;
+                    break;
+                }
+
+                case NodeClass.ReferenceType:
+                {
+                    var o = node as ReferenceTypeNode;
+                    UAReferenceType value = new UAReferenceType();
+                    value.IsAbstract = o.IsAbstract;
+
+                    if (!Opc.Ua.LocalizedText.IsNullOrEmpty(o.InverseName))
+                    {
+                        value.InverseName = Export(new Opc.Ua.LocalizedText[] { o.InverseName });
+                    }
+
+                    value.Symmetric = o.Symmetric;
+                    exportedNode = value;
+                    break;
+                }
+            }
+
+            exportedNode.NodeId = Export(node.NodeId, context.NamespaceUris);
+            exportedNode.BrowseName = Export(node.BrowseName, context.NamespaceUris);
+
+            if (outputRedundantNames || node.DisplayName.Text != node.BrowseName.Name)
+            {
+                exportedNode.DisplayName = Export(new Opc.Ua.LocalizedText[] { node.DisplayName });
+            }
+            else
+            {
+                exportedNode.DisplayName = null;
+            }
+
+            if (node.Description != null && !String.IsNullOrEmpty(node.Description.Text))
+            {
+                exportedNode.Description = Export(new Opc.Ua.LocalizedText[] { node.Description });
+            }
+            else
+            {
+                exportedNode.Description = Array.Empty<LocalizedText>();
+            }
+
+#if TODO
+            exportedNode.Documentation = node.NodeSetDocumentation;
+            exportedNode.Category = (node.Categories != null && node.Categories.Count > 0) ? new List<string>(node.Categories).ToArray() : null;
+            exportedNode.ReleaseStatus = node.ReleaseStatus;
+            exportedNode.Extensions = node.Extensions;
+
+            if (!String.IsNullOrEmpty(node.SymbolicName) && node.SymbolicName != node.BrowseName.Name)
+            {
+                exportedNode.SymbolicName = node.SymbolicName;
+            }
+#endif
+            exportedNode.WriteMask = (uint)node.WriteMask;
+            exportedNode.UserWriteMask = (uint)node.UserWriteMask;
+
+            // export references.
+            Ua.INodeBrowser browser = nodeBrowser.CreateBrowser(node, BrowseDirection.Both);
+            List<Reference> exportedReferences = new List<Reference>();
+            IReference reference = browser.Next();
+
+            while (reference != null)
+            {
+                if (node.NodeClass == NodeClass.Method)
+                {
+                    if (!reference.IsInverse && reference.ReferenceTypeId == ReferenceTypeIds.HasTypeDefinition)
+                    {
+                        reference = browser.Next();
+                        continue;
+                    }
+                }
+
+                Reference exportedReference = new Reference();
+
+                exportedReference.ReferenceType = ExportAlias(reference.ReferenceTypeId, context.NamespaceUris);
+                exportedReference.IsForward = !reference.IsInverse;
+                exportedReference.Value = Export(reference.TargetId, context.NamespaceUris, context.ServerUris);
+                exportedReferences.Add(exportedReference);
+
+                reference = browser.Next();
+            }
+
+            exportedNode.References = exportedReferences.ToArray();
+
+            // add node to list.
+            UANode[] nodes = null;
+
+            int count = 1;
+
+            if (this.Items == null)
+            {
+                nodes = new UANode[count];
+            }
+            else
+            {
+                count += this.Items.Length;
+                nodes = new UANode[count];
+                Array.Copy(this.Items, nodes, this.Items.Length);
+            }
+
+            nodes[count - 1] = exportedNode;
+
+            this.Items = nodes;
+
+            // recusively process children.
+            var children = nodeBrowser.GetChildren(node);
+
+            for (int ii = 0; ii < children.Count; ii++)
+            {
+                Export(context, nodeBrowser, children[ii], outputRedundantNames);
             }
         }
         #endregion
@@ -665,6 +912,14 @@ namespace Opc.Ua.Export
             }
 
             return importedNode;
+        }
+
+        /// <summary>
+        /// Exports a ExpandedNodeId as an alias.
+        /// </summary>
+        private string ExportAlias(Opc.Ua.ExpandedNodeId source, NamespaceTable namespaceUris)
+        {
+            return ExportAlias(ExpandedNodeId.ToNodeId(source, namespaceUris), namespaceUris);
         }
 
         /// <summary>
