@@ -211,7 +211,7 @@ namespace Opc.Ua.Gds.Server
             {
                 if (ex is ServiceResultException)
                 {
-                    throw ex as ServiceResultException;
+                    throw;
                 }
                 throw new ServiceResultException(StatusCodes.BadInvalidArgument, ex.Message);
             }
@@ -280,7 +280,7 @@ namespace Opc.Ua.Gds.Server
             {
                 if (ex is ServiceResultException)
                 {
-                    throw ex as ServiceResultException;
+                    throw;
                 }
                 throw new ServiceResultException(StatusCodes.BadInvalidArgument, ex.Message);
             }

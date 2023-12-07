@@ -4472,11 +4472,25 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (m_references.Remove(new NodeStateReference(referenceTypeId, isInverse, targetId)))
+            NodeStateReference sourceRef = null;
+
+            foreach (var m_refKey in m_references.Keys)
             {
-                m_changeMasks |= NodeStateChangeMasks.References;
-                OnReferenceRemoved?.Invoke(this, referenceTypeId, isInverse, targetId);
-                return true;
+                if (m_refKey.TargetId != null && m_refKey.TargetId.IdentifierText.Equals(targetId.IdentifierText))
+                {
+                    sourceRef = m_refKey as NodeStateReference;
+                    break;
+                }
+            }
+
+            if (sourceRef != null)
+            {
+                if (m_references.Remove(sourceRef))
+                {
+                    m_changeMasks |= NodeStateChangeMasks.References;
+                    OnReferenceRemoved?.Invoke(this, referenceTypeId, isInverse, targetId);
+                    return true;
+                }
             }
 
             return false;
