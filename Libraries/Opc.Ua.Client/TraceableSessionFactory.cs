@@ -67,9 +67,8 @@ namespace Opc.Ua.Client
         {
             using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(CreateAsync)))
             {
-                ISession session = await Session.Create(configuration, endpoint, updateBeforeConnect, false,
+                ISession session = await base.CreateAsync(configuration, endpoint, updateBeforeConnect, false,
                     sessionName, sessionTimeout, identity, preferredLocales, ct).ConfigureAwait(false);
-
                 return new TraceableSession(session);
             }
         }
@@ -88,7 +87,7 @@ namespace Opc.Ua.Client
         {
             using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(CreateAsync)))
             {
-                ISession session = await Session.Create(configuration, (ITransportWaitingConnection)null, endpoint,
+                ISession session = await Session.Create(this, configuration, (ITransportWaitingConnection)null, endpoint,
                     updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
                     identity, preferredLocales, ct).ConfigureAwait(false);
 
@@ -111,7 +110,7 @@ namespace Opc.Ua.Client
         {
             using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(CreateAsync)))
             {
-                ISession session = await Session.Create(configuration, connection, endpoint,
+                ISession session = await Session.Create(this, configuration, connection, endpoint,
                     updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
                     identity, preferredLocales, ct
                     ).ConfigureAwait(false);

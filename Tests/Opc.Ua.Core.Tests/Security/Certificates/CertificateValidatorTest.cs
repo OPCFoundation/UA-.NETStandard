@@ -39,7 +39,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
-#if NETCOREAPP2_1
+#if NETCOREAPP2_1 || !ECC_SUPPORT
 using X509SignatureGenerator = Opc.Ua.Security.Certificates.X509SignatureGenerator;
 #endif
 
@@ -771,13 +771,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 var pemDataBlob = PEMWriter.ExportCertificateAsPEM(appCert);
                 var pemString = Encoding.UTF8.GetString(pemDataBlob);
                 TestContext.Out.WriteLine(pemString);
-#if NETCOREAPP3_1_OR_GREATER
+#if NETCOREAPP3_1_OR_GREATER && ECC_SUPPORT
                 var exception = Assert.Throws<ArgumentException>(() => CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert), pemDataBlob));
 #endif
             }
         }
 
-#if NETCOREAPP3_1_OR_GREATER
+#if NETCOREAPP3_1_OR_GREATER && ECC_SUPPORT
         /// <summary>
         /// Verify the PEM Writer, no password.
         /// </summary>
