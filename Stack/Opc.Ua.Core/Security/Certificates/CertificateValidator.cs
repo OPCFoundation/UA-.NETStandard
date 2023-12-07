@@ -466,10 +466,10 @@ namespace Opc.Ua
 
             try
             {
+                await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
+
                 try
                 {
-                    await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
-
                     await InternalValidateAsync(chain, endpoint, ct).ConfigureAwait(false);
 
                     // add to list of validated certificates.
@@ -488,10 +488,9 @@ namespace Opc.Ua
             }
 
             // add to list of peers.
+            await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
-
                 Utils.LogCertificate(LogLevel.Warning, "Validation errors suppressed: ", certificate);
                 m_validatedCertificates[certificate.Thumbprint] = new X509Certificate2(certificate.RawData);
             }

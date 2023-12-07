@@ -95,6 +95,7 @@ namespace Opc.Ua.Gds.Tests
             // get the DatabaseStorePath configuration parameter.
             GlobalDiscoveryServerConfiguration gdsConfiguration = Config.ParseExtension<GlobalDiscoveryServerConfiguration>();
             string databaseStorePath = Utils.ReplaceSpecialFolderNames(gdsConfiguration.DatabaseStorePath);
+            string usersDatabaseStorePath = Utils.ReplaceSpecialFolderNames(gdsConfiguration.UsersDatabaseStorePath);
 
             if (clean)
             {
@@ -102,6 +103,10 @@ namespace Opc.Ua.Gds.Tests
                 if (File.Exists(databaseStorePath))
                 {
                     File.Delete(databaseStorePath);
+                }
+                if (File.Exists(usersDatabaseStorePath))
+                {
+                    File.Delete(usersDatabaseStorePath);
                 }
 
                 // clean up GDS stores
@@ -113,13 +118,15 @@ namespace Opc.Ua.Gds.Tests
                 }
             }
 
-            var database = JsonApplicationsDatabase.Load(databaseStorePath);
+            var applicationsDatabase = JsonApplicationsDatabase.Load(databaseStorePath);
+            var usersDatabase = JsonUsersDatabase.Load(usersDatabaseStorePath);
 
             // start the server.
             m_server = new GlobalDiscoverySampleServer(
-                database,
-                database,
-                new CertificateGroup());
+                applicationsDatabase,
+                applicationsDatabase,
+                new CertificateGroup(),
+                usersDatabase);
             await Application.Start(m_server).ConfigureAwait(false);
 
             ServerState serverState = Server.GetStatus().State;
@@ -208,7 +215,8 @@ namespace Opc.Ua.Gds.Tests
                         CACertificateLifetime = 60
                     }
                 },
-                DatabaseStorePath = Path.Combine(gdsRoot, "gdsdb.json")
+                DatabaseStorePath = Path.Combine(gdsRoot, "gdsdb.json"),
+                UsersDatabaseStorePath = Path.Combine(gdsRoot, "gdsusersdb.json")
             };
 
             // build the application configuration.
