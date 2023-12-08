@@ -39,6 +39,7 @@ namespace Opc.Ua.Client
 {
     /// <summary>
     /// A subclass of a session to override some implementations from CleintBase
+    /// </summary> 
     public class TraceableSessionProxy : Session
     {
         #region Constructors
