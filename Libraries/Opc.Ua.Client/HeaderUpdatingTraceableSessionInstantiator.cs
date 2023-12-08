@@ -33,30 +33,32 @@ namespace Opc.Ua.Client
 {
     /// <summary>
     /// Object that creates an instance of a Session object.
-    /// It can be used to subclass enhanced Session
-    /// classes which survive reconnect handling etc.
+    /// It can be used to create instances of enhanced Session
+    /// classes with added functionality or overridden methods.
     /// </summary>
-    public interface ITraceableSessionProxyInstantiator
+    public class HeaderUpdatingTraceableSessionInstantiator : ISessionInstantiator
     {
         #region Constructors
-        /// <summary>
-        /// Constructs a new instance of the <see cref="Session"/> class.
-        /// </summary>
-        Session Create(
+        /// <inheritdoc/>
+        public Session Create(
             ISessionChannel channel,
             ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint);
+            ConfiguredEndpoint endpoint)
+        {
+            return new HeaderUpdatingTraceableSession(channel, configuration, endpoint);
+        }
 
-        /// <summary>
-        /// Constructs a new instance of the <see cref="Session"/> class.
-        /// </summary>
-        Session Create(
+        /// <inheritdoc/>
+        public Session Create(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
             EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null);
+            StringCollection discoveryProfileUris = null)
+        {
+            return new HeaderUpdatingTraceableSession(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
+        }
         #endregion
     }
 }

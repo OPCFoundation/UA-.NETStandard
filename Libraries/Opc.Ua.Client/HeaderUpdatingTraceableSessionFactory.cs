@@ -37,17 +37,17 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Object that creates instances of an Opc.Ua.Client.Session object.
     /// </summary>
-    public class TraceableSessionFactoryProxy : DefaultSessionFactory
+    public class HeaderUpdatingTraceableSessionFactory : DefaultSessionFactory
     {
         /// <summary>
         /// The default instance of the factory.
         /// </summary>
-        public new static readonly TraceableSessionFactoryProxy Instance = new TraceableSessionFactoryProxy();
+        public new static readonly HeaderUpdatingTraceableSessionFactory Instance = new HeaderUpdatingTraceableSessionFactory();
 
         /// <summary>
         /// Force use of the default instance.
         /// </summary>
-        protected TraceableSessionFactoryProxy()
+        protected HeaderUpdatingTraceableSessionFactory()
         {
         }
 
@@ -175,7 +175,7 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint)
         {
-            return new TraceableSessionProxy(channel, configuration, endpoint);
+            return new HeaderUpdatingTraceableSession(channel, configuration, endpoint);
         }
 
         /// <inheritdoc/>
@@ -187,7 +187,7 @@ namespace Opc.Ua.Client
             EndpointDescriptionCollection availableEndpoints = null,
             StringCollection discoveryProfileUris = null)
         {
-            return new TraceableSessionProxy(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
+            return new HeaderUpdatingTraceableSession(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
         }
         #endregion
     }

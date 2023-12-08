@@ -40,7 +40,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// A subclass of a session to override some implementations from CleintBase
     /// </summary> 
-    public class TraceableSessionProxy : Session
+    public class HeaderUpdatingTraceableSession : Session
     {
         #region Constructors
         /// <summary>
@@ -49,7 +49,7 @@ namespace Opc.Ua.Client
         /// <param name="channel">The channel used to communicate with the server.</param>
         /// <param name="configuration">The configuration for the client application.</param>
         /// <param name="endpoint">The endpoint use to initialize the channel.</param>
-        public TraceableSessionProxy(
+        public HeaderUpdatingTraceableSession(
             ISessionChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint)
@@ -75,7 +75,7 @@ namespace Opc.Ua.Client
         /// The <i>availableEndpoints</i> and <i>discoveryProfileUris</i> parameters are used to validate
         /// that the list of EndpointDescriptions returned at GetEndpoints matches the list returned at CreateSession.
         /// </remarks>
-        public TraceableSessionProxy(
+        public HeaderUpdatingTraceableSession(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
@@ -92,14 +92,12 @@ namespace Opc.Ua.Client
         /// <param name="channel">The channel.</param>
         /// <param name="template">The template session.</param>
         /// <param name="copyEventHandlers">if set to <c>true</c> the event handlers are copied.</param>
-        public TraceableSessionProxy(ITransportChannel channel, Session template, bool copyEventHandlers)
+        public HeaderUpdatingTraceableSession(ITransportChannel channel, Session template, bool copyEventHandlers)
         :
             base(channel, template, copyEventHandlers)
         {
         }
         #endregion
-
-
 
         /// <summary>
         /// Holds the tracing context for propagation across system boundaries.
