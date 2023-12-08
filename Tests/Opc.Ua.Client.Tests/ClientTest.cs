@@ -1300,20 +1300,30 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(900)]
         public void TestTraceContextIsPropagated()
         {
-            using (var activity = new Activity("TestActivity").Start())
+            ActivitySource activitySource = new ActivitySource("TestActivitySource");
+            var activityListener = new ActivityListener {
+                ShouldListenTo = s => true,
+                Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
+            };
+            ActivitySource.AddActivityListener(activityListener);
+
+            using (var activity = activitySource.StartActivity("Test_Activity"))
             {
-                // Create a custom TraceContext using the current activity's context and an empty baggage (as an example).
-                var currentContext = new HeaderUpdatingTraceableSession.TraceContext(activity.Context, new Dictionary<string, string>());
+                if (activity != null && activity.Id != null)
+                {
+                    // Create a custom TraceContext using the current activity's context and an empty baggage (as an example).
+                    var currentContext = new HeaderUpdatingTraceableSession.TraceContext(activity.Context, new Dictionary<string, string>());
 
-                // Inject the current trace context into an AdditionalParametersType
-                HeaderUpdatingTraceableSession.InjectTraceIntoAdditionalParameters(currentContext, out AdditionalParametersType parameters);
+                    // Inject the current trace context into an AdditionalParametersType
+                    HeaderUpdatingTraceableSession.InjectTraceIntoAdditionalParameters(currentContext, out AdditionalParametersType parameters);
 
-                // Simulate extraction
-                var extractedContext = HeaderUpdatingTraceableSession.ExtractTraceContextFromParameters(parameters);
+                    // Simulate extraction
+                    var extractedContext = HeaderUpdatingTraceableSession.ExtractTraceContextFromParameters(parameters);
 
-                // Verify that the trace context is propagated.
-                Assert.AreEqual(Activity.Current.Context.TraceId, extractedContext.ActivityContext.TraceId);
-                Assert.AreEqual(Activity.Current.Context.SpanId, extractedContext.ActivityContext.SpanId);
+                    // Verify that the trace context is propagated.
+                    Assert.AreEqual(Activity.Current.Context.TraceId, extractedContext.ActivityContext.TraceId);
+                    Assert.AreEqual(Activity.Current.Context.SpanId, extractedContext.ActivityContext.SpanId);
+                }
             }
         }
 
