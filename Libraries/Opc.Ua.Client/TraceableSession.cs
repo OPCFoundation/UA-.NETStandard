@@ -50,16 +50,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public TraceableSession(ISession session)
         {
-            // Check if the given session is a SessionClient or its derivative
-            if (session is SessionClient sessionClient)
-            {
-                // Create the proxy around the sessionClient and assign to m_tracingClientProxy
-                m_tracingClientProxy = new TracingClientProxy(this, sessionClient);
-            }
-            else
-            {
-                m_session = session;
-            }
+            m_session = session;
         }
         #endregion
 
@@ -73,9 +64,6 @@ namespace Opc.Ua.Client
         /// </summary>
         public static ActivitySource ActivitySource => s_activitySource.Value;
         private static readonly Lazy<ActivitySource> s_activitySource = new Lazy<ActivitySource>(() => new ActivitySource(ActivitySourceName, "1.0.0"));
-
-
-        private TracingClientProxy m_tracingClientProxy;
 
         /// <summary>
         /// The ISession which is being traced.
@@ -388,21 +376,18 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Tracing implementation of the ClientBase class.
+        /// A subclass of Session class to override the UpdateRequestHeader method from the ClientBase class.
         /// </summary>
-        public class TracingClientProxy : ClientBase
+        public class TracingClientProxy : Session
         {
-            private readonly TraceableSession m_traceableSession;
-
+            #region Constructors
             /// <summary>
-            /// Initialize TracingClientProxy
+            /// Constructs a new instance of the <see cref="Session"/> class.
             /// </summary>
-            /// <param name="traceableSession"></param>
-            /// <param name="innerClient"></param>
-            public TracingClientProxy(TraceableSession traceableSession, ClientBase innerClient) : base(innerClient.TransportChannel)
+            public TracingClientProxy(ISessionChannel channel, ApplicationConfiguration configuration, ConfiguredEndpoint endpoint) : base(channel, configuration, endpoint)
             {
-                m_traceableSession = traceableSession;
             }
+            #endregion
 
             ///<inheritdoc/>
             [Obsolete("Must override the version with useDefault parameter.")]
