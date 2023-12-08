@@ -1303,13 +1303,13 @@ namespace Opc.Ua.Client.Tests
             using (var activity = new Activity("TestActivity").Start())
             {
                 // Create a custom TraceContext using the current activity's context and an empty baggage (as an example).
-                var currentContext = new TraceableSession.TraceContext(activity.Context, new Dictionary<string, string>());
+                var currentContext = new TraceableSessionProxy.TraceContext(activity.Context, new Dictionary<string, string>());
 
                 // Inject the current trace context into an AdditionalParametersType
-                TraceableSession.InjectTraceIntoAdditionalParameters(currentContext, out AdditionalParametersType parameters);
+                TraceableSessionProxy.InjectTraceIntoAdditionalParameters(currentContext, out AdditionalParametersType parameters);
 
                 // Simulate extraction
-                var extractedContext = TraceableSession.ExtractTraceContextFromParameters(parameters);
+                var extractedContext = TraceableSessionProxy.ExtractTraceContextFromParameters(parameters);
 
                 // Verify that the trace context is propagated.
                 Assert.AreEqual(Activity.Current.Context.TraceId, extractedContext.ActivityContext.TraceId);
