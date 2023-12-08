@@ -1300,14 +1300,18 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(900)]
         public void TestTraceContextIsPropagated()
         {
-            ActivitySource activitySource = new ActivitySource("TestActivitySource");
+            var rootActivity = new Activity("Test_Activity_Root") {
+                ActivityTraceFlags = ActivityTraceFlags.Recorded,
+            }.Start();
+
             var activityListener = new ActivityListener {
                 ShouldListenTo = s => true,
                 Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
             };
+
             ActivitySource.AddActivityListener(activityListener);
 
-            using (var activity = activitySource.StartActivity("Test_Activity"))
+            using (var activity = new ActivitySource("TestActivitySource").StartActivity("Test_Activity"))
             {
                 if (activity != null && activity.Id != null)
                 {
@@ -1321,10 +1325,12 @@ namespace Opc.Ua.Client.Tests
                     var extractedContext = HeaderUpdatingTraceableSession.ExtractTraceContextFromParameters(parameters);
 
                     // Verify that the trace context is propagated.
-                    Assert.AreEqual(Activity.Current.Context.TraceId, extractedContext.ActivityContext.TraceId);
-                    Assert.AreEqual(Activity.Current.Context.SpanId, extractedContext.ActivityContext.SpanId);
+                    Assert.AreEqual(activity.TraceId, extractedContext.ActivityContext.TraceId);
+                    Assert.AreEqual(activity.SpanId, extractedContext.ActivityContext.SpanId);
                 }
             }
+
+            rootActivity.Stop();
         }
 
         /// <summary>
