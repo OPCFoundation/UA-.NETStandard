@@ -565,7 +565,7 @@ namespace Opc.Ua.Configuration.Tests
 
                 //Act
                 await applicationInstance.AddOwnCertificateToTrustedStoreAsync(cert, new CancellationToken()).ConfigureAwait(false);
-                ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore()
+                ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore();
                 var storedCertificates = await store.FindByThumbprint(cert.Thumbprint).ConfigureAwait(false);
 
                 //Assert
