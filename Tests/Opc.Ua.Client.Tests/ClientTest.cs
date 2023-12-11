@@ -136,7 +136,10 @@ namespace Opc.Ua.Client.Tests
 
             using (var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration))
             {
-                Endpoints = await client.GetEndpointsAsync(null).ConfigureAwait(false);
+                Endpoints = await client.GetEndpointsAsync(null, CancellationToken.None).ConfigureAwait(false);
+                var statusCode = await client.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                Assert.AreEqual((StatusCode)StatusCodes.Good, statusCode);
+
                 TestContext.Out.WriteLine("Endpoints:");
                 foreach (var endpoint in Endpoints)
                 {
@@ -177,6 +180,9 @@ namespace Opc.Ua.Client.Tests
             using (var client = DiscoveryClient.Create(ServerUrl, endpointConfiguration))
             {
                 var servers = await client.FindServersAsync(null).ConfigureAwait(false);
+                var statusCode = await client.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                Assert.AreEqual((StatusCode)StatusCodes.Good, statusCode);
+
                 foreach (var server in servers)
                 {
                     TestContext.Out.WriteLine("{0}", server.ApplicationName);
@@ -202,6 +208,9 @@ namespace Opc.Ua.Client.Tests
                 try
                 {
                     var response = await client.FindServersOnNetworkAsync(null, 0, 100, null, CancellationToken.None).ConfigureAwait(false);
+                    var statusCode = await client.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                    Assert.AreEqual((StatusCode)StatusCodes.Good, statusCode);
+
                     foreach (ServerOnNetwork server in response.Servers)
                     {
                         TestContext.Out.WriteLine("{0}", server.ServerName);
@@ -336,9 +345,33 @@ namespace Opc.Ua.Client.Tests
             var session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
             Assert.NotNull(session);
             Session.SessionClosing += Session_Closing;
-            var result = await session.CloseAsync(5_000, closeChannel).ConfigureAwait(false);
+            var result = await session.CloseAsync(5_000, closeChannel, CancellationToken.None).ConfigureAwait(false);
             Assert.NotNull(result);
             session.Dispose();
+        }
+
+        [Test, Order(202)]
+        public async Task ConnectAndCloseAsyncReadAfterClose()
+        {
+            var securityPolicy = SecurityPolicies.Basic256Sha256;
+            using (var session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false))
+            {
+                Assert.NotNull(session);
+                Session.SessionClosing += Session_Closing;
+
+                var nodeId = new NodeId(Opc.Ua.VariableIds.ServerStatusType_BuildInfo);
+                var node = await session.ReadNodeAsync(nodeId, CancellationToken.None).ConfigureAwait(false);
+                var value = await session.ReadValueAsync(nodeId, CancellationToken.None).ConfigureAwait(false);
+
+                // keep channel open
+                var result = await session.CloseAsync(1_000, false).ConfigureAwait(false);
+                Assert.AreEqual((StatusCode)StatusCodes.Good, result);
+
+                await Task.Delay(5_000).ConfigureAwait(false);
+
+                var sre = Assert.ThrowsAsync<ServiceResultException>(async () => await session.ReadNodeAsync(nodeId, CancellationToken.None).ConfigureAwait(false));
+                Assert.AreEqual((StatusCode)StatusCodes.BadSessionIdInvalid, sre.StatusCode);
+            }
         }
 
         [Theory, Order(210)]

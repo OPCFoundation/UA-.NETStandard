@@ -193,8 +193,8 @@ namespace Opc.Ua.Security.Certificates
             byte[] testBlock = new byte[TestBlockSize];
             var rnd = new Random();
             rnd.NextBytes(testBlock);
-            byte[] signature = rsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
-            return rsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
+            byte[] signature = rsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            return rsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         }
 
 #if ECC_SUPPORT

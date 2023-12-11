@@ -140,11 +140,16 @@ namespace Opc.Ua.Client.Tests
                     m_endpointUrl, null, cancellationTokenSource.Token).ConfigureAwait(false);
                 Assert.NotNull(connection, "Failed to get connection.");
             }
-            var endpointConfiguration = EndpointConfiguration.Create();
-            endpointConfiguration.OperationTimeout = MaxTimeout;
-            using (DiscoveryClient client = DiscoveryClient.Create(config, connection, endpointConfiguration))
+
+            using (var cancellationTokenSource = new CancellationTokenSource(MaxTimeout))
             {
-                Endpoints = client.GetEndpoints(null);
+                var endpointConfiguration = EndpointConfiguration.Create();
+                endpointConfiguration.OperationTimeout = MaxTimeout;
+                using (DiscoveryClient client = DiscoveryClient.Create(config, connection, endpointConfiguration))
+                {
+                    Endpoints = await client.GetEndpointsAsync(null, cancellationTokenSource.Token).ConfigureAwait(false);
+                    await client.CloseAsync(cancellationTokenSource.Token).ConfigureAwait(false);
+                }
             }
         }
 
@@ -190,7 +195,7 @@ namespace Opc.Ua.Client.Tests
 #if NET6_0_OR_GREATER
             var sessionfactory = TraceableSessionFactory.Instance;
 #else
-            var sessionfactory = DefaultSessionFactory.Instance;
+            var sessionfactory = TestableSessionFactory.Instance;
 #endif
             var session = await sessionfactory.CreateAsync(config, connection, endpoint, false, false, "Reverse Connect Client",
                 MaxTimeout, new UserIdentity(new AnonymousIdentityToken()), null).ConfigureAwait(false);
@@ -234,7 +239,7 @@ namespace Opc.Ua.Client.Tests
 #if NET6_0_OR_GREATER
             var sessionfactory = TraceableSessionFactory.Instance;
 #else
-            var sessionfactory = DefaultSessionFactory.Instance;
+            var sessionfactory = TestableSessionFactory.Instance;
 #endif
             var session = await sessionfactory.CreateAsync(config, ClientFixture.ReverseConnectManager, endpoint, updateBeforeConnect, checkDomain, "Reverse Connect Client",
                 MaxTimeout, new UserIdentity(new AnonymousIdentityToken()), null).ConfigureAwait(false);

@@ -63,7 +63,7 @@ namespace Opc.Ua.Gds.Server
         TrustListState DefaultTrustList { get; set; }
         bool UpdateRequired { get; set; }
 
-        CertificateGroup Create(
+        ICertificateGroup Create(
             string path,
             CertificateGroupConfiguration certificateGroupConfiguration);
 
