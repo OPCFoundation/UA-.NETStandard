@@ -29,6 +29,7 @@
 
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -358,8 +359,9 @@ namespace Opc.Ua.Security.Certificates.Tests
             }
         }
 
-#if NETFRAMEWORK || NETCOREAPP3_1
+#if NETFRAMEWORK || NETCOREAPP3_1_OR_GREATER
         [Test]
+        [SuppressMessage("Interoperability", "CA1416: Validate platform compatibility", Justification = "Test is ignored.")]
         public void CreateIssuerRSACngWithSuppliedKeyPair()
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -495,12 +497,12 @@ namespace Opc.Ua.Security.Certificates.Tests
             PEMWriter.ExportCertificateAsPEM(certificate);
             if (certificate.HasPrivateKey)
             {
-#if NETFRAMEWORK || NETCOREAPP2_1
+#if NETFRAMEWORK || NETCOREAPP2_1 || !ECC_SUPPORT
                 // The implementation based on bouncy castle has no support to export with password
                 password = null;
 #endif
                 PEMWriter.ExportPrivateKeyAsPEM(certificate, password);
-#if NETCOREAPP3_1_OR_GREATER
+#if NETCOREAPP3_1_OR_GREATER && ECC_SUPPORT
                 PEMWriter.ExportRSAPrivateKeyAsPEM(certificate);
 #endif
             }

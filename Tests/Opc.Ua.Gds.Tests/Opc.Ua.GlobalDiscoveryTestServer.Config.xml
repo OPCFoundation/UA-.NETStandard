@@ -149,6 +149,7 @@
         </CertificateGroups>
         <KnownHostNames/>
         <DatabaseStorePath>%LocalApplicationData%/OPC/GDS/gdsdb.json</DatabaseStorePath>
+        <UsersDatabaseStorePath>%LocalApplicationData%/OPC/GDS/gdsusersdb.json</UsersDatabaseStorePath>
       </GlobalDiscoveryServerConfiguration>
     </ua:XmlElement>
   </Extensions>

@@ -566,6 +566,17 @@ namespace Opc.Ua.Configuration
         }
 
         /// <summary>
+        /// Adds a Certificate to the Trusted Store of the Application, needed e.g. for the GDS to trust it´s own CA
+        /// </summary>
+        /// <param name="certificate">The certificate to add to the store</param>
+        /// <param name="ct">The cancellation token</param>
+        /// <returns></returns>
+        public async Task AddOwnCertificateToTrustedStoreAsync(X509Certificate2 certificate, CancellationToken ct)
+        {
+            await AddToTrustedStoreAsync(m_applicationConfiguration, certificate, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Helper to suppress errors which are allowed for the application certificate validation.
         /// </summary>
         private class CertValidationSuppressibleStatusCodes
