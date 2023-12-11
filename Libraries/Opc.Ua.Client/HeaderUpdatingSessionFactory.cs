@@ -175,7 +175,7 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint)
         {
-            return new HeaderUpdatingTraceableSession(channel, configuration, endpoint);
+            return new HeaderUpdatingSession(channel, configuration, endpoint);
         }
 
         /// <inheritdoc/>
@@ -187,7 +187,7 @@ namespace Opc.Ua.Client
             EndpointDescriptionCollection availableEndpoints = null,
             StringCollection discoveryProfileUris = null)
         {
-            return new HeaderUpdatingTraceableSession(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
+            return new HeaderUpdatingSession(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
         }
         #endregion
     }

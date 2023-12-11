@@ -36,11 +36,17 @@ namespace Opc.Ua.Client
     /// It can be used to create instances of enhanced Session
     /// classes with added functionality or overridden methods.
     /// </summary>
-    public class HeaderUpdatingSessionInstantiator : ISessionInstantiator
+    public class HeaderUpdatingSessionInstantiator : TraceableSessionFactory
     {
-        #region Constructors
+        #region ISessionInstantiator Members
+
+        /// <summary>
+        /// Object that creates instances of an Opc.Ua.Client.Session object with Activity Source.
+        /// </summary>
+        public new static readonly HeaderUpdatingSessionInstantiator Instance = new HeaderUpdatingSessionInstantiator();
+
         /// <inheritdoc/>
-        public Session Create(
+        public override Session Create(
             ISessionChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint)
@@ -49,7 +55,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public Session Create(
+        public override Session Create(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
@@ -59,6 +65,7 @@ namespace Opc.Ua.Client
         {
             return new HeaderUpdatingSession(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
         }
+
         #endregion
     }
 }
