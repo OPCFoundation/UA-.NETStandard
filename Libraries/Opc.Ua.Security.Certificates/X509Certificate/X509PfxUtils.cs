@@ -99,7 +99,6 @@ namespace Opc.Ua.Security.Certificates
             {
                 if (throwOnError)
                 {
-                    throwOnError = false;
                     throw;
                 }
             }
@@ -126,11 +125,16 @@ namespace Opc.Ua.Security.Certificates
             Exception ex = null;
             X509Certificate2 certificate = null;
 
-            // We need to try MachineKeySet first as UserKeySet in combination with PersistKeySet hangs ASP.Net WebApps on Azure
+            // By default keys are not persisted
+#if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER || NET5_0_OR_GREATER
+            const X509KeyStorageFlags defaultStorageSet = X509KeyStorageFlags.Exportable | X509KeyStorageFlags.EphemeralKeySet;
+#else
+            const X509KeyStorageFlags defaultStorageSet = X509KeyStorageFlags.Exportable;
+#endif
             X509KeyStorageFlags[] storageFlags = {
-                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.MachineKeySet,
-                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.UserKeySet
-            };
+                            defaultStorageSet | X509KeyStorageFlags.MachineKeySet,
+                            defaultStorageSet | X509KeyStorageFlags.UserKeySet
+                        };
 
             // try some combinations of storage flags, support is platform dependent
             foreach (X509KeyStorageFlags flag in storageFlags)
@@ -140,7 +144,7 @@ namespace Opc.Ua.Security.Certificates
                     // merge first cert with private key into X509Certificate2
                     certificate = new X509Certificate2(
                         rawData,
-                        password ?? String.Empty,
+                        password ?? string.Empty,
                         flag);
                     // can we really access the private key?
                     if (VerifyRSAKeyPair(certificate, certificate, true))

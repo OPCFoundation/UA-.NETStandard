@@ -491,6 +491,24 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Creates a copy of a certificate with a private key, if required by0 the platform.
+        /// </summary>
+        /// <returns>The certificate</returns>
+        public static X509Certificate2 CreateCopyWithStorageFlags(X509Certificate2 certificate, bool persisted)
+        {
+            // a copy is only necessary on windows
+            if (certificate.HasPrivateKey &&
+                Environment.OSVersion.Platform == PlatformID.Win32NT)
+            {
+                // see https://github.com/dotnet/runtime/issues/29144
+                string passcode = GeneratePasscode();
+                X509KeyStorageFlags storageFlags = persisted ? X509KeyStorageFlags.PersistKeySet : X509KeyStorageFlags.DefaultKeySet;
+                return new X509Certificate2(certificate.Export(X509ContentType.Pfx, passcode), passcode, storageFlags);
+            }
+            return certificate;
+        }
+
+        /// <summary>
         /// Creates a certificate from a PKCS #12 store with a private key.
         /// </summary>
         /// <param name="rawData">The raw PKCS #12 store data.</param>

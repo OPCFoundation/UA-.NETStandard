@@ -253,7 +253,13 @@ namespace Opc.Ua.Bindings
                 CheckCertificateRevocation = false,
                 ClientCertificateMode = ClientCertificateMode.NoCertificate,
                 // note: this is the TLS certificate!
-                ServerCertificate = m_serverCertificate
+#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
+                // Create a copy of the certificate with the private key on platforms
+                // which default to the ephemeral KeySet.
+                ServerCertificate = X509Utils.CreateCopyWithStorageFlags(m_serverCertificate, false)
+#else
+                ServerCertificate = m_serverCertificate;
+#endif
             };
 
 #if NET462
@@ -301,7 +307,7 @@ namespace Opc.Ua.Bindings
         {
             Dispose();
         }
-        #endregion
+#endregion
 
         #region Private Methods
         /// <summary>
@@ -347,9 +353,9 @@ namespace Opc.Ua.Bindings
                 if (NodeId.IsNull(input.RequestHeader.AuthenticationToken) &&
                     input.TypeId != DataTypeIds.CreateSessionRequest)
                 {
-                    if (context.Request.Headers.ContainsKey(kAuthorizationKey))
+                    if (context.Request.Headers.TryGetValue(kAuthorizationKey, out var keys))
                     {
-                        foreach (string value in context.Request.Headers[kAuthorizationKey])
+                        foreach (string value in keys)
                         {
                             if (value.StartsWith(kBearerKey, StringComparison.OrdinalIgnoreCase))
                             {
