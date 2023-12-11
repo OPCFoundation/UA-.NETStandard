@@ -36,7 +36,7 @@ namespace Opc.Ua.Client
     /// It can be used to create instances of enhanced Session
     /// classes with added functionality or overridden methods.
     /// </summary>
-    public class HeaderUpdatingTraceableSessionInstantiator : ISessionInstantiator
+    public class HeaderUpdatingSessionInstantiator : ISessionInstantiator
     {
         #region Constructors
         /// <inheritdoc/>
@@ -45,7 +45,7 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint)
         {
-            return new HeaderUpdatingTraceableSession(channel, configuration, endpoint);
+            return new HeaderUpdatingSession(channel, configuration, endpoint);
         }
 
         /// <inheritdoc/>
@@ -57,7 +57,7 @@ namespace Opc.Ua.Client
             EndpointDescriptionCollection availableEndpoints = null,
             StringCollection discoveryProfileUris = null)
         {
-            return new HeaderUpdatingTraceableSession(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
+            return new HeaderUpdatingSession(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
         }
         #endregion
     }

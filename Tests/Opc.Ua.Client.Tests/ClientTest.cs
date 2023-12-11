@@ -1316,13 +1316,13 @@ namespace Opc.Ua.Client.Tests
                 if (activity != null && activity.Id != null)
                 {
                     // Create a custom TraceContext using the current activity's context and an empty baggage (as an example).
-                    var currentContext = new HeaderUpdatingTraceableSession.TraceContext(activity.Context, new Dictionary<string, string>());
+                    var currentContext = new HeaderUpdatingSession.TraceContext(activity.Context, new Dictionary<string, string>());
 
                     // Inject the current trace context into an AdditionalParametersType
-                    HeaderUpdatingTraceableSession.InjectTraceIntoAdditionalParameters(currentContext, out AdditionalParametersType parameters);
+                    HeaderUpdatingSession.InjectTraceIntoAdditionalParameters(currentContext, out AdditionalParametersType parameters);
 
                     // Simulate extraction
-                    var extractedContext = HeaderUpdatingTraceableSession.ExtractTraceContextFromParameters(parameters);
+                    var extractedContext = HeaderUpdatingSession.ExtractTraceContextFromParameters(parameters);
 
                     // Verify that the trace context is propagated.
                     Assert.AreEqual(activity.TraceId, extractedContext.ActivityContext.TraceId);

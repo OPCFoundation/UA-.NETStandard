@@ -37,17 +37,17 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Object that creates instances of an Opc.Ua.Client.Session object.
     /// </summary>
-    public class HeaderUpdatingTraceableSessionFactory : DefaultSessionFactory
+    public class HeaderUpdatingSessionFactory : DefaultSessionFactory
     {
         /// <summary>
         /// The default instance of the factory.
         /// </summary>
-        public new static readonly HeaderUpdatingTraceableSessionFactory Instance = new HeaderUpdatingTraceableSessionFactory();
+        public new static readonly HeaderUpdatingSessionFactory Instance = new HeaderUpdatingSessionFactory();
 
         /// <summary>
         /// Force use of the default instance.
         /// </summary>
-        protected HeaderUpdatingTraceableSessionFactory()
+        protected HeaderUpdatingSessionFactory()
         {
         }
 
