@@ -502,7 +502,7 @@ namespace Opc.Ua
             {
                 // see https://github.com/dotnet/runtime/issues/29144
                 string passcode = GeneratePasscode();
-                X509KeyStorageFlags storageFlags = persisted ? X509KeyStorageFlags.PersistKeySet : X509KeyStorageFlags.DefaultKeySet;
+                X509KeyStorageFlags storageFlags = persisted ? X509KeyStorageFlags.PersistKeySet : X509KeyStorageFlags.Exportable;
                 return new X509Certificate2(certificate.Export(X509ContentType.Pfx, passcode), passcode, storageFlags);
             }
             return certificate;
@@ -513,13 +513,15 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="rawData">The raw PKCS #12 store data.</param>
         /// <param name="password">The password to use to access the store.</param>
+        /// <param name="noEphemeralKeySet">Set to true if the key should not use the ephemeral key set.</param>
         /// <returns>The certificate with a private key.</returns>
         public static X509Certificate2 CreateCertificateFromPKCS12(
             byte[] rawData,
-            string password
+            string password,
+            bool noEphemeralKeySet = false
             )
         {
-            return X509PfxUtils.CreateCertificateFromPKCS12(rawData, password);
+            return X509PfxUtils.CreateCertificateFromPKCS12(rawData, password, noEphemeralKeySet);
         }
 
         /// <summary>

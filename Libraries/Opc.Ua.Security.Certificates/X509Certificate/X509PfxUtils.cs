@@ -116,21 +116,26 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="rawData">The raw PKCS #12 store data.</param>
         /// <param name="password">The password to use to access the store.</param>
+        /// <param name="noEphemeralKeySet">Set to true if the key should not use the ephemeral key set.</param>
         /// <returns>The certificate with a private key.</returns>
         public static X509Certificate2 CreateCertificateFromPKCS12(
             byte[] rawData,
-            string password
+            string password,
+            bool noEphemeralKeySet = false
             )
         {
             Exception ex = null;
             X509Certificate2 certificate = null;
 
             // By default keys are not persisted
+            X509KeyStorageFlags defaultStorageSet = X509KeyStorageFlags.Exportable;
 #if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER || NET5_0_OR_GREATER
-            const X509KeyStorageFlags defaultStorageSet = X509KeyStorageFlags.Exportable | X509KeyStorageFlags.EphemeralKeySet;
-#else
-            const X509KeyStorageFlags defaultStorageSet = X509KeyStorageFlags.Exportable;
+            if (!noEphemeralKeySet)
+            {
+                defaultStorageSet |= X509KeyStorageFlags.EphemeralKeySet;
+            }
 #endif
+
             X509KeyStorageFlags[] storageFlags = {
                             defaultStorageSet | X509KeyStorageFlags.MachineKeySet,
                             defaultStorageSet | X509KeyStorageFlags.UserKeySet
