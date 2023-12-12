@@ -1398,7 +1398,6 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(buildInfo.BuildNumber, values[5].Value);
             Assert.AreEqual(buildInfo.BuildDate, values[6].Value);
         }
-
         #endregion
 
         #region Benchmarks
