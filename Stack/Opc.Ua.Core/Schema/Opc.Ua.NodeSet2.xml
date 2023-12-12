@@ -22308,6 +22308,7 @@
   </UAVariable>
   <UAVariable NodeId="i=11214" BrowseName="Annotations" DataType="i=891" ValueRank="-2">
     <DisplayName>Annotations</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part11/5.1.2</Documentation>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
@@ -22835,6 +22836,7 @@
   </UAVariable>
   <UAVariable NodeId="i=11215" BrowseName="HistoricalEventFilter" DataType="i=725" ValueRank="-2">
     <DisplayName>HistoricalEventFilter</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part11/5.4.2</Documentation>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
