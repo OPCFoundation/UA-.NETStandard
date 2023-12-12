@@ -500,8 +500,11 @@ namespace Opc.Ua
         public static X509Certificate2 CreateCopyWithPrivateKey(X509Certificate2 certificate, bool persisted)
         {
             // a copy is only necessary on windows
-            if (certificate.HasPrivateKey &&
-                RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            if (certificate.HasPrivateKey
+#if !NETFRAMEWORK
+                && RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+#endif
+                )
             {
                 // see https://github.com/dotnet/runtime/issues/29144
                 string passcode = GeneratePasscode();
