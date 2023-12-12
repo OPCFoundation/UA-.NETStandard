@@ -1318,12 +1318,6 @@ namespace Opc.Ua.Client.Tests
             {
                 if (activity != null && activity.Id != null)
                 {
-                    // Create a custom TraceContext using the current activity's context and an empty baggage (as an example).
-                    var currentContext = new HeaderUpdatingSession.TraceContext(activity.Context, new Dictionary<string, string>());
-
-                    // Inject the current trace context into an AdditionalParametersType
-                    HeaderUpdatingSession.InjectTraceIntoAdditionalParameters(currentContext, out AdditionalParametersType parameters);
-
                     var endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints).ConfigureAwait(false);
                     Assert.NotNull(endpoint);
 
