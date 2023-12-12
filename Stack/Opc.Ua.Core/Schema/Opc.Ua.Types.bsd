@@ -287,9 +287,9 @@
   <opc:StructuredType Name="BitFieldDefinition" BaseType="ua:ExtensionObject">
     <opc:Field Name="Name" TypeName="opc:String" />
     <opc:Field Name="Description" TypeName="ua:LocalizedText" />
-    <opc:Field Name="DataType" TypeName="ua:NodeId" />
+    <opc:Field Name="Reserved" TypeName="opc:Boolean" />
     <opc:Field Name="StartingBitPosition" TypeName="opc:UInt32" />
-    <opc:Field Name="NumberOfBits" TypeName="opc:UInt32" />
+    <opc:Field Name="EndingBitPosition" TypeName="opc:UInt32" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="RationalNumber" BaseType="ua:ExtensionObject">
