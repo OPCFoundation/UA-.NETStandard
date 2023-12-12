@@ -14,6 +14,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -491,14 +492,16 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a copy of a certificate with a private key, if required by0 the platform.
+        /// Creates a copy of a certificate with a private key.
+        /// If the platform defaults to an ephemeral key set,
+        /// the private key requires an extra copy.
         /// </summary>
         /// <returns>The certificate</returns>
-        public static X509Certificate2 CreateCopyWithStorageFlags(X509Certificate2 certificate, bool persisted)
+        public static X509Certificate2 CreateCopyWithPrivateKey(X509Certificate2 certificate, bool persisted)
         {
             // a copy is only necessary on windows
             if (certificate.HasPrivateKey &&
-                Environment.OSVersion.Platform == PlatformID.Win32NT)
+                RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 // see https://github.com/dotnet/runtime/issues/29144
                 string passcode = GeneratePasscode();

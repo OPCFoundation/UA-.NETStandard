@@ -256,7 +256,7 @@ namespace Opc.Ua.Bindings
 #if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
                 // Create a copy of the certificate with the private key on platforms
                 // which default to the ephemeral KeySet.
-                ServerCertificate = X509Utils.CreateCopyWithStorageFlags(m_serverCertificate, false)
+                ServerCertificate = X509Utils.CreateCopyWithPrivateKey(m_serverCertificate, false)
 #else
                 ServerCertificate = m_serverCertificate
 #endif

@@ -469,7 +469,7 @@ namespace Opc.Ua.Server
                         case "":
                         {
                             X509Certificate2 certWithPrivateKey = certificateGroup.ApplicationCertificate.LoadPrivateKeyEx(passwordProvider).Result;
-                            var exportableKey = X509Utils.CreateCopyWithStorageFlags(certWithPrivateKey, false);
+                            var exportableKey = X509Utils.CreateCopyWithPrivateKey(certWithPrivateKey, false);
                             updateCertificate.CertificateWithPrivateKey = CertificateFactory.CreateCertificateWithPrivateKey(newCert, exportableKey);
                             break;
                         }

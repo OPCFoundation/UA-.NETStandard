@@ -29,6 +29,7 @@
 
 using System;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
@@ -130,16 +131,16 @@ namespace Opc.Ua.Security.Certificates
             // By default keys are not persisted
             X509KeyStorageFlags defaultStorageSet = X509KeyStorageFlags.Exportable;
 #if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER || NET5_0_OR_GREATER
-            if (!noEphemeralKeySet)
+            if (!noEphemeralKeySet && !RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
                 defaultStorageSet |= X509KeyStorageFlags.EphemeralKeySet;
             }
 #endif
 
             X509KeyStorageFlags[] storageFlags = {
-                            defaultStorageSet | X509KeyStorageFlags.MachineKeySet,
-                            defaultStorageSet | X509KeyStorageFlags.UserKeySet
-                        };
+                defaultStorageSet | X509KeyStorageFlags.MachineKeySet,
+                defaultStorageSet | X509KeyStorageFlags.UserKeySet
+            };
 
             // try some combinations of storage flags, support is platform dependent
             foreach (X509KeyStorageFlags flag in storageFlags)

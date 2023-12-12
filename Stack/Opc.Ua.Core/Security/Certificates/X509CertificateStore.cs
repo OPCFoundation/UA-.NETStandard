@@ -143,8 +143,8 @@ namespace Opc.Ua
                     if (certificate.HasPrivateKey && !m_noPrivateKeys)
                     {
                         // X509Store needs a persisted private key
-                        var persistableCertificate = X509Utils.CreateCopyWithStorageFlags(certificate, true);
-                        store.Add(persistableCertificate);
+                        var persistedCertificate = X509Utils.CreateCopyWithPrivateKey(certificate, true);
+                        store.Add(persistedCertificate);
                     }
                     else if (certificate.HasPrivateKey && m_noPrivateKeys)
                     {

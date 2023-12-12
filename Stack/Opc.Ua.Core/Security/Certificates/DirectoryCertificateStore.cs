@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
@@ -402,11 +403,15 @@ namespace Opc.Ua
                             .Append(Path.DirectorySeparatorChar)
                             .Append(fileRoot);
 
+                        // By default keys are not persisted
+                        X509KeyStorageFlags defaultStorageSet = X509KeyStorageFlags.Exportable;
 #if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER || NET5_0_OR_GREATER
-                        const X509KeyStorageFlags defaultStorageSet = X509KeyStorageFlags.Exportable | X509KeyStorageFlags.EphemeralKeySet;
-#else
-                        const X509KeyStorageFlags defaultStorageSet = X509KeyStorageFlags.Exportable;
+                        if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                        {
+                            defaultStorageSet |= X509KeyStorageFlags.EphemeralKeySet;
+                        }
 #endif
+
                         X509KeyStorageFlags[] storageFlags = {
                             defaultStorageSet | X509KeyStorageFlags.MachineKeySet,
                             defaultStorageSet | X509KeyStorageFlags.UserKeySet
