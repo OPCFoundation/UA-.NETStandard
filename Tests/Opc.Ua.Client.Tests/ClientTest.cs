@@ -32,15 +32,18 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
+using Moq;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server.Tests;
+using static Opc.Ua.Client.HeaderUpdatingSession;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -1298,7 +1301,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(900)]
-        public void TestTraceContextIsPropagated()
+        public async Task TestTraceContextIsPropagated()
         {
             var rootActivity = new Activity("Test_Activity_Root") {
                 ActivityTraceFlags = ActivityTraceFlags.Recorded,
@@ -1321,12 +1324,33 @@ namespace Opc.Ua.Client.Tests
                     // Inject the current trace context into an AdditionalParametersType
                     HeaderUpdatingSession.InjectTraceIntoAdditionalParameters(currentContext, out AdditionalParametersType parameters);
 
+                    var endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints).ConfigureAwait(false);
+                    Assert.NotNull(endpoint);
+
+                    // Mock the channel and session
+                    var channelMock = new Mock<ITransportChannel>();
+                    var sessionChannelMock = channelMock.As<ISessionChannel>();
+
+                    TestableHeaderUpdatingSession testableHeaderUpdatingSession = new TestableHeaderUpdatingSession(sessionChannelMock.Object, ClientFixture.Config, endpoint);
+                    CreateSessionRequest request = new CreateSessionRequest();
+                    request.RequestHeader = new RequestHeader();
+
+                    // Mock call TestableUpdateRequestHeader() to simulate the header update
+                    testableHeaderUpdatingSession.TestableUpdateRequestHeader(request, true);
+
+                    // Get the AdditionalHeader from the request
+                    var additionalHeader = request.RequestHeader.AdditionalHeader as ExtensionObject;
+                    Assert.NotNull(additionalHeader);
+
                     // Simulate extraction
-                    var extractedContext = HeaderUpdatingSession.ExtractTraceContextFromParameters(parameters);
+                    var extractedContext = HeaderUpdatingSession.ExtractTraceContextFromParameters(additionalHeader.Body as AdditionalParametersType);
 
                     // Verify that the trace context is propagated.
                     Assert.AreEqual(activity.TraceId, extractedContext.ActivityContext.TraceId);
                     Assert.AreEqual(activity.SpanId, extractedContext.ActivityContext.SpanId);
+
+                    TestContext.Out.WriteLine($"Activity TraceId: {activity.TraceId}, Activity SpanId: {activity.SpanId}");
+                    TestContext.Out.WriteLine($"Extracted TraceId: {extractedContext.ActivityContext.TraceId}, Extracted SpanId: {extractedContext.ActivityContext.SpanId}");
                 }
             }
 
