@@ -43,24 +43,6 @@ namespace Opc.Ua.Client
     /// </summary> 
     public class HeaderUpdatingSession : Session
     {
-        // Make the class and method internal for testing
-        internal class TestableHeaderUpdatingSession : HeaderUpdatingSession
-        {
-            public TestableHeaderUpdatingSession(
-                ISessionChannel channel,
-                ApplicationConfiguration configuration,
-                ConfiguredEndpoint endpoint)
-                : base(channel, configuration, endpoint)
-            {
-            }
-
-            // Expose the protected method for testing
-            public void TestableUpdateRequestHeader(IServiceRequest request, bool useDefaults)
-            {
-                base.UpdateRequestHeader(request, useDefaults);
-            }
-        }
-
         #region Constructors
         /// <summary>
         /// Constructs a new instance of the <see cref="Session"/> class.

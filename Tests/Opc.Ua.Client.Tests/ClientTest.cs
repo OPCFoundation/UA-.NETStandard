@@ -112,6 +112,24 @@ namespace Opc.Ua.Client.Tests
         }
         #endregion
 
+        // Test class for testing protected methods in HeaderUpdatingSession
+        public class TestableHeaderUpdatingSession : HeaderUpdatingSession
+        {
+            public TestableHeaderUpdatingSession(
+                ISessionChannel channel,
+                ApplicationConfiguration configuration,
+                ConfiguredEndpoint endpoint)
+                : base(channel, configuration, endpoint)
+            {
+            }
+
+            // Expose the protected method for testing
+            public void TestableUpdateRequestHeader(IServiceRequest request, bool useDefaults)
+            {
+                base.UpdateRequestHeader(request, useDefaults);
+            }
+        }
+
         #region Benchmark Setup
         /// <summary>
         /// Global Setup for benchmarks.
