@@ -135,7 +135,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public override Task<ITransportChannel> CreateChannelAsync(
+        public override async Task<ITransportChannel> CreateChannelAsync(
             ApplicationConfiguration configuration,
             ITransportWaitingConnection connection,
             ConfiguredEndpoint endpoint,
@@ -145,7 +145,7 @@ namespace Opc.Ua.Client
         {
             using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(CreateAsync)))
             {
-                return base.CreateChannelAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain, ct);
+                return await base.CreateChannelAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain, ct).ConfigureAwait(false);
             }
         }
 
@@ -177,32 +177,35 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public override Task<ISession> RecreateAsync(ISession sessionTemplate, CancellationToken ct = default)
+        public override async Task<ISession> RecreateAsync(ISession sessionTemplate, CancellationToken ct = default)
         {
             Session session = ValidateISession(sessionTemplate);
             using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(RecreateAsync)))
             {
-                return Task.FromResult((ISession)new TraceableSession(Session.Recreate(session)));
+                ISession recreatedSession = await Session.RecreateAsync(session, ct).ConfigureAwait(false);
+                return new TraceableSession(recreatedSession);
             }
         }
 
         /// <inheritdoc/>
-        public override Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportWaitingConnection connection, CancellationToken ct = default)
+        public override async Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportWaitingConnection connection, CancellationToken ct = default)
         {
             Session session = ValidateISession(sessionTemplate);
             using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(RecreateAsync)))
             {
-                return Task.FromResult((ISession)new TraceableSession(Session.Recreate(session, connection)));
+                ISession recreatedSession = await Session.RecreateAsync(session, connection, ct).ConfigureAwait(false);
+                return new TraceableSession(recreatedSession);
             }
         }
 
         /// <inheritdoc/>
-        public override Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportChannel channel, CancellationToken ct = default)
+        public override async Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportChannel channel, CancellationToken ct = default)
         {
             Session session = ValidateISession(sessionTemplate);
             using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(RecreateAsync)))
             {
-                return Task.FromResult((ISession)new TraceableSession(Session.Recreate(session, channel)));
+                ISession recreatedSession = await Session.RecreateAsync(session, channel, ct).ConfigureAwait(false);
+                return new TraceableSession(recreatedSession);
             }
         }
         #endregion

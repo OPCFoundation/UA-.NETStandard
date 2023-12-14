@@ -43,6 +43,9 @@ namespace Opc.Ua.Client
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public partial class Subscription : IDisposable, ICloneable
     {
+        const int MinKeepAliveTimerInterval = 1000;
+        const int KeepAliveTimerMargin = 1000;
+
         #region Constructors
         /// <summary>
         /// Creates a empty object.
@@ -160,6 +163,7 @@ namespace Opc.Ua.Client
             m_displayName = "Subscription";
             m_publishingInterval = 0;
             m_keepAliveCount = 0;
+            m_keepAliveInterval = 0;
             m_lifetimeCount = 0;
             m_maxNotificationsPerPublish = 0;
             m_publishingEnabled = false;
@@ -689,10 +693,8 @@ namespace Opc.Ua.Client
         {
             get
             {
-                lock (m_cache)
-                {
-                    return m_lastNotificationTime;
-                }
+                var ticks = Interlocked.Read(ref m_lastNotificationTime);
+                return new DateTime(ticks, DateTimeKind.Utc);
             }
         }
 
@@ -802,18 +804,13 @@ namespace Opc.Ua.Client
         {
             get
             {
-                lock (m_cache)
+                TimeSpan timeSinceLastNotification = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - Interlocked.Read(ref m_lastNotificationTime));
+                if (timeSinceLastNotification.TotalMilliseconds > m_keepAliveInterval + KeepAliveTimerMargin)
                 {
-                    int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * (m_currentKeepAliveCount + 1), Int32.MaxValue - 500));
-                    TimeSpan timeSinceLastNotification = DateTime.UtcNow - m_lastNotificationTime;
-
-                    if (timeSinceLastNotification.TotalMilliseconds > keepAliveInterval + 500)
-                    {
-                        return true;
-                    }
-
-                    return false;
+                    return true;
                 }
+
+                return false;
             }
         }
         #endregion
@@ -1436,7 +1433,8 @@ namespace Opc.Ua.Client
                     TraceState("PUBLISHING RECOVERED");
                 }
 
-                DateTime now = m_lastNotificationTime = DateTime.UtcNow;
+                DateTime now = DateTime.UtcNow;
+                Interlocked.Exchange(ref m_lastNotificationTime, now.Ticks);
 
                 // save the string table that came with notification.
                 message.StringTable = new List<string>(stringTable);
@@ -1509,9 +1507,6 @@ namespace Opc.Ua.Client
 
                     node = next;
                 }
-
-                // process messages.
-                m_messageWorkerEvent.Set();
             }
 
             // send notification that publishing received a keep alive or has to republish.
@@ -1526,6 +1521,9 @@ namespace Opc.Ua.Client
                     Utils.LogError(e, "Error while raising PublishStateChanged event.");
                 }
             }
+
+            // process messages.
+            m_messageWorkerEvent.Set();
         }
 
         /// <summary>
@@ -1744,18 +1742,42 @@ namespace Opc.Ua.Client
                         }
                     }
 
-                    Utils.LogInfo("SubscriptionId {0}: Republishing {1} messages, next sequencenumber {2} after transfer.",
-                        m_id, availableSequenceNumbers.Count, m_lastSequenceNumberProcessed);
-
+                    // only republish consecutive sequence numbers
                     // triggers the republish mechanism immediately,
                     // if event is in the past
                     var now = DateTime.UtcNow.AddSeconds(-5);
-                    foreach (var sequenceNumber in availableSequenceNumbers)
+                    uint lastSequenceNumberToRepublish = m_lastSequenceNumberProcessed - 1;
+                    int availableNumbers = availableSequenceNumbers.Count;
+                    int republishMessages = 0;
+                    for (int i = 0; i < availableNumbers; i++)
                     {
-                        FindOrCreateEntry(now, sequenceNumber);
+                        bool found = false;
+                        foreach (var sequenceNumber in availableSequenceNumbers)
+                        {
+                            if (lastSequenceNumberToRepublish == sequenceNumber)
+                            {
+                                FindOrCreateEntry(now, sequenceNumber);
+                                found = true;
+                                break;
+                            }
+                        }
+
+                        if (found)
+                        {
+                            // remove sequence number handled for republish
+                            availableSequenceNumbers.Remove(lastSequenceNumberToRepublish);
+                            lastSequenceNumberToRepublish--;
+                            republishMessages++;
+                        }
+                        else
+                        {
+                            break;
+                        }
                     }
 
-                    // sequence numbers handled for republish, clear for caller so no ack
+                    Utils.LogInfo("SubscriptionId {0}: Republishing {1} messages, next sequencenumber {2} after transfer.",
+                        m_id, republishMessages, m_lastSequenceNumberProcessed);
+
                     availableSequenceNumbers.Clear();
                 }
             }
@@ -1817,15 +1839,19 @@ namespace Opc.Ua.Client
         private void StartKeepAliveTimer()
         {
             // stop the publish timer.
-            int keepAliveInterval;
             lock (m_cache)
             {
                 Utils.SilentDispose(m_publishTimer);
                 m_publishTimer = null;
 
-                m_lastNotificationTime = DateTime.UtcNow;
-                keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * m_currentKeepAliveCount, Int32.MaxValue));
-                m_publishTimer = new Timer(OnKeepAlive, keepAliveInterval, keepAliveInterval, keepAliveInterval);
+                Interlocked.Exchange(ref m_lastNotificationTime, DateTime.UtcNow.Ticks);
+                m_keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * (m_currentKeepAliveCount + 1), Int32.MaxValue));
+#if NET6_0_OR_GREATER
+                m_publishTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(m_keepAliveInterval));
+                Task.Run(() => OnKeepAliveAsync(CancellationToken.None));
+#else
+                m_publishTimer = new Timer(OnKeepAlive, m_keepAliveInterval, m_keepAliveInterval, m_keepAliveInterval);
+#endif
 
                 if (m_messageWorkerTask == null || m_messageWorkerTask.IsCompleted)
                 {
@@ -1835,24 +1861,55 @@ namespace Opc.Ua.Client
             }
 
             // send initial publish.
-            m_session.BeginPublish(Math.Min(keepAliveInterval, Int32.MaxValue / 3) * 3);
+            m_session.BeginPublish(BeginPublishTimeout());
         }
 
+#if NET6_0_OR_GREATER
+        /// <summary>
+        /// Checks if a notification has arrived. Sends a publish if it has not.
+        /// </summary>
+        private async Task OnKeepAliveAsync(CancellationToken ct)
+        {
+            while (true)
+            {
+                if (!await m_publishTimer.WaitForNextTickAsync(ct).ConfigureAwait(false))
+                {
+                    return;
+                }
+
+                if (!PublishingStopped)
+                {
+                    continue;
+                }
+
+                HandleKeepAliveStopped();
+            }
+        }
+#else
         /// <summary>
         /// Checks if a notification has arrived. Sends a publish if it has not.
         /// </summary>
         private void OnKeepAlive(object state)
+        {
+            if (!PublishingStopped)
+            {
+                return;
+            }
+
+            HandleKeepAliveStopped();
+        }
+#endif
+
+        /// <summary>
+        /// Handles callback if publishing stopped. Sends a publish.
+        /// </summary>
+        private HandleOnKeepAliveStopped()
         {
             // check if a publish has arrived.
             PublishStateChangedEventHandler callback = null;
 
             lock (m_cache)
             {
-                if (!PublishingStopped)
-                {
-                    return;
-                }
-
                 callback = m_publishStatusChanged;
                 m_publishLateCount++;
             }
@@ -1872,8 +1929,7 @@ namespace Opc.Ua.Client
             }
 
             // try to send a publish to recover stopped publishing.
-            int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * m_currentKeepAliveCount, Int32.MaxValue));
-            m_session?.BeginPublish(Math.Min(keepAliveInterval, Int32.MaxValue / 3) * 3);
+            m_session?.BeginPublish(BeginPublishTimeout());
         }
 
         /// <summary>
@@ -1910,8 +1966,16 @@ namespace Opc.Ua.Client
         /// </summary>
         internal void TraceState(string context)
         {
-            CoreClientUtils.EventLog.SubscriptionState(context, m_id, m_lastNotificationTime, m_session?.GoodPublishRequestCount ?? 0,
+            CoreClientUtils.EventLog.SubscriptionState(context, m_id, new DateTime(m_lastNotificationTime), m_session?.GoodPublishRequestCount ?? 0,
                 m_currentPublishingInterval, m_currentKeepAliveCount, m_currentPublishingEnabled, MonitoredItemCount);
+        }
+
+        /// <summary>
+        /// Calculate the timeout of a publish request.
+        /// </summary>
+        private int BeginPublishTimeout()
+        {
+            return Math.Max(Math.Min(m_keepAliveInterval * 3, Int32.MaxValue), MinKeepAliveTimerInterval); ;
         }
 
         /// <summary>
@@ -2696,8 +2760,13 @@ namespace Opc.Ua.Client
         private uint m_currentLifetimeCount;
         private bool m_currentPublishingEnabled;
         private byte m_currentPriority;
+#if NET6_0_OR_GREATER
+        private PeriodicTimer m_publishTimer;
+#else
         private Timer m_publishTimer;
-        private DateTime m_lastNotificationTime;
+#endif
+        private long m_lastNotificationTime;
+        private int m_keepAliveInterval;
         private int m_publishLateCount;
         private event PublishStateChangedEventHandler m_publishStatusChanged;
 
