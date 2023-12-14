@@ -214,8 +214,17 @@ namespace Opc.Ua.Client
 
             if (Activity.Current != null)
             {
-                InjectTraceIntoAdditionalParameters(new TraceContext(Activity.Current.Context, new Dictionary<string, string>()), out AdditionalParametersType traceData);
-                request.RequestHeader.AdditionalHeader = new ExtensionObject(traceData);
+                InjectTraceIntoAdditionalParameters(new TraceContext(Activity.Current.Context, null), out AdditionalParametersType traceData);
+
+                if (request.RequestHeader.AdditionalHeader == null)
+                {
+                    request.RequestHeader.AdditionalHeader = new ExtensionObject(traceData);
+                }
+                else if (request.RequestHeader.AdditionalHeader.Body is AdditionalParametersType existingParameters)
+                {
+                    // Merge the trace data into the existing parameters.
+                    existingParameters.Parameters.AddRange(traceData.Parameters);
+                }
             }
         }
 
@@ -226,8 +235,17 @@ namespace Opc.Ua.Client
 
             if (Activity.Current != null)
             {
-                InjectTraceIntoAdditionalParameters(new TraceContext(Activity.Current.Context, new Dictionary<string, string>()), out AdditionalParametersType traceData);
-                request.RequestHeader.AdditionalHeader = new ExtensionObject(traceData);
+                InjectTraceIntoAdditionalParameters(new TraceContext(Activity.Current.Context, null), out AdditionalParametersType traceData);
+
+                if (request.RequestHeader.AdditionalHeader == null)
+                {
+                    request.RequestHeader.AdditionalHeader = new ExtensionObject(traceData);
+                }
+                else if (request.RequestHeader.AdditionalHeader.Body is AdditionalParametersType existingParameters)
+                {
+                    // Merge the trace data into the existing parameters.
+                    existingParameters.Parameters.AddRange(traceData.Parameters);
+                }
             }
         }
     }
