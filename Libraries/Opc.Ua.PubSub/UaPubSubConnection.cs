@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.PublishedData;
@@ -294,7 +295,7 @@ namespace Opc.Ua.PubSub
 
         /// <summary>
         /// Processes the decoded <see cref="UaNetworkMessage"/> and
-        /// raises the <see cref="UaPubSubApplication.DataReceived"/> or <see cref="UaPubSubApplication.MetaDataReceived"/> event.
+        /// raises the <see cref="UaPubSubApplication.DataReceived"/> or <see cref="UaPubSubApplication.MetaDataReceived"/> or <see cref="UaPubSubApplication.DataSetWriterConfigurationReceived"/> or <see cref="UaPubSubApplication.PublisherEndpointsReceived"/>event.
         /// </summary>
         /// <param name="networkMessage">The network message that was received.</param>
         /// <param name="source">The source of the received event.</param>
@@ -375,9 +376,50 @@ namespace Opc.Ua.PubSub
                     source,
                     subscribedDataEventArgs.NetworkMessage.DataSetMessages.Count);
             }
-            else
+            else if (networkMessage is Encoding.UadpNetworkMessage)
             {
-                Utils.Trace("Connection '{0}' - RaiseNetworkMessageDataReceivedEvent() message from source={0} cannot be decoded.", source);
+                Encoding.UadpNetworkMessage uadpNetworkMessage = networkMessage as Encoding.UadpNetworkMessage;
+
+                if (uadpNetworkMessage != null)
+                {
+                    if (uadpNetworkMessage.UADPDiscoveryType == UADPNetworkMessageDiscoveryType.DataSetWriterConfiguration &&
+                        uadpNetworkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse)
+                    {
+                        DataSetWriterConfigurationEventArgs eventArgs = new DataSetWriterConfigurationEventArgs() {
+                            DataSetWriterIds = uadpNetworkMessage.DataSetWriterIds,
+                            Source = source,
+                            DataSetWriterConfiguration = uadpNetworkMessage.DataSetWriterConfiguration,
+                            PublisherId = uadpNetworkMessage.PublisherId,
+                            StatusCodes = uadpNetworkMessage.MessageStatusCodes
+                        };
+
+                        //trigger notification for received configuration
+                        Application.RaiseDatasetWriterConfigurationReceivedEvent(eventArgs);
+
+                        Utils.Trace(
+                            "Connection '{0}' - RaiseDataSetWriterConfigurationReceivedEvent() from source={0}, with {1} DataSetWriterConfiguration",
+                            source,
+                            eventArgs.DataSetWriterIds.Count());
+                    }
+                    else if (uadpNetworkMessage.UADPDiscoveryType == UADPNetworkMessageDiscoveryType.PublisherEndpoint &&
+                        uadpNetworkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse)
+                    {
+                        PublisherEndpointsEventArgs publisherEndpointsEventArgs = new PublisherEndpointsEventArgs() {
+                            PublisherEndpoints = uadpNetworkMessage.PublisherEndpoints,
+                            Source = source,
+                            PublisherId = uadpNetworkMessage.PublisherId,
+                            StatusCode = uadpNetworkMessage.PublisherProvideEndpoints
+                        };
+
+                        //trigger notification for received publisher endpoints
+                        Application.RaisePublisherEndpointsReceivedEvent(publisherEndpointsEventArgs);
+
+                        Utils.Trace(
+                            "Connection '{0}' - RaisePublisherEndpointsReceivedEvent() from source={0}, with {1} PublisherEndpoints",
+                            source,
+                            publisherEndpointsEventArgs.PublisherEndpoints.Length);
+                    }
+                }
             }
         }
 
@@ -400,7 +442,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get all dataset writers defined for this UaPublisher component
         /// </summary>
-        protected List<DataSetWriterDataType> GetAllDataSetWriters()
+        protected List<DataSetWriterDataType> GetWriterGroupsDataType()
         {
             List<DataSetWriterDataType> writerList = new List<DataSetWriterDataType>();
 
@@ -412,6 +454,44 @@ namespace Opc.Ua.PubSub
                 }
             }
             return writerList;
+        }
+
+        /// <summary>
+        /// Get data set writer discovery responses
+        /// </summary>
+        protected IList<DataSetWriterConfigurationResponse> GetDataSetWriterDiscoveryResponses(UInt16[] dataSetWriterIds)
+        {
+            List<DataSetWriterConfigurationResponse> responses = new List<DataSetWriterConfigurationResponse>();
+
+            List<ushort> writerGroupsIds = m_pubSubConnectionDataType.WriterGroups
+                .SelectMany(group => group.DataSetWriters)
+                .Select(writer => writer.DataSetWriterId)
+                .ToList();
+
+            foreach (var dataSetWriterId in dataSetWriterIds)
+            {
+                DataSetWriterConfigurationResponse response = new DataSetWriterConfigurationResponse();
+
+                if (!writerGroupsIds.Contains(dataSetWriterId))
+                {
+                    response.DataSetWriterIds = new ushort[] { dataSetWriterId };
+
+                    response.StatusCodes = new StatusCode[] { StatusCodes.BadNotFound };
+                }
+                else
+                {
+                    response.DataSetWriterConfig = m_pubSubConnectionDataType.WriterGroups
+                        .First(group => group.DataSetWriters.First(writer => writer.DataSetWriterId == dataSetWriterId) != null);
+
+                    response.DataSetWriterIds = new ushort[] { dataSetWriterId };
+
+                    response.StatusCodes = new StatusCode[] { StatusCodes.Good };
+                }
+
+                responses.Add(response);
+            }
+
+            return responses;
         }
 
         /// <summary>
@@ -459,7 +539,7 @@ namespace Opc.Ua.PubSub
 
             return dataSet;
         }
-        #endregion 
+        #endregion
 
         #region Private Methods
         /// <summary>
