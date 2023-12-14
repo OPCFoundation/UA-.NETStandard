@@ -276,6 +276,22 @@ namespace Opc.Ua.Client
         public bool CheckDomain => m_session.CheckDomain;
 
         /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(this, obj)) return true;
+            // Presume that the wrapper is being compared to the
+            // wrapped object, e.g. in a keep alive callback.
+            if (ReferenceEquals(m_session, obj)) return true;
+            return m_session?.Equals(obj) ?? false;
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return m_session?.GetHashCode() ?? base.GetHashCode();
+        }
+
+        /// <inheritdoc/>
         public void Reconnect()
         {
             using (Activity activity = ActivitySource.StartActivity())
