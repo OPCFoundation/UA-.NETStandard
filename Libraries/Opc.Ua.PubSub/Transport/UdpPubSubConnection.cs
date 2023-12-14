@@ -654,7 +654,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Resets SequenceNumber 
         /// </summary>
-        internal void ResetSequenceNumber()
+        internal static void ResetSequenceNumber()
         {
             s_sequenceNumber = 0;
             s_dataSetSequenceNumber = 0;
