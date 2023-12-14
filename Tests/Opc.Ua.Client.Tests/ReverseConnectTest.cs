@@ -193,7 +193,7 @@ namespace Opc.Ua.Client.Tests
 
             // connect
 #if NET6_0_OR_GREATER
-            var sessionfactory = TraceableSessionFactory.Instance;
+            var sessionfactory = HeaderUpdatingSessionFactory.Instance;
 #else
             var sessionfactory = TestableSessionFactory.Instance;
 #endif
@@ -237,7 +237,7 @@ namespace Opc.Ua.Client.Tests
 
             // connect
 #if NET6_0_OR_GREATER
-            var sessionfactory = TraceableSessionFactory.Instance;
+            var sessionfactory = HeaderUpdatingSessionFactory.Instance;
 #else
             var sessionfactory = TestableSessionFactory.Instance;
 #endif

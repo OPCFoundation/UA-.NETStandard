@@ -53,7 +53,7 @@ namespace Opc.Ua.Client.Tests
         public int OperationTimeout { get; set; } = 10000;
         public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.StackTrace | Utils.TraceMasks.Security | Utils.TraceMasks.Information;
         public bool UseTracing { get; set; } = false;
-        public ISessionFactory SessionFactory => UseTracing ? (DefaultSessionFactory)TraceableSessionFactory.Instance : (DefaultSessionFactory)TestableSessionFactory.Instance;
+        public ISessionFactory SessionFactory => UseTracing ? (DefaultSessionFactory)HeaderUpdatingSessionFactory.Instance : (DefaultSessionFactory)TestableSessionFactory.Instance;
         public ActivityListener ActivityListener { get; private set; }
 
         #region Public Methods
