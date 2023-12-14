@@ -550,13 +550,13 @@ namespace Opc.Ua.PubSub.Encoding
             }
             else
             {
-                Utils.Trace("The UADP DiscoveryResponse DataSetMetaData message cannot be encoded: The DataSetWriterId property is missing. Value 0 will be used.");
+                Trace("The UADP DiscoveryResponse DataSetMetaData message cannot be encoded: The DataSetWriterId property is missing. Value 0 will be used.");
                 binaryEncoder.WriteUInt16("DataSetWriterId", 0);
             }
 
             if (m_metadata == null)
             {
-                Utils.Trace("The UADP DiscoveryResponse DataSetMetaData message cannot be encoded: The MetaData property is missing. Value null will be used.");
+                Trace("The UADP DiscoveryResponse DataSetMetaData message cannot be encoded: The MetaData property is missing. Value null will be used.");
             }
             binaryEncoder.WriteEncodeable("MetaData", m_metadata, typeof(DataSetMetaDataType));
 
@@ -900,7 +900,7 @@ namespace Opc.Ua.PubSub.Encoding
             catch (Exception ex)
             {
                 // Unexpected exception in DecodeSubscribedDataSets
-                Utils.Trace(ex, "UadpNetworkMessage.DecodeSubscribedDataSets");
+                Trace(ex, "UadpNetworkMessage.DecodeSubscribedDataSets");
             }
         }
 
@@ -915,7 +915,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             // temporary write StatusCode.Good 
             StatusCode statusCode = binaryDecoder.ReadStatusCode("StatusCode");
-            Utils.Trace("DecodeMetaDataMessage returned: ", statusCode);
+            Trace("DecodeMetaDataMessage returned: ", statusCode);
 
         }
 
@@ -929,7 +929,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             PublisherProvideEndpoints = binaryDecoder.ReadStatusCode("statusCode");
 
-            Utils.Trace("DecodePublisherEndpointsMessage returned: ", PublisherProvideEndpoints);
+            Trace("DecodePublisherEndpointsMessage returned: ", PublisherProvideEndpoints);
         }
 
         /// <summary>
@@ -975,7 +975,7 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 if (PublisherId == null)
                 {
-                    Utils.Trace(TraceMasks.Error, "NetworkMessageHeader cannot be encoded. PublisherId is null but it is expected to be encoded.");
+                    Trace(TraceMasks.Error, "NetworkMessageHeader cannot be encoded. PublisherId is null but it is expected to be encoded.");
                 }
                 else
                 {
