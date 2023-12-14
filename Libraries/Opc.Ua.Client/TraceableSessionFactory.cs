@@ -65,7 +65,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             CancellationToken ct = default)
         {
-            using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(CreateAsync)))
+            using (Activity activity = TraceableSession.ActivitySource.StartActivity())
             {
                 ISession session = await base.CreateAsync(configuration, endpoint, updateBeforeConnect, false,
                     sessionName, sessionTimeout, identity, preferredLocales, ct).ConfigureAwait(false);
@@ -85,7 +85,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             CancellationToken ct = default)
         {
-            using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(CreateAsync)))
+            using (Activity activity = TraceableSession.ActivitySource.StartActivity())
             {
                 ISession session = await Session.Create(this, configuration, (ITransportWaitingConnection)null, endpoint,
                     updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
@@ -108,7 +108,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             CancellationToken ct = default)
         {
-            using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(CreateAsync)))
+            using (Activity activity = TraceableSession.ActivitySource.StartActivity())
             {
                 ISession session = await Session.Create(this, configuration, connection, endpoint,
                     updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
@@ -128,7 +128,7 @@ namespace Opc.Ua.Client
            EndpointDescriptionCollection availableEndpoints = null,
            StringCollection discoveryProfileUris = null)
         {
-            using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(CreateAsync)))
+            using (Activity activity = TraceableSession.ActivitySource.StartActivity())
             {
                 return new TraceableSession(base.Create(configuration, channel, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris));
             }
@@ -143,7 +143,7 @@ namespace Opc.Ua.Client
             bool checkDomain,
             CancellationToken ct = default)
         {
-            using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(CreateAsync)))
+            using (Activity activity = TraceableSession.ActivitySource.StartActivity())
             {
                 return await base.CreateChannelAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain, ct).ConfigureAwait(false); 
             }
@@ -163,7 +163,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default
             )
         {
-            using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(CreateAsync)))
+            using (Activity activity = TraceableSession.ActivitySource.StartActivity())
             {
                 ISession session = await base.CreateAsync(configuration,
                     reverseConnectManager, endpoint,
@@ -180,7 +180,7 @@ namespace Opc.Ua.Client
         public override async Task<ISession> RecreateAsync(ISession sessionTemplate, CancellationToken ct = default)
         {
             Session session = ValidateISession(sessionTemplate);
-            using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(RecreateAsync)))
+            using (Activity activity = TraceableSession.ActivitySource.StartActivity())
             {
                 return new TraceableSession(await Session.RecreateAsync(session, ct).ConfigureAwait(false));
             }
@@ -190,7 +190,7 @@ namespace Opc.Ua.Client
         public override async Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportWaitingConnection connection, CancellationToken ct = default)
         {
             Session session = ValidateISession(sessionTemplate);
-            using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(RecreateAsync)))
+            using (Activity activity = TraceableSession.ActivitySource.StartActivity())
             {
                 return new TraceableSession(await Session.RecreateAsync(session, connection, ct).ConfigureAwait(false));
             }
@@ -200,7 +200,7 @@ namespace Opc.Ua.Client
         public override async Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportChannel channel, CancellationToken ct = default)
         {
             Session session = ValidateISession(sessionTemplate);
-            using (Activity activity = TraceableSession.ActivitySource.StartActivity(nameof(RecreateAsync)))
+            using (Activity activity = TraceableSession.ActivitySource.StartActivity())
             {
                 return new TraceableSession(await Session.RecreateAsync(session, channel, ct).ConfigureAwait(false));
             }
