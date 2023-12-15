@@ -267,9 +267,7 @@ namespace Opc.Ua
             string defaultNamespaceUri,
             LocalizedText defaultLocalizedText)
         {
-            ServiceResultException sre = e as ServiceResultException;
-
-            if (sre != null)
+            if (e is ServiceResultException sre)
             {
                 m_code = sre.StatusCode;
                 m_namespaceUri = sre.NamespaceUri;
@@ -430,9 +428,8 @@ namespace Opc.Ua
         public static ServiceResult Create(Exception e, TranslationInfo translation, uint defaultCode)
         {
             // replace the default code with the one from the exception.
-            ServiceResultException sre = e as ServiceResultException;
 
-            if (sre != null)
+            if (e is ServiceResultException sre)
             {
                 defaultCode = sre.StatusCode;
             }
@@ -469,9 +466,8 @@ namespace Opc.Ua
         public static ServiceResult Create(Exception e, uint defaultCode, string format, params object[] args)
         {
             // replace the default code with the one from the exception.
-            ServiceResultException sre = e as ServiceResultException;
 
-            if (sre != null)
+            if (e is ServiceResultException sre)
             {
                 defaultCode = sre.StatusCode;
             }

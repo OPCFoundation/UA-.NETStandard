@@ -66,6 +66,7 @@ namespace Opc.Ua.Server
             m_subscriptions = new Dictionary<uint, Subscription>();
             m_publishQueues = new Dictionary<NodeId, SessionPublishQueue>();
             m_statusMessages = new Dictionary<NodeId, Queue<StatusMessage>>();
+            m_lastSubscriptionId = BitConverter.ToInt64(Utils.Nonce.CreateNonce(sizeof(long)), 0);
 
             // create a event to signal shutdown.
             m_shutdownEvent = new ManualResetEvent(true);
@@ -2048,7 +2049,7 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private long m_lastSubscriptionId;
         private IServerInternal m_server;
         private double m_minPublishingInterval;
@@ -2068,9 +2069,9 @@ namespace Opc.Ua.Server
         private Queue<ConditionRefreshTask> m_conditionRefreshQueue;
         private ManualResetEvent m_conditionRefreshEvent;
 
-        private object m_statusMessagesLock = new object();
-        private object m_eventLock = new object();
-        private object m_conditionRefreshLock = new object();
+        private readonly object m_statusMessagesLock = new object();
+        private readonly object m_eventLock = new object();
+        private readonly object m_conditionRefreshLock = new object();
         private event SubscriptionEventHandler m_SubscriptionCreated;
         private event SubscriptionEventHandler m_SubscriptionDeleted;
         #endregion

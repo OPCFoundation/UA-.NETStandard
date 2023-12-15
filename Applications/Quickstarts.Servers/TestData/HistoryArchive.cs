@@ -190,7 +190,7 @@ namespace TestData
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private Timer m_updateTimer;
         private Dictionary<NodeId, HistoryRecord> m_records;
         #endregion

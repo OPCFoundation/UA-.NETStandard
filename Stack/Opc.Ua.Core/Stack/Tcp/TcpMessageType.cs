@@ -48,7 +48,7 @@ namespace Opc.Ua.Bindings
         /// A chunk for a generic message.
         /// </summary>
         public const uint MessageIntermediate = Message | Intermediate;
-        
+
         /// <summary>
         /// A chunk for a generic message.
         /// </summary>
@@ -124,9 +124,9 @@ namespace Opc.Ua.Bindings
                 case ReverseHello:
                 case Acknowledge:
                 case Error:
-                    {
-                        return true;
-                    }
+                {
+                    return true;
+                }
             }
 
             if (((messageType & ChunkTypeMask) != Final) && ((messageType & ChunkTypeMask) != Intermediate))
@@ -139,14 +139,14 @@ namespace Opc.Ua.Bindings
                 case Message:
                 case Open:
                 case Close:
-                    {
-                        break;
-                    }
+                {
+                    break;
+                }
 
                 default:
-                    {
-                        return false;
-                    }
+                {
+                    return false;
+                }
             }
 
             return true;

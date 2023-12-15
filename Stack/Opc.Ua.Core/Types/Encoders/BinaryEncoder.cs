@@ -876,18 +876,16 @@ namespace Opc.Ua
             }
 
             // write binary bodies.
-            byte[] bytes = body as byte[];
 
-            if (bytes != null)
+            if (body is byte[] bytes)
             {
                 WriteByteString(null, bytes);
                 return;
             }
 
             // write XML bodies.
-            XmlElement xml = body as XmlElement;
 
-            if (xml != null)
+            if (body is XmlElement xml)
             {
                 WriteXmlElement(null, xml);
                 return;
@@ -1550,8 +1548,7 @@ namespace Opc.Ua
                     case BuiltInType.Variant:
                     {
                         // try to write IEncodeable Array
-                        IEncodeable[] encodeableArray = array as IEncodeable[];
-                        if (encodeableArray != null)
+                        if (array is IEncodeable[] encodeableArray)
                         {
                             WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
                             return;
@@ -1563,8 +1560,7 @@ namespace Opc.Ua
                         int[] ints = array as int[];
                         if (ints == null)
                         {
-                            Enum[] enums = array as Enum[];
-                            if (enums != null)
+                            if (array is Enum[] enums)
                             {
                                 ints = new int[enums.Length];
                                 for (int ii = 0; ii < enums.Length; ii++)
@@ -1596,8 +1592,7 @@ namespace Opc.Ua
                     default:
                     {
                         // try to write IEncodeable Array
-                        IEncodeable[] encodeableArray = array as IEncodeable[];
-                        if (encodeableArray != null)
+                        if (array is IEncodeable[] encodeableArray)
                         {
                             WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
                             break;
@@ -1625,8 +1620,7 @@ namespace Opc.Ua
                 Matrix matrix = array as Matrix;
                 if (matrix == null)
                 {
-                    var multiArray = array as Array;
-                    if (multiArray == null || multiArray.Rank != valueRank)
+                    if (!(array is Array multiArray) || multiArray.Rank != valueRank)
                     {
                         // there is no Dimensions to write
                         WriteInt32(null, -1);
@@ -1687,8 +1681,7 @@ namespace Opc.Ua
                     }
                     case BuiltInType.Enumeration:
                     {
-                        Enum[] values = matrix.Elements as Enum[];
-                        if (values != null)
+                        if (matrix.Elements is Enum[] values)
                         {
                             for (int ii = 0; ii < values.Length; ii++)
                             {
@@ -1862,8 +1855,7 @@ namespace Opc.Ua
                     }
                     case BuiltInType.Variant:
                     {
-                        Variant[] variants = matrix.Elements as Variant[];
-                        if (variants != null)
+                        if (matrix.Elements is Variant[] variants)
                         {
                             for (int ii = 0; ii < variants.Length; ii++)
                             {
@@ -1873,8 +1865,7 @@ namespace Opc.Ua
                         }
 
                         // try to write IEncodeable Array
-                        IEncodeable[] encodeableArray = matrix.Elements as IEncodeable[];
-                        if (encodeableArray != null)
+                        if (matrix.Elements is IEncodeable[] encodeableArray)
                         {
                             for (int ii = 0; ii < encodeableArray.Length; ii++)
                             {
@@ -1883,8 +1874,7 @@ namespace Opc.Ua
                             break;
                         }
 
-                        object[] objects = matrix.Elements as object[];
-                        if (objects != null)
+                        if (matrix.Elements is object[] objects)
                         {
                             for (int ii = 0; ii < objects.Length; ii++)
                             {
@@ -1908,8 +1898,7 @@ namespace Opc.Ua
                     default:
                     {
                         // try to write IEncodeable Array
-                        IEncodeable[] encodeableArray = matrix.Elements as IEncodeable[];
-                        if (encodeableArray != null)
+                        if (matrix.Elements is IEncodeable[] encodeableArray)
                         {
                             for (int ii = 0; ii < encodeableArray.Length; ii++)
                             {
@@ -2322,11 +2311,9 @@ namespace Opc.Ua
                     case BuiltInType.Enumeration:
                     {
                         // Check whether the value to encode is int array.
-                        int[] ints = valueToEncode as int[];
-                        if (ints == null)
+                        if (!(valueToEncode is int[] ints))
                         {
-                            Enum[] enums = valueToEncode as Enum[];
-                            if (enums == null)
+                            if (!(valueToEncode is Enum[] enums))
                             {
                                 throw new ServiceResultException(
                                     StatusCodes.BadEncodingError,
@@ -2345,17 +2332,14 @@ namespace Opc.Ua
 
                     case BuiltInType.Variant:
                     {
-                        Variant[] variants = valueToEncode as Variant[];
-
-                        if (variants != null)
+                        if (valueToEncode is Variant[] variants)
                         {
                             WriteVariantArray(null, variants);
                             break;
                         }
 
-                        object[] objects = valueToEncode as object[];
 
-                        if (objects != null)
+                        if (valueToEncode is object[] objects)
                         {
                             WriteObjectArray(null, objects);
                             break;

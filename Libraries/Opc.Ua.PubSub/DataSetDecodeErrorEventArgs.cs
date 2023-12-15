@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using Opc.Ua.PubSub.Encoding;
 
 namespace Opc.Ua.PubSub
 {

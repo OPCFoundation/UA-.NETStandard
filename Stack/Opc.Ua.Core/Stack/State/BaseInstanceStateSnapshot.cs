@@ -37,7 +37,7 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="state">The state.</param>
         public void Initialize(
-            ISystemContext context, 
+            ISystemContext context,
             BaseInstanceState state)
         {
             m_typeDefinitionId = state.TypeDefinitionId;
@@ -94,10 +94,10 @@ namespace Opc.Ua
         /// The attribute value. Returns null if the attribute does not exist.
         /// </returns>
         public object GetAttributeValue(
-            FilterContext context, 
-            NodeId typeDefinitionId, 
-            IList<QualifiedName> relativePath, 
-            uint attributeId, 
+            FilterContext context,
+            NodeId typeDefinitionId,
+            IList<QualifiedName> relativePath,
+            uint attributeId,
             NumericRange indexRange)
         {
             if (!NodeId.IsNull(typeDefinitionId))
@@ -138,8 +138,8 @@ namespace Opc.Ua
             public QualifiedName BrowseName;
             public object Value;
             public List<ChildNode> Children;
-        }     
-        #endregion   
+        }
+        #endregion
 
         #region Private Methods
         /// <summary>
@@ -197,12 +197,11 @@ namespace Opc.Ua
         {
             ChildNode node = new ChildNode();
 
-            node.NodeClass  = state.NodeClass;
+            node.NodeClass = state.NodeClass;
             node.BrowseName = state.BrowseName;
 
-            BaseVariableState variable = state as BaseVariableState;
 
-            if (variable != null)
+            if (state is BaseVariableState variable)
             {
                 if (!StatusCode.IsBad(variable.StatusCode))
                 {
@@ -210,11 +209,10 @@ namespace Opc.Ua
                 }
             }
 
-            BaseObjectState instance = state as BaseObjectState;
 
-            if (instance != null)
+            if (state is BaseObjectState instance)
             {
-                node.Value = instance.NodeId;                    
+                node.Value = instance.NodeId;
             }
 
             node.Children = CreateChildNodes(context, state);
@@ -245,7 +243,7 @@ namespace Opc.Ua
                 }
 
                 ChildNode node = CreateChildNode(context, child);
-                nodes.Add(node);                
+                nodes.Add(node);
             }
 
             return nodes;
@@ -262,7 +260,7 @@ namespace Opc.Ua
         private object GetAttributeValue(
             ChildNode node,
             IList<QualifiedName> relativePath,
-            int index, 
+            int index,
             uint attributeId)
         {
             if (index >= relativePath.Count)
@@ -294,14 +292,14 @@ namespace Opc.Ua
             {
                 if (node.Children[ii].BrowseName == relativePath[index])
                 {
-                    return GetAttributeValue(node.Children[ii], relativePath, index+1, attributeId);
+                    return GetAttributeValue(node.Children[ii], relativePath, index + 1, attributeId);
                 }
             }
 
             return null;
         }
         #endregion
-        
+
         #region Private Fields
         private NodeId m_typeDefinitionId;
         private ChildNode m_snapshot;

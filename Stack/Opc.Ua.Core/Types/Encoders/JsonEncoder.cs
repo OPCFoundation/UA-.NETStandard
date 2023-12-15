@@ -1149,9 +1149,7 @@ namespace Opc.Ua
 
                 if (UseReversibleEncoding && !isNull)
                 {
-                    Matrix matrix = value.Value as Matrix;
-
-                    if (matrix != null)
+                    if (value.Value is Matrix matrix)
                     {
                         WriteInt32Array("Dimensions", matrix.Dimensions);
                     }
@@ -1230,8 +1228,7 @@ namespace Opc.Ua
             if (!UseReversibleEncoding && encodeable != null)
             {
                 // non reversible encoding, only the content of the Body field is encoded
-                var structureType = value.Body as IStructureTypeInfo;
-                if (structureType != null &&
+                if (value.Body is IStructureTypeInfo structureType &&
                     structureType.StructureType == StructureType.Union)
                 {
                     encodeable.Encode(this);
@@ -2342,8 +2339,7 @@ namespace Opc.Ua
                     case BuiltInType.DiagnosticInfo: { WriteDiagnosticInfoArray(fieldName, (DiagnosticInfo[])array); return; }
                     case BuiltInType.Enumeration:
                     {
-                        Array enumArray = array as Array;
-                        if (enumArray == null)
+                        if (!(array is Array enumArray))
                         {
                             throw ServiceResultException.Create(
                                 StatusCodes.BadEncodingError,
@@ -2354,25 +2350,21 @@ namespace Opc.Ua
                     }
                     case BuiltInType.Variant:
                     {
-                        Variant[] variants = array as Variant[];
-
-                        if (variants != null)
+                        if (array is Variant[] variants)
                         {
                             WriteVariantArray(fieldName, variants);
                             return;
                         }
 
                         // try to write IEncodeable Array
-                        IEncodeable[] encodeableArray = array as IEncodeable[];
-                        if (encodeableArray != null)
+                        if (array is IEncodeable[] encodeableArray)
                         {
                             WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
                             return;
                         }
 
-                        object[] objects = array as object[];
 
-                        if (objects != null)
+                        if (array is object[] objects)
                         {
                             WriteObjectArray(fieldName, objects);
                             return;
@@ -2386,8 +2378,7 @@ namespace Opc.Ua
                     default:
                     {
                         // try to write IEncodeable Array
-                        IEncodeable[] encodeableArray = array as IEncodeable[];
-                        if (encodeableArray != null)
+                        if (array is IEncodeable[] encodeableArray)
                         {
                             WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
                             return;
@@ -2407,11 +2398,9 @@ namespace Opc.Ua
             // write matrix.
             else if (valueRank > ValueRanks.OneDimension)
             {
-                Matrix matrix = array as Matrix;
-                if (matrix == null)
+                if (!(array is Matrix matrix))
                 {
-                    var multiArray = array as Array;
-                    if (multiArray != null && multiArray.Rank == valueRank)
+                    if (array is Array multiArray && multiArray.Rank == valueRank)
                     {
                         matrix = new Matrix(multiArray, builtInType);
                     }

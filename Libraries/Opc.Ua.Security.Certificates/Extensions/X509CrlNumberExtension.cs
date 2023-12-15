@@ -97,7 +97,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public override string Format(bool multiLine)
         {
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
             buffer.Append(kFriendlyName);
             buffer.Append('=');
             buffer.Append(CrlNumber);
@@ -136,7 +136,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private byte[] Encode()
         {
-            AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
+            var writer = new AsnWriter(AsnEncodingRules.DER);
             writer.WriteInteger(CrlNumber);
             return writer.Encode();
         }
@@ -150,7 +150,7 @@ namespace Opc.Ua.Security.Certificates
             {
                 try
                 {
-                    AsnReader dataReader = new AsnReader(data, AsnEncodingRules.DER);
+                    var dataReader = new AsnReader(data, AsnEncodingRules.DER);
                     CrlNumber = dataReader.ReadInteger();
                     dataReader.ThrowIfNotEmpty();
                 }

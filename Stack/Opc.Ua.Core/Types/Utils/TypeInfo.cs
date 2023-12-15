@@ -227,9 +227,7 @@ namespace Opc.Ua
 
             if (dataTypeId == Opc.Ua.NodeId.Null)
             {
-                Matrix matrix = value as Matrix;
-
-                if (matrix != null)
+                if (value is Matrix matrix)
                 {
                     return GetDataTypeId(matrix.TypeInfo);
                 }
@@ -319,9 +317,7 @@ namespace Opc.Ua
 
             if (typeInfo.BuiltInType == BuiltInType.Null)
             {
-                Matrix matrix = value as Matrix;
-
-                if (matrix != null)
+                if (value is Matrix matrix)
                 {
                     return matrix.TypeInfo.ValueRank;
                 }
@@ -930,8 +926,7 @@ namespace Opc.Ua
             Array array = value as Array;
             if (array == null)
             {
-                Matrix matrix = value as Matrix;
-                if (matrix != null)
+                if (value is Matrix matrix)
                 {
                     array = matrix.Elements;
                 }
@@ -1017,14 +1012,12 @@ namespace Opc.Ua
 
             if (BuiltInType == BuiltInType.ExtensionObject)
             {
-                IEncodeable encodeable = value as IEncodeable;
-                if (encodeable != null)
+                if (value is IEncodeable encodeable)
                 {
                     return ExpandedNodeId.ToNodeId(encodeable.TypeId, namespaceUris);
                 }
 
-                ExtensionObject extension = value as ExtensionObject;
-                if (extension != null)
+                if (value is ExtensionObject extension)
                 {
                     encodeable = extension.Body as IEncodeable;
                     if (encodeable != null)
@@ -1178,9 +1171,7 @@ namespace Opc.Ua
             // check for instances of matrices.
             if (typeInfo.BuiltInType == BuiltInType.Null)
             {
-                Matrix matrix = value as Matrix;
-
-                if (matrix != null)
+                if (value is Matrix matrix)
                 {
                     return matrix.TypeInfo;
                 }
@@ -3125,8 +3116,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            TypeInfo typeInfo = obj as TypeInfo;
-            if (typeInfo != null)
+            if (obj is TypeInfo typeInfo)
             {
                 return (m_builtInType == typeInfo.BuiltInType &&
                     m_valueRank == typeInfo.ValueRank);

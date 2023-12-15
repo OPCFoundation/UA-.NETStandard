@@ -722,9 +722,8 @@ namespace Opc.Ua
         {
             if (systemType == null) throw new ArgumentNullException(nameof(systemType));
 
-            IEncodeable encodeable = Activator.CreateInstance(systemType) as IEncodeable;
 
-            if (encodeable == null)
+            if (!(Activator.CreateInstance(systemType) is IEncodeable encodeable))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadDecodingError,
@@ -734,9 +733,8 @@ namespace Opc.Ua
             if (encodeableTypeId != null)
             {
                 // set type identifier for custom complex data types before decode.
-                IComplexTypeInstance complexTypeInstance = encodeable as IComplexTypeInstance;
 
-                if (complexTypeInstance != null)
+                if (encodeable is IComplexTypeInstance complexTypeInstance)
                 {
                     complexTypeInstance.TypeId = encodeableTypeId;
                 }
@@ -2098,9 +2096,8 @@ namespace Opc.Ua
                 encodeable = Activator.CreateInstance(systemType) as IEncodeable;
 
                 // set type identifier for custom complex data types before decode.
-                IComplexTypeInstance complexTypeInstance = encodeable as IComplexTypeInstance;
 
-                if (complexTypeInstance != null)
+                if (encodeable is IComplexTypeInstance complexTypeInstance)
                 {
                     complexTypeInstance.TypeId = extension.TypeId;
                 }

@@ -624,9 +624,9 @@ namespace Opc.Ua.Bindings
 
                     return ServiceResult.Create(
                         StatusCodes.BadTcpMessageTooLarge,
-                        "Messages size {1} bytes is too large for buffer of size {0}.",
-                        m_receiveBufferSize,
-                        m_incomingMessageSize);
+                        "Messages size {0} bytes is too large for buffer of size {1}.",
+                        m_incomingMessageSize,
+                        m_receiveBufferSize);
                 }
 
                 // set up buffer for reading the message body.
@@ -818,7 +818,7 @@ namespace Opc.Ua.Bindings
             }
             args.Dispose();
         }
-#endregion
+        #endregion
 
         #region Write Handling
         /// <summary>
@@ -826,8 +826,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public bool SendAsync(IMessageSocketAsyncEventArgs args)
         {
-            TcpMessageSocketAsyncEventArgs eventArgs = args as TcpMessageSocketAsyncEventArgs;
-            if (eventArgs == null)
+            if (!(args is TcpMessageSocketAsyncEventArgs eventArgs))
             {
                 throw new ArgumentNullException(nameof(args));
             }

@@ -248,7 +248,7 @@ namespace Opc.Ua.Bindings
                         }
                         else
                         {
-                            m_tcs.TrySetCanceled();
+                            m_tcs.TrySetCanceled(ct);
                             badRequestInterrupted = true;
                         }
                     }
@@ -311,7 +311,7 @@ namespace Opc.Ua.Bindings
                 }
             }
         }
-#endregion
+        #endregion
 
         #region IAsyncResult Members
         /// <summary cref="IAsyncResult.AsyncState" />
@@ -447,7 +447,7 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private AsyncCallback m_callback;
         private object m_asyncState;
         private bool m_synchronous;

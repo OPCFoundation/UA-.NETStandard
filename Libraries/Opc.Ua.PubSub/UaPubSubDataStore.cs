@@ -74,8 +74,7 @@ namespace Opc.Ua.PubSub
 
             lock (m_lock)
             {
-                var dv = new DataValue()
-                {
+                var dv = new DataValue() {
                     WrappedValue = value,
                     StatusCode = status ?? StatusCodes.Good,
                     SourceTimestamp = timestamp ?? DateTime.UtcNow

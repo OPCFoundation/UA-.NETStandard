@@ -84,7 +84,7 @@ namespace Opc.Ua.Security.Certificates
             RawData = crl.RawData;
             m_revokedCertificates = new List<RevokedCertificate>(crl.RevokedCertificates);
             m_crlExtensions = new X509ExtensionCollection();
-            foreach (var extension in crl.CrlExtensions)
+            foreach (X509Extension extension in crl.CrlExtensions)
             {
                 m_crlExtensions.Add(extension);
             }
@@ -237,8 +237,8 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>The signed CRL.</returns>
         public IX509CRL CreateSignature(X509SignatureGenerator generator)
         {
-            var tbsRawData = Encode();
-            var signatureAlgorithm = generator.GetSignatureAlgorithmIdentifier(HashAlgorithmName);
+            byte[] tbsRawData = Encode();
+            byte[] signatureAlgorithm = generator.GetSignatureAlgorithmIdentifier(HashAlgorithmName);
             byte[] signature = generator.SignData(tbsRawData, HashAlgorithmName);
             var crlSigner = new X509Signature(tbsRawData, signature, signatureAlgorithm);
             RawData = crlSigner.Encode();
@@ -306,7 +306,7 @@ namespace Opc.Ua.Security.Certificates
         /// </remarks>
         internal byte[] Encode()
         {
-            AsnWriter crlWriter = new AsnWriter(AsnEncodingRules.DER);
+            var crlWriter = new AsnWriter(AsnEncodingRules.DER);
             {
                 // tbsCertList
                 crlWriter.PushSequence();
@@ -339,18 +339,18 @@ namespace Opc.Ua.Security.Certificates
                 // sequence to start the revoked certificates.
                 crlWriter.PushSequence();
 
-                foreach (var revokedCert in RevokedCertificates)
+                foreach (RevokedCertificate revokedCert in RevokedCertificates)
                 {
                     crlWriter.PushSequence();
 
-                    BigInteger srlNumberValue = new BigInteger(revokedCert.UserCertificate);
+                    var srlNumberValue = new BigInteger(revokedCert.UserCertificate);
                     crlWriter.WriteInteger(srlNumberValue);
                     WriteTime(crlWriter, revokedCert.RevocationDate);
 
                     if (revokedCert.CrlEntryExtensions.Count > 0)
                     {
                         crlWriter.PushSequence();
-                        foreach (var crlEntryExt in revokedCert.CrlEntryExtensions)
+                        foreach (X509Extension crlEntryExt in revokedCert.CrlEntryExtensions)
                         {
                             crlWriter.WriteExtension(crlEntryExt);
                         }
@@ -370,7 +370,7 @@ namespace Opc.Ua.Security.Certificates
 
                     // CRL extensions
                     crlWriter.PushSequence();
-                    foreach (var extension in CrlExtensions)
+                    foreach (X509Extension extension in CrlExtensions)
                     {
                         crlWriter.WriteExtension(extension);
                     }

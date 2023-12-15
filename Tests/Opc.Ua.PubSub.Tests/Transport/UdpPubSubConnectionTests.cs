@@ -162,7 +162,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 as UadpWriterGroupMessageDataType;
 
             //Act  
-            m_udpPublisherConnection.ResetSequenceNumber();
+            UdpPubSubConnection.ResetSequenceNumber();
 
             var networkMessages = m_udpPublisherConnection.CreateNetworkMessages(writerGroup0, new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
@@ -198,7 +198,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             WriterGroupDataType writerGroup0 = m_udpPublisherConnection.PubSubConnectionConfiguration.WriterGroups.First();
 
             //Act  
-            m_udpPublisherConnection.ResetSequenceNumber();
+            UdpPubSubConnection.ResetSequenceNumber();
             for (int i = 0; i < 10; i++)
             {
                 // Create network message
