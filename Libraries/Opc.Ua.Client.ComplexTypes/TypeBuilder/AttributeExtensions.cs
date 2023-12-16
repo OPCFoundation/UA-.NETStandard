@@ -282,7 +282,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 // supertypes of numbers
                 case DataTypes.Integer:
                 case DataTypes.UInteger:
-                case DataTypes.Number: return BuiltInType.Variant;
+                case DataTypes.Number: 
+                case DataTypes.Decimal: return BuiltInType.Variant;
             }
 
             return TypeInfo.GetBuiltInType(datatypeId);
