@@ -32,6 +32,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -40,6 +41,9 @@ using EmbedIO;
 using EmbedIO.Actions;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
+#if !ECC_SUPPORT
+using X509SignatureGenerator = Opc.Ua.Security.Certificates.X509SignatureGenerator;
+#endif
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
@@ -86,6 +90,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [OneTimeSetUp]
         public async Task OneTimeSetUpAsync()
         {
+#if NETCOREAPP2_1_OR_GREATER && !ECC_SUPPORT
+            // this test cannot create the required certs on macOS with legacy bouncy castle support
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                Assert.Ignore("Creating the alternate certifcates via Pfx is not supported on mac OS.");
+            }
+#endif
+
             var crlName = "root.crl";
             m_webServerUrl = "http://127.0.0.1:9696/";
 
@@ -197,7 +209,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var ski = m_rootCert.Extensions.OfType<X509SubjectKeyIdentifierExtension>().Single();
 
             // create a certificate with special key info
-            X509Extension authorityKeyIdentifier = new X509AuthorityKeyIdentifierExtension(
+            var authorityKeyIdentifier = new Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension(
                     (byte[])(subjectKeyIdentifier ? ski.SubjectKeyIdentifier.FromHexString() : null),
                     (X500DistinguishedName)(issuerName ? m_rootCert.IssuerName : null),
                     (byte[])(serialNumber ? m_rootCert.GetSerialNumber() : null));
@@ -262,7 +274,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var ski = m_rootAltCert.Extensions.OfType<X509SubjectKeyIdentifierExtension>().Single();
 
             // create a certificate with special key info / no key id
-            X509Extension authorityKeyIdentifier = new X509AuthorityKeyIdentifierExtension(
+            var authorityKeyIdentifier = new Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension(
                     (byte[])(subjectKeyIdentifier ? ski.SubjectKeyIdentifier.FromHexString() : null),
                     (X500DistinguishedName)(issuerName ? m_rootAltCert.IssuerName : null),
                     (byte[])(serialNumber ? m_rootAltCert.GetSerialNumber() : null));

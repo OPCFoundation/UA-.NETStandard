@@ -81,9 +81,8 @@ namespace Opc.Ua
                 if (encodeables == null)
                 {
                     // check for array of extension objects.
-                    IList<ExtensionObject> extensions = value as IList<ExtensionObject>;
 
-                    if (extensions != null)
+                    if (value is IList<ExtensionObject> extensions)
                     {
                         // convert extension objects to encodeables.
                         encodeables = new IEncodeable[extensions.Count];
@@ -96,9 +95,8 @@ namespace Opc.Ua
                                 continue;
                             }
 
-                            IEncodeable element = extensions[ii].Body as IEncodeable;
 
-                            if (element == null)
+                            if (!(extensions[ii].Body is IEncodeable element))
                             {
                                 return StatusCodes.BadTypeMismatch;
                             }
@@ -127,9 +125,7 @@ namespace Opc.Ua
 
                 if (encodeable == null)
                 {
-                    ExtensionObject extension = value as ExtensionObject;
-
-                    if (extension == null)
+                    if (!(value is ExtensionObject extension))
                     {
                         return StatusCodes.BadDataEncodingUnsupported;
                     }

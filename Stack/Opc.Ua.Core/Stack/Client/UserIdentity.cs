@@ -183,8 +183,7 @@ namespace Opc.Ua
             m_grantedRoleIds = new NodeIdCollection();
             m_token = token;
 
-            UserNameIdentityToken usernameToken = token as UserNameIdentityToken;
-            if (usernameToken != null)
+            if (token is UserNameIdentityToken usernameToken)
             {
                 m_tokenType = UserTokenType.UserName;
                 m_issuedTokenType = null;
@@ -192,8 +191,7 @@ namespace Opc.Ua
                 return;
             }
 
-            X509IdentityToken x509Token = token as X509IdentityToken;
-            if (x509Token != null)
+            if (token is X509IdentityToken x509Token)
             {
                 m_tokenType = UserTokenType.Certificate;
                 m_issuedTokenType = null;
@@ -209,8 +207,7 @@ namespace Opc.Ua
                 return;
             }
 
-            IssuedIdentityToken issuedToken = token as IssuedIdentityToken;
-            if (issuedToken != null)
+            if (token is IssuedIdentityToken issuedToken)
             {
                 if (issuedToken.IssuedTokenType == Ua.IssuedTokenType.JWT)
                 {
@@ -230,8 +227,7 @@ namespace Opc.Ua
                 }
             }
 
-            AnonymousIdentityToken anonymousToken = token as AnonymousIdentityToken;
-            if (anonymousToken != null)
+            if (token is AnonymousIdentityToken anonymousToken)
             {
                 m_tokenType = UserTokenType.Anonymous;
                 m_issuedTokenType = null;

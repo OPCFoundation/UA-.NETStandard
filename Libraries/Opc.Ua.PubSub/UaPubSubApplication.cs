@@ -65,10 +65,21 @@ namespace Opc.Ua.PubSub
         public event EventHandler<SubscribedDataEventArgs> MetaDataReceived;
 
         /// <summary>
+        /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives and decodes subscribed DataSet PublisherEndpoints
+        /// </summary>
+        public event EventHandler<PublisherEndpointsEventArgs> PublisherEndpointsReceived;
+
+        /// <summary>
         /// Event that is triggered before the configuration is updated with a new MetaData 
         /// The configuration will not be updated if <see cref="ConfigurationUpdatingEventArgs.Cancel"/> flag is set on true.
         /// </summary>
         public event EventHandler<ConfigurationUpdatingEventArgs> ConfigurationUpdating;
+
+        /// <summary>
+        /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives and decodes subscribed DataSet MetaData
+        /// </summary>
+        public event EventHandler<DataSetWriterConfigurationEventArgs> DataSetWriterConfigurationReceived;
+
         #endregion
 
         #region Event Callbacks
@@ -307,6 +318,43 @@ namespace Opc.Ua.PubSub
             catch (Exception ex)
             {
                 Utils.Trace(ex, "UaPubSubApplication.RaiseMetaDataReceivedEvent");
+            }
+        }
+        /// <summary>
+        /// Raise DatasetWriterConfigurationReceived event
+        /// </summary>
+        /// <param name="e"></param>
+        internal void RaiseDatasetWriterConfigurationReceivedEvent(DataSetWriterConfigurationEventArgs e)
+        {
+            try
+            {
+                if (DataSetWriterConfigurationReceived != null)
+                {
+                    DataSetWriterConfigurationReceived(this, e);
+                }
+            }
+            catch (Exception ex)
+            {
+                Utils.Trace(ex, "UaPubSubApplication.DatasetWriterConfigurationReceivedEvent");
+            }
+        }
+
+        /// <summary>
+        /// Raise PublisherEndpointsReceived event
+        /// </summary>
+        /// <param name="e"></param>
+        internal void RaisePublisherEndpointsReceivedEvent(PublisherEndpointsEventArgs e)
+        {
+            try
+            {
+                if (PublisherEndpointsReceived != null)
+                {
+                    PublisherEndpointsReceived(this, e);
+                }
+            }
+            catch (Exception ex)
+            {
+                Utils.Trace(ex, "UaPubSubApplication.RaisePublisherEndpointsReceivedEvent");
             }
         }
 

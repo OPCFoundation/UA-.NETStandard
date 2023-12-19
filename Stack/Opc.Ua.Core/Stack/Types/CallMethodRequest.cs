@@ -17,9 +17,9 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
 {
-	/// <summary>
-	/// The description of a value to write.
-	/// </summary>
+    /// <summary>
+    /// The description of a value to write.
+    /// </summary>
     public partial class CallMethodRequest
     {
         #region Supporting Properties and Methods
@@ -28,7 +28,7 @@ namespace Opc.Ua
         /// </summary>
         public object Handle
         {
-            get { return m_handle;  }
+            get { return m_handle; }
             set { m_handle = value; }
         }
 
@@ -37,11 +37,11 @@ namespace Opc.Ua
         /// </summary>
         public bool Processed
         {
-            get { return m_processed;  }
+            get { return m_processed; }
             set { m_processed = value; }
         }
         #endregion
-        
+
         #region Private Fields
         private object m_handle;
         private bool m_processed;

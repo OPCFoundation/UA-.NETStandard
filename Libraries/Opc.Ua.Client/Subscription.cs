@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
@@ -122,7 +121,7 @@ namespace Opc.Ua.Client
                 // copy the list of monitored items.
                 foreach (MonitoredItem monitoredItem in template.MonitoredItems)
                 {
-                    MonitoredItem clone = new MonitoredItem(monitoredItem, copyEventHandlers, true);
+                    MonitoredItem clone = monitoredItem.CloneMonitoredItem(copyEventHandlers, true);
                     clone.DisplayName = monitoredItem.DisplayName;
                     AddItem(clone);
                 }
@@ -146,7 +145,7 @@ namespace Opc.Ua.Client
         /// Called by the .NET framework during deserialization.
         /// </summary>
         [OnDeserializing]
-        private void Initialize(StreamingContext context)
+        protected void Initialize(StreamingContext context)
         {
             m_cache = new object();
             Initialize();
@@ -219,8 +218,16 @@ namespace Opc.Ua.Client
         /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
-            var clone = new Subscription(this);
-            return clone;
+            return new Subscription(this);
+        }
+
+        /// <summary>
+        /// Clones a subscription or a subclass with an option to copy event handlers.
+        /// </summary>
+        /// <returns>A cloned instance of the subscription or its subclass.</returns>
+        public virtual Subscription CloneSubscription(bool copyEventHandlers)
+        {
+            return new Subscription(this, copyEventHandlers);
         }
         #endregion
 
@@ -797,9 +804,10 @@ namespace Opc.Ua.Client
             {
                 lock (m_cache)
                 {
-                    int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * m_currentKeepAliveCount, Int32.MaxValue - 500));
+                    int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * (m_currentKeepAliveCount + 1), Int32.MaxValue - 500));
+                    TimeSpan timeSinceLastNotification = DateTime.UtcNow - m_lastNotificationTime;
 
-                    if (m_lastNotificationTime.AddMilliseconds(keepAliveInterval + 500) < DateTime.UtcNow)
+                    if (timeSinceLastNotification.TotalMilliseconds > keepAliveInterval + 500)
                     {
                         return true;
                     }
@@ -1822,7 +1830,7 @@ namespace Opc.Ua.Client
                 if (m_messageWorkerTask == null || m_messageWorkerTask.IsCompleted)
                 {
                     m_messageWorkerShutdownEvent.Reset();
-                    m_messageWorkerTask = Task.Run(() => PublishResponseMessageWorker());
+                    m_messageWorkerTask = Task.Run(() => PublishResponseMessageWorkerAsync());
                 }
             }
 
@@ -1869,9 +1877,9 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Periodically checks if the sessions have timed out.
+        /// Publish response worker task for the subscriptions.
         /// </summary>
-        private async Task PublishResponseMessageWorker()
+        private async Task PublishResponseMessageWorkerAsync()
         {
             try
             {
@@ -1886,7 +1894,8 @@ namespace Opc.Ua.Client
                         Utils.LogTrace("SubscriptionId {0} - Publish Thread {1:X8} Exited Normally.", m_id, Environment.CurrentManagedThreadId);
                         break;
                     }
-                    OnMessageReceived();
+
+                    await OnMessageReceivedAsync(CancellationToken.None).ConfigureAwait(false);
                 }
                 while (true);
             }
@@ -2084,7 +2093,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Processes the incoming messages.
         /// </summary>
-        private void OnMessageReceived()
+        private async Task OnMessageReceivedAsync(CancellationToken ct)
         {
             try
             {
@@ -2256,6 +2265,9 @@ namespace Opc.Ua.Client
 
                                 if (statusChanged != null)
                                 {
+                                    statusChanged.PublishTime = message.PublishTime;
+                                    statusChanged.SequenceNumber = message.SequenceNumber;
+
                                     Utils.LogWarning("StatusChangeNotification received with Status = {0} for SubscriptionId={1}.",
                                         statusChanged.Status.ToString(), Id);
 
@@ -2300,7 +2312,7 @@ namespace Opc.Ua.Client
                 {
                     for (int ii = 0; ii < messagesToRepublish.Count; ii++)
                     {
-                        if (!session.Republish(subscriptionId, messagesToRepublish[ii].SequenceNumber))
+                        if (!await session.RepublishAsync(subscriptionId, messagesToRepublish[ii].SequenceNumber, ct).ConfigureAwait(false))
                         {
                             messagesToRepublish[ii].Republished = false;
                         }
@@ -2949,6 +2961,17 @@ namespace Opc.Ua.Client
         {
             SubscriptionCollection clone = new SubscriptionCollection();
             clone.AddRange(this.Select(item => (Subscription)item.Clone()));
+            return clone;
+        }
+
+        /// <summary>
+        /// Helper to clone a SubscriptionCollection with event handlers using the
+        /// <see cref="Subscription.CloneSubscription(bool)"/> method.
+        /// </summary>
+        public virtual SubscriptionCollection CloneSubscriptions(bool copyEventhandlers)
+        {
+            SubscriptionCollection clone = new SubscriptionCollection();
+            clone.AddRange(this.Select(item => (Subscription)item.CloneSubscription(copyEventhandlers)));
             return clone;
         }
         #endregion

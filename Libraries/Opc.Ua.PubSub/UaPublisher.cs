@@ -155,7 +155,7 @@ namespace Opc.Ua.PubSub
         }
 
         /// <summary>
-        /// Generate and publish a messages
+        /// Generate and publish the messages
         /// </summary>
         private void PublishMessages()
         {
@@ -174,6 +174,7 @@ namespace Opc.Ua.PubSub
                         }
                     }
                 }
+               
             }
             catch (Exception e)
             {

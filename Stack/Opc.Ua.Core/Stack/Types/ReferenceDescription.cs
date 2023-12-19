@@ -18,11 +18,11 @@ using System.Security.Cryptography.X509Certificates;
 namespace Opc.Ua
 {
     #region ReferenceDescription Class
-	/// <summary>
-	/// A reference returned in browse operation.
-	/// </summary>
+    /// <summary>
+    /// A reference returned in browse operation.
+    /// </summary>
     public partial class ReferenceDescription : IFormattable
-    {     
+    {
         #region IFormattable Members
         /// <summary>
         /// Returns the string representation of the object.
@@ -43,10 +43,10 @@ namespace Opc.Ua
 
                 return Utils.Format("(unknown {0})", ((NodeClass)m_nodeClass).ToString().ToLower());
             }
-        
+
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        
+
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
@@ -62,8 +62,8 @@ namespace Opc.Ua
         /// </summary>
         public void SetReferenceType(
             BrowseResultMask resultMask,
-            NodeId           referenceTypeId,
-            bool             isForward)
+            NodeId referenceTypeId,
+            bool isForward)
         {
             if ((resultMask & BrowseResultMask.ReferenceTypeId) != 0)
             {
@@ -89,10 +89,10 @@ namespace Opc.Ua
         /// </summary>
         public void SetTargetAttributes(
             BrowseResultMask resultMask,
-            NodeClass        nodeClass,
-            QualifiedName    browseName,
-            LocalizedText    displayName,
-            ExpandedNodeId   typeDefinition)
+            NodeClass nodeClass,
+            QualifiedName browseName,
+            LocalizedText displayName,
+            ExpandedNodeId typeDefinition)
         {
             if ((resultMask & BrowseResultMask.NodeClass) != 0)
             {
@@ -138,7 +138,7 @@ namespace Opc.Ua
         /// </summary>
         public bool Unfiltered
         {
-            get { return m_unfiltered;  }
+            get { return m_unfiltered; }
             set { m_unfiltered = value; }
         }
         #endregion

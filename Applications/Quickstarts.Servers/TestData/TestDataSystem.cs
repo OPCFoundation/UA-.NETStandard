@@ -369,7 +369,43 @@ namespace TestData
 
                     case TestData.Variables.ArrayValueObjectType_VectorValue:
                     {
-                        return GetRandomVectorArray();
+                        return GetRandomArray(GetRandomVector);
+                    }
+
+                    // VectorUnion - Scalar
+                    case TestData.Variables.ScalarValueObjectType_VectorUnionValue:
+                    {
+                        return GetRandomVectorUnion();
+                    }
+
+                    // VectorUnion - Array
+                    case TestData.Variables.ArrayValueObjectType_VectorUnionValue:
+                    {
+                        return GetRandomArray(GetRandomVectorUnion);
+                    }
+
+                    // VectorWithOptionalFields - Scalar
+                    case TestData.Variables.ScalarValueObjectType_VectorWithOptionalFieldsValue:
+                    {
+                        return GetRandomVectorWithOptionalFields();
+                    }
+
+                    // VectorWithOptionalFields - Array
+                    case TestData.Variables.ArrayValueObjectType_VectorWithOptionalFieldsValue:
+                    {
+                        return GetRandomArray(GetRandomVectorWithOptionalFields);
+                    }
+
+                    // MultipleVectors - Scalar
+                    case TestData.Variables.ScalarValueObjectType_MultipleVectorsValue:
+                    {
+                        return GetRandomMultipleVectors();
+                    }
+
+                    // MultipleVectors - Array
+                    case TestData.Variables.ArrayValueObjectType_MultipleVectorsValue:
+                    {
+                        return GetRandomArray(GetRandomMultipleVectors);
                     }
 
                     case TestData.Variables.ArrayValueObjectType_BooleanValue:
@@ -778,6 +814,22 @@ namespace TestData
         }
 
         /// <summary>
+        /// Gets a random Array (one to eight elements).
+        /// </summary>
+        /// <typeparam name="T">The type of the elements</typeparam>
+        /// <param name="methodForSingleObject">Method, to create a single element</param>
+        private T[] GetRandomArray<T>(Func<T> methodForSingleObject)
+        {
+            int size = m_generator.GetRandomByte() % 8 + 1;
+            T[] result = new T[size];
+            for (int ii = 0; ii < size; ii++)
+            {
+                result[ii] = methodForSingleObject();
+            }
+            return result;
+        }
+
+        /// <summary>
         /// Return random vector;
         /// </summary>
         public Vector GetRandomVector()
@@ -789,15 +841,40 @@ namespace TestData
             };
         }
 
-        private Vector[] GetRandomVectorArray()
+        public VectorUnion GetRandomVectorUnion()
         {
-            int size = m_generator.GetRandomByte() % 8 + 1;
-            Vector[] result = new Vector[size];
-            for (int ii = 0; ii < size; ii++)
-            {
-                result[ii] = GetRandomVector();
-            }
-            return result;
+            return new VectorUnion() {
+                SwitchField = (VectorUnionFields)(m_generator.GetRandomUInt16() % 4),
+                X = (double)m_generator.GetRandom(BuiltInType.Double),
+                Y = (double)m_generator.GetRandom(BuiltInType.Double),
+                Z = (double)m_generator.GetRandom(BuiltInType.Double),
+            };
+        }
+
+        public VectorWithOptionalFields GetRandomVectorWithOptionalFields()
+        {
+            VectorWithOptionalFieldsFields encodingMask = VectorWithOptionalFieldsFields.None;
+            if (m_generator.GetRandomBoolean()) encodingMask |= VectorWithOptionalFieldsFields.X;
+            if (m_generator.GetRandomBoolean()) encodingMask |= VectorWithOptionalFieldsFields.Y;
+            if (m_generator.GetRandomBoolean()) encodingMask |= VectorWithOptionalFieldsFields.Z;
+            return new VectorWithOptionalFields() {
+                EncodingMask = encodingMask,
+                X = (double)m_generator.GetRandom(BuiltInType.Double),
+                Y = (double)m_generator.GetRandom(BuiltInType.Double),
+                Z = (double)m_generator.GetRandom(BuiltInType.Double),
+            };
+        }
+
+        public MultipleVectors GetRandomMultipleVectors()
+        {
+            return new MultipleVectors() {
+                Vector = GetRandomVector(),
+                VectorUnion = GetRandomVectorUnion(),
+                VectorWithOptionalFields = GetRandomVectorWithOptionalFields(),
+                VectorArray = GetRandomArray(GetRandomVector),
+                VectorUnionArray = GetRandomArray(GetRandomVectorUnion),
+                VectorWithOptionalFieldsArray = GetRandomArray(GetRandomVectorWithOptionalFields),
+            };
         }
 
         /// <summary>
@@ -971,14 +1048,17 @@ namespace TestData
                     }
                     else
                     {
-                        Sample sample = new Sample();
-
-                        sample.Variable = variable;
-                        sample.Value = ReadValue(sample.Variable);
-                        sample.StatusCode = StatusCodes.Good;
-                        sample.Timestamp = DateTime.UtcNow;
-
-                        samples.Enqueue(sample);
+                        object value = ReadValue(variable);
+                        if (value != null)
+                        {
+                            Sample sample = new Sample {
+                                Variable = variable,
+                                Value = value,
+                                StatusCode = StatusCodes.Good,
+                                Timestamp = DateTime.UtcNow
+                            };
+                            samples.Enqueue(sample);
+                        }
                     }
                 }
             }
@@ -1028,7 +1108,7 @@ namespace TestData
         }
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private ITestDataSystemCallback m_callback;
         private Opc.Ua.Test.DataGenerator m_generator;
         private int m_minimumSamplingInterval;

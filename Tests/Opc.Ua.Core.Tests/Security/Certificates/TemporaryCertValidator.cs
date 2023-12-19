@@ -54,13 +54,13 @@ namespace Opc.Ua.Core.Tests
             // pki directory root for test runs. 
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
             m_issuerStore = new DirectoryCertificateStore();
-            m_issuerStore.Open(m_pkiRoot + "issuer");
+            m_issuerStore.Open(m_pkiRoot + "issuer", true);
             m_trustedStore = new DirectoryCertificateStore();
-            m_trustedStore.Open(m_pkiRoot + "trusted");
+            m_trustedStore.Open(m_pkiRoot + "trusted", true);
             if (rejectedStore)
             {
                 m_rejectedStore = new DirectoryCertificateStore();
-                m_rejectedStore.Open(m_pkiRoot + "rejected");
+                m_rejectedStore.Open(m_pkiRoot + "rejected", true);
             }
         }
 

@@ -378,8 +378,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             PEMWriter.ExportCertificateAsPEM(certificate);
             if (certificate.HasPrivateKey)
             {
+#if !NETFRAMEWORK
                 PEMWriter.ExportPrivateKeyAsPEM(certificate, password);
                 PEMWriter.ExportECDsaPrivateKeyAsPEM(certificate);
+#endif
             }
         }
         #endregion

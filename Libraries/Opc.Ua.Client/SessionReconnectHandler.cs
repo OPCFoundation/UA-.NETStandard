@@ -95,7 +95,7 @@ namespace Opc.Ua.Client
         public SessionReconnectHandler(bool reconnectAbort = false, int maxReconnectPeriod = -1)
         {
             m_reconnectAbort = reconnectAbort;
-            m_reconnectTimer = new Timer(OnReconnect, this, Timeout.Infinite, Timeout.Infinite);
+            m_reconnectTimer = new Timer(OnReconnectAsync, this, Timeout.Infinite, Timeout.Infinite);
             m_state = ReconnectState.Ready;
             m_cancelReconnect = false;
             m_updateFromServer = false;
@@ -285,7 +285,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Called when the reconnect timer expires.
         /// </summary>
-        private async void OnReconnect(object state)
+        private async void OnReconnectAsync(object state)
         {
             DateTime reconnectStart = DateTime.UtcNow;
             try
@@ -320,7 +320,7 @@ namespace Opc.Ua.Client
 
                 // do the reconnect.
                 if (keepaliveRecovered ||
-                    await DoReconnect().ConfigureAwait(false))
+                    await DoReconnectAsync().ConfigureAwait(false))
                 {
                     lock (m_lock)
                     {
@@ -365,7 +365,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Reconnects to the server.
         /// </summary>
-        private async Task<bool> DoReconnect()
+        private async Task<bool> DoReconnectAsync()
         {
             // helper to override operation timeout
             int operationTimeout = m_session.OperationTimeout;
@@ -384,11 +384,11 @@ namespace Opc.Ua.Client
                                 m_session.Endpoint.Server.ApplicationUri
                             ).ConfigureAwait(false);
 
-                        m_session.Reconnect(connection);
+                        await m_session.ReconnectAsync(connection).ConfigureAwait(false);
                     }
                     else
                     {
-                        m_session.Reconnect();
+                        await m_session.ReconnectAsync().ConfigureAwait(false);
                     }
 
                     // monitored items should start updating on their own.
@@ -418,12 +418,15 @@ namespace Opc.Ua.Client
                         }
 
                         // check if the security configuration may have changed
-                        if (sre.StatusCode == StatusCodes.BadSecurityChecksFailed)
+                        if (sre.StatusCode == StatusCodes.BadSecurityChecksFailed ||
+                            sre.StatusCode == StatusCodes.BadCertificateInvalid)
                         {
                             m_updateFromServer = true;
                             Utils.LogInfo("Reconnect failed due to security check. Request endpoint update from server. {0}", sre.Message);
                         }
-                        else
+                        // wait for next scheduled reconnect if connection failed,
+                        // otherwise recreate session immediately
+                        else if (sre.StatusCode != StatusCodes.BadSessionIdInvalid)
                         {
                             // next attempt is to recreate session
                             m_reconnectFailed = true;
@@ -486,13 +489,15 @@ namespace Opc.Ua.Client
 
                     session = await m_session.SessionFactory.RecreateAsync(m_session).ConfigureAwait(false);
                 }
-                m_session.Close();
+                // note: the template session is not connected at this point
+                //       and must be disposed by the owner
                 m_session = session;
                 return true;
             }
             catch (ServiceResultException sre)
             {
-                if (sre.InnerResult?.StatusCode == StatusCodes.BadSecurityChecksFailed)
+                if (sre.InnerResult?.StatusCode == StatusCodes.BadSecurityChecksFailed ||
+                    sre.InnerResult?.StatusCode == StatusCodes.BadCertificateInvalid)
                 {
                     // schedule endpoint update and retry
                     m_updateFromServer = true;
@@ -533,7 +538,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private ISession m_session;
         private ReconnectState m_state;
         private Random m_random;

@@ -235,6 +235,13 @@ namespace Opc.Ua.Bindings
             m_client?.Dispose();
         }
 
+        /// <inheritdoc/>
+        public Task CloseAsync(CancellationToken ct)
+        {
+            Close();
+            return Task.CompletedTask;
+        }
+
         /// <summary>
         /// The async result class for the Https transport.
         /// </summary>
@@ -333,6 +340,12 @@ namespace Opc.Ua.Bindings
                 result2.Exception = ex;
             }
             return result2 as IServiceResponse;
+        }
+
+        /// <inheritdoc/>
+        public Task<IServiceResponse> EndSendRequestAsync(IAsyncResult result, CancellationToken ct)
+        {
+            throw new NotImplementedException();
         }
 
         /// <inheritdoc/>

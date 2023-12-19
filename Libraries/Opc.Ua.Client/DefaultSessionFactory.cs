@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -38,7 +38,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Object that creates instances of an Opc.Ua.Client.Session object.
     /// </summary>
-    public class DefaultSessionFactory : ISessionFactory
+    public class DefaultSessionFactory : ISessionFactory, ISessionInstantiator
     {
         /// <summary>
         /// The default instance of the factory.
@@ -54,7 +54,7 @@ namespace Opc.Ua.Client
 
         #region ISessionFactory Members
         /// <inheritdoc/>
-        public async virtual Task<ISession> CreateAsync(
+        public virtual Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
@@ -64,8 +64,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             CancellationToken ct = default)
         {
-            return await Session.Create(configuration, endpoint, updateBeforeConnect, false,
-                sessionName, sessionTimeout, identity, preferredLocales).ConfigureAwait(false);
+            return CreateAsync(configuration, endpoint, updateBeforeConnect, false, sessionName, sessionTimeout, identity, preferredLocales, ct);
         }
 
         /// <inheritdoc/>
@@ -80,7 +79,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             CancellationToken ct = default)
         {
-            return await Session.Create(configuration, (ITransportWaitingConnection)null, endpoint,
+            return await Session.Create(this, configuration, (ITransportWaitingConnection)null, endpoint,
                 updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
                 identity, preferredLocales, ct).ConfigureAwait(false);
         }
@@ -98,7 +97,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             CancellationToken ct = default)
         {
-            return await Session.Create(configuration, connection, endpoint,
+            return await Session.Create(this, configuration, connection, endpoint,
                 updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
                 identity, preferredLocales, ct
                 ).ConfigureAwait(false);
@@ -166,7 +165,7 @@ namespace Opc.Ua.Client
            EndpointDescriptionCollection availableEndpoints = null,
            StringCollection discoveryProfileUris = null)
         {
-            return Session.Create(configuration, channel, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
+            return Session.Create(this, configuration, channel, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
         }
 
         /// <inheritdoc/>
@@ -182,35 +181,58 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public virtual Task<ISession> RecreateAsync(ISession sessionTemplate, CancellationToken ct = default)
+        public virtual async Task<ISession> RecreateAsync(ISession sessionTemplate, CancellationToken ct = default)
         {
             if (!(sessionTemplate is Session template))
             {
                 throw new ArgumentOutOfRangeException(nameof(sessionTemplate), "The ISession provided is not of a supported type.");
             }
 
-            return Task.FromResult((ISession)Session.Recreate(template));
+            return await Session.RecreateAsync(template, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        public virtual Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportWaitingConnection connection, CancellationToken ct = default)
+        public virtual async Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportWaitingConnection connection, CancellationToken ct = default)
         {
             if (!(sessionTemplate is Session template))
             {
                 throw new ArgumentOutOfRangeException(nameof(sessionTemplate), "The ISession provided is not of a supported type");
             }
 
-            return Task.FromResult((ISession)Session.Recreate(template, connection));
+            return await Session.RecreateAsync(template, connection, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        public virtual Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportChannel transportChannel, CancellationToken ct = default)
+        public virtual async Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportChannel transportChannel, CancellationToken ct = default)
         {
             if (!(sessionTemplate is Session template))
             {
                 throw new ArgumentOutOfRangeException(nameof(sessionTemplate), "The ISession provided is not of a supported type");
             }
-            return Task.FromResult((ISession)Session.Recreate(template, transportChannel));
+            return await Session.RecreateAsync(template, transportChannel, ct).ConfigureAwait(false);
+        }
+        #endregion
+
+        #region ISessionInstantiator Members
+        /// <inheritdoc/>
+        public virtual Session Create(
+            ISessionChannel channel,
+            ApplicationConfiguration configuration,
+            ConfiguredEndpoint endpoint)
+        {
+            return new Session(channel, configuration, endpoint);
+        }
+
+        /// <inheritdoc/>
+        public virtual Session Create(
+            ITransportChannel channel,
+            ApplicationConfiguration configuration,
+            ConfiguredEndpoint endpoint,
+            X509Certificate2 clientCertificate,
+            EndpointDescriptionCollection availableEndpoints = null,
+            StringCollection discoveryProfileUris = null)
+        {
+            return new Session(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
         }
         #endregion
     }

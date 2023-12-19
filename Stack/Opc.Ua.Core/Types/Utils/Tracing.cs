@@ -20,7 +20,7 @@ namespace Opc.Ua
     public class Tracing
     {
         #region Private Members
-        private static object s_syncRoot = new object();
+        private readonly static object s_syncRoot = new object();
         private static Tracing s_instance;
         #endregion Private Members
 

@@ -28,16 +28,8 @@ namespace Opc.Ua
     /// Once the types exist within the factory, these types can be then easily queried.
     /// <br/></para>
     /// </remarks>
-    public interface IEncodeableFactory
+    public interface IEncodeableFactory : ICloneable
     {
-        /// <summary>
-        /// Returns the object used to synchronize access to the factory.
-        /// </summary>
-        /// <remarks>
-        /// Returns the object used to synchronize access to the factory.
-        /// </remarks>
-        object SyncRoot { get; }
-
         /// <summary>
         /// Returns a unique identifier for the table instance. Used to debug problems with shared tables.
         /// </summary>

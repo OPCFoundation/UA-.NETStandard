@@ -225,7 +225,10 @@ namespace Opc.Ua.Bindings
 
             int position = (int)offset;
 
-            CheckEndOfStream();
+            if (position >= GetAbsolutePosition())
+            {
+                CheckEndOfStream();
+            }
 
             for (int ii = 0; ii < m_buffers.Count; ii++)
             {

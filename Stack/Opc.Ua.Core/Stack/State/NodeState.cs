@@ -1817,15 +1817,14 @@ namespace Opc.Ua
             }
 
             // create the appropriate node.
-            BaseInstanceState child = factory.CreateInstance(
+
+            if (!(factory.CreateInstance(
                 context,
                 parent,
                 nodeClass,
                 browseName,
                 referenceTypeId,
-                typeDefinitionId) as BaseInstanceState;
-
-            if (child == null)
+                typeDefinitionId) is BaseInstanceState child))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
@@ -2048,15 +2047,14 @@ namespace Opc.Ua
             }
 
             // create the appropriate node.
-            BaseInstanceState child = factory.CreateInstance(
+
+            if (!(factory.CreateInstance(
                 context,
                 parent,
                 nodeClass,
                 browseName,
                 referenceTypeId,
-                typeDefinitionId) as BaseInstanceState;
-
-            if (child == null)
+                typeDefinitionId) is BaseInstanceState child))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
@@ -2251,9 +2249,8 @@ namespace Opc.Ua
         public NodeState GetHierarchyRoot()
         {
             // only instance nodes can be part of a hierarchy.
-            BaseInstanceState instance = this as BaseInstanceState;
 
-            if (instance == null || instance.Parent == null)
+            if (!(this is BaseInstanceState instance) || instance.Parent == null)
             {
                 return this;
             }
@@ -2544,9 +2541,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < children.Count; ii++)
             {
-                MethodState method = children[ii] as MethodState;
-
-                if (method != null)
+                if (children[ii] is MethodState method)
                 {
                     if (method.NodeId == methodId || method.MethodDeclarationId == methodId)
                     {
@@ -3223,17 +3218,15 @@ namespace Opc.Ua
                     continue;
                 }
 
-                BaseVariableState variableInstance = child as BaseVariableState;
 
-                if (variableInstance != null)
+                if (child is BaseVariableState variableInstance)
                 {
                     variableInstance.Value = values.EventFields[ii].Value;
                     continue;
                 }
 
-                BaseObjectState objectInstance = child as BaseObjectState;
 
-                if (objectInstance != null)
+                if (child is BaseObjectState objectInstance)
                 {
                     NodeId nodeId = values.EventFields[ii].Value as NodeId;
 
@@ -3912,9 +3905,7 @@ namespace Opc.Ua
 
                 case Attributes.RolePermissions:
                 {
-                    ExtensionObject[] rolePermissionsArray = value as ExtensionObject[];
-
-                    if (rolePermissionsArray == null)
+                    if (!(value is ExtensionObject[] rolePermissionsArray))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -3923,9 +3914,7 @@ namespace Opc.Ua
 
                     foreach (ExtensionObject arrayValue in rolePermissionsArray)
                     {
-                        RolePermissionType rolePermission = arrayValue.Body as RolePermissionType;
-
-                        if (rolePermission == null)
+                        if (!(arrayValue.Body is RolePermissionType rolePermission))
                         {
                             return StatusCodes.BadTypeMismatch;
                         }
@@ -4266,17 +4255,13 @@ namespace Opc.Ua
                 return false;
             }
 
-            BaseInstanceState child = CreateChild(context, browseName) as BaseInstanceState;
 
-            if (child == null)
+            if (!(CreateChild(context, browseName) is BaseInstanceState child))
             {
                 return false;
             }
 
-            BaseVariableState variable = child as BaseVariableState;
-            BaseVariableState sourceVariable = source as BaseVariableState;
-
-            if (variable != null && sourceVariable != null)
+            if (child is BaseVariableState variable && source is BaseVariableState sourceVariable)
             {
                 if (copy)
                 {
@@ -4310,9 +4295,7 @@ namespace Opc.Ua
             object value,
             bool copy)
         {
-            BaseVariableState child = CreateChild(context, browseName) as BaseVariableState;
-
-            if (child == null)
+            if (!(CreateChild(context, browseName) is BaseVariableState child))
             {
                 return false;
             }
@@ -4489,11 +4472,25 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (m_references.Remove(new NodeStateReference(referenceTypeId, isInverse, targetId)))
+            NodeStateReference sourceRef = null;
+
+            foreach (var m_refKey in m_references.Keys)
             {
-                m_changeMasks |= NodeStateChangeMasks.References;
-                OnReferenceRemoved?.Invoke(this, referenceTypeId, isInverse, targetId);
-                return true;
+                if (m_refKey.TargetId != null && m_refKey.TargetId.IdentifierText.Equals(targetId.IdentifierText))
+                {
+                    sourceRef = m_refKey as NodeStateReference;
+                    break;
+                }
+            }
+
+            if (sourceRef != null)
+            {
+                if (m_references.Remove(sourceRef))
+                {
+                    m_changeMasks |= NodeStateChangeMasks.References;
+                    OnReferenceRemoved?.Invoke(this, referenceTypeId, isInverse, targetId);
+                    return true;
+                }
             }
 
             return false;
