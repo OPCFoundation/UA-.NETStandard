@@ -495,13 +495,6 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                // verify timestamp.
-                if (requestHeader.Timestamp.AddMilliseconds(m_maxRequestAge) < DateTime.UtcNow)
-                {
-                    UpdateDiagnosticCounters(requestType, true, false);
-                    throw new ServiceResultException(StatusCodes.BadInvalidTimestamp);
-                }
-
                 // request accepted.
                 UpdateDiagnosticCounters(requestType, false, false);
             }

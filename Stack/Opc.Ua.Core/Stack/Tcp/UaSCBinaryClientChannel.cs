@@ -208,7 +208,7 @@ namespace Opc.Ua.Bindings
             {
                 try
                 {
-                    await operation.EndAsync(timeout, false, ct).ConfigureAwait(false);
+                    await operation.EndAsync(timeout, true, ct).ConfigureAwait(false);
                 }
                 catch (ServiceResultException e)
                 {
@@ -250,47 +250,6 @@ namespace Opc.Ua.Bindings
                 try
                 {
                     operation.End(timeout, false);
-                }
-                catch (ServiceResultException e)
-                {
-                    switch (e.StatusCode)
-                    {
-                        case StatusCodes.BadRequestInterrupted:
-                        case StatusCodes.BadSecureChannelClosed:
-                        {
-                            break;
-                        }
-
-                        default:
-                        {
-                            Utils.LogWarning(e, "ChannelId {0}: Could not gracefully close the channel. Reason={1}", ChannelId, e.Result.StatusCode);
-                            break;
-                        }
-                    }
-                }
-                catch (Exception e)
-                {
-                    Utils.LogError(e, "ChannelId {0}: Could not gracefully close the channel.", ChannelId);
-                }
-            }
-
-            // shutdown.
-            Shutdown(StatusCodes.BadConnectionClosed);
-        }
-
-        /// <summary>
-        /// Closes a connection with the server (async).
-        /// </summary>
-        public async Task CloseAsync(int timeout)
-        {
-            WriteOperation operation = InternalClose(timeout);
-
-            // wait for the close to succeed.
-            if (operation != null)
-            {
-                try
-                {
-                    await operation.EndAsync(timeout, false).ConfigureAwait(false);
                 }
                 catch (ServiceResultException e)
                 {

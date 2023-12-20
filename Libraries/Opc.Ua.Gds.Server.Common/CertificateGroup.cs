@@ -113,7 +113,7 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        public virtual CertificateGroup Create(
+        public virtual ICertificateGroup Create(
             string storePath,
             CertificateGroupConfiguration certificateGroupConfiguration)
         {
@@ -165,13 +165,18 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        public virtual Task<X509CRL> RevokeCertificateAsync(
+        public async virtual Task<X509CRL> RevokeCertificateAsync(
             X509Certificate2 certificate)
         {
-            return RevokeCertificateAsync(
+            Task<X509CRL> crl = RevokeCertificateAsync(
                 AuthoritiesStorePath,
                 certificate,
                 null);
+
+            //Also update TrustedList CRL so registerd Applications can get the new CRL
+            await crl.ContinueWith((_) => UpdateAuthorityCertInTrustedList(), TaskContinuationOptions.OnlyOnRanToCompletion).ConfigureAwait(false);
+
+            return await crl.ConfigureAwait(false);
         }
 
         public virtual Task VerifySigningRequestAsync(
@@ -206,7 +211,7 @@ namespace Opc.Ua.Gds.Server
             {
                 if (ex is ServiceResultException)
                 {
-                    throw ex as ServiceResultException;
+                    throw;
                 }
                 throw new ServiceResultException(StatusCodes.BadInvalidArgument, ex.Message);
             }
@@ -275,7 +280,7 @@ namespace Opc.Ua.Gds.Server
             {
                 if (ex is ServiceResultException)
                 {
-                    throw ex as ServiceResultException;
+                    throw;
                 }
                 throw new ServiceResultException(StatusCodes.BadInvalidArgument, ex.Message);
             }

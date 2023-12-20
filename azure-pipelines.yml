@@ -25,7 +25,7 @@ pr:
 
 variables:
   FullBuild: ${{ or(ne(variables['Build.Reason'], 'PullRequest'), ne(variables['System.PullRequest.IsFork'], 'False')) }}
-  ScheduledBuild: ${{ eq(variables['Build.Reason'], 'Schedule') }}
+  ScheduledBuild: ${{ in(variables['Build.Reason'], 'Schedule', 'Manual') }}
 
 stages:
 - stage: build
@@ -67,28 +67,12 @@ stages:
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
-      framework: net48
-      agents: '@{ windows = "windows-2022" }'
-      jobnamesuffix: net48
-  - template: .azurepipelines/test.yml
-    parameters:
-      configuration: Release
-      framework: netcoreapp3.1
-      jobnamesuffix: core3
-- stage: test6release
-  dependsOn: [build]
-  displayName: 'Test .NET 6 Core and SDK Release'
-  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
-  jobs:
-  - template: .azurepipelines/test.yml
-    parameters:
-      configuration: Release
       framework: net6.0
       agents: '@{ windows = "windows-2022"; linux="ubuntu-22.04"; mac = "macOS-12"}'
       jobnamesuffix: net60
 - stage: testreleasepr
   dependsOn: []
-  displayName: 'Fast PR Test Core and SDK Release'
+  displayName: 'Fast .NET 6.0 PR Test'
   condition: and(eq(variables.FullBuild, 'False'), eq(variables.ScheduledBuild, 'False'))
   jobs:
   - template: .azurepipelines/test.yml
@@ -99,19 +83,60 @@ stages:
       jobnamesuffix: net60pr
 - stage: testdebug
   dependsOn: [build]
-  displayName: 'Test Core and SDK Debug'
+  displayName: 'Test .NET 6.0 Debug'
   condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
-      framework: netcoreapp3.1
+      framework: net6.0
       configuration: Debug
+      jobnamesuffix: net60debug
+- stage: testnet80
+  dependsOn: [build]
+  displayName: 'Test .NET 8.0'
+  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
+  jobs:
   - template: .azurepipelines/test.yml
     parameters:
-      configuration: Debug
+      framework: net8.0
+      configuration: Release
+      jobnamesuffix: net80
+      customtestarget: net8.0
+- stage: testnet462
+  dependsOn: [build]
+  displayName: 'Test .NET 4.6.2'
+  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
+  jobs:
+  - template: .azurepipelines/test.yml
+    parameters:
+      framework: net462
+      configuration: Release
+      jobnamesuffix: net462
+      agents: '@{ windows = "windows-2022" }'
+      customtestarget: net462
+- stage: testnetstandard20
+  dependsOn: [build]
+  displayName: 'Test .NETStandard 2.0'
+  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
+  jobs:
+  - template: .azurepipelines/test.yml
+    parameters:
       framework: net6.0
-      agents: '@{ windows = "windows-2022"; linux = "ubuntu-22.04"; mac = "macOS-11" }'
-      jobnamesuffix: net60debug
+      configuration: Release
+      jobnamesuffix: netstandard20
+      agents: '@{ windows = "windows-2019"; linux="ubuntu-20.04"}'
+      customtestarget: netstandard2.0
+- stage: testnetstandard21
+  dependsOn: [build]
+  displayName: 'Test .NETStandard 2.1'
+  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
+  jobs:
+  - template: .azurepipelines/test.yml
+    parameters:
+      framework: net6.0
+      configuration: Release
+      jobnamesuffix: netstandard21
+      customtestarget: netstandard2.1
 - stage: coverage
   dependsOn: [testdebug,testrelease]
   displayName: 'Code Coverage'
@@ -121,5 +146,6 @@ stages:
     parameters:
       configuration: Release
       poolImage: 'ubuntu-22.04'
-      framework: net6.0
+      framework: net8.0
       jobnamesuffix: net60cc
+      customtestarget: net8.0

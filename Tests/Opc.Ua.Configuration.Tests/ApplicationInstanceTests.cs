@@ -32,6 +32,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
@@ -588,6 +589,42 @@ namespace Opc.Ua.Configuration.Tests
             }
         }
 
+        /// <summary>
+        /// Tests that a supplied certifiacte is stored in the Trusted store of the Server after calling method AddOwnCertificateToTrustedStoreAsync
+        /// </summary>
+        /// <returns></returns>
+        [Test]
+        public async Task TestAddOwnCertificateToTrustedStore()
+        {
+            //Arrange Application Instance
+            var applicationInstance = new ApplicationInstance() {
+                ApplicationName = ApplicationName
+            };
+            ApplicationConfiguration configuration = await applicationInstance.Build(ApplicationUri, ProductUri)
+                .SetOperationTimeout(10000)
+                .AsServer(new string[] { EndpointUrl })
+                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                .Create().ConfigureAwait(false);
+
+            //Arrange cert
+            DateTime notBefore = DateTime.Today.AddDays(-30);
+            DateTime notAfter = DateTime.Today.AddDays(30);
+
+            var cert = CertificateFactory.CreateCertificate(SubjectName)
+                .SetNotBefore(notBefore)
+                .SetNotAfter(notAfter)
+                .SetCAConstraint(-1)
+                .CreateForRSA();
+
+            //Act
+            await applicationInstance.AddOwnCertificateToTrustedStoreAsync(cert, new CancellationToken()).ConfigureAwait(false);
+            ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore();
+            var storedCertificates = await store.FindByThumbprint(cert.Thumbprint).ConfigureAwait(false);
+
+            //Assert
+            Assert.IsTrue(storedCertificates.Contains(cert));
+        }
+      
         /// <summary>
         /// Test to verify that a new cert is not recreated/replaced if DisableCertificateAutoCreation is set.
         /// </summary>

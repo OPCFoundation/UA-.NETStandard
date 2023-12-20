@@ -2619,9 +2619,14 @@ namespace Opc.Ua
         /// </summary>
         public static X509Certificate2 ParseCertificateBlob(byte[] certificateData)
         {
+
             // macOS X509Certificate2 constructor throws exception if a certchain is encoded
             // use AsnParser on macOS to parse for byteblobs,
+#if !NETFRAMEWORK
             bool useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+#else
+            bool useAsnParser = false;
+#endif
             try
             {
                 if (useAsnParser)
@@ -2654,7 +2659,11 @@ namespace Opc.Ua
             List<byte> certificatesBytes = new List<byte>(certificateData);
             // macOS X509Certificate2 constructor throws exception if a certchain is encoded
             // use AsnParser on macOS to parse for byteblobs,
+#if !NETFRAMEWORK
             bool useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+#else
+            bool useAsnParser = false;
+#endif
             while (certificatesBytes.Count > 0)
             {
                 X509Certificate2 certificate;
