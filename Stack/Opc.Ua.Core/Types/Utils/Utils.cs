@@ -1875,6 +1875,88 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Checks if two T values are equal based on IEquatable compare.
+        /// </summary>
+        public static bool IsEqual<T>(T value1, T value2) where T : IEquatable<T>
+        {
+            // check for reference equality.
+            if (Object.ReferenceEquals(value1, value2))
+            {
+                return true;
+            }
+
+            if (Object.ReferenceEquals(value1, null))
+            {
+                if (!Object.ReferenceEquals(value2, null))
+                {
+                    return value2.Equals(value1);
+                }
+
+                return true;
+            }
+
+            // use IEquatable comparer
+            return value1.Equals(value2);
+        }
+
+        /// <summary>
+        /// Checks if two IEnumerable T values are equal.
+        /// </summary>
+        public static bool IsEqual<T>(IEnumerable<T> value1, IEnumerable<T> value2) where T : IEquatable<T>
+        {
+            // check for reference equality.
+            if (Object.ReferenceEquals(value1, value2))
+            {
+                return true;
+            }
+
+            if (Object.ReferenceEquals(value1, null) || Object.ReferenceEquals(value2, null))
+            {
+                return false;
+            }
+
+            return value1.SequenceEqual(value2);
+        }
+
+        /// <summary>
+        /// Checks if two T[] values are equal.
+        /// </summary>
+        public static bool IsEqualB<T>(T[] value1, T[] value2) where T : unmanaged, IEquatable<T>
+        {
+            // check for reference equality.
+            if (Object.ReferenceEquals(value1, value2))
+            {
+                return true;
+            }
+
+            if (Object.ReferenceEquals(value1, null) || Object.ReferenceEquals(value2, null))
+            {
+                return false;
+            }
+
+            return value1.SequenceEqual(value2);
+        }
+
+        /// <summary>
+        /// Checks if two T[] values are equal.
+        /// </summary>
+        public static bool IsEqual(byte[] value1, byte[] value2)
+        {
+            // check for reference equality.
+            if (Object.ReferenceEquals(value1, value2))
+            {
+                return true;
+            }
+
+            if (Object.ReferenceEquals(value1, null) || Object.ReferenceEquals(value2, null))
+            {
+                return false;
+            }
+
+            return value1.SequenceEqual(value2);
+        }
+
+        /// <summary>
         /// Checks if two values are equal.
         /// </summary>
         public static bool IsEqual(object value1, object value2)
@@ -1886,9 +1968,9 @@ namespace Opc.Ua
             }
 
             // check for null values.
-            if (value1 == null)
+            if (Object.ReferenceEquals(value1, null))
             {
-                if (value2 != null)
+                if (!Object.ReferenceEquals(value2, null))
                 {
                     return value2.Equals(value1);
                 }
@@ -1897,12 +1979,12 @@ namespace Opc.Ua
             }
 
             // check for null values.
-            if (value2 == null)
+            if (Object.ReferenceEquals(value2, null))
             {
                 return value1.Equals(value2);
             }
 
-            // check that data types are the same.
+            // check that data types are not the same.
             if (value1.GetType() != value2.GetType())
             {
                 return value1.Equals(value2);
@@ -1915,14 +1997,12 @@ namespace Opc.Ua
             }
 
             // check for compareable objects.
-
             if (value1 is IComparable comparable1)
             {
                 return comparable1.CompareTo(value2) == 0;
             }
 
             // check for encodeable objects.
-
             if (value1 is IEncodeable encodeable1)
             {
                 if (!(value2 is IEncodeable encodeable2))
@@ -1934,7 +2014,6 @@ namespace Opc.Ua
             }
 
             // check for XmlElement objects.
-
             if (value1 is XmlElement element1)
             {
                 if (!(value2 is XmlElement element2))
@@ -1946,7 +2025,6 @@ namespace Opc.Ua
             }
 
             // check for arrays.
-
             if (value1 is Array array1)
             {
                 // arrays are greater than non-arrays.
@@ -1975,6 +2053,12 @@ namespace Opc.Ua
                     {
                         return false;
                     }
+                }
+
+                // handle byte[] special case fast
+                if (array1 is byte[] byteArray1 && array2 is byte[] byteArray2)
+                {
+                    return byteArray1.SequenceEqual(byteArray2);
                 }
 
                 IEnumerator enumerator1 = array1.GetEnumerator();
