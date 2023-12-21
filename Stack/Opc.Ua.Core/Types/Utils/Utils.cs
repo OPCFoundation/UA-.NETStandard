@@ -1921,26 +1921,7 @@ namespace Opc.Ua
         /// <summary>
         /// Checks if two T[] values are equal.
         /// </summary>
-        public static bool IsEqualB<T>(T[] value1, T[] value2) where T : unmanaged, IEquatable<T>
-        {
-            // check for reference equality.
-            if (Object.ReferenceEquals(value1, value2))
-            {
-                return true;
-            }
-
-            if (Object.ReferenceEquals(value1, null) || Object.ReferenceEquals(value2, null))
-            {
-                return false;
-            }
-
-            return value1.SequenceEqual(value2);
-        }
-
-        /// <summary>
-        /// Checks if two T[] values are equal.
-        /// </summary>
-        public static bool IsEqual(byte[] value1, byte[] value2)
+        public static bool IsEqual<T>(T[] value1, T[] value2) where T : unmanaged, IEquatable<T>
         {
             // check for reference equality.
             if (Object.ReferenceEquals(value1, value2))

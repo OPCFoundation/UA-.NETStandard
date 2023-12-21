@@ -31,7 +31,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Xml;
 using BenchmarkDotNet.Attributes;
@@ -67,16 +66,16 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Benchmark]
         public bool UtilsIsEqualByteArrayCompare()
         {
-            return Utils.IsEqual(m_bufferA, m_bufferB);
+            return IsEqual(m_bufferA, m_bufferB);
         }
 
         /// <summary>
-        /// Test IsEqual using the byte[] direct call.
+        /// Test IsEqual using the template T[] direct call.
         /// </summary>
         [Benchmark]
         public bool UtilsIsEqualTemplateByteArrayCompare()
         {
-            return Utils.IsEqualB(m_bufferA, m_bufferB);
+            return Utils.IsEqual(m_bufferA, m_bufferB);
         }
 
         /// <summary>
@@ -210,6 +209,27 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [GlobalCleanup]
         public void GlobalCleanup()
         {
+        }
+        #endregion
+
+        #region IsEqualByteArray
+        /// <summary>
+        /// Checks if two byte[] values are equal.
+        /// </summary>
+        public static bool IsEqual(byte[] value1, byte[] value2)
+        {
+            // check for reference equality.
+            if (Object.ReferenceEquals(value1, value2))
+            {
+                return true;
+            }
+
+            if (Object.ReferenceEquals(value1, null) || Object.ReferenceEquals(value2, null))
+            {
+                return false;
+            }
+
+            return value1.SequenceEqual(value2);
         }
         #endregion
 
