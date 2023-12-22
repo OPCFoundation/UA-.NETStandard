@@ -32,6 +32,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Xml;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
@@ -50,6 +51,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
         [Params(32, 128, 1024, 4096, 65536)]
         public int PayLoadSize { get; set; } = 1024;
+
+        private bool _windows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
         /// <summary>
         /// Test IsEqual using the generic IsEqual from previous versions.
@@ -124,14 +127,42 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         /// <summary>
+        /// Compare the byte[] using a for loop with index, unsafe version.
+        /// </summary>
+        [Benchmark]
+        public bool ForLoopBinaryCompareUnsafe()
+        {
+            if (m_bufferA.Length != m_bufferB.Length) return false;
+            int payloadsize = m_bufferA.Length;
+            unsafe
+            {
+                for (int ii = 0; ii < payloadsize; ii++)
+                {
+                    if (m_bufferA[ii] != m_bufferB[ii])
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+        }
+
+        /// <summary>
         /// Test the memory compare using P/Invoke.
         /// </summary>
         [Benchmark]
         public bool MemCmpByteArrayCompare()
         {
-            // Validate buffers are the same length.
-            // This also ensures that the count does not exceed the length of either buffer.  
-            return m_bufferA.Length == m_bufferB.Length && memcmp(m_bufferA, m_bufferB, m_bufferA.Length) == 0;
+            if (_windows)
+            {
+                // Validate buffers are the same length.
+                // This also ensures that the count does not exceed the length of either buffer.  
+                return m_bufferA.Length == m_bufferB.Length && memcmp(m_bufferA, m_bufferB, m_bufferA.Length) == 0;
+            }
+            else
+            {
+                return ForLoopBinaryCompareUnsafe();
+            }
         }
 
         /// <summary>

@@ -1937,6 +1937,32 @@ namespace Opc.Ua
             return value1.SequenceEqual(value2);
         }
 
+#if NETFRAMEWORK
+        [DllImport("msvcrt.dll", CallingConvention = CallingConvention.Cdecl)]
+        private static extern int memcmp(byte[] b1, byte[] b2, long count);
+
+        /// <summary>
+        /// Fast memcpy version of byte[] compare. 
+        /// </summary>
+        public static bool IsEqual(byte[] value1, byte[] value2)
+        {
+            // check for reference equality.
+            if (Object.ReferenceEquals(value1, value2))
+            {
+                return true;
+            }
+
+            if (Object.ReferenceEquals(value1, null) || Object.ReferenceEquals(value2, null))
+            {
+                return false;
+            }
+
+            // Validate buffers are the same length.
+            // This also ensures that the count does not exceed the length of either buffer.  
+            return value1.Length == value2.Length && memcmp(value1, value2, value1.Length) == 0;
+        }
+#endif
+
         /// <summary>
         /// Checks if two values are equal.
         /// </summary>
@@ -2039,7 +2065,11 @@ namespace Opc.Ua
                 // handle byte[] special case fast
                 if (array1 is byte[] byteArray1 && array2 is byte[] byteArray2)
                 {
+#if NETFRAMEWORK
+                    return memcmp(byteArray1, byteArray2, byteArray1.Length) == 0;
+#else
                     return byteArray1.SequenceEqual(byteArray2);
+#endif
                 }
 
                 IEnumerator enumerator1 = array1.GetEnumerator();
@@ -2499,7 +2529,7 @@ namespace Opc.Ua
                 extensions.Add(document.DocumentElement);
             }
         }
-        #endregion
+#endregion
 
         #region Reflection Helper Functions
         /// <summary>
