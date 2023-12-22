@@ -115,7 +115,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Uri uri1 = new Uri("opc.tcp://host1:4840");
             Uri uri1_dupe = new Uri("opc.tcp://host1:4840");
             Uri uri2 = new Uri($"opc.tcp://localhost:4840");
-            Uri uri2_dupe = new Uri($"opc.tcp://{Dns.GetHostName()}:4840");
+            Uri uri2_dupe = new Uri($"opc.tcp://{Utils.GetHostName()}:4840");
 
             // uri compare resolves localhost
             Assert.True(Utils.AreDomainsEqual(uri1, uri1_dupe));
