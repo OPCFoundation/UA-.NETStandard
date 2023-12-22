@@ -182,8 +182,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 queryCounterResetTime = DateTime.UtcNow;
                 // assign IDs to new users
                 var queryNewUsers = from x in Users
-                                   where x.ID == Guid.Empty
-                                   select x;
+                                    where x.ID == Guid.Empty
+                                    select x;
                 if (Users.Count > 0)
                 {
                     foreach (var user in queryNewUsers)
@@ -199,18 +199,20 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         #region IPasswordHasher
         private string Hash(string password)
         {
-#if NETSTANDARD2_0
+#if NETSTANDARD2_0 || NET462
+#pragma warning disable CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
             using (var algorithm = new Rfc2898DeriveBytes(
-              password,
-              kSaltSize,
-              kIterations))
+                password,
+                kSaltSize,
+                kIterations))
             {
+#pragma warning restore CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
 #else
             using (var algorithm = new Rfc2898DeriveBytes(
-              password,
-              kSaltSize,
-              kIterations,
-              HashAlgorithmName.SHA512))
+                password,
+                kSaltSize,
+                kIterations,
+                HashAlgorithmName.SHA512))
             {
 #endif
                 var key = Convert.ToBase64String(algorithm.GetBytes(kKeySize));
@@ -235,18 +237,20 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             var salt = Convert.FromBase64String(parts[1]);
             var key = Convert.FromBase64String(parts[2]);
 
-#if NETSTANDARD2_0
+#if NETSTANDARD2_0 || NET462
+#pragma warning disable CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
             using (var algorithm = new Rfc2898DeriveBytes(
-              password,
-              salt,
-              iterations))
+                password,
+                salt,
+                iterations))
             {
+#pragma warning restore CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
 #else
             using (var algorithm = new Rfc2898DeriveBytes(
-              password,
-              salt,
-              iterations,
-              HashAlgorithmName.SHA512))
+                password,
+                salt,
+                iterations,
+                HashAlgorithmName.SHA512))
             {
 #endif
                 var keyToCheck = algorithm.GetBytes(kKeySize);
@@ -256,8 +260,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 return verified;
             }
         }
-    
-#endregion
+
+        #endregion
 
         #region Internal Members
         [OnDeserialized]

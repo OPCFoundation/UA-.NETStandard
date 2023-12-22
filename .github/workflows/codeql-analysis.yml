@@ -36,7 +36,7 @@ jobs:
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v2
+      uses: github/codeql-action/init@v3
       with:
         languages: ${{ matrix.language }}
         # If you wish to specify custom queries, you can do so here or in a config file.
@@ -45,7 +45,7 @@ jobs:
         # queries: ./path/to/local/query, your-org/your-repo/queries@main
         
     - name: Set up .NET
-      uses: actions/setup-dotnet@v3
+      uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '8.x'
 
@@ -65,4 +65,4 @@ jobs:
         msbuild.exe "UA Reference.sln" /p:configuration="Release" /p:UseSharedCompilation=false
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v2
+      uses: github/codeql-action/analyze@v3
