@@ -57,7 +57,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// <summary>
         /// Test IsEqual using the generic IsEqual from previous versions.
         /// </summary>
-        [Benchmark]
+        [Benchmark(Baseline = true)]
         public bool UtilsIsEqualGenericByteArrayCompare()
         {
             return IsEqualGeneric(m_bufferA, m_bufferB);
@@ -127,27 +127,6 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         /// <summary>
-        /// Compare the byte[] using a for loop with index, unsafe version.
-        /// </summary>
-        [Benchmark]
-        public bool ForLoopBinaryCompareUnsafe()
-        {
-            if (m_bufferA.Length != m_bufferB.Length) return false;
-            int payloadsize = m_bufferA.Length;
-            unsafe
-            {
-                for (int ii = 0; ii < payloadsize; ii++)
-                {
-                    if (m_bufferA[ii] != m_bufferB[ii])
-                    {
-                        return false;
-                    }
-                }
-                return true;
-            }
-        }
-
-        /// <summary>
         /// Test the memory compare using P/Invoke.
         /// </summary>
         [Benchmark]
@@ -161,7 +140,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             }
             else
             {
-                return ForLoopBinaryCompareUnsafe();
+                return ForLoopBinaryCompare();
             }
         }
 
@@ -196,6 +175,14 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.AreEqual(Utils.IsEqual((object)null, (object)m_bufferB), Utils.IsEqual(null, m_bufferB));
             Assert.AreEqual(Utils.IsEqual((object)m_bufferA, (object)null), Utils.IsEqual(m_bufferA, null));
             Assert.AreEqual(Utils.IsEqual((object)null, (object)null), Utils.IsEqual((byte[])null, (byte[])null));
+
+            Assert.AreEqual(Utils.IsEqual((object)m_bufferA, (object)m_bufferB), Utils.IsEqual((IEnumerable)m_bufferA, (IEnumerable)m_bufferB));
+            Assert.AreEqual(Utils.IsEqual((object)null, (object)m_bufferB), Utils.IsEqual((IEnumerable)null, (IEnumerable)m_bufferB));
+            Assert.AreEqual(Utils.IsEqual((object)m_bufferA, (object)null), Utils.IsEqual((IEnumerable)m_bufferA, (IEnumerable)null));
+
+            Assert.AreEqual(Utils.IsEqual((object)m_bufferA, (object)m_bufferB), Utils.IsEqual((Array)m_bufferA, (Array)m_bufferB));
+            Assert.AreEqual(Utils.IsEqual((object)null, (object)m_bufferB), Utils.IsEqual((Array)null, (Array)m_bufferB));
+            Assert.AreEqual(Utils.IsEqual((object)m_bufferA, (object)null), Utils.IsEqual((Array)m_bufferA, (Array)null));
 
             int i = 1;
             Assert.AreEqual(Utils.IsEqual((object)i, (object)m_bufferB), Utils.IsEqual(i, m_bufferB));
