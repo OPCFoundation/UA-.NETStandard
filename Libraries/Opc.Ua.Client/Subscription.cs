@@ -781,7 +781,9 @@ namespace Opc.Ua.Client
             {
                 lock (m_cache)
                 {
-                    return new List<uint>(m_availableSequenceNumbers);
+                    return m_availableSequenceNumbers != null ?
+                        (IEnumerable<uint>)new ReadOnlyList<uint>(m_availableSequenceNumbers) :
+                        Enumerable.Empty<uint>();
                 }
             }
         }
