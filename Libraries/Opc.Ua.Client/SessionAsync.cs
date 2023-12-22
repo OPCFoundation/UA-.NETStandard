@@ -304,7 +304,7 @@ namespace Opc.Ua.Client
                 try
                 {
                     await base.CloseSessionAsync(null, false, ct).ConfigureAwait(false);
-                    CloseChannel();
+                    await base.CloseChannelAsync(ct).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -1423,41 +1423,31 @@ namespace Opc.Ua.Client
             // close the session with the server.
             if (connected && !KeepAliveStopped)
             {
-                int existingTimeout = this.OperationTimeout;
-
                 try
                 {
                     // close the session and delete all subscriptions if specified.
-                    this.OperationTimeout = timeout;
-                    CloseSessionResponse response = await base.CloseSessionAsync(null, m_deleteSubscriptionsOnClose, ct).ConfigureAwait(false);
-                    this.OperationTimeout = existingTimeout;
+                    var requestHeader = new RequestHeader() {
+                        TimeoutHint = timeout > 0 ? (uint)timeout : (uint)(this.OperationTimeout > 0 ? this.OperationTimeout : 0),
+                    };
+                    CloseSessionResponse response = await base.CloseSessionAsync(requestHeader, m_deleteSubscriptionsOnClose, ct).ConfigureAwait(false);
 
                     if (closeChannel)
                     {
-                        CloseChannel();
+                        await CloseChannelAsync(ct).ConfigureAwait(false);
                     }
 
                     // raised notification indicating the session is closed.
                     SessionCreated(null, null);
                 }
-                catch (Exception e)
+                // dont throw errors on disconnect, but return them
+                // so the caller can log the error.
+                catch (ServiceResultException sre)
                 {
-                    // dont throw errors on disconnect, but return them
-                    // so the caller can log the error.
-                    if (e is ServiceResultException)
-                    {
-                        result = ((ServiceResultException)e).StatusCode;
-                    }
-                    else
-                    {
-                        result = StatusCodes.Bad;
-                    }
-
-                    Utils.LogError("Session close error: " + result);
+                    result = sre.StatusCode;
                 }
-                finally
+                catch (Exception)
                 {
-                    this.OperationTimeout = existingTimeout;
+                    result = StatusCodes.Bad;
                 }
             }
 

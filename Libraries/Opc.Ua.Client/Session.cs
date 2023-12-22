@@ -33,7 +33,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -47,6 +46,8 @@ namespace Opc.Ua.Client
     /// </summary>
     public partial class Session : SessionClientBatched, ISession
     {
+        private const int kKeepAliveGuardBand = 1000;
+
         #region Constructors
         /// <summary>
         /// Constructs a new instance of the <see cref="Session"/> class.
@@ -763,7 +764,7 @@ namespace Opc.Ua.Client
                 TimeSpan delta = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - Interlocked.Read(ref m_lastKeepAliveTime));
 
                 // add a 1000ms guard band to allow for network lag.
-                return (m_keepAliveInterval + 1000) <= delta.TotalMilliseconds;
+                return (m_keepAliveInterval + kKeepAliveGuardBand) <= delta.TotalMilliseconds;
             }
         }
 
@@ -3037,14 +3038,13 @@ namespace Opc.Ua.Client
                 // close the session with the server.
                 if (!KeepAliveStopped)
                 {
-                    int existingTimeout = this.OperationTimeout;
-
                     try
                     {
                         // close the session and delete all subscriptions if specified.
-                        this.OperationTimeout = timeout;
-                        CloseSession(null, m_deleteSubscriptionsOnClose);
-                        this.OperationTimeout = existingTimeout;
+                        var requestHeader = new RequestHeader() {
+                            TimeoutHint = timeout > 0 ? (uint)timeout : (uint)(this.OperationTimeout > 0 ? this.OperationTimeout : 0),
+                        };
+                        CloseSession(requestHeader, m_deleteSubscriptionsOnClose);
 
                         if (closeChannel)
                         {
@@ -3054,20 +3054,15 @@ namespace Opc.Ua.Client
                         // raised notification indicating the session is closed.
                         SessionCreated(null, null);
                     }
-                    catch (Exception e)
+                    // dont throw errors on disconnect, but return them
+                    // so the caller can log the error.
+                    catch (ServiceResultException sre)
                     {
-                        // dont throw errors on disconnect, but return them
-                        // so the caller can log the error.
-                        if (e is ServiceResultException sre)
-                        {
-                            result = sre.StatusCode;
-                        }
-                        else
-                        {
-                            result = StatusCodes.Bad;
-                        }
-
-                        Utils.LogError("Session close error: " + result);
+                        result = sre.StatusCode;
+                    }
+                    catch (Exception)
+                    {
+                        result = StatusCodes.Bad;
                     }
                 }
             }
@@ -4923,25 +4918,27 @@ namespace Opc.Ua.Client
                 }
             }
 
+            uint timeoutHint = (uint)((timeout > 0) ? timeout : 0);
+            timeoutHint = Math.Min((uint)OperationTimeout / 2, timeoutHint);
+
             // send publish request.
-            RequestHeader requestHeader = new RequestHeader();
+            var requestHeader = new RequestHeader {
+                // ensure the publish request is discarded before the timeout occurs to ensure the channel is dropped.
+                TimeoutHint = timeoutHint,
+                ReturnDiagnostics = (uint)(int)ReturnDiagnostics,
+                RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter)
+            };
 
-            // ensure the publish request is discarded before the timeout occurs to ensure the channel is dropped.
-            requestHeader.TimeoutHint = (uint)OperationTimeout / 2;
-            requestHeader.ReturnDiagnostics = (uint)(int)ReturnDiagnostics;
-            requestHeader.RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter);
-
-            AsyncRequestState state = new AsyncRequestState();
-
-            state.RequestTypeId = DataTypes.PublishRequest;
-            state.RequestId = requestHeader.RequestHandle;
-            state.Timestamp = DateTime.UtcNow;
+            var state = new AsyncRequestState {
+                RequestTypeId = DataTypes.PublishRequest,
+                RequestId = requestHeader.RequestHandle,
+                Timestamp = DateTime.UtcNow
+            };
 
             CoreClientUtils.EventLog.PublishStart((int)requestHeader.RequestHandle);
 
             try
             {
-
                 IAsyncResult result = BeginPublish(
                     requestHeader,
                     acknowledgementsToSend,
