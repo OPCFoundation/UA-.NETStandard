@@ -536,7 +536,7 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <summary>
-        /// Tests that a supplied certifiacte is stored in the Trusted store of the Server after calling method AddOwnCertificateToTrustedStoreAsync
+        /// Tests that a supplied certificate is stored in the Trusted store of the Server after calling method AddOwnCertificateToTrustedStoreAsync
         /// </summary>
         /// <returns></returns>
         [Test]
@@ -556,21 +556,23 @@ namespace Opc.Ua.Configuration.Tests
             DateTime notBefore = DateTime.Today.AddDays(-30);
             DateTime notAfter = DateTime.Today.AddDays(30);
 
-            var cert = CertificateFactory.CreateCertificate(SubjectName)
+            using (var cert = CertificateFactory.CreateCertificate(SubjectName)
                 .SetNotBefore(notBefore)
                 .SetNotAfter(notAfter)
                 .SetCAConstraint(-1)
-                .CreateForRSA();
+                .CreateForRSA())
+            {
 
-            //Act
-            await applicationInstance.AddOwnCertificateToTrustedStoreAsync(cert, new CancellationToken()).ConfigureAwait(false);
-            ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore();
-            var storedCertificates = await store.FindByThumbprint(cert.Thumbprint).ConfigureAwait(false);
+                //Act
+                await applicationInstance.AddOwnCertificateToTrustedStoreAsync(cert, new CancellationToken()).ConfigureAwait(false);
+                ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore();
+                var storedCertificates = await store.FindByThumbprint(cert.Thumbprint).ConfigureAwait(false);
 
-            //Assert
-            Assert.IsTrue(storedCertificates.Contains(cert));
+                //Assert
+                Assert.IsTrue(storedCertificates.Contains(cert));
+            }
         }
-      
+
         /// <summary>
         /// Test to verify that a new cert is not recreated/replaced if DisableCertificateAutoCreation is set.
         /// </summary>
@@ -692,28 +694,31 @@ namespace Opc.Ua.Configuration.Tests
             }
 
             string rootCASubjectName = "CN=Root CA Test, O=OPC Foundation, C=US, S=Arizona";
-            var rootCA = CertificateFactory.CreateCertificate(rootCASubjectName)
+            using (var rootCA = CertificateFactory.CreateCertificate(rootCASubjectName)
                 .SetNotBefore(issuerNotBefore)
                 .SetNotAfter(issuerNotAfter)
                 .SetCAConstraint(-1)
-                .CreateForRSA();
+                .CreateForRSA())
+            {
 
-            var appCert = CertificateFactory.CreateCertificate(
-                ApplicationUri,
-                ApplicationName,
-                SubjectName,
-                domainNames)
-                .SetNotBefore(notBefore)
-                .SetNotAfter(notAfter)
-                .SetIssuer(rootCA)
-                .SetRSAKeySize(keySize)
-                .CreateForRSA();
+                var appCert = CertificateFactory.CreateCertificate(
+                    ApplicationUri,
+                    ApplicationName,
+                    SubjectName,
+                    domainNames)
+                    .SetNotBefore(notBefore)
+                    .SetNotAfter(notAfter)
+                    .SetIssuer(rootCA)
+                    .SetRSAKeySize(keySize)
+                    .CreateForRSA();
 
-            var result = new X509Certificate2Collection {
-                appCert,
-                new X509Certificate2(rootCA.RawData)
-            };
-            return result;
+                var result = new X509Certificate2Collection {
+                    appCert,
+                    new X509Certificate2(rootCA.RawData)
+                };
+
+                return result;
+            }
         }
         #endregion
 
