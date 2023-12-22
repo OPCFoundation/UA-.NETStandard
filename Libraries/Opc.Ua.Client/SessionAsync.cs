@@ -267,7 +267,7 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                if (certificateResults == null || certificateResults.Count == 0)
+                if (clientSoftwareCertificates?.Count > 0 && (certificateResults == null || certificateResults.Count == 0))
                 {
                     Utils.LogInfo("Empty results were received for the ActivateSession call.");
                 }
@@ -385,9 +385,11 @@ namespace Opc.Ua.Client
 
             if (subscriptionIds.Count > 0)
             {
+                bool reconnecting = false;
                 await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
                 try
                 {
+                    reconnecting = m_reconnecting;
                     m_reconnecting = true;
 
                     for (int ii = 0; ii < subscriptions.Count; ii++)
@@ -423,7 +425,7 @@ namespace Opc.Ua.Client
                 }
                 finally
                 {
-                    m_reconnecting = false;
+                    m_reconnecting = reconnecting;
                     m_reconnectLock.Release();
                 }
 
@@ -485,9 +487,11 @@ namespace Opc.Ua.Client
 
             if (subscriptionIds.Count > 0)
             {
+                bool reconnecting = false;
                 await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
                 try
                 {
+                    reconnecting = m_reconnecting;
                     m_reconnecting = true;
 
                     TransferSubscriptionsResponse response = await base.TransferSubscriptionsAsync(null, subscriptionIds, sendInitialValues, ct).ConfigureAwait(false);
@@ -515,11 +519,7 @@ namespace Opc.Ua.Client
                                     // create ack for available sequence numbers
                                     foreach (uint sequenceNumber in results[ii].AvailableSequenceNumbers)
                                     {
-                                        var ack = new SubscriptionAcknowledgement() {
-                                            SubscriptionId = subscriptionIds[ii],
-                                            SequenceNumber = sequenceNumber
-                                        };
-                                        m_acknowledgementsToSend.Add(ack);
+                                        AddAcknowledgementToSend(subscriptionIds[ii], sequenceNumber);
                                     }
                                 }
                             }
@@ -540,7 +540,7 @@ namespace Opc.Ua.Client
                 }
                 finally
                 {
-                    m_reconnecting = false;
+                    m_reconnecting = reconnecting;
                     m_reconnectLock.Release();
                 }
 
@@ -1399,8 +1399,7 @@ namespace Opc.Ua.Client
             StatusCode result = StatusCodes.Good;
 
             // stop the keep alive timer.
-            Utils.SilentDispose(m_keepAliveTimer);
-            m_keepAliveTimer = null;
+            StopKeepAliveTimer();
 
             // check if currectly connected.
             bool connected = Connected;
@@ -1508,6 +1507,8 @@ namespace Opc.Ua.Client
                         StatusCodes.BadInvalidState,
                         "Session is already attempting to reconnect.");
                 }
+
+                StopKeepAliveTimer();
 
                 IAsyncResult result = PrepareReconnectBeginActivate(
                     connection,

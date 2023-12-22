@@ -139,8 +139,10 @@ namespace Opc.Ua.Client
             // stop the publish timer.
             Utils.SilentDispose(m_publishTimer);
             m_publishTimer = null;
-            m_messageWorkerShutdownEvent.Set();
+            m_messageWorkerCts?.Cancel();
             m_messageWorkerEvent.Set();
+            m_messageWorkerCts?.Dispose();
+            m_messageWorkerCts = null;
             m_messageWorkerTask = null;
         }
 
@@ -177,7 +179,7 @@ namespace Opc.Ua.Client
             m_monitoredItems = new SortedDictionary<uint, MonitoredItem>();
             m_deletedItems = new List<MonitoredItem>();
             m_messageWorkerEvent = new AsyncAutoResetEvent();
-            m_messageWorkerShutdownEvent = new ManualResetEvent(false);
+            m_messageWorkerCts = null;
             m_resyncLastSequenceNumberProcessed = false;
 
             m_defaultItem = new MonitoredItem {
@@ -1847,16 +1849,18 @@ namespace Opc.Ua.Client
                 Interlocked.Exchange(ref m_lastNotificationTime, DateTime.UtcNow.Ticks);
                 m_keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * (m_currentKeepAliveCount + 1), Int32.MaxValue));
 #if NET6_0_OR_GREATER
-                m_publishTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(m_keepAliveInterval));
-                Task.Run(() => OnKeepAliveAsync(CancellationToken.None));
+                var publishTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(m_keepAliveInterval));
+                Task.Run(() => OnKeepAliveAsync(publishTimer, CancellationToken.None));
+                m_publishTimer = publishTimer;
 #else
                 m_publishTimer = new Timer(OnKeepAlive, m_keepAliveInterval, m_keepAliveInterval, m_keepAliveInterval);
 #endif
 
                 if (m_messageWorkerTask == null || m_messageWorkerTask.IsCompleted)
                 {
-                    m_messageWorkerShutdownEvent.Reset();
-                    m_messageWorkerTask = Task.Run(() => PublishResponseMessageWorkerAsync());
+                    m_messageWorkerCts?.Dispose();
+                    m_messageWorkerCts = new CancellationTokenSource();
+                    m_messageWorkerTask = Task.Run(() => PublishResponseMessageWorkerAsync(m_messageWorkerCts.Token));
                 }
             }
 
@@ -1868,21 +1872,23 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Checks if a notification has arrived. Sends a publish if it has not.
         /// </summary>
-        private async Task OnKeepAliveAsync(CancellationToken ct)
+        private async Task OnKeepAliveAsync(PeriodicTimer publishTimer, CancellationToken ct)
         {
-            while (true)
+            try
             {
-                if (!await m_publishTimer.WaitForNextTickAsync(ct).ConfigureAwait(false))
+                while (await publishTimer.WaitForNextTickAsync(ct).ConfigureAwait(false))
                 {
-                    return;
-                }
+                    if (!PublishingStopped)
+                    {
+                        continue;
+                    }
 
-                if (!PublishingStopped)
-                {
-                    continue;
+                    HandleOnKeepAliveStopped();
                 }
-
-                HandleKeepAliveStopped();
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex, "");
             }
         }
 #else
@@ -1896,14 +1902,14 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            HandleKeepAliveStopped();
+            HandleOnKeepAliveStopped();
         }
 #endif
 
         /// <summary>
         /// Handles callback if publishing stopped. Sends a publish.
         /// </summary>
-        private HandleOnKeepAliveStopped()
+        private void HandleOnKeepAliveStopped()
         {
             // check if a publish has arrived.
             PublishStateChangedEventHandler callback = null;
@@ -1935,30 +1941,36 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Publish response worker task for the subscriptions.
         /// </summary>
-        private async Task PublishResponseMessageWorkerAsync()
+        private async Task PublishResponseMessageWorkerAsync(CancellationToken ct)
         {
+            Utils.LogTrace("SubscriptionId {0} - Publish Thread {1:X8} Started.", m_id, Environment.CurrentManagedThreadId);
+
+            bool cancelled;
             try
             {
-                Utils.LogTrace("SubscriptionId {0} - Publish Thread {1:X8} Started.", m_id, Environment.CurrentManagedThreadId);
-
                 do
                 {
                     await m_messageWorkerEvent.WaitAsync().ConfigureAwait(false);
 
-                    if (m_messageWorkerShutdownEvent.WaitOne(0))
+                    cancelled = ct.IsCancellationRequested;
+                    if (!cancelled)
                     {
-                        Utils.LogTrace("SubscriptionId {0} - Publish Thread {1:X8} Exited Normally.", m_id, Environment.CurrentManagedThreadId);
-                        break;
+                        await OnMessageReceivedAsync(ct).ConfigureAwait(false);
+                        cancelled = ct.IsCancellationRequested;
                     }
-
-                    await OnMessageReceivedAsync(CancellationToken.None).ConfigureAwait(false);
                 }
-                while (true);
+                while (!cancelled);
+            }
+            catch (OperationCanceledException)
+            {
             }
             catch (Exception e)
             {
                 Utils.LogError(e, "SubscriptionId {0} - Publish Worker Thread {1:X8} Exited Unexpectedly.", m_id, Environment.CurrentManagedThreadId);
+                return;
             }
+
+            Utils.LogTrace("SubscriptionId {0} - Publish Thread {1:X8} Exited Normally.", m_id, Environment.CurrentManagedThreadId);
         }
 
         /// <summary>
@@ -2180,6 +2192,11 @@ namespace Opc.Ua.Client
 
                 lock (m_cache)
                 {
+                    if (m_incomingMessages == null)
+                    {
+                        return;
+                    }
+
                     for (LinkedListNode<IncomingMessage> ii = m_incomingMessages.First; ii != null; ii = ii.Next)
                     {
                         // update monitored items with unprocessed messages.
@@ -2781,7 +2798,7 @@ namespace Opc.Ua.Client
         private FastEventNotificationEventHandler m_fastEventCallback;
         private FastKeepAliveNotificationEventHandler m_fastKeepAliveCallback;
         private AsyncAutoResetEvent m_messageWorkerEvent;
-        private ManualResetEvent m_messageWorkerShutdownEvent;
+        private CancellationTokenSource m_messageWorkerCts;
         private Task m_messageWorkerTask;
         private int m_outstandingMessageWorkers;
         private bool m_sequentialPublishing;

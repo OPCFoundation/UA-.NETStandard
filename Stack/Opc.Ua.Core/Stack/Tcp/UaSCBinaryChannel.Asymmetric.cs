@@ -124,7 +124,7 @@ namespace Opc.Ua.Bindings
 
             for (int ii = 0; ii < thumbprint.Length; ii++)
             {
-                builder.AppendFormat("{0:X2}", thumbprint[ii]);
+                builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", thumbprint[ii]);
             }
 
             return builder.ToString();

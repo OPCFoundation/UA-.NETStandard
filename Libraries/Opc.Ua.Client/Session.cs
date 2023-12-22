@@ -33,6 +33,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -761,10 +762,10 @@ namespace Opc.Ua.Client
             {
                 TimeSpan delta = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - Interlocked.Read(ref m_lastKeepAliveTime));
 
-                    // add a 1000ms guard band to allow for network lag.
+                // add a 1000ms guard band to allow for network lag.
                 return (m_keepAliveInterval + 1000) <= delta.TotalMilliseconds;
-                }
             }
+        }
 
         /// <summary>
         /// Gets the time of the last keep alive.
@@ -1416,8 +1417,6 @@ namespace Opc.Ua.Client
             bool resetReconnect = false;
             try
             {
-                Utils.LogInfo("Session RECONNECT {0} starting.", SessionId);
-
                 m_reconnectLock.Wait();
                 bool reconnecting = m_reconnecting;
                 m_reconnecting = true;
@@ -1433,6 +1432,8 @@ namespace Opc.Ua.Client
                         StatusCodes.BadInvalidState,
                         "Session is already attempting to reconnect.");
                 }
+
+                StopKeepAliveTimer();
 
                 IAsyncResult result = PrepareReconnectBeginActivate(
                     connection,
@@ -3032,42 +3033,42 @@ namespace Opc.Ua.Client
                         Utils.LogError(e, "Session: Unexpected eror raising SessionClosing event.");
                     }
                 }
-            }
 
-            // close the session with the server.
-            if (connected && !KeepAliveStopped)
-            {
-                int existingTimeout = this.OperationTimeout;
-
-                try
+                // close the session with the server.
+                if (!KeepAliveStopped)
                 {
-                    // close the session and delete all subscriptions if specified.
-                    this.OperationTimeout = timeout;
-                    CloseSession(null, m_deleteSubscriptionsOnClose);
-                    this.OperationTimeout = existingTimeout;
+                    int existingTimeout = this.OperationTimeout;
 
-                    if (closeChannel)
+                    try
                     {
-                        CloseChannel();
-                    }
+                        // close the session and delete all subscriptions if specified.
+                        this.OperationTimeout = timeout;
+                        CloseSession(null, m_deleteSubscriptionsOnClose);
+                        this.OperationTimeout = existingTimeout;
 
-                    // raised notification indicating the session is closed.
-                    SessionCreated(null, null);
-                }
-                catch (Exception e)
-                {
-                    // dont throw errors on disconnect, but return them
-                    // so the caller can log the error.
-                    if (e is ServiceResultException sre)
-                    {
-                        result = sre.StatusCode;
-                    }
-                    else
-                    {
-                        result = StatusCodes.Bad;
-                    }
+                        if (closeChannel)
+                        {
+                            CloseChannel();
+                        }
 
-                    Utils.LogError("Session close error: " + result);
+                        // raised notification indicating the session is closed.
+                        SessionCreated(null, null);
+                    }
+                    catch (Exception e)
+                    {
+                        // dont throw errors on disconnect, but return them
+                        // so the caller can log the error.
+                        if (e is ServiceResultException sre)
+                        {
+                            result = sre.StatusCode;
+                        }
+                        else
+                        {
+                            result = StatusCodes.Bad;
+                        }
+
+                        Utils.LogError("Session close error: " + result);
+                    }
                 }
             }
 
@@ -3746,21 +3747,21 @@ namespace Opc.Ua.Client
             lock (SyncRoot)
             {
                 StopKeepAliveTimer();
-                // start timer.
+
 #if NET6_0_OR_GREATER
-                m_keepAliveTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(keepAliveInterval));
+                // start periodic timer loop
+                var keepAliveTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(keepAliveInterval));
+                Task.Run(() => OnKeepAliveAsync(keepAliveTimer, nodesToRead, CancellationToken.None));
+                m_keepAliveTimer = keepAliveTimer;
+            }
 #else
+                // start timer
                 m_keepAliveTimer = new Timer(OnKeepAlive, nodesToRead, keepAliveInterval, keepAliveInterval);
-#endif
             }
 
             // send initial keep alive.
-#if NET6_0_OR_GREATER
-            Task.Run(() => OnKeepAliveAsync(nodesToRead, CancellationToken.None));
-#else
             OnKeepAlive(nodesToRead);
 #endif
-
         }
 
         /// <summary>
@@ -3863,19 +3864,21 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Sends a keep alive by reading from the server.
         /// </summary>
-        private async Task OnKeepAliveAsync(ReadValueIdCollection nodesToRead, CancellationToken ct)
+        private async Task OnKeepAliveAsync(PeriodicTimer keepAliveTimer, ReadValueIdCollection nodesToRead, CancellationToken ct)
         {
-            // trigger first keep alive
-            OnSendKeepAlive(nodesToRead);
-
-            while (true)
+            try
             {
-                if (!await m_keepAliveTimer.WaitForNextTickAsync(ct).ConfigureAwait(false))
-                {
-                    return;
-        }
-
+                // trigger first keep alive
                 OnSendKeepAlive(nodesToRead);
+
+                while (await keepAliveTimer.WaitForNextTickAsync(ct).ConfigureAwait(false))
+                {
+                    OnSendKeepAlive(nodesToRead);
+                }
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex, "Session {0}: Unexpected error in KeepAlive");
             }
         }
 #else
@@ -3976,6 +3979,11 @@ namespace Opc.Ua.Client
 
                 return;
             }
+            catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadSessionIdInvalid)
+            {
+                // recover from error condition when secure channel is still alive
+                OnKeepAliveError(ServiceResult.Create(StatusCodes.BadSessionIdInvalid, "Session unavailable for keep alive requests."));
+            }
             catch (Exception e)
             {
                 Utils.LogError("Unexpected keep alive error occurred: {0}", e.Message);
@@ -4009,8 +4017,8 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                    BeginPublish(OperationTimeout);
-                }
+                BeginPublish(OperationTimeout);
+            }
             else
             {
                 Interlocked.Exchange(ref m_lastKeepAliveTime, DateTime.UtcNow.Ticks);
@@ -4977,7 +4985,6 @@ namespace Opc.Ua.Client
                 m_reconnectLock.Release();
 
                 // complete publish.
-                uint subscriptionId;
                 UInt32Collection availableSequenceNumbers;
                 NotificationMessage notificationMessage;
                 StatusCodeCollection acknowledgeResults;
@@ -5310,7 +5317,7 @@ namespace Opc.Ua.Client
         {
             if (serverCertificateData != null &&
                 m_endpoint.Description.ServerCertificate != null &&
-                !Utils.IsEqual(serverCertificateData, m_endpoint.Description.ServerCertificate))
+                !serverCertificateData.SequenceEqual(m_endpoint.Description.ServerCertificate))
             {
                 try
                 {
