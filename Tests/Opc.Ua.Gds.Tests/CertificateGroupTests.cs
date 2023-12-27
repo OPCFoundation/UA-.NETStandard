@@ -17,7 +17,7 @@ namespace Opc.Ua.Gds.Tests
 
         public CertificateGroupTests()
         {
-            _path = Utils.ReplaceSpecialFolderNames("%LocalApplicationData%/OPC/GDS/Teststore");
+            _path = Utils.ReplaceSpecialFolderNames("%LocalApplicationData%/OPC/GDS/TestStore");
         }
 
         public void Dispose()
@@ -31,7 +31,8 @@ namespace Opc.Ua.Gds.Tests
         {
             var configuration = new CertificateGroupConfiguration();
             configuration.SubjectName = "CN=GDS Test CA, O=OPC Foundation";
-            var certificateGroup = new CertificateGroup().Create(_path, configuration);
+            configuration.BaseStorePath = _path;
+            var certificateGroup = new CertificateGroup().Create(_path + "/authorities", configuration);
             Assert.That(() => certificateGroup.CreateCACertificateAsync("This is not the ValidSubjectName for my CertificateGroup"), Throws.TypeOf<ArgumentException>());
         }
 
@@ -40,7 +41,8 @@ namespace Opc.Ua.Gds.Tests
         {
             var configuration = new CertificateGroupConfiguration();
             configuration.SubjectName = "CN=GDS Test CA, O=OPC Foundation";
-            var certificateGroup = new CertificateGroup().Create(_path, configuration);
+            configuration.BaseStorePath = _path;
+            var certificateGroup = new CertificateGroup().Create(_path + "/authorities", configuration);
             var certificate = await certificateGroup.CreateCACertificateAsync(configuration.SubjectName).ConfigureAwait(false);
             Assert.NotNull(certificate);
             using (ICertificateStore trustedStore = CertificateStoreIdentifier.OpenStore(configuration.TrustedListPath))
