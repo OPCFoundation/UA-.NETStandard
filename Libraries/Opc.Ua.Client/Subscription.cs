@@ -1946,13 +1946,12 @@ namespace Opc.Ua.Client
         {
             Utils.LogTrace("SubscriptionId {0} - Publish Thread {1:X8} Started.", m_id, Environment.CurrentManagedThreadId);
 
-            AsyncAutoResetEvent messageWorkerEvent = m_messageWorkerEvent;
             bool cancelled;
             try
             {
                 do
                 {
-                    await messageWorkerEvent.WaitAsync().ConfigureAwait(false);
+                    await m_messageWorkerEvent.WaitAsync().ConfigureAwait(false);
 
                     cancelled = ct.IsCancellationRequested;
                     if (!cancelled)
