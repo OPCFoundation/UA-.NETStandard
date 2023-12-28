@@ -341,10 +341,7 @@ namespace Opc.Ua.Client
                 subscription.Session = null;
             }
 
-            if (m_SubscriptionsChanged != null)
-            {
-                m_SubscriptionsChanged(this, null);
-            }
+            m_SubscriptionsChanged?.Invoke(this, null);
 
             return true;
         }
@@ -365,10 +362,7 @@ namespace Opc.Ua.Client
 
             if (removed)
             {
-                if (m_SubscriptionsChanged != null)
-                {
-                    m_SubscriptionsChanged(this, null);
-                }
+                m_SubscriptionsChanged?.Invoke(this, null);
             }
 
             return removed;

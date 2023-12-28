@@ -254,18 +254,12 @@ namespace Opc.Ua.Client
         {
             add
             {
-                lock (m_cache)
-                {
-                    m_publishStatusChanged += value;
-                }
+                m_publishStatusChanged += value;
             }
 
             remove
             {
-                lock (m_cache)
-                {
-                    m_publishStatusChanged -= value;
-                }
+                m_publishStatusChanged -= value;
             }
         }
         #endregion
@@ -361,14 +355,12 @@ namespace Opc.Ua.Client
         {
             get
             {
-                lock (m_cache)
-                {
-                    return m_maxMessageCount;
-                }
+                return m_maxMessageCount;
             }
 
             set
             {
+                // lock needed to synchronize with message list processing
                 lock (m_cache)
                 {
                     m_maxMessageCount = value;
@@ -428,13 +420,11 @@ namespace Opc.Ua.Client
         {
             get
             {
-                lock (m_cache)
-                {
-                    return m_sequentialPublishing;
-                }
+                return m_sequentialPublishing;
             }
             set
             {
+                // synchronize with message list processing
                 lock (m_cache)
                 {
                     m_sequentialPublishing = value;
@@ -455,7 +445,7 @@ namespace Opc.Ua.Client
         public bool RepublishAfterTransfer
         {
             get { return m_republishAfterTransfer; }
-            set { lock (m_cache) { m_republishAfterTransfer = value; } }
+            set { m_republishAfterTransfer = value; }
         }
 
         /// <summary>
@@ -564,25 +554,28 @@ namespace Opc.Ua.Client
         {
             get
             {
-                if (m_deletedItems.Count > 0)
+                lock (m_cache)
                 {
-                    return true;
-                }
-
-                foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
-                {
-                    if (Created && !monitoredItem.Status.Created)
+                    if (m_deletedItems.Count > 0)
                     {
                         return true;
                     }
 
-                    if (monitoredItem.AttributesModified)
+                    foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
                     {
-                        return true;
-                    }
-                }
+                        if (Created && !monitoredItem.Status.Created)
+                        {
+                            return true;
+                        }
 
-                return false;
+                        if (monitoredItem.AttributesModified)
+                        {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                }
             }
         }
 
@@ -792,11 +785,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public void ChangesCompleted()
         {
-            if (m_StateChanged != null)
-            {
-                m_StateChanged(this, new SubscriptionStateChangedEventArgs(m_changeMask));
-            }
-
+            m_StateChanged?.Invoke(this, new SubscriptionStateChangedEventArgs(m_changeMask));
             m_changeMask = SubscriptionChangeMask.None;
         }
 
@@ -1913,13 +1902,9 @@ namespace Opc.Ua.Client
         private void HandleOnKeepAliveStopped()
         {
             // check if a publish has arrived.
-            PublishStateChangedEventHandler callback = null;
+            PublishStateChangedEventHandler callback = m_publishStatusChanged;
 
-            lock (m_cache)
-            {
-                callback = m_publishStatusChanged;
-                m_publishLateCount++;
-            }
+            Interlocked.Increment(ref m_publishLateCount);
 
             TraceState("PUBLISHING STOPPED");
 
@@ -2318,10 +2303,7 @@ namespace Opc.Ua.Client
                                         SaveDataChange(message, datachange, message.StringTable);
                                     }
 
-                                    if (datachangeCallback != null)
-                                    {
-                                        datachangeCallback(this, datachange, message.StringTable);
-                                    }
+                                    datachangeCallback?.Invoke(this, datachange, message.StringTable);
                                 }
 
                                 var events = notificationData.Body as EventNotificationList;
@@ -2338,10 +2320,7 @@ namespace Opc.Ua.Client
                                         SaveEvents(message, events, message.StringTable);
                                     }
 
-                                    if (eventCallback != null)
-                                    {
-                                        eventCallback(this, events, message.StringTable);
-                                    }
+                                    eventCallback?.Invoke(this, events, message.StringTable);
                                 }
 
                                 StatusChangeNotification statusChanged = notificationData.Body as StatusChangeNotification;

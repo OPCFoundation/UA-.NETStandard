@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -46,6 +47,9 @@ namespace Opc.Ua.Client
     /// </summary>
     public partial class Session : SessionClientBatched, ISession
     {
+        private const int kReconnectTimeout = 15000;
+        private const int kMinPublishRequestCountMax = 100;
+        private const int kDefaultPublishRequestCount = 1;
         private const int kKeepAliveGuardBand = 1000;
 
         #region Constructors
@@ -427,18 +431,12 @@ namespace Opc.Ua.Client
         {
             add
             {
-                lock (m_eventLock)
-                {
-                    m_KeepAlive += value;
-                }
+                m_KeepAlive += value;
             }
 
             remove
             {
-                lock (m_eventLock)
-                {
-                    m_KeepAlive -= value;
-                }
+                m_KeepAlive -= value;
             }
         }
 
@@ -454,18 +452,12 @@ namespace Opc.Ua.Client
         {
             add
             {
-                lock (m_eventLock)
-                {
-                    m_Publish += value;
-                }
+                m_Publish += value;
             }
 
             remove
             {
-                lock (m_eventLock)
-                {
-                    m_Publish -= value;
-                }
+                m_Publish -= value;
             }
         }
 
@@ -485,18 +477,12 @@ namespace Opc.Ua.Client
         {
             add
             {
-                lock (m_eventLock)
-                {
-                    m_PublishError += value;
-                }
+                m_PublishError += value;
             }
 
             remove
             {
-                lock (m_eventLock)
-                {
-                    m_PublishError -= value;
-                }
+                m_PublishError -= value;
             }
         }
 
@@ -506,18 +492,12 @@ namespace Opc.Ua.Client
         {
             add
             {
-                lock (m_eventLock)
-                {
-                    m_PublishSequenceNumbersToAcknowledge += value;
-                }
+                m_PublishSequenceNumbersToAcknowledge += value;
             }
 
             remove
             {
-                lock (m_eventLock)
-                {
-                    m_PublishSequenceNumbersToAcknowledge -= value;
-                }
+                m_PublishSequenceNumbersToAcknowledge -= value;
             }
         }
 
@@ -3094,10 +3074,7 @@ namespace Opc.Ua.Client
                 m_subscriptions.Add(subscription);
             }
 
-            if (m_SubscriptionsChanged != null)
-            {
-                m_SubscriptionsChanged(this, null);
-            }
+            m_SubscriptionsChanged?.Invoke(this, null);
 
             return true;
         }
@@ -3122,10 +3099,7 @@ namespace Opc.Ua.Client
                 subscription.Session = null;
             }
 
-            if (m_SubscriptionsChanged != null)
-            {
-                m_SubscriptionsChanged(this, null);
-            }
+            m_SubscriptionsChanged?.Invoke(this, null);
 
             return true;
         }
@@ -3145,10 +3119,7 @@ namespace Opc.Ua.Client
 
             if (removed)
             {
-                if (m_SubscriptionsChanged != null)
-                {
-                    m_SubscriptionsChanged(this, null);
-                }
+                m_SubscriptionsChanged?.Invoke(this, null);
             }
 
             return removed;
@@ -3174,10 +3145,7 @@ namespace Opc.Ua.Client
                 subscription.Session = null;
             }
 
-            if (m_SubscriptionsChanged != null)
-            {
-                m_SubscriptionsChanged(this, null);
-            }
+            m_SubscriptionsChanged?.Invoke(this, null);
 
             return true;
         }
@@ -3723,10 +3691,7 @@ namespace Opc.Ua.Client
 
             Interlocked.Exchange(ref m_lastKeepAliveTime, DateTime.UtcNow.Ticks);
 
-            lock (m_eventLock)
-            {
-                m_serverState = ServerState.Unknown;
-            }
+            m_serverState = ServerState.Unknown;
 
             var nodesToRead = new ReadValueIdCollection() {
                 // read the server state.
@@ -3746,7 +3711,7 @@ namespace Opc.Ua.Client
 #if NET6_0_OR_GREATER
                 // start periodic timer loop
                 var keepAliveTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(keepAliveInterval));
-                Task.Run(() => OnKeepAliveAsync(keepAliveTimer, nodesToRead, CancellationToken.None));
+                Task.Run(() => OnKeepAliveAsync(keepAliveTimer, nodesToRead));
                 m_keepAliveTimer = keepAliveTimer;
             }
 #else
@@ -3859,22 +3824,17 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Sends a keep alive by reading from the server.
         /// </summary>
-        private async Task OnKeepAliveAsync(PeriodicTimer keepAliveTimer, ReadValueIdCollection nodesToRead, CancellationToken ct)
+        private async Task OnKeepAliveAsync(PeriodicTimer keepAliveTimer, ReadValueIdCollection nodesToRead)
         {
-            try
-            {
-                // trigger first keep alive
-                OnSendKeepAlive(nodesToRead);
+            // trigger first keep alive
+            OnSendKeepAlive(nodesToRead);
 
-                while (await keepAliveTimer.WaitForNextTickAsync(ct).ConfigureAwait(false))
-                {
-                    OnSendKeepAlive(nodesToRead);
-                }
-            }
-            catch (Exception ex)
+            while (await keepAliveTimer.WaitForNextTickAsync().ConfigureAwait(false))
             {
-                Utils.LogError(ex, "Session {0}: Unexpected error in KeepAlive");
+                OnSendKeepAlive(nodesToRead);
             }
+
+            Utils.LogTrace("Session {0}: KeepAlive PeriodicTimer exit.", SessionId);
         }
 #else
         /// <summary>
@@ -4019,15 +3979,10 @@ namespace Opc.Ua.Client
                 Interlocked.Exchange(ref m_lastKeepAliveTime, DateTime.UtcNow.Ticks);
             }
 
-            KeepAliveEventHandler callback = null;
+            // save server state.
+            m_serverState = currentState;
 
-            lock (m_eventLock)
-            {
-                callback = m_KeepAlive;
-
-                // save server state.
-                m_serverState = currentState;
-            }
+            KeepAliveEventHandler callback = m_KeepAlive;
 
             if (callback != null)
             {
@@ -4056,12 +4011,7 @@ namespace Opc.Ua.Client
                 this.GoodPublishRequestCount,
                 this.OutstandingRequestCount);
 
-            KeepAliveEventHandler callback = null;
-
-            lock (m_eventLock)
-            {
-                callback = m_KeepAlive;
-            }
+            KeepAliveEventHandler callback = m_KeepAlive;
 
             if (callback != null)
             {
@@ -4880,11 +4830,7 @@ namespace Opc.Ua.Client
             }
 
             // get event handler to modify ack list
-            PublishSequenceNumbersToAcknowledgeEventHandler callback = null;
-            lock (m_eventLock)
-            {
-                callback = m_PublishSequenceNumbersToAcknowledge;
-            }
+            PublishSequenceNumbersToAcknowledgeEventHandler callback = m_PublishSequenceNumbersToAcknowledge;
 
             // collect the current set if acknowledgements.
             SubscriptionAcknowledgementCollection acknowledgementsToSend = null;
@@ -4966,7 +4912,6 @@ namespace Opc.Ua.Client
             NodeId sessionId = (NodeId)state[0];
             SubscriptionAcknowledgementCollection acknowledgementsToSend = (SubscriptionAcknowledgementCollection)state[1];
             RequestHeader requestHeader = (RequestHeader)state[2];
-            bool refillPublishRequestQueue = true;
             uint subscriptionId = 0;
             bool moreNotifications;
 
@@ -5045,12 +4990,7 @@ namespace Opc.Ua.Client
 
                 if (error.Code != StatusCodes.BadNoSubscription)
                 {
-                    PublishErrorEventHandler callback = null;
-
-                    lock (m_eventLock)
-                    {
-                        callback = m_PublishError;
-                    }
+                    PublishErrorEventHandler callback = m_PublishError;
 
                     if (callback != null)
                     {
@@ -5115,18 +5055,22 @@ namespace Opc.Ua.Client
                     case StatusCodes.BadTooManyOperations:
                     case StatusCodes.BadTcpServerTooBusy:
                     case StatusCodes.BadServerTooBusy:
-                    default:
-                        // throttle the resend to reduce server load
-                        Thread.Sleep(100);
-                        break;
-                }
+                        // throttle the next publish to reduce server load
+                        _ = Task.Run(async () => {
+                            await Task.Delay(100).ConfigureAwait(false);
+                            BeginPublish(OperationTimeout);
+                        });
+                        return;
 
-                Utils.LogError(e, "PUBLISH #{0} - Unhandled error {1} during Publish.", requestHeader.RequestHandle, error.StatusCode);
-                refillPublishRequestQueue = false;
+                    default:
+                        Utils.LogError(e, "PUBLISH #{0} - Unhandled error {1} during Publish.", requestHeader.RequestHandle, error.StatusCode);
+                        goto case StatusCodes.BadServerTooBusy;
+
+                }
             }
 
             int requestCount = GoodPublishRequestCount;
-            var minPublishRequestCount = refillPublishRequestQueue ? GetMinPublishRequestCount(false) : 1;
+            var minPublishRequestCount = GetMinPublishRequestCount(false);
             if (requestCount < minPublishRequestCount)
             {
                 BeginPublish(OperationTimeout);
@@ -5653,12 +5597,7 @@ namespace Opc.Ua.Client
                     break;
             }
 
-            PublishErrorEventHandler callback = null;
-
-            lock (m_eventLock)
-            {
-                callback = m_PublishError;
-            }
+            PublishErrorEventHandler callback = m_PublishError;
 
             // raise an error event.
             if (callback != null)
@@ -5847,16 +5786,14 @@ namespace Opc.Ua.Client
                     responseHeader.StringTable);
 
                 // raise the notification.
-                lock (m_eventLock)
+                NotificationEventHandler publishEventHandler = m_Publish;
+                if (publishEventHandler != null)
                 {
                     NotificationEventArgs args = new NotificationEventArgs(subscription, notificationMessage, responseHeader.StringTable);
 
-                    if (m_Publish != null)
-                    {
-                        Task.Run(() => {
-                            OnRaisePublishNotification(args);
-                        });
-                    }
+                    Task.Run(() => {
+                        OnRaisePublishNotification(publishEventHandler, args);
+                    });
                 }
             }
             else
@@ -5926,13 +5863,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Raises an event indicating that publish has returned a notification.
         /// </summary>
-        private void OnRaisePublishNotification(object state)
+        private void OnRaisePublishNotification(NotificationEventHandler callback, NotificationEventArgs args)
         {
             try
             {
-                NotificationEventArgs args = (NotificationEventArgs)state;
-                NotificationEventHandler callback = m_Publish;
-
                 if (callback != null && args.Subscription.Id != 0)
                 {
                     callback(this, args);
@@ -6038,6 +5972,7 @@ namespace Opc.Ua.Client
 
         private void AddAcknowledgementToSend(uint subscriptionId, uint sequenceNumber)
         {
+            Debug.Assert(Monitor.IsEntered(SyncRoot));
             SubscriptionAcknowledgement acknowledgement = new SubscriptionAcknowledgement {
                 SubscriptionId = subscriptionId,
                 SequenceNumber = sequenceNumber
@@ -6171,16 +6106,13 @@ namespace Opc.Ua.Client
         /// </summary>
         private void IndicateSessionConfigurationChanged()
         {
-            if (m_SessionConfigurationChanged != null)
+            try
             {
-                try
-                {
-                    m_SessionConfigurationChanged(this, EventArgs.Empty);
-                }
-                catch (Exception e)
-                {
-                    Utils.Trace(e, "Unexpected error calling SessionConfigurationChanged event handler.");
-                }
+                m_SessionConfigurationChanged?.Invoke(this, EventArgs.Empty);
+            }
+            catch (Exception e)
+            {
+                Utils.Trace(e, "Unexpected error calling SessionConfigurationChanged event handler.");
             }
         }
         #endregion
@@ -6265,9 +6197,6 @@ namespace Opc.Ua.Client
         private long m_keepAliveCounter;
         private bool m_reconnecting;
         private SemaphoreSlim m_reconnectLock;
-        private const int kReconnectTimeout = 15000;
-        private const int kMinPublishRequestCountMax = 100;
-        private const int kDefaultPublishRequestCount = 1;
         private int m_minPublishRequestCount;
         private LinkedList<AsyncRequestState> m_outstandingRequests;
         private readonly EndpointDescriptionCollection m_discoveryServerEndpoints;
@@ -6282,7 +6211,6 @@ namespace Opc.Ua.Client
             public bool Defunct;
         }
 
-        private readonly object m_eventLock = new object();
         private event KeepAliveEventHandler m_KeepAlive;
         private event NotificationEventHandler m_Publish;
         private event PublishErrorEventHandler m_PublishError;
