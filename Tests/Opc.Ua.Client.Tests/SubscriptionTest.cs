@@ -1180,7 +1180,7 @@ namespace Opc.Ua.Client.Tests
             bool conditionRefresh = subscription.ConditionRefresh();
             Assert.True(conditionRefresh);
 
-            var sre = Assert.Throws<ServiceResultException>(() => subscription.Republish(subscription.SequenceNumber));
+            var sre = Assert.Throws<ServiceResultException>(() => subscription.Republish(subscription.SequenceNumber + 100));
             Assert.AreEqual(StatusCodes.BadMessageNotAvailable, sre.StatusCode);
 
             subscription.RemoveItems(list);
