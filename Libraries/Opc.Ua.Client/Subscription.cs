@@ -139,9 +139,8 @@ namespace Opc.Ua.Client
             // stop the publish timer.
             Utils.SilentDispose(m_publishTimer);
             m_publishTimer = null;
-            m_messageWorkerCts?.Cancel();
+            Utils.SilentDispose(m_messageWorkerCts);
             m_messageWorkerEvent.Set();
-            m_messageWorkerCts?.Dispose();
             m_messageWorkerCts = null;
             m_messageWorkerTask = null;
         }
@@ -1860,7 +1859,7 @@ namespace Opc.Ua.Client
 
                 if (m_messageWorkerTask == null || m_messageWorkerTask.IsCompleted)
                 {
-                    m_messageWorkerCts?.Dispose();
+                    Utils.SilentDispose(m_messageWorkerCts);
                     m_messageWorkerCts = new CancellationTokenSource();
                     m_messageWorkerTask = Task.Run(() => PublishResponseMessageWorkerAsync(m_messageWorkerCts.Token));
                 }
@@ -1947,12 +1946,13 @@ namespace Opc.Ua.Client
         {
             Utils.LogTrace("SubscriptionId {0} - Publish Thread {1:X8} Started.", m_id, Environment.CurrentManagedThreadId);
 
+            AsyncAutoResetEvent messageWorkerEvent = m_messageWorkerEvent;
             bool cancelled;
             try
             {
                 do
                 {
-                    await m_messageWorkerEvent.WaitAsync().ConfigureAwait(false);
+                    await messageWorkerEvent.WaitAsync().ConfigureAwait(false);
 
                     cancelled = ct.IsCancellationRequested;
                     if (!cancelled)
@@ -1965,6 +1965,7 @@ namespace Opc.Ua.Client
             }
             catch (OperationCanceledException)
             {
+                // intentionally fall through
             }
             catch (Exception e)
             {

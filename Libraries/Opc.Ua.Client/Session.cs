@@ -763,7 +763,7 @@ namespace Opc.Ua.Client
             {
                 TimeSpan delta = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - Interlocked.Read(ref m_lastKeepAliveTime));
 
-                // add a 1000ms guard band to allow for network lag.
+                // add a guard band to allow for network lag.
                 return (m_keepAliveInterval + kKeepAliveGuardBand) <= delta.TotalMilliseconds;
             }
         }
@@ -5314,7 +5314,7 @@ namespace Opc.Ua.Client
         {
             if (serverCertificateData != null &&
                 m_endpoint.Description.ServerCertificate != null &&
-                !serverCertificateData.SequenceEqual(m_endpoint.Description.ServerCertificate))
+                !Utils.IsEqual(serverCertificateData, m_endpoint.Description.ServerCertificate))
             {
                 try
                 {

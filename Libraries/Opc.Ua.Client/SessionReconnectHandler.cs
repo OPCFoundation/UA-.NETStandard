@@ -318,6 +318,8 @@ namespace Opc.Ua.Client
                     Utils.LogInfo("Reconnect aborted, KeepAlive recovered.");
                 }
 
+                Utils.LogInfo("Reconnect {0}.", m_session?.SessionId);
+
                 // do the reconnect.
                 if (keepaliveRecovered ||
                     await DoReconnectAsync().ConfigureAwait(false))
