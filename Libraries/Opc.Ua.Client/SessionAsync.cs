@@ -303,12 +303,12 @@ namespace Opc.Ua.Client
             {
                 try
                 {
-                    await base.CloseSessionAsync(null, false, ct).ConfigureAwait(false);
-                    await base.CloseChannelAsync(ct).ConfigureAwait(false);
+                    await base.CloseSessionAsync(null, false, CancellationToken.None).ConfigureAwait(false);
+                    await CloseChannelAsync(CancellationToken.None).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
-                    Utils.LogError("Cleanup: CloseSession() or CloseChannel() raised exception. " + e.Message);
+                    Utils.LogError("Cleanup: CloseSessionAsync() or CloseChannelAsync() raised exception. " + e.Message);
                 }
                 finally
                 {
