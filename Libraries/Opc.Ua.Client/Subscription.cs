@@ -1840,7 +1840,7 @@ namespace Opc.Ua.Client
                 m_keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * (m_currentKeepAliveCount + 1), Int32.MaxValue));
 #if NET6_0_OR_GREATER
                 var publishTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(m_keepAliveInterval));
-                Task.Run(() => OnKeepAliveAsync(publishTimer, CancellationToken.None));
+                Task.Run(() => OnKeepAliveAsync(publishTimer));
                 m_publishTimer = publishTimer;
 #else
                 m_publishTimer = new Timer(OnKeepAlive, m_keepAliveInterval, m_keepAliveInterval, m_keepAliveInterval);
@@ -1862,23 +1862,16 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Checks if a notification has arrived. Sends a publish if it has not.
         /// </summary>
-        private async Task OnKeepAliveAsync(PeriodicTimer publishTimer, CancellationToken ct)
+        private async Task OnKeepAliveAsync(PeriodicTimer publishTimer)
         {
-            try
+            while (await publishTimer.WaitForNextTickAsync().ConfigureAwait(false))
             {
-                while (await publishTimer.WaitForNextTickAsync(ct).ConfigureAwait(false))
+                if (!PublishingStopped)
                 {
-                    if (!PublishingStopped)
-                    {
-                        continue;
-                    }
-
-                    HandleOnKeepAliveStopped();
+                    continue;
                 }
-            }
-            catch (Exception ex)
-            {
-                Utils.LogError(ex, "");
+
+                HandleOnKeepAliveStopped();
             }
         }
 #else
