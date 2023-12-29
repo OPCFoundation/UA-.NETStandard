@@ -349,6 +349,26 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Closes the channel.
+        /// </summary>
+        protected async Task CloseChannelAsync(CancellationToken ct)
+        {
+            if (m_channel != null)
+            {
+                try
+                {
+                    await m_channel.CloseAsync(ct).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // ignore errors.
+                }
+
+                DisposeChannel();
+            }
+        }
+
+        /// <summary>
         /// Disposes the channel.
         /// </summary>
         protected void DisposeChannel()

@@ -276,7 +276,7 @@ namespace Opc.Ua.Client.Tests
             OutputSubscriptionInfo(TestContext.Out, subscription);
 
             await subscription.ConditionRefreshAsync().ConfigureAwait(false);
-            var sre = Assert.ThrowsAsync<ServiceResultException>(async () => await subscription.RepublishAsync(subscription.SequenceNumber).ConfigureAwait(false));
+            var sre = Assert.ThrowsAsync<ServiceResultException>(async () => await subscription.RepublishAsync(subscription.SequenceNumber + 100).ConfigureAwait(false));
             Assert.AreEqual(StatusCodes.BadMessageNotAvailable, sre.StatusCode, $"Expected BadMessageNotAvailable, but received {sre.Message}");
 
             // verify that reconnect created subclassed version of subscription and monitored item
@@ -1010,7 +1010,7 @@ namespace Opc.Ua.Client.Tests
                 if (jj == 0)
                 {
                     // correct for delayed ack and republish count
-                    if (transferType == TransferType.DisconnectedRepublishDelayedAck)
+                    if (transferType == TransferType.DisconnectedRepublishDelayedAck || transferType == TransferType.DisconnectedRepublish)
                     {
                         targetExpectedCount += monitoredItemCount;
                     }
@@ -1180,7 +1180,7 @@ namespace Opc.Ua.Client.Tests
             bool conditionRefresh = subscription.ConditionRefresh();
             Assert.True(conditionRefresh);
 
-            var sre = Assert.Throws<ServiceResultException>(() => subscription.Republish(subscription.SequenceNumber));
+            var sre = Assert.Throws<ServiceResultException>(() => subscription.Republish(subscription.SequenceNumber + 100));
             Assert.AreEqual(StatusCodes.BadMessageNotAvailable, sre.StatusCode);
 
             subscription.RemoveItems(list);

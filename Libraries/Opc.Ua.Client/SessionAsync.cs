@@ -267,7 +267,7 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                if (certificateResults == null || certificateResults.Count == 0)
+                if (clientSoftwareCertificates?.Count > 0 && (certificateResults == null || certificateResults.Count == 0))
                 {
                     Utils.LogInfo("Empty results were received for the ActivateSession call.");
                 }
@@ -303,12 +303,12 @@ namespace Opc.Ua.Client
             {
                 try
                 {
-                    await base.CloseSessionAsync(null, false, ct).ConfigureAwait(false);
-                    CloseChannel();
+                    await base.CloseSessionAsync(null, false, CancellationToken.None).ConfigureAwait(false);
+                    await CloseChannelAsync(CancellationToken.None).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
-                    Utils.LogError("Cleanup: CloseSession() or CloseChannel() raised exception. " + e.Message);
+                    Utils.LogError("Cleanup: CloseSessionAsync() or CloseChannelAsync() raised exception. " + e.Message);
                 }
                 finally
                 {
@@ -341,10 +341,7 @@ namespace Opc.Ua.Client
                 subscription.Session = null;
             }
 
-            if (m_SubscriptionsChanged != null)
-            {
-                m_SubscriptionsChanged(this, null);
-            }
+            m_SubscriptionsChanged?.Invoke(this, null);
 
             return true;
         }
@@ -365,10 +362,7 @@ namespace Opc.Ua.Client
 
             if (removed)
             {
-                if (m_SubscriptionsChanged != null)
-                {
-                    m_SubscriptionsChanged(this, null);
-                }
+                m_SubscriptionsChanged?.Invoke(this, null);
             }
 
             return removed;
@@ -385,9 +379,11 @@ namespace Opc.Ua.Client
 
             if (subscriptionIds.Count > 0)
             {
+                bool reconnecting = false;
                 await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
                 try
                 {
+                    reconnecting = m_reconnecting;
                     m_reconnecting = true;
 
                     for (int ii = 0; ii < subscriptions.Count; ii++)
@@ -423,7 +419,7 @@ namespace Opc.Ua.Client
                 }
                 finally
                 {
-                    m_reconnecting = false;
+                    m_reconnecting = reconnecting;
                     m_reconnectLock.Release();
                 }
 
@@ -485,9 +481,11 @@ namespace Opc.Ua.Client
 
             if (subscriptionIds.Count > 0)
             {
+                bool reconnecting = false;
                 await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
                 try
                 {
+                    reconnecting = m_reconnecting;
                     m_reconnecting = true;
 
                     TransferSubscriptionsResponse response = await base.TransferSubscriptionsAsync(null, subscriptionIds, sendInitialValues, ct).ConfigureAwait(false);
@@ -515,11 +513,7 @@ namespace Opc.Ua.Client
                                     // create ack for available sequence numbers
                                     foreach (uint sequenceNumber in results[ii].AvailableSequenceNumbers)
                                     {
-                                        var ack = new SubscriptionAcknowledgement() {
-                                            SubscriptionId = subscriptionIds[ii],
-                                            SequenceNumber = sequenceNumber
-                                        };
-                                        m_acknowledgementsToSend.Add(ack);
+                                        AddAcknowledgementToSend(subscriptionIds[ii], sequenceNumber);
                                     }
                                 }
                             }
@@ -540,7 +534,7 @@ namespace Opc.Ua.Client
                 }
                 finally
                 {
-                    m_reconnecting = false;
+                    m_reconnecting = reconnecting;
                     m_reconnectLock.Release();
                 }
 
@@ -1399,8 +1393,7 @@ namespace Opc.Ua.Client
             StatusCode result = StatusCodes.Good;
 
             // stop the keep alive timer.
-            Utils.SilentDispose(m_keepAliveTimer);
-            m_keepAliveTimer = null;
+            StopKeepAliveTimer();
 
             // check if currectly connected.
             bool connected = Connected;
@@ -1424,41 +1417,31 @@ namespace Opc.Ua.Client
             // close the session with the server.
             if (connected && !KeepAliveStopped)
             {
-                int existingTimeout = this.OperationTimeout;
-
                 try
                 {
                     // close the session and delete all subscriptions if specified.
-                    this.OperationTimeout = timeout;
-                    CloseSessionResponse response = await base.CloseSessionAsync(null, m_deleteSubscriptionsOnClose, ct).ConfigureAwait(false);
-                    this.OperationTimeout = existingTimeout;
+                    var requestHeader = new RequestHeader() {
+                        TimeoutHint = timeout > 0 ? (uint)timeout : (uint)(this.OperationTimeout > 0 ? this.OperationTimeout : 0),
+                    };
+                    CloseSessionResponse response = await base.CloseSessionAsync(requestHeader, m_deleteSubscriptionsOnClose, ct).ConfigureAwait(false);
 
                     if (closeChannel)
                     {
-                        CloseChannel();
+                        await CloseChannelAsync(ct).ConfigureAwait(false);
                     }
 
                     // raised notification indicating the session is closed.
                     SessionCreated(null, null);
                 }
-                catch (Exception e)
+                // dont throw errors on disconnect, but return them
+                // so the caller can log the error.
+                catch (ServiceResultException sre)
                 {
-                    // dont throw errors on disconnect, but return them
-                    // so the caller can log the error.
-                    if (e is ServiceResultException)
-                    {
-                        result = ((ServiceResultException)e).StatusCode;
-                    }
-                    else
-                    {
-                        result = StatusCodes.Bad;
-                    }
-
-                    Utils.LogError("Session close error: " + result);
+                    result = sre.StatusCode;
                 }
-                finally
+                catch (Exception)
                 {
-                    this.OperationTimeout = existingTimeout;
+                    result = StatusCodes.Bad;
                 }
             }
 
@@ -1508,6 +1491,8 @@ namespace Opc.Ua.Client
                         StatusCodes.BadInvalidState,
                         "Session is already attempting to reconnect.");
                 }
+
+                StopKeepAliveTimer();
 
                 IAsyncResult result = PrepareReconnectBeginActivate(
                     connection,
