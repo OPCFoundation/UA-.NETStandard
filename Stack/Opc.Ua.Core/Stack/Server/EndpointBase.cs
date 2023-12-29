@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
@@ -822,6 +823,106 @@ namespace Opc.Ua
             #endregion
 
             #region Private Members
+
+            /// <summary>
+            /// Activity Source Name.
+            /// </summary>
+            public static readonly string ActivitySourceName = "Opc.Ua.Server-ActivitySource";
+
+            /// <summary>
+            /// Activity Source static instance.
+            /// </summary>
+            public static ActivitySource ActivitySource => s_activitySource.Value;
+            private static readonly Lazy<ActivitySource> s_activitySource = new Lazy<ActivitySource>(() => new ActivitySource(ActivitySourceName, "1.0.0"));
+
+            /// <summary>
+            /// Holds the tracing context for propagation across system boundaries.
+            /// </summary>
+            public class TraceContext
+            {
+                /// <summary>
+                /// Gets the core trace identifiers like TraceId and SpanId.
+                /// </summary>
+                public ActivityContext ActivityContext { get; }
+
+                /// <summary>
+                /// Gets the user-defined data associated with the trace.
+                /// </summary>
+                public Dictionary<string, string> Baggage { get; }
+
+                /// <summary>
+                /// Constructs a new TraceContext.
+                /// </summary>
+                /// <param name="activityContext">Core trace identifiers.</param>
+                /// <param name="baggage">User-defined data for the trace.</param>
+                public TraceContext(ActivityContext activityContext, Dictionary<string, string> baggage)
+                {
+                    ActivityContext = activityContext;
+                    Baggage = baggage;
+                }
+            }
+
+            /// <summary>
+            /// Extracts the trace and baggage details from the given dictionary
+            /// </summary>
+            public static TraceContext ExtractTraceContextFromParameters(AdditionalParametersType parameters)
+            {
+                if (parameters == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Parameters are null");
+                }
+
+                ActivityTraceId traceId = default;
+                ActivitySpanId spanId = default;
+                ActivityTraceFlags traceFlags = ActivityTraceFlags.None;
+                Dictionary<string, string> baggage = new Dictionary<string, string>();
+
+                foreach (var item in parameters.Parameters)
+                {
+                    if (item.Key == "traceparent")
+                    {
+                        var parts = item.Value.ToString().Split('-');
+                        if (parts.Length != 4)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadDecodingError, "Invalid traceparent format");
+                        }
+                        traceId = ActivityTraceId.CreateFromString(parts[1].AsSpan());
+                        spanId = ActivitySpanId.CreateFromString(parts[2].AsSpan());
+                        traceFlags = parts[3] == "01" ? ActivityTraceFlags.Recorded : ActivityTraceFlags.None;
+                    }
+                    else if (item.Key == "tracestate")
+                    {
+                        var baggageItems = item.Value.ToString().Split(',');
+                        foreach (var baggageItem in baggageItems)
+                        {
+                            var keyValue = baggageItem.Split('=');
+                            if (keyValue.Length == 2)
+                            {
+                                baggage[keyValue[0].Trim()] = keyValue[1].Trim();
+                            }
+                        }
+                    }
+                }
+
+                if (traceId == default || spanId == default)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Failed to extract trace context");
+                }
+
+                var activityContext = new ActivityContext(traceId, spanId, traceFlags);
+                return new TraceContext(activityContext, baggage);
+            }
+
+            private TraceContext ExtractTraceContextFromRequestHeader(RequestHeader requestHeader)
+            {
+                if (requestHeader == null || requestHeader.AdditionalHeader == null || !(requestHeader.AdditionalHeader.Body is AdditionalParametersType parameters))
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Invalid or missing AdditionalHeader in the request");
+                }
+
+                return ExtractTraceContextFromParameters(parameters);
+            }
+
             /// <summary>
             /// Saves an exception as response.
             /// </summary>
@@ -848,8 +949,21 @@ namespace Opc.Ua
                     // set the context.
                     SecureChannelContext.Current = m_context;
 
+                    // check if AdditionalHeader is present in the request
+                    if (m_request.RequestHeader.AdditionalHeader != null)
+                    {
+                        // extract trace information from the request header
+                        var traceContext = ExtractTraceContextFromRequestHeader(m_request.RequestHeader);
+
+                        // create activity using the method name as the display name
+                        var activity = ActivitySource.StartActivity(m_request.GetType().Name, ActivityKind.Server, traceContext.ActivityContext);
+
+                        activity.SetParentId(traceContext.ActivityContext.TraceId, traceContext.ActivityContext.SpanId);
+                        activity.ActivityTraceFlags = traceContext.ActivityContext.TraceFlags;
+                    }
+
                     // call the service.
-                    m_response = m_service.Invoke(m_request);
+                    m_response = m_service.Invoke(m_request); 
                 }
                 catch (Exception e)
                 {

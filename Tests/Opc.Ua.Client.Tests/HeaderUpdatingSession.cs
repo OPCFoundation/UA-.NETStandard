@@ -103,7 +103,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Holds the tracing context for propagation across system boundaries.
         /// </summary>
-        public struct TraceContext
+        public class TraceContext
         {
             /// <summary>
             /// Gets the core trace identifiers like TraceId and SpanId.
