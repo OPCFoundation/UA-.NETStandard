@@ -913,16 +913,6 @@ namespace Opc.Ua
                 return new TraceContext(activityContext, baggage);
             }
 
-            private TraceContext ExtractTraceContextFromRequestHeader(RequestHeader requestHeader)
-            {
-                if (requestHeader == null || requestHeader.AdditionalHeader == null || !(requestHeader.AdditionalHeader.Body is AdditionalParametersType parameters))
-                {
-                    throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Invalid or missing AdditionalHeader in the request");
-                }
-
-                return ExtractTraceContextFromParameters(parameters);
-            }
-
             /// <summary>
             /// Saves an exception as response.
             /// </summary>
@@ -949,11 +939,11 @@ namespace Opc.Ua
                     // set the context.
                     SecureChannelContext.Current = m_context;
 
-                    // check if AdditionalHeader is present in the request
-                    if (m_request.RequestHeader.AdditionalHeader != null)
+                    // check if AdditionalHeader field from the request contains trace information
+                    if (m_request.RequestHeader.AdditionalHeader != null && m_request.RequestHeader.AdditionalHeader.Body is AdditionalParametersType parameters)
                     {
                         // extract trace information from the request header
-                        var traceContext = ExtractTraceContextFromRequestHeader(m_request.RequestHeader);
+                        var traceContext = ExtractTraceContextFromParameters(parameters);
 
                         // create activity using the method name as the display name
                         var activity = ActivitySource.StartActivity(m_request.GetType().Name, ActivityKind.Server, traceContext.ActivityContext);
@@ -963,7 +953,7 @@ namespace Opc.Ua
                     }
 
                     // call the service.
-                    m_response = m_service.Invoke(m_request); 
+                    m_response = m_service.Invoke(m_request);
                 }
                 catch (Exception e)
                 {
