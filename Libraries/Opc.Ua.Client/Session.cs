@@ -3711,7 +3711,7 @@ namespace Opc.Ua.Client
 #if NET6_0_OR_GREATER
                 // start periodic timer loop
                 var keepAliveTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(keepAliveInterval));
-                Task.Run(() => OnKeepAliveAsync(keepAliveTimer, nodesToRead));
+                _ = Task.Run(() => OnKeepAliveAsync(keepAliveTimer, nodesToRead));
                 m_keepAliveTimer = keepAliveTimer;
             }
 #else

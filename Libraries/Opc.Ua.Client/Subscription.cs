@@ -1838,9 +1838,14 @@ namespace Opc.Ua.Client
 
                 Interlocked.Exchange(ref m_lastNotificationTime, DateTime.UtcNow.Ticks);
                 m_keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * (m_currentKeepAliveCount + 1), Int32.MaxValue));
+                if (m_keepAliveInterval < MinKeepAliveTimerInterval)
+                {
+                    m_keepAliveInterval = (int)(Math.Min(m_publishingInterval * (m_keepAliveCount + 1), Int32.MaxValue));
+                    m_keepAliveInterval = Math.Min(MinKeepAliveTimerInterval, m_keepAliveInterval);
+                }
 #if NET6_0_OR_GREATER
                 var publishTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(m_keepAliveInterval));
-                Task.Run(() => OnKeepAliveAsync(publishTimer));
+                _ = Task.Run(() => OnKeepAliveAsync(publishTimer));
                 m_publishTimer = publishTimer;
 #else
                 m_publishTimer = new Timer(OnKeepAlive, m_keepAliveInterval, m_keepAliveInterval, m_keepAliveInterval);
