@@ -355,10 +355,11 @@ namespace Opc.Ua.Server
                 }
 
                 // allow access to system configuration only through special identity
-                SystemConfigurationIdentity user = context.UserIdentity as SystemConfigurationIdentity;
-                if (user == null || user.TokenType == UserTokenType.Anonymous)
+                RoleBasedIdentity user = context.UserIdentity as RoleBasedIdentity;
+                if (user == null || user.TokenType == UserTokenType.Anonymous ||
+                    !user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin))
                 {
-                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "System Configuration Administrator access required.");
+                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Security Admin Role required.");
                 }
 
             }

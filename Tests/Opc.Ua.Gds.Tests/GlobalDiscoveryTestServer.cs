@@ -33,6 +33,7 @@ using System.Threading.Tasks;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database.Linq;
+using Opc.Ua.Server.UserDatabase;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -119,7 +120,7 @@ namespace Opc.Ua.Gds.Tests
             }
 
             var applicationsDatabase = JsonApplicationsDatabase.Load(databaseStorePath);
-            var usersDatabase = JsonUsersDatabase.Load(usersDatabaseStorePath);
+            var usersDatabase = JsonUserDatabase.Load(usersDatabaseStorePath);
 
             // start the server.
             m_server = new GlobalDiscoverySampleServer(

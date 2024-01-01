@@ -168,7 +168,7 @@ namespace Opc.Ua.Gds.Server
             {
                 RoleBasedIdentity identity = context.UserIdentity as RoleBasedIdentity;
 
-                if ((identity == null) || (identity.Role != GdsRole.ApplicationAdmin))
+                if ((identity == null) || (!identity.Roles.Contains(GdsRole.ApplicationAdmin)))
                 {
                     throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application Administrator access required.");
                 }

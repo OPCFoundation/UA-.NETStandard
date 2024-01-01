@@ -1547,7 +1547,7 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
-                SystemConfigurationIdentity user = context.UserIdentity as SystemConfigurationIdentity;
+                RoleBasedIdentity user = context.UserIdentity as RoleBasedIdentity;
                 if (user == null ||
                     user.TokenType == UserTokenType.Anonymous ||
                     !user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin))
