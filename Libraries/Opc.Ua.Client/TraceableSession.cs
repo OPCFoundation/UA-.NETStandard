@@ -920,9 +920,9 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public IAsyncResult BeginPublish(int timeout)
+        public void StartPublish(int timeout)
         {
-            return m_session.BeginPublish(timeout);
+            m_session.StartPublish(timeout);
         }
 
         /// <inheritdoc/>

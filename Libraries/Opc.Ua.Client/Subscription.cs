@@ -132,7 +132,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Resets the state of the publish timer and associated message worker. 
+        /// Resets the state of the publish timer and associated message worker.
         /// </summary>
         private void ResetPublishTimerAndWorkerState()
         {
@@ -434,13 +434,13 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// If the available sequence numbers of a subscription
-        /// are republished or acknowledged after a transfer. 
+        /// are republished or acknowledged after a transfer.
         /// </summary>
         /// <remarks>
         /// Default <c>false</c>, set to <c>true</c> if no data loss is important
         /// and available publish requests (sequence numbers) that were never acknowledged should be
         /// recovered with a republish. The setting is used after a subscription transfer.
-        /// </remarks>   
+        /// </remarks>
         [DataMember(Name = "RepublishAfterTransfer", Order = 15)]
         public bool RepublishAfterTransfer
         {
@@ -904,7 +904,7 @@ namespace Opc.Ua.Client
                 ModifyItems();
             }
 
-            // add available sequence numbers to incoming 
+            // add available sequence numbers to incoming
             ProcessTransferredSequenceNumbers(availableSequenceNumbers);
 
             m_changeMask |= SubscriptionChangeMask.Transferred;
@@ -982,7 +982,7 @@ namespace Opc.Ua.Client
                 await ModifyItemsAsync(ct).ConfigureAwait(false);
             }
 
-            // add available sequence numbers to incoming 
+            // add available sequence numbers to incoming
             ProcessTransferredSequenceNumbers(availableSequenceNumbers);
 
             m_changeMask |= SubscriptionChangeMask.Transferred;
@@ -1860,7 +1860,7 @@ namespace Opc.Ua.Client
             }
 
             // send initial publish.
-            m_session.BeginPublish(BeginPublishTimeout());
+            m_session.StartPublish(BeginPublishTimeout());
         }
 
 #if NET6_0_OR_GREATER
@@ -1919,7 +1919,7 @@ namespace Opc.Ua.Client
             }
 
             // try to send a publish to recover stopped publishing.
-            m_session?.BeginPublish(BeginPublishTimeout());
+            m_session?.StartPublish(BeginPublishTimeout());
         }
 
         /// <summary>
@@ -2410,7 +2410,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private bool ValidSequentialPublishMessage(IncomingMessage message)
         {
-            // If sequential publishing is enabled, only release messages in perfect sequence. 
+            // If sequential publishing is enabled, only release messages in perfect sequence.
             return message.SequenceNumber <= m_lastSequenceNumberProcessed + 1 ||
                 // reconnect / transfer subscription case
                 m_resyncLastSequenceNumberProcessed ||

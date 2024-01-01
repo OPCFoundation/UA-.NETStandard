@@ -1436,15 +1436,12 @@ namespace Opc.Ua.Client
                     out certificateResults,
                     out certificateDiagnosticInfos);
 
-                int publishCount = 0;
-
                 Utils.LogInfo("Session RECONNECT {0} completed successfully.", SessionId);
 
                 lock (SyncRoot)
                 {
                     m_previousServerNonce = m_serverNonce;
                     m_serverNonce = serverNonce;
-                    publishCount = GetMinPublishRequestCount(true);
                 }
 
                 m_reconnectLock.Wait();
@@ -1452,12 +1449,7 @@ namespace Opc.Ua.Client
                 resetReconnect = false;
                 m_reconnectLock.Release();
 
-                // refill pipeline.
-                for (int ii = 0; ii < publishCount; ii++)
-                {
-                    BeginPublish(OperationTimeout);
-                }
-
+                StartPublish(OperationTimeout);
                 StartKeepAliveTimer();
 
                 IndicateSessionConfigurationChanged();
@@ -3201,7 +3193,7 @@ namespace Opc.Ua.Client
                     m_reconnectLock.Release();
                 }
 
-                RestartPublishing();
+                StartPublish(OperationTimeout);
             }
             else
             {
@@ -3278,7 +3270,7 @@ namespace Opc.Ua.Client
                     m_reconnectLock.Release();
                 }
 
-                RestartPublishing();
+                StartPublish(OperationTimeout);
             }
             else
             {
@@ -3972,7 +3964,7 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                BeginPublish(OperationTimeout);
+                StartPublish(OperationTimeout);
             }
             else
             {
@@ -5056,7 +5048,8 @@ namespace Opc.Ua.Client
                     case StatusCodes.BadTcpServerTooBusy:
                     case StatusCodes.BadServerTooBusy:
                         // throttle the next publish to reduce server load
-                        _ = Task.Run(async () => {
+                        _ = Task.Run(async () =>
+                        {
                             await Task.Delay(100).ConfigureAwait(false);
                             BeginPublish(OperationTimeout);
                         });
@@ -5070,7 +5063,7 @@ namespace Opc.Ua.Client
             }
 
             int requestCount = GoodPublishRequestCount;
-            var minPublishRequestCount = GetMinPublishRequestCount(false);
+            int minPublishRequestCount = GetMinPublishRequestCount(false);
             if (requestCount < minPublishRequestCount)
             {
                 BeginPublish(OperationTimeout);
@@ -6059,18 +6052,19 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Create the publish requests for the active subscriptions.
         /// </summary>
-        private void RestartPublishing()
+        public void StartPublish(int timeout)
         {
-            int publishCount = 0;
-            lock (SyncRoot)
+            int publishCount = GetMinPublishRequestCount(true);
+
+            if (m_tooManyPublishRequests > 0 && publishCount > m_tooManyPublishRequests)
             {
-                publishCount = GetMinPublishRequestCount(true);
+                publishCount = m_tooManyPublishRequests;
             }
 
             // refill pipeline.
-            for (int ii = 0; ii < publishCount; ii++)
+            for (int ii = GoodPublishRequestCount; ii < publishCount; ii++)
             {
-                BeginPublish(OperationTimeout);
+                BeginPublish(timeout);
             }
         }
 

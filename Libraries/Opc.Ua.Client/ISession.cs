@@ -938,7 +938,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Sends an additional publish request.
         /// </summary>
-        IAsyncResult BeginPublish(int timeout);
+        void StartPublish(int timeout);
 
         /// <summary>
         /// Sends a republish request.
