@@ -269,7 +269,7 @@ namespace Quickstarts.ReferenceServer
             if (args.NewIdentity is AnonymousIdentityToken || args.NewIdentity == null)
             {
                 // allow anonymous authentication and set Anonymous role for this authentication
-                args.Identity = new RoleBasedIdentity(new UserIdentity(x509Token),
+                args.Identity = new RoleBasedIdentity(new UserIdentity(),
                     new List<Role>() { Role.Anonymous });
                 return;
             }
