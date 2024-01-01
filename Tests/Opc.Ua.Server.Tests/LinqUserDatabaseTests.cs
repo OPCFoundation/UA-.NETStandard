@@ -4,7 +4,7 @@ using NUnit.Framework;
 using Opc.Ua.Server;
 using Opc.Ua.Server.UserDatabase;
 
-namespace Opc.Ua.Gds.Tests
+namespace Opc.Ua.Server.Tests
 {
     [TestFixture, Category("Server")]
     [SetCulture("en-us"), SetUICulture("en-us")]

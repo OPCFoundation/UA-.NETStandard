@@ -208,16 +208,16 @@ namespace Opc.Ua.Gds.Server
                         Utils.LogInfo("SystemConfigurationAdmin Token Accepted: {0}", args.Identity.DisplayName);
                         return;
                     }
-                    IEnumerable<Role> role = m_userDatabase.GetUserRoles(userNameToken.UserName);
+                    IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
                     //GdsAdmin
-                    if (role.Contains(GdsRole.ApplicationAdmin))
+                    if (roles.Contains(GdsRole.ApplicationAdmin))
                     {
                         args.Identity = new RoleBasedIdentity(new UserIdentity(userNameToken), new List<Role> { GdsRole.ApplicationAdmin });
                         Utils.LogInfo("ApplicationAdmin Token Accepted: {0}", args.Identity.DisplayName);
                         return;
                     }
                     //GdsUser
-                    if (role.Contains(GdsRole.ApplicationUser))
+                    if (roles.Contains(GdsRole.ApplicationUser))
                     {
                         args.Identity = new RoleBasedIdentity(new UserIdentity(userNameToken), new List<Role> { GdsRole.ApplicationUser });
                         Utils.LogInfo("ApplicationUser Token Accepted: {0}", args.Identity.DisplayName);
@@ -295,7 +295,7 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         private void RegisterDefaultUsers()
         {
-            m_userDatabase.CreateUser("sysadmin", "demo", new List<Role> { GdsRole.ApplicationAdmin });
+            m_userDatabase.CreateUser("sysadmin", "demo", new List<Role> { GdsRole.ApplicationAdmin, Role.SecurityAdmin, Role.ConfigureAdmin });
             m_userDatabase.CreateUser("appadmin", "demo", new List<Role> { GdsRole.ApplicationAdmin });
             m_userDatabase.CreateUser("appuser", "demo", new List<Role> { GdsRole.ApplicationUser });
         }

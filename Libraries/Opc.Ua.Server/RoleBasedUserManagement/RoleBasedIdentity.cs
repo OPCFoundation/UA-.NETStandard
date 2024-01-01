@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Xml;
 
@@ -36,7 +37,7 @@ namespace Opc.Ua.Server
     /// The well known roles in a server.
     /// https://reference.opcfoundation.org/Core/Part3/v105/docs/4.9.2
     /// </summary>
-    public class Role
+    public class Role : IEquatable<Role>
     {
         /// <summary>
         /// The Role is allowed to browse and read non-security related Nodes only in the Server Object and all type Nodes.
@@ -98,6 +99,53 @@ namespace Opc.Ua.Server
         /// the name of the role
         /// </summary>
         public string Name { get; private set; }
+        #region value equality
+        /// <inheritdoc/>
+        public bool Equals(Role other)
+        {
+            if (other is null)
+            {
+                return false;
+            }
+            if (Object.ReferenceEquals(this, other))
+            {
+                return true;
+            }
+            if (this.GetType() != other.GetType())
+            {
+                return false;
+            }
+            return (Name == other.Name) && (RoleId == other.RoleId);
+        }
+        /// <inheritdoc/>
+        public override bool Equals(object obj)
+        {
+            return Equals(obj as Role);
+        }
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            return (Name, RoleId).GetHashCode();
+        }
+        /// <inheritdoc/>
+        public static bool operator ==(Role lhs, Role rhs)
+        {
+            if (lhs is null)
+            {
+                if (rhs is null)
+                {
+                    return true;
+                }
+
+                // Only the left side is null.
+                return false;
+            }
+            // Equals handles case of null on right side.
+            return lhs.Equals(rhs);
+        }
+        /// <inheritdoc/>
+        public static bool operator !=(Role lhs, Role rhs) => !(lhs == rhs);
+        #endregion
     }
 
     /// <summary>
