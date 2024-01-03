@@ -2420,7 +2420,7 @@ namespace Opc.Ua.Client
             // save session id.
             lock (SyncRoot)
             {
-                base.SessionCreated(sessionId, sessionCookie);
+                SessionCreated(sessionId, sessionCookie);
             }
 
             Utils.LogInfo("Revised session timeout value: {0}. ", m_sessionTimeout);
