@@ -508,12 +508,12 @@ namespace Opc.Ua.Client
                         {
                             if (await subscriptions[ii].TransferAsync(this, subscriptionIds[ii], results[ii].AvailableSequenceNumbers, ct).ConfigureAwait(false))
                             {
-                                lock (SyncRoot)
+                                lock (m_acknowledgementsToSendLock)
                                 {
                                     // create ack for available sequence numbers
                                     foreach (uint sequenceNumber in results[ii].AvailableSequenceNumbers)
                                     {
-                                        AddAcknowledgementToSend(subscriptionIds[ii], sequenceNumber);
+                                        AddAcknowledgementToSend(m_acknowledgementsToSend, subscriptionIds[ii], sequenceNumber);
                                     }
                                 }
                             }

@@ -269,7 +269,10 @@ namespace Opc.Ua.Client
             m_subscriptions = new List<Subscription>();
             m_dictionaries = new Dictionary<NodeId, DataDictionary>();
             m_acknowledgementsToSend = new SubscriptionAcknowledgementCollection();
+            m_acknowledgementsToSendLock = new object();
+#if DEBUG_SEQUENTIALPUBLISHING
             m_latestAcknowledgementsSent = new Dictionary<uint, uint>();
+#endif
             m_identityHistory = new List<IUserIdentity>();
             m_outstandingRequests = new LinkedList<AsyncRequestState>();
             m_keepAliveInterval = 5000;
@@ -3248,12 +3251,12 @@ namespace Opc.Ua.Client
                         {
                             if (subscriptions[ii].Transfer(this, subscriptionIds[ii], results[ii].AvailableSequenceNumbers))
                             {
-                                lock (SyncRoot)
+                                lock (m_acknowledgementsToSendLock)
                                 {
                                     // create ack for available sequence numbers
                                     foreach (var sequenceNumber in results[ii].AvailableSequenceNumbers)
                                     {
-                                        AddAcknowledgementToSend(subscriptionIds[ii], sequenceNumber);
+                                        AddAcknowledgementToSend(m_acknowledgementsToSend, subscriptionIds[ii], sequenceNumber);
                                     }
                                 }
                             }
@@ -4834,7 +4837,7 @@ namespace Opc.Ua.Client
 
             // collect the current set if acknowledgements.
             SubscriptionAcknowledgementCollection acknowledgementsToSend = null;
-            lock (SyncRoot)
+            lock (m_acknowledgementsToSendLock)
             {
                 if (callback != null)
                 {
@@ -4857,11 +4860,12 @@ namespace Opc.Ua.Client
                     acknowledgementsToSend = m_acknowledgementsToSend;
                     m_acknowledgementsToSend = new SubscriptionAcknowledgementCollection();
                 }
-
+#if DEBUG_SEQUENTIALPUBLISHING
                 foreach (var toSend in acknowledgementsToSend)
                 {
                     m_latestAcknowledgementsSent[toSend.SubscriptionId] = toSend.SequenceNumber;
                 }
+#endif
             }
 
             uint timeoutHint = (uint)((timeout > 0) ? timeout : 0);
@@ -5022,7 +5026,7 @@ namespace Opc.Ua.Client
                 // try to acknowledge the notifications again in the next publish.
                 if (acknowledgementsToSend != null)
                 {
-                    lock (SyncRoot)
+                    lock (m_acknowledgementsToSendLock)
                     {
                         m_acknowledgementsToSend.AddRange(acknowledgementsToSend);
                     }
@@ -5070,7 +5074,8 @@ namespace Opc.Ua.Client
             }
 
             int requestCount = GoodPublishRequestCount;
-            var minPublishRequestCount = GetMinPublishRequestCount(false);
+            int minPublishRequestCount = GetMinPublishRequestCount(false);
+
             if (requestCount < minPublishRequestCount)
             {
                 BeginPublish(OperationTimeout);
@@ -5585,9 +5590,9 @@ namespace Opc.Ua.Client
                 // the published data is acknowledged to prevent the endless republish loop.
                 case StatusCodes.BadEncodingLimitsExceeded:
                     Utils.LogError(e, "Message {0}-{1} exceeded size limits, ignored.", subscriptionId, sequenceNumber);
-                    lock (SyncRoot)
+                    lock (m_acknowledgementsToSendLock)
                     {
-                        AddAcknowledgementToSend(subscriptionId, sequenceNumber);
+                        AddAcknowledgementToSend(m_acknowledgementsToSend, subscriptionId, sequenceNumber);
                     }
                     break;
 
@@ -5668,11 +5673,12 @@ namespace Opc.Ua.Client
             OnKeepAlive(m_serverState, responseHeader.Timestamp);
 
             // collect the current set of acknowledgements.
-            lock (SyncRoot)
+            lock (m_acknowledgementsToSendLock)
             {
                 // clear out acknowledgements for messages that the server does not have any more.
                 SubscriptionAcknowledgementCollection acknowledgementsToSend = new SubscriptionAcknowledgementCollection();
 
+                uint latestSequenceNumberToSend = 0;
                 for (int ii = 0; ii < m_acknowledgementsToSend.Count; ii++)
                 {
                     SubscriptionAcknowledgement acknowledgement = m_acknowledgementsToSend[ii];
@@ -5681,19 +5687,29 @@ namespace Opc.Ua.Client
                     {
                         acknowledgementsToSend.Add(acknowledgement);
                     }
+                    else if (availableSequenceNumbers == null || availableSequenceNumbers.Remove(acknowledgement.SequenceNumber))
+                    {
+                        acknowledgementsToSend.Add(acknowledgement);
+                        UpdateLatestSequenceNumberToSend(ref latestSequenceNumberToSend, acknowledgement.SequenceNumber);
+                    }
                     else
                     {
-                        if (availableSequenceNumbers == null || availableSequenceNumbers.Contains(acknowledgement.SequenceNumber))
-                        {
-                            acknowledgementsToSend.Add(acknowledgement);
-                        }
+                        Utils.LogWarning("Sequence number={0} was not received in the available sequence numbers.", acknowledgement.SequenceNumber);
                     }
                 }
 
                 // create an acknowledgement to be sent back to the server.
                 if (notificationMessage.NotificationData.Count > 0)
                 {
-                    AddAcknowledgementToSend(subscriptionId, notificationMessage.SequenceNumber);
+                    AddAcknowledgementToSend(acknowledgementsToSend, subscriptionId, notificationMessage.SequenceNumber);
+                    UpdateLatestSequenceNumberToSend(ref latestSequenceNumberToSend, notificationMessage.SequenceNumber);
+                }
+
+                // check for forgotten sleeping sequence numbers 
+                if (latestSequenceNumberToSend != 0 && availableSequenceNumbers?.Count > 0)
+                {
+                    // TODO: add sleeping publish responses
+                    Console.WriteLine("Sleeping sequence numbers: {0} highest: {1} total: {2}", availableSequenceNumbers[0], latestSequenceNumberToSend, availableSequenceNumbers.Count);
                 }
 
 #if DEBUG_SEQUENTIALPUBLISHING
@@ -5735,24 +5751,16 @@ namespace Opc.Ua.Client
                 }
 #endif
 
-                if (availableSequenceNumbers != null)
-                {
-                    foreach (var acknowledgement in acknowledgementsToSend)
-                    {
-                        if (acknowledgement.SubscriptionId == subscriptionId && !availableSequenceNumbers.Contains(acknowledgement.SequenceNumber))
-                        {
-                            Utils.LogWarning("Sequence number={0} was not received in the available sequence numbers.", acknowledgement.SequenceNumber);
-                        }
-                    }
-                }
-
                 m_acknowledgementsToSend = acknowledgementsToSend;
 
                 if (notificationMessage.IsEmpty)
                 {
                     Utils.LogTrace("Empty notification message received for SessionId {0} with PublishTime {1}", SessionId, notificationMessage.PublishTime.ToLocalTime());
                 }
+            }
 
+            lock (SyncRoot)
+            {
                 // find the subscription.
                 foreach (Subscription current in m_subscriptions)
                 {
@@ -5970,15 +5978,18 @@ namespace Opc.Ua.Client
             return false;
         }
 
-        private void AddAcknowledgementToSend(uint subscriptionId, uint sequenceNumber)
+        private void AddAcknowledgementToSend(SubscriptionAcknowledgementCollection acknowledgementsToSend, uint subscriptionId, uint sequenceNumber)
         {
-            Debug.Assert(Monitor.IsEntered(SyncRoot));
+            if (acknowledgementsToSend == null) throw new ArgumentNullException(nameof(acknowledgementsToSend));
+
+            Debug.Assert(Monitor.IsEntered(m_acknowledgementsToSendLock));
+
             SubscriptionAcknowledgement acknowledgement = new SubscriptionAcknowledgement {
                 SubscriptionId = subscriptionId,
                 SequenceNumber = sequenceNumber
             };
 
-            m_acknowledgementsToSend.Add(acknowledgement);
+            acknowledgementsToSend.Add(acknowledgement);
         }
 
         /// <summary>
@@ -6061,16 +6072,15 @@ namespace Opc.Ua.Client
         /// </summary>
         private void RestartPublishing()
         {
-            int publishCount = 0;
-            lock (SyncRoot)
-            {
-                publishCount = GetMinPublishRequestCount(true);
-            }
+            int publishCount = GetMinPublishRequestCount(true);
 
             // refill pipeline.
             for (int ii = 0; ii < publishCount; ii++)
             {
-                BeginPublish(OperationTimeout);
+                if (BeginPublish(OperationTimeout) == null)
+                {
+                    break;
+                }
             }
         }
 
@@ -6113,6 +6123,20 @@ namespace Opc.Ua.Client
             catch (Exception e)
             {
                 Utils.Trace(e, "Unexpected error calling SessionConfigurationChanged event handler.");
+            }
+        }
+
+        /// <summary>
+        /// Helper to update the latest sequence number to send.
+        /// Handles wrap around of sequence numbers.
+        /// </summary>
+        private static void UpdateLatestSequenceNumberToSend(ref uint latestSequenceNumberToSend, uint sequenceNumber)
+        {
+            // Handle wrap around with subtraction. Result is int.
+            // Assume sequence numbers to ack do not differ by more than uint.MaxValue / 2
+            if (latestSequenceNumberToSend == 0 || (sequenceNumber - latestSequenceNumberToSend) > 0)
+            {
+                latestSequenceNumberToSend = sequenceNumber;
             }
         }
         #endregion
@@ -6167,7 +6191,10 @@ namespace Opc.Ua.Client
         #region Private Fields
         private ISessionFactory m_sessionFactory;
         private SubscriptionAcknowledgementCollection m_acknowledgementsToSend;
+        private object m_acknowledgementsToSendLock;
+#if DEBUG_SEQUENTIALPUBLISHING
         private Dictionary<uint, uint> m_latestAcknowledgementsSent;
+#endif
         private List<Subscription> m_subscriptions;
         private Dictionary<NodeId, DataDictionary> m_dictionaries;
         private Subscription m_defaultSubscription;
