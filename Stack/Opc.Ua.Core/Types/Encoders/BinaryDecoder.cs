@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Xml;
@@ -1469,7 +1470,7 @@ namespace Opc.Ua
                         for (int i = 0; i < length; i++)
                         {
                             IEncodeable element = ReadEncodeable(null, systemType, encodeableTypeId);
-                            elements.SetValue(Convert.ChangeType(element, systemType), i);
+                            elements.SetValue(Convert.ChangeType(element, systemType, CultureInfo.InvariantCulture), i);
                         }
                     }
 

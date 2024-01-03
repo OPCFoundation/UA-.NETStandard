@@ -895,7 +895,7 @@ namespace Opc.Ua
                 if (value != null)
                 {
                     var valueSymbol = value.ToString();
-                    var valueInt32 = Convert.ToInt32(value, CultureInfo.InvariantCulture).ToString();
+                    var valueInt32 = Convert.ToInt32(value, CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture);
                     if (valueSymbol != valueInt32)
                     {
                         m_writer.WriteString(Utils.Format("{0}_{1}", valueSymbol, valueInt32));

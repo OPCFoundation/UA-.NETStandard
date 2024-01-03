@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -1652,11 +1653,11 @@ namespace Opc.Ua
         {
             var message = new StringBuilder()
                 .AppendLine(error)
-                .AppendFormat("Subject: {0}", certificate.Subject)
+                .AppendFormat(CultureInfo.InvariantCulture, "Subject: {0}", certificate.Subject)
                 .AppendLine();
             if (!string.Equals(certificate.Subject, certificate.Issuer, StringComparison.Ordinal))
             {
-                message.AppendFormat("Issuer: {0}", certificate.Issuer)
+                message.AppendFormat(CultureInfo.InvariantCulture, "Issuer: {0}", certificate.Issuer)
                 .AppendLine();
             }
             return message.ToString();

@@ -1159,8 +1159,6 @@ namespace Opc.Ua
         #endregion
 
         #region IFormattable Members
-
-        #region public string ToString(string format, IFormatProvider formatProvider)
         /// <summary>
         /// Returns the string representation of a NodeId.
         /// </summary>
@@ -1178,9 +1176,6 @@ namespace Opc.Ua
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-
-        #endregion
-
         #endregion
 
         #region ICloneable

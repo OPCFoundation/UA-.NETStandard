@@ -1907,7 +1907,7 @@ namespace Opc.Ua.Server
                                 bool isOutOfRange = false;
                                 foreach (var arrayValue in array)
                                 {
-                                    double newValue = Convert.ToDouble(arrayValue);
+                                    double newValue = Convert.ToDouble(arrayValue, CultureInfo.InvariantCulture);
                                     if (newValue > analogItemState.InstrumentRange.Value.High ||
                                         newValue < analogItemState.InstrumentRange.Value.Low)
                                     {
@@ -1923,7 +1923,7 @@ namespace Opc.Ua.Server
                             }
                             else
                             {
-                                double newValue = Convert.ToDouble(nodeToWrite.Value.Value);
+                                double newValue = Convert.ToDouble(nodeToWrite.Value.Value, CultureInfo.InvariantCulture);
 
                                 if (newValue > analogItemState.InstrumentRange.Value.High ||
                                     newValue < analogItemState.InstrumentRange.Value.Low)

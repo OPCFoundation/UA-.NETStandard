@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Xml.Serialization;
@@ -540,7 +541,7 @@ namespace Opc.Ua
 
             if ((0x0000FFFF & Code) != 0)
             {
-                buffer.AppendFormat(" [{0:X4}]", (0x0000FFFF & Code));
+                buffer.AppendFormat(CultureInfo.InvariantCulture, " [{0:X4}]", (0x0000FFFF & Code));
             }
 
             return buffer.ToString();

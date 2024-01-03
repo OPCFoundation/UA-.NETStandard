@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Text;
@@ -236,9 +237,9 @@ namespace Opc.Ua
             if (!file.Exists)
             {
                 var message = new StringBuilder();
-                message.AppendFormat("Configuration file does not exist: {0}", filePath);
+                message.AppendFormat(CultureInfo.InvariantCulture, "Configuration file does not exist: {0}", filePath);
                 message.AppendLine();
-                message.AppendFormat("Current directory is: {0}", Directory.GetCurrentDirectory());
+                message.AppendFormat(CultureInfo.InvariantCulture, "Current directory is: {0}", Directory.GetCurrentDirectory());
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError, message.ToString());
             }
@@ -273,9 +274,9 @@ namespace Opc.Ua
                 catch (Exception e)
                 {
                     var message = new StringBuilder();
-                    message.AppendFormat("Configuration file could not be loaded: {0}", file.FullName);
+                    message.AppendFormat(CultureInfo.InvariantCulture, "Configuration file could not be loaded: {0}", file.FullName);
                     message.AppendLine();
-                    message.AppendFormat("Error is: {0}", e.Message);
+                    message.AppendFormat(CultureInfo.InvariantCulture, "Error is: {0}", e.Message);
                     throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError, e, message.ToString());
                 }
@@ -322,7 +323,7 @@ namespace Opc.Ua
             catch (Exception e)
             {
                 var message = new StringBuilder();
-                message.AppendFormat("Configuration file could not be loaded: {0}", file.FullName);
+                message.AppendFormat(CultureInfo.InvariantCulture, "Configuration file could not be loaded: {0}", file.FullName);
                 message.AppendLine();
                 message.Append(e.Message);
                 throw ServiceResultException.Create(
@@ -364,9 +365,9 @@ namespace Opc.Ua
             catch (Exception e)
             {
                 var message = new StringBuilder();
-                message.AppendFormat("Configuration could not be loaded.");
+                message.AppendFormat(CultureInfo.InvariantCulture, "Configuration could not be loaded.");
                 message.AppendLine();
-                message.AppendFormat("Error is: {0}", e.Message);
+                message.AppendFormat(CultureInfo.InvariantCulture, "Error is: {0}", e.Message);
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError, e, message.ToString());
             }

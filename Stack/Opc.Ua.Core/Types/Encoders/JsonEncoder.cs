@@ -1352,7 +1352,7 @@ namespace Opc.Ua
         public void WriteEnumerated(string fieldName, Enum value)
         {
             int numeric = Convert.ToInt32(value, CultureInfo.InvariantCulture);
-            var numericString = numeric.ToString();
+            var numericString = numeric.ToString(CultureInfo.InvariantCulture);
             if (UseReversibleEncoding)
             {
                 WriteSimpleField(fieldName, numericString, false);

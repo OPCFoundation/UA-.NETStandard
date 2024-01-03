@@ -333,6 +333,9 @@ dotnet_diagnostic.CA1711.severity                                             = 
 # IDE1005: Simplify delegate invocation
 dotnet_diagnostic.IDE1005.severity                                            = warning
 
+# CA1305: 
+dotnet_diagnostic.CA1305.severity                                             = warning
+
 # exclude generated code
 [**/Generated/*.cs]
 generated_code = true

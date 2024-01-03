@@ -110,7 +110,7 @@ namespace Opc.Ua
         /// <param name="initializationString">The initialization string that is used to initializes the node.</param>
         public virtual void Initialize(ISystemContext context, string initializationString)
         {
-            if (initializationString.StartsWith('<'))
+            if (initializationString.StartsWith("<", StringComparison.Ordinal))
             {
                 using (System.IO.StringReader reader = new System.IO.StringReader(initializationString))
                 {

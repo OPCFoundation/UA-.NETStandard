@@ -533,7 +533,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            return String.Format("{0:X8}", statusCode.Code);
+            return Utils.Format("{0:X8}", statusCode.Code);
         }
 
         /// <summary>
