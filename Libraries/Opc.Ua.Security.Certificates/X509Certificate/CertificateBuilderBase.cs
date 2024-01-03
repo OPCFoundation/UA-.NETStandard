@@ -320,44 +320,44 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// If the certificate is a CA.
         /// </summary>
-        protected bool m_isCA;
+        private protected bool m_isCA;
         /// <summary>
         /// The path length constraint to sue for a CA.
         /// </summary>
-        protected int m_pathLengthConstraint;
+        private protected int m_pathLengthConstraint;
         /// <summary>
         /// The serial number length in octets.
         /// </summary>
-        protected int m_serialNumberLength;
+        private protected int m_serialNumberLength;
         /// <summary>
         /// If the serial number is preset by the user.
         /// </summary>
-        protected bool m_presetSerial;
+        private protected bool m_presetSerial;
         /// <summary>
         /// The serial number as a little endian byte array.
         /// </summary>
-        protected byte[] m_serialNumber;
+        private protected byte[] m_serialNumber;
         /// <summary>
         /// The collection of X509Extension to add to the certificate.
         /// </summary>
-        protected X509ExtensionCollection m_extensions;
+        private protected X509ExtensionCollection m_extensions;
         /// <summary>
         /// The RSA public to use when if a certificate is signed.
         /// </summary>
-        protected RSA m_rsaPublicKey;
+        private protected RSA m_rsaPublicKey;
         /// <summary>
         /// The size of a RSA key pair to create.
         /// </summary>
-        protected int m_keySize;
+        private protected int m_keySize;
 #if ECC_SUPPORT
         /// <summary>
         /// The ECDsa public to use when if a certificate is signed.
         /// </summary>
-        protected ECDsa m_ecdsaPublicKey;
+        private protected ECDsa m_ecdsaPublicKey;
         /// <summary>
         /// The ECCurve to use.
         /// </summary>
-        protected ECCurve? m_curve;
+        private protected ECCurve? m_curve;
 #endif
         #endregion
 

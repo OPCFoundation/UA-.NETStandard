@@ -16,6 +16,7 @@ using System.Xml;
 using System.Text;
 using System.IO;
 using System.Linq;
+using System.Globalization;
 
 namespace Opc.Ua
 {
@@ -109,7 +110,7 @@ namespace Opc.Ua
         /// <param name="initializationString">The initialization string that is used to initializes the node.</param>
         public virtual void Initialize(ISystemContext context, string initializationString)
         {
-            if (initializationString.StartsWith("<"))
+            if (initializationString.StartsWith('<'))
             {
                 using (System.IO.StringReader reader = new System.IO.StringReader(initializationString))
                 {
@@ -182,7 +183,7 @@ namespace Opc.Ua
         /// Returns a string representation of the node.
         /// </summary>
         /// <returns>
-        /// A <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
+        /// A <see cref="System.String"/> that represents the current <see cref="System.Object"/>.
         /// </returns>
         public override string ToString()
         {
@@ -192,14 +193,14 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a string representation of the node.
         /// </summary>
-        /// <param name="format">The <see cref="T:System.String"/> specifying the format to use.
+        /// <param name="format">The <see cref="System.String"/> specifying the format to use.
         /// -or-
-        /// null to use the default format defined for the type of the <see cref="T:System.IFormattable"/> implementation.</param>
-        /// <param name="formatProvider">The <see cref="T:System.IFormatProvider"/> to use to format the value.
+        /// null to use the default format defined for the type of the <see cref="System.IFormattable"/> implementation.</param>
+        /// <param name="formatProvider">The <see cref="System.IFormatProvider"/> to use to format the value.
         /// -or-
         /// null to obtain the numeric format information from the current locale setting of the operating system.</param>
         /// <returns>
-        /// A <see cref="T:System.String"/> containing the value of the current instance in the specified format.
+        /// A <see cref="System.String"/> containing the value of the current instance in the specified format.
         /// </returns>
         public string ToString(string format, IFormatProvider formatProvider)
         {
@@ -2347,10 +2348,7 @@ namespace Opc.Ua
         /// <param name="e">The event to report.</param>
         public virtual void ReportEvent(ISystemContext context, IFilterTarget e)
         {
-            if (OnReportEvent != null)
-            {
-                OnReportEvent(context, this, e);
-            }
+            OnReportEvent?.Invoke(context, this, e);
 
             // report event to notifier sources.
             if (m_notifiers != null)
@@ -2498,10 +2496,7 @@ namespace Opc.Ua
         /// <param name="includeChildren">Whether to recursively report events for the children.</param>
         public virtual void ConditionRefresh(ISystemContext context, List<IFilterTarget> events, bool includeChildren)
         {
-            if (OnConditionRefresh != null)
-            {
-                OnConditionRefresh(context, this, events);
-            }
+            OnConditionRefresh?.Invoke(context, this, events);
 
             if (includeChildren)
             {
@@ -2581,15 +2576,9 @@ namespace Opc.Ua
 
             if (m_changeMasks != NodeStateChangeMasks.None)
             {
-                if (OnStateChanged != null)
-                {
-                    OnStateChanged(context, this, m_changeMasks);
-                }
+                OnStateChanged?.Invoke(context, this, m_changeMasks);
 
-                if (StateChanged != null)
-                {
-                    StateChanged(context, this, m_changeMasks);
-                }
+                StateChanged?.Invoke(context, this, m_changeMasks);
 
                 m_changeMasks = NodeStateChangeMasks.None;
             }
@@ -2912,10 +2901,7 @@ namespace Opc.Ua
 
             PopulateBrowser(context, browser);
 
-            if (OnPopulateBrowser != null)
-            {
-                OnPopulateBrowser(context, this, browser);
-            }
+            OnPopulateBrowser?.Invoke(context, this, browser);
 
             return browser;
         }
@@ -3950,7 +3936,7 @@ namespace Opc.Ua
                     {
                         if (value.GetType() == typeof(uint))
                         {
-                            accessRestrictionsRef = Convert.ToUInt16(value);
+                            accessRestrictionsRef = Convert.ToUInt16(value, CultureInfo.InvariantCulture);
                         }
                         else
                         {
@@ -4476,7 +4462,7 @@ namespace Opc.Ua
 
             foreach (var m_refKey in m_references.Keys)
             {
-                if (m_refKey.TargetId != null && m_refKey.TargetId.IdentifierText.Equals(targetId.IdentifierText))
+                if (m_refKey.TargetId != null && m_refKey.TargetId.IdentifierText.Equals(targetId.IdentifierText, StringComparison.Ordinal))
                 {
                     sourceRef = m_refKey as NodeStateReference;
                     break;

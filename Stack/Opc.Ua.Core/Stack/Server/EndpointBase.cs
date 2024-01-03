@@ -826,7 +826,7 @@ namespace Opc.Ua
             /// Saves an exception as response.
             /// </summary>
             /// <param name="e">The exception.</param>
-            private IServiceResponse SaveExceptionAsResponse(Exception e)
+            private ServiceFault SaveExceptionAsResponse(Exception e)
             {
                 try
                 {

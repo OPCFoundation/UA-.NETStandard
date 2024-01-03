@@ -113,12 +113,7 @@ namespace Opc.Ua
 
                 m_lastWriteTime = fileInfo.LastWriteTimeUtc;
 
-                EventHandler<ConfigurationWatcherEventArgs> callback = m_Changed;
-
-                if (callback != null)
-                {
-                    callback(this, new ConfigurationWatcherEventArgs(m_configuration, m_configuration.SourceFilePath));
-                }
+                m_Changed?.Invoke(this, new ConfigurationWatcherEventArgs(m_configuration, m_configuration.SourceFilePath));
             }
             catch (Exception exception)
             {

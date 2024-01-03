@@ -80,7 +80,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// shall be followed by the JSON encoder accordingly.
         /// </summary>
         [DatapointSource]
-        public JsonValidationData[] Data = new JsonValidationDataCollection() {
+        public static readonly JsonValidationData[] Data = new JsonValidationDataCollection() {
             {   BuiltInType.Boolean, true,"true", null },
             {   BuiltInType.Boolean, false, null, null },
             {   BuiltInType.Boolean, false, "false", null, true },
@@ -349,7 +349,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Validate constructor signature.
         /// </summary>
         [Theory]
-        public void Constructor_Default(bool useReversible, bool topLevelIsArray)
+        public void ConstructorDefault(bool useReversible, bool topLevelIsArray)
         {
             var context = new ServiceMessageContext();
             using (IJsonEncoder jsonEncoder = new JsonEncoder(context, useReversible, topLevelIsArray))
@@ -369,7 +369,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// keep the steam open for more encodings.
         /// </summary>
         [Test]
-        public void Constructor_Stream()
+        public void ConstructorStream()
         {
             var context = new ServiceMessageContext();
             var memoryStream = new MemoryStream();
@@ -446,7 +446,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [TestCase(false, "{\"Foo\":\"bar_1\"}")]
         [TestCase(true, "[{\"Foo\":\"bar_1\"}]")]
-        public void Test_WriteSingleEncodeableWithoutName(bool topLevelIsArray, string expected)
+        public void TestWriteSingleEncodeableWithoutName(bool topLevelIsArray, string expected)
         {
             TestContext.Out.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expected);
@@ -474,7 +474,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// A single encodeable in an array cannot have a fieldname.
         /// </summary>
         [Test]
-        public void Test_WriteSingleEncodeableWithName()
+        public void TestWriteSingleEncodeableWithName()
         {
             var expected = "{\"bar_1\":{\"Foo\":\"bar_1\"}}";
             TestContext.Out.WriteLine("Expected:");
@@ -503,7 +503,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// A single dynamic encodeable 
         /// </summary>
         [Test]
-        public void Test_WriteSingleDynamicEncodeableWithName()
+        public void TestWriteSingleDynamicEncodeableWithName()
         {
             var expected = "{\"bar_1\":{\"Foo\":\"bar_1\"}}";
             TestContext.Out.WriteLine("Expected:");
@@ -532,7 +532,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Extension object with dynamic encodeable encoded to and from Json and xml
         /// </summary>
         [Test]
-        public void Test_ExtensionObjectWithDynamicEncodeable()
+        public void TestExtensionObjectWithDynamicEncodeable()
         {
             var expectedJson = "{\"TypeId\":{\"IdType\":1,\"Id\":\"test_dyn2_typeid\"},\"Body\":{\"Foo\":\"bar_1\",\"Foo2\":\"bar_2\"}}";
             var expectedXml = "<uax:ExtensionObject xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">"
@@ -621,7 +621,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// A single encodeable in an array cannot have a fieldname.
         /// </summary>
         [Test]
-        public void Test_WriteSingleEncodeableWithNameAndArrayAsTopLevel_Expect_Exception()
+        public void TestWriteSingleEncodeableWithNameAndArrayAsTopLevelExpectException()
         {
             using (var encodeable = new FooBarEncodeable())
             {
@@ -636,7 +636,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// A single encodeable in an array cannot have a fieldname.
         /// </summary>
         [Test]
-        public void Test_WriteMultipleEncodeableWithoutName_Expect_Exception()
+        public void TestWriteMultipleEncodeableWithoutNameExpectException()
         {
             // invalid JSON
             // "{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}"
@@ -659,7 +659,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// It is not valid to have a JSON object within another object without fieldname
         /// </summary>
         [TestCase(true, "[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]")]
-        public void Test_WriteMultipleEncodeablesWithoutFieldNames(bool topLevelIsArray, string expected)
+        public void TestWriteMultipleEncodeablesWithoutFieldNames(bool topLevelIsArray, string expected)
         {
             TestContext.Out.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expected);
@@ -694,7 +694,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Write multiple encodeables with fieldnames.
         /// </summary>
         [Test]
-        public void Test_WriteMultipleEncodeablesWithFieldNames()
+        public void TestWriteMultipleEncodeablesWithFieldNames()
         {
             var expected = "{\"bar_1\":{\"Foo\":\"bar_1\"},\"bar_2\":{\"Foo\":\"bar_2\"},\"bar_3\":{\"Foo\":\"bar_3\"}}";
 
@@ -731,7 +731,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Write encodeable array with fieldname.
         /// </summary>
         [Test]
-        public void Test_WriteEncodeableArrayWithFieldName()
+        public void TestWriteEncodeableArrayWithFieldName()
         {
             var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
 
@@ -747,7 +747,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [TestCase(false, "[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]")]
         [TestCase(true, "[[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]]")]
-        public void Test_WriteEncodeableArrayWithoutFieldName(bool topLevelIsArray, string expected)
+        public void TestWriteEncodeableArrayWithoutFieldName(bool topLevelIsArray, string expected)
         {
             var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
 
@@ -762,7 +762,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Write encodeable top level array with fieldname.
         /// </summary>
         [Test]
-        public void Test_WriteEncodeableArrayWithFieldNameAndArrayAsTopLevel_Expect_Exception()
+        public void TestWriteEncodeableArrayWithFieldNameAndArrayAsTopLevelExpectException()
         {
             var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
 
@@ -778,7 +778,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Write encodeable top level array without fieldname.
         /// </summary>
         [Test]
-        public void Test_WriteEncodeableArrayWithoutFieldNameAndArrayAsTopLevel()
+        public void TestWriteEncodeableArrayWithoutFieldNameAndArrayAsTopLevel()
         {
             var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
 
@@ -911,7 +911,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Benchmark]
         [Test]
-        public void JsonEncoder_Constructor()
+        public void JsonEncoderConstructor()
         {
             using (var jsonEncoder = new JsonEncoder(m_context, false))
             {

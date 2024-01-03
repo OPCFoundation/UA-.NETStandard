@@ -816,7 +816,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             catch (Exception ex)
             {
                 Assert.Fail(ex.Message);
-                throw ex;
+                throw;
             }
         }
 
@@ -847,7 +847,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             catch (Exception ex)
             {
                 Assert.Fail(ex.Message);
-                throw ex;
+                throw;
             }
         }
 
@@ -920,7 +920,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             catch (Exception ex)
             {
                 Assert.Fail(ex.Message);
-                throw ex;
+                throw;
             }
         }
 

@@ -64,13 +64,13 @@ namespace Opc.Ua.Security.Certificates
                 {
                     count++;
                     string beginlabel = $"-----BEGIN {label}-----";
-                    int beginIndex = pemText.IndexOf(beginlabel);
+                    int beginIndex = pemText.IndexOf(beginlabel, StringComparison.InvariantCulture);
                     if (beginIndex < 0)
                     {
                         continue;
                     }
                     string endlabel = $"-----END {label}-----";
-                    int endIndex = pemText.IndexOf(endlabel);
+                    int endIndex = pemText.IndexOf(endlabel, StringComparison.InvariantCulture);
                     beginIndex += beginlabel.Length;
                     if (endIndex < 0 || endIndex <= beginIndex)
                     {

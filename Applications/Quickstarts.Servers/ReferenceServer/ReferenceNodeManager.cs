@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Numerics;
 using System.Threading;
 using System.Xml;
@@ -2072,7 +2073,7 @@ namespace Quickstarts.ReferenceServer
                 return StatusCodes.BadIndexRangeInvalid;
             }
 
-            Int32 number = Convert.ToInt32(value);
+            Int32 number = Convert.ToInt32(value, CultureInfo.InvariantCulture);
             if (number >= variable.EnumValues.Value.Length || number < 0)
             {
                 return StatusCodes.BadOutOfRange;
@@ -2137,7 +2138,7 @@ namespace Quickstarts.ReferenceServer
                     return StatusCodes.BadIndexRangeInvalid;
                 }
 
-                double number = Convert.ToDouble(value);
+                double number = Convert.ToDouble(value, CultureInfo.InvariantCulture);
 
                 if (variable.InstrumentRange != null && (number < variable.InstrumentRange.Value.Low || number > variable.InstrumentRange.Value.High))
                 {
@@ -2257,8 +2258,8 @@ namespace Quickstarts.ReferenceServer
             // now to create the remaining NUMBERED items
             for (uint i = 0; i < numVariables; i++)
             {
-                string newName = string.Format("{0}_{1}", name, i.ToString("00"));
-                string newPath = string.Format("{0}_{1}", path, newName);
+                string newName = string.Format(CultureInfo.InvariantCulture, "{0}_{1}", name, i.ToString("00"));
+                string newPath = string.Format(CultureInfo.InvariantCulture, "{0}_{1}", path, newName);
                 itemsCreated.Add(CreateVariable(newParentFolder, newPath, newName, dataType, valueRank));
             }
             return (itemsCreated.ToArray());

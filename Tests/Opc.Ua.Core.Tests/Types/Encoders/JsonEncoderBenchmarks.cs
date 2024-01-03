@@ -68,7 +68,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Benchmark]
         [Test]
-        public void StreamWriter_RecyclableMemoryStream()
+        public void StreamWriterRecyclableMemoryStream()
         {
             using (var memoryStream = new Microsoft.IO.RecyclableMemoryStream(m_memoryManager))
             using (var test = new StreamWriter(memoryStream, Encoding.UTF8, StreamSize))
@@ -80,7 +80,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Benchmark]
         [Test]
-        public void StreamWriter_MemoryStream()
+        public void StreamWriterMemoryStream()
         {
             using (var memoryStream = new MemoryStream())
             using (var test = new StreamWriter(memoryStream, Encoding.UTF8, StreamSize))
@@ -92,7 +92,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Benchmark]
         [Test]
-        public void JsonEncoder_Constructor2()
+        public void JsonEncoderConstructor2()
         {
             using (var jsonEncoder = new JsonEncoder(m_context, false))
             {
@@ -106,7 +106,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Benchmark]
         [Test]
-        public void JsonEncoder_StreamLeaveOpen_MemoryStream()
+        public void JsonEncoderStreamLeaveOpenMemoryStream()
         {
             JsonEncoder_StreamLeaveOpen(m_memoryStream);
         }
@@ -116,7 +116,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Benchmark]
         [Test]
-        public void JsonEncoder_StreamLeaveOpen_RecyclableMemoryStream()
+        public void JsonEncoderStreamLeaveOpenRecyclableMemoryStream()
         {
             JsonEncoder_StreamLeaveOpen(m_recyclableMemoryStream);
         }
@@ -126,7 +126,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Benchmark]
         [Test]
-        public void JsonEncoder_StreamLeaveOpen_ArraySegmentStream()
+        public void JsonEncoderStreamLeaveOpenArraySegmentStream()
         {
             JsonEncoder_StreamLeaveOpen(m_arraySegmentStream);
         }
@@ -137,7 +137,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Benchmark]
         [Test]
-        public void JsonEncoder_Constructor_Streamwriter_Reflection2()
+        public void JsonEncoderConstructorStreamwriterReflection2()
         {
             using (var jsonEncoder = new JsonEncoder(m_context, false, false, m_memoryStream, true, StreamSize))
             {
