@@ -2347,10 +2347,7 @@ namespace Opc.Ua
         /// <param name="e">The event to report.</param>
         public virtual void ReportEvent(ISystemContext context, IFilterTarget e)
         {
-            if (OnReportEvent != null)
-            {
-                OnReportEvent(context, this, e);
-            }
+            OnReportEvent?.Invoke(context, this, e);
 
             // report event to notifier sources.
             if (m_notifiers != null)
@@ -2498,10 +2495,7 @@ namespace Opc.Ua
         /// <param name="includeChildren">Whether to recursively report events for the children.</param>
         public virtual void ConditionRefresh(ISystemContext context, List<IFilterTarget> events, bool includeChildren)
         {
-            if (OnConditionRefresh != null)
-            {
-                OnConditionRefresh(context, this, events);
-            }
+            OnConditionRefresh?.Invoke(context, this, events);
 
             if (includeChildren)
             {
@@ -2581,15 +2575,9 @@ namespace Opc.Ua
 
             if (m_changeMasks != NodeStateChangeMasks.None)
             {
-                if (OnStateChanged != null)
-                {
-                    OnStateChanged(context, this, m_changeMasks);
-                }
+                OnStateChanged?.Invoke(context, this, m_changeMasks);
 
-                if (StateChanged != null)
-                {
-                    StateChanged(context, this, m_changeMasks);
-                }
+                StateChanged?.Invoke(context, this, m_changeMasks);
 
                 m_changeMasks = NodeStateChangeMasks.None;
             }
@@ -2912,10 +2900,7 @@ namespace Opc.Ua
 
             PopulateBrowser(context, browser);
 
-            if (OnPopulateBrowser != null)
-            {
-                OnPopulateBrowser(context, this, browser);
-            }
+            OnPopulateBrowser?.Invoke(context, this, browser);
 
             return browser;
         }
@@ -4472,28 +4457,30 @@ namespace Opc.Ua
                 return false;
             }
 
-            NodeStateReference sourceRef = null;
-
-            foreach (var m_refKey in m_references.Keys)
+            bool success = m_references.Remove(new NodeStateReference(referenceTypeId, isInverse, targetId));
+            if (!success)
             {
-                if (m_refKey.TargetId != null && m_refKey.TargetId.IdentifierText.Equals(targetId.IdentifierText))
+                // try to remove target reference if it is still referenced
+                foreach (IReference m_refKey in m_references.Keys)
                 {
-                    sourceRef = m_refKey as NodeStateReference;
-                    break;
+                    if (m_refKey.TargetId != null &&
+                        m_refKey.TargetId.IdentifierText.Equals(targetId.IdentifierText, StringComparison.Ordinal) &&
+                        m_refKey.IsInverse != isInverse &&
+                        m_refKey is NodeStateReference sourceRef)
+                    {
+                        success = m_references.Remove(sourceRef);
+                        break;
+                    }
                 }
             }
 
-            if (sourceRef != null)
+            if (success)
             {
-                if (m_references.Remove(sourceRef))
-                {
-                    m_changeMasks |= NodeStateChangeMasks.References;
-                    OnReferenceRemoved?.Invoke(this, referenceTypeId, isInverse, targetId);
-                    return true;
-                }
+                m_changeMasks |= NodeStateChangeMasks.References;
+                OnReferenceRemoved?.Invoke(this, referenceTypeId, isInverse, targetId);
             }
 
-            return false;
+            return success;
         }
 
         /// <summary>
