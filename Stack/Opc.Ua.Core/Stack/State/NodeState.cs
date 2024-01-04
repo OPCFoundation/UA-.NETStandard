@@ -4457,30 +4457,14 @@ namespace Opc.Ua
                 return false;
             }
 
-            bool success = m_references.Remove(new NodeStateReference(referenceTypeId, isInverse, targetId));
-            if (!success)
-            {
-                // try to remove target reference if it is still referenced
-                foreach (IReference m_refKey in m_references.Keys)
-                {
-                    if (m_refKey.TargetId != null &&
-                        m_refKey.TargetId.IdentifierText.Equals(targetId.IdentifierText, StringComparison.Ordinal) &&
-                        m_refKey.IsInverse != isInverse &&
-                        m_refKey is NodeStateReference sourceRef)
-                    {
-                        success = m_references.Remove(sourceRef);
-                        break;
-                    }
-                }
-            }
-
-            if (success)
+            if (m_references.Remove(new NodeStateReference(referenceTypeId, isInverse, targetId)))
             {
                 m_changeMasks |= NodeStateChangeMasks.References;
                 OnReferenceRemoved?.Invoke(this, referenceTypeId, isInverse, targetId);
+                return true;
             }
 
-            return success;
+            return false;
         }
 
         /// <summary>
