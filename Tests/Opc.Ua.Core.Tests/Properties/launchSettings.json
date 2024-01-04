@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "Opc.Ua.Core.Tests": {
-      "commandName": "Project",
-      "commandLineArgs": "--runtimes net48 net6.0 net8.0"
-    }
-  }
-}
