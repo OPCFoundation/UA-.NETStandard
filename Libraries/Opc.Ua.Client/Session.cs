@@ -1439,15 +1439,12 @@ namespace Opc.Ua.Client
                     out certificateResults,
                     out certificateDiagnosticInfos);
 
-                int publishCount = 0;
-
                 Utils.LogInfo("Session RECONNECT {0} completed successfully.", SessionId);
 
                 lock (SyncRoot)
                 {
                     m_previousServerNonce = m_serverNonce;
                     m_serverNonce = serverNonce;
-                    publishCount = GetMinPublishRequestCount(true);
                 }
 
                 m_reconnectLock.Wait();
@@ -1455,11 +1452,7 @@ namespace Opc.Ua.Client
                 resetReconnect = false;
                 m_reconnectLock.Release();
 
-                // refill pipeline.
-                for (int ii = 0; ii < publishCount; ii++)
-                {
-                    BeginPublish(OperationTimeout);
-                }
+                StartPublishing(OperationTimeout, true);
 
                 StartKeepAliveTimer();
 
@@ -3204,7 +3197,7 @@ namespace Opc.Ua.Client
                     m_reconnectLock.Release();
                 }
 
-                RestartPublishing();
+                StartPublishing(OperationTimeout, false);
             }
             else
             {
@@ -3281,7 +3274,7 @@ namespace Opc.Ua.Client
                     m_reconnectLock.Release();
                 }
 
-                RestartPublishing();
+                StartPublishing(OperationTimeout, false);
             }
             else
             {
@@ -3975,7 +3968,7 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                BeginPublish(OperationTimeout);
+                StartPublishing(OperationTimeout, false);
             }
             else
             {
@@ -4010,7 +4003,7 @@ namespace Opc.Ua.Client
             Utils.LogInfo(
                 "KEEP ALIVE LATE: {0}s, EndpointUrl={1}, RequestCount={2}/{3}",
                 ((double)delta) / TimeSpan.TicksPerSecond,
-                this.Endpoint.EndpointUrl,
+                this.Endpoint?.EndpointUrl,
                 this.GoodPublishRequestCount,
                 this.OutstandingRequestCount);
 
@@ -4907,6 +4900,32 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Create the publish requests for the active subscriptions.
+        /// </summary>
+        public void StartPublishing(int timeout, bool fullQueue)
+        {
+            int publishCount = GetMinPublishRequestCount(true);
+
+            if (m_tooManyPublishRequests > 0 && publishCount > m_tooManyPublishRequests)
+            {
+                publishCount = Math.Max(m_tooManyPublishRequests, m_minPublishRequestCount);
+            }
+
+            // refill pipeline. Send at least one publish request if subscriptions are active.
+            if (publishCount > 0 && BeginPublish(timeout) != null)
+            {
+                int startCount = fullQueue ? 1 : GoodPublishRequestCount + 1;
+                for (int ii = startCount; ii < publishCount; ii++)
+                {
+                    if (BeginPublish(timeout) == null)
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// Completes an asynchronous publish operation.
         /// </summary>
         private void OnPublishComplete(IAsyncResult result)
@@ -5676,9 +5695,18 @@ namespace Opc.Ua.Client
             lock (m_acknowledgementsToSendLock)
             {
                 // clear out acknowledgements for messages that the server does not have any more.
-                SubscriptionAcknowledgementCollection acknowledgementsToSend = new SubscriptionAcknowledgementCollection();
+                var acknowledgementsToSend = new SubscriptionAcknowledgementCollection();
 
                 uint latestSequenceNumberToSend = 0;
+
+                // create an acknowledgement to be sent back to the server.
+                if (notificationMessage.NotificationData.Count > 0)
+                {
+                    AddAcknowledgementToSend(acknowledgementsToSend, subscriptionId, notificationMessage.SequenceNumber);
+                    UpdateLatestSequenceNumberToSend(ref latestSequenceNumberToSend, notificationMessage.SequenceNumber);
+                    _ = availableSequenceNumbers?.Remove(notificationMessage.SequenceNumber);
+                }
+
                 for (int ii = 0; ii < m_acknowledgementsToSend.Count; ii++)
                 {
                     SubscriptionAcknowledgement acknowledgement = m_acknowledgementsToSend[ii];
@@ -5694,22 +5722,21 @@ namespace Opc.Ua.Client
                     }
                     else
                     {
-                        Utils.LogWarning("Sequence number={0} was not received in the available sequence numbers.", acknowledgement.SequenceNumber);
+                        Utils.LogWarning("SessionId {0}, SubscriptionId {1}, Sequence number={2} was not received in the available sequence numbers.", SessionId, subscriptionId, acknowledgement.SequenceNumber);
                     }
                 }
 
-                // create an acknowledgement to be sent back to the server.
-                if (notificationMessage.NotificationData.Count > 0)
-                {
-                    AddAcknowledgementToSend(acknowledgementsToSend, subscriptionId, notificationMessage.SequenceNumber);
-                    UpdateLatestSequenceNumberToSend(ref latestSequenceNumberToSend, notificationMessage.SequenceNumber);
-                }
-
-                // check for forgotten sleeping sequence numbers 
+                // Check for sleeping sequence numbers. May have been not acked due to a network glitch. 
                 if (latestSequenceNumberToSend != 0 && availableSequenceNumbers?.Count > 0)
                 {
-                    // TODO: add sleeping publish responses
-                    Console.WriteLine("Sleeping sequence numbers: {0} highest: {1} total: {2}", availableSequenceNumbers[0], latestSequenceNumberToSend, availableSequenceNumbers.Count);
+                    foreach (var sequenceNumber in availableSequenceNumbers)
+                    {
+                        if ((int)(latestSequenceNumberToSend - sequenceNumber) > 100)
+                        {
+                            AddAcknowledgementToSend(acknowledgementsToSend, subscriptionId, sequenceNumber);
+                            Utils.LogWarning("SessionId {0}, SubscriptionId {1}, Sequence number={2} was sleeping, acknowledged.", SessionId, subscriptionId, sequenceNumber);
+                        }
+                    }
                 }
 
 #if DEBUG_SEQUENTIALPUBLISHING
@@ -6068,23 +6095,6 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Create the publish requests for the active subscriptions.
-        /// </summary>
-        private void RestartPublishing()
-        {
-            int publishCount = GetMinPublishRequestCount(true);
-
-            // refill pipeline.
-            for (int ii = 0; ii < publishCount; ii++)
-            {
-                if (BeginPublish(OperationTimeout) == null)
-                {
-                    break;
-                }
-            }
-        }
-
-        /// <summary>
         /// Creates and validates the subscription ids for a transfer.
         /// </summary>
         /// <param name="subscriptions">The subscriptions to transfer.</param>
@@ -6132,9 +6142,9 @@ namespace Opc.Ua.Client
         /// </summary>
         private static void UpdateLatestSequenceNumberToSend(ref uint latestSequenceNumberToSend, uint sequenceNumber)
         {
-            // Handle wrap around with subtraction. Result is int.
-            // Assume sequence numbers to ack do not differ by more than uint.MaxValue / 2
-            if (latestSequenceNumberToSend == 0 || (sequenceNumber - latestSequenceNumberToSend) > 0)
+            // Handle wrap around with subtraction and test result is int.
+            // Assume sequence numbers to ack do not differ by more than uint.Max / 2
+            if (latestSequenceNumberToSend == 0 || ((int)(sequenceNumber - latestSequenceNumberToSend)) > 0)
             {
                 latestSequenceNumberToSend = sequenceNumber;
             }

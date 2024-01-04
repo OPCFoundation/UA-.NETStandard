@@ -1855,12 +1855,15 @@ namespace Opc.Ua.Client
                 {
                     Utils.SilentDispose(m_messageWorkerCts);
                     m_messageWorkerCts = new CancellationTokenSource();
-                    m_messageWorkerTask = Task.Run(() => PublishResponseMessageWorkerAsync(m_messageWorkerCts.Token));
+                    var ct = m_messageWorkerCts.Token;
+                    m_messageWorkerTask = Task.Run(() => {
+                        return PublishResponseMessageWorkerAsync(ct);
+                    });
                 }
             }
 
-            // send initial publish.
-            m_session.BeginPublish(BeginPublishTimeout());
+            // start publishing. Fill the queue.
+            m_session.StartPublishing(BeginPublishTimeout(), false);
         }
 
 #if NET6_0_OR_GREATER

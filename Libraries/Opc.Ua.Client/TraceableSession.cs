@@ -926,6 +926,15 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        public void StartPublishing(int timeout, bool fullQueue)
+        {
+            using (Activity activity = ActivitySource.StartActivity())
+            {
+                m_session.StartPublishing(timeout, fullQueue);
+            }
+        }
+
+        /// <inheritdoc/>
         public bool Republish(uint subscriptionId, uint sequenceNumber)
         {
             using (Activity activity = ActivitySource.StartActivity())

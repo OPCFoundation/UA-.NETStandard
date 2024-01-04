@@ -941,6 +941,11 @@ namespace Opc.Ua.Client
         IAsyncResult BeginPublish(int timeout);
 
         /// <summary>
+        /// Create the publish requests for the active subscriptions.
+        /// </summary>
+        void StartPublishing(int timeout, bool fullQueue);
+
+        /// <summary>
         /// Sends a republish request.
         /// </summary>
         bool Republish(uint subscriptionId, uint sequenceNumber);

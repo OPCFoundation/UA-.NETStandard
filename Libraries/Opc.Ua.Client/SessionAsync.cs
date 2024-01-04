@@ -423,7 +423,7 @@ namespace Opc.Ua.Client
                     m_reconnectLock.Release();
                 }
 
-                RestartPublishing();
+                StartPublishing(OperationTimeout, true);
             }
             else
             {
@@ -538,7 +538,7 @@ namespace Opc.Ua.Client
                     m_reconnectLock.Release();
                 }
 
-                RestartPublishing();
+                StartPublishing(OperationTimeout, false);
             }
             else
             {
@@ -1520,15 +1520,12 @@ namespace Opc.Ua.Client
                     out certificateResults,
                     out certificateDiagnosticInfos);
 
-                int publishCount = 0;
-
                 Utils.LogInfo("Session RECONNECT {0} completed successfully.", SessionId);
 
                 lock (SyncRoot)
                 {
                     m_previousServerNonce = m_serverNonce;
                     m_serverNonce = serverNonce;
-                    publishCount = GetMinPublishRequestCount(true);
                 }
 
                 await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
@@ -1536,11 +1533,7 @@ namespace Opc.Ua.Client
                 resetReconnect = false;
                 m_reconnectLock.Release();
 
-                // refill pipeline.
-                for (int ii = 0; ii < publishCount; ii++)
-                {
-                    BeginPublish(OperationTimeout);
-                }
+                StartPublishing(OperationTimeout, true);
 
                 StartKeepAliveTimer();
 
