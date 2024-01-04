@@ -573,7 +573,7 @@ namespace Opc.Ua
                     }
 
                     StringBuilder buffer = new StringBuilder();
-                    NodeId.Format(buffer, value.Identifier, value.IdType, namespaceIndex);
+                    NodeId.Format(CultureInfo.InvariantCulture, buffer, value.Identifier, value.IdType, namespaceIndex);
                     WriteString("Identifier", buffer.ToString());
                 }
 
@@ -609,7 +609,7 @@ namespace Opc.Ua
                     }
 
                     StringBuilder buffer = new StringBuilder();
-                    ExpandedNodeId.Format(buffer, value.Identifier, value.IdType, namespaceIndex, value.NamespaceUri, serverIndex);
+                    ExpandedNodeId.Format(CultureInfo.InvariantCulture, buffer, value.Identifier, value.IdType, namespaceIndex, value.NamespaceUri, serverIndex);
                     WriteString("Identifier", buffer.ToString());
                 }
 

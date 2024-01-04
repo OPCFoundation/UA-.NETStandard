@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -1937,7 +1938,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                         Convert.ToUInt16(ServiceMessageContext.GlobalContext.NamespaceUris.GetIndex(((ExpandedNodeId)decodedFieldValue).NamespaceUri));
 
                                                     StringBuilder stringBuilder = new StringBuilder();
-                                                    ExpandedNodeId.Format(stringBuilder, expandedNodeId.Identifier, expandedNodeId.IdType, namespaceIndex, string.Empty, expandedNodeId.ServerIndex);
+                                                    ExpandedNodeId.Format(CultureInfo.InvariantCulture, stringBuilder, expandedNodeId.Identifier, expandedNodeId.IdType, namespaceIndex, string.Empty, expandedNodeId.ServerIndex);
                                                     decodedFieldValue = new ExpandedNodeId(stringBuilder.ToString());
                                                 }
                                                 // by convention array decoders always return the Array type
@@ -2014,7 +2015,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                             Convert.ToUInt16(ServiceMessageContext.GlobalContext.NamespaceUris.GetIndex(((ExpandedNodeId)dataValue.Value).NamespaceUri));
 
                                                         StringBuilder stringBuilder = new StringBuilder();
-                                                        ExpandedNodeId.Format(stringBuilder, expandedNodeId.Identifier, expandedNodeId.IdType, namespaceIndex, string.Empty, expandedNodeId.ServerIndex);
+                                                        ExpandedNodeId.Format(CultureInfo.InvariantCulture, stringBuilder, expandedNodeId.Identifier, expandedNodeId.IdType, namespaceIndex, string.Empty, expandedNodeId.ServerIndex);
                                                         dataValue.Value = new ExpandedNodeId(stringBuilder.ToString());
                                                     }
                                                     Assert.IsTrue(Utils.IsEqual(field.Value.Value, dataValue.Value),

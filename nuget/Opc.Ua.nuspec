@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>OPCFoundation.NetStandard.Opc.Ua</id>
+    <version>1.04.372.0</version>
+    <title>OPC UA .NET Standard Library</title>
+    <description>This package contains the OPC UA reference implementation and is targeting the .NET Standard Library.</description>
+    <authors>OPC Foundation</authors>
+    <language>en-US</language>
+    <projectUrl>https://github.com/OPCFoundation/UA-.NETStandard</projectUrl>
+    <icon>images/logo.jpg</icon>
+    <license type="file">licenses/LICENSE.txt</license>
+    <!-- deprecated <PackageLicenseUrl>https://opcfoundation.org/license/source/1.11/index.html</PackageLicenseUrl>-->
+    <tags>OPCFoundation OPC-UA netstandard ios linux dotnet net netcore uwp</tags>
+    <dependencies>
+      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core" version="$version$"/>
+      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Security.Certificates" version="$version$"/>
+      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Bindings.Https" version="$version$"/>
+      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Configuration" version="$version$"/>
+      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Client" version="$version$"/>
+      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Server" version="$version$"/>
+      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Client.Common" version="$version$"/>
+      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Server.Common" version="$version$"/>
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="logo.jpg" target="images/" />
+    <file src="../LICENSE.txt" target="licenses/LICENSE.txt"/>
+  </files>
+</package>

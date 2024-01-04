@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -184,14 +184,15 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Returns a <see cref="System.String" /> that represents this instance.
         /// </summary>
-        /// <param name="format">The format.</param>
+        /// <param name="format">The format. Must be null.</param>
         /// <param name="formatProvider">The format provider.</param>
         /// <returns>
         /// A <see cref="System.String" /> that represents this instance.
         /// </returns>
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            return "[" + Id + "] " + Description;
+            if (format != null) throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            return string.Format(formatProvider, "[{0}] {1}", Id, Description);
         }
 
         #region Well Known Identifiers
