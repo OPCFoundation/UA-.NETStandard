@@ -28,10 +28,13 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
+using Microsoft.AspNetCore.Hosting.Server;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Test;
 using Quickstarts.ReferenceServer;
@@ -610,6 +613,87 @@ namespace Opc.Ua.Server.Tests
             {
                 //restore security context, that close connection can work
                 SecureChannelContext.Current = securityContext;
+            }
+        }
+
+        public class TestEndpointBase : EndpointBase
+        {
+            ReferenceServerTests parent = new ReferenceServerTests();
+
+            public void TestCallSynchronously()
+            {
+                AsyncCallback callback = new AsyncCallback(IAsyncResult => { });
+
+                object callbackData = new object();
+
+                // Create an instance of ProcessRequestAsyncResult
+                ProcessRequestAsyncResult processRequestAsyncResult = new ProcessRequestAsyncResult(EndpointBase, callback, callbackData, 0);
+
+                // Call CallSynchronously() on the created instance
+                processRequestAsyncResult.CallSynchronously();
+            }
+        }
+
+        /// <summary>
+        /// Test for AdditionalHeader
+        /// </summary>
+        [Test]
+        [Benchmark]
+        public void OnProcessRequestWithAdditionalHeaderAndListener()
+        {
+            var requestHeader = m_requestHeader;
+
+            var rootActivity = new Activity("Test_Activity_Root") {
+                ActivityTraceFlags = ActivityTraceFlags.Recorded,
+            }.Start();
+
+            var activityListener = new ActivityListener {
+                ShouldListenTo = s => true,
+                Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
+                ActivityStarted = activity => Console.WriteLine($"{activity.ParentId}:{activity.Id} - Start"),
+                ActivityStopped = activity => Console.WriteLine($"{activity.ParentId}:{activity.Id} - Stop")
+            };
+
+            ActivitySource.AddActivityListener(activityListener);
+
+            using (var activity = new ActivitySource("TestActivitySource").StartActivity("Test_Activity"))
+            {
+                if (activity != null && activity.Id != null)
+                {
+                    EndpointBase.TraceContext context = new EndpointBase.TraceContext(Activity.Current.Context, null);
+                    AdditionalParametersType traceData = new AdditionalParametersType();
+
+                    // Determine the trace flag based on the 'Recorded' status.
+                    string traceFlags = (context.ActivityContext.TraceFlags & ActivityTraceFlags.Recorded) != 0 ? "01" : "00";
+
+                    // Print the trace id and span id for the current activity.
+                    Console.WriteLine($"TraceId: {context.ActivityContext.TraceId}");
+                    Console.WriteLine($"SpanId: {context.ActivityContext.SpanId}");
+
+                    // Construct the traceparent header, adhering to the W3C Trace Context format.
+                    string traceparent = $"00-{context.ActivityContext.TraceId}-{context.ActivityContext.SpanId}-{traceFlags}";
+                    traceData.Parameters.Add(new KeyValuePair() { Key = "traceparent", Value = traceparent });
+
+                    requestHeader.AdditionalHeader = new ExtensionObject(traceData);
+
+                    TestEndpointBase testEndpoint = new TestEndpointBase();
+                    testEndpoint.TestCallSynchronously();
+
+                    // Call CallSynchronously()
+                    //    var response = m_server.Call(requestHeader,
+                    //                       new CallMethodRequestCollection() {
+                    //        new CallMethodRequest() {
+                    //            ObjectId = ObjectIds.Server,
+                    //            MethodId = MethodIds.Server_GetMonitoredItems,
+                    //            InputArguments = new VariantCollection() { new Variant(0) }
+                    //        }
+                    //    },out var results, out var diagnosticInfos);
+
+                    //// check if the service was invoked
+                    //Assert.AreEqual(StatusCodes.Good, results[0].StatusCode.Code);
+                    //Assert.AreEqual(1, results.Count);
+
+                }
             }
         }
         #endregion
