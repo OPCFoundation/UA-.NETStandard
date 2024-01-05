@@ -665,7 +665,7 @@ namespace Opc.Ua.Server
                 }
 
                 // delete the reference.
-                nodeManager.DeleteReference(sourceHandle, reference.ReferenceTypeId, !reference.IsInverse, reference.TargetId, false);
+                nodeManager.DeleteReference(sourceHandle, reference.ReferenceTypeId, reference.IsInverse, reference.TargetId, false);
             }
         }
 
