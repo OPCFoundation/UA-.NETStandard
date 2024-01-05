@@ -5519,12 +5519,12 @@ namespace Opc.Ua.Client
 
             Utils.LogInfo("Session REPLACING channel for {0}.", SessionId);
 
-            if (connection != null || transportChannel == null)
+            if (connection != null)
             {
                 ITransportChannel channel = NullableTransportChannel;
 
                 // check if the channel supports reconnect.
-                if ((channel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
+                if (channel != null && (channel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
                 {
                     channel.Reconnect(connection);
                 }
@@ -5544,10 +5544,33 @@ namespace Opc.Ua.Client
                     TransportChannel = channel;
                 }
             }
+            else if (transportChannel != null)
+            {
+                TransportChannel = transportChannel;
+            }
             else
             {
-                Debug.Assert(transportChannel != null);
-                TransportChannel = transportChannel;
+                ITransportChannel channel = NullableTransportChannel;
+
+                // check if the channel supports reconnect.
+                if (channel != null && (channel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
+                {
+                    channel.Reconnect();
+                }
+                else
+                {
+                    // initialize the channel which will be created with the server.
+                    channel = SessionChannel.Create(
+                        m_configuration,
+                        m_endpoint.Description,
+                        m_endpoint.Configuration,
+                        m_instanceCertificate,
+                        m_configuration.SecurityConfiguration.SendCertificateChain ? m_instanceCertificateChain : null,
+                        MessageContext);
+
+                    // disposes the existing channel.
+                    TransportChannel = channel;
+                }
             }
 
             Utils.LogInfo("Session RE-ACTIVATING {0}.", SessionId);
