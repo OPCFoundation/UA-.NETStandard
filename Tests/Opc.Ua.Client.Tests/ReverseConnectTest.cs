@@ -74,6 +74,7 @@ namespace Opc.Ua.Client.Tests
                 ReverseConnectTimeout = MaxTimeout,
                 TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security
             };
+            ServerFixture.StartActivityListener();
             ReferenceServer = await ServerFixture.StartAsync(TestContext.Out, PkiRoot).ConfigureAwait(false);
 
             // create client

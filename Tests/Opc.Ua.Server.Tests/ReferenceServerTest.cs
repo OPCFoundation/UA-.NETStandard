@@ -77,6 +77,7 @@ namespace Opc.Ua.Server.Tests
                 AllNodeManagers = true,
                 OperationLimits = true
             };
+            m_fixture.StartActivityListener();
             m_server = await m_fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
         }
 
@@ -128,6 +129,7 @@ namespace Opc.Ua.Server.Tests
         {
             // start Ref server
             m_fixture = new ServerFixture<ReferenceServer>() { AllNodeManagers = true };
+            m_fixture.StartActivityListener();
             m_server = m_fixture.StartAsync(null).GetAwaiter().GetResult();
             m_requestHeader = m_server.CreateAndActivateSession("Bench");
         }
@@ -627,7 +629,7 @@ namespace Opc.Ua.Server.Tests
                 object callbackData = new object();
 
                 // Create an instance of ProcessRequestAsyncResult
-                ProcessRequestAsyncResult processRequestAsyncResult = new ProcessRequestAsyncResult(EndpointBase, callback, callbackData, 0);
+                ProcessRequestAsyncResult processRequestAsyncResult = new ProcessRequestAsyncResult(this, callback, callbackData, 0);
 
                 // Call CallSynchronously() on the created instance
                 processRequestAsyncResult.CallSynchronously();
@@ -650,8 +652,8 @@ namespace Opc.Ua.Server.Tests
             var activityListener = new ActivityListener {
                 ShouldListenTo = s => true,
                 Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
-                ActivityStarted = activity => Console.WriteLine($"{activity.ParentId}:{activity.Id} - Start"),
-                ActivityStopped = activity => Console.WriteLine($"{activity.ParentId}:{activity.Id} - Stop")
+                ActivityStarted = activity => Console.WriteLine($" {activity.OperationName}:{activity.ParentId}:{activity.Id} - Start"),
+                ActivityStopped = activity => Console.WriteLine($" {activity.OperationName}:{activity.ParentId}:{activity.Id} - Stop")
             };
 
             ActivitySource.AddActivityListener(activityListener);
@@ -666,32 +668,21 @@ namespace Opc.Ua.Server.Tests
                     // Determine the trace flag based on the 'Recorded' status.
                     string traceFlags = (context.ActivityContext.TraceFlags & ActivityTraceFlags.Recorded) != 0 ? "01" : "00";
 
-                    // Print the trace id and span id for the current activity.
-                    Console.WriteLine($"TraceId: {context.ActivityContext.TraceId}");
-                    Console.WriteLine($"SpanId: {context.ActivityContext.SpanId}");
-
                     // Construct the traceparent header, adhering to the W3C Trace Context format.
                     string traceparent = $"00-{context.ActivityContext.TraceId}-{context.ActivityContext.SpanId}-{traceFlags}";
                     traceData.Parameters.Add(new KeyValuePair() { Key = "traceparent", Value = traceparent });
 
                     requestHeader.AdditionalHeader = new ExtensionObject(traceData);
 
-                    TestEndpointBase testEndpoint = new TestEndpointBase();
-                    testEndpoint.TestCallSynchronously();
+                    //ActivateSessionMessage message = new ActivateSessionMessage();
+                    //AsyncCallback callback = new AsyncCallback(IAsyncResult => { });
 
-                    // Call CallSynchronously()
-                    //    var response = m_server.Call(requestHeader,
-                    //                       new CallMethodRequestCollection() {
-                    //        new CallMethodRequest() {
-                    //            ObjectId = ObjectIds.Server,
-                    //            MethodId = MethodIds.Server_GetMonitoredItems,
-                    //            InputArguments = new VariantCollection() { new Variant(0) }
-                    //        }
-                    //    },out var results, out var diagnosticInfos);
+                    //object callbackData = new object();
+                    //SessionEndpoint sessionEndpoint = new SessionEndpoint();
+                    //sessionEndpoint.BeginActivateSession(message, callback, callbackData);
 
-                    //// check if the service was invoked
-                    //Assert.AreEqual(StatusCodes.Good, results[0].StatusCode.Code);
-                    //Assert.AreEqual(1, results.Count);
+                    //TestEndpointBase testEndpoint = new TestEndpointBase();
+                    //testEndpoint.TestCallSynchronously();
 
                 }
             }

@@ -64,7 +64,7 @@ namespace Opc.Ua.Client.Tests
         {
             SupportsExternalServerUrl = true;
             await base.OneTimeSetUp().ConfigureAwait(false);
-            if (Session is Session session)
+            if (Session is HeaderUpdatingSession session)
             {
                 session.OperationLimits = null;
                 session.OperationLimits = new OperationLimits() {

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using Opc.Ua.Configuration;
@@ -53,6 +54,7 @@ namespace Opc.Ua.Server.Tests
         public bool SecurityNone { get; set; } = false;
         public string UriScheme { get; set; } = Utils.UriSchemeOpcTcp;
         public int Port { get; private set; }
+        public ActivityListener ActivityListener { get; private set; }
 
         public async Task LoadConfiguration(string pkiRoot = null)
         {
@@ -225,6 +227,25 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Configures Activity Listener and registers with Activity Source.
+        /// </summary>
+        public void StartActivityListener()
+        {
+            // Create an instance of ActivityListener and configure its properties
+            ActivityListener = new ActivityListener() {
+
+                // Set ShouldListenTo property to true for all activity sources
+                ShouldListenTo = (source) => source.Name == EndpointBase.ActivitySourceName,
+
+                // Sample all data and recorded activities
+                Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
+                ActivityStarted = activity => Console.WriteLine($"{activity.OperationName}:{activity.ParentId}:{activity.Id} - Start"),
+                ActivityStopped = activity => Console.WriteLine($"{activity.OperationName}:{activity.ParentId}:{activity.Id} - Stop")
+            };
+            ActivitySource.AddActivityListener(ActivityListener);
+        }
+
+        /// <summary>
         /// Stop the server.
         /// </summary>
         public Task StopAsync()
@@ -232,6 +253,8 @@ namespace Opc.Ua.Server.Tests
             Server?.Stop();
             Server?.Dispose();
             Server = null;
+            ActivityListener?.Dispose();
+            ActivityListener = null;
             return Task.Delay(100);
         }
     }

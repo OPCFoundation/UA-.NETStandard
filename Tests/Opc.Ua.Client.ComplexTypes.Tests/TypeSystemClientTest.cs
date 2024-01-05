@@ -106,6 +106,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 AllNodeManagers = true,
                 OperationLimits = true,
             };
+            m_serverFixture.StartActivityListener();
             if (writer != null)
             {
                 m_serverFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.StackTrace | Utils.TraceMasks.Security | Utils.TraceMasks.Information;

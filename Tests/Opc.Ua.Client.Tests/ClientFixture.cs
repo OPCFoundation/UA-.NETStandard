@@ -351,7 +351,7 @@ namespace Opc.Ua.Client.Tests
             ActivityListener = new ActivityListener() {
 
                 // Set ShouldListenTo property to true for all activity sources
-                ShouldListenTo = (source) => shouldListenToAllSources || source.Name.Equals(TraceableSession.ActivitySourceName),
+                ShouldListenTo = (source) => shouldListenToAllSources || (source.Name == (TraceableSession.ActivitySourceName)),
 
                 // Sample all data and recorded activities
                 Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,

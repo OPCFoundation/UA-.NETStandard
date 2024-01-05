@@ -138,6 +138,7 @@ namespace Opc.Ua.Client.Tests
                     AllNodeManagers = true,
                     OperationLimits = true
                 };
+                ServerFixture.StartActivityListener();
 
                 if (writer != null)
                 {

@@ -56,6 +56,7 @@ namespace Opc.Ua.Server.Tests
             )
         {
             var fixture = new ServerFixture<StandardServer>();
+            fixture.StartActivityListener();
             Assert.NotNull(fixture);
             fixture.UriScheme = uriScheme;
             var server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
