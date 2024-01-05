@@ -253,6 +253,9 @@ namespace Opc.Ua.Client
         public IServiceMessageContext MessageContext => m_session.MessageContext;
 
         /// <inheritdoc/>
+        public ITransportChannel NullableTransportChannel => m_session.NullableTransportChannel;
+
+        /// <inheritdoc/>
         public ITransportChannel TransportChannel => m_session.TransportChannel;
 
         /// <inheritdoc/>

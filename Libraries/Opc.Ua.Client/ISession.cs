@@ -723,11 +723,6 @@ namespace Opc.Ua.Client
 
 #if (CLIENT_ASYNC)
         /// <summary>
-        /// Disconnects from the server and frees any network resources with the default timeout.
-        /// </summary>
-        Task<StatusCode> CloseAsync(CancellationToken ct = default);
-
-        /// <summary>
         /// Close the session with the server and optionally closes the channel.
         /// </summary>
         Task<StatusCode> CloseAsync(bool closeChannel, CancellationToken ct = default);

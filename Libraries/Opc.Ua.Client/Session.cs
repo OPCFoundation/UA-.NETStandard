@@ -2447,12 +2447,8 @@ namespace Opc.Ua.Client
                     securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
                 }
 
-                byte[] previousServerNonce = null;
-
-                if (TransportChannel.CurrentToken != null)
-                {
-                    previousServerNonce = TransportChannel.CurrentToken.ServerNonce;
-                }
+                // save previous nonce
+                byte[] previousServerNonce = GetCurrentTokenServerNonce();
 
                 // validate server nonce and security parameters for user identity.
                 ValidateServerNonce(
@@ -5523,17 +5519,19 @@ namespace Opc.Ua.Client
 
             Utils.LogInfo("Session REPLACING channel for {0}.", SessionId);
 
-            if (connection != null)
+            if (connection != null || transportChannel == null)
             {
+                ITransportChannel channel = NullableTransportChannel;
+
                 // check if the channel supports reconnect.
-                if ((TransportChannel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
+                if ((channel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
                 {
-                    TransportChannel.Reconnect(connection);
+                    channel.Reconnect(connection);
                 }
                 else
                 {
                     // initialize the channel which will be created with the server.
-                    ITransportChannel channel = SessionChannel.Create(
+                    channel = SessionChannel.Create(
                         m_configuration,
                         connection,
                         m_endpoint.Description,
@@ -5546,31 +5544,10 @@ namespace Opc.Ua.Client
                     TransportChannel = channel;
                 }
             }
-            else if (transportChannel != null)
-            {
-                TransportChannel = transportChannel;
-            }
             else
             {
-                // check if the channel supports reconnect.
-                if (TransportChannel != null && (TransportChannel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
-                {
-                    TransportChannel.Reconnect();
-                }
-                else
-                {
-                    // initialize the channel which will be created with the server.
-                    ITransportChannel channel = SessionChannel.Create(
-                        m_configuration,
-                        m_endpoint.Description,
-                        m_endpoint.Configuration,
-                        m_instanceCertificate,
-                        m_configuration.SecurityConfiguration.SendCertificateChain ? m_instanceCertificateChain : null,
-                        MessageContext);
-
-                    // disposes the existing channel.
-                    TransportChannel = channel;
-                }
+                Debug.Assert(transportChannel != null);
+                TransportChannel = transportChannel;
             }
 
             Utils.LogInfo("Session RE-ACTIVATING {0}.", SessionId);
@@ -5642,6 +5619,15 @@ namespace Opc.Ua.Client
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// If available, returns the current nonce or null.
+        /// </summary>
+        private byte[] GetCurrentTokenServerNonce()
+        {
+            var currentToken = NullableTransportChannel?.CurrentToken;
+            return currentToken?.ServerNonce;
         }
 
         /// <summary>
