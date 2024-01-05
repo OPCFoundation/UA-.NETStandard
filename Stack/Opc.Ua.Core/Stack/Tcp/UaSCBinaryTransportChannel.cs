@@ -473,7 +473,7 @@ namespace Opc.Ua.Bindings
             if (socket != null)
             {
                 channel.Socket = socket;
-                channel.Socket.ChangeSink(m_channel);
+                channel.Socket.ChangeSink(channel);
                 channel.ReverseSocket = true;
             }
 
