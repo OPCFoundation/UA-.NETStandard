@@ -1010,7 +1010,7 @@ namespace Opc.Ua.Client.Tests
                 if (jj == 0)
                 {
                     // correct for delayed ack and republish count
-                    if (transferType == TransferType.DisconnectedRepublishDelayedAck || transferType == TransferType.DisconnectedRepublish)
+                    if (transferType == TransferType.DisconnectedRepublishDelayedAck)
                     {
                         targetExpectedCount += monitoredItemCount;
                     }

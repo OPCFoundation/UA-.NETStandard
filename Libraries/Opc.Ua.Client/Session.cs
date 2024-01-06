@@ -269,7 +269,10 @@ namespace Opc.Ua.Client
             m_subscriptions = new List<Subscription>();
             m_dictionaries = new Dictionary<NodeId, DataDictionary>();
             m_acknowledgementsToSend = new SubscriptionAcknowledgementCollection();
+            m_acknowledgementsToSendLock = new object();
+#if DEBUG_SEQUENTIALPUBLISHING
             m_latestAcknowledgementsSent = new Dictionary<uint, uint>();
+#endif
             m_identityHistory = new List<IUserIdentity>();
             m_outstandingRequests = new LinkedList<AsyncRequestState>();
             m_keepAliveInterval = 5000;
@@ -1436,15 +1439,12 @@ namespace Opc.Ua.Client
                     out certificateResults,
                     out certificateDiagnosticInfos);
 
-                int publishCount = 0;
-
                 Utils.LogInfo("Session RECONNECT {0} completed successfully.", SessionId);
 
                 lock (SyncRoot)
                 {
                     m_previousServerNonce = m_serverNonce;
                     m_serverNonce = serverNonce;
-                    publishCount = GetMinPublishRequestCount(true);
                 }
 
                 m_reconnectLock.Wait();
@@ -1452,11 +1452,7 @@ namespace Opc.Ua.Client
                 resetReconnect = false;
                 m_reconnectLock.Release();
 
-                // refill pipeline.
-                for (int ii = 0; ii < publishCount; ii++)
-                {
-                    BeginPublish(OperationTimeout);
-                }
+                StartPublishing(OperationTimeout, true);
 
                 StartKeepAliveTimer();
 
@@ -2451,12 +2447,8 @@ namespace Opc.Ua.Client
                     securityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
                 }
 
-                byte[] previousServerNonce = null;
-
-                if (TransportChannel.CurrentToken != null)
-                {
-                    previousServerNonce = TransportChannel.CurrentToken.ServerNonce;
-                }
+                // save previous nonce
+                byte[] previousServerNonce = GetCurrentTokenServerNonce();
 
                 // validate server nonce and security parameters for user identity.
                 ValidateServerNonce(
@@ -3201,7 +3193,7 @@ namespace Opc.Ua.Client
                     m_reconnectLock.Release();
                 }
 
-                RestartPublishing();
+                StartPublishing(OperationTimeout, false);
             }
             else
             {
@@ -3248,12 +3240,12 @@ namespace Opc.Ua.Client
                         {
                             if (subscriptions[ii].Transfer(this, subscriptionIds[ii], results[ii].AvailableSequenceNumbers))
                             {
-                                lock (SyncRoot)
+                                lock (m_acknowledgementsToSendLock)
                                 {
                                     // create ack for available sequence numbers
                                     foreach (var sequenceNumber in results[ii].AvailableSequenceNumbers)
                                     {
-                                        AddAcknowledgementToSend(subscriptionIds[ii], sequenceNumber);
+                                        AddAcknowledgementToSend(m_acknowledgementsToSend, subscriptionIds[ii], sequenceNumber);
                                     }
                                 }
                             }
@@ -3278,7 +3270,7 @@ namespace Opc.Ua.Client
                     m_reconnectLock.Release();
                 }
 
-                RestartPublishing();
+                StartPublishing(OperationTimeout, false);
             }
             else
             {
@@ -3972,7 +3964,7 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                BeginPublish(OperationTimeout);
+                StartPublishing(OperationTimeout, false);
             }
             else
             {
@@ -4007,7 +3999,7 @@ namespace Opc.Ua.Client
             Utils.LogInfo(
                 "KEEP ALIVE LATE: {0}s, EndpointUrl={1}, RequestCount={2}/{3}",
                 ((double)delta) / TimeSpan.TicksPerSecond,
-                this.Endpoint.EndpointUrl,
+                this.Endpoint?.EndpointUrl,
                 this.GoodPublishRequestCount,
                 this.OutstandingRequestCount);
 
@@ -4834,7 +4826,7 @@ namespace Opc.Ua.Client
 
             // collect the current set if acknowledgements.
             SubscriptionAcknowledgementCollection acknowledgementsToSend = null;
-            lock (SyncRoot)
+            lock (m_acknowledgementsToSendLock)
             {
                 if (callback != null)
                 {
@@ -4857,11 +4849,12 @@ namespace Opc.Ua.Client
                     acknowledgementsToSend = m_acknowledgementsToSend;
                     m_acknowledgementsToSend = new SubscriptionAcknowledgementCollection();
                 }
-
+#if DEBUG_SEQUENTIALPUBLISHING
                 foreach (var toSend in acknowledgementsToSend)
                 {
                     m_latestAcknowledgementsSent[toSend.SubscriptionId] = toSend.SequenceNumber;
                 }
+#endif
             }
 
             uint timeoutHint = (uint)((timeout > 0) ? timeout : 0);
@@ -4899,6 +4892,32 @@ namespace Opc.Ua.Client
             {
                 Utils.LogError(e, "Unexpected error sending publish request.");
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// Create the publish requests for the active subscriptions.
+        /// </summary>
+        public void StartPublishing(int timeout, bool fullQueue)
+        {
+            int publishCount = GetMinPublishRequestCount(true);
+
+            if (m_tooManyPublishRequests > 0 && publishCount > m_tooManyPublishRequests)
+            {
+                publishCount = Math.Max(m_tooManyPublishRequests, m_minPublishRequestCount);
+            }
+
+            // refill pipeline. Send at least one publish request if subscriptions are active.
+            if (publishCount > 0 && BeginPublish(timeout) != null)
+            {
+                int startCount = fullQueue ? 1 : GoodPublishRequestCount + 1;
+                for (int ii = startCount; ii < publishCount; ii++)
+                {
+                    if (BeginPublish(timeout) == null)
+                    {
+                        break;
+                    }
+                }
             }
         }
 
@@ -5022,7 +5041,7 @@ namespace Opc.Ua.Client
                 // try to acknowledge the notifications again in the next publish.
                 if (acknowledgementsToSend != null)
                 {
-                    lock (SyncRoot)
+                    lock (m_acknowledgementsToSendLock)
                     {
                         m_acknowledgementsToSend.AddRange(acknowledgementsToSend);
                     }
@@ -5070,7 +5089,8 @@ namespace Opc.Ua.Client
             }
 
             int requestCount = GoodPublishRequestCount;
-            var minPublishRequestCount = GetMinPublishRequestCount(false);
+            int minPublishRequestCount = GetMinPublishRequestCount(false);
+
             if (requestCount < minPublishRequestCount)
             {
                 BeginPublish(OperationTimeout);
@@ -5501,15 +5521,17 @@ namespace Opc.Ua.Client
 
             if (connection != null)
             {
+                ITransportChannel channel = NullableTransportChannel;
+
                 // check if the channel supports reconnect.
-                if ((TransportChannel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
+                if (channel != null && (channel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
                 {
-                    TransportChannel.Reconnect(connection);
+                    channel.Reconnect(connection);
                 }
                 else
                 {
                     // initialize the channel which will be created with the server.
-                    ITransportChannel channel = SessionChannel.Create(
+                    channel = SessionChannel.Create(
                         m_configuration,
                         connection,
                         m_endpoint.Description,
@@ -5528,15 +5550,17 @@ namespace Opc.Ua.Client
             }
             else
             {
+                ITransportChannel channel = NullableTransportChannel;
+
                 // check if the channel supports reconnect.
-                if (TransportChannel != null && (TransportChannel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
+                if (channel != null && (channel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
                 {
-                    TransportChannel.Reconnect();
+                    channel.Reconnect();
                 }
                 else
                 {
                     // initialize the channel which will be created with the server.
-                    ITransportChannel channel = SessionChannel.Create(
+                    channel = SessionChannel.Create(
                         m_configuration,
                         m_endpoint.Description,
                         m_endpoint.Configuration,
@@ -5585,9 +5609,9 @@ namespace Opc.Ua.Client
                 // the published data is acknowledged to prevent the endless republish loop.
                 case StatusCodes.BadEncodingLimitsExceeded:
                     Utils.LogError(e, "Message {0}-{1} exceeded size limits, ignored.", subscriptionId, sequenceNumber);
-                    lock (SyncRoot)
+                    lock (m_acknowledgementsToSendLock)
                     {
-                        AddAcknowledgementToSend(subscriptionId, sequenceNumber);
+                        AddAcknowledgementToSend(m_acknowledgementsToSend, subscriptionId, sequenceNumber);
                     }
                     break;
 
@@ -5618,6 +5642,15 @@ namespace Opc.Ua.Client
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// If available, returns the current nonce or null.
+        /// </summary>
+        private byte[] GetCurrentTokenServerNonce()
+        {
+            var currentToken = NullableTransportChannel?.CurrentToken;
+            return currentToken?.ServerNonce;
         }
 
         /// <summary>
@@ -5668,10 +5701,20 @@ namespace Opc.Ua.Client
             OnKeepAlive(m_serverState, responseHeader.Timestamp);
 
             // collect the current set of acknowledgements.
-            lock (SyncRoot)
+            lock (m_acknowledgementsToSendLock)
             {
                 // clear out acknowledgements for messages that the server does not have any more.
-                SubscriptionAcknowledgementCollection acknowledgementsToSend = new SubscriptionAcknowledgementCollection();
+                var acknowledgementsToSend = new SubscriptionAcknowledgementCollection();
+
+                uint latestSequenceNumberToSend = 0;
+
+                // create an acknowledgement to be sent back to the server.
+                if (notificationMessage.NotificationData.Count > 0)
+                {
+                    AddAcknowledgementToSend(acknowledgementsToSend, subscriptionId, notificationMessage.SequenceNumber);
+                    UpdateLatestSequenceNumberToSend(ref latestSequenceNumberToSend, notificationMessage.SequenceNumber);
+                    _ = availableSequenceNumbers?.Remove(notificationMessage.SequenceNumber);
+                }
 
                 for (int ii = 0; ii < m_acknowledgementsToSend.Count; ii++)
                 {
@@ -5681,19 +5724,28 @@ namespace Opc.Ua.Client
                     {
                         acknowledgementsToSend.Add(acknowledgement);
                     }
+                    else if (availableSequenceNumbers == null || availableSequenceNumbers.Remove(acknowledgement.SequenceNumber))
+                    {
+                        acknowledgementsToSend.Add(acknowledgement);
+                        UpdateLatestSequenceNumberToSend(ref latestSequenceNumberToSend, acknowledgement.SequenceNumber);
+                    }
                     else
                     {
-                        if (availableSequenceNumbers == null || availableSequenceNumbers.Contains(acknowledgement.SequenceNumber))
-                        {
-                            acknowledgementsToSend.Add(acknowledgement);
-                        }
+                        Utils.LogWarning("SessionId {0}, SubscriptionId {1}, Sequence number={2} was not received in the available sequence numbers.", SessionId, subscriptionId, acknowledgement.SequenceNumber);
                     }
                 }
 
-                // create an acknowledgement to be sent back to the server.
-                if (notificationMessage.NotificationData.Count > 0)
+                // Check for sleeping sequence numbers. May have been not acked due to a network glitch. 
+                if (latestSequenceNumberToSend != 0 && availableSequenceNumbers?.Count > 0)
                 {
-                    AddAcknowledgementToSend(subscriptionId, notificationMessage.SequenceNumber);
+                    foreach (var sequenceNumber in availableSequenceNumbers)
+                    {
+                        if ((int)(latestSequenceNumberToSend - sequenceNumber) > 100)
+                        {
+                            AddAcknowledgementToSend(acknowledgementsToSend, subscriptionId, sequenceNumber);
+                            Utils.LogWarning("SessionId {0}, SubscriptionId {1}, Sequence number={2} was sleeping, acknowledged.", SessionId, subscriptionId, sequenceNumber);
+                        }
+                    }
                 }
 
 #if DEBUG_SEQUENTIALPUBLISHING
@@ -5735,24 +5787,16 @@ namespace Opc.Ua.Client
                 }
 #endif
 
-                if (availableSequenceNumbers != null)
-                {
-                    foreach (var acknowledgement in acknowledgementsToSend)
-                    {
-                        if (acknowledgement.SubscriptionId == subscriptionId && !availableSequenceNumbers.Contains(acknowledgement.SequenceNumber))
-                        {
-                            Utils.LogWarning("Sequence number={0} was not received in the available sequence numbers.", acknowledgement.SequenceNumber);
-                        }
-                    }
-                }
-
                 m_acknowledgementsToSend = acknowledgementsToSend;
 
                 if (notificationMessage.IsEmpty)
                 {
                     Utils.LogTrace("Empty notification message received for SessionId {0} with PublishTime {1}", SessionId, notificationMessage.PublishTime.ToLocalTime());
                 }
+            }
 
+            lock (SyncRoot)
+            {
                 // find the subscription.
                 foreach (Subscription current in m_subscriptions)
                 {
@@ -5970,15 +6014,18 @@ namespace Opc.Ua.Client
             return false;
         }
 
-        private void AddAcknowledgementToSend(uint subscriptionId, uint sequenceNumber)
+        private void AddAcknowledgementToSend(SubscriptionAcknowledgementCollection acknowledgementsToSend, uint subscriptionId, uint sequenceNumber)
         {
-            Debug.Assert(Monitor.IsEntered(SyncRoot));
+            if (acknowledgementsToSend == null) throw new ArgumentNullException(nameof(acknowledgementsToSend));
+
+            Debug.Assert(Monitor.IsEntered(m_acknowledgementsToSendLock));
+
             SubscriptionAcknowledgement acknowledgement = new SubscriptionAcknowledgement {
                 SubscriptionId = subscriptionId,
                 SequenceNumber = sequenceNumber
             };
 
-            m_acknowledgementsToSend.Add(acknowledgement);
+            acknowledgementsToSend.Add(acknowledgement);
         }
 
         /// <summary>
@@ -6057,24 +6104,6 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Create the publish requests for the active subscriptions.
-        /// </summary>
-        private void RestartPublishing()
-        {
-            int publishCount = 0;
-            lock (SyncRoot)
-            {
-                publishCount = GetMinPublishRequestCount(true);
-            }
-
-            // refill pipeline.
-            for (int ii = 0; ii < publishCount; ii++)
-            {
-                BeginPublish(OperationTimeout);
-            }
-        }
-
-        /// <summary>
         /// Creates and validates the subscription ids for a transfer.
         /// </summary>
         /// <param name="subscriptions">The subscriptions to transfer.</param>
@@ -6113,6 +6142,20 @@ namespace Opc.Ua.Client
             catch (Exception e)
             {
                 Utils.Trace(e, "Unexpected error calling SessionConfigurationChanged event handler.");
+            }
+        }
+
+        /// <summary>
+        /// Helper to update the latest sequence number to send.
+        /// Handles wrap around of sequence numbers.
+        /// </summary>
+        private static void UpdateLatestSequenceNumberToSend(ref uint latestSequenceNumberToSend, uint sequenceNumber)
+        {
+            // Handle wrap around with subtraction and test result is int.
+            // Assume sequence numbers to ack do not differ by more than uint.Max / 2
+            if (latestSequenceNumberToSend == 0 || ((int)(sequenceNumber - latestSequenceNumberToSend)) > 0)
+            {
+                latestSequenceNumberToSend = sequenceNumber;
             }
         }
         #endregion
@@ -6167,7 +6210,10 @@ namespace Opc.Ua.Client
         #region Private Fields
         private ISessionFactory m_sessionFactory;
         private SubscriptionAcknowledgementCollection m_acknowledgementsToSend;
+        private object m_acknowledgementsToSendLock;
+#if DEBUG_SEQUENTIALPUBLISHING
         private Dictionary<uint, uint> m_latestAcknowledgementsSent;
+#endif
         private List<Subscription> m_subscriptions;
         private Dictionary<NodeId, DataDictionary> m_dictionaries;
         private Subscription m_defaultSubscription;
