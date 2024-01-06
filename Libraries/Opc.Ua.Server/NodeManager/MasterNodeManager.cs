@@ -657,8 +657,7 @@ namespace Opc.Ua.Server
                 LocalReference reference = referencesToRemove[ii];
 
                 // find source node.
-                INodeManager nodeManager = null;
-                object sourceHandle = GetManagerHandle(reference.SourceId, out nodeManager);
+                object sourceHandle = GetManagerHandle(reference.SourceId, out INodeManager nodeManager);
 
                 if (sourceHandle == null)
                 {

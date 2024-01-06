@@ -4458,25 +4458,11 @@ namespace Opc.Ua
                 return false;
             }
 
-            NodeStateReference sourceRef = null;
-
-            foreach (var m_refKey in m_references.Keys)
+            if (m_references.Remove(new NodeStateReference(referenceTypeId, isInverse, targetId)))
             {
-                if (m_refKey.TargetId != null && m_refKey.TargetId.IdentifierText.Equals(targetId.IdentifierText, StringComparison.Ordinal))
-                {
-                    sourceRef = m_refKey as NodeStateReference;
-                    break;
-                }
-            }
-
-            if (sourceRef != null)
-            {
-                if (m_references.Remove(sourceRef))
-                {
-                    m_changeMasks |= NodeStateChangeMasks.References;
-                    OnReferenceRemoved?.Invoke(this, referenceTypeId, isInverse, targetId);
-                    return true;
-                }
+                m_changeMasks |= NodeStateChangeMasks.References;
+                OnReferenceRemoved?.Invoke(this, referenceTypeId, isInverse, targetId);
+                return true;
             }
 
             return false;

@@ -75,18 +75,12 @@ namespace Opc.Ua
         {
             add
             {
-                lock (m_lock)
-                {
-                    m_Changed += value;
-                }
+                m_Changed += value;
             }
 
             remove
             {
-                lock (m_lock)
-                {
-                    m_Changed -= value;
-                }
+                m_Changed -= value;
             }
         }
         #endregion
