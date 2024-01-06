@@ -113,7 +113,7 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        public virtual CertificateGroup Create(
+        public virtual ICertificateGroup Create(
             string storePath,
             CertificateGroupConfiguration certificateGroupConfiguration)
         {
@@ -165,13 +165,18 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        public virtual Task<X509CRL> RevokeCertificateAsync(
+        public async virtual Task<X509CRL> RevokeCertificateAsync(
             X509Certificate2 certificate)
         {
-            return RevokeCertificateAsync(
+            Task<X509CRL> crl = RevokeCertificateAsync(
                 AuthoritiesStorePath,
                 certificate,
                 null);
+
+            //Also update TrustedList CRL so registerd Applications can get the new CRL
+            await crl.ContinueWith((_) => UpdateAuthorityCertInTrustedList(), TaskContinuationOptions.OnlyOnRanToCompletion).ConfigureAwait(false);
+
+            return await crl.ConfigureAwait(false);
         }
 
         public virtual Task VerifySigningRequestAsync(
@@ -206,7 +211,7 @@ namespace Opc.Ua.Gds.Server
             {
                 if (ex is ServiceResultException)
                 {
-                    throw ex as ServiceResultException;
+                    throw;
                 }
                 throw new ServiceResultException(StatusCodes.BadInvalidArgument, ex.Message);
             }
@@ -275,7 +280,7 @@ namespace Opc.Ua.Gds.Server
             {
                 if (ex is ServiceResultException)
                 {
-                    throw ex as ServiceResultException;
+                    throw;
                 }
                 throw new ServiceResultException(StatusCodes.BadInvalidArgument, ex.Message);
             }
@@ -297,7 +302,7 @@ namespace Opc.Ua.Gds.Server
             }
         
             DateTime yesterday = DateTime.Today.AddDays(-1);
-            X509Certificate2 newCertificate = CertificateFactory.CreateCertificate(subjectName)
+            using (X509Certificate2 newCertificate = CertificateFactory.CreateCertificate(subjectName)
                 .SetNotBefore(yesterday)
                 .SetLifeTime(Configuration.CACertificateLifetime)
                 .SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.CACertificateHashSize))
@@ -306,17 +311,19 @@ namespace Opc.Ua.Gds.Server
                 .CreateForRSA()
                 .AddToStore(
                     AuthoritiesStoreType,
-                    AuthoritiesStorePath);
+                    AuthoritiesStorePath))
+            {
 
-            // save only public key
-            Certificate = new X509Certificate2(newCertificate.RawData);
+                // save only public key
+                Certificate = new X509Certificate2(newCertificate.RawData);
 
-            // initialize revocation list
-            await RevokeCertificateAsync(AuthoritiesStorePath, newCertificate, null).ConfigureAwait(false);
+                // initialize revocation list
+                await RevokeCertificateAsync(AuthoritiesStorePath, newCertificate, null).ConfigureAwait(false);
 
-            await UpdateAuthorityCertInTrustedList().ConfigureAwait(false);
+                await UpdateAuthorityCertInTrustedList().ConfigureAwait(false);
 
-            return Certificate;
+                return Certificate;
+            }
         }
 
         #endregion

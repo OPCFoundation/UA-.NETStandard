@@ -54,7 +54,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Benchmark]
         [Test]
-        public void BinaryEncoder_Constructor2()
+        public void BinaryEncoderConstructor2()
         {
             using (var binaryEncoder = new BinaryEncoder(m_context))
             {
@@ -68,7 +68,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Benchmark]
         [Test]
-        public void BinaryEncoder_Constructor3()
+        public void BinaryEncoderConstructor3()
         {
             using (var stream = new ArraySegmentStream(m_bufferManager, kBufferSize, 0, kBufferSize))
             {
@@ -85,7 +85,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Benchmark]
         [Test]
-        public void BinaryEncoder_Constructor_Streamwriter2()
+        public void BinaryEncoderConstructorStreamwriter2()
         {
             using (IEncoder binaryEncoder = new BinaryEncoder(m_memoryStream, m_context, true))
             {
@@ -100,7 +100,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Benchmark]
         [Test]
-        public void BinaryEncoder_StreamLeaveOpen_MemoryStream()
+        public void BinaryEncoderStreamLeaveOpenMemoryStream()
         {
             BinaryEncoder_StreamLeaveOpen(m_memoryStream);
         }
@@ -110,7 +110,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Benchmark]
         [Test]
-        public void BinaryEncoder_StreamLeaveOpen_RecyclableMemoryStream()
+        public void BinaryEncoderStreamLeaveOpenRecyclableMemoryStream()
         {
             BinaryEncoder_StreamLeaveOpen(m_recyclableMemoryStream);
         }
@@ -120,7 +120,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Benchmark]
         [Test]
-        public void BinaryEncoder_StreamLeaveOpen_ArraySegmentStream()
+        public void BinaryEncoderStreamLeaveOpenArraySegmentStream()
         {
             BinaryEncoder_StreamLeaveOpen(m_arraySegmentStream);
         }
@@ -131,7 +131,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Benchmark]
         [Test]
-        public void BinaryEncoder_Constructor_Streamwriter_Reflection2()
+        public void BinaryEncoderConstructorStreamwriterReflection2()
         {
             using (var binaryEncoder = new BinaryEncoder(m_memoryStream, m_context, true))
             {

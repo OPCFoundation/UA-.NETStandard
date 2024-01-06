@@ -315,10 +315,14 @@ namespace Opc.Ua.Client
                     // breaking change, the callback must only assign the new
                     // session if the property is != null
                     m_session = null;
-                    Utils.LogInfo("Reconnect aborted, KeepAlive recovered.");
+                    Utils.LogInfo("Reconnect {0} aborted, KeepAlive recovered.", m_session?.SessionId);
+                }
+                else
+                {
+                    Utils.LogInfo("Reconnect {0}.", m_session?.SessionId);
                 }
 
-                // do the reconnect.
+                // do the reconnect or recover state.
                 if (keepaliveRecovered ||
                     await DoReconnectAsync().ConfigureAwait(false))
                 {
@@ -384,11 +388,11 @@ namespace Opc.Ua.Client
                                 m_session.Endpoint.Server.ApplicationUri
                             ).ConfigureAwait(false);
 
-                        m_session.Reconnect(connection);
+                        await m_session.ReconnectAsync(connection).ConfigureAwait(false);
                     }
                     else
                     {
-                        m_session.Reconnect();
+                        await m_session.ReconnectAsync().ConfigureAwait(false);
                     }
 
                     // monitored items should start updating on their own.
@@ -418,12 +422,15 @@ namespace Opc.Ua.Client
                         }
 
                         // check if the security configuration may have changed
-                        if (sre.StatusCode == StatusCodes.BadSecurityChecksFailed)
+                        if (sre.StatusCode == StatusCodes.BadSecurityChecksFailed ||
+                            sre.StatusCode == StatusCodes.BadCertificateInvalid)
                         {
                             m_updateFromServer = true;
                             Utils.LogInfo("Reconnect failed due to security check. Request endpoint update from server. {0}", sre.Message);
                         }
-                        else
+                        // wait for next scheduled reconnect if connection failed,
+                        // otherwise recreate session immediately
+                        else if (sre.StatusCode != StatusCodes.BadSessionIdInvalid)
                         {
                             // next attempt is to recreate session
                             m_reconnectFailed = true;
@@ -486,13 +493,15 @@ namespace Opc.Ua.Client
 
                     session = await m_session.SessionFactory.RecreateAsync(m_session).ConfigureAwait(false);
                 }
-                m_session.Close();
+                // note: the template session is not connected at this point
+                //       and must be disposed by the owner
                 m_session = session;
                 return true;
             }
             catch (ServiceResultException sre)
             {
-                if (sre.InnerResult?.StatusCode == StatusCodes.BadSecurityChecksFailed)
+                if (sre.InnerResult?.StatusCode == StatusCodes.BadSecurityChecksFailed ||
+                    sre.InnerResult?.StatusCode == StatusCodes.BadCertificateInvalid)
                 {
                     // schedule endpoint update and retry
                     m_updateFromServer = true;

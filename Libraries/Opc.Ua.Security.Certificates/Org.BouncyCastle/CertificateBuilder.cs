@@ -145,7 +145,7 @@ namespace Opc.Ua.Security.Certificates
             string passcode)
         {
             Org.BouncyCastle.X509.X509Certificate x509 = new X509CertificateParser().ReadCertificate(certificate.RawData);
-            using (var cfrg = new CertificateFactoryRandomGenerator())
+            using (var cfrg = new CryptoApiRandomGenerator())
             {
                 return X509Utils.CreatePfxWithPrivateKey(
                     x509, friendlyName,
@@ -165,7 +165,7 @@ namespace Opc.Ua.Security.Certificates
             )
         {
             if (certificate == null) throw new ArgumentNullException(nameof(certificate));
-            using (var cfrg = new CertificateFactoryRandomGenerator())
+            using (var cfrg = new CryptoApiRandomGenerator())
             {
                 SecureRandom random = new SecureRandom(cfrg);
 
@@ -444,7 +444,7 @@ namespace Opc.Ua.Security.Certificates
                 throw new NotSupportedException("Need an issuer certificate with a private key or a signature generator.");
             }
 
-            using (var cfrg = new CertificateFactoryRandomGenerator())
+            using (var cfrg = new CryptoApiRandomGenerator())
             {
                 // cert generators
                 SecureRandom random = new SecureRandom(cfrg);

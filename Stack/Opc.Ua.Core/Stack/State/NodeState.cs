@@ -2377,7 +2377,6 @@ namespace Opc.Ua
         /// <param name="e">The event to report.</param>
         public virtual void ReportEvent(ISystemContext context, IFilterTarget e)
         {
-
             OnReportEvent?.Invoke(context, this, e);
 
             List<Notifier> notifiers;
@@ -2550,7 +2549,6 @@ namespace Opc.Ua
         /// <param name="includeChildren">Whether to recursively report events for the children.</param>
         public virtual void ConditionRefresh(ISystemContext context, List<IFilterTarget> events, bool includeChildren)
         {
-
             OnConditionRefresh?.Invoke(context, this, events);
 
             if (includeChildren)
@@ -2960,7 +2958,7 @@ namespace Opc.Ua
 
             PopulateBrowser(context, browser);
 
-            OnPopulateBrowser?.Invoke(context, this, browser); 
+            OnPopulateBrowser?.Invoke(context, this, browser);
 
             return browser;
         }
@@ -4606,30 +4604,16 @@ namespace Opc.Ua
 
             lock (m_referencesLock)
             {
-
                 if (m_references == null)
                 {
                     return false;
                 }
 
-                NodeStateReference sourceRef = null;
-
-                foreach (var m_refKey in m_references.Keys)
+                if (m_references.Remove(new NodeStateReference(referenceTypeId, isInverse, targetId)))
                 {
-                    if (m_refKey.TargetId != null && m_refKey.TargetId.IdentifierText.Equals(targetId.IdentifierText))
-                    {
-                        sourceRef = m_refKey as NodeStateReference;
-                        break;
-                    }
-                }
-
-                if (sourceRef != null)
-                {
-                    if (m_references.Remove(sourceRef))
-                    {
-                        m_changeMasks |= NodeStateChangeMasks.References;
-                        removed = true;
-                    }
+                    m_changeMasks |= NodeStateChangeMasks.References;
+                    OnReferenceRemoved?.Invoke(this, referenceTypeId, isInverse, targetId);
+                    return true;
                 }
             }
 
