@@ -27,28 +27,43 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Object that creates instances of an Opc.Ua.Client.Session object.
+    /// Object that creates an instance of a Session object.
+    /// It can be used to create instances of enhanced Session
+    /// classes with added functionality or overridden methods.
     /// </summary>
     public class HeaderUpdatingSessionFactory : TraceableSessionFactory
     {
+        #region ISessionInstantiator Members
         /// <summary>
-        /// The default instance of the factory.
+        /// Object that creates instances of an Opc.Ua.Client.Session object with Activity Source.
         /// </summary>
         public new static readonly HeaderUpdatingSessionFactory Instance = new HeaderUpdatingSessionFactory();
 
-        /// <summary>
-        /// Force use of the default instance.
-        /// </summary>
-        protected HeaderUpdatingSessionFactory()
+        /// <inheritdoc/>
+        public override Session Create(
+            ISessionChannel channel,
+            ApplicationConfiguration configuration,
+            ConfiguredEndpoint endpoint)
         {
-        }        
+            return new HeaderUpdatingSession(channel, configuration, endpoint);
+        }
+
+        /// <inheritdoc/>
+        public override Session Create(
+            ITransportChannel channel,
+            ApplicationConfiguration configuration,
+            ConfiguredEndpoint endpoint,
+            X509Certificate2 clientCertificate,
+            EndpointDescriptionCollection availableEndpoints = null,
+            StringCollection discoveryProfileUris = null)
+        {
+            return new HeaderUpdatingSession(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
+        }
+        #endregion
     }
 }
