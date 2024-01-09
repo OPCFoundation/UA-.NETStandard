@@ -902,27 +902,27 @@ namespace Opc.Ua
                     // set the context.
                     SecureChannelContext.Current = m_context;
 
-                    // check if there is a listener before unpacking the AdditionalHeader
                     if (ActivitySource.HasListeners())
                     {
                         // extract trace information from the request header if available
-                        if (m_request.RequestHeader.AdditionalHeader != null && m_request.RequestHeader.AdditionalHeader.Body is AdditionalParametersType parameters)
+                        if (m_request.RequestHeader?.AdditionalHeader?.Body is AdditionalParametersType parameters &&
+                            TryExtractActivityContextFromParameters(parameters, out var activityContext))
                         {
-                            if (TryExtractActivityContextFromParameters(parameters, out var activityContext))
+                            using (var activity = ActivitySource.StartActivity(m_request.GetType().Name, ActivityKind.Server))
                             {
-                                // create activity using the method name as the display name
-                                using (var activity = ActivitySource.StartActivity(m_request.GetType().Name, ActivityKind.Server))
+                                if (activityContext != default)
                                 {
-                                    // Check if the traceparent header was present
-                                    if (activityContext != default)
-                                    {
-                                        activity.SetParentId(activityContext.TraceId, activityContext.SpanId, activityContext.TraceFlags);
-                                    }
-
-                                    // call the service.
-                                    m_response = m_service.Invoke(m_request);
+                                    activity.SetParentId(activityContext.TraceId, activityContext.SpanId, activityContext.TraceFlags);
                                 }
+
+                                // call the service.
+                                m_response = m_service.Invoke(m_request);
                             }
+                        }
+                        else
+                        {
+                            // call the service eventhoug there is no trace information
+                            m_response = m_service.Invoke(m_request);
                         }
                     }
                     else
@@ -941,6 +941,7 @@ namespace Opc.Ua
                 // report completion.
                 OperationCompleted();
             }
+
             #endregion     
 
             #region Private Fields
