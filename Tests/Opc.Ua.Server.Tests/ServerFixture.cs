@@ -54,7 +54,22 @@ namespace Opc.Ua.Server.Tests
         public bool SecurityNone { get; set; } = false;
         public string UriScheme { get; set; } = Utils.UriSchemeOpcTcp;
         public int Port { get; private set; }
+        public bool UseTracing { get; set; }
         public ActivityListener ActivityListener { get; private set; }
+
+        public ServerFixture(bool useTracing)
+        {
+            UseTracing = useTracing;
+            if (UseTracing)
+            {
+                StartActivityListenerInternal();
+            }
+        }
+
+        public ServerFixture()
+        {
+
+        }
 
         public async Task LoadConfiguration(string pkiRoot = null)
         {
@@ -229,13 +244,13 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Configures Activity Listener and registers with Activity Source.
         /// </summary>
-        public void StartActivityListener()
+        public void StartActivityListenerInternal()
         {
             // Create an instance of ActivityListener and configure its properties
             ActivityListener = new ActivityListener() {
 
-                // Set ShouldListenTo property to true for all activity sources
-                ShouldListenTo = (source) => source.Name == EndpointBase.ActivitySourceName,
+                // Listen to Server side activities
+                ShouldListenTo = (source) => (source.Name == EndpointBase.ActivitySourceName),
 
                 // Sample all data and recorded activities
                 Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,

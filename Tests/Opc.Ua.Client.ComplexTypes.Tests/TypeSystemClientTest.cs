@@ -104,9 +104,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 SecurityNone = true,
                 AutoAccept = true,
                 AllNodeManagers = true,
-                OperationLimits = true,
+                OperationLimits = true
             };
-            m_serverFixture.StartActivityListener();
             if (writer != null)
             {
                 m_serverFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.StackTrace | Utils.TraceMasks.Security | Utils.TraceMasks.Information;
@@ -114,7 +113,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out, m_pkiRoot).ConfigureAwait(false);
 
             m_clientFixture = new ClientFixture();
-            m_clientFixture.UseTracing = true;
             m_clientFixture.StartActivityListener();
 
             await m_clientFixture.LoadClientConfiguration(m_pkiRoot).ConfigureAwait(false);

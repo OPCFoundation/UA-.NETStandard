@@ -71,6 +71,8 @@ namespace Opc.Ua.Client.Tests
             ObjectIds.OPCBinarySchema_TypeSystem,
             ObjectIds.XmlSchema_TypeSystem
         };
+        [DatapointSource]
+        public static ISessionFactory[] sessionFactories = { TestableSessionFactory.Instance, HeaderUpdatingSessionFactory.Instance };
         #endregion
 
         #region Test Setup

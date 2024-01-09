@@ -131,14 +131,14 @@ namespace Opc.Ua.Client.Tests
             if (customUrl == null)
             {
                 // start Ref server
-                ServerFixture = new ServerFixture<ReferenceServer> {
+                ServerFixture = new ServerFixture<ReferenceServer>(true)
+                {
                     UriScheme = UriScheme,
                     SecurityNone = securityNone,
                     AutoAccept = true,
                     AllNodeManagers = true,
                     OperationLimits = true
                 };
-                ServerFixture.StartActivityListener();
 
                 if (writer != null)
                 {
@@ -158,12 +158,15 @@ namespace Opc.Ua.Client.Tests
                 ReferenceServer.TokenValidator = this.TokenValidator;
             }
 
-            ClientFixture = new ClientFixture();
-            ClientFixture.UseTracing = UseTracing;
-            if (UseTracing)
+            if (TestContext.CurrentContext.Test.MethodName == "ReadValue" ||
+                TestContext.CurrentContext.Test.MethodName == "ReadValueTyped" ||
+                TestContext.CurrentContext.Test.MethodName == "ReadDataTypeDefinition")
             {
-                ClientFixture.StartActivityListener();
+                // Enable tracing for specific test methods
+                UseTracing = true;
             }
+
+            ClientFixture = new ClientFixture(UseTracing);
 
             await ClientFixture.LoadClientConfiguration(PkiRoot).ConfigureAwait(false);
             ClientFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;

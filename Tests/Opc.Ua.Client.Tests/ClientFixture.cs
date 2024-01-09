@@ -52,9 +52,21 @@ namespace Opc.Ua.Client.Tests
         public uint SessionTimeout { get; set; } = 10000;
         public int OperationTimeout { get; set; } = 10000;
         public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.StackTrace | Utils.TraceMasks.Security | Utils.TraceMasks.Information;
-        public bool UseTracing { get; set; } = false;
-        public ISessionFactory SessionFactory => UseTracing ? (DefaultSessionFactory)HeaderUpdatingSessionFactory.Instance : (DefaultSessionFactory)TestableSessionFactory.Instance;
+        public ISessionFactory SessionFactory = DefaultSessionFactory.Instance;
         public ActivityListener ActivityListener { get; private set; }
+
+        public ClientFixture(bool UseTracing)
+        {
+            if (UseTracing)
+            {
+                SessionFactory = HeaderUpdatingSessionFactory.Instance;
+                StartActivityListener();
+            }         
+        }
+
+        public ClientFixture()
+        {
+        }
 
         #region Public Methods
         public void Dispose()
@@ -345,24 +357,20 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Configures Activity Listener and registers with Activity Source.
         /// </summary>
-        public void StartActivityListener(bool shouldListenToAllSources = false, bool shouldWriteStartAndStop = true)
+        public void StartActivityListener()
         {
             // Create an instance of ActivityListener and configure its properties
             ActivityListener = new ActivityListener() {
 
                 // Set ShouldListenTo property to true for all activity sources
-                ShouldListenTo = (source) => shouldListenToAllSources || (source.Name == (TraceableSession.ActivitySourceName)),
+                ShouldListenTo = (source) => (source.Name == (TraceableSession.ActivitySourceName)),
 
                 // Sample all data and recorded activities
                 Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
 
             };
-
-            if (shouldWriteStartAndStop)
-            {
-                ActivityListener.ActivityStarted = activity => Utils.LogInfo("Started: {0,-15} {1,-60}", activity.OperationName, activity.Id);
-                ActivityListener.ActivityStopped = activity => Utils.LogInfo("Stopped: {0,-15} {1,-60} Duration: {2}", activity.OperationName, activity.Id, activity.Duration);
-            }
+            ActivityListener.ActivityStarted = activity => Utils.LogInfo("Started: {0,-15} {1,-60}", activity.OperationName, activity.Id);
+            ActivityListener.ActivityStopped = activity => Utils.LogInfo("Stopped: {0,-15} {1,-60} Duration: {2}", activity.OperationName, activity.Id, activity.Duration);
 
             ActivitySource.AddActivityListener(ActivityListener);
         }
