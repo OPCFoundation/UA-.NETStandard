@@ -159,7 +159,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             if (TestContext.CurrentContext.Test.MethodName == "ReadValue" ||
-                TestContext.CurrentContext.Test.MethodName == "ReadValueTyped" ||
+                TestContext.CurrentContext.Test.MethodName == "ReadNode" ||
                 TestContext.CurrentContext.Test.MethodName == "ReadDataTypeDefinition")
             {
                 // Enable tracing for specific test methods

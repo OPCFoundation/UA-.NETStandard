@@ -66,6 +66,7 @@ namespace Opc.Ua.Client.Tests
 
         public ClientFixture()
         {
+            SessionFactory = DefaultSessionFactory.Instance;
         }
 
         #region Public Methods
@@ -360,17 +361,15 @@ namespace Opc.Ua.Client.Tests
         public void StartActivityListener()
         {
             // Create an instance of ActivityListener and configure its properties
-            ActivityListener = new ActivityListener() {
-
-                // Set ShouldListenTo property to true for all activity sources
+            ActivityListener = new ActivityListener()
+            {
                 ShouldListenTo = (source) => (source.Name == (TraceableSession.ActivitySourceName)),
 
                 // Sample all data and recorded activities
                 Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
-
+                ActivityStarted = activity => Utils.LogInfo("Started: {0,-15} {1,-60}", activity.OperationName, activity.Id),
+                ActivityStopped = activity => Utils.LogInfo("Stopped: {0,-15} {1,-60} Duration: {2}", activity.OperationName, activity.Id, activity.Duration)
             };
-            ActivityListener.ActivityStarted = activity => Utils.LogInfo("Started: {0,-15} {1,-60}", activity.OperationName, activity.Id);
-            ActivityListener.ActivityStopped = activity => Utils.LogInfo("Stopped: {0,-15} {1,-60} Duration: {2}", activity.OperationName, activity.Id, activity.Duration);
 
             ActivitySource.AddActivityListener(ActivityListener);
         }

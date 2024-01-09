@@ -254,8 +254,8 @@ namespace Opc.Ua.Server.Tests
 
                 // Sample all data and recorded activities
                 Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
-                ActivityStarted = activity => Console.WriteLine($"{activity.OperationName}:{activity.ParentId}:{activity.Id} - Start"),
-                ActivityStopped = activity => Console.WriteLine($"{activity.OperationName}:{activity.ParentId}:{activity.Id} - Stop")
+                ActivityStarted = activity => Utils.LogInfo($"{activity.OperationName}:{activity.ParentId}:{activity.Id} - Start"),
+                ActivityStopped = activity => Utils.LogInfo($"{activity.OperationName}:{activity.ParentId}:{activity.Id} - Stop")
             };
             ActivitySource.AddActivityListener(ActivityListener);
         }

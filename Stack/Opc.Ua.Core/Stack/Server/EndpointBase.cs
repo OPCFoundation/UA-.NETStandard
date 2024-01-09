@@ -170,7 +170,7 @@ namespace Opc.Ua
         private static readonly Lazy<ActivitySource> s_activitySource = new Lazy<ActivitySource>(() => new ActivitySource(ActivitySourceName, "1.0.0"));
 
         /// <summary>
-        /// Tries to extracts the trace details from the AdditionalParametersType.
+        /// Tries to extract the trace details from the AdditionalParametersType.
         /// </summary>
         public static bool TryExtractActivityContextFromParameters(AdditionalParametersType parameters, out ActivityContext activityContext)
         {
