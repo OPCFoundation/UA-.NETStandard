@@ -170,69 +170,43 @@ namespace Opc.Ua
         private static readonly Lazy<ActivitySource> s_activitySource = new Lazy<ActivitySource>(() => new ActivitySource(ActivitySourceName, "1.0.0"));
 
         /// <summary>
-        /// Holds the tracing context for propagation across system boundaries.
+        /// Tries to extracts the trace details from the AdditionalParametersType.
         /// </summary>
-        public class TraceContext
-        {
-            /// <summary>
-            /// Gets the core trace identifiers like TraceId and SpanId.
-            /// </summary>
-            public ActivityContext ActivityContext { get; }
-
-            /// <summary>
-            /// Gets the user-defined data associated with the trace.
-            /// </summary>
-            public Dictionary<string, string> Baggage { get; }
-
-            /// <summary>
-            /// Constructs a new TraceContext.
-            /// </summary>
-            /// <param name="activityContext">Core trace identifiers.</param>
-            /// <param name="baggage">User-defined data for the trace.</param>
-            public TraceContext(ActivityContext activityContext, Dictionary<string, string> baggage)
-            {
-                ActivityContext = activityContext;
-                Baggage = baggage;
-            }
-        }
-
-        /// <summary>
-        /// Extracts the trace details from the given dictionary
-        /// </summary>
-        public static TraceContext ExtractTraceContextFromParameters(AdditionalParametersType parameters)
+        public static bool TryExtractActivityContextFromParameters(AdditionalParametersType parameters, out ActivityContext activityContext)
         {
             if (parameters == null)
             {
-                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Parameters are null");
+                activityContext = default;
+                return false;
             }
 
             ActivityTraceId traceId = default;
             ActivitySpanId spanId = default;
             ActivityTraceFlags traceFlags = ActivityTraceFlags.None;
-            Dictionary<string, string> baggage = new Dictionary<string, string>();
 
             foreach (var item in parameters.Parameters)
             {
                 if (item.Key == "traceparent")
                 {
                     var parts = item.Value.ToString().Split('-');
-                    if (parts.Length != 4)
+
+                    if (parts.Length == 4)
                     {
-                        throw new ServiceResultException(StatusCodes.BadDecodingError, "Invalid traceparent format");
+                        traceId = ActivityTraceId.CreateFromString(parts[1].AsSpan());
+                        spanId = ActivitySpanId.CreateFromString(parts[2].AsSpan());
+                        traceFlags = parts[3] == "01" ? ActivityTraceFlags.Recorded : ActivityTraceFlags.None;
+
+                        activityContext = new ActivityContext(traceId, spanId, traceFlags);
+                        return true;
                     }
-                    traceId = ActivityTraceId.CreateFromString(parts[1].AsSpan());
-                    spanId = ActivitySpanId.CreateFromString(parts[2].AsSpan());
-                    traceFlags = parts[3] == "01" ? ActivityTraceFlags.Recorded : ActivityTraceFlags.None;
+                    activityContext = default;
+                    return false;
                 }
             }
 
-            if (traceId == default || spanId == default)
-            {
-                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Failed to extract trace context");
-            }
-
-            var activityContext = new ActivityContext(traceId, spanId, traceFlags);
-            return new TraceContext(activityContext, null);
+            // no traceparent header found
+            activityContext = default;
+            return false;
         }
         #endregion
 
@@ -932,24 +906,23 @@ namespace Opc.Ua
                     if (ActivitySource.HasListeners())
                     {
                         // extract trace information from the request header if available
-                        TraceContext traceContext = null;
                         if (m_request.RequestHeader.AdditionalHeader != null && m_request.RequestHeader.AdditionalHeader.Body is AdditionalParametersType parameters)
                         {
-                            traceContext = ExtractTraceContextFromParameters(parameters);
-                        }
-
-                        // create activity using the method name as the display name
-                        using (var activity = ActivitySource.StartActivity(m_request.GetType().Name, ActivityKind.Server))
-                        {
-                            // add parent if trace information is available
-                            if (traceContext != null)
+                            if (TryExtractActivityContextFromParameters(parameters, out var activityContext))
                             {
-                                activity?.SetParentId(traceContext.ActivityContext.TraceId, traceContext.ActivityContext.SpanId);
-                                activity.ActivityTraceFlags = traceContext.ActivityContext.TraceFlags;
-                            }
+                                // create activity using the method name as the display name
+                                using (var activity = ActivitySource.StartActivity(m_request.GetType().Name, ActivityKind.Server))
+                                {
+                                    // Check if the traceparent header was present
+                                    if (activityContext != default)
+                                    {
+                                        activity.SetParentId(activityContext.TraceId, activityContext.SpanId, activityContext.TraceFlags);
+                                    }
 
-                            // call the service.
-                            m_response = m_service.Invoke(m_request);
+                                    // call the service.
+                                    m_response = m_service.Invoke(m_request);
+                                }
+                            }
                         }
                     }
                     else
