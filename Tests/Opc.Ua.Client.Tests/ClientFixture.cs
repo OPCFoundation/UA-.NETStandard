@@ -367,8 +367,10 @@ namespace Opc.Ua.Client.Tests
 
                 // Sample all data and recorded activities
                 Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
-                ActivityStarted = activity => Utils.LogInfo("Started: {0,-15} {1,-60}", activity.OperationName, activity.Id),
-                ActivityStopped = activity => Utils.LogInfo("Stopped: {0,-15} {1,-60} Duration: {2}", activity.OperationName, activity.Id, activity.Duration)
+                ActivityStarted = activity => Utils.LogInfo("Client Started: {0,-15} - TraceId: {1,-32} SpanId: {2,-16}",
+                  activity.OperationName, activity.TraceId, activity.SpanId),
+                ActivityStopped = activity => Utils.LogInfo("Client Stopped: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} Duration: {3}",
+                  activity.OperationName, activity.TraceId, activity.SpanId, activity.Duration)
             };
 
             ActivitySource.AddActivityListener(ActivityListener);
