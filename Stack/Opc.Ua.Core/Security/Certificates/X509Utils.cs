@@ -325,6 +325,8 @@ namespace Opc.Ua
             return CompareDistinguishedNameFields(parsedName, certificateName);
         }
 
+        private static readonly char[] anyOf = new char[] { '/', ',', '=' };
+
         /// <summary>
         /// Parses a distingushed name.
         /// </summary>
@@ -417,7 +419,7 @@ namespace Opc.Ua
                     buffer.Append(key);
                     buffer.Append('=');
 
-                    if (value.IndexOfAny(new char[] { '/', ',', '=' }) != -1)
+                    if (value.IndexOfAny(anyOf) != -1)
                     {
                         if (value.Length > 0 && value[0] != '"')
                         {

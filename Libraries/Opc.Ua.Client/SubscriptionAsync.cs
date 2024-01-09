@@ -97,11 +97,7 @@ namespace Opc.Ua.Client
             {
                 lock (m_cache)
                 {
-                    // stop the publish timer.
-                    Utils.SilentDispose(m_publishTimer);
-                    m_publishTimer = null;
-                    m_messageWorkerEvent.Set();
-                    m_messageWorkerTask = null;
+                    ResetPublishTimerAndWorkerState();
                 }
 
                 // delete the subscription.

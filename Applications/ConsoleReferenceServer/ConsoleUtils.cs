@@ -399,7 +399,7 @@ namespace Quickstarts
         /// Create an event which is set if a user
         /// enters the Ctrl-C key combination.
         /// </summary>
-        public static ManualResetEvent CtrlCHandler(CancellationTokenSource cts = default)
+        public static ManualResetEvent CtrlCHandler(CancellationTokenSource cts)
         {
             var quitEvent = new ManualResetEvent(false);
             try
