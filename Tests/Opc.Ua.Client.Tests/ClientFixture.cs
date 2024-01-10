@@ -61,7 +61,11 @@ namespace Opc.Ua.Client.Tests
             {
                 SessionFactory = TraceableRequestHeaderClientSessionFactory.Instance;
                 StartActivityListener();
-            }         
+            }
+            else
+            {
+                SessionFactory = DefaultSessionFactory.Instance;
+            }
         }
 
         public ClientFixture()

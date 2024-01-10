@@ -165,6 +165,11 @@ namespace Opc.Ua.Client.Tests
                 // Enable tracing for specific test methods
                 UseTracing = true;
             }
+            else
+            {
+                // Disable tracing for all other test methods
+                UseTracing = false;
+            }
 
             ClientFixture = new ClientFixture(UseTracing);
 
