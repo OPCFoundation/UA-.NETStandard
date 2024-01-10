@@ -941,7 +941,6 @@ namespace Opc.Ua
                 // report completion.
                 OperationCompleted();
             }
-
             #endregion     
 
             #region Private Fields
