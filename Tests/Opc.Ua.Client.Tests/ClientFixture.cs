@@ -59,7 +59,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (UseTracing)
             {
-                SessionFactory = HeaderUpdatingSessionFactory.Instance;
+                SessionFactory = TraceableRequestHeaderClientSessionFactory.Instance;
                 StartActivityListener();
             }         
         }

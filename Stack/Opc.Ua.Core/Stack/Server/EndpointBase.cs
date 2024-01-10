@@ -157,7 +157,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        #region TraceContext Members
+        #region TracingContext Members
         /// <summary>
         /// Activity Source Name.
         /// </summary>
@@ -921,7 +921,7 @@ namespace Opc.Ua
                         }
                         else
                         {
-                            // call the service eventhoug there is no trace information
+                            // call the service even when there is no trace information
                             m_response = m_service.Invoke(m_request);
                         }
                     }

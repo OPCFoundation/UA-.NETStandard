@@ -50,7 +50,7 @@ namespace Opc.Ua.Client.Tests
 
         #region DataPointSources
         [DatapointSource]
-        public static ISessionFactory[] sessionFactories = {TestableSessionFactory.Instance, HeaderUpdatingSessionFactory.Instance};
+        public static ISessionFactory[] sessionFactories = {TestableSessionFactory.Instance, TraceableRequestHeaderClientSessionFactory.Instance};
         #endregion
 
         #region Test Setup

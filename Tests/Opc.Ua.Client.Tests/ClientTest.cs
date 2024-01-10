@@ -43,7 +43,7 @@ using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server.Tests;
-using static Opc.Ua.Client.HeaderUpdatingSession;
+using static Opc.Ua.Client.TraceableRequestHeaderClientSession;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -72,7 +72,7 @@ namespace Opc.Ua.Client.Tests
             ObjectIds.XmlSchema_TypeSystem
         };
         [DatapointSource]
-        public static ISessionFactory[] sessionFactories = { TestableSessionFactory.Instance, HeaderUpdatingSessionFactory.Instance };
+        public static ISessionFactory[] sessionFactories = { TestableSessionFactory.Instance, TraceableRequestHeaderClientSessionFactory.Instance };
         #endregion
 
         #region Test Setup
@@ -114,10 +114,10 @@ namespace Opc.Ua.Client.Tests
         }
         #endregion
 
-        // Test class for testing protected methods in HeaderUpdatingSession
-        public class TestableHeaderUpdatingSession : HeaderUpdatingSession
+        // Test class for testing protected methods in TraceableRequestHeaderClientSession
+        public class TestableTraceableRequestHeaderClientSession : TraceableRequestHeaderClientSession
         {
-            public TestableHeaderUpdatingSession(
+            public TestableTraceableRequestHeaderClientSession(
                 ISessionChannel channel,
                 ApplicationConfiguration configuration,
                 ConfiguredEndpoint endpoint)
@@ -1322,7 +1322,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(900)]
-        public async Task TestTraceContextIsPropagated()
+        public async Task ClientRequestHeaderUpdateTest()
         {
             var rootActivity = new Activity("Test_Activity_Root") {
                 ActivityTraceFlags = ActivityTraceFlags.Recorded,
@@ -1346,26 +1346,26 @@ namespace Opc.Ua.Client.Tests
                     var channelMock = new Mock<ITransportChannel>();
                     var sessionChannelMock = channelMock.As<ISessionChannel>();
 
-                    TestableHeaderUpdatingSession testableHeaderUpdatingSession = new TestableHeaderUpdatingSession(sessionChannelMock.Object, ClientFixture.Config, endpoint);
+                    TestableTraceableRequestHeaderClientSession testableTraceableRequestHeaderClientSession = new TestableTraceableRequestHeaderClientSession(sessionChannelMock.Object, ClientFixture.Config, endpoint);
                     CreateSessionRequest request = new CreateSessionRequest();
                     request.RequestHeader = new RequestHeader();
 
                     // Mock call TestableUpdateRequestHeader() to simulate the header update
-                    testableHeaderUpdatingSession.TestableUpdateRequestHeader(request, true);
+                    testableTraceableRequestHeaderClientSession.TestableUpdateRequestHeader(request, true);
 
                     // Get the AdditionalHeader from the request
                     var additionalHeader = request.RequestHeader.AdditionalHeader as ExtensionObject;
                     Assert.NotNull(additionalHeader);
 
                     // Simulate extraction
-                    var extractedContext = HeaderUpdatingSession.ExtractTraceContextFromParameters(additionalHeader.Body as AdditionalParametersType);
+                    var extractedContext = TraceableRequestHeaderClientSession.ExtractActivityContextFromParameters(additionalHeader.Body as AdditionalParametersType);
 
                     // Verify that the trace context is propagated.
-                    Assert.AreEqual(activity.TraceId, extractedContext.ActivityContext.TraceId);
-                    Assert.AreEqual(activity.SpanId, extractedContext.ActivityContext.SpanId);
+                    Assert.AreEqual(activity.TraceId, extractedContext.TraceId);
+                    Assert.AreEqual(activity.SpanId, extractedContext.SpanId);
 
                     TestContext.Out.WriteLine($"Activity TraceId: {activity.TraceId}, Activity SpanId: {activity.SpanId}");
-                    TestContext.Out.WriteLine($"Extracted TraceId: {extractedContext.ActivityContext.TraceId}, Extracted SpanId: {extractedContext.ActivityContext.SpanId}");
+                    TestContext.Out.WriteLine($"Extracted TraceId: {extractedContext.TraceId}, Extracted SpanId: {extractedContext.SpanId}");
                 }
             }
 

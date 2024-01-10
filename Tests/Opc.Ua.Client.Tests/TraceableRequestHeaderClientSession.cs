@@ -41,7 +41,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// A subclass of a session to override some implementations from CleintBase
     /// </summary> 
-    public class HeaderUpdatingSession : Session
+    public class TraceableRequestHeaderClientSession : Session
     {
         #region Constructors
         /// <summary>
@@ -50,7 +50,7 @@ namespace Opc.Ua.Client
         /// <param name="channel">The channel used to communicate with the server.</param>
         /// <param name="configuration">The configuration for the client application.</param>
         /// <param name="endpoint">The endpoint use to initialize the channel.</param>
-        public HeaderUpdatingSession(
+        public TraceableRequestHeaderClientSession(
             ISessionChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint)
@@ -76,7 +76,7 @@ namespace Opc.Ua.Client
         /// The <i>availableEndpoints</i> and <i>discoveryProfileUris</i> parameters are used to validate
         /// that the list of EndpointDescriptions returned at GetEndpoints matches the list returned at CreateSession.
         /// </remarks>
-        public HeaderUpdatingSession(
+        public TraceableRequestHeaderClientSession(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
@@ -93,7 +93,7 @@ namespace Opc.Ua.Client
         /// <param name="channel">The channel.</param>
         /// <param name="template">The template session.</param>
         /// <param name="copyEventHandlers">if set to <c>true</c> the event handlers are copied.</param>
-        public HeaderUpdatingSession(ITransportChannel channel, Session template, bool copyEventHandlers)
+        public TraceableRequestHeaderClientSession(ITransportChannel channel, Session template, bool copyEventHandlers)
         :
             base(channel, template, copyEventHandlers)
         {
@@ -101,103 +101,51 @@ namespace Opc.Ua.Client
         #endregion
 
         /// <summary>
-        /// Holds the tracing context for propagation across system boundaries.
+        /// Populates AdditionalParameters with details from the ActivityContext
         /// </summary>
-        public class TraceContext
-        {
-            /// <summary>
-            /// Gets the core trace identifiers like TraceId and SpanId.
-            /// </summary>
-            public ActivityContext ActivityContext { get; }
-
-            /// <summary>
-            /// Gets the user-defined data associated with the trace.
-            /// </summary>
-            public Dictionary<string, string> Baggage { get; }
-
-            /// <summary>
-            /// Constructs a new TraceContext.
-            /// </summary>
-            /// <param name="activityContext">Core trace identifiers.</param>
-            /// <param name="baggage">User-defined data for the trace.</param>
-            public TraceContext(ActivityContext activityContext, Dictionary<string, string> baggage)
-            {
-                ActivityContext = activityContext;
-                Baggage = baggage;
-            }
-        }
-
-        /// <summary>
-        /// Populates AdditionalParameters with details from the TraceContext
-        /// </summary>
-        public static void InjectTraceIntoAdditionalParameters(TraceContext context, out AdditionalParametersType traceData)
+        public static void InjectTraceIntoAdditionalParameters(ActivityContext context, out AdditionalParametersType traceData)
         {
             traceData = new AdditionalParametersType();
 
             // Determine the trace flag based on the 'Recorded' status.
-            string traceFlags = (context.ActivityContext.TraceFlags & ActivityTraceFlags.Recorded) != 0 ? "01" : "00";
+            string traceFlags = (context.TraceFlags & ActivityTraceFlags.Recorded) != 0 ? "01" : "00";
 
             // Construct the traceparent header, adhering to the W3C Trace Context format.
-            string traceparent = $"00-{context.ActivityContext.TraceId}-{context.ActivityContext.SpanId}-{traceFlags}";
+            string traceparent = $"00-{context.TraceId}-{context.SpanId}-{traceFlags}";
             traceData.Parameters.Add(new KeyValuePair() { Key = "traceparent", Value = traceparent });
-
-            // If baggage (tracestate) exists, include it as a single concatenated string.
-            if (context.Baggage != null && context.Baggage.Count > 0)
-            {
-                var tracestate = string.Join(",", context.Baggage.Select(kv => $"{kv.Key}={kv.Value}"));
-                traceData.Parameters.Add(new KeyValuePair() { Key = "tracestate", Value = tracestate });
-            }
         }
 
-        /// <summary>
-        /// Extracts the trace and baggage details from the given dictionary
-        /// </summary>
-        public static TraceContext ExtractTraceContextFromParameters(AdditionalParametersType parameters)
+        public static ActivityContext ExtractActivityContextFromParameters(AdditionalParametersType parameters)
         {
             if (parameters == null)
             {
-                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Parameters are null");
+                return default;
             }
 
             ActivityTraceId traceId = default;
             ActivitySpanId spanId = default;
             ActivityTraceFlags traceFlags = ActivityTraceFlags.None;
-            Dictionary<string, string> baggage = new Dictionary<string, string>();
 
             foreach (var item in parameters.Parameters)
             {
                 if (item.Key == "traceparent")
                 {
                     var parts = item.Value.ToString().Split('-');
-                    if (parts.Length != 4)
+
+                    if (parts.Length == 4)
                     {
-                        throw new ServiceResultException(StatusCodes.BadDecodingError, "Invalid traceparent format");
+                        traceId = ActivityTraceId.CreateFromString(parts[1].AsSpan());
+                        spanId = ActivitySpanId.CreateFromString(parts[2].AsSpan());
+                        traceFlags = parts[3] == "01" ? ActivityTraceFlags.Recorded : ActivityTraceFlags.None;
+
+                        return new ActivityContext(traceId, spanId, traceFlags);
                     }
-                    traceId = ActivityTraceId.CreateFromString(parts[1].AsSpan());
-                    spanId = ActivitySpanId.CreateFromString(parts[2].AsSpan());
-                    traceFlags = parts[3] == "01" ? ActivityTraceFlags.Recorded : ActivityTraceFlags.None;
-                }
-                else if (item.Key == "tracestate")
-                {
-                    var baggageItems = item.Value.ToString().Split(',');
-                    foreach (var baggageItem in baggageItems)
-                    {
-                        var keyValue = baggageItem.Split('=');
-                        if (keyValue.Length == 2)
-                        {
-                            baggage[keyValue[0].Trim()] = keyValue[1].Trim();
-                        }
-                    }
+                    return default;
                 }
             }
 
-            if (traceId == default || spanId == default)
-            {
-                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Failed to extract trace context");
-            }
-
-            var activityContext = new ActivityContext(traceId, spanId, traceFlags);
-            return new TraceContext(activityContext, baggage);
+            // no traceparent header found
+            return default;
         }
 
         ///<inheritdoc/>
@@ -214,7 +162,7 @@ namespace Opc.Ua.Client
 
             if (Activity.Current != null)
             {
-                InjectTraceIntoAdditionalParameters(new TraceContext(Activity.Current.Context, null), out AdditionalParametersType traceData);
+                InjectTraceIntoAdditionalParameters(Activity.Current.Context, out AdditionalParametersType traceData);
 
                 if (request.RequestHeader.AdditionalHeader == null)
                 {
@@ -235,7 +183,7 @@ namespace Opc.Ua.Client
 
             if (Activity.Current != null)
             {
-                InjectTraceIntoAdditionalParameters(new TraceContext(Activity.Current.Context, null), out AdditionalParametersType traceData);
+                InjectTraceIntoAdditionalParameters(Activity.Current.Context, out AdditionalParametersType traceData);
 
                 if (request.RequestHeader.AdditionalHeader == null)
                 {
