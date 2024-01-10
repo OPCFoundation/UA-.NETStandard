@@ -364,7 +364,20 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public void StartActivityListener()
         {
-            // Create an instance of ActivityListener and configure its properties
+#if BENCHMARK
+            // Create an instance of ActivityListener without logging
+            ActivityListener = new ActivityListener()
+            {
+                ShouldListenTo = (source) => (source.Name == (TraceableSession.ActivitySourceName)),
+
+                // Sample all data and recorded activities
+                Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
+                // Do not log during benchmarks
+                ActivityStarted = _ => { },
+                ActivityStopped = _ => { }
+            };
+#else
+            // Create an instance of ActivityListener and configure its properties with logging
             ActivityListener = new ActivityListener()
             {
                 ShouldListenTo = (source) => (source.Name == (TraceableSession.ActivitySourceName)),
@@ -372,13 +385,15 @@ namespace Opc.Ua.Client.Tests
                 // Sample all data and recorded activities
                 Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
                 ActivityStarted = activity => Utils.LogInfo("Client Started: {0,-15} - TraceId: {1,-32} SpanId: {2,-16}",
-                  activity.OperationName, activity.TraceId, activity.SpanId),
+                    activity.OperationName, activity.TraceId, activity.SpanId),
                 ActivityStopped = activity => Utils.LogInfo("Client Stopped: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} Duration: {3}",
-                  activity.OperationName, activity.TraceId, activity.SpanId, activity.Duration)
+                    activity.OperationName, activity.TraceId, activity.SpanId, activity.Duration)
             };
+#endif
 
             ActivitySource.AddActivityListener(ActivityListener);
         }
+
 
         /// <summary>
         /// Disposes Activity Listener and unregisters from Activity Source.
