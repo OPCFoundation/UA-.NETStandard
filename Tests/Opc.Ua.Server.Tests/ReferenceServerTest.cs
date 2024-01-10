@@ -28,13 +28,10 @@
  * ======================================================================*/
 
 using System;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
-using Microsoft.AspNetCore.Hosting.Server;
-using Moq;
 using NUnit.Framework;
 using Opc.Ua.Test;
 using Quickstarts.ReferenceServer;
