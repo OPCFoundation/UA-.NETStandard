@@ -50,7 +50,7 @@ namespace Opc.Ua.Client.Tests
 
         #region DataPointSources
         [DatapointSource]
-        public static ISessionFactory[] sessionFactories = {TestableSessionFactory.Instance, TraceableRequestHeaderClientSessionFactory.Instance};
+        public static ISessionFactory[] sessionFactories = {TestableSessionFactory.Instance, DefaultSessionFactory.Instance};
         #endregion
 
         #region Test Setup
@@ -75,14 +75,12 @@ namespace Opc.Ua.Client.Tests
                 AutoAccept = true,
                 SecurityNone = true,
                 ReverseConnectTimeout = MaxTimeout,
-                TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security,
-                UseTracing = false
+                TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security
             };
             ReferenceServer = await ServerFixture.StartAsync(TestContext.Out, PkiRoot).ConfigureAwait(false);
 
             // create client
             ClientFixture = new ClientFixture();
-            ClientFixture.StartActivityListener();
 
             await ClientFixture.LoadClientConfiguration(PkiRoot).ConfigureAwait(false);
             await ClientFixture.StartReverseConnectHost().ConfigureAwait(false);

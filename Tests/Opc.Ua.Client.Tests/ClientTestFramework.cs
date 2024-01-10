@@ -59,7 +59,6 @@ namespace Opc.Ua.Client.Tests
         public TokenValidatorMock TokenValidator { get; set; } = new TokenValidatorMock();
 
         public bool SingleSession { get; set; } = true;
-        public bool UseTracing { get; set; } = true;
         public bool SupportsExternalServerUrl { get; set; } = false;
         public ServerFixture<ReferenceServer> ServerFixture { get; set; }
         public ClientFixture ClientFixture { get; set; }
@@ -103,7 +102,7 @@ namespace Opc.Ua.Client.Tests
         /// Setup a server and client fixture.
         /// </summary>
         /// <param name="writer">The test output writer.</param>
-        public async Task OneTimeSetUpAsync(TextWriter writer = null, bool securityNone = false)
+        public async Task OneTimeSetUpAsync(TextWriter writer = null, bool securityNone = false, bool enableTracing = false)
         {
             // pki directory root for test runs.
             PkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
@@ -131,7 +130,7 @@ namespace Opc.Ua.Client.Tests
             if (customUrl == null)
             {
                 // start Ref server
-                ServerFixture = new ServerFixture<ReferenceServer>(true)
+                ServerFixture = new ServerFixture<ReferenceServer>(enableTracing)
                 {
                     UriScheme = UriScheme,
                     SecurityNone = securityNone,
@@ -158,20 +157,7 @@ namespace Opc.Ua.Client.Tests
                 ReferenceServer.TokenValidator = this.TokenValidator;
             }
 
-            if (TestContext.CurrentContext.Test.MethodName == "ReadValue" ||
-                TestContext.CurrentContext.Test.MethodName == "ReadNode" ||
-                TestContext.CurrentContext.Test.MethodName == "ReadDataTypeDefinition")
-            {
-                // Enable tracing for specific test methods
-                UseTracing = true;
-            }
-            else
-            {
-                // Disable tracing for all other test methods
-                UseTracing = false;
-            }
-
-            ClientFixture = new ClientFixture(UseTracing);
+            ClientFixture = new ClientFixture(enableTracing);
 
             await ClientFixture.LoadClientConfiguration(PkiRoot).ConfigureAwait(false);
             ClientFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
