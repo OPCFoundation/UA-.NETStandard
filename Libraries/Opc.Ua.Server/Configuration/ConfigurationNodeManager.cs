@@ -36,9 +36,11 @@ using System.Xml;
 
 namespace Opc.Ua.Server
 {
+
     /// <summary>
     /// Priviledged identity which can access the system configuration.
     /// </summary>
+    [Obsolete("This class is deprecated. Use RoleBasedIdentity instead.", false)]
     public class SystemConfigurationIdentity : IUserIdentity
     {
         private IUserIdentity m_identity;
@@ -355,7 +357,14 @@ namespace Opc.Ua.Server
                 }
 
                 // allow access to system configuration only through special identity
-                RoleBasedIdentity user = context.UserIdentity as RoleBasedIdentity;
+                IUserIdentity user = context.UserIdentity as RoleBasedIdentity;
+                //if cast to RoleBasedIdentity fails fall back to deprecated SystemConfigurationIdentity
+                if (user == null)
+                {
+#pragma warning disable CS0618
+                    user = context.UserIdentity as SystemConfigurationIdentity;
+#pragma warning restore CS0618
+                }
                 if (user == null || user.TokenType == UserTokenType.Anonymous ||
                     !user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin))
                 {

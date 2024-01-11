@@ -1547,7 +1547,15 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
-                RoleBasedIdentity user = context.UserIdentity as RoleBasedIdentity;
+                IUserIdentity user = context.UserIdentity as RoleBasedIdentity;
+
+                //if cast to RoleBasedIdentity fails fall back to deprecated SystemConfigurationIdentity
+                if (user != null)
+                {
+#pragma warning disable CS0618
+                    user = context.UserIdentity as SystemConfigurationIdentity;
+#pragma warning restore CS0618
+                }
                 if (user == null ||
                     user.TokenType == UserTokenType.Anonymous ||
                     !user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin))
