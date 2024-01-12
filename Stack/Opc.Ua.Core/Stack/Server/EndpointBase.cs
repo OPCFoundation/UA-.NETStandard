@@ -188,13 +188,20 @@ namespace Opc.Ua
             {
                 if (item.Key == "traceparent")
                 {
-                    var parts = item.Value.ToString().Split('-');
+                    var traceparent = item.Value.ToString();
+                    int firstDash = traceparent.IndexOf('-');
+                    int secondDash = traceparent.IndexOf('-', firstDash + 1);
+                    int thirdDash = traceparent.IndexOf('-', secondDash + 1);
 
-                    if (parts.Length == 4)
+                    if (firstDash != -1 && secondDash != -1)
                     {
-                        traceId = ActivityTraceId.CreateFromString(parts[1].AsSpan());
-                        spanId = ActivitySpanId.CreateFromString(parts[2].AsSpan());
-                        traceFlags = parts[3] == "01" ? ActivityTraceFlags.Recorded : ActivityTraceFlags.None;
+                        ReadOnlySpan<char> traceIdSpan = traceparent.AsSpan(firstDash + 1, secondDash - firstDash - 1);
+                        ReadOnlySpan<char> spanIdSpan = traceparent.AsSpan(secondDash + 1, thirdDash - secondDash - 1);
+                        ReadOnlySpan<char> traceFlagsSpan = traceparent.AsSpan(thirdDash + 1);
+
+                        traceId = ActivityTraceId.CreateFromString(traceIdSpan);
+                        spanId = ActivitySpanId.CreateFromString(spanIdSpan);
+                        traceFlags = traceFlagsSpan.SequenceEqual("01".AsSpan()) ? ActivityTraceFlags.Recorded : ActivityTraceFlags.None;
 
                         activityContext = new ActivityContext(traceId, spanId, traceFlags);
                         return true;

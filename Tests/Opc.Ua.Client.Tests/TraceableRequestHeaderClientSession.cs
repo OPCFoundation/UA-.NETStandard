@@ -115,39 +115,6 @@ namespace Opc.Ua.Client
             traceData.Parameters.Add(new KeyValuePair() { Key = "traceparent", Value = traceparent });
         }
 
-        public static ActivityContext ExtractActivityContextFromParameters(AdditionalParametersType parameters)
-        {
-            if (parameters == null)
-            {
-                return default;
-            }
-
-            ActivityTraceId traceId = default;
-            ActivitySpanId spanId = default;
-            ActivityTraceFlags traceFlags = ActivityTraceFlags.None;
-
-            foreach (var item in parameters.Parameters)
-            {
-                if (item.Key == "traceparent")
-                {
-                    var parts = item.Value.ToString().Split('-');
-
-                    if (parts.Length == 4)
-                    {
-                        traceId = ActivityTraceId.CreateFromString(parts[1].AsSpan());
-                        spanId = ActivitySpanId.CreateFromString(parts[2].AsSpan());
-                        traceFlags = parts[3] == "01" ? ActivityTraceFlags.Recorded : ActivityTraceFlags.None;
-
-                        return new ActivityContext(traceId, spanId, traceFlags);
-                    }
-                    return default;
-                }
-            }
-
-            // no traceparent header found
-            return default;
-        }
-
         ///<inheritdoc/>
         [Obsolete("Must override the version with useDefault parameter.")]
         protected override void UpdateRequestHeader(IServiceRequest request)

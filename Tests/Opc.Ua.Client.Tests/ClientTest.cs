@@ -43,7 +43,6 @@ using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server.Tests;
-using static Opc.Ua.Client.TraceableRequestHeaderClientSession;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -71,8 +70,6 @@ namespace Opc.Ua.Client.Tests
             ObjectIds.OPCBinarySchema_TypeSystem,
             ObjectIds.XmlSchema_TypeSystem
         };
-        [DatapointSource]
-        public static ISessionFactory[] sessionFactories = { TestableSessionFactory.Instance, TraceableRequestHeaderClientSessionFactory.Instance };
         #endregion
 
         #region Test Setup
@@ -113,24 +110,6 @@ namespace Opc.Ua.Client.Tests
             return base.TearDown();
         }
         #endregion
-
-        // Test class for testing protected methods in TraceableRequestHeaderClientSession
-        public class TestableTraceableRequestHeaderClientSession : TraceableRequestHeaderClientSession
-        {
-            public TestableTraceableRequestHeaderClientSession(
-                ISessionChannel channel,
-                ApplicationConfiguration configuration,
-                ConfiguredEndpoint endpoint)
-                : base(channel, configuration, endpoint)
-            {
-            }
-
-            // Expose the protected method for testing
-            public void TestableUpdateRequestHeader(IServiceRequest request, bool useDefaults)
-            {
-                base.UpdateRequestHeader(request, useDefaults);
-            }
-        }
 
         #region Benchmark Setup
         /// <summary>
@@ -1322,8 +1301,66 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
+        // Test class for testing protected methods in TraceableRequestHeaderClientSession
+        public class TestableTraceableRequestHeaderClientSession : TraceableRequestHeaderClientSession
+        {
+            public TestableTraceableRequestHeaderClientSession(
+                ISessionChannel channel,
+                ApplicationConfiguration configuration,
+                ConfiguredEndpoint endpoint)
+                : base(channel, configuration, endpoint)
+            {
+            }
+
+            // Expose the protected method for testing
+            public void TestableUpdateRequestHeader(IServiceRequest request, bool useDefaults)
+            {
+                base.UpdateRequestHeader(request, useDefaults);
+            }
+        }
+
+        public static ActivityContext TestExtractActivityContextFromParameters(AdditionalParametersType parameters)
+        {
+            if (parameters == null)
+            {
+                return default;
+            }
+
+            ActivityTraceId traceId = default;
+            ActivitySpanId spanId = default;
+            ActivityTraceFlags traceFlags = ActivityTraceFlags.None;
+
+            foreach (var item in parameters.Parameters)
+            {
+                if (item.Key == "traceparent")
+                {
+                    var traceparent = item.Value.ToString();
+                    int firstDash = traceparent.IndexOf('-');
+                    int secondDash = traceparent.IndexOf('-', firstDash + 1);
+                    int thirdDash = traceparent.IndexOf('-', secondDash + 1);
+
+                    if (firstDash != -1 && secondDash != -1)
+                    {
+                        ReadOnlySpan<char> traceIdSpan = traceparent.AsSpan(firstDash + 1, secondDash - firstDash - 1);
+                        ReadOnlySpan<char> spanIdSpan = traceparent.AsSpan(secondDash + 1, thirdDash - secondDash - 1);
+                        ReadOnlySpan<char> traceFlagsSpan = traceparent.AsSpan(thirdDash + 1);
+
+                        traceId = ActivityTraceId.CreateFromString(traceIdSpan);
+                        spanId = ActivitySpanId.CreateFromString(spanIdSpan);
+                        traceFlags = traceFlagsSpan.SequenceEqual("01".AsSpan()) ? ActivityTraceFlags.Recorded : ActivityTraceFlags.None;
+
+                        return new ActivityContext(traceId, spanId, traceFlags);
+                    }
+                    return default;
+                }
+            }
+
+            // no traceparent header found
+            return default;
+        }
+
         [Test, Order(900)]
-        public async Task ClientRequestHeaderUpdateTest()
+        public async Task ClientTestRequestHeaderUpdate()
         {
             var rootActivity = new Activity("Test_Activity_Root") {
                 ActivityTraceFlags = ActivityTraceFlags.Recorded,
@@ -1359,7 +1396,7 @@ namespace Opc.Ua.Client.Tests
                     Assert.NotNull(additionalHeader);
 
                     // Simulate extraction
-                    var extractedContext = TraceableRequestHeaderClientSession.ExtractActivityContextFromParameters(additionalHeader.Body as AdditionalParametersType);
+                    var extractedContext = TestExtractActivityContextFromParameters(additionalHeader.Body as AdditionalParametersType);
 
                     // Verify that the trace context is propagated.
                     Assert.AreEqual(activity.TraceId, extractedContext.TraceId);
