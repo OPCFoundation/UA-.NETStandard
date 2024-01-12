@@ -1,4 +1,4 @@
-﻿//	WebHelp 5.10.004
+//	WebHelp 5.10.004
 var gsFileName="";
 var gsDivName="";
 var xmlDoc=null;
@@ -61,15 +61,20 @@ function _getRelativeFileName(strParentPath,strCurrentPath)
 {
 	strParentPath=_replaceSlash(strParentPath);
 	strParentPath=_getPath(strParentPath);
-	strCurrentPath=_replaceSlash(strCurrentPath);
-	for(var i=0;i<strParentPath.length&&i<strCurrentPath.length;i++)
-	{
-		if(strParentPath.charAt(i)!=strCurrentPath.charAt(i))
-			break;
+	strCurrentPath = _replaceSlash(strCurrentPath);
+	var lastSlashIdx = 0;
+	for(var i=0;i<strParentPath.length&&i<strCurrentPath.length;i++) {
+	    if (strParentPath.charAt(i) != strCurrentPath.charAt(i)) {
+	        break;
+	    }
+	    else {
+	        if (strParentPath.charAt(i) == '/')
+	            lastSlashIdx = i;
+	    }
 	}
-	
-	strParentPath=strParentPath.substring(i);
-	strCurrentPath=strCurrentPath.substring(i);	
+
+	strParentPath = strParentPath.substring(lastSlashIdx+1);
+	strCurrentPath = strCurrentPath.substring(lastSlashIdx+1);	
 	
 	var nPathPos=0;
 	while(nPathPos!=-1)
@@ -288,69 +293,258 @@ function IsHTTPURL(sdocPath)
     return bRetVal;
 }
 
-function loadDataXML(sFileName,bAsync)
+
+
+function WhQueue() {
+    var container = new Array;
+    var frontOffset = 0;
+    this.getLength = function () {
+        return (container.length - frontOffset);
+    }
+    this.isEmpty = function () {
+        return (container.length == 0);
+    }
+    this.enqueue = function (elem) {
+        container.push(elem);
+    }
+    this.dequeue = function () {
+        if (this.isEmpty()) return undefined;
+        var elem = container[frontOffset];
+        frontOffset++;
+        if (frontOffset * 2 >= container.length) {
+            container = container.slice(frontOffset);
+            frontOffset = 0;
+        }
+        return elem;
+    }
+    this.peek = function () {
+        if (container.length > 0)
+            return container[frontOffset];
+        return undefined;
+    }
+}
+
+
+var gXMLBuffer = null;
+var gFileNameToXMLMap = new Object();
+var xmlJsReader = new XmlJsReader();
+
+function XmlInfo(xmlPath, oFunCallback, args) {
+    this.sXmlPath = xmlPath;
+    this.callback = oFunCallback;
+    this.cbargs = args;
+}
+
+function XmlJsReader() {
+    this.queue = new WhQueue();
+    this.bLoading = false;
+
+    this.getJsNameFromXmlName = function (xmlPath) {
+        var indx = xmlPath.lastIndexOf(".xml");
+        if (indx != -1) {
+            var jsPath = xmlPath.substring(0, indx);
+            jsPath += "_xml.js";
+            return jsPath;
+        }
+    }
+    /*use relative path for xmlPath*/
+    this.loadFile = function (xmlPath, oFunCallback, args) {
+        this.queue.enqueue(new XmlInfo(xmlPath, oFunCallback, args));
+        this.loadFromQueue();
+    }
+
+    this.loadFromQueue = function () {
+        if (this.queue.isEmpty() || this.bLoading) {
+            return;
+        }
+        else {
+            var xmlInfo = this.queue.peek();
+            if (typeof (gFileNameToXMLMap[xmlInfo.sXmlPath]) == 'undefined') {
+                var jsPath = this.getJsNameFromXmlName(xmlInfo.sXmlPath);
+                this.loadScript(jsPath, this.onScriptLoaded);
+            }
+            else {
+                this.onScriptLoaded();
+            }
+        }
+    }
+
+    this.trim = function(stringToTrim) {
+	return stringToTrim.replace(/^\s+|\s+$/g,"");
+    }
+
+    this.onScriptLoaded = function () {
+        var xmlInfo = xmlJsReader.queue.dequeue();
+        if (typeof(gFileNameToXMLMap[xmlInfo.sXmlPath]) == 'undefined' && gXMLBuffer != null) {
+            xmlJsReader.trim(gXMLBuffer);   
+            gFileNameToXMLMap[xmlInfo.sXmlPath] = gXMLBuffer;
+        }
+        var xmlDoc = null;
+        if (typeof (gFileNameToXMLMap[xmlInfo.sXmlPath]) != 'undefined') {
+            if (window.DOMParser) {
+                var parser = new DOMParser();
+                xmlDoc = parser.parseFromString(gFileNameToXMLMap[xmlInfo.sXmlPath], "text/xml");
+            }
+            else {
+                xmlDoc = new ActiveXObject("Microsoft.XMLDOM");
+                xmlDoc.async = false;
+                var indx = gFileNameToXMLMap[xmlInfo.sXmlPath].indexOf("<?xml");
+                if (indx != -1) {
+                    indx = gFileNameToXMLMap[xmlInfo.sXmlPath].indexOf("?>", indx);
+                    if (indx != -1) {
+                        var strXML = gFileNameToXMLMap[xmlInfo.sXmlPath].substr(indx + 2);
+                        xmlDoc.loadXML(strXML);
+                    }
+                }
+                else {
+                    xmlDoc.loadXML(gFileNameToXMLMap[xmlInfo.sXmlPath]);
+                }
+            }
+        }
+        gXMLBuffer = null;
+        xmlJsReader.bLoading = false;
+
+        if (xmlInfo.callback)
+            xmlInfo.callback(xmlDoc, xmlInfo.cbargs);
+
+        xmlJsReader.loadFromQueue();
+    }
+
+    this.loadScript = function (sScriptSrc, onScriptLoadedCB) {
+        this.bLoading = true;
+        var oHead = document.getElementsByTagName('head')[0];
+        var oScript = document.createElement('script');
+        oScript.type = 'text/javascript';
+        oScript.charset = "utf-8";
+		oScript.src = sScriptSrc;
+
+        // IE 6 & 7
+        if (oScript.readyState) {
+            oScript.onreadystatechange = function () {
+                if (oScript.readyState == 'loaded' ||
+                    oScript.readyState == 'complete') {
+                    onScriptLoadedCB();
+                }
+            }
+        }
+        //for firefox detecting script xml exist or not
+        //as firefox does not support onerror for script loading for file://
+        else if (navigator.product === 'Gecko' &&
+        navigator.userAgent.indexOf('KHTML') === -1 &&
+		navigator.userAgent.indexOf('Trident') === -1 &&
+        window.location.protocol === 'file:') {
+			var req = new XMLHttpRequest();
+            var sCurrentPath = _getPath(decodeURI(document.location.href));
+            var scriptURL = _getFullPath(sCurrentPath, sScriptSrc);
+            req.open('GET', encodeURI(scriptURL), true);
+            req.onreadystatechange = function () {
+                if (req.readyState === 4) {
+                    if (req.status === 0 || req.status === 200) {
+                        // Script exists. For local files:
+						// Firefox < 35 returns 0 on every AJAX call.
+						// Firefox >= 35 returns 200 on success.
+						// We don't want to trigger the callback on success as it's
+						// triggered automatically by the onload handler.
+                    }
+                    else
+                        onScriptLoadedCB();
+                }
+            };
+            try {
+                req.send(null);
+            }
+            catch (e) {
+                onScriptLoadedCB();
+                return;
+            }
+            oScript.onload = onScriptLoadedCB;
+        }
+        else {
+            oScript.onload = onScriptLoadedCB;
+            oScript.onerror = onScriptLoadedCB;
+        }
+
+        oHead.appendChild(oScript);
+    }
+}
+
+function loadDataXML(sFileName, bAsync)
 {
 try
 {
-	var sCurrentDocPath=_getPath(document.location.href);
-	var bAsyncReq = true ;
-	if (bAsync !='undefined' )
-		bAsyncReq = bAsync ;
-	sdocPath=_getFullPath(sCurrentDocPath,sFileName);
-	if(gbIE5)
-	{
-		// use xmlhttp for 304 support, xmldom doesn't support it, IE5 or later
-		var bIsHTTPURL = false;
-		if(gbAIRSSL)
-		{
-		    bIsHTTPURL = IsHTTPURL(sdocPath);
-		}
-		else
-		    bIsHTTPURL = mrIsOnEngine();
+    var bAsyncReq = true;
+    if (bAsync != 'undefined')
+        bAsyncReq = bAsync;
 
-	    if( bIsHTTPURL )
-	    {
-		    xmlDoc=new ActiveXObject("Microsoft.XMLHTTP");
-		    xmlDoc.onreadystatechange=checkState;
-		    if(document.body!=null)
-		    {
-			    xmlDoc.Open("get", sdocPath, bAsyncReq);
-			    xmlDoc.Send("");
-		    };
-	    }else
-	    {
-		    xmlDoc=new ActiveXObject("Microsoft.XMLDOM");
-		    xmlDoc.onreadystatechange=checkState;
-		    xmlDoc.async=bAsyncReq;
-		    if(document.body!=null)
-			    xmlDoc.load(sdocPath);
-	    };
-	}
-	else if(gbNav6 && !gbAIR)
-	{
-		/*xmlDoc=document.implementation.createDocument("","",null);
-		xmlDoc.addEventListener("load",initializeData,false);
-		xmlDoc.load(sdocPath,"text/xml");*/
+    var sCurrentDocPath = _getPath(decodeURI(document.location.href));
+    sdocPath = _getFullPath(sCurrentDocPath, sFileName);
 
-		var req=new XMLHttpRequest();
-     		req.open("GET", sdocPath, false);   
-		req.send(null);   
-		xmlDoc = req.responseXML;
-		initializeData();
-	}
-	else if(gbSafari || gbAIR)
-	{
-	        if(window.XMLHttpRequest && !(window.ActiveXObject)) 
-        	{
-        	    	xmlHttp = new XMLHttpRequest();
-            		if(xmlHttp)
-            		{
-  	            		xmlHttp.onreadystatechange=onXMLResponse;
-		        	xmlHttp.open("GET", sdocPath, false);
-		        	xmlHttp.send(null);
-	        	}
-        	}
-	}
+    var fileName = _getRelativeFileName(sCurrentDocPath, sdocPath);
+    xmlJsReader.loadFile(fileName, function (a_xmlDoc, args) {
+        if (a_xmlDoc != null)
+            putDataXML(a_xmlDoc, sdocPath);
+        else
+            onLoadXMLError();
+    });
+    
+    //xmlDoc = xmlReader.xmlDoc;
+    //alert(xmlDoc);
+    //initializeData();
+	
+//	if(gbIE5)
+//	{
+//		// use xmlhttp for 304 support, xmldom doesn't support it, IE5 or later
+//		var bIsHTTPURL = false;
+//		if(gbAIRSSL)
+//		{
+//		    bIsHTTPURL = IsHTTPURL(sdocPath);
+//		}
+//		else
+//		    bIsHTTPURL = mrIsOnEngine();
+
+//	    if( bIsHTTPURL )
+//	    {
+//		    xmlDoc=new ActiveXObject("Microsoft.XMLHTTP");
+//		    xmlDoc.onreadystatechange=checkState;
+//		    if(document.body!=null)
+//		    {
+//			    xmlDoc.Open("get", sdocPath, bAsyncReq);
+//			    xmlDoc.Send("");
+//		    };
+//	    }else
+//	    {
+//		    xmlDoc=new ActiveXObject("Microsoft.XMLDOM");
+//		    xmlDoc.onreadystatechange=checkState;
+//		    xmlDoc.async=bAsyncReq;
+//		    if(document.body!=null)
+//			    xmlDoc.load(sdocPath);
+//	    };
+//	}
+//	else if(gbNav6 && !gbAIR)
+//	{
+//		/*xmlDoc=document.implementation.createDocument("","",null);
+//		xmlDoc.addEventListener("load",initializeData,false);
+//		xmlDoc.load(sdocPath,"text/xml");*/
+
+//		var req=new XMLHttpRequest();
+//     		req.open("GET", sdocPath, false);   
+//		req.send(null);   
+//		xmlDoc = req.responseXML;
+//		initializeData();
+//	}
+//	else if(gbSafari || gbAIR)
+//	{
+//	        if(window.XMLHttpRequest && !(window.ActiveXObject)) 
+//        	{
+//        	    	xmlHttp = new XMLHttpRequest();
+//            		if(xmlHttp)
+//            		{
+//  	            		xmlHttp.onreadystatechange=onXMLResponse;
+//		        	xmlHttp.open("GET", sdocPath, false);
+//		        	xmlHttp.send(null);
+//	        	}
+//        	}
+//	}
 }catch(e)
 {
     //Do nothing
@@ -644,6 +838,53 @@ function _browserStringToText(sBStr)
 	return sText;
 }
 
+function getFilePath(url) {
+  var index;
+  if (url == null) {
+    url = decodeURI(document.location.href);
+  }
+  index = url.indexOf('?');
+  if (index !== -1) {
+    url = url.substring(0, index);
+  }
+  index = url.indexOf('#');
+  if (index !== -1) {
+    url = url.substring(0, index);
+  }
+  return url;
+}
+
+function getFileName(url) {
+  var fileName, filePath, idx;
+  filePath = getFilePath(url);
+  idx = filePath.lastIndexOf('/');
+  fileName = idx !== -1 ? filePath.substring(idx + 1) : filePath;
+  return fileName || '';
+}
+
+function getFileExtention(url) {
+  var ext, fileName, idx;
+  fileName = getFileName(url);
+  idx = fileName != null ? fileName.lastIndexOf('.') : void 0;
+  if (idx !== -1) {
+    ext = fileName.substring(idx);
+  }
+  return ext || '';
+}
+
+function scheme(url) {
+  var index, scheme;
+  index = url.indexOf(':');
+  if (index !== -1) {
+    scheme = url.substring(0, index + 1).toLowerCase().trim();
+  }
+  return scheme;
+}
+
+function isRelativeUrl(url) {
+  return !scheme(url) && url.trim().indexOf('/') && url.trim().indexOf("\\");
+}
+
 function IsInternal(urlName)
 {
 	// first pass: check raw urlName
@@ -663,13 +904,44 @@ function IsInternal(urlName)
 
 }
 
+function isValidHelpTopicExtension(url) {
+  var allowedExtsInFrame = ['.htm', '.html'];
+  var ext = getFileExtention(url).toLowerCase();
+  return allowedExtsInFrame.indexOf(ext) !== -1;
+}
+
 function IsValidInternalTopicURL(urlName)
 {
-	if(urlName.indexOf(":") != -1 || urlName.indexOf("//")  != -1 || urlName.indexOf("&#")  != -1 || (!IsValidTopicURL(urlName)))
+  //Only Relative Urls are allowed
+	if(!isRelativeUrl(urlName))
 		return false;
+
+  //Encoded characters are not allowed
+  if(urlName.indexOf("&#") != -1) {
+    return false;
+  }
+
+  //File path can't start with "//" or "\\" characters
+  if(urlName.indexOf("//")  == 0 || urlName.indexOf("\\\\")  == 0) {
+    return false;
+  }
+
+  //Only Canonical Paths are allowed
+  if(urlName.indexOf("..")  != -1 || urlName.indexOf(".")  == 0) {
+    return false;
+  }
+
+  //Help System allows specific extensions in topic path
+  if(!isValidHelpTopicExtension(urlName)) {
+    return false;
+  }
+
+  //Check for Illegal characters in help topic path
+  if(!IsValidTopicURL(urlName)) {
+    return false;
+  }
 		
-	return true;	
-		
+	return true;
 }
 
 function IsValidTopicURL(topicURL)
@@ -714,20 +986,19 @@ function excapeSingleQuotandSlash(str)
 }
 
 // used by roboengine
-function mrGetRootWindow()
-{
+function mrGetRootWindow() {
+    if (isChromeLocal())
+        return null;
+        
 	var cWnd=window;
-
 	while(cWnd!=null)
 	{
 		if( cWnd.cMRServer!=null && String(cWnd.cMRServer)!='undefined' )
 		{
 			return cWnd;
 		};
-
 		cWnd=cWnd.parent;
 	};
-
 	return null;
 };
 
@@ -754,8 +1025,9 @@ function mrGetProjName()
 	return sName;
 };
 
-function mrInitialize()
-{
+function mrInitialize() {
+    if (isChromeLocal())
+        return;
 	var sProjName=mrGetProjName();
 	var cRoot=mrGetRootWindow();
 
@@ -766,11 +1038,13 @@ function mrInitialize()
 	};
 };
 
-function mrIsOnEngine()
-{
-	var cRoot=mrGetRootWindow();
-
-	return cRoot && cRoot.cMRServer && cRoot.cMRServer.m_bEngine==true;
+function mrIsOnEngine() {
+    if (isChromeLocal()) 
+        return false;
+    else{
+        var cRoot = mrGetRootWindow();
+        return cRoot && cRoot.cMRServer && cRoot.cMRServer.m_bEngine == true;
+    }
 };
 
 function mrGetEngineUrl()
@@ -798,14 +1072,11 @@ function PatchParametersForEscapeChar(sParam)
 	}
 	return sresult;
 }
-function SeeForSearch(strProjectDir)
+function SeeForSearch(strProjectDir) 
 {
-
 	if(gbAIRSSL && gbSearchPage)
 	{
-		loadFts_context(strProjectDir);
-		goOdinHunter.strQuery = GetSearchTextFromURL();
-		Query();
+	    loadFts_context(strProjectDir);
 	}
 }
 var RH_BreadCrumbDataStringVariable="";
@@ -814,39 +1085,20 @@ function RH_Document_Write(szText)
 	RH_BreadCrumbDataStringVariable+=szText;
 }
 
-function RH_AddMasterBreadcrumbs(relHomePage,styleInfo, separator, strHome, strHomePath)
-{
-	delete gaBreadcrumbsTrail;
-	gaBreadcrumbsTrail = new Array();
-	var sTopicFullPath = _getPath(document.location.href);
-	var sXmlFullPath = _getFullPath(sTopicFullPath, relHomePage);
-	var sXmlFolderPath = _getPath(sXmlFullPath);
-	var sdocPath = _getFullPath(sXmlFolderPath, "MasterData.xml");
-
-	try
-	{
-			GetMasterBreadcrumbs(sdocPath, styleInfo, separator);
-	}
-	catch(err)
-	{
-		//some error occurred while reading masterdata.xml
-	}
-	var i = gaBreadcrumbsTrail.length;
-	if(i == 0)
-	{
-	    var strTrail = "<a style=\""+ styleInfo + "\"" + " href=\"" + strHomePath + "\">" + strHome + "</a> " + separator + " ";
-	    RH_Document_Write(strTrail);
-	}
-	else
-	{
-		while(i > 0)
-		{
-			RH_Document_Write(gaBreadcrumbsTrail[i-1]);
-			i--;
-		}
-	}
-	return;
+function RH_AddMasterBreadcrumbs(relHomePage,styleInfo, separator, strHome, strHomePath) {
+    if (typeof (gBreadCrumbInfo) != 'undefined') {
+        RH_Document_Write("__brseq__");
+        gBreadCrumbInfo[gBCId] = new BreadCrumbInfo(relHomePage, styleInfo, separator, strHome, strHomePath);
+        gBCId++;
+    }
 }
-	
+
+function isChromeLocal() {
+    if (window.chrome)
+        if (document.location.protocol.substring(0, 4) == "file")
+        return true;
+    return false;
+}
+
 
 var gbWhUtil=true;
