@@ -14,6 +14,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -349,6 +350,8 @@ namespace Opc.Ua
             return CompareDistinguishedNameFields(parsedName, certificateName);
         }
 
+        private static readonly char[] anyOf = new char[] { '/', ',', '=' };
+
         /// <summary>
         /// Parses a distingushed name.
         /// </summary>
@@ -441,7 +444,7 @@ namespace Opc.Ua
                     buffer.Append(key);
                     buffer.Append('=');
 
-                    if (value.IndexOfAny(new char[] { '/', ',', '=' }) != -1)
+                    if (value.IndexOfAny(anyOf) != -1)
                     {
                         if (value.Length > 0 && value[0] != '"')
                         {
@@ -560,17 +563,42 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Creates a copy of a certificate with a private key.
+        /// If the platform defaults to an ephemeral key set,
+        /// the private key requires an extra copy.
+        /// </summary>
+        /// <returns>The certificate</returns>
+        public static X509Certificate2 CreateCopyWithPrivateKey(X509Certificate2 certificate, bool persisted)
+        {
+            // a copy is only necessary on windows
+            if (certificate.HasPrivateKey
+#if !NETFRAMEWORK
+                && RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+#endif
+                )
+            {
+                // see https://github.com/dotnet/runtime/issues/29144
+                string passcode = GeneratePasscode();
+                X509KeyStorageFlags storageFlags = persisted ? X509KeyStorageFlags.PersistKeySet : X509KeyStorageFlags.Exportable;
+                return new X509Certificate2(certificate.Export(X509ContentType.Pfx, passcode), passcode, storageFlags);
+            }
+            return certificate;
+        }
+
+        /// <summary>
         /// Creates a certificate from a PKCS #12 store with a private key.
         /// </summary>
         /// <param name="rawData">The raw PKCS #12 store data.</param>
         /// <param name="password">The password to use to access the store.</param>
+        /// <param name="noEphemeralKeySet">Set to true if the key should not use the ephemeral key set.</param>
         /// <returns>The certificate with a private key.</returns>
         public static X509Certificate2 CreateCertificateFromPKCS12(
             byte[] rawData,
-            string password
+            string password,
+            bool noEphemeralKeySet = false
             )
         {
-            return X509PfxUtils.CreateCertificateFromPKCS12(rawData, password);
+            return X509PfxUtils.CreateCertificateFromPKCS12(rawData, password, noEphemeralKeySet);
         }
 
         /// <summary>

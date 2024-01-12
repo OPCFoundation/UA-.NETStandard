@@ -485,10 +485,10 @@ namespace Opc.Ua.Bindings
         protected void BeginWriteMessage(ArraySegment<byte> buffer, object state)
         {
             ServiceResult error = ServiceResult.Good;
-            IMessageSocketAsyncEventArgs args = m_socket.MessageSocketEventArgs();
-
+            IMessageSocketAsyncEventArgs args = null;
             try
             {
+                args = m_socket.MessageSocketEventArgs();
                 Interlocked.Increment(ref m_activeWriteRequests);
                 args.SetBuffer(buffer.Array, buffer.Offset, buffer.Count);
                 args.Completed += OnWriteComplete;
@@ -512,8 +512,11 @@ namespace Opc.Ua.Bindings
             catch (Exception ex)
             {
                 error = ServiceResult.Create(ex, StatusCodes.BadTcpInternalError, "Unexpected error during write operation.");
-                HandleWriteComplete(null, state, args.BytesTransferred, error);
-                args.Dispose();
+                if (args != null)
+                {
+                    HandleWriteComplete(null, state, args.BytesTransferred, error);
+                    args.Dispose();
+                }
             }
         }
 

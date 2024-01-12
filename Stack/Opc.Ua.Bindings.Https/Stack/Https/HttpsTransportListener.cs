@@ -248,11 +248,21 @@ namespace Opc.Ua.Bindings
         {
             Startup.Listener = this;
             m_hostBuilder = new WebHostBuilder();
-            HttpsConnectionAdapterOptions httpsOptions = new HttpsConnectionAdapterOptions();
-            httpsOptions.CheckCertificateRevocation = false;
-            httpsOptions.ClientCertificateMode = ClientCertificateMode.NoCertificate;
-            // note: if there is not a specific Https cert defined, the first App cert is used
-            httpsOptions.ServerCertificate = m_serverCertProvider.GetInstanceCertificate(SecurityPolicies.Https);
+
+            X509Certificate2 serverCertificate = m_serverCertProvider.GetInstanceCertificate(SecurityPolicies.Https);
+
+            var httpsOptions = new HttpsConnectionAdapterOptions() {
+                CheckCertificateRevocation = false,
+                ClientCertificateMode = ClientCertificateMode.NoCertificate,
+                // note: this is the TLS certificate!
+#if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
+                // Create a copy of the certificate with the private key on platforms
+                // which default to the ephemeral KeySet.
+                ServerCertificate = X509Utils.CreateCopyWithPrivateKey(serverCertificate, false)
+#else
+                ServerCertificate = serverCertificate
+#endif
+            };
 
 #if NET462
             // note: although security tools recommend 'None' here,
@@ -299,7 +309,7 @@ namespace Opc.Ua.Bindings
         {
             Dispose();
         }
-        #endregion
+#endregion
 
         #region Private Methods
         /// <summary>
@@ -345,9 +355,9 @@ namespace Opc.Ua.Bindings
                 if (NodeId.IsNull(input.RequestHeader.AuthenticationToken) &&
                     input.TypeId != DataTypeIds.CreateSessionRequest)
                 {
-                    if (context.Request.Headers.ContainsKey(kAuthorizationKey))
+                    if (context.Request.Headers.TryGetValue(kAuthorizationKey, out var keys))
                     {
-                        foreach (string value in context.Request.Headers[kAuthorizationKey])
+                        foreach (string value in keys)
                         {
                             if (value.StartsWith(kBearerKey, StringComparison.OrdinalIgnoreCase))
                             {

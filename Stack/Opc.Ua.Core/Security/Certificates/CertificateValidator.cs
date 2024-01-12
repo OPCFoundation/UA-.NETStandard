@@ -505,9 +505,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public virtual Task ValidateAsync(X509Certificate2Collection chain, CancellationToken ct)
+        public virtual Task ValidateAsync(X509Certificate2Collection certificateChain, CancellationToken ct)
         {
-            return ValidateAsync(chain, null, ct);
+            return ValidateAsync(certificateChain, null, ct);
         }
 
         /// <summary>

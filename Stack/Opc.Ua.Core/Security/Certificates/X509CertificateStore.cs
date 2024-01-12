@@ -140,24 +140,19 @@ namespace Opc.Ua
                 store.Open(OpenFlags.ReadWrite);
                 if (!store.Certificates.Contains(certificate))
                 {
-#if NETSTANDARD2_1 || NET5_0_OR_GREATER || NET472_OR_GREATER
-                    if (certificate.HasPrivateKey && !m_noPrivateKeys &&
-                        (Environment.OSVersion.Platform == PlatformID.Win32NT))
+                    if (certificate.HasPrivateKey && !m_noPrivateKeys)
                     {
-                        // see https://github.com/dotnet/runtime/issues/29144
-                        var temp = X509Utils.GeneratePasscode();
-                        using (var persistable = new X509Certificate2(certificate.Export(X509ContentType.Pfx, temp), temp,
-                            X509KeyStorageFlags.PersistKeySet))
-                        {
-                            store.Add(persistable);
-                        }
+                        // X509Store needs a persisted private key
+                        var persistedCertificate = X509Utils.CreateCopyWithPrivateKey(certificate, true);
+                        store.Add(persistedCertificate);
                     }
-                    else
-#endif
-                    if (certificate.HasPrivateKey && m_noPrivateKeys)
+                    else if (certificate.HasPrivateKey && m_noPrivateKeys)
                     {
                         // ensure no private key is added to store
-                        store.Add(new X509Certificate2(certificate.RawData));
+                        using (var publicKey = new X509Certificate2(certificate.RawData))
+                        {
+                            store.Add(publicKey);
+                        }
                     }
                     else
                     {

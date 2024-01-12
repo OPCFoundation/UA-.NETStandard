@@ -208,7 +208,7 @@ namespace Opc.Ua.Bindings
             {
                 try
                 {
-                    await operation.EndAsync(timeout, true, ct).ConfigureAwait(false);
+                    _ = await operation.EndAsync(timeout, false, ct).ConfigureAwait(false);
                 }
                 catch (ServiceResultException e)
                 {
@@ -1050,6 +1050,11 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void Shutdown(ServiceResult reason)
         {
+            if (State == TcpChannelState.Closed)
+            {
+                return;
+            }
+
             lock (DataLock)
             {
                 // channel may already be closed
