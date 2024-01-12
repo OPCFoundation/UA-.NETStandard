@@ -1,4 +1,4 @@
-﻿//	WebHelp 5.10.005
+//	WebHelp 5.10.005
 var gaProj=new Array();
 var gnChecked=0;
 var gsProjName="";
@@ -15,19 +15,9 @@ var gsHTML = "";
 if (navigator.currentNavPen)
 	gsFirstPane = navigator.currentNavPen;
 
-
-function delayLoad()
-{
-	if (goDiv&&gsHTML)
-	{
-		goDiv.innerHTML=gsHTML;
-		goDiv=null;
-		gsHTML="";
-	}
-}
-
 function whCom(sName,sComFile)
 {
+	var alignment = (gsPageDir == "rtl")?"right":"left"
 	this.msName=sName;
 	this.msDivId=sName+"Div";
 	this.msIFrameId=sName+"IFrame";
@@ -44,40 +34,11 @@ function whCom(sName,sComFile)
 			}
 
 			var oDiv=getElement(this.msDivId);
-			if(oDiv)
+			if (oDiv)
 			{
-				if(gbIE55||(gbIE5&&gbMac))
-				{
-					var oIframe=getElement(this.msIFrameId);
-					if(oIframe)
-					{
-						if(bShow)
-						{
-							oDiv.style.zIndex=3;
-							if(oIframe!=null)
-							{
-								oIframe.style.zIndex=3;
-								if (!gbIE55)
-									oIframe.style.visibility="visible";
-							}
-						}
-						else
-						{
-							oDiv.style.zIndex=2;
-							if(oIframe!=null)
-							{
-								oIframe.style.zIndex=2;
-								if (!gbIE55)
-									oIframe.style.visibility="hidden";
-							}
-						}
-					}
-				}
-				if (!gbIE55)
-					oDiv.style.visibility=(bShow==true)?'visible':'hidden';
-				this.mbShow=bShow;
+				oDiv.style.zIndex = bShow ? 3 : 2;
+				this.mbShow = bShow;
 			}
-
 		}
 	}
 	this.load=function()
@@ -85,25 +46,12 @@ function whCom(sName,sComFile)
 		if(!this.mbloaded)
 		{
 			if(this.msComFile.length>0){
-				var strFile= _getFullPath(getPath(), this.msComFile);
-				var oDiv=getElement(this.msDivId);
+				var strFile = _getFullPath(getPath(), decodeURI(this.msComFile));
+				var oDiv = getElement(this.msDivId);
 				if(oDiv){
-					if(gbIE4||gbOpera7){
-						var nIFrameHeight=oDiv.style.pixelHeight;
-						var nIFrameWidth=oDiv.style.pixelWidth;
-						var sHTML="<IFRAME ID="+this.msIFrameId+" title=\"" + this.msName + "\" SRC=\""+strFile+"\" BORDER=0 FRAMEBORDER=no STYLE=\"width:";
-						if(gbMac){
-							sHTML+=nIFrameWidth+"px;height:"+nIFrameHeight+"px;\"></IFRAME>";
-						}else{
-							sHTML+="100%; height:100%;\"></IFRAME>";
-						}
-						oDiv.innerHTML=sHTML;
-					}else if(gbNav6 || gbSafari){
-						gsHTML="<IFRAME ID="+this.msIFrameId+" title=\"" + this.msName + "\" SRC=\""+strFile+"\" BORDER=0 FRAMEBORDER=no STYLE=\"width:100%;border:0;height:100%;\"></IFRAME>";
-						goDiv = oDiv;
-						setTimeout("delayLoad()", 100);
-					}
-					this.mbloaded=true;
+					sHTML = "<iframe id=" + this.msIFrameId + " title=\"" + this.msName + "\" src=\"" + encodeURI(strFile) + "\" border=\"0\" frameborder=\"no\" style=\"width:100%;border:0;height:100%;\"></iframe>";
+					oDiv.innerHTML = sHTML;
+					this.mbloaded = true;
 				}
 			}
 		}
@@ -116,20 +64,7 @@ function whCom(sName,sComFile)
 	}
 	this.getDivHTML=function()
 	{
-		var sHTML="";
-		if(gbMac&&gbIE4)
-			sHTML+="<DIV ID="+this.msDivId+" ALIGN=left STYLE=\"position:absolute;z-index:1;left:0;top:0;width:100%;height:100%;margin:0;padding:0;border:0;\">";
-		else if(gbIE5)
-			sHTML+="<DIV ID="+this.msDivId+" ALIGN=left STYLE=\"position:absolute;z-index:1;left:0;top:0;width:100%;height:100%;\">";
-		else if(gbIE4||gbWindows)
-			sHTML+="<DIV ID="+this.msDivId+" ALIGN=left STYLE=\"position:absolute;z-index:1;left:0;top:0;width:100%;height:100%;visibility:hidden\">";
-		else if(gbMac&&gbNav6)
-			sHTML+="<DIV ID="+this.msDivId+" ALIGN=left STYLE=\"position:absolute;z-index:1;left:0;top:0;width:100%;height:100%;visibility:hidden\">";
-		else if(gbUnixOS)
-			sHTML+="<DIV ID="+this.msDivId+" ALIGN=left STYLE=\"position:absolute;z-index:1;left:0;top:0;width:100%;height:100%;visibility:hidden\">";
-		else
-			sHTML+="<DIV ID="+this.msDivId+" ALIGN=left STYLE=\"position:absolute;z-index:1;left:0;top:0;width:100%;height:"+parent.height+";visibility:hidden\">";
-		sHTML+="</DIV>";
+		var sHTML = "<div id=" + this.msDivId + " align=" +alignment+" style=\"position:absolute;z-index:1;" +alignment+" :0;top:0;width:100%;height:100%;\"></div>";
 		return sHTML;
 	}
 }  
@@ -205,84 +140,91 @@ function getPath()
 {
 	if(gsPath=="")
 	{
-		gsPath=location.href;
-		gsPath=_replaceSlash(gsPath);
-		var nPosFile=gsPath.lastIndexOf("/");
-		gsPath=gsPath.substring(0,nPosFile+1);
+		gsPath=_getPath(decodeURI(location.href));
 	}
 	return gsPath;
 }
 
 goMan=new whComMan();
+
+function onGetPane(oMsg)
+{
+    if (oMsg.oParam.bEnable)
+        goMan.addCom(oMsg.iParam.sName, oMsg.iParam.sFileName);
+}
+
 function addPane(sName,sFileName)
 {
-	var oParam=new Object();
-	oParam.sName=sName;
-	var oMsg=new whMessage(WH_MSG_GETPANE, this, 1, oParam);
-	if (SendMessage(oMsg))
-	{
-		if (oMsg.oParam.bEnable)
-			goMan.addCom(sName,sFileName);
-	}
-	else
-		goMan.addCom(sName,sFileName);	
+	var iParam=new Object();
+	iParam.sName = sName;
+	iParam.sFileName = sFileName;
+	var oMsg=new whMessage(WH_MSG_GETPANE, iParam, new Object());
+	request(oMsg, onGetPane);
+}
+
+function onGetDefPane(oMsg) {
+    if (oMsg.oParam)
+        gsFirstPane = oMsg.oParam;
+    else
+        gsFirstPane = oMsg.iParam.sName;
 }
 
 function setShowPane(sName, bForce)
 {
 	if ((gsFirstPane == "") || bForce)
 	{
-		var oMsg=new whMessage(WH_MSG_GETDEFPANE, this, 1, null);
-		if (SendMessage(oMsg))
-		{
-			if (oMsg.oParam)
-				gsFirstPane = oMsg.oParam;
-			else
-				gsFirstPane=sName;
-		}
-		else
-			gsFirstPane=sName;
+		var iParam=new Object();
+		iParam.sName = sName;
+		var oMsg=new whMessage(WH_MSG_GETDEFPANE, iParam, null);
+		request(oMsg, onGetDefPane);
 	}
 }
 
-function window_OnLoad()
-{
-	var oMsg=new whMessage(WH_MSG_GETCMD,this,1,null);
-	var bHidePane=false;
-	if (SendMessage(oMsg))
-	{
-		if(oMsg.oParam>0)
-		{
-			if(oMsg.oParam==1)
-				gsFirstPane="toc";
-			else if(oMsg.oParam==2)
-				gsFirstPane="idx";
-			else if(oMsg.oParam==3)
-				gsFirstPane="fts";
-			else if(oMsg.oParam==4)
-				gsFirstPane="glo";
-		}
-		else if(oMsg.oParam==0)
-		{
-			bHidePane=true;
-		}
-	}
-	goMan.init();
-	if(gsProjName!="")			
-		loadData2(gsProjName);	
-	if (bHidePane)
-	{
-		gsFirstPane="";
-		var oMsg1=new whMessage(WH_MSG_HIDEPANE, this, 1, null)
-		SendMessage(oMsg1);
-	}
-	else
-	{
-		if(gsFirstPane!="")
-			goMan.show(gsFirstPane);
-		else
-			goMan.showById(0);
-	}
+function onGetCmd(oMsg) {
+    var bHidePane = false;
+    if (oMsg) {
+        if (oMsg.oParam > 0) {
+            if (oMsg.oParam == 1)
+                gsFirstPane = "toc";
+            else if (oMsg.oParam == 2)
+                gsFirstPane = "idx";
+            else if (oMsg.oParam == 3)
+                gsFirstPane = "fts";
+            else if (oMsg.oParam == 4)
+                gsFirstPane = "glo";
+        }
+        else if (oMsg.oParam == 0) {
+            bHidePane = true;
+        }
+    }
+    goMan.init();
+    if (gsProjName != "")
+        loadData2(gsProjName);
+    if (bHidePane) {
+        gsFirstPane = "";
+        var oMsg1 = new whMessage(WH_MSG_HIDEPANE, null, null)
+        notify(oMsg1);
+    }
+    else {
+        if (gsFirstPane != "")
+            goMan.show(gsFirstPane);
+        else
+            goMan.showById(0);
+    }
+}
+
+function SendGetCmd() {
+    if (goMan && goMan.maCom.length > 0) {
+        var oMsg = new whMessage(WH_MSG_GETCMD, null, null);
+        request(oMsg, onGetCmd);
+    }
+    else {
+        setTimeout("SendGetCmd();", 1);
+    }
+}
+
+function window_OnLoad() {
+    SendGetCmd();   
 }
 
 function setServerEnabled()
@@ -325,16 +267,6 @@ function addProjectHTML(sName)
 
 function mrAlterProjUrl(sProjUrl)
 {
-	if( mrIsOnEngine()==true )
-	{
-		var sProjName=mrGetProjName();
-		if( sProjName!='' )
-		{
-			// now build the server url
-			sProjUrl=mrGetEngineUrl()+'?mgr=sys&cmd=prjinf&prj='+sProjName;
-		};
-	};
-
 	return sProjUrl;
 };
 
@@ -476,9 +408,9 @@ function checkRemoteProject()
 		loadData2(gaProj[gnChecked].sPPath+gsProjName);
 	}
 	else{
-		var oMsg=new whMessage(WH_MSG_PROJECTREADY,this,1,null);
+		var oMsg=new whMessage(WH_MSG_PROJECTREADY,null,null);
 		gbReady=true;
-		SendMessage(oMsg);
+		notify(oMsg);
 	}
 }
 
@@ -511,122 +443,156 @@ function window_resize2()
 	{
 		if(document.body.clientWidth > 1 && document.body.clientHeight>1)
 		{
-			var oMsg = new whMessage(WH_MSG_RESIZEPANE, this, 1, null);
-			SendMessage(oMsg);
+			var oMsg = new whMessage(WH_MSG_RESIZEPANE, null, null);
+			notify(oMsg);
 		}
 	}
 }
 
 function window_unload()
 {
-	UnRegisterListener2(this,WH_MSG_GETPROJINFO);
-	UnRegisterListener2(this,WH_MSG_SHOWTOC);
-	UnRegisterListener2(this,WH_MSG_SHOWIDX);
-	UnRegisterListener2(this,WH_MSG_SHOWFTS);
-	UnRegisterListener2(this,WH_MSG_SHOWGLO);
-	UnRegisterListener2(this,WH_MSG_GETPANEINFO);
-	UnRegisterListener2(this,WH_MSG_GETSEARCHSTR);
-	UnRegisterListener2(this,WH_MSG_HILITESEARCH);
-	UnRegisterListener2(this,WH_MSG_GETNUMRSLT);
+	unregisterListener2(WH_MSG_GETPROJINFO);
+	unregisterListener2(WH_MSG_SHOWTOC);
+	unregisterListener2(WH_MSG_SHOWIDX);
+	unregisterListener2(WH_MSG_SHOWFTS);
+	unregisterListener2(WH_MSG_SHOWGLO);
+	unregisterListener2(WH_MSG_GETPANEINFO);
+	unregisterListener2(WH_MSG_GETHIGHLIGHTINFO);
+	//unregisterListener2(WH_MSG_GETSEARCHSTR);
+	//unregisterListener2(WH_MSG_HILITESEARCH);
+	//unregisterListener2(WH_MSG_GETNUMRSLT);
 }
 
-function onSendMessage(oMsg)
+function onReceiveRequest(oMsg) {
+    if (oMsg) {
+        var nMsgId = oMsg.msgId;
+        if (nMsgId == WH_MSG_GETPROJINFO) {
+            if (gbReady) {
+                var oProj = new Object();
+                oProj.aProj = gaProj;
+                oProj.bXML = gbXML;
+                oMsg.oParam = oProj;
+                reply(oMsg);
+            }
+            return false;
+        }
+        else if (nMsgId == WH_MSG_GETPANEINFO) {
+            oMsg.oParam = goMan.getCurrent();
+            reply(oMsg);
+            return false;
+        }
+
+        else if (oMsg.msgId == WH_MSG_GETHIGHLIGHTINFO) {
+            var ftsElem = getElement("ftsIFrame");
+            if (ftsElem) {
+                try {
+                    if (typeof (ftsElem.contentWindow.document) != 'undefined' &&
+                    typeof (ftsElem.contentWindow.document.forms[0]) != "undefined") {
+                        oMsg.oParam.bHighlight = true;
+                        var str1 = ftsElem.contentWindow.document.forms[0].quesn.value;
+                        if (ftsElem.contentWindow.document.forms[0].quesnsyn) {
+                            var str2 = ftsElem.contentWindow.document.forms[0].quesnsyn.value;
+                            if (str2 != "")
+                                str1 += str2;
+                        }
+                        oMsg.oParam.strTerms = str1;
+
+                        var tbl = ftsElem.contentWindow.document.getElementById("FtsRslt");
+                        if (tbl)
+                            oMsg.oParam.nResults = tbl.rows.length;
+                        else
+                            oMsg.oParam.nResults = 0;
+                        reply(oMsg);
+                        return false;
+                    }
+                }
+                catch (e) {
+                    return true;
+                }
+            }
+            return true;
+        }
+    
+        /*else if (nMsgId == WH_MSG_HILITESEARCH) {
+            oMsg.oParam = true;
+            reply(oMsg);
+            return true;
+        }
+        else if (nMsgId == WH_MSG_GETSEARCHSTR) {
+            var ftsElem = getElement("ftsIFrame");
+            if (ftsElem) {
+                if (typeof (ftsElem.contentWindow.document.forms[0]) != "undefined") {
+                    var str1 = ftsElem.contentWindow.document.forms[0].quesn.value;
+                    if (ftsElem.contentWindow.document.forms[0].quesnsyn) {
+                        var str2 = ftsElem.contentWindow.document.forms[0].quesnsyn.value;
+                        if (str2 != "")
+                            str1 += str2;
+                    }
+                    oMsg.oParam = str1;
+                }
+            }
+            reply(oMsg);
+
+            return true;
+        }
+        else if (nMsgId == WH_MSG_GETNUMRSLT) {
+            var ftsElem = getElement("ftsIFrame");
+            if (ftsElem) {
+                var tbl = ftsElem.contentWindow.document.getElementById("FtsRslt");
+                if (tbl)
+                    oMsg.oParam = tbl.rows.length;
+                else
+                    oMsg.oParam = 0;
+            }
+            else
+                oMsg.oParam = 0;
+            reply(oMsg);
+            return true;
+        }*/
+    }
+    return true;
+}
+
+function onReceiveNotification(oMsg)
 {
 	if(oMsg)
 	{
-		var nMsgId=oMsg.nMessageId;
-		if(nMsgId==WH_MSG_GETPROJINFO)
-		{
-			if(gbReady)
-			{
-				var oProj=new Object();
-				oProj.aProj=gaProj;
-				oProj.bXML=gbXML;
-				oMsg.oParam=oProj;
-			}
-			else
-				return false;
-		}
-		else if(nMsgId==WH_MSG_SHOWTOC)
+		var nMsgId=oMsg.msgId;
+		if(nMsgId==WH_MSG_SHOWTOC)
 		{
 			if(goMan)
 				goMan.show("toc");
-			var onMsg=new whMessage(WH_MSG_PANEINFO, this, 1, "toc");
-			SendMessage(onMsg);
-			onMsg = new whMessage(WH_MSG_SHOWPANE, this, 1, null);
-			SendMessage(onMsg);
+			var onMsg=new whMessage(WH_MSG_PANEINFO, "toc", null);
+			notify(onMsg);
+			onMsg = new whMessage(WH_MSG_SHOWPANE, null, null);
+			notify(onMsg);
 		}
 		else if(nMsgId==WH_MSG_SHOWIDX)
 		{
 			if(goMan)
 				goMan.show("idx");
-			var onMsg=new whMessage(WH_MSG_PANEINFO, this, 1, "idx");
-			SendMessage(onMsg);
-			onMsg = new whMessage(WH_MSG_SHOWPANE, this, 1, null);
-			SendMessage(onMsg);
+			var onMsg=new whMessage(WH_MSG_PANEINFO, "idx", null);
+			notify(onMsg);
+			onMsg = new whMessage(WH_MSG_SHOWPANE, null, null);
+			notify(onMsg);
 		}
 		else if(nMsgId==WH_MSG_SHOWFTS)
 		{
 			if(goMan)
 				goMan.show("fts");
-			var onMsg=new whMessage(WH_MSG_PANEINFO, this, 1, "fts");
-			SendMessage(onMsg);
-			onMsg = new whMessage(WH_MSG_SHOWPANE, this, 1, null);
-			SendMessage(onMsg);
+			var onMsg=new whMessage(WH_MSG_PANEINFO, "fts", null);
+			notify(onMsg);
+			onMsg = new whMessage(WH_MSG_SHOWPANE, null, null);
+			notify(onMsg);
 		}
 		else if(nMsgId==WH_MSG_SHOWGLO)
 		{
 			if(goMan)
 				goMan.show("glo");
-			var onMsg=new whMessage(WH_MSG_PANEINFO, this, 1, "glo");
-			SendMessage(onMsg);
-			onMsg = new whMessage(WH_MSG_SHOWPANE, this, 1, null);
-			SendMessage(onMsg);
-		}
-		else if(nMsgId==WH_MSG_GETPANEINFO)
-		{
-			oMsg.oParam=goMan.getCurrent();
-			return false;
-		}
-		else if(nMsgId==WH_MSG_HILITESEARCH)
-		{
-			oMsg.oParam=true;
-			return true;
-		}
-		else if(nMsgId==WH_MSG_GETSEARCHSTR)
-		{
-			var ftsElem = getElement("ftsIFrame");
-			if(ftsElem)
-			{
-			  if(typeof(ftsElem.contentWindow.document.forms[0]) != "undefined")
-			  {
-			    var str1 = ftsElem.contentWindow.document.forms[0].quesn.value;
-				if (ftsElem.contentWindow.document.forms[0].quesnsyn)
-				{
-					var str2 = ftsElem.contentWindow.document.forms[0].quesnsyn.value;
-					if (str2 != "")
-						str1 += str2 ;
-				}
-			    oMsg.oParam = str1;
-			  }
-			}
-
-			return true;
-		}
-		else if(nMsgId==WH_MSG_GETNUMRSLT)
-		{
-			var ftsElem = getElement("ftsIFrame");
-			if(ftsElem)
-			{
-			  var tbl = ftsElem.contentWindow.document.getElementById("FtsRslt") ;
-			  if( tbl)
-				oMsg.oParam = tbl.rows.length ;			  
-			  else
-				oMsg.oParam = 0 ;
-			}
-			else
-				oMsg.oParam = 0 ;
-			return true;
+			var onMsg=new whMessage(WH_MSG_PANEINFO, "glo", null);
+			notify(onMsg);
+			onMsg = new whMessage(WH_MSG_SHOWPANE, null, null);
+			notify(onMsg);
 		}
 	}
 	return true;
@@ -634,15 +600,16 @@ function onSendMessage(oMsg)
 
 if(window.gbWhUtil&&window.gbWhMsg&&window.gbWhVer&&window.gbWhProxy)
 {
-	RegisterListener2(this,WH_MSG_GETPROJINFO);
-	RegisterListener2(this,WH_MSG_SHOWTOC);
-	RegisterListener2(this,WH_MSG_SHOWIDX);
-	RegisterListener2(this,WH_MSG_SHOWFTS);
-	RegisterListener2(this,WH_MSG_SHOWGLO);
-	RegisterListener2(this,WH_MSG_GETPANEINFO);
-	RegisterListener2(this,WH_MSG_GETSEARCHSTR);
-	RegisterListener2(this,WH_MSG_HILITESEARCH);
-	RegisterListener2(this,WH_MSG_GETNUMRSLT);
+	registerListener2(WH_MSG_GETPROJINFO);
+	registerListener2(WH_MSG_SHOWTOC);
+	registerListener2(WH_MSG_SHOWIDX);
+	registerListener2(WH_MSG_SHOWFTS);
+	registerListener2(WH_MSG_SHOWGLO);
+	registerListener2(WH_MSG_GETPANEINFO);
+	registerListener2(WH_MSG_GETHIGHLIGHTINFO);
+	//registerListener2(WH_MSG_GETSEARCHSTR);
+	//registerListener2(WH_MSG_HILITESEARCH);
+	//registerListener2(WH_MSG_GETNUMRSLT);
 
 	if((gbMac&&gbIE4)||(gbSunOS&&gbIE5)||gbOpera7)
 	{

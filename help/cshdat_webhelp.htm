@@ -107,7 +107,7 @@ function getHomePage()
 {
 	if (parent && parent != this && parent.getRelHomePage)
 	{
-		return parent.getRelHomePage(document.location.href);
+		return parent.getRelHomePage(decodeURI(document.location.href));
 	}
 	return "";
 }

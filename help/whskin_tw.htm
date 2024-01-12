@@ -6,24 +6,25 @@ var gsTopic="";
 
 if (location.hash.length > 1)
 {
-	var nPos = location.hash.indexOf(">>");
+	var urlHash = decodeURIComponent(location.hash);
+	var nPos = urlHash.indexOf(">>");
 	if (nPos>1)
 	{
-		if(IsInternal(location.hash.substring(1, nPos)))
-			gsTopic = location.hash.substring(1, nPos);
-		parseParam(location.hash.substring(nPos+2));
+		if(IsInternal(urlHash.substring(1, nPos)))
+			gsTopic = urlHash.substring(1, nPos);
+		parseParam(urlHash.substring(nPos+2));
 	}
 	else
 	{
-		if(IsInternal(location.hash.substring(1)))
-			gsTopic = location.hash.substring(1);
+		if(IsInternal(urlHash.substring(1)))
+			gsTopic = urlHash.substring(1);
 	}
 }
 
 
 	var strHtml="";
 	strHtml+="<frameset rows=\'100%,*\'>";
-	strHtml+="<frame name=\'topicwindow\' src=\'" + gsTopic +"\'></frame>";
+	strHtml+="<frame name=\'topicwindow\' src=\'" + decodeURIComponent(encodeURIComponent(gsTopic)) +"\'></frame>";
 	strHtml+="<frame src=\'whskin_blank.htm\' noresize></frame>";
 	strHtml+="</frameset>";
 	document.write(strHtml);
