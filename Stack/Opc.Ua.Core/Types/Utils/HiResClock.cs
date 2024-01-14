@@ -58,6 +58,17 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns a monotonic increasing tick count based on the frequency of the underlying timer.
+        /// </summary>
+        public static long Ticks
+        {
+            get
+            {
+                return s_Default.m_disabled ? DateTime.UtcNow.Ticks : Stopwatch.GetTimestamp();
+            }
+        }
+
+        /// <summary>
         /// Return the frequency of the ticks.
         /// </summary>
         public static long Frequency => s_Default.m_disabled ?

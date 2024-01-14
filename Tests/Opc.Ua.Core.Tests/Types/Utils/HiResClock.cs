@@ -30,6 +30,7 @@
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
@@ -178,6 +179,29 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             {
                 Assert.Inconclusive(ex.Message);
             }
+        }
+        #endregion
+
+        #region Benchmarks
+        /// <summary>
+        /// Test the overhead and perf of the Stopwatch timer.
+        /// </summary>
+        [Benchmark]
+        public void DateTimeTicks()
+        {
+            _ = DateTime.UtcNow.Ticks;
+        }
+
+        [Benchmark]
+        public void StopwatchGetTimestamp()
+        {
+            _ = Stopwatch.GetTimestamp();
+        }
+
+        [Benchmark]
+        public void HiResClockTicks()
+        {
+            _ = HiResClock.Ticks;
         }
         #endregion
     }
