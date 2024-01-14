@@ -203,6 +203,33 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             _ = HiResClock.Ticks;
         }
+
+        /// <summary>
+        /// Resolution of the following ticks is limited
+        /// to 1ms and the timer tick, e.g. 16ms on windows.
+        /// </summary>
+        [Benchmark]
+        public void EnvironmentTicks()
+        {
+            _ = Environment.TickCount;
+        }
+
+        [DllImport("kernel32")]
+        private extern static UInt64 GetTickCount64();
+
+        [Benchmark]
+        public void WindowsGetTickCount64()
+        {
+            _ = GetTickCount64();
+        }
+
+        [Benchmark]
+        public void EnvironmentTickCount64()
+        {
+#if NET6_0_OR_GREATER
+            _ = Environment.TickCount64;
+#endif
+        }
         #endregion
     }
 }
