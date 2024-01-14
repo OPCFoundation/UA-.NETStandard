@@ -116,37 +116,9 @@ namespace Opc.Ua.Client
         }
 
         ///<inheritdoc/>
-        [Obsolete("Must override the version with useDefault parameter.")]
-        protected override void UpdateRequestHeader(IServiceRequest request)
-        {
-            UpdateRequestHeader(request, request == null);
-        }
-
-        ///<inheritdoc/>
         protected override void UpdateRequestHeader(IServiceRequest request, bool useDefaults)
         {
             base.UpdateRequestHeader(request, useDefaults);
-
-            if (Activity.Current != null)
-            {
-                InjectTraceIntoAdditionalParameters(Activity.Current.Context, out AdditionalParametersType traceData);
-
-                if (request.RequestHeader.AdditionalHeader == null)
-                {
-                    request.RequestHeader.AdditionalHeader = new ExtensionObject(traceData);
-                }
-                else if (request.RequestHeader.AdditionalHeader.Body is AdditionalParametersType existingParameters)
-                {
-                    // Merge the trace data into the existing parameters.
-                    existingParameters.Parameters.AddRange(traceData.Parameters);
-                }
-            }
-        }
-
-        ///<inheritdoc/>
-        protected override void UpdateRequestHeader(IServiceRequest request, bool useDefaults, string serviceName)
-        {
-            base.UpdateRequestHeader(request, useDefaults, serviceName);
 
             if (Activity.Current != null)
             {
