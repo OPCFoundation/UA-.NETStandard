@@ -49,11 +49,13 @@ namespace Opc.Ua.Gds.Tests
 
         public IUserIdentity AppUser { get; private set; }
         public IUserIdentity AdminUser { get; private set; }
+        public IUserIdentity Anonymous { get; private set; }
+        public ApplicationTestData OwnApplicationTestData { get; private set; }
         public ApplicationConfiguration Configuration { get; private set; }
         public async Task LoadClientConfiguration(int port = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
-            ApplicationInstance application = new ApplicationInstance {
+            m_application = new ApplicationInstance {
                 ApplicationName = "Global Discovery Client",
                 ApplicationType = ApplicationType.Client,
                 ConfigSectionName = "Opc.Ua.GlobalDiscoveryTestClient"
@@ -61,7 +63,7 @@ namespace Opc.Ua.Gds.Tests
 
 #if USE_FILE_CONFIG
             // load the application configuration.
-            Configuration = await application.LoadApplicationConfiguration(false).ConfigureAwait(false);
+            Configuration = await m_application.LoadApplicationConfiguration(false).ConfigureAwait(false);
 #else
             string root = Path.Combine("%LocalApplicationData%", "OPC");
             string pkiRoot = Path.Combine(root, "pki");
@@ -74,7 +76,7 @@ namespace Opc.Ua.Gds.Tests
             };
 
             // build the application configuration.
-            Configuration = await application
+            Configuration = await m_application
                 .Build(
                     "urn:localhost:opcfoundation.org:GlobalDiscoveryTestClient",
                     "http://opcfoundation.org/UA/GlobalDiscoveryTestClient")
@@ -94,7 +96,7 @@ namespace Opc.Ua.Gds.Tests
                 .Create().ConfigureAwait(false);
 #endif
             // check the application certificate.
-            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
+            bool haveAppCertificate = await m_application.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
             if (!haveAppCertificate)
             {
                 throw new Exception("Application instance certificate invalid!");
@@ -115,6 +117,59 @@ namespace Opc.Ua.Gds.Tests
                 AppUser = new UserIdentity(gdsClientConfiguration.AppUserName, gdsClientConfiguration.AppPassword);
             }
             AdminUser = new UserIdentity(gdsClientConfiguration.AdminUserName, gdsClientConfiguration.AdminPassword);
+            Anonymous = new UserIdentity();
+        }
+        /// <summary>
+        /// Register the Test Client at the used GDS, needed to test the ApplicationSelfAdminPrivilege
+        /// </summary>
+        /// <param name="application"></param>
+        public bool RegisterTestClientAtGds()
+        {
+            //fill application record data type with own Data
+            OwnApplicationTestData = new ApplicationTestData {
+                ApplicationRecord = new ApplicationRecordDataType {
+                    ApplicationUri = m_client.Configuration.ApplicationUri,
+                    ApplicationType = m_client.Configuration.ApplicationType,
+                    ProductUri = m_client.Configuration.ProductUri,
+                    ApplicationNames = new LocalizedTextCollection() { new LocalizedText(m_client.Configuration.ApplicationName) },
+                    ApplicationId = new NodeId(Guid.NewGuid())
+                },
+                Subject = $"CN={m_client.Configuration.ApplicationName},DC=opc.tcp://localhost,O=OPC Foundation",
+            };
+
+            //connect
+            m_client.AdminCredentials = AdminUser;
+            m_client.Connect(m_client.EndpointUrl).Wait();
+            //register
+            var id = m_client.RegisterApplication(OwnApplicationTestData.ApplicationRecord);
+            if (id == null) return false;
+            OwnApplicationTestData.ApplicationRecord.ApplicationId = id;
+            //request new Cert
+            var req_id = m_client.StartNewKeyPairRequest(
+                OwnApplicationTestData.ApplicationRecord.ApplicationId,
+                OwnApplicationTestData.CertificateGroupId,
+                OwnApplicationTestData.CertificateTypeId,
+                OwnApplicationTestData.Subject,
+                OwnApplicationTestData.DomainNames,
+                OwnApplicationTestData.PrivateKeyFormat,
+                OwnApplicationTestData.PrivateKeyPassword
+                );
+
+            if (req_id == null) return false;
+            OwnApplicationTestData.CertificateRequestId = req_id;
+            //get cert
+            byte[] certificate = m_client.FinishRequest(
+                                OwnApplicationTestData.ApplicationRecord.ApplicationId,
+                                OwnApplicationTestData.CertificateRequestId,
+                                out _,
+                                out _
+                                );
+            if (certificate == null) return false;
+            //apply cert
+            m_client.Configuration.SecurityConfiguration.ApplicationCertificate = new CertificateIdentifier(certificate); //signed cert
+            m_application.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
+            var cert = m_client.Configuration.SecurityConfiguration.ApplicationCertificate; //switch back to non signed cert as CheckApplicationInstanceCertificate can´t find the cert
+            return true;
         }
 
         public void DisconnectClient()
@@ -151,6 +206,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         private GlobalDiscoveryServerClient m_client;
+        private ApplicationInstance m_application;
 
     }
 

@@ -972,9 +972,10 @@ namespace Opc.Ua.Gds.Tests
             AssertIgnoreTestWithoutGoodRegistration();
             AssertIgnoreTestWithoutGoodNewKeyPairRequest();
 
-            // TODO: connect to GDS as self registered application
-            // connect with issued certificate
-            ConnectGDS(false);
+
+            // connect with gds issued certificate
+            m_gdsClient.RegisterTestClientAtGds();
+            ConnectGDS(false, true);
 
             // ensure access to other applications is denied
             foreach (var application in m_goodApplicationTestSet)
@@ -988,8 +989,16 @@ namespace Opc.Ua.Gds.Tests
             }
 
             Assert.Ignore("TODO: Tests for other logic is not implemented yet!");
-
+            
             // use self registered application and get the group / trust lists
+            var certificateGroups = m_gdsClient.GDSClient.GetCertificateGroups(m_gdsClient.OwnApplicationTestData.ApplicationRecord.ApplicationId);
+            foreach (var certificateGroup in certificateGroups)
+            {
+                var trustListId = m_gdsClient.GDSClient.GetTrustList(m_gdsClient.OwnApplicationTestData.ApplicationRecord.ApplicationId, certificateGroup);
+                // Opc.Ua.TrustListDataType
+                var trustList = m_gdsClient.GDSClient.ReadTrustList(trustListId);
+                Assert.NotNull(trustList);
+            }
 
             // self issue a certificate and read it back
 
@@ -1089,11 +1098,18 @@ namespace Opc.Ua.Gds.Tests
         #endregion
 
         #region Private Methods
-        private void ConnectGDS(bool admin,
+        private void ConnectGDS(bool admin, bool anonymous = false,
             [System.Runtime.CompilerServices.CallerMemberName] string memberName = ""
             )
         {
-            m_gdsClient.GDSClient.AdminCredentials = admin ? m_gdsClient.AdminUser : m_gdsClient.AppUser;
+            if (anonymous)
+            {
+                m_gdsClient.GDSClient.AdminCredentials = m_gdsClient.Anonymous;
+            }
+            else
+            {
+                m_gdsClient.GDSClient.AdminCredentials = admin ? m_gdsClient.AdminUser : m_gdsClient.AppUser;
+            } 
             m_gdsClient.GDSClient.Connect(m_gdsClient.GDSClient.EndpointUrl).Wait();
             TestContext.Progress.WriteLine($"GDS Client({admin}) connected -- {memberName}");
         }

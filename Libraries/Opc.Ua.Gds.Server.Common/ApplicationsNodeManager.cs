@@ -167,11 +167,14 @@ namespace Opc.Ua.Gds.Server
             if (context != null)
             {
                 RoleBasedIdentity identity = context.UserIdentity as RoleBasedIdentity;
-
-                if ((identity == null) || (identity.Role != GdsRole.ApplicationAdmin))
+                if (identity != null)
                 {
-                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application Administrator access required.");
+                    if (identity.Role == GdsRole.ApplicationAdmin)
+                    {
+                        return;
+                    }
                 }
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application Administrator access required.");
             }
         }
 
@@ -181,10 +184,14 @@ namespace Opc.Ua.Gds.Server
             {
                 RoleBasedIdentity identity = context.UserIdentity as RoleBasedIdentity;
 
-                if (identity == null)
+                if (identity != null)
                 {
-                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application User access required.");
+                    if ((identity.Role == GdsRole.ApplicationUser) || (identity.Role == GdsRole.ApplicationAdmin))
+                    {
+                        return;
+                    }
                 }
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application Administrator access required.");
             }
         }
 
@@ -195,19 +202,22 @@ namespace Opc.Ua.Gds.Server
         /// <param name="applicationId">the application to modify</param>
         private void HasApplicationSelfAdminPrivilege(ISystemContext context, NodeId applicationId)
         {
-            HasApplicationUserAccess(context);
             if (context != null)
             {
                 RoleBasedIdentity identity = context.UserIdentity as RoleBasedIdentity;
-                //administrator has full access
-                if (identity.Role == GdsRole.ApplicationAdmin)
-                    return;
-                //not administrator only has access to specified application
-                if (identity.ApplicationId != applicationId)
+                if (identity != null)
                 {
-                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application Self Admin Privielge or " +
-                        "Application Administrator access required.");
+                    //administrator/user has full access
+                    if (identity.Role == GdsRole.ApplicationAdmin || identity.Role == GdsRole.ApplicationUser)
+                        return;
+                    //not administrator/user only has access to own application
+                    if (identity.ApplicationId == applicationId)
+                    {
+                        return;
+                    }
                 }
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application Self Admin Privielge or " +
+                            "Application Administrator/User access required.");
             }
         }
 
