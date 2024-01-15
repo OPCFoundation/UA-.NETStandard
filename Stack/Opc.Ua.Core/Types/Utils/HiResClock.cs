@@ -86,16 +86,11 @@ namespace Opc.Ua
                     // check if already initialized.
                     if (!s_Default.m_initialized)
                     {
-                        if (s_Default.m_disabled && !value)
+                        if (s_Default.m_disabled != value)
                         {
                             // reset baseline
-                            s_Default = new HiResClock();
+                            s_Default = new HiResClock(value);
                         }
-                        else
-                        {
-                            s_Default.m_disabled = value;
-                        }
-
                         s_Default.m_initialized = true;
                     }
                     else
@@ -113,17 +108,17 @@ namespace Opc.Ua
         public static void Reset()
         {
             // reset baseline
-            s_Default = new HiResClock();
+            s_Default = new HiResClock(s_Default.m_disabled);
         }
 
         /// <summary>
         /// Constructs a HiRes clock class.
         /// </summary>
-        private HiResClock()
+        private HiResClock(bool disabled)
         {
             m_initialized = false;
             m_offset = DateTime.UtcNow.Ticks;
-            if (!Stopwatch.IsHighResolution)
+            if (!Stopwatch.IsHighResolution || disabled)
             {
                 m_ticksDelegate = UtcNowTicks;
                 m_frequency = TimeSpan.TicksPerSecond;
@@ -137,6 +132,7 @@ namespace Opc.Ua
                 m_ticksDelegate = Stopwatch.GetTimestamp;
                 m_frequency = Stopwatch.Frequency;
                 m_ticksPerMillisecond = m_frequency / 1000.0;
+                m_disabled = false;
             }
             m_ratio = ((decimal)TimeSpan.TicksPerSecond) / m_frequency;
         }
@@ -150,7 +146,7 @@ namespace Opc.Ua
         /// <summary>
         /// Defines a global instance.
         /// </summary>
-        private static HiResClock s_Default = new HiResClock();
+        private static HiResClock s_Default = new HiResClock(false);
         private TicksDelegate m_ticksDelegate;
         private long m_frequency;
         private long m_baseline;
