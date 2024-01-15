@@ -75,9 +75,6 @@ namespace Opc.Ua.Client.Tests
         [Benchmark]
         public void ReadValuesWithTracing()
         {
-            var namespaceUris = Session.NamespaceUris;
-            var testSet = new NodeIdCollection(GetTestSetStatic(namespaceUris));
-            testSet.AddRange(GetTestSetFullSimulation(namespaceUris));
             Session.ReadValues(testSet, out DataValueCollection values, out IList<ServiceResult> errors);
             Assert.AreEqual(testSet.Count, values.Count);
             Assert.AreEqual(testSet.Count, errors.Count);

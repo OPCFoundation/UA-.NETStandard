@@ -57,12 +57,12 @@ namespace Opc.Ua.Server.Tests
         public bool UseTracing { get; set; }
         public ActivityListener ActivityListener { get; private set; }
 
-        public ServerFixture(bool useTracing)
+        public ServerFixture(bool useTracing, bool benchmarkingEnabled)
         {
             UseTracing = useTracing;
             if (UseTracing)
             {
-                StartActivityListenerInternal();
+                StartActivityListenerInternal(benchmarkingEnabled);
             }
         }
 
@@ -244,28 +244,30 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Configures Activity Listener and registers with Activity Source.
         /// </summary>
-        public void StartActivityListenerInternal()
+        public void StartActivityListenerInternal(bool benchmarkingEnabled = false)
         {
-#if BENCHMARK
-            // Create an instance of ActivityListener without logging
-            ActivityListener = new ActivityListener()
+            if (benchmarkingEnabled)
             {
-                ShouldListenTo = (source) => (source.Name == EndpointBase.ActivitySourceName),
-                Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
-                ActivityStarted = _ => { },
-                ActivityStopped = _ => { }
-            };
-#else
-            // Create an instance of ActivityListener and configure its properties with logging
-            ActivityListener = new ActivityListener() {
-                ShouldListenTo = (source) => (source.Name == EndpointBase.ActivitySourceName),
-                Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
-                ActivityStarted = activity => Utils.LogInfo("Server Started: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} ParentId: {3,-32}",
-                    activity.OperationName, activity.TraceId, activity.SpanId, activity.ParentId),
-                ActivityStopped = activity => Utils.LogInfo("Server Stopped: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} ParentId: {3,-32} Duration: {4}",
-                    activity.OperationName, activity.TraceId, activity.SpanId, activity.ParentId, activity.Duration),
-            };
-#endif
+                // Create an instance of ActivityListener without logging
+                ActivityListener = new ActivityListener() {
+                    ShouldListenTo = (source) => (source.Name == EndpointBase.ActivitySourceName),
+                    Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
+                    ActivityStarted = _ => { },
+                    ActivityStopped = _ => { }
+                };
+            }
+            else
+            {
+                // Create an instance of ActivityListener and configure its properties with logging
+                ActivityListener = new ActivityListener() {
+                    ShouldListenTo = (source) => (source.Name == EndpointBase.ActivitySourceName),
+                    Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
+                    ActivityStarted = activity => Utils.LogInfo("Server Started: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} ParentId: {3,-32}",
+                        activity.OperationName, activity.TraceId, activity.SpanId, activity.ParentId),
+                    ActivityStopped = activity => Utils.LogInfo("Server Stopped: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} ParentId: {3,-32} Duration: {4}",
+                        activity.OperationName, activity.TraceId, activity.SpanId, activity.ParentId, activity.Duration),
+                };
+            }
             ActivitySource.AddActivityListener(ActivityListener);
         }
 
