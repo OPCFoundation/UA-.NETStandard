@@ -57,12 +57,12 @@ namespace Opc.Ua.Server.Tests
         public bool UseTracing { get; set; }
         public ActivityListener ActivityListener { get; private set; }
 
-        public ServerFixture(bool useTracing, bool benchmarkingEnabled)
+        public ServerFixture(bool useTracing, bool disableActivityLogging)
         {
             UseTracing = useTracing;
             if (UseTracing)
             {
-                StartActivityListenerInternal(benchmarkingEnabled);
+                StartActivityListenerInternal(disableActivityLogging);
             }
         }
 
@@ -244,9 +244,9 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Configures Activity Listener and registers with Activity Source.
         /// </summary>
-        public void StartActivityListenerInternal(bool benchmarkingEnabled = false)
+        public void StartActivityListenerInternal(bool disableActivityLogging = false)
         {
-            if (benchmarkingEnabled)
+            if (disableActivityLogging)
             {
                 // Create an instance of ActivityListener without logging
                 ActivityListener = new ActivityListener() {

@@ -55,12 +55,12 @@ namespace Opc.Ua.Client.Tests
         public ISessionFactory SessionFactory = DefaultSessionFactory.Instance;
         public ActivityListener ActivityListener { get; private set; }
 
-        public ClientFixture(bool UseTracing, bool benchmarkingEnabled)
+        public ClientFixture(bool UseTracing, bool disableActivityLogging)
         {
             if (UseTracing)
             {
                 SessionFactory = TraceableRequestHeaderClientSessionFactory.Instance;
-                StartActivityListenerInternal(benchmarkingEnabled);
+                StartActivityListenerInternal(disableActivityLogging);
             }
             else
             {
@@ -362,9 +362,9 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Configures Activity Listener and registers with Activity Source.
         /// </summary>
-        public void StartActivityListenerInternal(bool benchmarkingEnabled)
+        public void StartActivityListenerInternal(bool disableActivityLogging)
         {
-            if (benchmarkingEnabled)
+            if (disableActivityLogging)
             {
                 // Create an instance of ActivityListener without logging
                 ActivityListener = new ActivityListener() {

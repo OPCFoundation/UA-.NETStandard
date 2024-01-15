@@ -102,7 +102,7 @@ namespace Opc.Ua.Client.Tests
         /// Setup a server and client fixture.
         /// </summary>
         /// <param name="writer">The test output writer.</param>
-        public async Task OneTimeSetUpAsync(TextWriter writer = null, bool securityNone = false, bool enableTracing = false, bool benchmarkingEnabled = false)
+        public async Task OneTimeSetUpAsync(TextWriter writer = null, bool securityNone = false, bool enableTracing = false, bool disableActivityLogging = false)
         {
             // pki directory root for test runs.
             PkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
@@ -130,7 +130,7 @@ namespace Opc.Ua.Client.Tests
             if (customUrl == null)
             {
                 // start Ref server
-                ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, benchmarkingEnabled)
+                ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging)
                 {
                     UriScheme = UriScheme,
                     SecurityNone = securityNone,
@@ -157,7 +157,7 @@ namespace Opc.Ua.Client.Tests
                 ReferenceServer.TokenValidator = this.TokenValidator;
             }
 
-            ClientFixture = new ClientFixture(enableTracing, benchmarkingEnabled);
+            ClientFixture = new ClientFixture(enableTracing, disableActivityLogging);
 
             await ClientFixture.LoadClientConfiguration(PkiRoot).ConfigureAwait(false);
             ClientFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
@@ -320,7 +320,7 @@ namespace Opc.Ua.Client.Tests
         public void GlobalSetup()
         {
             Console.WriteLine("GlobalSetup: Start Server");
-            OneTimeSetUpAsync(Console.Out,enableTracing : true, benchmarkingEnabled : true).GetAwaiter().GetResult();
+            OneTimeSetUpAsync(Console.Out,enableTracing : true, disableActivityLogging: true).GetAwaiter().GetResult();
             Console.WriteLine("GlobalSetup: Connecting");
             Session = ClientFixture.ConnectAsync(ServerUrl, SecurityPolicy).GetAwaiter().GetResult();
             Console.WriteLine("GlobalSetup: Ready");
