@@ -808,8 +808,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        [Benchmark]
-        public void ReadValuesWithoutTracing()
+        public void ReadValues()
         {
             var namespaceUris = Session.NamespaceUris;
             var testSet = new NodeIdCollection(GetTestSetStatic(namespaceUris));
