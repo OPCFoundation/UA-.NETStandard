@@ -303,8 +303,7 @@ namespace Quickstarts.ReferenceServer
             // User with permission to configure server
             if (userName == "sysadmin" && password == "demo")
             {
-                return new RoleBasedIdentity(new UserIdentity(userNameToken),
-                    new List<Role>() { Role.SecurityAdmin, Role.ConfigureAdmin });
+                return new SystemConfigurationIdentity(new UserIdentity(userNameToken));
             }
 
             // standard users for CTT verification

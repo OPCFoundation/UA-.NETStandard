@@ -170,7 +170,6 @@ namespace Opc.Ua.Server
                     GrantedRoleIds.Add(role.RoleId);
                 }
             }
-            
         }
 
         /// <inheritdoc/>

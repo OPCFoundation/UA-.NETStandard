@@ -204,7 +204,7 @@ namespace Opc.Ua.Gds.Server
                     if (userNameToken.UserName == "sysadmin")
                     {
                         // Server configuration administrator, manages the GDS server security
-                        args.Identity = new RoleBasedIdentity(new UserIdentity(userNameToken), new List<Role> { Role.SecurityAdmin, Role.ConfigureAdmin });
+                        args.Identity = new SystemConfigurationIdentity(new UserIdentity(userNameToken));
                         Utils.LogInfo("SystemConfigurationAdmin Token Accepted: {0}", args.Identity.DisplayName);
                         return;
                     }
