@@ -8,7 +8,7 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Client.Tests
 {
-    public class TraceableRequestHeaderTest : ClientTestFramework
+    public class RequestHeaderTest : ClientTestFramework
     {
         #region Test Setup
         /// <summary>
@@ -17,7 +17,7 @@ namespace Opc.Ua.Client.Tests
         [OneTimeSetUp]
         public Task OneTimeSetUpAsync()
         {
-            return base.OneTimeSetUpAsync(null, false, true);
+            return base.OneTimeSetUpAsync(null, false, false);
         }
 
         /// <summary>
@@ -57,7 +57,7 @@ namespace Opc.Ua.Client.Tests
         public new void GlobalSetup()
         {
             Console.WriteLine("GlobalSetup: Start Server");
-            OneTimeSetUpAsync(Console.Out, enableTracing: true, disableActivityLogging: true).GetAwaiter().GetResult();
+            OneTimeSetUpAsync(Console.Out, enableTracing: false, disableActivityLogging: false).GetAwaiter().GetResult();
             Console.WriteLine("GlobalSetup: Connecting");
             InitializeSession(ClientFixture.ConnectAsync(ServerUrl, SecurityPolicy).GetAwaiter().GetResult());
             Console.WriteLine("GlobalSetup: Ready");
@@ -77,7 +77,7 @@ namespace Opc.Ua.Client.Tests
 
         [Test]
         [Benchmark]
-        public void ReadValuesWithTracing()
+        public void ReadValuesWithoutTracing()
         {
             var namespaceUris = Session.NamespaceUris;
             var testSet = new NodeIdCollection(GetTestSetStatic(namespaceUris));

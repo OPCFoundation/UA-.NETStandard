@@ -82,6 +82,10 @@ namespace Opc.Ua.Client.Tests
             TestSetDataSimulation = CommonTestWorkers.NodeIdTestSetDataSimulation;
             TestSetHistory = CommonTestWorkers.NodeIdTestDataHistory;
         }
+        public void InitializeSession(ISession session)
+        {
+            Session = session;
+        }
 
         #region DataPointSources
         [DatapointSource]
@@ -320,7 +324,7 @@ namespace Opc.Ua.Client.Tests
         public void GlobalSetup()
         {
             Console.WriteLine("GlobalSetup: Start Server");
-            OneTimeSetUpAsync(Console.Out,enableTracing : true, disableActivityLogging: true).GetAwaiter().GetResult();
+            OneTimeSetUpAsync(Console.Out).GetAwaiter().GetResult();
             Console.WriteLine("GlobalSetup: Connecting");
             Session = ClientFixture.ConnectAsync(ServerUrl, SecurityPolicy).GetAwaiter().GetResult();
             Console.WriteLine("GlobalSetup: Ready");
