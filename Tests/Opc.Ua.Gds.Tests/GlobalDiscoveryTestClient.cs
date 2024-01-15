@@ -52,6 +52,7 @@ namespace Opc.Ua.Gds.Tests
         public IUserIdentity Anonymous { get; private set; }
         public ApplicationTestData OwnApplicationTestData { get; private set; }
         public ApplicationConfiguration Configuration { get; private set; }
+        #region public methods
         public async Task LoadClientConfiguration(int port = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
@@ -120,55 +121,39 @@ namespace Opc.Ua.Gds.Tests
             Anonymous = new UserIdentity();
         }
         /// <summary>
-        /// Register the Test Client at the used GDS, needed to test the ApplicationSelfAdminPrivilege
-        /// </summary>
-        /// <param name="application"></param>
+                /// Register the Test Client at the used GDS, needed to test the ApplicationSelfAdminPrivilege
+                /// </summary>
+                /// <param name="application"></param>
         public bool RegisterTestClientAtGds()
         {
-            //fill application record data type with own Data
-            OwnApplicationTestData = new ApplicationTestData {
-                ApplicationRecord = new ApplicationRecordDataType {
-                    ApplicationUri = m_client.Configuration.ApplicationUri,
-                    ApplicationType = m_client.Configuration.ApplicationType,
-                    ProductUri = m_client.Configuration.ProductUri,
-                    ApplicationNames = new LocalizedTextCollection() { new LocalizedText(m_client.Configuration.ApplicationName) },
-                    ApplicationId = new NodeId(Guid.NewGuid())
-                },
-                Subject = $"CN={m_client.Configuration.ApplicationName},DC=opc.tcp://localhost,O=OPC Foundation",
-            };
+            ApplicationTestData ownApplicationTestData = GetOwnApplicationData();
 
-            //connect
             m_client.AdminCredentials = AdminUser;
-            m_client.Connect(m_client.EndpointUrl).Wait();
-            //register
-            var id = m_client.RegisterApplication(OwnApplicationTestData.ApplicationRecord);
-            if (id == null) return false;
-            OwnApplicationTestData.ApplicationRecord.ApplicationId = id;
-            //request new Cert
-            var req_id = m_client.StartNewKeyPairRequest(
-                OwnApplicationTestData.ApplicationRecord.ApplicationId,
-                OwnApplicationTestData.CertificateGroupId,
-                OwnApplicationTestData.CertificateTypeId,
-                OwnApplicationTestData.Subject,
-                OwnApplicationTestData.DomainNames,
-                OwnApplicationTestData.PrivateKeyFormat,
-                OwnApplicationTestData.PrivateKeyPassword
-                );
+            //register
+            NodeId id = Register(ownApplicationTestData);
+            if (id == null)
+            {
+                return false;
+            }
+            ownApplicationTestData.ApplicationRecord.ApplicationId = id;
+            //start Key Pair Request
+            NodeId req_id = StartNewKeyPair(ownApplicationTestData);
+            if (req_id == null)
+            {
+                return false;
+            }
 
-            if (req_id == null) return false;
-            OwnApplicationTestData.CertificateRequestId = req_id;
-            //get cert
-            byte[] certificate = m_client.FinishRequest(
-                                OwnApplicationTestData.ApplicationRecord.ApplicationId,
-                                OwnApplicationTestData.CertificateRequestId,
-                                out _,
-                                out _
-                                );
-            if (certificate == null) return false;
-            //apply cert
-            m_client.Configuration.SecurityConfiguration.ApplicationCertificate = new CertificateIdentifier(certificate); //signed cert
-            m_application.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
-            var cert = m_client.Configuration.SecurityConfiguration.ApplicationCertificate; //switch back to non signed cert as CheckApplicationInstanceCertificate can´t find the cert
+            ownApplicationTestData.CertificateRequestId = req_id;
+            //Finish KeyPairRequest
+            byte[] certificate, privateKey;
+            FinishKeyPair(ownApplicationTestData, out certificate, out privateKey);
+            if (certificate == null || privateKey == null)
+            {
+                return false;
+            }
+            //apply cert
+            ApplyNewApplicationInstanceCertificate(certificate, privateKey);
+
             return true;
         }
 
@@ -188,7 +173,58 @@ namespace Opc.Ua.Gds.Tests
         {
             return File.ReadAllText(Utils.ReplaceSpecialFolderNames(Configuration.TraceConfiguration.OutputFilePath));
         }
+        #endregion
+        #region Private Methods
+        private void ApplyNewApplicationInstanceCertificate(byte[] certificate, byte[] privateKey)
+        {
+            var cert = CertificateFactory.CreateCertificateWithPEMPrivateKey(
+            new System.Security.Cryptography.X509Certificates.X509Certificate2(certificate),
+            privateKey);
+            m_client.Configuration.SecurityConfiguration.ApplicationCertificate.RawData = cert.RawData;
+            m_client.Configuration.SecurityConfiguration.ApplicationCertificate.Thumbprint = cert.Thumbprint;
+            var store = m_client.Configuration.SecurityConfiguration.ApplicationCertificate.OpenStore();
+            store.Add(cert);
+            m_application.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
+        }
 
+        private void FinishKeyPair(ApplicationTestData ownApplicationTestData, out byte[] certificate, out byte[] privateKey)
+        {
+            m_client.Connect(m_client.EndpointUrl).Wait();
+            //get cert
+            certificate = m_client.FinishRequest(
+             ownApplicationTestData.ApplicationRecord.ApplicationId,
+             ownApplicationTestData.CertificateRequestId,
+             out privateKey,
+             out _
+             );
+            m_client.Disconnect();
+        }
+
+        private NodeId StartNewKeyPair(ApplicationTestData ownApplicationTestData)
+        {
+            m_client.Connect(m_client.EndpointUrl).Wait();
+            //request new Cert
+            var req_id = m_client.StartNewKeyPairRequest(
+             ownApplicationTestData.ApplicationRecord.ApplicationId,
+             ownApplicationTestData.CertificateGroupId,
+             ownApplicationTestData.CertificateTypeId,
+             ownApplicationTestData.Subject,
+             ownApplicationTestData.DomainNames,
+             ownApplicationTestData.PrivateKeyFormat,
+             ownApplicationTestData.PrivateKeyPassword
+             );
+
+            m_client.Disconnect();
+            return req_id;
+        }
+
+        private NodeId Register(ApplicationTestData ownApplicationTestData)
+        {
+            m_client.Connect(m_client.EndpointUrl).Wait();
+            var id = m_client.RegisterApplication(ownApplicationTestData.ApplicationRecord);
+            m_client.Disconnect();
+            return id;
+        }
         private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
         {
             if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
@@ -204,6 +240,27 @@ namespace Opc.Ua.Gds.Tests
                 }
             }
         }
+
+        private ApplicationTestData GetOwnApplicationData()
+        {
+            ApplicationTestData
+                       //fill application record data type with own Data
+                       ownApplicationTestData = new ApplicationTestData {
+                           ApplicationRecord = new ApplicationRecordDataType {
+                               ApplicationUri = m_client.Configuration.ApplicationUri,
+                               ApplicationType = m_client.Configuration.ApplicationType,
+                               ProductUri = m_client.Configuration.ProductUri,
+                               ApplicationNames = new LocalizedTextCollection() { new LocalizedText(m_client.Configuration.ApplicationName) },
+                               ApplicationId = new NodeId(Guid.NewGuid())
+                           },
+                           PrivateKeyFormat = "PEM",
+                           Subject = $"CN={m_client.Configuration.ApplicationName},DC=opc.tcp://localhost,O=OPC Foundation",
+                       };
+            return ownApplicationTestData;
+        }
+
+        #endregion
+
 
         private GlobalDiscoveryServerClient m_client;
         private ApplicationInstance m_application;
