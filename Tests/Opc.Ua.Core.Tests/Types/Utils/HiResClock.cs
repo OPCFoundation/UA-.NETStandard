@@ -204,6 +204,12 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             _ = HiResClock.Ticks;
         }
 
+        [Benchmark]
+        public void HiResTickCount64()
+        {
+            _ = HiResClock.TickCount64;
+        }
+
         /// <summary>
         /// Resolution of the following ticks is limited
         /// to 1ms and the timer tick, e.g. 16ms on windows.
