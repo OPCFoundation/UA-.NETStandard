@@ -82,9 +82,8 @@ namespace Opc.Ua
                 return true;
             }
 
-            CertificateIdentifier id = obj as CertificateIdentifier;
 
-            if (id == null)
+            if (!(obj is CertificateIdentifier id))
             {
                 return false;
             }

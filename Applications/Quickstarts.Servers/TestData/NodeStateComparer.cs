@@ -59,14 +59,14 @@ namespace TestData
         }
 
         /// <inheritdoc/>
-        public int GetHashCode(NodeState node)
+        public int GetHashCode(NodeState obj)
         {
-            if (ReferenceEquals(node, null))
+            if (ReferenceEquals(obj, null))
             {
                 return 0;
             }
 
-            return node.NodeId.GetHashCode();
+            return obj.NodeId.GetHashCode();
         }
     }
 }

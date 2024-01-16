@@ -14,7 +14,7 @@ using System;
 using System.IO;
 
 namespace Opc.Ua
-{   
+{
     /// <summary>
     /// Watches the configuration file and reports any changes.
     /// </summary>
@@ -40,13 +40,13 @@ namespace Opc.Ua
             m_watcher = new System.Threading.Timer(Watcher_Changed, null, 5000, 5000);
         }
         #endregion
-        
+
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
-        {   
+        {
             Dispose(true);
             GC.SuppressFinalize(this);
         }
@@ -56,7 +56,7 @@ namespace Opc.Ua
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing) 
+            if (disposing)
             {
                 if (m_watcher != null)
                 {
@@ -75,22 +75,16 @@ namespace Opc.Ua
         {
             add
             {
-                lock (m_lock)
-                {
-                    m_Changed += value;
-                }
+                m_Changed += value;
             }
 
             remove
             {
-                lock (m_lock)
-                {
-                    m_Changed -= value;
-                }
+                m_Changed -= value;
             }
         }
         #endregion
-        
+
         #region Private Methods
         /// <summary>
         /// Handles a file changed event.
@@ -113,12 +107,7 @@ namespace Opc.Ua
 
                 m_lastWriteTime = fileInfo.LastWriteTimeUtc;
 
-                EventHandler<ConfigurationWatcherEventArgs> callback = m_Changed;
-
-                if (callback != null)
-                {
-                    callback(this, new ConfigurationWatcherEventArgs(m_configuration, m_configuration.SourceFilePath));
-                }
+                m_Changed?.Invoke(this, new ConfigurationWatcherEventArgs(m_configuration, m_configuration.SourceFilePath));
             }
             catch (Exception exception)
             {
@@ -128,14 +117,14 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private ApplicationConfiguration m_configuration;
         private System.Threading.Timer m_watcher;
         private DateTime m_lastWriteTime;
         private event EventHandler<ConfigurationWatcherEventArgs> m_Changed;
         #endregion
     }
-    
+
     #region ConfigurationWatcherEventArgs Class
     /// <summary>
     /// Stores the arguments passed when the configuration file changes.
@@ -154,7 +143,7 @@ namespace Opc.Ua
             m_filePath = filePath;
         }
         #endregion
-        
+
         #region Public Properties
         /// <summary>
         /// The application configuration which changed.
@@ -163,7 +152,7 @@ namespace Opc.Ua
         {
             get { return m_configuration; }
         }
-        
+
         /// <summary>
         /// The path to the application configuration file.
         /// </summary>

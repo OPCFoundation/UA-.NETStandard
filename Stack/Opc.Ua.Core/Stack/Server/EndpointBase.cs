@@ -240,12 +240,12 @@ namespace Opc.Ua
         /// <summary>
         /// Dispatches an incoming binary encoded request.
         /// </summary>
-        public virtual IAsyncResult BeginInvokeService(InvokeServiceMessage message, AsyncCallback callack, object callbackData)
+        public virtual IAsyncResult BeginInvokeService(InvokeServiceMessage request, AsyncCallback callback, object asyncState)
         {
             try
             {
                 // check for bad data.
-                if (message == null)
+                if (request == null)
                 {
                     throw new ServiceResultException(StatusCodes.BadInvalidArgument);
                 }
@@ -254,8 +254,8 @@ namespace Opc.Ua
                 SetRequestContext(RequestEncoding.Binary);
 
                 // create handler.
-                ProcessRequestAsyncResult result = new ProcessRequestAsyncResult(this, callack, callbackData, 0);
-                return result.BeginProcessRequest(SecureChannelContext.Current, message.InvokeServiceRequest);
+                ProcessRequestAsyncResult result = new ProcessRequestAsyncResult(this, callback, asyncState, 0);
+                return result.BeginProcessRequest(SecureChannelContext.Current, request.InvokeServiceRequest);
             }
             catch (Exception e)
             {
@@ -266,13 +266,13 @@ namespace Opc.Ua
         /// <summary>
         /// Dispatches an incoming binary encoded request.
         /// </summary>
-        /// <param name="ar">The async result.</param>
-        public virtual InvokeServiceResponseMessage EndInvokeService(IAsyncResult ar)
+        /// <param name="result">The async result.</param>
+        public virtual InvokeServiceResponseMessage EndInvokeService(IAsyncResult result)
         {
             try
             {
                 // wait for the response.
-                IServiceResponse response = ProcessRequestAsyncResult.WaitForComplete(ar, false);
+                IServiceResponse response = ProcessRequestAsyncResult.WaitForComplete(result, false);
 
                 // encode the response.
                 InvokeServiceResponseMessage outgoing = new InvokeServiceResponseMessage();
@@ -282,7 +282,7 @@ namespace Opc.Ua
             catch (Exception e)
             {
                 // create fault.
-                ServiceFault fault = CreateFault(ProcessRequestAsyncResult.GetRequest(ar), e);
+                ServiceFault fault = CreateFault(ProcessRequestAsyncResult.GetRequest(result), e);
 
                 // encode the fault as a response.
                 InvokeServiceResponseMessage outgoing = new InvokeServiceResponseMessage();
@@ -414,9 +414,8 @@ namespace Opc.Ua
 
             ServiceResult result = null;
 
-            ServiceResultException sre = exception as ServiceResultException;
 
-            if (sre != null)
+            if (exception is ServiceResultException sre)
             {
                 result = new ServiceResult(sre);
                 Utils.LogWarning("SERVER - Service Fault Occurred. Reason={0}", result.StatusCode);
@@ -785,9 +784,7 @@ namespace Opc.Ua
             /// <returns>The response.</returns>
             public static IServiceResponse WaitForComplete(IAsyncResult ar, bool throwOnError)
             {
-                ProcessRequestAsyncResult result = ar as ProcessRequestAsyncResult;
-
-                if (result == null)
+                if (!(ar is ProcessRequestAsyncResult result))
                 {
                     throw new ArgumentException("End called with an invalid IAsyncResult object.", nameof(ar));
                 }
@@ -815,9 +812,7 @@ namespace Opc.Ua
             /// <returns>The request object if available; otherwise null.</returns>
             public static IServiceRequest GetRequest(IAsyncResult ar)
             {
-                ProcessRequestAsyncResult result = ar as ProcessRequestAsyncResult;
-
-                if (result != null)
+                if (ar is ProcessRequestAsyncResult result)
                 {
                     return result.m_request;
                 }

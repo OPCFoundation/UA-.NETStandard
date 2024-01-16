@@ -71,8 +71,7 @@ namespace Opc.Ua.PubSub.PublishedData
                 Utils.Trace(Utils.TraceMasks.Error, "The DataSetMetaData field is null.");
                 return false;
             }
-            PublishedDataItemsDataType publishedDataItems = ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource) as PublishedDataItemsDataType;
-            if (publishedDataItems != null && publishedDataItems.PublishedData != null)
+            if (ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource) is PublishedDataItemsDataType publishedDataItems && publishedDataItems.PublishedData != null)
             {
                 if (publishedDataItems.PublishedData.Count != publishedDataSet.DataSetMetaData.Fields.Count)
                 {
@@ -115,10 +114,7 @@ namespace Opc.Ua.PubSub.PublishedData
             {
                 throw new ArgumentException(nameof(publishedDataSet));
             }
-            if (m_publishedDataSetsByName.ContainsKey(publishedDataSet.Name))
-            {
-                m_publishedDataSetsByName.Remove(publishedDataSet.Name);
-            }
+            m_publishedDataSetsByName.Remove(publishedDataSet.Name);
         }
 
         /// <summary>
@@ -139,9 +135,8 @@ namespace Opc.Ua.PubSub.PublishedData
                     DataSet dataSet = new DataSet(dataSetName);
                     dataSet.DataSetMetaData = publishedDataSet.DataSetMetaData;
 
-                    PublishedDataItemsDataType publishedDataItems = ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource) as PublishedDataItemsDataType;
 
-                    if (publishedDataItems != null && publishedDataItems.PublishedData != null && publishedDataItems.PublishedData.Count > 0)
+                    if (ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource) is PublishedDataItemsDataType publishedDataItems && publishedDataItems.PublishedData != null && publishedDataItems.PublishedData.Count > 0)
                     {
                         dataSet.Fields = new Field[publishedDataItems.PublishedData.Count];
                         for (int i = 0; i < publishedDataItems.PublishedData.Count; i++)
@@ -217,8 +212,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                     case BuiltInType.String:
                                         if (field.FieldMetaData.ValueRank == ValueRanks.Scalar)
                                         {
-                                            string strFieldValue = variant.Value as string;
-                                            if (strFieldValue != null && shouldBringToConstraints((uint)strFieldValue.Length))
+                                            if (variant.Value is string strFieldValue && shouldBringToConstraints((uint)strFieldValue.Length))
                                             {
                                                 variant.Value = strFieldValue.Substring(0, (int)field.FieldMetaData.MaxStringLength);
                                                 dataValue.Value = variant;
@@ -243,8 +237,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                     case BuiltInType.ByteString:
                                         if (field.FieldMetaData.ValueRank == ValueRanks.Scalar)
                                         {
-                                            byte[] byteStringFieldValue = variant.Value as byte[];
-                                            if (byteStringFieldValue != null && shouldBringToConstraints((uint)byteStringFieldValue.Length))
+                                            if (variant.Value is byte[] byteStringFieldValue && shouldBringToConstraints((uint)byteStringFieldValue.Length))
                                             {
                                                 byte[] byteArray = (byte[])byteStringFieldValue.Clone();
                                                 Array.Resize(ref byteArray, (int)field.FieldMetaData.MaxStringLength);
@@ -303,9 +296,9 @@ namespace Opc.Ua.PubSub.PublishedData
                 throw new ArgumentException(nameof(dataSetName));
             }
 
-            if (m_publishedDataSetsByName.ContainsKey(dataSetName))
+            if (m_publishedDataSetsByName.TryGetValue(dataSetName, out PublishedDataSetDataType value))
             {
-                return m_publishedDataSetsByName[dataSetName];
+                return value;
             }
             return null;
         }

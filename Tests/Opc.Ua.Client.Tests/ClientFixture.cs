@@ -53,7 +53,7 @@ namespace Opc.Ua.Client.Tests
         public int OperationTimeout { get; set; } = 10000;
         public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.StackTrace | Utils.TraceMasks.Security | Utils.TraceMasks.Information;
         public bool UseTracing { get; set; } = false;
-        public ISessionFactory SessionFactory => UseTracing ? TraceableSessionFactory.Instance : DefaultSessionFactory.Instance;
+        public ISessionFactory SessionFactory => UseTracing ? (DefaultSessionFactory)HeaderUpdatingSessionFactory.Instance : (DefaultSessionFactory)TestableSessionFactory.Instance;
         public ActivityListener ActivityListener { get; private set; }
 
         #region Public Methods
@@ -321,7 +321,9 @@ namespace Opc.Ua.Client.Tests
 
             using (var client = DiscoveryClient.Create(url, endpointConfiguration))
             {
-                return await client.GetEndpointsAsync(null).ConfigureAwait(false);
+                var result = await client.GetEndpointsAsync(null).ConfigureAwait(false);
+                await client.CloseAsync().ConfigureAwait(false);
+                return result;
             }
         }
 

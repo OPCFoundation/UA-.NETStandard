@@ -125,9 +125,7 @@ namespace Opc.Ua
         /// <param name="ar">The result object returned from the Begin method.</param>
         public static void WaitForComplete(IAsyncResult ar)
         {
-            AsyncResultBase result = ar as AsyncResultBase;
-
-            if (result == null)
+            if (!(ar is AsyncResultBase result))
             {
                 throw new ArgumentException("IAsyncResult passed to call is not an instance of AsyncResultBase.");
             }

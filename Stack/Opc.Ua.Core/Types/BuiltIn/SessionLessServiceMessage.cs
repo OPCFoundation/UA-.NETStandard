@@ -17,7 +17,7 @@ namespace Opc.Ua
     /// <summary>
     /// A session-less service message.
     /// </summary>
-    public class SessionLessServiceMessage 
+    public class SessionLessServiceMessage
     {
         /// <summary>
         /// The VersionTime of the namespaces URIs on the server.

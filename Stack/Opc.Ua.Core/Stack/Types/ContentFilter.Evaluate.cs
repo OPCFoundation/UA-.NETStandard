@@ -175,9 +175,8 @@ namespace Opc.Ua
                     throw new ServiceResultException(StatusCodes.BadUnexpectedError, "FilterOperand is null.");
                 }
 
-                FilterOperand operand = extension.Body as FilterOperand;
 
-                if (operand == null)
+                if (!(extension.Body is FilterOperand operand))
                 {
                     throw new ServiceResultException(StatusCodes.BadUnexpectedError, "FilterOperand is not supported.");
                 }
@@ -224,17 +223,15 @@ namespace Opc.Ua
         private object GetValue(FilterContext context, FilterOperand operand, IFilterTarget target)
         {
             // return the contained value for literal operands.
-            LiteralOperand literal = operand as LiteralOperand;
 
-            if (literal != null)
+            if (operand is LiteralOperand literal)
             {
                 return literal.Value.Value;
             }
 
             // must query the filter target for simple attribute operands.
-            SimpleAttributeOperand simpleAttribute = operand as SimpleAttributeOperand;
 
-            if (simpleAttribute != null)
+            if (operand is SimpleAttributeOperand simpleAttribute)
             {
                 return target.GetAttributeValue(
                     context,
@@ -245,14 +242,12 @@ namespace Opc.Ua
             }
 
             // must query the filter target for attribute operands.
-            AttributeOperand attribute = operand as AttributeOperand;
 
-            if (attribute != null)
+            if (operand is AttributeOperand attribute)
             {
                 // AttributeOperands only supported in advanced filter targets.
-                IAdvancedFilterTarget advancedTarget = target as IAdvancedFilterTarget;
 
-                if (advancedTarget == null)
+                if (!(target is IAdvancedFilterTarget advancedTarget))
                 {
                     return false;
                 }
@@ -266,9 +261,8 @@ namespace Opc.Ua
             }
 
             // recursively evaluate element operands.
-            ElementOperand element = operand as ElementOperand;
 
-            if (element != null)
+            if (operand is ElementOperand element)
             {
                 return Evaluate(context, target, (int)element.Index);
             }
@@ -483,9 +477,8 @@ namespace Opc.Ua
         private static object ToBoolean(object value, BuiltInType sourceType)
         {
             // check for array conversions.
-            Array array = value as Array;
 
-            if (array != null)
+            if (value is Array array)
             {
                 bool[] output = new bool[array.Length];
 
@@ -532,9 +525,8 @@ namespace Opc.Ua
         private static object ToSByte(object value, BuiltInType sourceType)
         {
             // check for array conversions.
-            Array array = value as Array;
 
-            if (array != null)
+            if (value is Array array)
             {
                 sbyte[] output = new sbyte[array.Length];
 
@@ -581,9 +573,8 @@ namespace Opc.Ua
         private static object ToByte(object value, BuiltInType sourceType)
         {
             // check for array conversions.
-            Array array = value as Array;
 
-            if (array != null)
+            if (value is Array array)
             {
                 throw new NotImplementedException("Arrays of Byte not supported. Use ByteString instead.");
             }
@@ -623,9 +614,8 @@ namespace Opc.Ua
         private static object ToInt16(object value, BuiltInType sourceType)
         {
             // check for array conversions.
-            Array array = value as Array;
 
-            if (array != null)
+            if (value is Array array)
             {
                 short[] output = new short[array.Length];
 
@@ -672,9 +662,8 @@ namespace Opc.Ua
         private static object ToUInt16(object value, BuiltInType sourceType)
         {
             // check for array conversions.
-            Array array = value as Array;
 
-            if (array != null)
+            if (value is Array array)
             {
                 ushort[] output = new ushort[array.Length];
 
@@ -727,9 +716,8 @@ namespace Opc.Ua
         private static object ToInt32(object value, BuiltInType sourceType)
         {
             // check for array conversions.
-            Array array = value as Array;
 
-            if (array != null)
+            if (value is Array array)
             {
                 int[] output = new int[array.Length];
 
@@ -781,9 +769,8 @@ namespace Opc.Ua
         private static object ToUInt32(object value, BuiltInType sourceType)
         {
             // check for array conversions.
-            Array array = value as Array;
 
-            if (array != null)
+            if (value is Array array)
             {
                 uint[] output = new uint[array.Length];
 
@@ -835,9 +822,8 @@ namespace Opc.Ua
         private static object ToInt64(object value, BuiltInType sourceType)
         {
             // check for array conversions.
-            Array array = value as Array;
 
-            if (array != null)
+            if (value is Array array)
             {
                 long[] output = new long[array.Length];
 
@@ -889,9 +875,8 @@ namespace Opc.Ua
         private static object ToUInt64(object value, BuiltInType sourceType)
         {
             // check for array conversions.
-            Array array = value as Array;
 
-            if (array != null)
+            if (value is Array array)
             {
                 ulong[] output = new ulong[array.Length];
 
@@ -943,9 +928,8 @@ namespace Opc.Ua
         private static object ToFloat(object value, BuiltInType sourceType)
         {
             // check for array conversions.
-            Array array = value as Array;
 
-            if (array != null)
+            if (value is Array array)
             {
                 float[] output = new float[array.Length];
 
@@ -992,9 +976,8 @@ namespace Opc.Ua
         private static object ToDouble(object value, BuiltInType sourceType)
         {
             // check for array conversions.
-            Array array = value as Array;
 
-            if (array != null)
+            if (value is Array array)
             {
                 double[] output = new double[array.Length];
 
@@ -1041,9 +1024,8 @@ namespace Opc.Ua
         private static object ToString(object value, BuiltInType sourceType)
         {
             // check for array conversions.
-            Array array = value as Array;
 
-            if (array != null)
+            if (value is Array array)
             {
                 String[] output = new String[array.Length];
 
@@ -1159,9 +1141,8 @@ namespace Opc.Ua
         private static object ToDateTime(object value, BuiltInType sourceType)
         {
             // check for array conversions.
-            Array array = value as Array;
 
-            if (array != null)
+            if (value is Array array)
             {
                 DateTime[] output = new DateTime[array.Length];
 
@@ -1197,9 +1178,8 @@ namespace Opc.Ua
         private static object ToGuid(object value, BuiltInType sourceType)
         {
             // check for array conversions.
-            Array array = value as Array;
 
-            if (array != null)
+            if (value is Array array)
             {
                 Guid[] output = new Guid[array.Length];
 
@@ -1240,9 +1220,8 @@ namespace Opc.Ua
         private static object ToByteString(object value, BuiltInType sourceType)
         {
             // check for array conversions.
-            Array array = value as Array;
 
-            if (array != null)
+            if (value is Array array)
             {
                 byte[][] output = new byte[array.Length][];
 
@@ -1278,9 +1257,8 @@ namespace Opc.Ua
         private static object ToNodeId(object value, BuiltInType sourceType)
         {
             // check for array conversions.
-            Array array = value as Array;
 
-            if (array != null)
+            if (value is Array array)
             {
                 NodeId[] output = new NodeId[array.Length];
 
@@ -1321,9 +1299,8 @@ namespace Opc.Ua
         private static object ToExpandedNodeId(object value, BuiltInType sourceType)
         {
             // check for array conversions.
-            Array array = value as Array;
 
-            if (array != null)
+            if (value is Array array)
             {
                 ExpandedNodeId[] output = new ExpandedNodeId[array.Length];
 
@@ -1364,9 +1341,8 @@ namespace Opc.Ua
         private static object ToStatusCode(object value, BuiltInType sourceType)
         {
             // check for array conversions.
-            Array array = value as Array;
 
-            if (array != null)
+            if (value is Array array)
             {
                 StatusCode[] output = new StatusCode[array.Length];
 
@@ -1424,9 +1400,8 @@ namespace Opc.Ua
         private static object ToQualifiedName(object value, BuiltInType sourceType)
         {
             // check for array conversions.
-            Array array = value as Array;
 
-            if (array != null)
+            if (value is Array array)
             {
                 QualifiedName[] output = new QualifiedName[array.Length];
 
@@ -1462,9 +1437,8 @@ namespace Opc.Ua
         private static object ToLocalizedText(object value, BuiltInType sourceType)
         {
             // check for array conversions.
-            Array array = value as Array;
 
-            if (array != null)
+            if (value is Array array)
             {
                 LocalizedText[] output = new LocalizedText[array.Length];
 
@@ -1963,9 +1937,8 @@ namespace Opc.Ua
         private bool InView(FilterContext context, IFilterTarget target, ContentFilterElement element)
         {
             // views only supported in advanced filter targets.
-            IAdvancedFilterTarget advancedFilter = target as IAdvancedFilterTarget;
 
-            if (advancedFilter == null)
+            if (!(target is IAdvancedFilterTarget advancedFilter))
             {
                 return false;
             }
@@ -2005,9 +1978,8 @@ namespace Opc.Ua
         private bool RelatedTo(FilterContext context, IFilterTarget target, ContentFilterElement element, NodeId intermediateNodeId)
         {
             // RelatedTo only supported in advanced filter targets.
-            IAdvancedFilterTarget advancedTarget = target as IAdvancedFilterTarget;
 
-            if (advancedTarget == null)
+            if (!(target is IAdvancedFilterTarget advancedTarget))
             {
                 return false;
             }
@@ -2078,9 +2050,8 @@ namespace Opc.Ua
             NodeId targetTypeId = null;
 
             // check if elements are chained.
-            ElementOperand chainedOperand = operands[1] as ElementOperand;
 
-            if (chainedOperand != null)
+            if (operands[1] is ElementOperand chainedOperand)
             {
                 if (/*chainedOperand.Index < 0 ||*/ chainedOperand.Index >= Elements.Count)
                 {

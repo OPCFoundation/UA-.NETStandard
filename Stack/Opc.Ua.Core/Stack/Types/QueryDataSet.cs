@@ -25,13 +25,13 @@ namespace Opc.Ua
         /// A handle assigned to the item during processing.
         /// </summary>
         public object Handle { get; set; }
-        
+
         /// <summary>
         /// Whether the value has been processed.
         /// </summary>
         public bool Processed { get; set; }
         #endregion
-                            
+
         #region Private Fields
         #endregion
     }

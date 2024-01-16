@@ -27,31 +27,31 @@ namespace Opc.Ua
         /// <param name="endpointDescription">The endpoint description.</param>
         /// <param name="messageEncoding">The message encoding.</param>
         public SecureChannelContext(
-            string              secureChannelId,
+            string secureChannelId,
             EndpointDescription endpointDescription,
-            RequestEncoding     messageEncoding)
-        {        
-            m_secureChannelId     = secureChannelId;
+            RequestEncoding messageEncoding)
+        {
+            m_secureChannelId = secureChannelId;
             m_endpointDescription = endpointDescription;
-            m_messageEncoding     = messageEncoding;
+            m_messageEncoding = messageEncoding;
         }
 
         /// <summary>
         /// Initializes a new instance with the context for the current thread.
         /// </summary>
         protected SecureChannelContext()
-        {        
+        {
             SecureChannelContext context = SecureChannelContext.Current;
 
             if (context != null)
             {
-                m_secureChannelId     = context.SecureChannelId;
+                m_secureChannelId = context.SecureChannelId;
                 m_endpointDescription = context.EndpointDescription;
-                m_messageEncoding     = context.MessageEncoding;
+                m_messageEncoding = context.MessageEncoding;
             }
         }
         #endregion
-                
+
         #region Public Properties
         /// <summary>
         /// TThe unique identifier for the secure channel.
@@ -78,15 +78,15 @@ namespace Opc.Ua
         public RequestEncoding MessageEncoding
         {
             get { return m_messageEncoding; }
-        }     
-        #endregion   
+        }
+        #endregion
 
-		#region Static Members
+        #region Static Members
         /// <summary>
         /// The active secure channel for the thread.
         /// </summary>
         /// <value>The current secure channel context.</value>
-        public static SecureChannelContext Current        
+        public static SecureChannelContext Current
         {
             get
             {

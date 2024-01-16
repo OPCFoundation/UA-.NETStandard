@@ -117,7 +117,7 @@ namespace Opc.Ua.PubSub
                 m_dataSetWriterId = (value != null) ? value.Value : (ushort)0;
             }
         }
-    
+
         /// <summary>
         /// DataSet messages
         /// </summary>

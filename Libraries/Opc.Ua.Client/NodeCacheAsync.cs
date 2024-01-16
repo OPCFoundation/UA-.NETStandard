@@ -438,7 +438,7 @@ namespace Opc.Ua.Client
         public async Task FetchSuperTypesAsync(ExpandedNodeId nodeId, CancellationToken ct)
         {
             // find the target node,
-            ILocalNode source = await FindAsync(nodeId).ConfigureAwait(false) as ILocalNode;
+            ILocalNode source = await FindAsync(nodeId, ct).ConfigureAwait(false) as ILocalNode;
 
             if (source == null)
             {
@@ -456,7 +456,7 @@ namespace Opc.Ua.Client
 
                 if (references != null && references.Count > 0)
                 {
-                    superType = await FindAsync(references[0].TargetId).ConfigureAwait(false) as ILocalNode;
+                    superType = await FindAsync(references[0].TargetId, ct).ConfigureAwait(false) as ILocalNode;
                 }
 
                 subType = superType;
