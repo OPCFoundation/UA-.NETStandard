@@ -154,7 +154,7 @@ namespace Opc.Ua.Server
     public class RoleBasedIdentity : IUserIdentity
     {
         private IUserIdentity m_identity;
-        private IEnumerable<Role> m_role;
+        private IEnumerable<Role> m_roles;
 
         /// <summary>
         /// Initialize the role based identity.
@@ -162,7 +162,7 @@ namespace Opc.Ua.Server
         public RoleBasedIdentity(IUserIdentity identity, IEnumerable<Role> roles)
         {
             m_identity = identity;
-            m_role = roles;
+            m_roles = roles;
             foreach (Role role in roles)
             {
                 if (!(role.RoleId?.IsNullNodeId ?? true))
@@ -184,7 +184,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public IEnumerable<Role> Roles
         {
-            get { return m_role; }
+            get { return m_roles; }
         }
 
         /// <inheritdoc/>
