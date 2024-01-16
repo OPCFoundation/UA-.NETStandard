@@ -51,6 +51,9 @@ namespace Opc.Ua.Client
         /// </summary>
         protected TraceableSessionFactory()
         {
+            // Set the default Id format to W3C (older .Net versions use ActivityIfFormat.HierarchicalId)
+            Activity.DefaultIdFormat = ActivityIdFormat.W3C;
+            Activity.ForceDefaultIdFormat = true;
         }
 
         #region ISessionFactory Members

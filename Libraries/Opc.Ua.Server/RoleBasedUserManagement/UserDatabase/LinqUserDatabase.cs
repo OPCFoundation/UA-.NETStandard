@@ -31,31 +31,40 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Security.Cryptography;
 using Newtonsoft.Json;
 using static System.Net.Mime.MediaTypeNames;
 
-namespace Opc.Ua.Gds.Server.Database.Linq
+namespace Opc.Ua.Server.UserDatabase
 {
     [Serializable]
     class User
     {
+        [JsonRequired]
         public Guid ID { get; set; }
         public string UserName { get; set; }
         public string Hash { get; set; }
-        public GdsRole GdsRole { get; set; }
+        public IEnumerable<Role> Roles { get; set; }
     }
 
+    /// <summary>
+    /// Implementation of a Serializable User Database using LINQ for querying users
+    /// </summary>
     [Serializable]
-    public class LinQUsersDatabase : IUsersDatabase
+    public class LinqUserDatabase : IUserDatabase
     {
         #region IUsersDatabase
+        /// <summary>
+        /// initializes the collection the users database is working with
+        /// </summary>
         public virtual void Initialize()
         {
         }
 
-        public bool CreateUser(string userName, string password, GdsRole role)
+        /// <inheritdoc/>
+        public bool CreateUser(string userName, string password, IEnumerable<Role> roles)
         {
             if (string.IsNullOrEmpty(userName))
             {
@@ -73,7 +82,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             string hash = Hash(password);
 
-            var user = new User { UserName = userName, Hash = hash, GdsRole = role };
+            var user = new User { UserName = userName, Hash = hash, Roles = roles };
 
             Users.Add(user);
 
@@ -81,7 +90,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             return true;
         }
-
+        /// <inheritdoc/>
         public bool DeleteUser(string userName)
         {
             if (string.IsNullOrEmpty(userName))
@@ -98,7 +107,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             Users.Remove(user);
             return true;
         }
-
+        /// <inheritdoc/>
         public bool CheckCredentials(string userName, string password)
         {
             if (string.IsNullOrEmpty(userName))
@@ -119,8 +128,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             return Check(user.Hash, password);
         }
-
-        public GdsRole GetUserRole(string userName)
+        /// <inheritdoc/>
+        public IEnumerable<Role> GetUserRoles(string userName)
         {
             if (string.IsNullOrEmpty(userName))
             {
@@ -133,9 +142,9 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 throw new ArgumentException("No user found with the UserName " + userName);
             }
 
-            return user.GdsRole;
+            return user.Roles;
         }
-
+        /// <inheritdoc/>
         public bool ChangePassword(string userName, string oldPassword, string newPassword)
         {
             if (string.IsNullOrEmpty(userName))
@@ -169,6 +178,9 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         #endregion
 
         #region Public Members
+        /// <summary>
+        /// Persists the changes to the users database
+        /// </summary>
         public virtual void Save()
         {
         }
@@ -182,8 +194,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 queryCounterResetTime = DateTime.UtcNow;
                 // assign IDs to new users
                 var queryNewUsers = from x in Users
-                                   where x.ID == Guid.Empty
-                                   select x;
+                                    where x.ID == Guid.Empty
+                                    select x;
                 if (Users.Count > 0)
                 {
                     foreach (var user in queryNewUsers)
@@ -199,18 +211,20 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         #region IPasswordHasher
         private string Hash(string password)
         {
-#if NETSTANDARD2_0
+#if NETSTANDARD2_0 || NET462
+#pragma warning disable CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
             using (var algorithm = new Rfc2898DeriveBytes(
-              password,
-              kSaltSize,
-              kIterations))
+                password,
+                kSaltSize,
+                kIterations))
             {
+#pragma warning restore CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
 #else
             using (var algorithm = new Rfc2898DeriveBytes(
-              password,
-              kSaltSize,
-              kIterations,
-              HashAlgorithmName.SHA512))
+                password,
+                kSaltSize,
+                kIterations,
+                HashAlgorithmName.SHA512))
             {
 #endif
                 var key = Convert.ToBase64String(algorithm.GetBytes(kKeySize));
@@ -235,18 +249,20 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             var salt = Convert.FromBase64String(parts[1]);
             var key = Convert.FromBase64String(parts[2]);
 
-#if NETSTANDARD2_0
+#if NETSTANDARD2_0 || NET462
+#pragma warning disable CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
             using (var algorithm = new Rfc2898DeriveBytes(
-              password,
-              salt,
-              iterations))
+                password,
+                salt,
+                iterations))
             {
+#pragma warning restore CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
 #else
             using (var algorithm = new Rfc2898DeriveBytes(
-              password,
-              salt,
-              iterations,
-              HashAlgorithmName.SHA512))
+                password,
+                salt,
+                iterations,
+                HashAlgorithmName.SHA512))
             {
 #endif
                 var keyToCheck = algorithm.GetBytes(kKeySize);
@@ -256,8 +272,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 return verified;
             }
         }
-    
-#endregion
+
+        #endregion
 
         #region Internal Members
         [OnDeserialized]

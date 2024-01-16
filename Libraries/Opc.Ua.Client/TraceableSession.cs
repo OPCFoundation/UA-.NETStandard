@@ -253,6 +253,9 @@ namespace Opc.Ua.Client
         public IServiceMessageContext MessageContext => m_session.MessageContext;
 
         /// <inheritdoc/>
+        public ITransportChannel NullableTransportChannel => m_session.NullableTransportChannel;
+
+        /// <inheritdoc/>
         public ITransportChannel TransportChannel => m_session.TransportChannel;
 
         /// <inheritdoc/>
@@ -923,6 +926,15 @@ namespace Opc.Ua.Client
         public IAsyncResult BeginPublish(int timeout)
         {
             return m_session.BeginPublish(timeout);
+        }
+
+        /// <inheritdoc/>
+        public void StartPublishing(int timeout, bool fullQueue)
+        {
+            using (Activity activity = ActivitySource.StartActivity())
+            {
+                m_session.StartPublishing(timeout, fullQueue);
+            }
         }
 
         /// <inheritdoc/>
