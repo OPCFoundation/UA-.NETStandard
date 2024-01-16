@@ -50,7 +50,7 @@ namespace Opc.Ua.Client.Tests
 
         #region DataPointSources
         [DatapointSource]
-        public static ISessionFactory[] sessionFactories = {TestableSessionFactory.Instance, DefaultSessionFactory.Instance};
+        public static ISessionFactory[] SessionFactories = { TraceableSessionFactory.Instance, TestableSessionFactory.Instance, DefaultSessionFactory.Instance };
         #endregion
 
         #region Test Setup
@@ -65,13 +65,12 @@ namespace Opc.Ua.Client.Tests
             {
                 Assert.Ignore("Reverse connect fails on mac OS.");
             }
-        
+
             // pki directory root for test runs. 
             PkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
             // start ref server with reverse connect
-            ServerFixture = new ServerFixture<ReferenceServer>
-            {
+            ServerFixture = new ServerFixture<ReferenceServer> {
                 AutoAccept = true,
                 SecurityNone = true,
                 ReverseConnectTimeout = MaxTimeout,
@@ -234,7 +233,7 @@ namespace Opc.Ua.Client.Tests
             // connect
             var session = await sessionFactory.CreateAsync(config, ClientFixture.ReverseConnectManager, endpoint, updateBeforeConnect, checkDomain, "Reverse Connect Client",
                 MaxTimeout, new UserIdentity(new AnonymousIdentityToken()), null).ConfigureAwait(false);
-                
+
             Assert.NotNull(session);
 
             // header

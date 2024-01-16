@@ -52,7 +52,7 @@ namespace Opc.Ua.Client.Tests
         public uint SessionTimeout { get; set; } = 10000;
         public int OperationTimeout { get; set; } = 10000;
         public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.StackTrace | Utils.TraceMasks.Security | Utils.TraceMasks.Information;
-        public ISessionFactory SessionFactory = DefaultSessionFactory.Instance;
+        public ISessionFactory SessionFactory { get; set; } = DefaultSessionFactory.Instance;
         public ActivityListener ActivityListener { get; private set; }
 
         public ClientFixture(bool UseTracing, bool disableActivityLogging)
@@ -64,7 +64,7 @@ namespace Opc.Ua.Client.Tests
             }
             else
             {
-                SessionFactory = DefaultSessionFactory.Instance;
+                SessionFactory = TraceableSessionFactory.Instance;
             }
         }
 
