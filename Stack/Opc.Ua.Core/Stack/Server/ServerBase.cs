@@ -1062,10 +1062,10 @@ namespace Opc.Ua
             string url = baseAddress.Url.ToString();
 
             if ((baseAddress.ProfileUri == Profiles.HttpsBinaryTransport) &&
-                url.StartsWith(Utils.UriSchemeHttp) &&
-                (!(url.EndsWith("discovery"))))
+                url.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) &&
+                (!(url.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))))
             {
-                url += "/discovery";
+                url += ConfiguredEndpoint.DiscoverySuffix;
             }
 
             return url;
