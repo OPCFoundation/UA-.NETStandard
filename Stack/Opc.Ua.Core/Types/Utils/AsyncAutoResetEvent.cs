@@ -57,10 +57,9 @@ namespace Opc.Ua.Types.Utils
                 }
                 else
                 {
-                    // TaskCreationOptions.RunContinuationsAsynchronously is not necessary
-                    // unless the setting thread shares locks with the waiting thread.
-                    // Then dead locks may occur an the option is required.
-                    var tcs = new TaskCompletionSource<bool>();
+                    // TaskCreationOptions.RunContinuationsAsynchronously is needed
+                    // to decouple the reader thread from the processing in the subscriptions.
+                    var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                     m_waits.Enqueue(tcs);
                     return tcs.Task;
                 }

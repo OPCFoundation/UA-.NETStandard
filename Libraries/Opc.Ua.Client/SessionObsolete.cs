@@ -40,7 +40,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Obsolete warnings for service calls which should not be used when using the Session API.
     /// </summary>
-    public partial class Session : SessionClientBatched, ISession, IDisposable
+    public partial class Session : SessionClientBatched, ISession
     {
         /// <inheritdoc/>
         [Obsolete("Call Create instead. Service Call doesn't create Session.")]

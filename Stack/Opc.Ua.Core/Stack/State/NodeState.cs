@@ -2347,10 +2347,7 @@ namespace Opc.Ua
         /// <param name="e">The event to report.</param>
         public virtual void ReportEvent(ISystemContext context, IFilterTarget e)
         {
-            if (OnReportEvent != null)
-            {
-                OnReportEvent(context, this, e);
-            }
+            OnReportEvent?.Invoke(context, this, e);
 
             // report event to notifier sources.
             if (m_notifiers != null)
@@ -2498,10 +2495,7 @@ namespace Opc.Ua
         /// <param name="includeChildren">Whether to recursively report events for the children.</param>
         public virtual void ConditionRefresh(ISystemContext context, List<IFilterTarget> events, bool includeChildren)
         {
-            if (OnConditionRefresh != null)
-            {
-                OnConditionRefresh(context, this, events);
-            }
+            OnConditionRefresh?.Invoke(context, this, events);
 
             if (includeChildren)
             {
@@ -2581,15 +2575,9 @@ namespace Opc.Ua
 
             if (m_changeMasks != NodeStateChangeMasks.None)
             {
-                if (OnStateChanged != null)
-                {
-                    OnStateChanged(context, this, m_changeMasks);
-                }
+                OnStateChanged?.Invoke(context, this, m_changeMasks);
 
-                if (StateChanged != null)
-                {
-                    StateChanged(context, this, m_changeMasks);
-                }
+                StateChanged?.Invoke(context, this, m_changeMasks);
 
                 m_changeMasks = NodeStateChangeMasks.None;
             }
@@ -2912,10 +2900,7 @@ namespace Opc.Ua
 
             PopulateBrowser(context, browser);
 
-            if (OnPopulateBrowser != null)
-            {
-                OnPopulateBrowser(context, this, browser);
-            }
+            OnPopulateBrowser?.Invoke(context, this, browser);
 
             return browser;
         }

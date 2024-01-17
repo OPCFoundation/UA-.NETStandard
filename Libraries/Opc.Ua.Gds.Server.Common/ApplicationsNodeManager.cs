@@ -96,7 +96,7 @@ namespace Opc.Ua.Gds.Server
             m_database = database;
             m_request = request;
             m_certificateGroupFactory = certificateGroup;
-            m_certificateGroups = new Dictionary<NodeId, CertificateGroup>();
+            m_certificateGroups = new Dictionary<NodeId, ICertificateGroup>();
 
             try
             {
@@ -168,7 +168,7 @@ namespace Opc.Ua.Gds.Server
             {
                 RoleBasedIdentity identity = context.UserIdentity as RoleBasedIdentity;
 
-                if ((identity == null) || (identity.Role != GdsRole.ApplicationAdmin))
+                if ((identity == null) || (!identity.Roles.Contains(GdsRole.ApplicationAdmin)))
                 {
                     throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application Administrator access required.");
                 }
@@ -196,7 +196,7 @@ namespace Opc.Ua.Gds.Server
                 certificateGroupId = m_defaultApplicationGroupId;
             }
 
-            CertificateGroup certificateGroup = null;
+            ICertificateGroup certificateGroup = null;
             if (m_certificateGroups.TryGetValue(certificateGroupId, out certificateGroup))
             {
                 return certificateGroup.DefaultTrustList?.NodeId;
@@ -209,7 +209,7 @@ namespace Opc.Ua.Gds.Server
             NodeId certificateGroupId,
             NodeId certificateTypeId)
         {
-            CertificateGroup certificateGroup = null;
+            ICertificateGroup certificateGroup = null;
             if (m_certificateGroups.TryGetValue(certificateGroupId, out certificateGroup))
             {
                 if (!NodeId.IsNull(certificateTypeId))
@@ -291,7 +291,7 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        protected async Task<CertificateGroup> InitializeCertificateGroup(CertificateGroupConfiguration certificateGroupConfiguration)
+        protected async Task<ICertificateGroup> InitializeCertificateGroup(CertificateGroupConfiguration certificateGroupConfiguration)
         {
             if (String.IsNullOrEmpty(certificateGroupConfiguration.SubjectName))
             {
@@ -303,7 +303,7 @@ namespace Opc.Ua.Gds.Server
                 throw new ArgumentNullException("BaseStorePath not specified");
             }
 
-            CertificateGroup certificateGroup = m_certificateGroupFactory.Create(
+            ICertificateGroup certificateGroup = m_certificateGroupFactory.Create(
                 m_configuration.AuthoritiesStorePath, certificateGroupConfiguration);
             SetCertificateGroupNodes(certificateGroup);
             await certificateGroup.Init().ConfigureAwait(false);
@@ -334,7 +334,7 @@ namespace Opc.Ua.Gds.Server
                 {
                     try
                     {
-                        CertificateGroup certificateGroup = InitializeCertificateGroup(certificateGroupConfiguration).Result;
+                        ICertificateGroup certificateGroup = InitializeCertificateGroup(certificateGroupConfiguration).Result;
                         m_certificateGroups[certificateGroup.Id] = certificateGroup;
                     }
                     catch (Exception e)
@@ -669,7 +669,7 @@ namespace Opc.Ua.Gds.Server
             return "USER";
         }
 
-        private string GetSubjectName(ApplicationRecordDataType application, CertificateGroup certificateGroup, string subjectName)
+        private string GetSubjectName(ApplicationRecordDataType application, ICertificateGroup certificateGroup, string subjectName)
         {
             bool contextFound = false;
 
@@ -774,7 +774,7 @@ namespace Opc.Ua.Gds.Server
                 certificateGroupId = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup, Server.NamespaceUris);
             }
 
-            CertificateGroup certificateGroup = null;
+            ICertificateGroup certificateGroup = null;
             if (!m_certificateGroups.TryGetValue(certificateGroupId, out certificateGroup))
             {
                 return new ServiceResult(StatusCodes.BadInvalidArgument, "The certificateGroup is not supported.");
@@ -893,7 +893,7 @@ namespace Opc.Ua.Gds.Server
                 certificateGroupId = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup, Server.NamespaceUris);
             }
 
-            CertificateGroup certificateGroup = null;
+            ICertificateGroup certificateGroup = null;
             if (!m_certificateGroups.TryGetValue(certificateGroupId, out certificateGroup))
             {
                 return new ServiceResult(StatusCodes.BadInvalidArgument, "The CertificateGroupId does not refer to a supported certificateGroup.");
@@ -985,7 +985,7 @@ namespace Opc.Ua.Gds.Server
                 return approvalState;
             }
 
-            CertificateGroup certificateGroup = null;
+            ICertificateGroup certificateGroup = null;
             if (!String.IsNullOrWhiteSpace(certificateGroupId))
             {
                 foreach (var group in m_certificateGroups)
@@ -1382,7 +1382,7 @@ namespace Opc.Ua.Gds.Server
         private IApplicationsDatabase m_database;
         private ICertificateRequest m_request;
         private ICertificateGroup m_certificateGroupFactory;
-        private Dictionary<NodeId, CertificateGroup> m_certificateGroups;
+        private Dictionary<NodeId, ICertificateGroup> m_certificateGroups;
         private Dictionary<NodeId, string> m_certTypeMap;
         #endregion
     }

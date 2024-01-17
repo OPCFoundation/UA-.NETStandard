@@ -235,6 +235,13 @@ namespace Opc.Ua.Bindings
             m_client?.Dispose();
         }
 
+        /// <inheritdoc/>
+        public Task CloseAsync(CancellationToken ct)
+        {
+            Close();
+            return Task.CompletedTask;
+        }
+
         /// <summary>
         /// The async result class for the Https transport.
         /// </summary>

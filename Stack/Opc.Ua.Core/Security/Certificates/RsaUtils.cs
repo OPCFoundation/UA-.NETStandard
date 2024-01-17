@@ -330,8 +330,8 @@ namespace Opc.Ua
                 int blockSize = 0x10;
                 byte[] testBlock = new byte[blockSize];
                 randomSource.NextBytes(testBlock, 0, blockSize);
-                byte[] signature = privateKey.SignData(testBlock, HashAlgorithmName.SHA1, RSASignaturePadding.Pss);
-                return publicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA1, RSASignaturePadding.Pss);
+                byte[] signature = privateKey.SignData(testBlock, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
+                return publicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
             }
             catch
             {

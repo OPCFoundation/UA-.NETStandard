@@ -27,9 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Text;
 using System.Xml;
@@ -93,6 +95,137 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             string hex = "FF06050403020100";
             var hexutil = Utils.ToHexString(blob, true);
             Assert.AreEqual(hex, hexutil);
+        }
+
+        [Test]
+        public void Trace()
+        {
+            Utils.TraceDebug("");
+            Utils.TraceDebug(null);
+            Utils.Trace(new ServiceResultException(StatusCodes.BadAggregateConfigurationRejected), "Exception {0}", 1);
+            Utils.TraceExceptionMessage(new ServiceResultException(StatusCodes.BadEdited_OutOfRange), "Exception {0} {1}", 2, 3);
+            Utils.Trace(new ServiceResultException(StatusCodes.BadAggregateConfigurationRejected), "Exception {0} {1}", true, 2, 3);
+            Utils.Trace(new ServiceResultException(StatusCodes.BadEdited_OutOfRange), "Exception {0} {1}", false, 2, 3);
+            Utils.Trace(Utils.TraceMasks.Information, "Exception {0} {1}", 2, 3);
+        }
+
+        [Test]
+        public void AreDomainsEqual()
+        {
+            Uri uri1 = new Uri("opc.tcp://host1:4840");
+            Uri uri1_dupe = new Uri("opc.tcp://host1:4840");
+            Uri uri2 = new Uri($"opc.tcp://localhost:4840");
+            Uri uri2_dupe = new Uri($"opc.tcp://{Utils.GetHostName()}:4840");
+
+            // uri compare resolves localhost
+            Assert.True(Utils.AreDomainsEqual(uri1, uri1_dupe));
+            Assert.True(Utils.AreDomainsEqual(uri2, uri2_dupe));
+            Assert.True(Utils.AreDomainsEqual(uri2_dupe, uri2));
+            Assert.True(Utils.AreDomainsEqual(uri1, uri1));
+            Assert.True(Utils.AreDomainsEqual(uri2, uri2));
+
+            // string compare doesn't resolve localhost
+            Assert.True(Utils.AreDomainsEqual(uri1.ToString(), uri1_dupe.ToString()));
+            Assert.False(Utils.AreDomainsEqual(uri2.ToString(), uri2_dupe.ToString()));
+            Assert.False(Utils.AreDomainsEqual(uri1.ToString(), null));
+            Assert.False(Utils.AreDomainsEqual(uri2.ToString(), null));
+            Assert.False(Utils.AreDomainsEqual(uri1.ToString(), string.Empty));
+            Assert.False(Utils.AreDomainsEqual(uri2.ToString(), string.Empty));
+            Assert.False(Utils.AreDomainsEqual(null, uri1.ToString()));
+            Assert.False(Utils.AreDomainsEqual(null, uri2.ToString()));
+            Assert.False(Utils.AreDomainsEqual(string.Empty, uri1.ToString()));
+            Assert.False(Utils.AreDomainsEqual(string.Empty, uri2.ToString()));
+
+            Assert.False(Utils.AreDomainsEqual((Uri)null, null));
+            Assert.False(Utils.AreDomainsEqual((string)null, null));
+            Assert.False(Utils.AreDomainsEqual(uri1, uri2));
+            Assert.False(Utils.AreDomainsEqual(uri1.ToString(), uri2.ToString()));
+        }
+
+        public class TestClone
+        {
+            object m_object;
+
+            public TestClone(object value)
+            {
+                m_object = value;
+            }
+
+            public object Clone()
+            {
+                return new TestClone(m_object);
+            }
+        }
+
+        public class TestNoClone
+        {
+            object m_object;
+
+            public TestNoClone(object value)
+            {
+                m_object = value;
+            }
+
+            public object NoClone()
+            {
+                return new TestNoClone(m_object);
+            }
+        }
+
+        public class TestMemberwiseClone
+        {
+            object m_object;
+
+            public TestMemberwiseClone(object value)
+            {
+                m_object = value;
+            }
+
+            public object Clone()
+            {
+                return new TestMemberwiseClone(m_object);
+            }
+        }
+
+        [Test]
+        public void Clone()
+        {
+            var testClone = new TestClone(1);
+            Assert.NotNull(Utils.Clone(testClone));
+            var testMemberwiseClone = new TestMemberwiseClone(2);
+            Assert.NotNull(Utils.Clone(testMemberwiseClone));
+            var testNoClone = new TestNoClone(3);
+            Assert.Throws<NotSupportedException>(() => Utils.Clone(testNoClone));
+        }
+
+        [Test]
+        public void IsEqualUserIdentity()
+        {
+            var anonymousIdentity1 = new AnonymousIdentityToken();
+            var anonymousIdentity2 = new AnonymousIdentityToken();
+
+            Assert.True(Utils.IsEqualUserIdentity(anonymousIdentity1, anonymousIdentity1));
+            Assert.True(Utils.IsEqualUserIdentity(anonymousIdentity1, anonymousIdentity2));
+            Assert.False(Utils.IsEqualUserIdentity(anonymousIdentity1, null));
+            Assert.False(Utils.IsEqualUserIdentity(null, anonymousIdentity2));
+
+            var user1 = new UserNameIdentityToken() {
+                UserName = "user1",
+                Password = Encoding.ASCII.GetBytes("pass1".ToCharArray())
+            };
+            var user1_dupe = new UserNameIdentityToken() {
+                UserName = "user1",
+                Password = Encoding.ASCII.GetBytes("pass1".ToCharArray())
+            };
+            var user2 = new UserNameIdentityToken() {
+                UserName = "user2",
+                Password = Encoding.ASCII.GetBytes("pass2".ToCharArray())
+            };
+            Assert.True(Utils.IsEqualUserIdentity(user1, user1_dupe));
+            Assert.True(Utils.IsEqualUserIdentity(user1, user1));
+            Assert.False(Utils.IsEqualUserIdentity(user1, user2));
+            Assert.False(Utils.IsEqualUserIdentity(null, user2));
+            Assert.False(Utils.IsEqualUserIdentity(user1, null));
         }
         #endregion
 
@@ -292,7 +425,6 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         #endregion
 
         #region RelativePath.Parse Escaping
-
         /// <summary>
         /// Parse a path containing non-escaped hash character.
         /// </summary>
@@ -348,10 +480,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             string str = "/abc&$!def";
             Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable).Format(typeTable));
         }
-
-
         #endregion
-
     }
 
 }

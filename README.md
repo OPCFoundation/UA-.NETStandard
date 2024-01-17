@@ -60,7 +60,7 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 [![Github Actions](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/buildandtest.yml/badge.svg)](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/buildandtest.yml)
 
 ### Code Quality
-[![Test Status](https://img.shields.io/azure-devops/tests/opcfoundation/opcua-netstandard/14?style=plastic)](https://opcfoundation.visualstudio.com/opcua-netstandard/_test/analytics?definitionId=14&contextType=build)
+[![Tests](https://img.shields.io/azure-devops/tests/opcfoundation/opcua-netstandard/14/master?style=plastic&label=Tests)](https://opcfoundation.visualstudio.com/opcua-netstandard/_test/analytics?definitionId=14&contextType=build)
 [![CodeQL](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/codeql-analysis.yml)
 [![Coverage Status](https://codecov.io/gh/OPCFoundation/UA-.NETStandard/branch/master/graph/badge.svg?token=vDf5AnilUt)](https://codecov.io/gh/OPCFoundation/UA-.NETStandard)
 
@@ -71,8 +71,8 @@ All the tools you need for .NET Standard come with the .NET Core tools. See [Get
 
 Note: Since .NET Core 2.1 is end of life, 
 - VS 2017 has only limited support for .NET 4.8. 
-- VS 2019 is fully supported with .NET 4.8 and up to .NET Core 3.1 (end of life). 
-- VS 2022 is the current supported version, including .NET 6.0 (LTS). 
+- VS 2019 has only limited support for .NET 4.8 because .NET Core 3.1 reached end of life. 
+- VS 2022 is the current supported version, including .NET 6.0 (LTS) and .NET 8.0 (LTS). 
 
 1. Open the UA Reference.sln solution file using Visual Studio. 
 2. Choose a project in the Solution Explorer and set it with a right click as `Startup Project`.
