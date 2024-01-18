@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <!--
- * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -105,7 +105,7 @@
       <uax:NumericId>723</uax:NumericId>
       <uax:Value>
         <uax:Value>
-          <uax:String>1.04.4</uax:String>
+          <uax:String>1.05.02</uax:String>
         </uax:Value>
       </uax:Value>
       <uax:DataType>
@@ -133,7 +133,7 @@
       <uax:NumericId>724</uax:NumericId>
       <uax:Value>
         <uax:Value>
-          <uax:DateTime>2020-01-08T00:00:00Z</uax:DateTime>
+          <uax:DateTime>2023-12-15T00:00:00Z</uax:DateTime>
         </uax:Value>
       </uax:Value>
       <uax:DataType>
@@ -332,7 +332,2700 @@
       <uax:AccessLevel>1</uax:AccessLevel>
       <uax:UserAccessLevel>1</uax:UserAccessLevel>
     </DefaultAccessRestrictions>
+    <ModelVersion>
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1756</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>1</uax:NamespaceIndex>
+        <uax:Name>ModelVersion</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1756</uax:NumericId>
+      <uax:Value>
+        <uax:Value>
+          <uax:String>1.5.2</uax:String>
+        </uax:Value>
+      </uax:Value>
+      <uax:DataType>
+        <uax:Identifier>i=24263</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>-1</uax:ValueRank>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </ModelVersion>
   </OPCUAGDSNamespaceMetadata>
+  <WellKnownRole_DiscoveryAdmin xmlns="http://opcfoundation.org/UA/GDS/">
+    <uax:NodeClass>Object_1</uax:NodeClass>
+    <uax:NodeId>
+      <uax:Identifier>ns=1;i=1661</uax:Identifier>
+    </uax:NodeId>
+    <uax:BrowseName>
+      <uax:NamespaceIndex>1</uax:NamespaceIndex>
+      <uax:Name>DiscoveryAdmin</uax:Name>
+    </uax:BrowseName>
+    <uax:Description>
+      <uax:Text>This Role grants rights to register, update and unregister any OPC UA Application.</uax:Text>
+    </uax:Description>
+    <uax:ReferenceTypeId>
+      <uax:Identifier>i=47</uax:Identifier>
+    </uax:ReferenceTypeId>
+    <uax:TypeDefinitionId>
+      <uax:Identifier>i=15620</uax:Identifier>
+    </uax:TypeDefinitionId>
+    <uax:NumericId>1661</uax:NumericId>
+    <uax:References>
+      <uax:Reference>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=47</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:IsInverse>true</uax:IsInverse>
+        <uax:TargetId>
+          <uax:Identifier>i=15606</uax:Identifier>
+        </uax:TargetId>
+      </uax:Reference>
+    </uax:References>
+    <Identities xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1662</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>Identities</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1662</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=15634</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>1</uax:ValueRank>
+      <uax:ArrayDimensions>0</uax:ArrayDimensions>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </Identities>
+    <ApplicationsExclude xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1663</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>ApplicationsExclude</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1663</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=1</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>-1</uax:ValueRank>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </ApplicationsExclude>
+    <Applications xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1664</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>Applications</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1664</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=12</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>1</uax:ValueRank>
+      <uax:ArrayDimensions>0</uax:ArrayDimensions>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </Applications>
+    <EndpointsExclude xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1665</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>EndpointsExclude</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1665</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=1</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>-1</uax:ValueRank>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </EndpointsExclude>
+    <Endpoints xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1666</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>Endpoints</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1666</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=15528</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>1</uax:ValueRank>
+      <uax:ArrayDimensions>0</uax:ArrayDimensions>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </Endpoints>
+    <AddIdentity xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1668</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>AddIdentity</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=15624</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1668</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1669</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1669</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>Rule</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=15634</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </AddIdentity>
+    <RemoveIdentity xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1670</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>RemoveIdentity</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=15626</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1670</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1671</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1671</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>Rule</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=15634</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </RemoveIdentity>
+    <AddApplication xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1672</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>AddApplication</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=16176</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1672</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1673</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1673</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>ApplicationUri</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=12</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </AddApplication>
+    <RemoveApplication xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1674</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>RemoveApplication</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=16178</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1674</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1675</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1675</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>ApplicationUri</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=12</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </RemoveApplication>
+    <AddEndpoint xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1676</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>AddEndpoint</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=16180</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1676</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1677</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1677</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>Endpoint</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=15528</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </AddEndpoint>
+    <RemoveEndpoint xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1678</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>RemoveEndpoint</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=16182</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1678</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1679</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1679</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>Endpoint</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=15528</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </RemoveEndpoint>
+  </WellKnownRole_DiscoveryAdmin>
+  <WellKnownRole_CertificateAuthorityAdmin xmlns="http://opcfoundation.org/UA/GDS/">
+    <uax:NodeClass>Object_1</uax:NodeClass>
+    <uax:NodeId>
+      <uax:Identifier>ns=1;i=1680</uax:Identifier>
+    </uax:NodeId>
+    <uax:BrowseName>
+      <uax:NamespaceIndex>1</uax:NamespaceIndex>
+      <uax:Name>CertificateAuthorityAdmin</uax:Name>
+    </uax:BrowseName>
+    <uax:Description>
+      <uax:Text>This Role grants rights to request or revoke any Certificate, update any TrustList or assign CertificateGroups to OPC UA Applications.</uax:Text>
+    </uax:Description>
+    <uax:ReferenceTypeId>
+      <uax:Identifier>i=47</uax:Identifier>
+    </uax:ReferenceTypeId>
+    <uax:TypeDefinitionId>
+      <uax:Identifier>i=15620</uax:Identifier>
+    </uax:TypeDefinitionId>
+    <uax:NumericId>1680</uax:NumericId>
+    <uax:References>
+      <uax:Reference>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=47</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:IsInverse>true</uax:IsInverse>
+        <uax:TargetId>
+          <uax:Identifier>i=15606</uax:Identifier>
+        </uax:TargetId>
+      </uax:Reference>
+    </uax:References>
+    <Identities xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1681</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>Identities</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1681</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=15634</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>1</uax:ValueRank>
+      <uax:ArrayDimensions>0</uax:ArrayDimensions>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </Identities>
+    <ApplicationsExclude xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1682</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>ApplicationsExclude</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1682</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=1</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>-1</uax:ValueRank>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </ApplicationsExclude>
+    <Applications xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1683</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>Applications</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1683</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=12</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>1</uax:ValueRank>
+      <uax:ArrayDimensions>0</uax:ArrayDimensions>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </Applications>
+    <EndpointsExclude xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1684</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>EndpointsExclude</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1684</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=1</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>-1</uax:ValueRank>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </EndpointsExclude>
+    <Endpoints xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1685</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>Endpoints</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1685</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=15528</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>1</uax:ValueRank>
+      <uax:ArrayDimensions>0</uax:ArrayDimensions>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </Endpoints>
+    <AddIdentity xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1687</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>AddIdentity</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=15624</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1687</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1688</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1688</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>Rule</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=15634</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </AddIdentity>
+    <RemoveIdentity xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1689</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>RemoveIdentity</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=15626</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1689</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1690</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1690</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>Rule</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=15634</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </RemoveIdentity>
+    <AddApplication xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1691</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>AddApplication</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=16176</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1691</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1692</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1692</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>ApplicationUri</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=12</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </AddApplication>
+    <RemoveApplication xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1693</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>RemoveApplication</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=16178</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1693</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1694</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1694</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>ApplicationUri</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=12</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </RemoveApplication>
+    <AddEndpoint xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1695</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>AddEndpoint</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=16180</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1695</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1696</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1696</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>Endpoint</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=15528</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </AddEndpoint>
+    <RemoveEndpoint xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1697</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>RemoveEndpoint</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=16182</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1697</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1698</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1698</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>Endpoint</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=15528</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </RemoveEndpoint>
+  </WellKnownRole_CertificateAuthorityAdmin>
+  <WellKnownRole_RegistrationAuthorityAdmin xmlns="http://opcfoundation.org/UA/GDS/">
+    <uax:NodeClass>Object_1</uax:NodeClass>
+    <uax:NodeId>
+      <uax:Identifier>ns=1;i=1699</uax:Identifier>
+    </uax:NodeId>
+    <uax:BrowseName>
+      <uax:NamespaceIndex>1</uax:NamespaceIndex>
+      <uax:Name>RegistrationAuthorityAdmin</uax:Name>
+    </uax:BrowseName>
+    <uax:Description>
+      <uax:Text>This Role grants rights to approve Certificate Signing requests or NewKeyPair requests.</uax:Text>
+    </uax:Description>
+    <uax:ReferenceTypeId>
+      <uax:Identifier>i=47</uax:Identifier>
+    </uax:ReferenceTypeId>
+    <uax:TypeDefinitionId>
+      <uax:Identifier>i=15620</uax:Identifier>
+    </uax:TypeDefinitionId>
+    <uax:NumericId>1699</uax:NumericId>
+    <uax:References>
+      <uax:Reference>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=47</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:IsInverse>true</uax:IsInverse>
+        <uax:TargetId>
+          <uax:Identifier>i=15606</uax:Identifier>
+        </uax:TargetId>
+      </uax:Reference>
+    </uax:References>
+    <Identities xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1700</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>Identities</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1700</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=15634</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>1</uax:ValueRank>
+      <uax:ArrayDimensions>0</uax:ArrayDimensions>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </Identities>
+    <ApplicationsExclude xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1701</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>ApplicationsExclude</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1701</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=1</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>-1</uax:ValueRank>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </ApplicationsExclude>
+    <Applications xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1702</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>Applications</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1702</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=12</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>1</uax:ValueRank>
+      <uax:ArrayDimensions>0</uax:ArrayDimensions>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </Applications>
+    <EndpointsExclude xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1703</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>EndpointsExclude</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1703</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=1</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>-1</uax:ValueRank>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </EndpointsExclude>
+    <Endpoints xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1704</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>Endpoints</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1704</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=15528</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>1</uax:ValueRank>
+      <uax:ArrayDimensions>0</uax:ArrayDimensions>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </Endpoints>
+    <AddIdentity xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1706</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>AddIdentity</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=15624</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1706</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1707</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1707</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>Rule</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=15634</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </AddIdentity>
+    <RemoveIdentity xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1708</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>RemoveIdentity</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=15626</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1708</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1709</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1709</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>Rule</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=15634</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </RemoveIdentity>
+    <AddApplication xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1710</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>AddApplication</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=16176</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1710</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1711</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1711</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>ApplicationUri</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=12</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </AddApplication>
+    <RemoveApplication xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1712</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>RemoveApplication</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=16178</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1712</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1713</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1713</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>ApplicationUri</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=12</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </RemoveApplication>
+    <AddEndpoint xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1714</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>AddEndpoint</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=16180</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1714</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1715</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1715</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>Endpoint</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=15528</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </AddEndpoint>
+    <RemoveEndpoint xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1716</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>RemoveEndpoint</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=16182</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1716</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1717</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1717</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>Endpoint</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=15528</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </RemoveEndpoint>
+  </WellKnownRole_RegistrationAuthorityAdmin>
+  <WellKnownRole_KeyCredentialAdmin xmlns="http://opcfoundation.org/UA/GDS/">
+    <uax:NodeClass>Object_1</uax:NodeClass>
+    <uax:NodeId>
+      <uax:Identifier>ns=1;i=1718</uax:Identifier>
+    </uax:NodeId>
+    <uax:BrowseName>
+      <uax:NamespaceIndex>1</uax:NamespaceIndex>
+      <uax:Name>KeyCredentialAdmin</uax:Name>
+    </uax:BrowseName>
+    <uax:Description>
+      <uax:Text>This Role grants rights to request or revoke any KeyCredential.</uax:Text>
+    </uax:Description>
+    <uax:ReferenceTypeId>
+      <uax:Identifier>i=47</uax:Identifier>
+    </uax:ReferenceTypeId>
+    <uax:TypeDefinitionId>
+      <uax:Identifier>i=15620</uax:Identifier>
+    </uax:TypeDefinitionId>
+    <uax:NumericId>1718</uax:NumericId>
+    <uax:References>
+      <uax:Reference>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=47</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:IsInverse>true</uax:IsInverse>
+        <uax:TargetId>
+          <uax:Identifier>i=15606</uax:Identifier>
+        </uax:TargetId>
+      </uax:Reference>
+    </uax:References>
+    <Identities xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1719</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>Identities</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1719</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=15634</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>1</uax:ValueRank>
+      <uax:ArrayDimensions>0</uax:ArrayDimensions>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </Identities>
+    <ApplicationsExclude xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1720</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>ApplicationsExclude</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1720</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=1</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>-1</uax:ValueRank>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </ApplicationsExclude>
+    <Applications xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1721</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>Applications</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1721</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=12</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>1</uax:ValueRank>
+      <uax:ArrayDimensions>0</uax:ArrayDimensions>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </Applications>
+    <EndpointsExclude xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1722</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>EndpointsExclude</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1722</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=1</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>-1</uax:ValueRank>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </EndpointsExclude>
+    <Endpoints xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1723</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>Endpoints</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1723</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=15528</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>1</uax:ValueRank>
+      <uax:ArrayDimensions>0</uax:ArrayDimensions>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </Endpoints>
+    <AddIdentity xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1725</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>AddIdentity</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=15624</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1725</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1726</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1726</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>Rule</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=15634</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </AddIdentity>
+    <RemoveIdentity xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1727</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>RemoveIdentity</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=15626</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1727</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1728</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1728</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>Rule</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=15634</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </RemoveIdentity>
+    <AddApplication xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1729</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>AddApplication</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=16176</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1729</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1730</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1730</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>ApplicationUri</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=12</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </AddApplication>
+    <RemoveApplication xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1731</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>RemoveApplication</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=16178</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1731</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1732</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1732</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>ApplicationUri</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=12</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </RemoveApplication>
+    <AddEndpoint xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1733</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>AddEndpoint</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=16180</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1733</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1734</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1734</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>Endpoint</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=15528</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </AddEndpoint>
+    <RemoveEndpoint xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1735</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>RemoveEndpoint</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=16182</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1735</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1736</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1736</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>Endpoint</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=15528</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </RemoveEndpoint>
+  </WellKnownRole_KeyCredentialAdmin>
+  <WellKnownRole_AuthorizationServiceAdmin xmlns="http://opcfoundation.org/UA/GDS/">
+    <uax:NodeClass>Object_1</uax:NodeClass>
+    <uax:NodeId>
+      <uax:Identifier>ns=1;i=1737</uax:Identifier>
+    </uax:NodeId>
+    <uax:BrowseName>
+      <uax:NamespaceIndex>1</uax:NamespaceIndex>
+      <uax:Name>AuthorizationServiceAdmin</uax:Name>
+    </uax:BrowseName>
+    <uax:Description>
+      <uax:Text>This Role grants rights to request or revoke any KeyCredential.</uax:Text>
+    </uax:Description>
+    <uax:ReferenceTypeId>
+      <uax:Identifier>i=47</uax:Identifier>
+    </uax:ReferenceTypeId>
+    <uax:TypeDefinitionId>
+      <uax:Identifier>i=15620</uax:Identifier>
+    </uax:TypeDefinitionId>
+    <uax:NumericId>1737</uax:NumericId>
+    <uax:References>
+      <uax:Reference>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=47</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:IsInverse>true</uax:IsInverse>
+        <uax:TargetId>
+          <uax:Identifier>i=15606</uax:Identifier>
+        </uax:TargetId>
+      </uax:Reference>
+    </uax:References>
+    <Identities xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1738</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>Identities</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1738</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=15634</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>1</uax:ValueRank>
+      <uax:ArrayDimensions>0</uax:ArrayDimensions>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </Identities>
+    <ApplicationsExclude xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1739</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>ApplicationsExclude</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1739</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=1</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>-1</uax:ValueRank>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </ApplicationsExclude>
+    <Applications xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1740</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>Applications</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1740</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=12</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>1</uax:ValueRank>
+      <uax:ArrayDimensions>0</uax:ArrayDimensions>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </Applications>
+    <EndpointsExclude xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1741</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>EndpointsExclude</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1741</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=1</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>-1</uax:ValueRank>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </EndpointsExclude>
+    <Endpoints xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1742</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>Endpoints</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1742</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=15528</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>1</uax:ValueRank>
+      <uax:ArrayDimensions>0</uax:ArrayDimensions>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </Endpoints>
+    <AddIdentity xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1744</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>AddIdentity</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=15624</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1744</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1745</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1745</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>Rule</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=15634</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </AddIdentity>
+    <RemoveIdentity xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1746</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>RemoveIdentity</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=15626</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1746</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1747</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1747</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>Rule</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=15634</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </RemoveIdentity>
+    <AddApplication xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1748</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>AddApplication</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=16176</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1748</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1749</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1749</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>ApplicationUri</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=12</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </AddApplication>
+    <RemoveApplication xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1750</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>RemoveApplication</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=16178</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1750</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1751</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1751</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>ApplicationUri</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=12</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </RemoveApplication>
+    <AddEndpoint xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1752</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>AddEndpoint</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=16180</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1752</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1753</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1753</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>Endpoint</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=15528</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </AddEndpoint>
+    <RemoveEndpoint xmlns="http://opcfoundation.org/UA/">
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=1754</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>0</uax:NamespaceIndex>
+        <uax:Name>RemoveEndpoint</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=16182</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:NumericId>1754</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments>
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=1755</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:NumericId>1755</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>Endpoint</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=15528</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+    </RemoveEndpoint>
+  </WellKnownRole_AuthorizationServiceAdmin>
   <ApplicationRecordDataType xmlns="http://opcfoundation.org/UA/GDS/">
     <uax:NodeClass>DataType_64</uax:NodeClass>
     <uax:NodeId>
@@ -534,7 +3227,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -584,7 +3277,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -654,7 +3347,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -702,7 +3395,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -772,7 +3465,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -842,7 +3535,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -912,7 +3605,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -960,7 +3653,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -1122,7 +3815,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>7</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -1202,7 +3895,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>3</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -1349,7 +4042,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>6</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -1414,7 +4107,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>2</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -1484,6 +4177,16 @@
           <uax:Identifier>i=78</uax:Identifier>
         </uax:ModellingRuleId>
         <uax:NumericId>512</uax:NumericId>
+        <uax:References>
+          <uax:Reference>
+            <uax:ReferenceTypeId>
+              <uax:Identifier>i=9006</uax:Identifier>
+            </uax:ReferenceTypeId>
+            <uax:TargetId>
+              <uax:Identifier>i=13225</uax:Identifier>
+            </uax:TargetId>
+          </uax:Reference>
+        </uax:References>
         <TrustList>
           <uax:NodeClass>Object_1</uax:NodeClass>
           <uax:NodeId>
@@ -1672,7 +4375,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -1720,7 +4423,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -1790,7 +4493,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -1875,7 +4578,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>2</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -1923,7 +4626,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -2008,7 +4711,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>2</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -2078,7 +4781,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -2126,7 +4829,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -2211,7 +4914,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>2</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -2307,7 +5010,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -2355,11 +5058,299 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
           </OpenWithMasks>
+          <CloseAndUpdate>
+            <uax:NodeClass>Method_4</uax:NodeClass>
+            <uax:NodeId>
+              <uax:Identifier>ns=1;i=538</uax:Identifier>
+            </uax:NodeId>
+            <uax:BrowseName>
+              <uax:NamespaceIndex>0</uax:NamespaceIndex>
+              <uax:Name>CloseAndUpdate</uax:Name>
+            </uax:BrowseName>
+            <uax:ReferenceTypeId>
+              <uax:Identifier>i=47</uax:Identifier>
+            </uax:ReferenceTypeId>
+            <uax:TypeDefinitionId>
+              <uax:Identifier>i=12546</uax:Identifier>
+            </uax:TypeDefinitionId>
+            <uax:ModellingRuleId>
+              <uax:Identifier>i=78</uax:Identifier>
+            </uax:ModellingRuleId>
+            <uax:NumericId>538</uax:NumericId>
+            <uax:Executable>true</uax:Executable>
+            <uax:UserExecutable>true</uax:UserExecutable>
+            <InputArguments>
+              <uax:NodeClass>Variable_2</uax:NodeClass>
+              <uax:NodeId>
+                <uax:Identifier>ns=1;i=539</uax:Identifier>
+              </uax:NodeId>
+              <uax:BrowseName>
+                <uax:NamespaceIndex>0</uax:NamespaceIndex>
+                <uax:Name>InputArguments</uax:Name>
+              </uax:BrowseName>
+              <uax:ReferenceTypeId>
+                <uax:Identifier>i=46</uax:Identifier>
+              </uax:ReferenceTypeId>
+              <uax:TypeDefinitionId>
+                <uax:Identifier>i=68</uax:Identifier>
+              </uax:TypeDefinitionId>
+              <uax:ModellingRuleId>
+                <uax:Identifier>i=78</uax:Identifier>
+              </uax:ModellingRuleId>
+              <uax:NumericId>539</uax:NumericId>
+              <uax:Value>
+                <uax:Value>
+                  <uax:ListOfExtensionObject>
+                    <uax:ExtensionObject>
+                      <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                      </uax:TypeId>
+                      <uax:Body>
+                        <uax:Argument>
+                          <uax:Name>FileHandle</uax:Name>
+                          <uax:DataType>
+                            <uax:Identifier>i=7</uax:Identifier>
+                          </uax:DataType>
+                          <uax:ValueRank>-1</uax:ValueRank>
+                          <uax:ArrayDimensions />
+                        </uax:Argument>
+                      </uax:Body>
+                    </uax:ExtensionObject>
+                  </uax:ListOfExtensionObject>
+                </uax:Value>
+              </uax:Value>
+              <uax:DataType>
+                <uax:Identifier>i=296</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
+              <uax:AccessLevel>1</uax:AccessLevel>
+              <uax:UserAccessLevel>1</uax:UserAccessLevel>
+            </InputArguments>
+            <OutputArguments>
+              <uax:NodeClass>Variable_2</uax:NodeClass>
+              <uax:NodeId>
+                <uax:Identifier>ns=1;i=540</uax:Identifier>
+              </uax:NodeId>
+              <uax:BrowseName>
+                <uax:NamespaceIndex>0</uax:NamespaceIndex>
+                <uax:Name>OutputArguments</uax:Name>
+              </uax:BrowseName>
+              <uax:ReferenceTypeId>
+                <uax:Identifier>i=46</uax:Identifier>
+              </uax:ReferenceTypeId>
+              <uax:TypeDefinitionId>
+                <uax:Identifier>i=68</uax:Identifier>
+              </uax:TypeDefinitionId>
+              <uax:ModellingRuleId>
+                <uax:Identifier>i=78</uax:Identifier>
+              </uax:ModellingRuleId>
+              <uax:NumericId>540</uax:NumericId>
+              <uax:Value>
+                <uax:Value>
+                  <uax:ListOfExtensionObject>
+                    <uax:ExtensionObject>
+                      <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                      </uax:TypeId>
+                      <uax:Body>
+                        <uax:Argument>
+                          <uax:Name>ApplyChangesRequired</uax:Name>
+                          <uax:DataType>
+                            <uax:Identifier>i=1</uax:Identifier>
+                          </uax:DataType>
+                          <uax:ValueRank>-1</uax:ValueRank>
+                          <uax:ArrayDimensions />
+                        </uax:Argument>
+                      </uax:Body>
+                    </uax:ExtensionObject>
+                  </uax:ListOfExtensionObject>
+                </uax:Value>
+              </uax:Value>
+              <uax:DataType>
+                <uax:Identifier>i=296</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
+              <uax:AccessLevel>1</uax:AccessLevel>
+              <uax:UserAccessLevel>1</uax:UserAccessLevel>
+            </OutputArguments>
+          </CloseAndUpdate>
+          <AddCertificate>
+            <uax:NodeClass>Method_4</uax:NodeClass>
+            <uax:NodeId>
+              <uax:Identifier>ns=1;i=541</uax:Identifier>
+            </uax:NodeId>
+            <uax:BrowseName>
+              <uax:NamespaceIndex>0</uax:NamespaceIndex>
+              <uax:Name>AddCertificate</uax:Name>
+            </uax:BrowseName>
+            <uax:ReferenceTypeId>
+              <uax:Identifier>i=47</uax:Identifier>
+            </uax:ReferenceTypeId>
+            <uax:TypeDefinitionId>
+              <uax:Identifier>i=12548</uax:Identifier>
+            </uax:TypeDefinitionId>
+            <uax:ModellingRuleId>
+              <uax:Identifier>i=78</uax:Identifier>
+            </uax:ModellingRuleId>
+            <uax:NumericId>541</uax:NumericId>
+            <uax:Executable>true</uax:Executable>
+            <uax:UserExecutable>true</uax:UserExecutable>
+            <InputArguments>
+              <uax:NodeClass>Variable_2</uax:NodeClass>
+              <uax:NodeId>
+                <uax:Identifier>ns=1;i=542</uax:Identifier>
+              </uax:NodeId>
+              <uax:BrowseName>
+                <uax:NamespaceIndex>0</uax:NamespaceIndex>
+                <uax:Name>InputArguments</uax:Name>
+              </uax:BrowseName>
+              <uax:ReferenceTypeId>
+                <uax:Identifier>i=46</uax:Identifier>
+              </uax:ReferenceTypeId>
+              <uax:TypeDefinitionId>
+                <uax:Identifier>i=68</uax:Identifier>
+              </uax:TypeDefinitionId>
+              <uax:ModellingRuleId>
+                <uax:Identifier>i=78</uax:Identifier>
+              </uax:ModellingRuleId>
+              <uax:NumericId>542</uax:NumericId>
+              <uax:Value>
+                <uax:Value>
+                  <uax:ListOfExtensionObject>
+                    <uax:ExtensionObject>
+                      <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                      </uax:TypeId>
+                      <uax:Body>
+                        <uax:Argument>
+                          <uax:Name>Certificate</uax:Name>
+                          <uax:DataType>
+                            <uax:Identifier>i=15</uax:Identifier>
+                          </uax:DataType>
+                          <uax:ValueRank>-1</uax:ValueRank>
+                          <uax:ArrayDimensions />
+                        </uax:Argument>
+                      </uax:Body>
+                    </uax:ExtensionObject>
+                    <uax:ExtensionObject>
+                      <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                      </uax:TypeId>
+                      <uax:Body>
+                        <uax:Argument>
+                          <uax:Name>IsTrustedCertificate</uax:Name>
+                          <uax:DataType>
+                            <uax:Identifier>i=1</uax:Identifier>
+                          </uax:DataType>
+                          <uax:ValueRank>-1</uax:ValueRank>
+                          <uax:ArrayDimensions />
+                        </uax:Argument>
+                      </uax:Body>
+                    </uax:ExtensionObject>
+                  </uax:ListOfExtensionObject>
+                </uax:Value>
+              </uax:Value>
+              <uax:DataType>
+                <uax:Identifier>i=296</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>2</uax:ArrayDimensions>
+              <uax:AccessLevel>1</uax:AccessLevel>
+              <uax:UserAccessLevel>1</uax:UserAccessLevel>
+            </InputArguments>
+          </AddCertificate>
+          <RemoveCertificate>
+            <uax:NodeClass>Method_4</uax:NodeClass>
+            <uax:NodeId>
+              <uax:Identifier>ns=1;i=543</uax:Identifier>
+            </uax:NodeId>
+            <uax:BrowseName>
+              <uax:NamespaceIndex>0</uax:NamespaceIndex>
+              <uax:Name>RemoveCertificate</uax:Name>
+            </uax:BrowseName>
+            <uax:ReferenceTypeId>
+              <uax:Identifier>i=47</uax:Identifier>
+            </uax:ReferenceTypeId>
+            <uax:TypeDefinitionId>
+              <uax:Identifier>i=12550</uax:Identifier>
+            </uax:TypeDefinitionId>
+            <uax:ModellingRuleId>
+              <uax:Identifier>i=78</uax:Identifier>
+            </uax:ModellingRuleId>
+            <uax:NumericId>543</uax:NumericId>
+            <uax:Executable>true</uax:Executable>
+            <uax:UserExecutable>true</uax:UserExecutable>
+            <InputArguments>
+              <uax:NodeClass>Variable_2</uax:NodeClass>
+              <uax:NodeId>
+                <uax:Identifier>ns=1;i=544</uax:Identifier>
+              </uax:NodeId>
+              <uax:BrowseName>
+                <uax:NamespaceIndex>0</uax:NamespaceIndex>
+                <uax:Name>InputArguments</uax:Name>
+              </uax:BrowseName>
+              <uax:ReferenceTypeId>
+                <uax:Identifier>i=46</uax:Identifier>
+              </uax:ReferenceTypeId>
+              <uax:TypeDefinitionId>
+                <uax:Identifier>i=68</uax:Identifier>
+              </uax:TypeDefinitionId>
+              <uax:ModellingRuleId>
+                <uax:Identifier>i=78</uax:Identifier>
+              </uax:ModellingRuleId>
+              <uax:NumericId>544</uax:NumericId>
+              <uax:Value>
+                <uax:Value>
+                  <uax:ListOfExtensionObject>
+                    <uax:ExtensionObject>
+                      <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                      </uax:TypeId>
+                      <uax:Body>
+                        <uax:Argument>
+                          <uax:Name>Thumbprint</uax:Name>
+                          <uax:DataType>
+                            <uax:Identifier>i=12</uax:Identifier>
+                          </uax:DataType>
+                          <uax:ValueRank>-1</uax:ValueRank>
+                          <uax:ArrayDimensions />
+                        </uax:Argument>
+                      </uax:Body>
+                    </uax:ExtensionObject>
+                    <uax:ExtensionObject>
+                      <uax:TypeId>
+                        <uax:Identifier>i=297</uax:Identifier>
+                      </uax:TypeId>
+                      <uax:Body>
+                        <uax:Argument>
+                          <uax:Name>IsTrustedCertificate</uax:Name>
+                          <uax:DataType>
+                            <uax:Identifier>i=1</uax:Identifier>
+                          </uax:DataType>
+                          <uax:ValueRank>-1</uax:ValueRank>
+                          <uax:ArrayDimensions />
+                        </uax:Argument>
+                      </uax:Body>
+                    </uax:ExtensionObject>
+                  </uax:ListOfExtensionObject>
+                </uax:Value>
+              </uax:Value>
+              <uax:DataType>
+                <uax:Identifier>i=296</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>1</uax:ValueRank>
+              <uax:ArrayDimensions>2</uax:ArrayDimensions>
+              <uax:AccessLevel>1</uax:AccessLevel>
+              <uax:UserAccessLevel>1</uax:UserAccessLevel>
+            </InputArguments>
+          </RemoveCertificate>
         </TrustList>
         <CertificateTypes>
           <uax:NodeClass>Variable_2</uax:NodeClass>
@@ -2500,7 +5491,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>4</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -2548,7 +5539,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -2710,7 +5701,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>7</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -2758,7 +5749,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -2843,7 +5834,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>2</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -2923,7 +5914,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>3</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -3008,7 +5999,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>2</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -3078,7 +6069,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -3128,11 +6119,163 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
     </GetCertificateGroups>
+    <GetCertificates>
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=89</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>1</uax:NamespaceIndex>
+        <uax:Name>GetCertificates</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>ns=1;i=89</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:ModellingRuleId>
+        <uax:Identifier>i=80</uax:Identifier>
+      </uax:ModellingRuleId>
+      <uax:NumericId>89</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments xmlns="http://opcfoundation.org/UA/">
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=90</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:ModellingRuleId>
+          <uax:Identifier>i=78</uax:Identifier>
+        </uax:ModellingRuleId>
+        <uax:NumericId>90</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>ApplicationId</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=17</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>CertificateGroupId</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=17</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>2</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+      <OutputArguments xmlns="http://opcfoundation.org/UA/">
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=108</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>OutputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:ModellingRuleId>
+          <uax:Identifier>i=78</uax:Identifier>
+        </uax:ModellingRuleId>
+        <uax:NumericId>108</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>CertificateTypeIds</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=17</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>1</uax:ValueRank>
+                    <uax:ArrayDimensions>
+                      <uax:UInt32>0</uax:UInt32>
+                    </uax:ArrayDimensions>
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>Certificates</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=15</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>1</uax:ValueRank>
+                    <uax:ArrayDimensions>
+                      <uax:UInt32>0</uax:UInt32>
+                    </uax:ArrayDimensions>
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>2</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </OutputArguments>
+    </GetCertificates>
     <GetTrustList>
       <uax:NodeClass>Method_4</uax:NodeClass>
       <uax:NodeId>
@@ -3213,7 +6356,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>2</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -3261,7 +6404,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -3361,7 +6504,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>3</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -3409,11 +6552,144 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
     </GetCertificateStatus>
+    <CheckRevocationStatus>
+      <uax:NodeClass>Method_4</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=126</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>1</uax:NamespaceIndex>
+        <uax:Name>CheckRevocationStatus</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=47</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>ns=1;i=126</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:ModellingRuleId>
+        <uax:Identifier>i=80</uax:Identifier>
+      </uax:ModellingRuleId>
+      <uax:NumericId>126</uax:NumericId>
+      <uax:Executable>true</uax:Executable>
+      <uax:UserExecutable>true</uax:UserExecutable>
+      <InputArguments xmlns="http://opcfoundation.org/UA/">
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=160</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>InputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:ModellingRuleId>
+          <uax:Identifier>i=78</uax:Identifier>
+        </uax:ModellingRuleId>
+        <uax:NumericId>160</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>Certificate</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=15</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </InputArguments>
+      <OutputArguments xmlns="http://opcfoundation.org/UA/">
+        <uax:NodeClass>Variable_2</uax:NodeClass>
+        <uax:NodeId>
+          <uax:Identifier>ns=1;i=161</uax:Identifier>
+        </uax:NodeId>
+        <uax:BrowseName>
+          <uax:NamespaceIndex>0</uax:NamespaceIndex>
+          <uax:Name>OutputArguments</uax:Name>
+        </uax:BrowseName>
+        <uax:ReferenceTypeId>
+          <uax:Identifier>i=46</uax:Identifier>
+        </uax:ReferenceTypeId>
+        <uax:TypeDefinitionId>
+          <uax:Identifier>i=68</uax:Identifier>
+        </uax:TypeDefinitionId>
+        <uax:ModellingRuleId>
+          <uax:Identifier>i=78</uax:Identifier>
+        </uax:ModellingRuleId>
+        <uax:NumericId>161</uax:NumericId>
+        <uax:Value>
+          <uax:Value>
+            <uax:ListOfExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>CertificateStatus</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=19</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <uax:Identifier>i=297</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <uax:Argument>
+                    <uax:Name>ValidityTime</uax:Name>
+                    <uax:DataType>
+                      <uax:Identifier>i=294</uax:Identifier>
+                    </uax:DataType>
+                    <uax:ValueRank>-1</uax:ValueRank>
+                    <uax:ArrayDimensions />
+                  </uax:Argument>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+          </uax:Value>
+        </uax:Value>
+        <uax:DataType>
+          <uax:Identifier>i=296</uax:Identifier>
+        </uax:DataType>
+        <uax:ValueRank>1</uax:ValueRank>
+        <uax:ArrayDimensions>2</uax:ArrayDimensions>
+        <uax:AccessLevel>1</uax:AccessLevel>
+        <uax:UserAccessLevel>1</uax:UserAccessLevel>
+      </OutputArguments>
+    </CheckRevocationStatus>
   </CertificateDirectoryType>
   <CertificateRequestedAuditEventType xmlns="http://opcfoundation.org/UA/GDS/">
     <uax:NodeClass>ObjectType_8</uax:NodeClass>
@@ -3743,7 +7019,7 @@
             <uax:Identifier>i=296</uax:Identifier>
           </uax:DataType>
           <uax:ValueRank>1</uax:ValueRank>
-          <uax:ArrayDimensions>0</uax:ArrayDimensions>
+          <uax:ArrayDimensions>4</uax:ArrayDimensions>
           <uax:AccessLevel>1</uax:AccessLevel>
           <uax:UserAccessLevel>1</uax:UserAccessLevel>
         </InputArguments>
@@ -3791,7 +7067,7 @@
             <uax:Identifier>i=296</uax:Identifier>
           </uax:DataType>
           <uax:ValueRank>1</uax:ValueRank>
-          <uax:ArrayDimensions>0</uax:ArrayDimensions>
+          <uax:ArrayDimensions>1</uax:ArrayDimensions>
           <uax:AccessLevel>1</uax:AccessLevel>
           <uax:UserAccessLevel>1</uax:UserAccessLevel>
         </OutputArguments>
@@ -3876,7 +7152,7 @@
             <uax:Identifier>i=296</uax:Identifier>
           </uax:DataType>
           <uax:ValueRank>1</uax:ValueRank>
-          <uax:ArrayDimensions>0</uax:ArrayDimensions>
+          <uax:ArrayDimensions>2</uax:ArrayDimensions>
           <uax:AccessLevel>1</uax:AccessLevel>
           <uax:UserAccessLevel>1</uax:UserAccessLevel>
         </InputArguments>
@@ -3986,7 +7262,7 @@
             <uax:Identifier>i=296</uax:Identifier>
           </uax:DataType>
           <uax:ValueRank>1</uax:ValueRank>
-          <uax:ArrayDimensions>0</uax:ArrayDimensions>
+          <uax:ArrayDimensions>5</uax:ArrayDimensions>
           <uax:AccessLevel>1</uax:AccessLevel>
           <uax:UserAccessLevel>1</uax:UserAccessLevel>
         </OutputArguments>
@@ -4086,6 +7362,33 @@
       <uax:AccessLevel>1</uax:AccessLevel>
       <uax:UserAccessLevel>1</uax:UserAccessLevel>
     </ProfileUris>
+    <SecurityPolicyUris>
+      <uax:NodeClass>Variable_2</uax:NodeClass>
+      <uax:NodeId>
+        <uax:Identifier>ns=1;i=495</uax:Identifier>
+      </uax:NodeId>
+      <uax:BrowseName>
+        <uax:NamespaceIndex>1</uax:NamespaceIndex>
+        <uax:Name>SecurityPolicyUris</uax:Name>
+      </uax:BrowseName>
+      <uax:ReferenceTypeId>
+        <uax:Identifier>i=46</uax:Identifier>
+      </uax:ReferenceTypeId>
+      <uax:TypeDefinitionId>
+        <uax:Identifier>i=68</uax:Identifier>
+      </uax:TypeDefinitionId>
+      <uax:ModellingRuleId>
+        <uax:Identifier>i=80</uax:Identifier>
+      </uax:ModellingRuleId>
+      <uax:NumericId>495</uax:NumericId>
+      <uax:DataType>
+        <uax:Identifier>i=12</uax:Identifier>
+      </uax:DataType>
+      <uax:ValueRank>1</uax:ValueRank>
+      <uax:ArrayDimensions>0</uax:ArrayDimensions>
+      <uax:AccessLevel>1</uax:AccessLevel>
+      <uax:UserAccessLevel>1</uax:UserAccessLevel>
+    </SecurityPolicyUris>
     <StartRequest>
       <uax:NodeClass>Method_4</uax:NodeClass>
       <uax:NodeId>
@@ -4198,7 +7501,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>4</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -4246,7 +7549,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -4331,7 +7634,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>2</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -4441,7 +7744,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>5</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -4511,7 +7814,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -4736,7 +8039,7 @@
             <uax:Identifier>i=296</uax:Identifier>
           </uax:DataType>
           <uax:ValueRank>1</uax:ValueRank>
-          <uax:ArrayDimensions>0</uax:ArrayDimensions>
+          <uax:ArrayDimensions>3</uax:ArrayDimensions>
           <uax:AccessLevel>1</uax:AccessLevel>
           <uax:UserAccessLevel>1</uax:UserAccessLevel>
         </OutputArguments>
@@ -4959,7 +8262,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>3</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -5044,7 +8347,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>2</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -5092,7 +8395,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -5215,7 +8518,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -5262,7 +8565,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -5326,7 +8629,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -5371,7 +8674,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -5435,7 +8738,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -5499,7 +8802,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -5563,7 +8866,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -5608,7 +8911,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -5764,7 +9067,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>7</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -5841,7 +9144,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>3</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -5982,7 +9285,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>6</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -6044,7 +9347,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>2</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -6081,6 +9384,16 @@
           <uax:Identifier>i=12555</uax:Identifier>
         </uax:TypeDefinitionId>
         <uax:NumericId>615</uax:NumericId>
+        <uax:References>
+          <uax:Reference>
+            <uax:ReferenceTypeId>
+              <uax:Identifier>i=9006</uax:Identifier>
+            </uax:ReferenceTypeId>
+            <uax:TargetId>
+              <uax:Identifier>i=13225</uax:Identifier>
+            </uax:TargetId>
+          </uax:Reference>
+        </uax:References>
         <TrustList xmlns="http://opcfoundation.org/UA/">
           <uax:NodeClass>Object_1</uax:NodeClass>
           <uax:NodeId>
@@ -6248,7 +9561,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -6293,7 +9606,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -6357,7 +9670,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -6436,7 +9749,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>2</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -6481,7 +9794,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -6560,7 +9873,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>2</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -6624,7 +9937,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -6669,7 +9982,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -6748,7 +10061,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>2</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -6835,7 +10148,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -6880,7 +10193,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -6944,7 +10257,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -6989,7 +10302,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -7068,7 +10381,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>2</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -7147,7 +10460,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>2</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -7194,6 +10507,16 @@
           <uax:Identifier>i=12555</uax:Identifier>
         </uax:TypeDefinitionId>
         <uax:NumericId>649</uax:NumericId>
+        <uax:References>
+          <uax:Reference>
+            <uax:ReferenceTypeId>
+              <uax:Identifier>i=9006</uax:Identifier>
+            </uax:ReferenceTypeId>
+            <uax:TargetId>
+              <uax:Identifier>i=13225</uax:Identifier>
+            </uax:TargetId>
+          </uax:Reference>
+        </uax:References>
         <TrustList xmlns="http://opcfoundation.org/UA/">
           <uax:NodeClass>Object_1</uax:NodeClass>
           <uax:NodeId>
@@ -7361,7 +10684,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -7406,7 +10729,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -7470,7 +10793,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -7549,7 +10872,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>2</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -7594,7 +10917,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -7673,7 +10996,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>2</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -7737,7 +11060,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -7782,7 +11105,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -7861,7 +11184,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>2</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -7948,7 +11271,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -7993,7 +11316,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -8057,7 +11380,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -8102,7 +11425,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -8181,7 +11504,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>2</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -8260,7 +11583,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>2</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -8307,6 +11630,16 @@
           <uax:Identifier>i=12555</uax:Identifier>
         </uax:TypeDefinitionId>
         <uax:NumericId>683</uax:NumericId>
+        <uax:References>
+          <uax:Reference>
+            <uax:ReferenceTypeId>
+              <uax:Identifier>i=9006</uax:Identifier>
+            </uax:ReferenceTypeId>
+            <uax:TargetId>
+              <uax:Identifier>i=13225</uax:Identifier>
+            </uax:TargetId>
+          </uax:Reference>
+        </uax:References>
         <TrustList xmlns="http://opcfoundation.org/UA/">
           <uax:NodeClass>Object_1</uax:NodeClass>
           <uax:NodeId>
@@ -8474,7 +11807,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -8519,7 +11852,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -8583,7 +11916,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -8662,7 +11995,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>2</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -8707,7 +12040,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -8786,7 +12119,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>2</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -8850,7 +12183,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -8895,7 +12228,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -8974,7 +12307,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>2</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -9061,7 +12394,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -9106,7 +12439,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -9170,7 +12503,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -9215,7 +12548,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>1</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </OutputArguments>
@@ -9294,7 +12627,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>2</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -9373,7 +12706,7 @@
                 <uax:Identifier>i=296</uax:Identifier>
               </uax:DataType>
               <uax:ValueRank>1</uax:ValueRank>
-              <uax:ArrayDimensions>0</uax:ArrayDimensions>
+              <uax:ArrayDimensions>2</uax:ArrayDimensions>
               <uax:AccessLevel>1</uax:AccessLevel>
               <uax:UserAccessLevel>1</uax:UserAccessLevel>
             </InputArguments>
@@ -9509,7 +12842,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>4</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -9554,7 +12887,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -9710,7 +13043,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>7</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -9755,7 +13088,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -9834,7 +13167,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>2</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -9911,7 +13244,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>3</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -9975,7 +13308,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -10022,7 +13355,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -10101,7 +13434,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>2</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -10146,7 +13479,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -10240,7 +13573,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>3</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </InputArguments>
@@ -10285,7 +13618,7 @@
           <uax:Identifier>i=296</uax:Identifier>
         </uax:DataType>
         <uax:ValueRank>1</uax:ValueRank>
-        <uax:ArrayDimensions>0</uax:ArrayDimensions>
+        <uax:ArrayDimensions>1</uax:ArrayDimensions>
         <uax:AccessLevel>1</uax:AccessLevel>
         <uax:UserAccessLevel>1</uax:UserAccessLevel>
       </OutputArguments>
@@ -10520,32 +13853,32 @@ c2QiDQogIHhtbG5zOnRucz0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy9UeXBlcy54
 c2QiDQogIHRhcmdldE5hbWVzcGFjZT0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy9U
 eXBlcy54c2QiDQogIGVsZW1lbnRGb3JtRGVmYXVsdD0icXVhbGlmaWVkIg0KPg0KICA8eHM6YW5u
 b3RhdGlvbj4NCiAgICA8eHM6YXBwaW5mbz4NCiAgICAgIDx1YTpNb2RlbCBNb2RlbFVyaT0iaHR0
-cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy8iIFZlcnNpb249IjEuMDQuNCIgUHVibGljYXRp
-b25EYXRlPSIyMDIwLTAxLTA4VDAwOjAwOjAwWiIgLz4NCiAgICA8L3hzOmFwcGluZm8+DQogIDwv
-eHM6YW5ub3RhdGlvbj4NCiAgDQogIDx4czppbXBvcnQgbmFtZXNwYWNlPSJodHRwOi8vb3BjZm91
-bmRhdGlvbi5vcmcvVUEvMjAwOC8wMi9UeXBlcy54c2QiIC8+DQoNCiAgPHhzOmNvbXBsZXhUeXBl
-IG5hbWU9IkFwcGxpY2F0aW9uUmVjb3JkRGF0YVR5cGUiPg0KICAgIDx4czpzZXF1ZW5jZT4NCiAg
-ICAgIDx4czplbGVtZW50IG5hbWU9IkFwcGxpY2F0aW9uSWQiIHR5cGU9InVhOk5vZGVJZCIgbWlu
-T2NjdXJzPSIwIiBuaWxsYWJsZT0idHJ1ZSIgLz4NCiAgICAgIDx4czplbGVtZW50IG5hbWU9IkFw
-cGxpY2F0aW9uVXJpIiB0eXBlPSJ4czpzdHJpbmciIG1pbk9jY3Vycz0iMCIgbmlsbGFibGU9InRy
-dWUiIC8+DQogICAgICA8eHM6ZWxlbWVudCBuYW1lPSJBcHBsaWNhdGlvblR5cGUiIHR5cGU9InVh
-OkFwcGxpY2F0aW9uVHlwZSIgbWluT2NjdXJzPSIwIiAvPg0KICAgICAgPHhzOmVsZW1lbnQgbmFt
-ZT0iQXBwbGljYXRpb25OYW1lcyIgdHlwZT0idWE6TGlzdE9mTG9jYWxpemVkVGV4dCIgbWluT2Nj
-dXJzPSIwIiBuaWxsYWJsZT0idHJ1ZSIgLz4NCiAgICAgIDx4czplbGVtZW50IG5hbWU9IlByb2R1
-Y3RVcmkiIHR5cGU9InhzOnN0cmluZyIgbWluT2NjdXJzPSIwIiBuaWxsYWJsZT0idHJ1ZSIgLz4N
-CiAgICAgIDx4czplbGVtZW50IG5hbWU9IkRpc2NvdmVyeVVybHMiIHR5cGU9InVhOkxpc3RPZlN0
-cmluZyIgbWluT2NjdXJzPSIwIiBuaWxsYWJsZT0idHJ1ZSIgLz4NCiAgICAgIDx4czplbGVtZW50
-IG5hbWU9IlNlcnZlckNhcGFiaWxpdGllcyIgdHlwZT0idWE6TGlzdE9mU3RyaW5nIiBtaW5PY2N1
-cnM9IjAiIG5pbGxhYmxlPSJ0cnVlIiAvPg0KICAgIDwveHM6c2VxdWVuY2U+DQogIDwveHM6Y29t
-cGxleFR5cGU+DQogIDx4czplbGVtZW50IG5hbWU9IkFwcGxpY2F0aW9uUmVjb3JkRGF0YVR5cGUi
-IHR5cGU9InRuczpBcHBsaWNhdGlvblJlY29yZERhdGFUeXBlIiAvPg0KDQogIDx4czpjb21wbGV4
-VHlwZSBuYW1lPSJMaXN0T2ZBcHBsaWNhdGlvblJlY29yZERhdGFUeXBlIj4NCiAgICA8eHM6c2Vx
-dWVuY2U+DQogICAgICA8eHM6ZWxlbWVudCBuYW1lPSJBcHBsaWNhdGlvblJlY29yZERhdGFUeXBl
-IiB0eXBlPSJ0bnM6QXBwbGljYXRpb25SZWNvcmREYXRhVHlwZSIgbWluT2NjdXJzPSIwIiBtYXhP
-Y2N1cnM9InVuYm91bmRlZCIgbmlsbGFibGU9InRydWUiIC8+DQogICAgPC94czpzZXF1ZW5jZT4N
-CiAgPC94czpjb21wbGV4VHlwZT4NCiAgPHhzOmVsZW1lbnQgbmFtZT0iTGlzdE9mQXBwbGljYXRp
-b25SZWNvcmREYXRhVHlwZSIgdHlwZT0idG5zOkxpc3RPZkFwcGxpY2F0aW9uUmVjb3JkRGF0YVR5
-cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCjwveHM6c2NoZW1hPg==</uax:ByteString>
+cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy8iIFZlcnNpb249IjEuMDUuMDIiIFB1YmxpY2F0
+aW9uRGF0ZT0iMjAyMy0xMi0xNVQwMDowMDowMFoiIC8+DQogICAgPC94czphcHBpbmZvPg0KICA8
+L3hzOmFubm90YXRpb24+DQogIA0KICA8eHM6aW1wb3J0IG5hbWVzcGFjZT0iaHR0cDovL29wY2Zv
+dW5kYXRpb24ub3JnL1VBLzIwMDgvMDIvVHlwZXMueHNkIiAvPg0KDQogIDx4czpjb21wbGV4VHlw
+ZSBuYW1lPSJBcHBsaWNhdGlvblJlY29yZERhdGFUeXBlIj4NCiAgICA8eHM6c2VxdWVuY2U+DQog
+ICAgICA8eHM6ZWxlbWVudCBuYW1lPSJBcHBsaWNhdGlvbklkIiB0eXBlPSJ1YTpOb2RlSWQiIG1p
+bk9jY3Vycz0iMCIgbmlsbGFibGU9InRydWUiIC8+DQogICAgICA8eHM6ZWxlbWVudCBuYW1lPSJB
+cHBsaWNhdGlvblVyaSIgdHlwZT0ieHM6c3RyaW5nIiBtaW5PY2N1cnM9IjAiIG5pbGxhYmxlPSJ0
+cnVlIiAvPg0KICAgICAgPHhzOmVsZW1lbnQgbmFtZT0iQXBwbGljYXRpb25UeXBlIiB0eXBlPSJ1
+YTpBcHBsaWNhdGlvblR5cGUiIG1pbk9jY3Vycz0iMCIgLz4NCiAgICAgIDx4czplbGVtZW50IG5h
+bWU9IkFwcGxpY2F0aW9uTmFtZXMiIHR5cGU9InVhOkxpc3RPZkxvY2FsaXplZFRleHQiIG1pbk9j
+Y3Vycz0iMCIgbmlsbGFibGU9InRydWUiIC8+DQogICAgICA8eHM6ZWxlbWVudCBuYW1lPSJQcm9k
+dWN0VXJpIiB0eXBlPSJ4czpzdHJpbmciIG1pbk9jY3Vycz0iMCIgbmlsbGFibGU9InRydWUiIC8+
+DQogICAgICA8eHM6ZWxlbWVudCBuYW1lPSJEaXNjb3ZlcnlVcmxzIiB0eXBlPSJ1YTpMaXN0T2ZT
+dHJpbmciIG1pbk9jY3Vycz0iMCIgbmlsbGFibGU9InRydWUiIC8+DQogICAgICA8eHM6ZWxlbWVu
+dCBuYW1lPSJTZXJ2ZXJDYXBhYmlsaXRpZXMiIHR5cGU9InVhOkxpc3RPZlN0cmluZyIgbWluT2Nj
+dXJzPSIwIiBuaWxsYWJsZT0idHJ1ZSIgLz4NCiAgICA8L3hzOnNlcXVlbmNlPg0KICA8L3hzOmNv
+bXBsZXhUeXBlPg0KICA8eHM6ZWxlbWVudCBuYW1lPSJBcHBsaWNhdGlvblJlY29yZERhdGFUeXBl
+IiB0eXBlPSJ0bnM6QXBwbGljYXRpb25SZWNvcmREYXRhVHlwZSIgLz4NCg0KICA8eHM6Y29tcGxl
+eFR5cGUgbmFtZT0iTGlzdE9mQXBwbGljYXRpb25SZWNvcmREYXRhVHlwZSI+DQogICAgPHhzOnNl
+cXVlbmNlPg0KICAgICAgPHhzOmVsZW1lbnQgbmFtZT0iQXBwbGljYXRpb25SZWNvcmREYXRhVHlw
+ZSIgdHlwZT0idG5zOkFwcGxpY2F0aW9uUmVjb3JkRGF0YVR5cGUiIG1pbk9jY3Vycz0iMCIgbWF4
+T2NjdXJzPSJ1bmJvdW5kZWQiIG5pbGxhYmxlPSJ0cnVlIiAvPg0KICAgIDwveHM6c2VxdWVuY2U+
+DQogIDwveHM6Y29tcGxleFR5cGU+DQogIDx4czplbGVtZW50IG5hbWU9Ikxpc3RPZkFwcGxpY2F0
+aW9uUmVjb3JkRGF0YVR5cGUiIHR5cGU9InRuczpMaXN0T2ZBcHBsaWNhdGlvblJlY29yZERhdGFU
+eXBlIiBuaWxsYWJsZT0idHJ1ZSI+PC94czplbGVtZW50Pg0KDQo8L3hzOnNjaGVtYT4=</uax:ByteString>
       </uax:Value>
     </uax:Value>
     <uax:DataType>
