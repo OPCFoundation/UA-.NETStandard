@@ -212,14 +212,14 @@ namespace Opc.Ua.Gds.Server
                     //GdsAdmin
                     if (roles.Contains(GdsRole.ApplicationAdmin))
                     {
-                        args.Identity = new RoleBasedIdentity(new UserIdentity(userNameToken), new List<Role> { GdsRole.ApplicationAdmin });
+                        args.Identity = new GdsRoleBasedIdentity(new UserIdentity(userNameToken), new List<Role> { GdsRole.ApplicationAdmin });
                         Utils.LogInfo("ApplicationAdmin Token Accepted: {0}", args.Identity.DisplayName);
                         return;
                     }
                     //GdsUser
                     if (roles.Contains(GdsRole.ApplicationUser))
                     {
-                        args.Identity = new RoleBasedIdentity(new UserIdentity(userNameToken), new List<Role> { GdsRole.ApplicationUser });
+                        args.Identity = new GdsRoleBasedIdentity(new UserIdentity(userNameToken), new List<Role> { GdsRole.ApplicationUser });
                         Utils.LogInfo("ApplicationUser Token Accepted: {0}", args.Identity.DisplayName);
                         return;
                     }                   
@@ -236,7 +236,7 @@ namespace Opc.Ua.Gds.Server
                 // role = GdsRole.ApplicationAdmin;
 
                 Utils.LogInfo("X509 Token Accepted: {0} as {1}", args.Identity.DisplayName, GdsRole.ApplicationUser);
-                args.Identity = new RoleBasedIdentity(new UserIdentity(x509Token), new List<Role> { GdsRole.ApplicationUser });
+                args.Identity = new GdsRoleBasedIdentity(new UserIdentity(x509Token), new List<Role> { GdsRole.ApplicationUser });
                 return;
             }
 
@@ -367,7 +367,7 @@ namespace Opc.Ua.Gds.Server
             NodeId applicationId = application.FirstOrDefault().ApplicationId;
             Utils.LogInfo("Application {0} accepted based on ApplicationInstanceCertificate as ApplicationSelfAdmin",
                 applicationUri);
-            args.Identity = new RoleBasedIdentity(new UserIdentity(), GdsRole.ApplicationSelfAdmin, applicationId);
+            args.Identity = new GdsRoleBasedIdentity(new UserIdentity(), new List<Role> { GdsRole.ApplicationSelfAdmin }, applicationId);
             return;
         }
         

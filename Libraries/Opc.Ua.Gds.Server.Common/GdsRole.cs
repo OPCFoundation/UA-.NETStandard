@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices.ComTypes;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Gds.Server
@@ -44,15 +47,45 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// This Role grants rights to register, update and unregister any OPC UA Application.
         /// </summary>
-        public static Role DiscoveryAdmin { get; } = new Role( NodeId.Null, "DiscoveryAdmin");
+        public static Role DiscoveryAdmin { get; } = new Role(NodeId.Null, "DiscoveryAdmin");
 
         /// <summary>
         /// The GDS application user.
         /// </summary>
         public static Role ApplicationUser { get; } = new Role(NodeId.Null, "ApplicationUser");
 
-        public GdsRole(NodeId roleId, string name):
+        /// <summary>
+        /// Can manage the own Certificates and pull trust list
+        /// </summary>
+        public static Role ApplicationSelfAdmin { get; } = new Role(NodeId.Null, "ApplicationSelfAdmin");
+
+        public GdsRole(NodeId roleId, string name) :
             base(roleId, name)
+        { }
+    }
+    /// <summary>
+    /// RoleBasedIdentity with additional Property ApplicationId
+    /// </summary>
+    public class GdsRoleBasedIdentity : RoleBasedIdentity
+    {
+        private NodeId m_applicationId;
+
+        public GdsRoleBasedIdentity(IUserIdentity identity, IEnumerable<Role> roles, NodeId applicationId)
+     : base(identity, roles)
+        {
+            m_applicationId = applicationId;
+        }
+
+        public GdsRoleBasedIdentity(IUserIdentity identity, IEnumerable<Role> roles)
+     : base(identity, roles)
         {}
+
+        /// <summary>
+        /// The applicationId in case the ApplicationSelfAdminPrivilege is used
+        /// </summary>
+        public NodeId ApplicationId
+        {
+            get { return m_applicationId; }
+        }
     }
 }

@@ -170,12 +170,8 @@ namespace Opc.Ua.Gds.Server
 
                 if ((identity == null) || (!identity.Roles.Contains(GdsRole.ApplicationAdmin)))
                 {
-                    if (identity.Role == GdsRole.ApplicationAdmin)
-                    {
-                        return;
-                    }
+                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application Administrator access required.");
                 }
-                throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application Administrator access required.");
             }
         }
 
@@ -187,7 +183,7 @@ namespace Opc.Ua.Gds.Server
 
                 if (identity != null)
                 {
-                    if ((identity.Role == GdsRole.ApplicationUser) || (identity.Role == GdsRole.ApplicationAdmin))
+                    if ((identity.Roles.Contains(GdsRole.ApplicationAdmin) || (!identity.Roles.Contains(GdsRole.ApplicationUser))))
                     {
                         return;
                     }
@@ -205,11 +201,11 @@ namespace Opc.Ua.Gds.Server
         {
             if (context != null)
             {
-                RoleBasedIdentity identity = context.UserIdentity as RoleBasedIdentity;
+                GdsRoleBasedIdentity identity = context.UserIdentity as GdsRoleBasedIdentity;
                 if (identity != null)
                 {
                     //administrator/user has full access
-                    if (identity.Role == GdsRole.ApplicationAdmin || identity.Role == GdsRole.ApplicationUser)
+                    if ((identity.Roles.Contains(GdsRole.ApplicationAdmin) || (!identity.Roles.Contains(GdsRole.ApplicationUser))))
                         return;
                     //not administrator/user only has access to own application
                     if (identity.ApplicationId == applicationId)
