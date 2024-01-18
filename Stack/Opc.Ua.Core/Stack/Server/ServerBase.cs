@@ -344,7 +344,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the list of base addresses.
         /// </summary>
-        private void InitializeBaseAddresses(ApplicationConfiguration configuration)
+        protected void InitializeBaseAddresses(ApplicationConfiguration configuration)
         {
             BaseAddresses = new List<BaseAddress>();
 
@@ -1035,8 +1035,9 @@ namespace Opc.Ua
                 return accessibleAddresses;
             }
 
-            // client gets all of the endpoints if it using a known variant of the hostname.
-            if (NormalizeHostname(endpointUrl.DnsSafeHost) == NormalizeHostname("localhost"))
+            // client gets all of the endpoints if it using a known variant of the hostname
+            if (string.IsNullOrEmpty(endpointUrl.DnsSafeHost) ||
+                NormalizeHostname(endpointUrl.DnsSafeHost) == NormalizeHostname("localhost"))
             {
                 return baseAddresses;
             }
@@ -1051,7 +1052,12 @@ namespace Opc.Ua
                 }
             }
 
-            return accessibleAddresses;
+            if (accessibleAddresses.Count != 0)
+            {
+                return accessibleAddresses;
+            }
+
+            return baseAddresses;
         }
 
         /// <summary>
