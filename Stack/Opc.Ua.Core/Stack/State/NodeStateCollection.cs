@@ -16,6 +16,7 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Xml;
+using System.Xml.Serialization;
 
 namespace Opc.Ua
 {
@@ -179,6 +180,33 @@ namespace Opc.Ua
             }
 
             nodeSet.Write(ostrm);
+        }
+
+        private static T Load<T>(Stream istrm)
+        {
+            var settings = new XmlReaderSettings() {
+                DtdProcessing = DtdProcessing.Prohibit
+            };
+
+            XmlSerializer serializer = new XmlSerializer(typeof(T));
+
+            using (var reader = XmlReader.Create(istrm, settings))
+            {
+                return (T)serializer.Deserialize(reader);
+            }
+        }
+
+        /// <summary>
+        /// Loads a NodeSet2 into a NodeStateCollection.
+        /// </summary>
+        public static NodeStateCollection LoadAsNodeSet2(ISystemContext context, Stream istrm)
+        {
+            Opc.Ua.Export.UANodeSet nodeSet = Load<Opc.Ua.Export.UANodeSet>(istrm);
+
+            NodeStateCollection nodes = new NodeStateCollection();
+            nodeSet.Import(context, nodes);
+
+            return nodes;
         }
 
         /// <summary>
