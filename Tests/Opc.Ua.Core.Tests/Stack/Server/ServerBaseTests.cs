@@ -40,7 +40,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
     [NonParallelizable]
     public class ServerBaseTests : ServerBase
     {
-        public const int BaseAddressCount = 3;
+        public const int BaseAddressCount = 6;
+        public const int EndpointCount = 12;
         ApplicationConfiguration m_configuration;
         ApplicationDescription m_serverDescription;
         EndpointDescriptionCollection m_endpoints;
@@ -58,10 +59,13 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 ServerConfiguration = new ServerConfiguration()
             };
 
-            // base addresses, uses localhost
+            // base addresses, uses localhost. specify multiple endpoints per protocol.
             configuration.ServerConfiguration.BaseAddresses.Add(Utils.ReplaceLocalhost("opc.https://localhost:62540/UA/SampleServer"));
             configuration.ServerConfiguration.BaseAddresses.Add(Utils.ReplaceLocalhost("opc.tcp://localhost:62541/UA/SampleServer"));
             configuration.ServerConfiguration.BaseAddresses.Add(Utils.ReplaceLocalhost("https://localhost:62542/UA/SampleServer"));
+            configuration.ServerConfiguration.BaseAddresses.Add(Utils.ReplaceLocalhost("opc.https://localhost:52640/UA/SampleServer"));
+            configuration.ServerConfiguration.BaseAddresses.Add(Utils.ReplaceLocalhost("opc.tcp://localhost:52641/UA/SampleServer"));
+            configuration.ServerConfiguration.BaseAddresses.Add(Utils.ReplaceLocalhost("https://localhost:52642/UA/SampleServer"));
             Assert.AreEqual(BaseAddressCount, configuration.ServerConfiguration.BaseAddresses.Count);
 
             // alternate base addresses, FQDN and IP address
@@ -183,23 +187,23 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         [Test]
         [TestCase("urn:someserver:62541:UA:SampleServer")]
         [TestCase("tcp://localhost:62541/UA/SampleServer")]
-        [TestCase("opc.tcp://[ffe8:1234::8]:51210/UA/SampleServer", 1)]
-        [TestCase("opc.tcp://[ffe8:1234::8%3]:51210/UA/SampleServer", 1)]
+        [TestCase("opc.tcp://[ffe8:1234::8]:51210/UA/SampleServer", 2)]
+        [TestCase("opc.tcp://[ffe8:1234::8%3]:51210/UA/SampleServer", 2)]
         [TestCase("opc.tcp://[2003:d9:1f0c:5e00:4139:ee31:6cc3:313e]:62541/UA/SampleServer")]
         [TestCase("opc.tcp://myhostname.com:51210/UA/SampleServer")]
-        [TestCase("opc.tcp://UNKNOWNHOSTNAME.COM:51210/UA/SampleServer", 1)]
+        [TestCase("opc.tcp://UNKNOWNHOSTNAME.COM:51210/UA/SampleServer", 2)]
         [TestCase("opc.tcp://EXTERNALHOSTNAME.COM:51210/UA/SampleServer")]
         [TestCase("opc.tcp://localhost:51210/UA/SampleServer")]
-        [TestCase("opc.tcp://someserver:62541/UA/SampleServer", 1)]
+        [TestCase("opc.tcp://someserver:62541/UA/SampleServer", 2)]
         [TestCase("opc.tcp://192.168.1.100:62541/UA/SampleServer")]
-        [TestCase("opc.https://someserver:62541/UA/SampleServer", 1)]
-        [TestCase("opc.https://someserver:62540/UA/SampleServer", 1)]
+        [TestCase("opc.https://someserver:62541/UA/SampleServer", 2)]
+        [TestCase("opc.https://someserver:62540/UA/SampleServer", 2)]
         [TestCase("opc.https://localhost:51210/UA/SampleServer")]
-        [TestCase("opc.https://UNKNOWNHOSTNAME.COM:51210/UA/SampleServer", 1)]
-        [TestCase("opc.tcp:someserver:62541:UA:SampleServer", 1)]
-        [TestCase("https://someserver:62541/UA/SampleServer", 1)]
+        [TestCase("opc.https://UNKNOWNHOSTNAME.COM:51210/UA/SampleServer", 2)]
+        [TestCase("opc.tcp:someserver:62541:UA:SampleServer", 2)]
+        [TestCase("https://someserver:62541/UA/SampleServer", 2)]
         [TestCase("https://localhost:51210/UA/SampleServer")]
-        [TestCase("https://UNKNOWNHOSTNAME.COM:51210/UA/SampleServer", 1)]
+        [TestCase("https://UNKNOWNHOSTNAME.COM:51210/UA/SampleServer", 2)]
         public void FilterByClientUrlTest(string endpointUrl, int baseAddressCount = BaseAddressCount)
         {
             TestContext.WriteLine("Endpoint Url: {0}", endpointUrl);
@@ -220,29 +224,29 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         /// </summary>
         [Test]
         [TestCase("opc.tcp://localhost:51210/UA/SampleServer")]
-        [TestCase("opc.https://externalhostname.com:50000/UA/SampleServer")]
-        [TestCase("opc.tcp://externalhostname.com:50001/UA/SampleServer")]
-        [TestCase("opc.tcp://externalhostname.com:50001/UA/SampleServer")]
+        [TestCase("opc.tcp://externalhostname.com:50001/UA/SampleServer", 6)]
+        [TestCase("opc.tcp://externalhostname.com:52541/UA/SampleServer", 6)]
+        [TestCase("opc.tcp://[ffe8:1234::8]:51210/UA/SampleServer", 4)]
+        [TestCase("opc.tcp://[ffe8:1234::8%3]:51210/UA/SampleServer", 4)]
+        [TestCase("opc.tcp://[2003:d9:1f0c:5e00:4139:ee31:6cc3:313e]:62541/UA/SampleServer", 6)]
+        [TestCase("opc.tcp://myhostname.com:51210/UA/SampleServer", 6)]
+        [TestCase("opc.tcp://UNKNOWNHOSTNAME.COM:51210/UA/SampleServer", 4)]
+        [TestCase("opc.tcp://EXTERNALHOSTNAME.COM:51210/UA/SampleServer", 6)]
+        [TestCase("opc.tcp://localhost:51210/UA/SampleServer")]
+        [TestCase("opc.tcp://someserver:62541/UA/SampleServer", 4)]
+        [TestCase("opc.tcp://192.168.1.100:62541/UA/SampleServer", 6)]
+        [TestCase("opc.tcp:someserver:62541:UA:SampleServer", 4)]
+        [TestCase("opc.https://externalhostname.com:50000/UA/SampleServer", 6)]
+        [TestCase("opc.https://localhost:51210/UA/SampleServer")]
+        [TestCase("opc.https://someserver:62541/UA/SampleServer", 4)]
+        [TestCase("opc.https://someserver:62540/UA/SampleServer", 4)]
+        [TestCase("opc.https://UNKNOWNHOSTNAME.COM:51210/UA/SampleServer", 4)]
         [TestCase("urn:someserver:62541:UA:SampleServer")]
         [TestCase("tcp://localhost:62541/UA/SampleServer")]
-        [TestCase("opc.tcp://[ffe8:1234::8]:51210/UA/SampleServer", 1)]
-        [TestCase("opc.tcp://[ffe8:1234::8%3]:51210/UA/SampleServer", 1)]
-        [TestCase("opc.tcp://[2003:d9:1f0c:5e00:4139:ee31:6cc3:313e]:62541/UA/SampleServer", 2)]
-        [TestCase("opc.tcp://myhostname.com:51210/UA/SampleServer", 2)]
-        [TestCase("opc.tcp://UNKNOWNHOSTNAME.COM:51210/UA/SampleServer", 1)]
-        [TestCase("opc.tcp://EXTERNALHOSTNAME.COM:51210/UA/SampleServer", 2)]
-        [TestCase("opc.tcp://localhost:51210/UA/SampleServer")]
-        [TestCase("opc.tcp://someserver:62541/UA/SampleServer", 1)]
-        [TestCase("opc.tcp://192.168.1.100:62541/UA/SampleServer", 2)]
-        [TestCase("opc.https://someserver:62541/UA/SampleServer", 1)]
-        [TestCase("opc.https://someserver:62540/UA/SampleServer", 1)]
-        [TestCase("opc.https://localhost:51210/UA/SampleServer")]
-        [TestCase("opc.https://UNKNOWNHOSTNAME.COM:51210/UA/SampleServer", 1)]
-        [TestCase("opc.tcp:someserver:62541:UA:SampleServer", 1)]
-        [TestCase("https://someserver:62541/UA/SampleServer", 1)]
+        [TestCase("https://someserver:62541/UA/SampleServer", 4)]
         [TestCase("https://localhost:51210/UA/SampleServer")]
-        [TestCase("https://UNKNOWNHOSTNAME.COM:51210/UA/SampleServer", 1)]
-        public void TranslateEndpointDescriptionsTest(string endpointUrl, int count = 1)
+        [TestCase("https://UNKNOWNHOSTNAME.COM:51210/UA/SampleServer", 4)]
+        public void TranslateEndpointDescriptionsTest(string endpointUrl, int count = EndpointCount)
         {
             var baseAddresses = BaseAddresses;
             Uri parsedEndpointUrl = Utils.ParseUri(endpointUrl);
@@ -258,6 +262,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             {
                 TestContext.WriteLine($"Endpoint: {endpoint.EndpointUrl} {endpoint.SecurityMode} {endpoint.SecurityPolicyUri}");
             }
+            Assert.AreEqual(count, translatedEndpoints.Count);
         }
         #endregion
     }
