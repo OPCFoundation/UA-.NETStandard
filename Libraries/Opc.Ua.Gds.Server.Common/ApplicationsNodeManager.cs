@@ -167,7 +167,8 @@ namespace Opc.Ua.Gds.Server
             if (context != null)
             {
                 RoleBasedIdentity identity = context.UserIdentity as RoleBasedIdentity;
-                if (identity != null)
+
+                if ((identity == null) || (!identity.Roles.Contains(GdsRole.ApplicationAdmin)))
                 {
                     if (identity.Role == GdsRole.ApplicationAdmin)
                     {

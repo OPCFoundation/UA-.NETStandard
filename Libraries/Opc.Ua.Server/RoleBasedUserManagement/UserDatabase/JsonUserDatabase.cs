@@ -31,21 +31,21 @@ using System;
 using System.IO;
 using Newtonsoft.Json;
 
-namespace Opc.Ua.Gds.Server.Database.Linq
+namespace Opc.Ua.Server.UserDatabase
 {
     /// <summary>
-    /// A GDS database with JSON storage.
+    /// A user database with JSON storage.
     /// </summary>
     /// <remarks>
     /// This db is good for testing but not for production use.
     /// </remarks>
-    public class JsonUsersDatabase : LinQUsersDatabase
+    public class JsonUserDatabase : LinqUserDatabase
     {
         #region Constructors
         /// <summary>
         /// Create a JSON database.
         /// </summary>
-        public JsonUsersDatabase(string fileName)
+        public JsonUserDatabase(string fileName)
         {
             m_fileName = fileName;
         }
@@ -53,7 +53,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         /// <summary>
         /// Load the JSON application database.
         /// </summary>
-        static public JsonUsersDatabase Load(string fileName)
+        static public JsonUserDatabase Load(string fileName)
         {
             if (fileName == null) throw new ArgumentNullException(nameof(fileName));
             try
@@ -61,7 +61,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 if (File.Exists(fileName))
                 {
                     string json = File.ReadAllText(fileName);
-                    JsonUsersDatabase db = JsonConvert.DeserializeObject<JsonUsersDatabase>(json);
+                    JsonUserDatabase db = JsonConvert.DeserializeObject<JsonUserDatabase>(json);
                     db.FileName = fileName;
                     return db;
                 }
@@ -70,7 +70,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             {
 
             }
-            return new JsonUsersDatabase(fileName);
+            return new JsonUserDatabase(fileName);
         }
         #endregion
 

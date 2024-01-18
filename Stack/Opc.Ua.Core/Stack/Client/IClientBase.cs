@@ -11,6 +11,8 @@
 */
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
@@ -40,12 +42,15 @@ namespace Opc.Ua
         /// Gets or set the channel being wrapped by the client object.
         /// </summary>
         /// <value>The transport channel.</value>
-        ITransportChannel TransportChannel { get; }
+        ITransportChannel NullableTransportChannel { get; }
 
-        ///// <summary>
-        ///// The channel being wrapped by the client object.
-        ///// </summary>
-        //internal IChannelBase InnerChannel { get; }
+        /// <summary>
+        /// Gets or set the channel being wrapped by the client object.
+        /// If the channel is closed or null, throws <see cref="ServiceResultException"/>
+        /// with status <see cref="StatusCodes.BadSecureChannelClosed"/>./>
+        /// </summary>
+        /// <value>The transport channel.</value>
+        ITransportChannel TransportChannel { get; }
 
         /// <summary>
         /// What diagnostics the server should return in the response.
@@ -81,6 +86,11 @@ namespace Opc.Ua
         /// Closes the channel.
         /// </summary>
         StatusCode Close();
+
+        /// <summary>
+        /// Closes the channel using async call.
+        /// </summary>
+        Task<StatusCode> CloseAsync(CancellationToken ct = default);
 
         /// <summary>
         /// Generates a unique request handle.
