@@ -30,13 +30,11 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading;
 using Opc.Ua.Server;
 using Opc.Ua.Gds.Server.Database;
-using Opc.Ua.Security.Certificates;
-using Org.BouncyCastle.Asn1.Cmp;
+using Opc.Ua.Server.UserDatabase;
 using System.Linq;
-using System.Data;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Server
 {
@@ -58,7 +56,7 @@ namespace Opc.Ua.Gds.Server
             IApplicationsDatabase database,
             ICertificateRequest request,
             ICertificateGroup certificateGroup,
-            IUsersDatabase userDatabase,
+            IUserDatabase userDatabase,
             bool autoApprove = true,
             bool createStandardUsers = true
             )
@@ -210,24 +208,21 @@ namespace Opc.Ua.Gds.Server
                         Utils.LogInfo("SystemConfigurationAdmin Token Accepted: {0}", args.Identity.DisplayName);
                         return;
                     }
-                    switch (m_userDatabase.GetUserRole(userNameToken.UserName))
+                    IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
+                    //GdsAdmin
+                    if (roles.Contains(GdsRole.ApplicationAdmin))
                     {
-                        // GDS administrator
-                        case GdsRole.ApplicationAdmin:
-                        {
-                            args.Identity = new RoleBasedIdentity(new UserIdentity(userNameToken), GdsRole.ApplicationAdmin);
-                            Utils.LogInfo("ApplicationAdmin Token Accepted: {0}", args.Identity.DisplayName);
-                            return;
-                        }
-
-                        // GDS user
-                        case GdsRole.ApplicationUser:
-                        {
-                            args.Identity = new RoleBasedIdentity(new UserIdentity(userNameToken), GdsRole.ApplicationUser);
-                            Utils.LogInfo("ApplicationUser Token Accepted: {0}", args.Identity.DisplayName);
-                            return;
-                        }
+                        args.Identity = new RoleBasedIdentity(new UserIdentity(userNameToken), new List<Role> { GdsRole.ApplicationAdmin });
+                        Utils.LogInfo("ApplicationAdmin Token Accepted: {0}", args.Identity.DisplayName);
+                        return;
                     }
+                    //GdsUser
+                    if (roles.Contains(GdsRole.ApplicationUser))
+                    {
+                        args.Identity = new RoleBasedIdentity(new UserIdentity(userNameToken), new List<Role> { GdsRole.ApplicationUser });
+                        Utils.LogInfo("ApplicationUser Token Accepted: {0}", args.Identity.DisplayName);
+                        return;
+                    }                   
                 }
             }
 
@@ -235,16 +230,13 @@ namespace Opc.Ua.Gds.Server
             X509IdentityToken x509Token = args.NewIdentity as X509IdentityToken;
             if (x509Token != null)
             {
-                GdsRole role = GdsRole.ApplicationUser;
                 VerifyUserTokenCertificate(x509Token.Certificate);
 
                 // todo: is cert listed in admin list? then 
                 // role = GdsRole.ApplicationAdmin;
 
-                Utils.LogInfo("X509 Token Accepted: {0} as {1}", args.Identity.DisplayName, role.ToString());
-
-                string applicationUri = session.SessionDiagnostics.ClientDescription.ApplicationUri;
-                args.Identity = new RoleBasedIdentity(new UserIdentity(x509Token), role, applicationUri);
+                Utils.LogInfo("X509 Token Accepted: {0} as {1}", args.Identity.DisplayName, GdsRole.ApplicationUser);
+                args.Identity = new RoleBasedIdentity(new UserIdentity(x509Token), new List<Role> { GdsRole.ApplicationUser });
                 return;
             }
 
@@ -353,9 +345,9 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         private void RegisterDefaultUsers()
         {
-            m_userDatabase.CreateUser("sysadmin", "demo", GdsRole.ApplicationAdmin);
-            m_userDatabase.CreateUser("appadmin", "demo", GdsRole.ApplicationAdmin);
-            m_userDatabase.CreateUser("appuser", "demo", GdsRole.ApplicationUser);
+            m_userDatabase.CreateUser("sysadmin", "demo", new List<Role> { GdsRole.ApplicationAdmin, Role.SecurityAdmin, Role.ConfigureAdmin });
+            m_userDatabase.CreateUser("appadmin", "demo", new List<Role> { GdsRole.ApplicationAdmin });
+            m_userDatabase.CreateUser("appuser", "demo", new List<Role> { GdsRole.ApplicationUser });
         }
 
         /// <summary>
@@ -386,7 +378,7 @@ namespace Opc.Ua.Gds.Server
         private IApplicationsDatabase m_database = null;
         private ICertificateRequest m_request = null;
         private ICertificateGroup m_certificateGroup = null;
-        private IUsersDatabase m_userDatabase = null;
+        private IUserDatabase m_userDatabase = null;
         private bool m_autoApprove;
         private bool m_createStandardUsers;
         #endregion 
