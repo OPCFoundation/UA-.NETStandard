@@ -40,6 +40,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
     [NonParallelizable]
     public class ServerBaseTests : ServerBase
     {
+        public const int BaseAddressCount = 3;
         ApplicationConfiguration m_configuration;
         ApplicationDescription m_serverDescription;
         EndpointDescriptionCollection m_endpoints;
@@ -58,19 +59,26 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             };
 
             // base addresses, uses localhost
-            configuration.ServerConfiguration.BaseAddresses.Add("opc.https://localhost:62540/UA/SampleServer");
-            configuration.ServerConfiguration.BaseAddresses.Add("opc.tcp://localhost:62541/UA/SampleServer");
-            configuration.ServerConfiguration.BaseAddresses.Add("https://localhost:62542/UA/SampleServer");
+            configuration.ServerConfiguration.BaseAddresses.Add(Utils.ReplaceLocalhost("opc.https://localhost:62540/UA/SampleServer"));
+            configuration.ServerConfiguration.BaseAddresses.Add(Utils.ReplaceLocalhost("opc.tcp://localhost:62541/UA/SampleServer"));
+            configuration.ServerConfiguration.BaseAddresses.Add(Utils.ReplaceLocalhost("https://localhost:62542/UA/SampleServer"));
+            Assert.AreEqual(BaseAddressCount, configuration.ServerConfiguration.BaseAddresses.Count);
 
             // alternate base addresses, FQDN and IP address
             configuration.ServerConfiguration.AlternateBaseAddresses.Add("opc.https://myhostname.com:62540/UA/SampleServer");
             configuration.ServerConfiguration.AlternateBaseAddresses.Add("opc.tcp://myhostname.com:62541/UA/SampleServer");
+            configuration.ServerConfiguration.AlternateBaseAddresses.Add("https://myhostname.com:62542/UA/SampleServer");
             configuration.ServerConfiguration.AlternateBaseAddresses.Add("opc.https://192.168.1.100:62540/UA/SampleServer");
             configuration.ServerConfiguration.AlternateBaseAddresses.Add("opc.tcp://192.168.1.100:62541/UA/SampleServer");
+            configuration.ServerConfiguration.AlternateBaseAddresses.Add("https://192.168.1.100:62542/UA/SampleServer");
+            configuration.ServerConfiguration.AlternateBaseAddresses.Add("opc.https://[2003:d9:1f0c:5e00:4139:ee31:6cc3:313e]:62540/UA/SampleServer");
+            configuration.ServerConfiguration.AlternateBaseAddresses.Add("opc.tcp://[2003:d9:1f0c:5e00:4139:ee31:6cc3:313e]:62541/UA/SampleServer");
+            configuration.ServerConfiguration.AlternateBaseAddresses.Add("https://[2003:d9:1f0c:5e00:4139:ee31:6cc3:313e]:62542/UA/SampleServer");
 
             // port forwarded to external address, different port and hostname
             configuration.ServerConfiguration.AlternateBaseAddresses.Add("opc.https://externalhostname.com:50000/UA/SampleServer");
             configuration.ServerConfiguration.AlternateBaseAddresses.Add("opc.tcp://externalhostname.com:50001/UA/SampleServer");
+            configuration.ServerConfiguration.AlternateBaseAddresses.Add("https://externalhostname.com:50002/UA/SampleServer");
 
             InitializeBaseAddresses(configuration);
 
@@ -78,6 +86,10 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
             // ensure at least one security policy exists.
             configuration.ServerConfiguration.SecurityPolicies.Add(new ServerSecurityPolicy());
+            configuration.ServerConfiguration.SecurityPolicies.Add(new ServerSecurityPolicy() {
+                SecurityMode = MessageSecurityMode.Sign,
+                SecurityPolicyUri = SecurityPolicies.Aes128_Sha256_RsaOaep
+            });
 
             // ensure at least one user token policy exists.
             UserTokenPolicy userTokenPolicy = new UserTokenPolicy {
@@ -104,7 +116,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 var transportProfileUri = Profiles.UaTcpTransport;
                 if (baseAddress.StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal))
                 {
-                    transportProfileUri = Profiles.UaTcpTransport;
+                    transportProfileUri = Profiles.HttpsBinaryTransport;
                 }
                 else if (baseAddress.StartsWith(Utils.UriSchemeOpcHttps, StringComparison.Ordinal))
                 {
@@ -162,25 +174,45 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.AreEqual(clientUri1.DnsSafeHost, clientUri2.DnsSafeHost);
             Assert.AreEqual(clientUri1.IdnHost, clientUri2.IdnHost);
 
-            Utils.NormalizedIPAddress(clientUrl1);
+            Assert.AreEqual(Utils.NormalizedIPAddress(clientUri1.IdnHost), Utils.NormalizedIPAddress(clientUri2.IdnHost));
         }
 
         /// <summary>
         /// For any filter applied, ensure there is at least one endpoint returned.
         /// </summary>
         [Test]
-        [TestCase("opc.tcp://localhost:51210/UA/SampleServer")]
-        [TestCase("https://localhost:51210/UA/SampleServer")]
-        [TestCase("opc.tcp://someserver:62541/UA/SampleServer")]
         [TestCase("urn:someserver:62541:UA:SampleServer")]
         [TestCase("tcp://localhost:62541/UA/SampleServer")]
-        [TestCase("opc.tcp:someserver:62541:UA:SampleServer")]
-        public void FilterByClientUrlTest(string endpointUrl)
+        [TestCase("opc.tcp://[ffe8:1234::8]:51210/UA/SampleServer", 1)]
+        [TestCase("opc.tcp://[ffe8:1234::8%3]:51210/UA/SampleServer", 1)]
+        [TestCase("opc.tcp://[2003:d9:1f0c:5e00:4139:ee31:6cc3:313e]:62541/UA/SampleServer")]
+        [TestCase("opc.tcp://myhostname.com:51210/UA/SampleServer")]
+        [TestCase("opc.tcp://UNKNOWNHOSTNAME.COM:51210/UA/SampleServer", 1)]
+        [TestCase("opc.tcp://EXTERNALHOSTNAME.COM:51210/UA/SampleServer")]
+        [TestCase("opc.tcp://localhost:51210/UA/SampleServer")]
+        [TestCase("opc.tcp://someserver:62541/UA/SampleServer", 1)]
+        [TestCase("opc.tcp://192.168.1.100:62541/UA/SampleServer")]
+        [TestCase("opc.https://someserver:62541/UA/SampleServer", 1)]
+        [TestCase("opc.https://someserver:62540/UA/SampleServer", 1)]
+        [TestCase("opc.https://localhost:51210/UA/SampleServer")]
+        [TestCase("opc.https://UNKNOWNHOSTNAME.COM:51210/UA/SampleServer", 1)]
+        [TestCase("opc.tcp:someserver:62541:UA:SampleServer", 1)]
+        [TestCase("https://someserver:62541/UA/SampleServer", 1)]
+        [TestCase("https://localhost:51210/UA/SampleServer")]
+        [TestCase("https://UNKNOWNHOSTNAME.COM:51210/UA/SampleServer", 1)]
+        public void FilterByClientUrlTest(string endpointUrl, int baseAddressCount = BaseAddressCount)
         {
+            TestContext.WriteLine("Endpoint Url: {0}", endpointUrl);
             Uri parsedEndpointUrl = Utils.ParseUri(endpointUrl);
-            var filteredEndpoints = this.FilterByEndpointUrl(parsedEndpointUrl, BaseAddresses);
-            Assert.NotNull(filteredEndpoints);
-            Assert.Greater(filteredEndpoints.Count, 0);
+            var filteredBaseAddresses = this.FilterByEndpointUrl(parsedEndpointUrl, BaseAddresses);
+            Assert.NotNull(filteredBaseAddresses);
+            Assert.Greater(filteredBaseAddresses.Count, 0);
+            TestContext.WriteLine($"Filtered endpoints: {filteredBaseAddresses.Count}");
+            foreach (var baseaddress in filteredBaseAddresses)
+            {
+                TestContext.WriteLine($"Endpoint: {baseaddress.Url}");
+            }
+            Assert.AreEqual(baseAddressCount, filteredBaseAddresses.Count);
         }
 
         /// <summary>
@@ -188,11 +220,44 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         /// </summary>
         [Test]
         [TestCase("opc.tcp://localhost:51210/UA/SampleServer")]
-        public void TranslateEndpointDescriptionsTest(string clientUrl)
+        [TestCase("opc.https://externalhostname.com:50000/UA/SampleServer")]
+        [TestCase("opc.tcp://externalhostname.com:50001/UA/SampleServer")]
+        [TestCase("opc.tcp://externalhostname.com:50001/UA/SampleServer")]
+        [TestCase("urn:someserver:62541:UA:SampleServer")]
+        [TestCase("tcp://localhost:62541/UA/SampleServer")]
+        [TestCase("opc.tcp://[ffe8:1234::8]:51210/UA/SampleServer", 1)]
+        [TestCase("opc.tcp://[ffe8:1234::8%3]:51210/UA/SampleServer", 1)]
+        [TestCase("opc.tcp://[2003:d9:1f0c:5e00:4139:ee31:6cc3:313e]:62541/UA/SampleServer", 2)]
+        [TestCase("opc.tcp://myhostname.com:51210/UA/SampleServer", 2)]
+        [TestCase("opc.tcp://UNKNOWNHOSTNAME.COM:51210/UA/SampleServer", 1)]
+        [TestCase("opc.tcp://EXTERNALHOSTNAME.COM:51210/UA/SampleServer", 2)]
+        [TestCase("opc.tcp://localhost:51210/UA/SampleServer")]
+        [TestCase("opc.tcp://someserver:62541/UA/SampleServer", 1)]
+        [TestCase("opc.tcp://192.168.1.100:62541/UA/SampleServer", 2)]
+        [TestCase("opc.https://someserver:62541/UA/SampleServer", 1)]
+        [TestCase("opc.https://someserver:62540/UA/SampleServer", 1)]
+        [TestCase("opc.https://localhost:51210/UA/SampleServer")]
+        [TestCase("opc.https://UNKNOWNHOSTNAME.COM:51210/UA/SampleServer", 1)]
+        [TestCase("opc.tcp:someserver:62541:UA:SampleServer", 1)]
+        [TestCase("https://someserver:62541/UA/SampleServer", 1)]
+        [TestCase("https://localhost:51210/UA/SampleServer")]
+        [TestCase("https://UNKNOWNHOSTNAME.COM:51210/UA/SampleServer", 1)]
+        public void TranslateEndpointDescriptionsTest(string endpointUrl, int count = 1)
         {
-            Uri clientUri = new Uri(clientUrl);
-            var translatedEndpoints = this.TranslateEndpointDescriptions(clientUri, BaseAddresses, m_endpoints, m_serverDescription);
+            var baseAddresses = BaseAddresses;
+            Uri parsedEndpointUrl = Utils.ParseUri(endpointUrl);
+            if (parsedEndpointUrl != null)
+            {
+                baseAddresses = this.FilterByEndpointUrl(parsedEndpointUrl, BaseAddresses);
+            }
+            Assert.Greater(BaseAddressCount, 0);
+            var translatedEndpoints = this.TranslateEndpointDescriptions(parsedEndpointUrl, baseAddresses, m_endpoints, m_serverDescription);
             Assert.NotNull(translatedEndpoints);
+            Assert.Greater(translatedEndpoints.Count, 0);
+            foreach (var endpoint in translatedEndpoints)
+            {
+                TestContext.WriteLine($"Endpoint: {endpoint.EndpointUrl} {endpoint.SecurityMode} {endpoint.SecurityPolicyUri}");
+            }
         }
         #endregion
     }

@@ -1036,8 +1036,7 @@ namespace Opc.Ua
             }
 
             // client gets all of the endpoints if it using a known variant of the hostname
-            if (string.IsNullOrEmpty(endpointUrl.DnsSafeHost) ||
-                NormalizeHostname(endpointUrl.DnsSafeHost) == NormalizeHostname("localhost"))
+            if (NormalizeHostname(endpointUrl.DnsSafeHost) == NormalizeHostname("localhost"))
             {
                 return baseAddresses;
             }
@@ -1158,11 +1157,6 @@ namespace Opc.Ua
                         continue;
                     }
 
-                    if (endpointUrl.Port != baseAddress.Url.Port && !translateHttpsEndpoint)
-                    {
-                        continue;
-                    }
-
                     EndpointDescription translation = new EndpointDescription();
 
                     translation.EndpointUrl = baseAddress.Url.ToString();
@@ -1183,9 +1177,17 @@ namespace Opc.Ua
                     translation.UserIdentityTokens = endpoint.UserIdentityTokens;
                     translation.Server = application;
 
-                    translations.Add(translation);
+                    if (!translations.Exists(match =>
+                        match.EndpointUrl.Equals(translation.EndpointUrl, StringComparison.Ordinal) &&
+                        match.SecurityMode == translation.SecurityMode &&
+                        match.SecurityPolicyUri.Equals(translation.SecurityPolicyUri, StringComparison.Ordinal)))
+                    {
+                        translations.Add(translation);
+                    }
                 }
             }
+
+            translations.Sort((ep1, ep2) => string.Compare(ep1.EndpointUrl, ep2.EndpointUrl, StringComparison.Ordinal));
 
             return translations;
         }
