@@ -39,6 +39,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Client
 {
@@ -4967,11 +4968,14 @@ namespace Opc.Ua.Client
                     out acknowledgeResults,
                     out acknowledgeDiagnosticInfos);
 
+                LogLevel logLevel = LogLevel.Warning;
                 foreach (StatusCode code in acknowledgeResults)
                 {
-                    if (StatusCode.IsBad(code))
+                    if (StatusCode.IsBad(code) && code != StatusCodes.BadSequenceNumberUnknown)
                     {
-                        Utils.LogError("Error - Publish call finished. ResultCode={0}; SubscriptionId={1};", code.ToString(), subscriptionId);
+                        Utils.Log(logLevel, "Publish Ack Response. ResultCode={0}; SubscriptionId={1}", code.ToString(), subscriptionId);
+                        // only show the first error
+                        logLevel = LogLevel.Trace;
                     }
                 }
 
@@ -5762,7 +5766,7 @@ namespace Opc.Ua.Client
                         if ((int)(latestSequenceNumberToSend - sequenceNumber) > kPublishRequestSequenceNumberOutdatedThreshold)
                         {
                             AddAcknowledgementToSend(acknowledgementsToSend, subscriptionId, sequenceNumber);
-                            Utils.LogWarning("SessionId {0}, SubscriptionId {1}, Sequence number={2} was sleeping, acknowledged.", SessionId, subscriptionId, sequenceNumber);
+                            Utils.LogWarning("SessionId {0}, SubscriptionId {1}, Sequence number={2} was outdated, acknowledged.", SessionId, subscriptionId, sequenceNumber);
                         }
                     }
                 }
