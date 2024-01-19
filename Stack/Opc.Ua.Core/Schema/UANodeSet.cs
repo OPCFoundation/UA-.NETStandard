@@ -159,6 +159,8 @@ namespace Opc.Ua.Export {
         
         private bool publicationDateFieldSpecified;
         
+        private string modelVersionField;
+        
         private ushort accessRestrictionsField;
         
         public ModelTableEntry() {
@@ -239,6 +241,17 @@ namespace Opc.Ua.Export {
             }
             set {
                 this.publicationDateFieldSpecified = value;
+            }
+        }
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlAttributeAttribute()]
+        public string ModelVersion {
+            get {
+                return this.modelVersionField;
+            }
+            set {
+                this.modelVersionField = value;
             }
         }
         
