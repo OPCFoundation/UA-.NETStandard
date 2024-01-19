@@ -51,6 +51,8 @@ namespace Opc.Ua.Client
         private const int kMinPublishRequestCountMax = 100;
         private const int kDefaultPublishRequestCount = 1;
         private const int kKeepAliveGuardBand = 1000;
+        private const int kPublishRequestSequenceNumberOutOfOrderThreshold = 10;
+        private const int kPublishRequestSequenceNumberOutdatedThreshold = 100;
 
         #region Constructors
         /// <summary>
@@ -391,7 +393,7 @@ namespace Opc.Ua.Client
                 Utils.SilentDispose(m_nodeCache);
                 m_nodeCache = null;
 
-                IList<Subscription> subscriptions = null;
+                List<Subscription> subscriptions = null;
                 lock (SyncRoot)
                 {
                     subscriptions = new List<Subscription>(m_subscriptions);
@@ -402,6 +404,7 @@ namespace Opc.Ua.Client
                 {
                     Utils.SilentDispose(subscription);
                 }
+                subscriptions.Clear();
             }
 
             base.Dispose(disposing);
@@ -2416,7 +2419,8 @@ namespace Opc.Ua.Client
             // save session id.
             lock (SyncRoot)
             {
-                SessionCreated(sessionId, sessionCookie);
+                // save session id and cookie in base
+                base.SessionCreated(sessionId, sessionCookie);
             }
 
             Utils.LogInfo("Revised session timeout value: {0}. ", m_sessionTimeout);
@@ -2527,6 +2531,9 @@ namespace Opc.Ua.Client
 
                 // raise event that session configuration chnaged.
                 IndicateSessionConfigurationChanged();
+
+                // notify session created callback, which was already set in base class only.
+                SessionCreated(sessionId, sessionCookie);
             }
             catch (Exception)
             {
@@ -4857,8 +4864,8 @@ namespace Opc.Ua.Client
 #endif
             }
 
-            uint timeoutHint = (uint)((timeout > 0) ? timeout : 0);
-            timeoutHint = Math.Min((uint)OperationTimeout / 2, timeoutHint);
+            uint timeoutHint = (uint)((timeout > 0) ? (uint)timeout : uint.MaxValue);
+            timeoutHint = Math.Min((uint)(OperationTimeout / 2), timeoutHint);
 
             // send publish request.
             var requestHeader = new RequestHeader {
@@ -5102,8 +5109,11 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public bool Republish(uint subscriptionId, uint sequenceNumber)
+        public bool Republish(uint subscriptionId, uint sequenceNumber, out ServiceResult error)
         {
+            bool result = true;
+            error = ServiceResult.Good;
+
             // send republish request.
             RequestHeader requestHeader = new RequestHeader {
                 TimeoutHint = (uint)OperationTimeout,
@@ -5133,13 +5143,13 @@ namespace Opc.Ua.Client
                     null,
                     false,
                     notificationMessage);
-
-                return true;
             }
             catch (Exception e)
             {
-                return ProcessRepublishResponseError(e, subscriptionId, sequenceNumber);
+                (result, error) = ProcessRepublishResponseError(e, subscriptionId, sequenceNumber);
             }
+
+            return result;
         }
 
         /// <inheritdoc/>
@@ -5593,7 +5603,7 @@ namespace Opc.Ua.Client
         /// <param name="e">The exception that occurred during the republish operation.</param>
         /// <param name="subscriptionId">The subscription Id for which the republish was requested. </param>
         /// <param name="sequenceNumber">The sequencenumber for which the republish was requested.</param>
-        private bool ProcessRepublishResponseError(Exception e, uint subscriptionId, uint sequenceNumber)
+        private (bool, ServiceResult) ProcessRepublishResponseError(Exception e, uint subscriptionId, uint sequenceNumber)
         {
 
             ServiceResult error = new ServiceResult(e);
@@ -5601,6 +5611,7 @@ namespace Opc.Ua.Client
             bool result = true;
             switch (error.StatusCode.Code)
             {
+                case StatusCodes.BadSubscriptionIdInvalid:
                 case StatusCodes.BadMessageNotAvailable:
                     Utils.LogWarning("Message {0}-{1} no longer available.", subscriptionId, sequenceNumber);
                     break;
@@ -5617,7 +5628,7 @@ namespace Opc.Ua.Client
 
                 default:
                     result = false;
-                    Utils.LogError(e, "Unexpected error sending republish request.");
+                    Utils.LogError("Unexpected error {0} sending republish request.", error);
                     break;
             }
 
@@ -5641,7 +5652,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            return result;
+            return (result, error);
         }
 
         /// <summary>
@@ -5716,6 +5727,7 @@ namespace Opc.Ua.Client
                     _ = availableSequenceNumbers?.Remove(notificationMessage.SequenceNumber);
                 }
 
+                // match an acknowledgement to be sent back to the server.
                 for (int ii = 0; ii < m_acknowledgementsToSend.Count; ii++)
                 {
                     SubscriptionAcknowledgement acknowledgement = m_acknowledgementsToSend[ii];
@@ -5724,10 +5736,17 @@ namespace Opc.Ua.Client
                     {
                         acknowledgementsToSend.Add(acknowledgement);
                     }
-                    else if (availableSequenceNumbers == null || availableSequenceNumbers.Remove(acknowledgement.SequenceNumber))
+                    else if (availableSequenceNumbers == null ||
+                        availableSequenceNumbers.Remove(acknowledgement.SequenceNumber))
                     {
                         acknowledgementsToSend.Add(acknowledgement);
                         UpdateLatestSequenceNumberToSend(ref latestSequenceNumberToSend, acknowledgement.SequenceNumber);
+                    }
+                    // a publish response may by processed out of order,
+                    // allow for a tolerance until the sequence number is removed.
+                    else if (Math.Abs((int)(acknowledgement.SequenceNumber - latestSequenceNumberToSend)) < kPublishRequestSequenceNumberOutOfOrderThreshold)
+                    {
+                        acknowledgementsToSend.Add(acknowledgement);
                     }
                     else
                     {
@@ -5735,12 +5754,12 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                // Check for sleeping sequence numbers. May have been not acked due to a network glitch. 
+                // Check for outdated sequence numbers. May have been not acked due to a network glitch. 
                 if (latestSequenceNumberToSend != 0 && availableSequenceNumbers?.Count > 0)
                 {
                     foreach (var sequenceNumber in availableSequenceNumbers)
                     {
-                        if ((int)(latestSequenceNumberToSend - sequenceNumber) > 100)
+                        if ((int)(latestSequenceNumberToSend - sequenceNumber) > kPublishRequestSequenceNumberOutdatedThreshold)
                         {
                             AddAcknowledgementToSend(acknowledgementsToSend, subscriptionId, sequenceNumber);
                             Utils.LogWarning("SessionId {0}, SubscriptionId {1}, Sequence number={2} was sleeping, acknowledged.", SessionId, subscriptionId, sequenceNumber);
