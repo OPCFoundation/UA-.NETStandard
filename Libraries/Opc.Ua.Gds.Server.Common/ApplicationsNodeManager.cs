@@ -183,12 +183,12 @@ namespace Opc.Ua.Gds.Server
 
                 if (identity != null)
                 {
-                    if ((identity.Roles.Contains(GdsRole.ApplicationAdmin) || (!identity.Roles.Contains(GdsRole.ApplicationUser))))
+                    if ((identity.Roles.Contains(GdsRole.ApplicationAdmin) || (identity.Roles.Contains(GdsRole.ApplicationUser))))
                     {
                         return;
                     }
                 }
-                throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application Administrator access required.");
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application User access required.");
             }
         }
 
