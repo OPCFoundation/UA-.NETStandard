@@ -322,16 +322,18 @@ namespace Opc.Ua.Gds.Server
                     AuthoritiesStoreType,
                     AuthoritiesStorePath))
             {
+                
+               
+                // save only public key
+                Certificate = new X509Certificate2(newCertificate.RawData);
+
                 //trust all Certs singed by the own CA by adding the CA to the TrustedPeerCertificatesStore
                 if (ApplicationConfiguration != null && ApplicationConfiguration.SecurityConfiguration != null && ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates != null)
                 {
                     var peerstoreType = ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.StoreType;
                     var peerstorePath = ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.StorePath;
-                    newCertificate.AddToStore(peerstoreType, peerstorePath);
+                    Certificate.AddToStore(peerstoreType, peerstorePath);
                 }
-               
-                // save only public key
-                Certificate = new X509Certificate2(newCertificate.RawData);
 
                 // initialize revocation list
                 await RevokeCertificateAsync(AuthoritiesStorePath, newCertificate, null).ConfigureAwait(false);
