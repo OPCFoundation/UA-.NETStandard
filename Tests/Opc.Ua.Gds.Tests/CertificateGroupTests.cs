@@ -51,6 +51,26 @@ namespace Opc.Ua.Gds.Tests
                 Assert.IsTrue(certs.Count == 1);
             }
         }
+
+        [Test]
+        public async Task TestCreateCACertificateAsyncCertIsInTrustedPeersStoreAsync()
+        {
+            var applicatioConfiguration = new ApplicationConfiguration();
+            applicatioConfiguration.SecurityConfiguration = new SecurityConfiguration();
+            applicatioConfiguration.SecurityConfiguration.TrustedPeerCertificates.StorePath = _path + "/trusted";
+            applicatioConfiguration.SecurityConfiguration.TrustedPeerCertificates.StoreType = "Directory";
+            var cgConfiguration = new CertificateGroupConfiguration();
+            cgConfiguration.SubjectName = "CN=GDS Test CA, O=OPC Foundation";
+            cgConfiguration.BaseStorePath = _path;
+            var certificateGroup = new CertificateGroup().Create(_path + "/authorities", cgConfiguration);
+            var certificate = await certificateGroup.CreateCACertificateAsync(cgConfiguration.SubjectName).ConfigureAwait(false);
+            Assert.NotNull(certificate);
+            using (ICertificateStore trustedStore = CertificateStoreIdentifier.OpenStore(applicatioConfiguration.SecurityConfiguration.TrustedPeerCertificates.StorePath))
+            {
+                X509Certificate2Collection certs = await trustedStore.FindByThumbprint(certificate.Thumbprint).ConfigureAwait(false);
+                Assert.IsTrue(certs.Count == 1);
+            }
+        }
         #endregion
     }
 }
