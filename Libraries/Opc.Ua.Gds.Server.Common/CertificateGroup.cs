@@ -31,6 +31,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -45,6 +46,7 @@ namespace Opc.Ua.Gds.Server
         public NodeId Id { get; set; }
         public NodeId CertificateType { get; set; }
         public CertificateGroupConfiguration Configuration { get; }
+        public ApplicationConfiguration ApplicationConfiguration { get; } = null;
         public X509Certificate2 Certificate { get; set; }
         public TrustListState DefaultTrustList { get; set; }
         public Boolean UpdateRequired { get; set; }
@@ -57,12 +59,18 @@ namespace Opc.Ua.Gds.Server
 
         protected CertificateGroup(
             string authoritiesStorePath,
-            CertificateGroupConfiguration certificateGroupConfiguration
+            CertificateGroupConfiguration certificateGroupConfiguration,
+            [Optional] ApplicationConfiguration applicationConfiguration
             )
         {
             AuthoritiesStorePath = authoritiesStorePath;
             AuthoritiesStoreType = CertificateStoreIdentifier.DetermineStoreType(AuthoritiesStorePath);
             Configuration = certificateGroupConfiguration;
+            if (applicationConfiguration != null )
+            {
+
+                ApplicationConfiguration = applicationConfiguration;
+            }
             SubjectName = Configuration.SubjectName.Replace("localhost", Utils.GetHostName());
         }
 
@@ -115,9 +123,10 @@ namespace Opc.Ua.Gds.Server
 
         public virtual ICertificateGroup Create(
             string storePath,
-            CertificateGroupConfiguration certificateGroupConfiguration)
+            CertificateGroupConfiguration certificateGroupConfiguration,
+            [Optional] ApplicationConfiguration applicationConfiguration)
         {
-            return new CertificateGroup(storePath, certificateGroupConfiguration);
+            return new CertificateGroup(storePath, certificateGroupConfiguration, applicationConfiguration);
         }
 
         /// <summary>
@@ -313,7 +322,14 @@ namespace Opc.Ua.Gds.Server
                     AuthoritiesStoreType,
                     AuthoritiesStorePath))
             {
-
+                //trust all Certs singed by the own CA by adding the CA to the TrustedPeerCertificatesStore
+                if (ApplicationConfiguration != null && ApplicationConfiguration.SecurityConfiguration != null && ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates != null)
+                {
+                    var peerstoreType = ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.StoreType;
+                    var peerstorePath = ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.StorePath;
+                    newCertificate.AddToStore(peerstoreType, peerstorePath);
+                }
+               
                 // save only public key
                 Certificate = new X509Certificate2(newCertificate.RawData);
 

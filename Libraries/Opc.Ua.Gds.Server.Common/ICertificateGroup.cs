@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
@@ -59,13 +60,15 @@ namespace Opc.Ua.Gds.Server
         NodeId Id { get; set; }
         NodeId CertificateType { get; set; }
         CertificateGroupConfiguration Configuration { get; }
+        ApplicationConfiguration ApplicationConfiguration { get; }
         X509Certificate2 Certificate { get; set; }
         TrustListState DefaultTrustList { get; set; }
         bool UpdateRequired { get; set; }
 
         ICertificateGroup Create(
             string path,
-            CertificateGroupConfiguration certificateGroupConfiguration);
+            CertificateGroupConfiguration certificateGroupConfiguration,
+            [Optional] ApplicationConfiguration applicationConfiguration);
 
         Task Init();
 
