@@ -197,7 +197,7 @@ namespace Opc.Ua.Gds.Server
                         return;
                     }
                 }
-                throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application Self Admin Privielge or Application User access required.");
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application Self Admin Privilege or Application User access required.");
             }
         }
         private void HasApplicationUserAccess(ISystemContext context)
@@ -213,7 +213,7 @@ namespace Opc.Ua.Gds.Server
                         return;
                     }
                 }
-                throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application Self Admin Privielge or Application User access required.");
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application User access required.");
             }
         }
 
@@ -1172,7 +1172,7 @@ namespace Opc.Ua.Gds.Server
             }
 
             m_database.SetApplicationCertificate(applicationId, m_certTypeMap[certificateGroup.CertificateType], signedCertificate);
-
+                                  
             m_request.AcceptRequest(requestId, signedCertificate);
 
             return ServiceResult.Good;

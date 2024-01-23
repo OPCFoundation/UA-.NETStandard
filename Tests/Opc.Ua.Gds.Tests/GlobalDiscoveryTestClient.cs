@@ -126,33 +126,45 @@ namespace Opc.Ua.Gds.Tests
                 /// <param name="application"></param>
         public bool RegisterTestClientAtGds()
         {
-            ApplicationTestData ownApplicationTestData = GetOwnApplicationData();
+            try
+            {
+                OwnApplicationTestData = GetOwnApplicationData();
 
-            m_client.AdminCredentials = AdminUser;
-            //register
-            NodeId id = Register(ownApplicationTestData);
-            if (id == null)
-            {
-                return false;
-            }
-            ownApplicationTestData.ApplicationRecord.ApplicationId = id;
-            //start Key Pair Request
-            NodeId req_id = StartNewKeyPair(ownApplicationTestData);
-            if (req_id == null)
-            {
-                return false;
-            }
+                m_client.AdminCredentials = AdminUser;
+                //register
+                NodeId id = Register(OwnApplicationTestData);
+                if (id == null)
+                {
+                    return false;
+                }
+                OwnApplicationTestData.ApplicationRecord.ApplicationId = id;
+                //start Key Pair Request
+                NodeId req_id = StartNewKeyPair(OwnApplicationTestData);
+                if (req_id == null)
+                {
+                    return false;
+                }
 
-            ownApplicationTestData.CertificateRequestId = req_id;
-            //Finish KeyPairRequest
-            byte[] certificate, privateKey;
-            FinishKeyPair(ownApplicationTestData, out certificate, out privateKey);
-            if (certificate == null || privateKey == null)
+                OwnApplicationTestData.CertificateRequestId = req_id;
+                //Finish KeyPairRequest
+                byte[] certificate, privateKey;
+                FinishKeyPair(OwnApplicationTestData, out certificate, out privateKey);
+                if (certificate == null || privateKey == null)
+                {
+                    return false;
+                }
+                //apply cert
+                ApplyNewApplicationInstanceCertificate(certificate, privateKey);
+                OwnApplicationTestData.Certificate = certificate;
+                OwnApplicationTestData.PrivateKey = privateKey;
+                OwnApplicationTestData.CertificateRequestId = null;
+            }
+            catch (ArgumentException e)
             {
+                Console.WriteLine("RegisterTestClientAtGds at GDS failed" + e.ToString());
                 return false;
             }
-            //apply cert
-            ApplyNewApplicationInstanceCertificate(certificate, privateKey);
+            
 
             return true;
         }

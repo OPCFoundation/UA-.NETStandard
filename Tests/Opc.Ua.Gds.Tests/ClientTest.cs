@@ -938,9 +938,11 @@ namespace Opc.Ua.Gds.Tests
                 foreach (var certificateGroup in certificateGroups)
                 {
                     var trustListId = m_gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, certificateGroup);
-                    // Opc.Ua.TrustListDataType
+                   
+                    Assert.NotNull(trustListId);
+
+                    // Opc.Ua.TrustListDataType -> not possible, this needs ApplicationUserAccess
                     var trustList = m_gdsClient.GDSClient.ReadTrustList(trustListId);
-                    Assert.NotNull(trustList);
                 }
             }
         }
@@ -972,39 +974,194 @@ namespace Opc.Ua.Gds.Tests
             AssertIgnoreTestWithoutGoodRegistration();
             AssertIgnoreTestWithoutGoodNewKeyPairRequest();
 
-
             // connect with gds issued certificate
-            m_gdsClient.RegisterTestClientAtGds();
+            var success = m_gdsClient.RegisterTestClientAtGds();
+
+            if (!success)
+            {
+                Assert.Fail("Registering test Client at GDS failed");
+            }
+
             ConnectGDS(false, true);
 
             // ensure access to other applications is denied
-            foreach (var application in m_goodApplicationTestSet)
+            foreach (var testApplication in m_goodApplicationTestSet)
             {
-                if (application.Certificate != null)
+                if (testApplication.Certificate != null)
                 {
-                    var sre = Assert.Throws<ServiceResultException>(() => m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId));
+                    var sre = Assert.Throws<ServiceResultException>(() => m_gdsClient.GDSClient.GetCertificateGroups(testApplication.ApplicationRecord.ApplicationId));
                     Assert.NotNull(sre);
                     Assert.AreEqual(StatusCodes.BadUserAccessDenied, sre.StatusCode, sre.Result.ToString());
                 }
             }
+            DisconnectGDS();
 
-            Assert.Ignore("TODO: Tests for other logic is not implemented yet!");
-            
+            var application = m_gdsClient.OwnApplicationTestData;
+            ConnectGDS(false, true);
             // use self registered application and get the group / trust lists
-            var certificateGroups = m_gdsClient.GDSClient.GetCertificateGroups(m_gdsClient.OwnApplicationTestData.ApplicationRecord.ApplicationId);
+            var certificateGroups = m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId);
+            
             foreach (var certificateGroup in certificateGroups)
             {
-                var trustListId = m_gdsClient.GDSClient.GetTrustList(m_gdsClient.OwnApplicationTestData.ApplicationRecord.ApplicationId, certificateGroup);
+                var trustListId = m_gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, certificateGroup);
                 // Opc.Ua.TrustListDataType
-                var trustList = m_gdsClient.GDSClient.ReadTrustList(trustListId);
-                Assert.NotNull(trustList);
+               // var trustList = m_gdsClient.GDSClient.ReadTrustList(trustListId); //ToDo make it possible to read the trust List with SelfAdminPrivilege
+                Assert.NotNull(trustListId);
             }
+            DisconnectGDS();
 
+            ConnectGDS(false, true);
             // self issue a certificate and read it back
+            Assert.Null(application.CertificateRequestId);
+            X509Certificate2 csrCertificate;
+            if (application.PrivateKeyFormat == "PFX")
+            {
+                csrCertificate = X509Utils.CreateCertificateFromPKCS12(application.PrivateKey, application.PrivateKeyPassword);
+            }
+            else
+            {
+                csrCertificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(application.Certificate), application.PrivateKey, application.PrivateKeyPassword);
+            }
+            byte[] certificateRequest = CertificateFactory.CreateSigningRequest(csrCertificate, application.DomainNames);
+            csrCertificate.Dispose();
+            NodeId requestId = m_gdsClient.GDSClient.StartSigningRequest(
+                application.ApplicationRecord.ApplicationId,
+                application.CertificateGroupId,
+                application.CertificateTypeId,
+                certificateRequest);
+            Assert.NotNull(requestId);
+            application.CertificateRequestId = requestId;
+            bool requestBusy;
+            DateTime now = DateTime.UtcNow;
+            do
+            {
+                requestBusy = false;
 
+                
+                    if (application.CertificateRequestId != null)
+                    {
+                        try
+                        {
+                            var certificate = m_gdsClient.GDSClient.FinishRequest(
+                                application.ApplicationRecord.ApplicationId,
+                                application.CertificateRequestId,
+                                out byte[] privateKey,
+                                out byte[][] issuerCertificates
+                                );
+
+                            if (certificate != null)
+                            {
+                                application.CertificateRequestId = null;
+
+                                Assert.Null(privateKey);
+                                Assert.NotNull(issuerCertificates);
+                                application.Certificate = certificate;
+                                application.IssuerCertificates = issuerCertificates;
+                                //X509TestUtils.VerifySignedApplicationCert(application, certificate, issuerCertificates);
+                                //X509TestUtils.VerifyApplicationCertIntegrity(certificate, application.PrivateKey, application.PrivateKeyPassword, application.PrivateKeyFormat, issuerCertificates);
+                            }
+                            else
+                            {
+                                requestBusy = true;
+                            }
+                        }
+                        catch (ServiceResultException sre)
+                        {
+                            if (sre.StatusCode == StatusCodes.BadNothingToDo &&
+                                now.AddMinutes(5) > DateTime.UtcNow)
+                            {
+                                requestBusy = true;
+                                Thread.Sleep(1000);
+                            }
+                            else
+                            {
+                                throw;
+                            }
+                        }
+
+                    }
+
+                if (requestBusy)
+                {
+                    Thread.Sleep(5000);
+                    Console.WriteLine("Waiting for certificate approval");
+                }
+            } while (requestBusy);
+
+            DisconnectGDS();
+
+            ConnectGDS(false, true);
             // self issue a public/private key pair and read it back
+            Assert.Null(application.CertificateRequestId);
+            requestId = m_gdsClient.GDSClient.StartNewKeyPairRequest(
+                application.ApplicationRecord.ApplicationId,
+            application.CertificateGroupId,
+                application.CertificateTypeId,
+                application.Subject,
+            application.DomainNames,
+            application.PrivateKeyFormat,
+                application.PrivateKeyPassword);
+            Assert.NotNull(requestId);
+            application.CertificateRequestId = requestId;
 
+            
+            now = DateTime.UtcNow;
+            do
+            {
+                requestBusy = false;
+                    if (application.CertificateRequestId != null)
+                    {
+                        try
+                        {
+                            byte[] certificate = m_gdsClient.GDSClient.FinishRequest(
+                                application.ApplicationRecord.ApplicationId,
+                                application.CertificateRequestId,
+                                out byte[] privateKey,
+                                out byte[][] issuerCertificates
+                                );
 
+                            if (certificate != null)
+                            {
+                                application.CertificateRequestId = null;
+
+                                Assert.NotNull(certificate);
+                                Assert.NotNull(privateKey);
+                                Assert.NotNull(issuerCertificates);
+                                application.Certificate = certificate;
+                                application.PrivateKey = privateKey;
+                                application.IssuerCertificates = issuerCertificates;
+                                //X509TestUtils.VerifySignedApplicationCert(application, certificate, issuerCertificates);
+                                //X509TestUtils.VerifyApplicationCertIntegrity(certificate, privateKey, application.PrivateKeyPassword, application.PrivateKeyFormat, issuerCertificates);
+                            }
+                            else
+                            {
+                                requestBusy = true;
+                            }
+                        }
+                        catch (ServiceResultException sre)
+                        {
+                            if (sre.StatusCode == StatusCodes.BadNothingToDo &&
+                                now.AddMinutes(5) > DateTime.UtcNow)
+                            {
+                                requestBusy = true;
+                                Thread.Sleep(1000);
+                            }
+                            else
+                            {
+                                throw;
+                            }
+                        }
+
+                    }
+                
+
+                if (requestBusy)
+                {
+                    Thread.Sleep(5000);
+                    Console.WriteLine("Waiting for certificate approval");
+                }
+
+            } while (requestBusy);
         }
 
         [Test, Order(690)]
