@@ -1172,7 +1172,7 @@ namespace Opc.Ua.Gds.Server
             }
 
             m_database.SetApplicationCertificate(applicationId, m_certTypeMap[certificateGroup.CertificateType], signedCertificate);
-                                  
+
             m_request.AcceptRequest(requestId, signedCertificate);
 
             return ServiceResult.Good;
@@ -1185,7 +1185,7 @@ namespace Opc.Ua.Gds.Server
             NodeId applicationId,
             ref NodeId[] certificateGroupIds)
         {
-            HasApplicationUserOrSelfAdminAccess(context, applicationId);
+            HasApplicationSelfAdminPrivilege(context, applicationId);
 
             var application = m_database.GetApplication(applicationId);
 
