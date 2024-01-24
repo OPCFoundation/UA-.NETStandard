@@ -2375,7 +2375,8 @@ namespace Opc.Ua.Client
                 {
                     for (int ii = 0; ii < messagesToRepublish.Count; ii++)
                     {
-                        if (!await session.RepublishAsync(subscriptionId, messagesToRepublish[ii].SequenceNumber, ct).ConfigureAwait(false))
+                        (bool success, _) = await session.RepublishAsync(subscriptionId, messagesToRepublish[ii].SequenceNumber, ct).ConfigureAwait(false);
+                        if (!success)
                         {
                             messagesToRepublish[ii].Republished = false;
                         }
