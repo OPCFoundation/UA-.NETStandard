@@ -4974,7 +4974,7 @@ namespace Opc.Ua.Client
                     if (StatusCode.IsBad(code) && code != StatusCodes.BadSequenceNumberUnknown)
                     {
                         Utils.Log(logLevel, "Publish Ack Response. ResultCode={0}; SubscriptionId={1}", code.ToString(), subscriptionId);
-                        // only show the first error
+                        // only show the first error as warning
                         logLevel = LogLevel.Trace;
                     }
                 }
