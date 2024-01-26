@@ -224,7 +224,7 @@ namespace Opc.Ua.Bindings
             {
                 try
                 {
-                    _ = await operation.EndAsync(timeout, false, ct).ConfigureAwait(false);
+                    _ = await operation.EndAsync(timeout, true, ct).ConfigureAwait(false);
                 }
                 catch (ServiceResultException e)
                 {
