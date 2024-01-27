@@ -1057,8 +1057,8 @@ namespace Opc.Ua.Gds.Tests
                                 Assert.NotNull(issuerCertificates);
                                 application.Certificate = certificate;
                                 application.IssuerCertificates = issuerCertificates;
-                                //X509TestUtils.VerifySignedApplicationCert(application, certificate, issuerCertificates);
-                                //X509TestUtils.VerifyApplicationCertIntegrity(certificate, application.PrivateKey, application.PrivateKeyPassword, application.PrivateKeyFormat, issuerCertificates);
+                                X509TestUtils.VerifySignedApplicationCert(application, certificate, issuerCertificates);
+                                X509TestUtils.VerifyApplicationCertIntegrity(certificate, application.PrivateKey, application.PrivateKeyPassword, application.PrivateKeyFormat, issuerCertificates);
                             }
                             else
                             {
@@ -1130,8 +1130,8 @@ namespace Opc.Ua.Gds.Tests
                                 application.Certificate = certificate;
                                 application.PrivateKey = privateKey;
                                 application.IssuerCertificates = issuerCertificates;
-                                //X509TestUtils.VerifySignedApplicationCert(application, certificate, issuerCertificates);
-                                //X509TestUtils.VerifyApplicationCertIntegrity(certificate, privateKey, application.PrivateKeyPassword, application.PrivateKeyFormat, issuerCertificates);
+                                X509TestUtils.VerifySignedApplicationCert(application, certificate, issuerCertificates);
+                                X509TestUtils.VerifyApplicationCertIntegrity(certificate, privateKey, application.PrivateKeyPassword, application.PrivateKeyFormat, issuerCertificates);
                             }
                             else
                             {

@@ -266,7 +266,7 @@ namespace Opc.Ua.Gds.Tests
                                ApplicationId = new NodeId(Guid.NewGuid())
                            },
                            PrivateKeyFormat = "PEM",
-                           Subject = $"CN={m_client.Configuration.ApplicationName},DC=localhost,O=OPC Foundation",
+                           Subject = $"CN={m_client.Configuration.ApplicationName},DC={Utils.GetHostName()},O=OPC Foundation",
                        };
             return ownApplicationTestData;
         }
