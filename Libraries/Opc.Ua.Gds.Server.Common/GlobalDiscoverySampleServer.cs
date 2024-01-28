@@ -243,7 +243,7 @@ namespace Opc.Ua.Gds.Server
             //check if applicable for application self admin privilege
             if(session.ClientCertificate != null)
             {
-                if (VerifiyApplicationRegistered(session.ClientCertificate))
+                if (VerifiyApplicationRegistered(session))
                 {
                     ImpersonateAsApplicationSelfAdmin(session, args);
                 }
@@ -253,11 +253,16 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// Verifies if an Application is registered with the provided certificate at at the GDS
         /// </summary>
-        /// <param name="applicationInstanceCertificate">the certificate to check for</param>
+        /// <param name="session">the session</param>
         /// <returns></returns>
-        private bool VerifiyApplicationRegistered(X509Certificate2 applicationInstanceCertificate)
+        private bool VerifiyApplicationRegistered(Session session)
         {
+            X509Certificate2 applicationInstanceCertificate = session.ClientCertificate;
             bool applicationRegistered = false;
+
+            Uri applicationUri = Utils.ParseUri(session.SessionDiagnostics.ClientDescription.ApplicationUri);
+            X509Utils.DoesUrlMatchCertificate(applicationInstanceCertificate, applicationUri);
+
             //get access to GDS configuration section to find out ApplicationCertificatesStorePath
             GlobalDiscoveryServerConfiguration configuration = Configuration.ParseExtension<GlobalDiscoveryServerConfiguration>();
             if (configuration == null)
@@ -359,7 +364,7 @@ namespace Opc.Ua.Gds.Server
         {
             string applicationUri = session.SessionDiagnostics.ClientDescription.ApplicationUri;
             ApplicationRecordDataType[] application = m_database.FindApplications(applicationUri);
-            if(application == null || application.Length>1 || application.Length<1)
+            if(application == null || application.Length != 1)
             {
                 Utils.LogInfo("Cannot login based on ApplicationInstanceCertificate, no uniqure result for Application with URI: {0}", applicationUri);
                 return;
