@@ -941,7 +941,7 @@ namespace Opc.Ua.Gds.Tests
                 foreach (var certificateGroup in certificateGroups)
                 {
                     var trustListId = m_gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, certificateGroup);
-                   
+
                     Assert.NotNull(trustListId);
 
                     // Opc.Ua.TrustListDataType -> not possible, this needs ApplicationUserAccess
@@ -1012,12 +1012,12 @@ namespace Opc.Ua.Gds.Tests
 
             // use self registered application and get the group / trust lists
             var certificateGroups = m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId);
-            
+
             foreach (var certificateGroup in certificateGroups)
             {
                 var trustListId = m_gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, certificateGroup);
                 // Opc.Ua.TrustListDataType
-               // var trustList = m_gdsClient.GDSClient.ReadTrustList(trustListId); //ToDo make it possible to read the trust List with SelfAdminPrivilege
+                // var trustList = m_gdsClient.GDSClient.ReadTrustList(trustListId); //ToDo make it possible to read the trust List with SelfAdminPrivilege
                 Assert.NotNull(trustListId);
             }
             DisconnectGDS();
@@ -1141,9 +1141,11 @@ namespace Opc.Ua.Gds.Tests
         public void GoodKeyPairRequestAsSelfAdmin()
         {
             AssertIgnoreTestWithoutGdsRegisteredTestClient();
+            AssertIgnoreTestWithoutGoodRegistration();
+            AssertIgnoreTestWithoutGoodNewKeyPairRequest();
 
             ApplicationTestData application = m_gdsClient.OwnApplicationTestData;
-            
+
 
             ConnectGDS(false, true);
 
@@ -1239,6 +1241,37 @@ namespace Opc.Ua.Gds.Tests
             } while (requestBusy);
 
             DisconnectGDS();
+        }
+
+        /// <summary>
+        /// unregister the Client at the GDS and try to read the trust List
+        /// </summary>
+        [Test, Order(633)]
+        public void FailToGetGoodCertificateGroupsWithoutSelfAdminPrivilege()
+        {
+            AssertIgnoreTestWithoutGoodRegistration();
+            AssertIgnoreTestWithoutGoodNewKeyPairRequest();
+            AssertIgnoreTestWithoutGdsRegisteredTestClient();
+
+            ConnectGDS(true);
+
+            ApplicationTestData application = m_gdsClient.OwnApplicationTestData;
+
+            //unregister GDS Client
+            m_gdsClient.GDSClient.UnregisterApplication(application.ApplicationRecord.ApplicationId);
+
+            m_gdsRegisteredTestClient = false;
+
+            DisconnectGDS();
+
+            //connect as self admin with revoked cert
+
+            ConnectGDS(false, true);
+            var sre = Assert.Throws<ServiceResultException>(() =>
+                m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId)
+                );
+            Assert.NotNull(sre);
+            Assert.AreEqual(StatusCodes.BadUserAccessDenied, sre.StatusCode, sre.Result.ToString());
         }
 
         [Test, Order(690)]
@@ -1343,7 +1376,7 @@ namespace Opc.Ua.Gds.Tests
             else
             {
                 m_gdsClient.GDSClient.AdminCredentials = admin ? m_gdsClient.AdminUser : m_gdsClient.AppUser;
-            } 
+            }
             m_gdsClient.GDSClient.Connect(m_gdsClient.GDSClient.EndpointUrl).Wait();
             TestContext.Progress.WriteLine($"GDS Client({admin}) connected -- {memberName}");
         }
