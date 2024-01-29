@@ -26,6 +26,10 @@ namespace Opc.Ua
     {
         #region Private Fields
         private const int kStreamWriterBufferSize = 1024;
+        private static readonly string s_quotationColon = "\":";
+        private static readonly char s_comma = ',';
+        private static readonly char s_quotation = '\"';
+        private static readonly char s_backslash = '\\';
         private Stream m_stream;
         private MemoryStream m_memoryStream;
         private StreamWriter m_writer;
@@ -342,14 +346,14 @@ namespace Opc.Ua
 
             if (m_commaRequired)
             {
-                m_writer.Write(",");
+                m_writer.Write(s_comma);
             }
 
             if (!String.IsNullOrEmpty(fieldName))
             {
-                m_writer.Write("\"");
+                m_writer.Write(s_quotation);
                 EscapeString(fieldName);
-                m_writer.Write("\":");
+                m_writer.Write(s_quotationColon);
             }
             else if (!m_commaRequired)
             {
@@ -361,7 +365,7 @@ namespace Opc.Ua
             }
 
             m_commaRequired = false;
-            m_writer.Write("{");
+            m_writer.Write('{');
         }
 
         /// <inheritdoc/>
@@ -371,14 +375,14 @@ namespace Opc.Ua
 
             if (m_commaRequired)
             {
-                m_writer.Write(",");
+                m_writer.Write(s_comma);
             }
 
             if (!String.IsNullOrEmpty(fieldName))
             {
-                m_writer.Write("\"");
+                m_writer.Write(s_quotation);
                 EscapeString(fieldName);
-                m_writer.Write("\":");
+                m_writer.Write(s_quotationColon);
             }
             else if (!m_commaRequired)
             {
@@ -390,7 +394,7 @@ namespace Opc.Ua
             }
 
             m_commaRequired = false;
-            m_writer.Write("[");
+            m_writer.Write('[');
         }
 
         /// <inheritdoc/>
@@ -399,7 +403,7 @@ namespace Opc.Ua
             if (m_nestingLevel > 1 || m_topLevelIsArray ||
                (m_nestingLevel == 1 && !m_levelOneSkipped))
             {
-                m_writer.Write("}");
+                m_writer.Write('}');
                 m_commaRequired = true;
             }
 
@@ -412,7 +416,7 @@ namespace Opc.Ua
             if (m_nestingLevel > 1 || m_topLevelIsArray ||
                (m_nestingLevel == 1 && !m_levelOneSkipped))
             {
-                m_writer.Write("]");
+                m_writer.Write(']');
                 m_commaRequired = true;
             }
 
@@ -489,8 +493,8 @@ namespace Opc.Ua
             m_namespaces.Pop();
         }
 
-        private static readonly char[] m_specialChars = new char[] { '"', '\\', '\n', '\r', '\t', '\b', '\f', };
-        private static readonly char[] m_substitution = new char[] { '"', '\\', 'n', 'r', 't', 'b', 'f' };
+        private static readonly char[] m_specialChars = new char[] { s_quotation, s_backslash, '\n', '\r', '\t', '\b', '\f', };
+        private static readonly char[] m_substitution = new char[] { s_quotation, s_backslash, 'n', 'r', 't', 'b', 'f' };
 
         private void EscapeString(string value)
         {
@@ -502,7 +506,7 @@ namespace Opc.Ua
                 {
                     if (m_specialChars[ii] == ch)
                     {
-                        m_writer.Write('\\');
+                        m_writer.Write(s_backslash);
                         m_writer.Write(m_substitution[ii]);
                         found = true;
                         break;
@@ -534,18 +538,18 @@ namespace Opc.Ua
 
                 if (m_commaRequired)
                 {
-                    m_writer.Write(",");
+                    m_writer.Write(s_comma);
                 }
 
-                m_writer.Write("\"");
+                m_writer.Write(s_quotation);
                 EscapeString(fieldName);
-                m_writer.Write("\":");
+                m_writer.Write(s_quotationColon);
             }
             else
             {
                 if (m_commaRequired)
                 {
-                    m_writer.Write(",");
+                    m_writer.Write(s_comma);
                 }
             }
 
@@ -553,9 +557,9 @@ namespace Opc.Ua
             {
                 if (quotes)
                 {
-                    m_writer.Write("\"");
+                    m_writer.Write(s_quotation);
                     EscapeString(value);
-                    m_writer.Write("\"");
+                    m_writer.Write(s_quotation);
                 }
                 else
                 {
@@ -796,8 +800,9 @@ namespace Opc.Ua
             }
             else
             {
-                WriteSimpleField(fieldName, value.ToUniversalTime()
-                    .ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK", CultureInfo.InvariantCulture), true);
+                // Note: "o" is a shortcut for "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK" and implicitly
+                // uses invariant culture, but executes up to 10 times faster
+                WriteSimpleField(fieldName, value.ToUniversalTime().ToString("o"), true);
             }
         }
 
@@ -1135,14 +1140,14 @@ namespace Opc.Ua
 
                 if (m_commaRequired)
                 {
-                    m_writer.Write(",");
+                    m_writer.Write(s_comma);
                 }
 
                 if (!String.IsNullOrEmpty(fieldName))
                 {
-                    m_writer.Write("\"");
+                    m_writer.Write(s_quotation);
                     EscapeString(fieldName);
-                    m_writer.Write("\":");
+                    m_writer.Write(s_quotationColon);
                 }
 
                 WriteVariantContents(value.Value, value.TypeInfo);
@@ -2423,7 +2428,6 @@ namespace Opc.Ua
                 // field is omitted
             }
         }
-
         #endregion
 
         #region Private Methods
