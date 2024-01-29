@@ -49,7 +49,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public Application()
         {
             Certificate = new Dictionary<string, byte[]>();
-            TrustListId = new Dictionary<string, Guid>();
+            TrustListId = new Dictionary<string, string>();
         }
         public uint ID { get; set; }
         public Guid ApplicationId { get; set; }
@@ -59,7 +59,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public string ProductUri { get; set; }
         public string ServerCapabilities { get; set; }
         public Dictionary<string, byte[]> Certificate { get; }
-        public Dictionary<string, Guid> TrustListId { get; }
+        public Dictionary<string, string> TrustListId { get; }
     }
 
     [Serializable]
@@ -711,11 +711,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
                 if (trustListId != null)
                 {
-                    var result2 = (from x in CertificateStores where x.Path == trustListId select x).SingleOrDefault();
-                    if (result2 != null)
-                    {
-                        result.TrustListId[certificateType] = result2.TrustListId;
-                    }
+                    result.TrustListId[certificateType] = trustListId;
                 }
                 SaveChanges();
             }
@@ -740,20 +736,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 {
                     return false;
                 }
-
-                Guid trustListGuid;
-                if (result.TrustListId.TryGetValue(certificateType, out trustListGuid))
-                {
-                    var result2 = (from x in CertificateStores where x.TrustListId == trustListGuid select x).SingleOrDefault();
-                    if (result2 != null)
-                    {
-                        trustListId = result2.Path;
-                        return true;
-                    }
-                }
+                return result.TrustListId.TryGetValue(certificateType, out trustListId);
             }
-
-            return false;
         }
         #endregion
 
