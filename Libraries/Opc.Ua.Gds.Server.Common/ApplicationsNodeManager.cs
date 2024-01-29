@@ -164,150 +164,153 @@ namespace Opc.Ua.Gds.Server
         #region Private Methods
 
         #region AuthorizationHelpers
-        private void HasApplicationAdminAccess(ISystemContext context)
+        private void HasApplicationAdminRole(ISystemContext context)
         {
             if (context != null)
             {
-                RoleBasedIdentity identity = context.UserIdentity as RoleBasedIdentity;
-
-                if ((identity == null) || (!identity.Roles.Contains(GdsRole.ApplicationAdmin)))
+                if (CheckAdminRole(context.UserIdentity))
                 {
-                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application Administrator access required.");
+                    return;
                 }
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application Administrator role required.");
             }
         }
-
-        private void HasApplicationUserOrSelfAdminAccess(ISystemContext context, NodeId applicationId)
+        private void HasApplicationUserRole(ISystemContext context)
         {
             if (context != null)
             {
-                RoleBasedIdentity identity = context.UserIdentity as RoleBasedIdentity;
-
-                if (identity != null)
+                if (CheckUserRole(context.UserIdentity))
                 {
-                    if ((identity.Roles.Contains(GdsRole.ApplicationAdmin) || (identity.Roles.Contains(GdsRole.ApplicationUser))))
-                    {
-                        return;
-                    }
+                    return;
                 }
-                GdsRoleBasedIdentity extendedIdentity = context.UserIdentity as GdsRoleBasedIdentity;
-                if (extendedIdentity != null)
-                {
-                    //not administrator/user only has access to own application
-                    if (extendedIdentity.ApplicationId == applicationId)
-                    {
-                        return;
-                    }
-                }
-                throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application Self Admin Privilege or Application User access required.");
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application User role required.");
             }
         }
-        private void HasApplicationUserAccess(ISystemContext context)
+        private void HasApplicationUserRoleOrSelfAdminPrivilge(ISystemContext context, NodeId applicationId)
         {
             if (context != null)
             {
-                RoleBasedIdentity identity = context.UserIdentity as RoleBasedIdentity;
-
-                if (identity != null)
+                if (CheckUserRole(context.UserIdentity))
                 {
-                    if ((identity.Roles.Contains(GdsRole.ApplicationAdmin) || (identity.Roles.Contains(GdsRole.ApplicationUser))))
-                    {
-                        return;
-                    }
+                    return;
                 }
-                throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application User access required.");
+                if (CheckSelfAdminPrivilege(context.UserIdentity, applicationId))
+                {
+                    return;
+                }
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application Self Admin Privilege or Application User role required.");
             }
         }
-
         /// <summary>
         /// checks if the given Application can be modified with the current context
         /// </summary>
         /// <param name="context">the current context</param>
         /// <param name="applicationId">the application to modify</param>
-        private void HasApplicationSelfAdminPrivilege(ISystemContext context, NodeId applicationId)
+        private void HasApplicationAdminRoleOrSelfAdminPrivilege(ISystemContext context, NodeId applicationId)
         {
             if (context != null)
             {
-                RoleBasedIdentity identity = context.UserIdentity as RoleBasedIdentity;
-                //administrator has full access
-                if ((identity != null) && (identity.Roles.Contains(GdsRole.ApplicationAdmin)))
+                if (CheckAdminRole(context.UserIdentity))
                 {
                     return;
                 }
-                GdsRoleBasedIdentity extendedIdentity = context.UserIdentity as GdsRoleBasedIdentity;
-                if (extendedIdentity != null)
+                if (CheckSelfAdminPrivilege(context.UserIdentity, applicationId))
                 {
-                    
-                    //not administrator only has access to own application
-                    if (extendedIdentity.ApplicationId == applicationId)
-                    {
-                        return;
-                    }
+                    return;
                 }
                 throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application Self Admin Privielge or " +
-                            "Application Administrator access required.");
+                            "Application Administrator role required.");
             }
         }
-
         private void HasTrustListWriteAccess(ISystemContext context, string trustedStorePath)
         {
             if (context != null)
             {
                 RoleBasedIdentity identity = context.UserIdentity as RoleBasedIdentity;
 
-                if (identity != null)
+                if (CheckAdminRole(context.UserIdentity))
                 {
-                    if ((identity.Roles.Contains(GdsRole.ApplicationAdmin)))
-                    {
-                        return;
-                    }
+                    return;
                 }
-                GdsRoleBasedIdentity extendedIdentity = context.UserIdentity as GdsRoleBasedIdentity;
-                if (extendedIdentity != null)
+                if (CheckSelfAdminPrivilege(context.UserIdentity, trustedStorePath))
                 {
-                    //not administrator only has access to own trust List
-                    foreach (var certType in m_certTypeMap.Values)
-                    {
-                        m_database.GetApplicationTrustLists(extendedIdentity.ApplicationId, certType, out var trustListId);
-                        if (trustedStorePath == trustListId)
-                        {
-                            return;
-                        }
-                    }
+                    return;
                 }
 
                 throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application Self Admin Privilege or Application User access required for reading TrustList.");
             }
         }
-
         private void HasTrustListReadAccess(ISystemContext context, string trustedStorePath)
         {
             if (context != null)
             {
-                RoleBasedIdentity identity = context.UserIdentity as RoleBasedIdentity;
-
-                if (identity != null)
+                if (CheckUserRole(context.UserIdentity))
                 {
-                    if ((identity.Roles.Contains(GdsRole.ApplicationAdmin) || (identity.Roles.Contains(GdsRole.ApplicationUser))))
-                    {
-                        return;
-                    }
+                    return;
                 }
-                GdsRoleBasedIdentity extendedIdentity = context.UserIdentity as GdsRoleBasedIdentity;
-                if (extendedIdentity != null)
+                if (CheckSelfAdminPrivilege(context.UserIdentity, trustedStorePath))
                 {
-                    //not administrator/user only has access to own trust List
-                    foreach (var certType in m_certTypeMap.Values)
-                    {
-                        m_database.GetApplicationTrustLists(extendedIdentity.ApplicationId, certType, out var trustListId);
-                        if (trustedStorePath == trustListId)
-                        {
-                            return;
-                        }
-                    }
+                    return;
                 }
+                
                 throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application Self Admin Privilege or Application User access required for reading TrustList.");
             }
+        }
+        private bool CheckAdminRole(IUserIdentity userIdentity)
+        {
+            RoleBasedIdentity identity = userIdentity as RoleBasedIdentity;
+
+            if (identity != null)
+            {
+                if ((identity.Roles.Contains(GdsRole.ApplicationAdmin)))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        private bool CheckUserRole(IUserIdentity userIdentity)
+        {
+            RoleBasedIdentity identity = userIdentity as RoleBasedIdentity;
+
+            if (identity != null)
+            {
+                if ((identity.Roles.Contains(GdsRole.ApplicationAdmin) || (identity.Roles.Contains(GdsRole.ApplicationUser))))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        private bool CheckSelfAdminPrivilege(IUserIdentity userIdentity, string trustedStorePath)
+        {
+            GdsRoleBasedIdentity identity = userIdentity as GdsRoleBasedIdentity;
+            if (identity != null)
+            {
+                foreach (var certType in m_certTypeMap.Values)
+                {
+                    m_database.GetApplicationTrustLists(identity.ApplicationId, certType, out var trustListId);
+                    if (trustedStorePath == trustListId)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+        private bool CheckSelfAdminPrivilege(IUserIdentity userIdentity, NodeId applicationId)
+        {
+            GdsRoleBasedIdentity identity = userIdentity as GdsRoleBasedIdentity;
+            if (identity != null)
+            {
+
+                //not administrator only has access to own application
+                if (identity.ApplicationId == applicationId)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
         #endregion
 
@@ -638,7 +641,7 @@ namespace Opc.Ua.Gds.Server
             ApplicationRecordDataType application,
             ref NodeId applicationId)
         {
-            HasApplicationAdminAccess(context);
+            HasApplicationAdminRole(context);
 
             Utils.LogInfo("OnRegisterApplication: {0}", application.ApplicationUri);
 
@@ -653,7 +656,7 @@ namespace Opc.Ua.Gds.Server
             NodeId objectId,
             ApplicationRecordDataType application)
         {
-            HasApplicationAdminAccess(context);
+            HasApplicationAdminRole(context);
 
             Utils.LogInfo("OnUpdateApplication: {0}", application.ApplicationUri);
 
@@ -675,7 +678,7 @@ namespace Opc.Ua.Gds.Server
             NodeId objectId,
             NodeId applicationId)
         {
-            HasApplicationAdminAccess(context);
+            HasApplicationAdminRole(context);
 
             Utils.LogInfo("OnUnregisterApplication: {0}", applicationId.ToString());
 
@@ -710,7 +713,7 @@ namespace Opc.Ua.Gds.Server
             string applicationUri,
             ref ApplicationRecordDataType[] applications)
         {
-            HasApplicationUserAccess(context);
+            HasApplicationUserRole(context);
             Utils.LogInfo("OnFindApplications: {0}", applicationUri);
             applications = m_database.FindApplications(applicationUri);
             return ServiceResult.Good;
@@ -723,7 +726,7 @@ namespace Opc.Ua.Gds.Server
             NodeId applicationId,
             ref ApplicationRecordDataType application)
         {
-            HasApplicationUserOrSelfAdminAccess(context, applicationId);
+            HasApplicationUserRoleOrSelfAdminPrivilge(context, applicationId);
             Utils.LogInfo("OnGetApplication: {0}", applicationId);
             application = m_database.GetApplication(applicationId);
             return ServiceResult.Good;
@@ -883,7 +886,7 @@ namespace Opc.Ua.Gds.Server
             string privateKeyPassword,
             ref NodeId requestId)
         {
-            HasApplicationSelfAdminPrivilege(context, applicationId);
+            HasApplicationAdminRoleOrSelfAdminPrivilege(context, applicationId);
 
             var application = m_database.GetApplication(applicationId);
 
@@ -1002,7 +1005,7 @@ namespace Opc.Ua.Gds.Server
             byte[] certificateRequest,
             ref NodeId requestId)
         {
-            HasApplicationSelfAdminPrivilege(context, applicationId);
+            HasApplicationAdminRoleOrSelfAdminPrivilege(context, applicationId);
 
             var application = m_database.GetApplication(applicationId);
 
@@ -1083,7 +1086,7 @@ namespace Opc.Ua.Gds.Server
             signedCertificate = null;
             issuerCertificates = null;
             privateKey = null;
-            HasApplicationSelfAdminPrivilege(context, applicationId);
+            HasApplicationAdminRoleOrSelfAdminPrivilege(context, applicationId);
 
             var application = m_database.GetApplication(applicationId);
             if (application == null)
@@ -1251,7 +1254,7 @@ namespace Opc.Ua.Gds.Server
             NodeId applicationId,
             ref NodeId[] certificateGroupIds)
         {
-            HasApplicationSelfAdminPrivilege(context, applicationId);
+            HasApplicationAdminRoleOrSelfAdminPrivilege(context, applicationId);
 
             var application = m_database.GetApplication(applicationId);
 
@@ -1279,7 +1282,7 @@ namespace Opc.Ua.Gds.Server
             NodeId certificateGroupId,
             ref NodeId trustListId)
         {
-            HasApplicationUserOrSelfAdminAccess(context, applicationId);
+            HasApplicationUserRoleOrSelfAdminPrivilge(context, applicationId);
 
             var application = m_database.GetApplication(applicationId);
 
@@ -1312,7 +1315,7 @@ namespace Opc.Ua.Gds.Server
             NodeId certificateTypeId,
             ref Boolean updateRequired)
         {
-            HasApplicationUserOrSelfAdminAccess(context, applicationId);
+            HasApplicationUserRoleOrSelfAdminPrivilge(context, applicationId);
 
             var application = m_database.GetApplication(applicationId);
 

@@ -977,8 +977,8 @@ namespace Opc.Ua.Gds.Tests
         [Test, Order(630)]
         public void GetGoodCertificateGroupsAsSelfAdmin()
         {
-            //AssertIgnoreTestWithoutGoodRegistration();
-            //AssertIgnoreTestWithoutGoodNewKeyPairRequest();
+            AssertIgnoreTestWithoutGoodRegistration();
+            AssertIgnoreTestWithoutGoodNewKeyPairRequest();
 
             // register at gds and get gds issued certificate
             var success = m_gdsClient.RegisterTestClientAtGds();

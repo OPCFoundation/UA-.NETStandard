@@ -295,6 +295,18 @@ namespace Opc.Ua.Server
         /// Determine if the impersonated user has admin access.
         /// </summary>
         /// <param name="context"></param>
+        /// <exception cref="ServiceResultException"/>
+        /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
+        public void HasApplicationSecureAdminAccess(ISystemContext context)
+        {
+            HasApplicationSecureAdminAccess(context);
+        }
+
+
+        /// <summary>
+        /// Determine if the impersonated user has admin access.
+        /// </summary>
+        /// <param name="context"></param>
         /// <param name="trustedStorePath"></param>
         /// <exception cref="ServiceResultException"/>
         /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
@@ -333,7 +345,7 @@ namespace Opc.Ua.Server
            byte[] privateKey,
            ref bool applyChangesRequired)
         {
-            HasApplicationSecureAdminAccess(context, "");
+            HasApplicationSecureAdminAccess(context);
 
             object[] inputArguments = new object[] { certificateGroupId, certificateTypeId, certificate, issuerCertificates, privateKeyFormat, privateKey };
             X509Certificate2 newCert = null;
@@ -515,7 +527,7 @@ namespace Opc.Ua.Server
             byte[] nonce,
             ref byte[] certificateRequest)
         {
-            HasApplicationSecureAdminAccess(context, "");
+            HasApplicationSecureAdminAccess(context);
 
             ServerCertificateGroup certificateGroup = VerifyGroupAndTypeId(certificateGroupId, certificateTypeId);
 
@@ -540,7 +552,7 @@ namespace Opc.Ua.Server
             IList<object> inputArguments,
             IList<object> outputArguments)
         {
-            HasApplicationSecureAdminAccess(context, "");
+            HasApplicationSecureAdminAccess(context);
 
             bool disconnectSessions = false;
 
@@ -583,7 +595,7 @@ namespace Opc.Ua.Server
             NodeId objectId,
             ref byte[][] certificates)
         {
-            HasApplicationSecureAdminAccess(context, "");
+            HasApplicationSecureAdminAccess(context);
 
             using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(m_rejectedStorePath))
             {
