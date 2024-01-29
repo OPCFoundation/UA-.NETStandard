@@ -162,6 +162,8 @@ namespace Opc.Ua.Gds.Server
         #endregion
 
         #region Private Methods
+
+        #region AuthorizationHelpers
         private void HasApplicationAdminAccess(ISystemContext context)
         {
             if (context != null)
@@ -246,6 +248,68 @@ namespace Opc.Ua.Gds.Server
                             "Application Administrator access required.");
             }
         }
+
+        private void HasTrustListWriteAccess(ISystemContext context, string trustedStorePath)
+        {
+            if (context != null)
+            {
+                RoleBasedIdentity identity = context.UserIdentity as RoleBasedIdentity;
+
+                if (identity != null)
+                {
+                    if ((identity.Roles.Contains(GdsRole.ApplicationAdmin)))
+                    {
+                        return;
+                    }
+                }
+                GdsRoleBasedIdentity extendedIdentity = context.UserIdentity as GdsRoleBasedIdentity;
+                if (extendedIdentity != null)
+                {
+                    //not administrator only has access to own trust List
+                    foreach (var certType in m_certTypeMap.Values)
+                    {
+                        m_database.GetApplicationTrustLists(extendedIdentity.ApplicationId, certType, out var trustListId);
+                        if (trustedStorePath == trustListId)
+                        {
+                            return;
+                        }
+                    }
+                }
+
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application Self Admin Privilege or Application User access required for reading TrustList.");
+            }
+        }
+
+        private void HasTrustListReadAccess(ISystemContext context, string trustedStorePath)
+        {
+            if (context != null)
+            {
+                RoleBasedIdentity identity = context.UserIdentity as RoleBasedIdentity;
+
+                if (identity != null)
+                {
+                    if ((identity.Roles.Contains(GdsRole.ApplicationAdmin) || (identity.Roles.Contains(GdsRole.ApplicationUser))))
+                    {
+                        return;
+                    }
+                }
+                GdsRoleBasedIdentity extendedIdentity = context.UserIdentity as GdsRoleBasedIdentity;
+                if (extendedIdentity != null)
+                {
+                    //not administrator/user only has access to own trust List
+                    foreach (var certType in m_certTypeMap.Values)
+                    {
+                        m_database.GetApplicationTrustLists(extendedIdentity.ApplicationId, certType, out var trustListId);
+                        if (trustedStorePath == trustListId)
+                        {
+                            return;
+                        }
+                    }
+                }
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Application Self Admin Privilege or Application User access required for reading TrustList.");
+            }
+        }
+        #endregion
 
         private NodeId GetTrustListId(NodeId certificateGroupId)
         {
@@ -1173,6 +1237,8 @@ namespace Opc.Ua.Gds.Server
 
             m_database.SetApplicationCertificate(applicationId, m_certTypeMap[certificateGroup.CertificateType], signedCertificate);
 
+            m_database.SetApplicationTrustLists(applicationId, m_certTypeMap[certificateGroup.CertificateType], certificateGroup.Configuration.TrustedListPath);
+
             m_request.AcceptRequest(requestId, signedCertificate);
 
             return ServiceResult.Good;
@@ -1412,10 +1478,12 @@ namespace Opc.Ua.Gds.Server
                     certificateGroup.DefaultTrustList,
                     certificateGroup.Configuration.TrustedListPath,
                     certificateGroup.Configuration.IssuerListPath,
-                    new TrustList.SecureAccess(HasApplicationUserAccess),
-                    new TrustList.SecureAccess(HasApplicationAdminAccess));
+                    new TrustList.SecureAccess(HasTrustListReadAccess),
+                    new TrustList.SecureAccess(HasTrustListWriteAccess));
             }
         }
+
+        
 
         private ServiceResult VerifyApprovedState(CertificateRequestState state)
         {

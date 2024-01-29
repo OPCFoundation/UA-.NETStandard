@@ -977,8 +977,8 @@ namespace Opc.Ua.Gds.Tests
         [Test, Order(630)]
         public void GetGoodCertificateGroupsAsSelfAdmin()
         {
-            AssertIgnoreTestWithoutGoodRegistration();
-            AssertIgnoreTestWithoutGoodNewKeyPairRequest();
+            //AssertIgnoreTestWithoutGoodRegistration();
+            //AssertIgnoreTestWithoutGoodNewKeyPairRequest();
 
             // register at gds and get gds issued certificate
             var success = m_gdsClient.RegisterTestClientAtGds();
@@ -1017,7 +1017,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 var trustListId = m_gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, certificateGroup);
                 // Opc.Ua.TrustListDataType
-                // var trustList = m_gdsClient.GDSClient.ReadTrustList(trustListId); //ToDo make it possible to read the trust List with SelfAdminPrivilege
+                var trustList = m_gdsClient.GDSClient.ReadTrustList(trustListId); //ToDo make it possible to read the trust List with SelfAdminPrivilege
                 Assert.NotNull(trustListId);
             }
             DisconnectGDS();
