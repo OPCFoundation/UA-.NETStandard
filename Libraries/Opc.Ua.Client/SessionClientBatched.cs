@@ -59,7 +59,7 @@ namespace Opc.Ua
         public OperationLimits OperationLimits
         {
             get => m_operationLimits;
-            internal set
+            protected set
             {
                 if (value == null)
                 {
