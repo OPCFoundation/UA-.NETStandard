@@ -60,15 +60,15 @@ namespace Opc.Ua.Gds.Server
         NodeId Id { get; set; }
         NodeId CertificateType { get; set; }
         CertificateGroupConfiguration Configuration { get; }
-        ApplicationConfiguration ApplicationConfiguration { get; }
+        string TrustedIssuerCertificatesStorePath { get; }
         X509Certificate2 Certificate { get; set; }
         TrustListState DefaultTrustList { get; set; }
         bool UpdateRequired { get; set; }
 
         ICertificateGroup Create(
-            string path,
+            string authoritiesStorePath,
             CertificateGroupConfiguration certificateGroupConfiguration,
-            [Optional] ApplicationConfiguration applicationConfiguration);
+            [Optional] string trustedIssuerCertificatesStorePath);
 
         Task Init();
 

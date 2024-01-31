@@ -62,7 +62,7 @@ namespace Opc.Ua.Gds.Tests
             var cgConfiguration = new CertificateGroupConfiguration();
             cgConfiguration.SubjectName = "CN=GDS Test CA, O=OPC Foundation";
             cgConfiguration.BaseStorePath = _path;
-            var certificateGroup = new CertificateGroup().Create(_path + "/authorities", cgConfiguration, applicatioConfiguration);
+            var certificateGroup = new CertificateGroup().Create(_path + "/authorities", cgConfiguration, applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath);
             var certificate = await certificateGroup.CreateCACertificateAsync(cgConfiguration.SubjectName).ConfigureAwait(false);
             Assert.NotNull(certificate);
             using (ICertificateStore trustedStore = CertificateStoreIdentifier.OpenStore(applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath))

@@ -73,19 +73,19 @@ namespace Opc.Ua.Gds.Server
 
             m_configuration = configuration;
             // get the configuration for the node manager.
-            m_GlobalDiscoveryServerConfiguration = configuration.ParseExtension<GlobalDiscoveryServerConfiguration>();
+            m_globalDiscoveryServerConfiguration = configuration.ParseExtension<GlobalDiscoveryServerConfiguration>();
 
             // use suitable defaults if no configuration exists.
-            if (m_GlobalDiscoveryServerConfiguration == null)
+            if (m_globalDiscoveryServerConfiguration == null)
             {
-                m_GlobalDiscoveryServerConfiguration = new GlobalDiscoveryServerConfiguration();
+                m_globalDiscoveryServerConfiguration = new GlobalDiscoveryServerConfiguration();
             }
 
-            if (!String.IsNullOrEmpty(m_GlobalDiscoveryServerConfiguration.DefaultSubjectNameContext))
+            if (!String.IsNullOrEmpty(m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext))
             {
-                if (m_GlobalDiscoveryServerConfiguration.DefaultSubjectNameContext[0] != ',')
+                if (m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext[0] != ',')
                 {
-                    m_GlobalDiscoveryServerConfiguration.DefaultSubjectNameContext = "," + m_GlobalDiscoveryServerConfiguration.DefaultSubjectNameContext;
+                    m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext = "," + m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext;
                 }
             }
 
@@ -305,7 +305,7 @@ namespace Opc.Ua.Gds.Server
             }
 
             ICertificateGroup certificateGroup = m_certificateGroupFactory.Create(
-                m_GlobalDiscoveryServerConfiguration.AuthoritiesStorePath, certificateGroupConfiguration, m_configuration);
+                m_globalDiscoveryServerConfiguration.AuthoritiesStorePath, certificateGroupConfiguration, m_configuration.SecurityConfiguration.TrustedIssuerCertificates.StorePath);
             SetCertificateGroupNodes(certificateGroup);
             await certificateGroup.Init().ConfigureAwait(false);
 
@@ -331,7 +331,7 @@ namespace Opc.Ua.Gds.Server
                 m_database.NamespaceIndex = this.NamespaceIndexes[0];
                 m_request.NamespaceIndex = this.NamespaceIndexes[0];
 
-                foreach (var certificateGroupConfiguration in m_GlobalDiscoveryServerConfiguration.CertificateGroups)
+                foreach (var certificateGroupConfiguration in m_globalDiscoveryServerConfiguration.CertificateGroups)
                 {
                     try
                     {
@@ -707,9 +707,9 @@ namespace Opc.Ua.Gds.Server
 
             if (!contextFound)
             {
-                if (!String.IsNullOrEmpty(m_GlobalDiscoveryServerConfiguration.DefaultSubjectNameContext))
+                if (!String.IsNullOrEmpty(m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext))
                 {
-                    builder.Append(m_GlobalDiscoveryServerConfiguration.DefaultSubjectNameContext);
+                    builder.Append(m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext);
                 }
             }
 
@@ -822,9 +822,9 @@ namespace Opc.Ua.Gds.Server
                     buffer.Append(GetDefaultUserToken());
                 }
 
-                if (!String.IsNullOrEmpty(m_GlobalDiscoveryServerConfiguration.DefaultSubjectNameContext))
+                if (!String.IsNullOrEmpty(m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext))
                 {
-                    buffer.Append(m_GlobalDiscoveryServerConfiguration.DefaultSubjectNameContext);
+                    buffer.Append(m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext);
                 }
 
                 subjectName = buffer.ToString();
@@ -1108,7 +1108,7 @@ namespace Opc.Ua.Gds.Server
             issuerCertificates[0] = certificateGroup.Certificate.RawData;
 
             // store new app certificate
-            using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(m_GlobalDiscoveryServerConfiguration.ApplicationCertificatesStorePath))
+            using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(m_globalDiscoveryServerConfiguration.ApplicationCertificatesStorePath))
             {
                 store.Add(certificate).Wait();
             }
@@ -1380,7 +1380,7 @@ namespace Opc.Ua.Gds.Server
         private bool m_autoApprove;
         private uint m_nextNodeId;
         private ApplicationConfiguration m_configuration;
-        private GlobalDiscoveryServerConfiguration m_GlobalDiscoveryServerConfiguration;
+        private GlobalDiscoveryServerConfiguration m_globalDiscoveryServerConfiguration;
         private IApplicationsDatabase m_database;
         private ICertificateRequest m_request;
         private ICertificateGroup m_certificateGroupFactory;

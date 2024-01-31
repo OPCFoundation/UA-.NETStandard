@@ -47,7 +47,7 @@ namespace Opc.Ua.Gds.Server
         public X509Certificate2 Certificate { get; set; }
         public TrustListState DefaultTrustList { get; set; }
         public Boolean UpdateRequired { get; set; }
-        public ApplicationConfiguration ApplicationConfiguration { get; } = null;
+        public string TrustedIssuerCertificatesStorePath { get; } = null;
         #endregion
 
         public CertificateGroup()
@@ -58,16 +58,16 @@ namespace Opc.Ua.Gds.Server
         protected CertificateGroup(
             string authoritiesStorePath,
             CertificateGroupConfiguration certificateGroupConfiguration,
-            [Optional] ApplicationConfiguration applicationConfiguration
+            [Optional] string trustedIssuerCertificatesStorePath
             )
         {
             AuthoritiesStorePath = authoritiesStorePath;
             AuthoritiesStoreType = CertificateStoreIdentifier.DetermineStoreType(AuthoritiesStorePath);
             Configuration = certificateGroupConfiguration;
-            if (applicationConfiguration != null)
+            if (trustedIssuerCertificatesStorePath != null)
             {
 
-                ApplicationConfiguration = applicationConfiguration;
+                TrustedIssuerCertificatesStorePath = trustedIssuerCertificatesStorePath;
             }
             SubjectName = Configuration.SubjectName.Replace("localhost", Utils.GetHostName());
         }
@@ -120,11 +120,11 @@ namespace Opc.Ua.Gds.Server
         }
 
         public virtual ICertificateGroup Create(
-            string storePath,
+            string authoritiesStorePath,
             CertificateGroupConfiguration certificateGroupConfiguration,
-            [Optional] ApplicationConfiguration applicationConfiguration)
+            [Optional] string trustedIssuerCertificatesStorePath)
         {
-            return new CertificateGroup(storePath, certificateGroupConfiguration, applicationConfiguration);
+            return new CertificateGroup(authoritiesStorePath, certificateGroupConfiguration, trustedIssuerCertificatesStorePath);
         }
 
         /// <summary>
@@ -186,10 +186,10 @@ namespace Opc.Ua.Gds.Server
                 , TaskContinuationOptions.OnlyOnRanToCompletion).ConfigureAwait(false);
 
             //Also update TrustedIssuerCertificates Store
-            if (ApplicationConfiguration != null && ApplicationConfiguration.SecurityConfiguration != null && ApplicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates != null)
+            if (!String.IsNullOrEmpty(TrustedIssuerCertificatesStorePath))
             {
                 await crl.ContinueWith((_) =>
-                    UpdateAuthorityCertInCertificateStore(ApplicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath)
+                    UpdateAuthorityCertInCertificateStore(TrustedIssuerCertificatesStorePath)
                     , TaskContinuationOptions.OnlyOnRanToCompletion).ConfigureAwait(false);
             }
             //return crl
@@ -343,10 +343,10 @@ namespace Opc.Ua.Gds.Server
                     , TaskContinuationOptions.OnlyOnRanToCompletion).ConfigureAwait(false);
 
                 //Update TrustedIssuerCertificates Store
-                if (ApplicationConfiguration != null && ApplicationConfiguration.SecurityConfiguration != null && ApplicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates != null)
+                if (!string.IsNullOrEmpty(TrustedIssuerCertificatesStorePath))
                 {
                     await crlTask.ContinueWith((_) =>
-                        UpdateAuthorityCertInCertificateStore(ApplicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath)
+                        UpdateAuthorityCertInCertificateStore(TrustedIssuerCertificatesStorePath)
                         , TaskContinuationOptions.OnlyOnRanToCompletion).ConfigureAwait(false);
                 }
                 return Certificate;
