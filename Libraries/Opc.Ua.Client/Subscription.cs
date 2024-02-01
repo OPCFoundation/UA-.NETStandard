@@ -599,7 +599,7 @@ namespace Opc.Ua.Client
         public ISession Session
         {
             get => m_session;
-            internal set => m_session = value;
+            protected internal set => m_session = value;
         }
 
         /// <summary>
