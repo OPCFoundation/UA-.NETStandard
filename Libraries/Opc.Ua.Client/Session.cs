@@ -6298,7 +6298,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        internal KeepAliveEventArgs(
+        public KeepAliveEventArgs(
             ServiceResult status,
             ServerState currentState,
             DateTime currentTime)
@@ -6354,7 +6354,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        internal NotificationEventArgs(
+        public NotificationEventArgs(
             Subscription subscription,
             NotificationMessage notificationMessage,
             IList<string> stringTable)
@@ -6400,7 +6400,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        internal PublishErrorEventArgs(ServiceResult status)
+        public PublishErrorEventArgs(ServiceResult status)
         {
             m_status = status;
         }
@@ -6458,7 +6458,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        internal PublishSequenceNumbersToAcknowledgeEventArgs(
+        public PublishSequenceNumbersToAcknowledgeEventArgs(
             SubscriptionAcknowledgementCollection acknowledgementsToSend,
             SubscriptionAcknowledgementCollection deferredAcknowledgementsToSend)
         {
