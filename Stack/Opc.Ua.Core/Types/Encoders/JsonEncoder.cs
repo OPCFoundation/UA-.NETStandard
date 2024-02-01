@@ -801,7 +801,8 @@ namespace Opc.Ua
             else
             {
                 // Note: "o" is a shortcut for "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK" and implicitly
-                // uses invariant culture, but executes up to 10 times faster
+                // uses invariant culture and gregorian calendar, but executes up to 10 times faster
+                // in contrary to the explicit format string, trailing zeroes are omitted
                 WriteSimpleField(fieldName, value.ToUniversalTime().ToString("o"), true);
             }
         }
