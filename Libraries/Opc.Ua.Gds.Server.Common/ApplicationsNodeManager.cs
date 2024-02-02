@@ -417,6 +417,7 @@ namespace Opc.Ua.Gds.Server
                     activeNode.GetTrustList.OnCall = new GetTrustListMethodStateMethodCallHandler(OnGetTrustList);
                     activeNode.GetCertificateStatus.OnCall = new GetCertificateStatusMethodStateMethodCallHandler(OnGetCertificateStatus);
                     activeNode.StartSigningRequest.OnCall = new StartSigningRequestMethodStateMethodCallHandler(OnStartSigningRequest);
+                    activeNode.CheckRevocationStatus.OnCall = new CheckRevocationStatusMethodStateMethodCallHandler(OnCheckRevocationStatus);
                     // TODO
                     //activeNode.RevokeCertificate.OnCall = new RevokeCertificateMethodStateMethodCallHandler(OnRevokeCertificate);
 
@@ -605,6 +606,32 @@ namespace Opc.Ua.Gds.Server
             application = m_database.GetApplication(applicationId);
             return ServiceResult.Good;
         }
+
+        private ServiceResult OnCheckRevocationStatus(
+        ISystemContext context,
+        MethodState method,
+        NodeId objectId,
+        byte[] certificate,
+        ref StatusCode certificateStatus,
+        ref DateTime validityTime)
+        {
+            //create CertificateValidator with secure defaults
+            var certificateValidator = new CertificateValidator();
+
+            validityTime = DateTime.MinValue;
+
+            try
+            {
+                certificateValidator.Validate(new X509Certificate2(certificate));
+            }
+            catch (ServiceResultException se)
+            {
+                certificateStatus = se.StatusCode;
+            }
+
+            return ServiceResult.Good;
+        }
+
 
         private ServiceResult CheckHttpsDomain(ApplicationRecordDataType application, string commonName)
         {

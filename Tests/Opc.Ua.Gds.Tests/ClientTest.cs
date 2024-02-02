@@ -968,6 +968,19 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
+        [Test, Order(700)]
+        public void CheckRevocationStatus()
+        {
+            AssertIgnoreTestWithoutGoodRegistration();
+            ConnectGDS(false);
+            foreach (var application in m_goodApplicationTestSet)
+            {
+                m_gdsClient.GDSClient.CheckRevocationStatus(application.Certificate, out StatusCode certificateStatus, out DateTime validityTime);
+                Assert.Equals(StatusCodes.Good, certificateStatus);
+                Assert.NotNull(validityTime);
+            }
+        }
+
         [Test, Order(900)]
         public void UnregisterGoodApplications()
         {
