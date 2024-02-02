@@ -148,6 +148,29 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         [Benchmark]
+        [Test]
+        public void DateTimeDecodeXml()
+        {
+            _ = XmlConvert.ToDateTime(m_dateTimeText, XmlDateTimeSerializationMode.Utc);
+        }
+
+        [Benchmark]
+        [Test]
+        public void DateTimeDecodeTryParseExact()
+        {
+            DateTime.TryParseExact(m_dateTimeText, "o", CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime dateTime);
+            var _ = dateTime;
+        }
+
+        [Benchmark]
+        [Test]
+        public void DateTimeDecodeTryParse()
+        {
+            DateTime.TryParse(m_dateTimeText, out DateTime dateTime);
+            var _ = dateTime;
+        }
+
+        [Benchmark]
         public void DateTimeEncodeString()
         {
             _ = m_dateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK", CultureInfo.InvariantCulture);

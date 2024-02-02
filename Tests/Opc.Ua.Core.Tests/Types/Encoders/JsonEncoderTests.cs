@@ -886,14 +886,66 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// <summary>
         /// Validate that the DateTime format strings return an equal result.
         /// </summary>
-        [Test, Repeat(1000)]
+        [Test, Repeat(kRandomRepeats)]
         public void DateTimeEncodeStringTest()
         {
-            var randomDateTime = DataGenerator.GetRandomDateTime().ToUniversalTime();
-            var resultString = randomDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK", CultureInfo.InvariantCulture);
-            var resultO = randomDateTime.ToString("o");
+            SetRepeatedRandomSeed();
+            DateTime randomDateTime = DataGenerator.GetRandomDateTime().ToUniversalTime();
+            string resultString = randomDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK", CultureInfo.InvariantCulture);
+            string resultO = randomDateTime.ToString("o");
             Assert.NotNull(resultString);
-            Assert.AreEqual(resultString, resultO);
+            Assert.NotNull(resultO);
+
+            TestContext.Out.WriteLine("Encoded: \"o\": {0} \"yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK\": {1}", resultO, resultString);
+
+            // last char is always 'Z', Utc time
+            Assert.AreEqual('Z', resultString[resultString.Length - 1]);
+            Assert.AreEqual('Z', resultO[resultO.Length - 1]);
+
+            if (resultString.Equals(resultO, StringComparison.Ordinal))
+            {
+                Assert.AreEqual(resultString, resultO);
+            }
+            else
+            {
+                // ensure the trailing digits after the decimal point are all zeros
+                int diff = Math.Abs(resultString.Length - resultO.Length);
+                Assert.AreNotEqual(0, diff);
+                // length of the smaller item - 'Z' 
+                int minLength = Math.Min(resultString.Length, resultO.Length) - 1;
+                var resultStringTrimmed = resultString.Substring(0, minLength - 1);
+                var resultOTrimmed = resultO.Substring(0, minLength - 1);
+                Assert.AreEqual(resultStringTrimmed, resultOTrimmed);
+
+                // now check remaining digits must be 0 in the longer string
+                var resultStringRemaining = resultString.Substring(minLength);
+                var resultORemaining = resultO.Substring(minLength);
+                var testString = resultStringRemaining.Length > resultORemaining.Length ? resultStringRemaining : resultORemaining;
+                for (int i = 0; i < testString.Length - 1; i++)
+                {
+                    Assert.AreEqual('0', testString[i]);
+                }
+                Assert.AreEqual('Z', testString[testString.Length - 1]);
+            }
+
+            DateTime decodedXmlString = XmlConvert.ToDateTime(resultString, XmlDateTimeSerializationMode.Utc);
+            DateTime decodedXmlO = XmlConvert.ToDateTime(resultO, XmlDateTimeSerializationMode.Utc);
+
+            Assert.NotNull(decodedXmlString);
+            Assert.NotNull(decodedXmlO);
+
+            if (decodedXmlO.Year == 1970) { };
+            TestContext.Out.WriteLine("Decoded Xml: {0} {1}", decodedXmlO.ToString("o"), decodedXmlString.ToString("o"));
+            Assert.True(Utils.IsEqual(decodedXmlString, decodedXmlO));
+
+            // ensure decoded values are identital
+            bool successString = DateTime.TryParseExact(resultString, "o", CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime decodedString);
+            bool successO = DateTime.TryParseExact(resultO, "o", CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime decodedO);
+            Assert.True(successString);
+            Assert.True(successO);
+
+            TestContext.Out.WriteLine("Decoded: {0} {1}", decodedO, decodedString);
+            Assert.AreEqual(decodedO, decodedString);
         }
         #endregion
 
