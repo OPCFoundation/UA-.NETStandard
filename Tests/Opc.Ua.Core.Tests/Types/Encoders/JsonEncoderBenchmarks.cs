@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Xml;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
@@ -230,6 +231,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_recyclableMemoryStream = new Microsoft.IO.RecyclableMemoryStream(m_memoryManager);
             m_bufferManager = new BufferManager(nameof(BinaryEncoder), kBufferSize);
             m_arraySegmentStream = new ArraySegmentStream(m_bufferManager, kBufferSize, 0, kBufferSize);
+            m_dateTimeText = "2018-12-31T23:59:59.9999999Z";
+            m_dateTime = DateTime.UtcNow;
         }
 
         [OneTimeTearDown]
@@ -262,6 +265,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_bufferManager = new BufferManager(nameof(BinaryEncoder), kBufferSize);
             m_arraySegmentStream = new ArraySegmentStream(m_bufferManager, kBufferSize, 0, kBufferSize);
             m_dateTime = DateTime.UtcNow;
+            m_dateTimeText = "2018-12-31T23:59:59.9999999Z";
         }
 
         /// <summary>
@@ -292,6 +296,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         private BufferManager m_bufferManager;
         private ArraySegmentStream m_arraySegmentStream;
         private DateTime m_dateTime;
+        private string m_dateTimeText;
         #endregion
     }
 }
