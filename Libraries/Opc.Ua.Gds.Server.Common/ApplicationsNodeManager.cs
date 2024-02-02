@@ -417,8 +417,7 @@ namespace Opc.Ua.Gds.Server
                     activeNode.GetTrustList.OnCall = new GetTrustListMethodStateMethodCallHandler(OnGetTrustList);
                     activeNode.GetCertificateStatus.OnCall = new GetCertificateStatusMethodStateMethodCallHandler(OnGetCertificateStatus);
                     activeNode.StartSigningRequest.OnCall = new StartSigningRequestMethodStateMethodCallHandler(OnStartSigningRequest);
-                    // TODO
-                    //activeNode.RevokeCertificate.OnCall = new RevokeCertificateMethodStateMethodCallHandler(OnRevokeCertificate);
+                    activeNode.RevokeCertificate.OnCall = new RevokeCertificateMethodStateMethodCallHandler(OnRevokeCertificate);
 
                     activeNode.CertificateGroups.DefaultApplicationGroup.CertificateTypes.Value = new NodeId[] { Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType };
                     activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.LastUpdateTime.Value = DateTime.UtcNow;
@@ -577,6 +576,51 @@ namespace Opc.Ua.Gds.Server
 
             m_database.UnregisterApplication(applicationId);
 
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult OnRevokeCertificate(
+             ISystemContext context,
+             MethodState method,
+             NodeId objectId,
+             NodeId applicationId,
+             byte[] certificate)
+        {
+            HasApplicationAdminAccess(context);
+
+            if (m_database.GetApplication(applicationId) == null)
+            {
+                return new ServiceResult(StatusCodes.BadNotFound, "The ApplicationId does not refer to a registered application.");
+            }
+
+            bool revoked = false;
+            var certifcateToRevoke = new X509Certificate2(certificate);
+            foreach (var certType in m_certTypeMap)
+            {
+                try
+                {
+                    byte[] applicationCertificate;
+                    if (m_database.GetApplicationCertificate(applicationId, certType.Value, out applicationCertificate))
+                    {
+                        if (applicationCertificate != null)
+                        {
+                            if (new X509Certificate2(applicationCertificate).Equals(certifcateToRevoke))
+                            {
+                                RevokeCertificateAsync(certificate).Wait();
+                                revoked = true;
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    Utils.LogError("Failed to revoke: {0}", certType.Value);
+                }
+            }
+            if (!revoked)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "The certificate is not a Certificate for the specified Application that was issued by the CertificateManager.");
+            }
             return ServiceResult.Good;
         }
 

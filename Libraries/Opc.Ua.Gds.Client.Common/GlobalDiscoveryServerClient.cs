@@ -619,6 +619,25 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <summary>
+        /// Revokes a Certificate issued to the Application by the CertificateManager
+        /// </summary>
+        /// <param name="applicationId">The application id.</param>
+        /// <param name="certificate">The certificate to revoke</param>
+        public void RevokeCertificate(NodeId applicationId, byte[] certificate)
+        {
+            if (!IsConnected)
+            {
+                Connect();
+            }
+
+            Session.Call(
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_RevokeCertificate, Session.NamespaceUris),
+                applicationId,
+                certificate);
+        }
+
+        /// <summary>
         /// Requests a new certificate.
         /// </summary>
         /// <param name="applicationId">The application id.</param>
