@@ -72,6 +72,8 @@ namespace Opc.Ua.Gds.Server
             SystemContext.NodeIdFactory = this;
 
             // get the configuration for the node manager.
+            m_securityConfiguration = configuration.SecurityConfiguration;
+
             m_configuration = configuration.ParseExtension<GlobalDiscoveryServerConfiguration>();
 
             // use suitable defaults if no configuration exists.
@@ -615,8 +617,20 @@ namespace Opc.Ua.Gds.Server
         ref StatusCode certificateStatus,
         ref DateTime validityTime)
         {
-            //create CertificateValidator with secure defaults
-            var certificateValidator = new CertificateValidator();
+            //Check if connected using a secure channel
+            OperationContext operationContext = (context as SystemContext)?.OperationContext as OperationContext;
+            if (operationContext != null)
+            {
+                if (operationContext.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt)
+                {
+                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Method has to be called from an authenticated secure channel.");
+                }
+            }
+
+                //create CertificateValidator with secure defaults
+                var certificateValidator = new CertificateValidator();
+            certificateValidator.Update(m_securityConfiguration.TrustedIssuerCertificates, null, null);
+
 
             validityTime = DateTime.MinValue;
 
@@ -1406,6 +1420,7 @@ namespace Opc.Ua.Gds.Server
         private bool m_autoApprove;
         private uint m_nextNodeId;
         private GlobalDiscoveryServerConfiguration m_configuration;
+        private SecurityConfiguration m_securityConfiguration;
         private IApplicationsDatabase m_database;
         private ICertificateRequest m_request;
         private ICertificateGroup m_certificateGroupFactory;
