@@ -468,7 +468,6 @@ namespace Opc.Ua.Gds.Server
         /// <returns></returns>
         protected async Task UpdateAuthorityCertInCertificateStore(string path)
         {
-
             if (!String.IsNullOrEmpty(path))
             {
                 using (ICertificateStore authorityStore = CertificateStoreIdentifier.OpenStore(AuthoritiesStorePath))
