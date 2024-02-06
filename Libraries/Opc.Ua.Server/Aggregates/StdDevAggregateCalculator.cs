@@ -76,7 +76,7 @@ namespace Opc.Ua.Server
                 {
                     // valueType == 1: StandardDeviation, valueType == 2: Variance
 
-                    // includeBounds == true: smples, includeBounds == false: population
+                    // includeBounds == true: sample, includeBounds == false: population
                     // (this is a strange way to distinguish between sample and population)
 
                     case Objects.AggregateFunction_StandardDeviationPopulation:
