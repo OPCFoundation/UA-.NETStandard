@@ -5430,36 +5430,22 @@ namespace Opc.Ua.Client
 
             // find the matching description (TBD - check domains against certificate).
             bool found = false;
-            Uri expectedUrl = Utils.ParseUri(m_endpoint.Description.EndpointUrl);
 
-            if (expectedUrl != null)
+            var foundDescription = FindMatchingDescription(serverEndpoints, m_endpoint.Description, true);
+            if (foundDescription != null)
             {
-                for (int ii = 0; ii < serverEndpoints.Count; ii++)
+                found = true;
+                // ensure endpoint has up to date information.
+                UpdateDescription(m_endpoint.Description, foundDescription);
+            }
+            else
+            {
+                foundDescription = FindMatchingDescription(serverEndpoints, m_endpoint.Description, false);
+                if (foundDescription != null)
                 {
-                    EndpointDescription serverEndpoint = serverEndpoints[ii];
-                    Uri actualUrl = Utils.ParseUri(serverEndpoint.EndpointUrl);
-
-                    if (actualUrl != null &&
-                        actualUrl.Scheme == expectedUrl.Scheme &&
-                        actualUrl.Port == expectedUrl.Port)
-                    {
-                        if (serverEndpoint.SecurityPolicyUri == m_endpoint.Description.SecurityPolicyUri)
-                        {
-                            if (serverEndpoint.SecurityMode == m_endpoint.Description.SecurityMode)
-                            {
-                                // ensure endpoint has up to date information.
-                                m_endpoint.Description.Server.ApplicationName = serverEndpoint.Server.ApplicationName;
-                                m_endpoint.Description.Server.ApplicationUri = serverEndpoint.Server.ApplicationUri;
-                                m_endpoint.Description.Server.ApplicationType = serverEndpoint.Server.ApplicationType;
-                                m_endpoint.Description.Server.ProductUri = serverEndpoint.Server.ProductUri;
-                                m_endpoint.Description.TransportProfileUri = serverEndpoint.TransportProfileUri;
-                                m_endpoint.Description.UserIdentityTokens = serverEndpoint.UserIdentityTokens;
-
-                                found = true;
-                                break;
-                            }
-                        }
-                    }
+                    found = true;
+                    // ensure endpoint has up to date information.
+                    UpdateDescription(m_endpoint.Description, foundDescription);
                 }
             }
 
@@ -5470,6 +5456,55 @@ namespace Opc.Ua.Client
                     StatusCodes.BadSecurityChecksFailed,
                     "Server did not return an EndpointDescription that matched the one used to create the secure channel.");
             }
+        }
+
+        /// <summary>
+        /// Find and return matching application description
+        /// </summary>
+        /// <param name="endpointDescriptions">The descriptions to search through</param> 
+        /// <param name="match">The description to match</param> 
+        /// <param name="matchPort">Match criteria includes port</param>
+        /// <returns>Matching description or null if no description is matching</returns>
+        private EndpointDescription FindMatchingDescription(EndpointDescriptionCollection endpointDescriptions,
+            EndpointDescription match,
+            bool matchPort)
+        {
+            Uri expectedUrl = Utils.ParseUri(match.EndpointUrl);
+            for (int ii = 0; ii < endpointDescriptions.Count; ii++)
+            {
+                EndpointDescription serverEndpoint = endpointDescriptions[ii];
+                Uri actualUrl = Utils.ParseUri(serverEndpoint.EndpointUrl);
+
+                if (actualUrl != null &&
+                    actualUrl.Scheme == expectedUrl.Scheme &&
+                    (matchPort ? actualUrl.Port == expectedUrl.Port : true))
+                {
+                    if (serverEndpoint.SecurityPolicyUri == m_endpoint.Description.SecurityPolicyUri)
+                    {
+                        if (serverEndpoint.SecurityMode == m_endpoint.Description.SecurityMode)
+                        {
+                            return serverEndpoint;
+                        }
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Update the target description from the source description
+        /// </summary>
+        /// <param name="target"></param>
+        /// <param name="source"></param>
+        private void UpdateDescription(EndpointDescription target, EndpointDescription source)
+        {
+            target.Server.ApplicationName = source.Server.ApplicationName;
+            target.Server.ApplicationUri = source.Server.ApplicationUri;
+            target.Server.ApplicationType = source.Server.ApplicationType;
+            target.Server.ProductUri = source.Server.ProductUri;
+            target.TransportProfileUri = source.TransportProfileUri;
+            target.UserIdentityTokens = source.UserIdentityTokens;
         }
 
         /// <summary>
