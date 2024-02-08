@@ -107,7 +107,7 @@ namespace Opc.Ua.Client
             {
                 m_cacheLock.EnterReadLock();
 
-                // check if node alredy exists.
+                // check if node already exists.
                 node = m_nodes.Find(nodeId);
             }
             finally

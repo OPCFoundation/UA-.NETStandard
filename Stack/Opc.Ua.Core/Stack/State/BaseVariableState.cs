@@ -1171,32 +1171,32 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="decoder">The decoder.</param>
-        /// <param name="attibutesToLoad">The attributes to load.</param>
-        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attibutesToLoad)
+        /// <param name="attributesToLoad">The attributes to load.</param>
+        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attributesToLoad)
         {
-            base.Update(context, decoder, attibutesToLoad);
+            base.Update(context, decoder, attributesToLoad);
 
-            if ((attibutesToLoad & AttributesToSave.Value) != 0)
+            if ((attributesToLoad & AttributesToSave.Value) != 0)
             {
                 WrappedValue = decoder.ReadVariant(null);
             }
 
-            if ((attibutesToLoad & AttributesToSave.StatusCode) != 0)
+            if ((attributesToLoad & AttributesToSave.StatusCode) != 0)
             {
                 m_statusCode = decoder.ReadStatusCode(null);
             }
 
-            if ((attibutesToLoad & AttributesToSave.DataType) != 0)
+            if ((attributesToLoad & AttributesToSave.DataType) != 0)
             {
                 m_dataType = decoder.ReadNodeId(null);
             }
 
-            if ((attibutesToLoad & AttributesToSave.ValueRank) != 0)
+            if ((attributesToLoad & AttributesToSave.ValueRank) != 0)
             {
                 m_valueRank = decoder.ReadInt32(null);
             }
 
-            if ((attibutesToLoad & AttributesToSave.ArrayDimensions) != 0)
+            if ((attributesToLoad & AttributesToSave.ArrayDimensions) != 0)
             {
                 UInt32Collection arrayDimensions = decoder.ReadUInt32Array(null);
 
@@ -1210,22 +1210,22 @@ namespace Opc.Ua
                 }
             }
 
-            if ((attibutesToLoad & AttributesToSave.AccessLevel) != 0)
+            if ((attributesToLoad & AttributesToSave.AccessLevel) != 0)
             {
                 AccessLevel = decoder.ReadByte(null);
             }
 
-            if ((attibutesToLoad & AttributesToSave.UserAccessLevel) != 0)
+            if ((attributesToLoad & AttributesToSave.UserAccessLevel) != 0)
             {
                 m_userAccessLevel = decoder.ReadByte(null);
             }
 
-            if ((attibutesToLoad & AttributesToSave.MinimumSamplingInterval) != 0)
+            if ((attributesToLoad & AttributesToSave.MinimumSamplingInterval) != 0)
             {
                 m_minimumSamplingInterval = decoder.ReadDouble(null);
             }
 
-            if ((attibutesToLoad & AttributesToSave.Historizing) != 0)
+            if ((attributesToLoad & AttributesToSave.Historizing) != 0)
             {
                 m_historizing = decoder.ReadBoolean(null);
             }

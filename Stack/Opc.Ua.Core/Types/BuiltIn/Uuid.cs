@@ -319,7 +319,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes the collection with the specified capacity.
         /// </remarks>
-        /// <param name="capacity">The maximum size of the colletion</param>
+        /// <param name="capacity">The maximum size of the collection</param>
         public UuidCollection(int capacity) : base(capacity) { }
 
         /// <summary>
@@ -328,7 +328,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
-        /// <param name="values">The array of <see cref="Uuid"/> values to return as a Collection</param>
+        /// <param name="values">The array of <see cref="Uuid"/> values to return as a collection</param>
         public static UuidCollection ToUuidCollection(Uuid[] values)
         {
             if (values != null)

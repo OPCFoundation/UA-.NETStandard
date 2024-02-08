@@ -96,7 +96,7 @@ namespace Opc.Ua.Security.Certificates
     { }
 
     /// <summary>
-    /// The interface to create a RSA based certifcate.
+    /// The interface to create a RSA based certificate.
     /// </summary>
     public interface ICertificateBuilderCreateForRSAAny
         : ICertificateBuilderCreateForRSA
@@ -105,7 +105,7 @@ namespace Opc.Ua.Security.Certificates
 
 #if ECC_SUPPORT
     /// <summary>
-    /// The interface to create a ECDSA based certifcate.
+    /// The interface to create a ECDSA based certificate.
     /// </summary>
     public interface ICertificateBuilderCreateForECDsaAny
         : ICertificateBuilderCreateForECDsa

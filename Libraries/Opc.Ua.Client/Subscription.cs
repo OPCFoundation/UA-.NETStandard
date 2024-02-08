@@ -2405,7 +2405,7 @@ namespace Opc.Ua.Client
 
             if (!created && m_id != 0)
             {
-                throw new ServiceResultException(StatusCodes.BadInvalidState, "Subscription has alredy been created.");
+                throw new ServiceResultException(StatusCodes.BadInvalidState, "Subscription has already been created.");
             }
         }
 

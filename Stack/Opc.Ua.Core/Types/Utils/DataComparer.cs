@@ -923,7 +923,7 @@ namespace Opc.Ua.Test
             }
         }
 
-        // It stores encodable types of the executing assembly.       
+        // It stores encodeable types of the executing assembly.       
         private static IEncodeableFactory s_Factory = new EncodeableFactory();
 
         /// <summary>
