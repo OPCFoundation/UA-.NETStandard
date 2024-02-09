@@ -127,6 +127,7 @@ namespace Opc.Ua.Client.Tests
             subscription.AddItem(list.First());
             Assert.AreEqual(1, subscription.MonitoredItemCount);
             Assert.True(subscription.ChangesPending);
+            Assert.Throws<ServiceResultException>(() => subscription.Create());
             bool result = Session.AddSubscription(subscription);
             Assert.True(result);
             subscription.Create();
@@ -226,6 +227,7 @@ namespace Opc.Ua.Client.Tests
             subscription.AddItem(list.First());
             Assert.AreEqual(1, subscription.MonitoredItemCount);
             Assert.True(subscription.ChangesPending);
+            Assert.ThrowsAsync<ServiceResultException>(async () => await subscription.CreateAsync().ConfigureAwait(false));
             bool result = await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
             Assert.False(result);
             result = await Session.RemoveSubscriptionsAsync(new List<Subscription>() { subscription }).ConfigureAwait(false);
@@ -731,6 +733,7 @@ namespace Opc.Ua.Client.Tests
                 var dict = list.ToDictionary(item => item.ClientHandle, _ => DateTime.MinValue);
 
                 subscription.AddItems(list);
+                Assert.Throws<ServiceResultException>(() => subscription.Create());
                 var result = Session.AddSubscription(subscription);
                 Assert.True(result);
                 await subscription.CreateAsync().ConfigureAwait(false);
