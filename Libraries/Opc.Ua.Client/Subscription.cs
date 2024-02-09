@@ -2407,6 +2407,11 @@ namespace Opc.Ua.Client
             {
                 throw new ServiceResultException(StatusCodes.BadInvalidState, "Subscription has already been created.");
             }
+
+            if (!created && Session is null) // Occurs only on Create() and CreateAsync()
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidState, "Subscription has not been assigned to a Session");
+            }
         }
 
         /// <summary>
