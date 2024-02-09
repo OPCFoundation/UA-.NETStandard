@@ -74,6 +74,11 @@ namespace Opc.Ua.Server
             {
                 switch (id.Value)
                 {
+                    // valueType == 1: StandardDeviation, valueType == 2: Variance
+
+                    // includeBounds == true: sample, includeBounds == false: population
+                    // (this is a strange way to distinguish between sample and population)
+
                     case Objects.AggregateFunction_StandardDeviationPopulation:
                     {
                         return ComputeStdDev(slice, false, 1);
@@ -81,12 +86,12 @@ namespace Opc.Ua.Server
 
                     case Objects.AggregateFunction_StandardDeviationSample:
                     {
-                        return ComputeStdDev(slice, false, 2);
+                        return ComputeStdDev(slice, true, 1);
                     }
 
                     case Objects.AggregateFunction_VariancePopulation:
                     {
-                        return ComputeStdDev(slice, true, 1);
+                        return ComputeStdDev(slice, false, 2);
                     }
 
                     case Objects.AggregateFunction_VarianceSample:
@@ -289,7 +294,15 @@ namespace Opc.Ua.Server
             // use the sample variance if bounds are included.
             if (includeBounds)
             {
-                variance /= (xData.Count + 1);
+                // Spec part 13 v105 section 5.4.3.37 and subsequent
+                if (xData.Count <= 1)
+                {                    
+                    variance = 0;
+                }
+                else
+                {
+                    variance /= (xData.Count - 1);
+                }
             }
             
            // use the population variance if bounds are not included.
