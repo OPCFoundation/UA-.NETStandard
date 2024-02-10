@@ -489,14 +489,14 @@ namespace Opc.Ua.Client.Controls
             {
                 if (array.Rank > 1)
                 {
-                    int[] lenghts = new int[array.Rank];
+                    int[] lengths = new int[array.Rank];
 
                     for (int i = 0; i < array.Rank; ++i)
                     {
-                        lenghts[i] = array.GetLength(i);
+                        lengths[i] = array.GetLength(i);
                     }
 
-                    return Utils.Format("{0}[{1}]", value.GetType().GetElementType().Name, string.Join(",", lenghts));
+                    return Utils.Format("{0}[{1}]", value.GetType().GetElementType().Name, string.Join(",", lengths));
                 }
                 else
                 {

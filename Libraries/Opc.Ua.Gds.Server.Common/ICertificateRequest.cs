@@ -93,7 +93,7 @@ namespace Opc.Ua.Gds.Server
         /// <param name="certificateGroupId">The target group for the signing request.</param>
         /// <param name="certificateTypeId">The certificate type.</param>
         /// <param name="subjectName">The subject for the certificate</param>
-        /// <param name="domainNames">The domain names for the certficate.</param>
+        /// <param name="domainNames">The domain names for the certificate.</param>
         /// <param name="privateKeyFormat">The private key format, PEM or PFX.</param>
         /// <param name="privateKeyPassword">The password for the private key.</param>
         /// <param name="authorityId">The authority requesting the certificate.</param>
@@ -153,7 +153,7 @@ namespace Opc.Ua.Gds.Server
         /// <param name="certificateTypeId">The certificate type.</param>
         /// <param name="certificateRequest"></param>
         /// <param name="subjectName">The subject for the certificate</param>
-        /// <param name="domainNames">The domain names for the certficate.</param>
+        /// <param name="domainNames">The domain names for the certificate.</param>
         /// <param name="privateKeyFormat">The private key format, PEM or PFX.</param>
         /// <param name="privateKeyPassword">The password for the private key.</param>
         CertificateRequestState ReadRequest(

@@ -777,7 +777,7 @@ namespace Opc.Ua.Client.Tests
             /// <summary>
             /// The origin session gets network disconnected,
             /// after transfer available sequence numbers are
-            /// just acknoledged.
+            /// just acknowledged.
             /// </summary>
             DisconnectedAck,
             /// <summary>
