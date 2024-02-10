@@ -286,7 +286,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
             Assert.Greater(publisherConfiguration.Connections.Count, 1, "publisherConfiguration.Connection should be > 0");
 
-            //discovery IP adress 224.0.2.14
+            //discovery IP address 224.0.2.14
             IPAddress[] multicastIPAddresses =  Dns.GetHostAddresses(kUdpDiscoveryIp);
             IPAddress multicastIPAddress = multicastIPAddresses.First();
             Assert.IsNotNull(multicastIPAddress, "multicastIPAddress is null");
@@ -368,7 +368,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
             Assert.Greater(publisherConfiguration.Connections.Count, 1, "publisherConfiguration.Connection should be > 0");
 
-            //discovery IP adress 224.0.2.14
+            //discovery IP address 224.0.2.14
             IPAddress[] multicastIPAddresses = Dns.GetHostAddresses(kUdpDiscoveryIp);
             IPAddress multicastIPAddress = multicastIPAddresses.First();
             Assert.IsNotNull(multicastIPAddress, "multicastIPAddress is null");
@@ -443,7 +443,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
             Assert.Greater(publisherConfiguration.Connections.Count, 1, "publisherConfiguration.Connection should be > 0");
 
-            //discovery IP adress 224.0.2.14
+            //discovery IP address 224.0.2.14
             IPAddress[] multicastIPAddresses = Dns.GetHostAddresses(kUdpDiscoveryIp);
             IPAddress multicastIPAddress = multicastIPAddresses.First();
             Assert.IsNotNull(multicastIPAddress, "multicastIPAddress is null");

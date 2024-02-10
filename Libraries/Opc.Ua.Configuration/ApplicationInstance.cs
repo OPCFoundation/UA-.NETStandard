@@ -360,7 +360,7 @@ namespace Opc.Ua.Configuration
 
         /// <summary>
         /// Helper to replace localhost with the hostname
-        /// in the application uri and base adresses of the
+        /// in the application uri and base addresses of the
         /// configuration.
         /// </summary>
         /// <param name="configuration"></param>

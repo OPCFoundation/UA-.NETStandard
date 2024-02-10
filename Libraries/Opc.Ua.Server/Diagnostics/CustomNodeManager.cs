@@ -3340,7 +3340,7 @@ namespace Opc.Ua.Server
 
             if (monitoredNode.EventMonitoredItems != null)
             {
-                // remove existing monitored items with the same Id prior to insertion inorder to avoid duplicates
+                // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates
                 // this is necessary since the SubscribeToEvents method is called also from ModifyMonitoredItemsForEvents
                 monitoredNode.EventMonitoredItems.RemoveAll(e => e.Id == monitoredItem.Id);
             }

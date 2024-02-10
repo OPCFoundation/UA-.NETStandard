@@ -439,7 +439,7 @@ namespace Opc.Ua
         /// Specifies  a mask indicating any access restrictions that apply to the node.
         /// </summary>
         /// <value>The server specific access restrictions of the node.</value>
-        public AccessRestrictionType AccessRestrictions
+        public AccessRestrictionType? AccessRestrictions
         {
             get
             {
@@ -2233,12 +2233,12 @@ namespace Opc.Ua
         /// <summary>
         /// Called when the AccessRestrictions attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<AccessRestrictionType> OnReadAccessRestrictions;
+        public NodeAttributeEventHandler<AccessRestrictionType?> OnReadAccessRestrictions;
 
         /// <summary>
         /// Called when the AccessRestrictions attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<AccessRestrictionType> OnWriteAccessRestrictions;
+        public NodeAttributeEventHandler<AccessRestrictionType?> OnWriteAccessRestrictions;
         #endregion
 
         #region Public Methods
@@ -3552,7 +3552,7 @@ namespace Opc.Ua
 
                 case Attributes.AccessRestrictions:
                 {
-                    AccessRestrictionType accessRestrictions = m_accessRestrictions;
+                    AccessRestrictionType? accessRestrictions = m_accessRestrictions;
 
                     if (OnReadAccessRestrictions != null)
                     {
@@ -3561,7 +3561,7 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        value = (ushort)m_accessRestrictions;
+                        value = accessRestrictions;
                     }
 
                     if (value != null || result != null)
@@ -3948,7 +3948,7 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    AccessRestrictionType accessRestrictions = (AccessRestrictionType)accessRestrictionsRef.Value;
+                    var accessRestrictions = (AccessRestrictionType?)accessRestrictionsRef.Value;
 
                     if (OnWriteAccessRestrictions != null)
                     {
@@ -4684,7 +4684,7 @@ namespace Opc.Ua
         private AttributeWriteMask m_userWriteMask;
         private RolePermissionTypeCollection m_rolePermissions;
         private RolePermissionTypeCollection m_userRolePermissions;
-        private AccessRestrictionType m_accessRestrictions;
+        private AccessRestrictionType? m_accessRestrictions;
         private IReferenceDictionary<object> m_references;
         private int m_areEventsMonitored;
         private bool m_initialized;

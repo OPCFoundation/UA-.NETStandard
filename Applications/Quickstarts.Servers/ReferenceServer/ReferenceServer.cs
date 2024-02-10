@@ -274,7 +274,7 @@ namespace Quickstarts.ReferenceServer
                 return;
             }
 
-            // unsuported identity token type.
+            // unsupported identity token type.
             throw ServiceResultException.Create(StatusCodes.BadIdentityTokenInvalid,
                    "Not supported user token type: {0}.", args.NewIdentity);
         }
@@ -412,7 +412,7 @@ namespace Quickstarts.ReferenceServer
                     info = new TranslationInfo("IssuedTokenRejected", "en-US", "token is rejected.");
                 }
 
-                Utils.LogWarning(Utils.TraceMasks.Security, "VerifyIssuedToken: Throw ServiceResultExeption 0x{result:x}");
+                Utils.LogWarning(Utils.TraceMasks.Security, "VerifyIssuedToken: Throw ServiceResultException 0x{result:x}");
                 throw new ServiceResultException(new ServiceResult(
                     result,
                     info.Key,

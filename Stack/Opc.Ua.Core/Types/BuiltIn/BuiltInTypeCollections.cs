@@ -404,7 +404,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
-        /// <param name="values">An array of <see cref="ushort"/> values to conver to a collection</param>
+        /// <param name="values">An array of <see cref="ushort"/> values to convert to a collection</param>
         public static UInt16Collection ToUInt16Collection(ushort[] values)
         {
             if (values != null)
@@ -421,7 +421,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Converts an array to a collection.
         /// </remarks>
-        /// <param name="values">An array of <see cref="ushort"/> values to conver to a collection</param>
+        /// <param name="values">An array of <see cref="ushort"/> values to convert to a collection</param>
         public static implicit operator UInt16Collection(ushort[] values)
         {
             return ToUInt16Collection(values);

@@ -86,7 +86,7 @@ The following four steps are required to implement a functional Subscriber:
 After this step the *Subscriber* will listen for *NetworkMessages* as configured.
 ## Subscriber Configuration
 
-The Subscriber configuration is a subset of the [PubSub Configuration](../../Docs/PubSub.md#pubsub-configuration). A functional *Subscriber* application needs to have a configuration (*PubSubConfgurationDataType* instance) that contains at least one connection (*PubSubConnectionDataType* instance) with at least one reader group configuration (*ReaderGroupDataType* instance). The reader group contains at least one data set reader (*DataSetReaderDataType* instance) that describes a published data set that can be processed and retrieved by the *Subscriber* application.
+The Subscriber configuration is a subset of the [PubSub Configuration](../../Docs/PubSub.md#pubsub-configuration). A functional *Subscriber* application needs to have a configuration (*PubSubConfigurationDataType* instance) that contains at least one connection (*PubSubConnectionDataType* instance) with at least one reader group configuration (*ReaderGroupDataType* instance). The reader group contains at least one data set reader (*DataSetReaderDataType* instance) that describes a published data set that can be processed and retrieved by the *Subscriber* application.
 The diagram shows the subset of classes involved in an *OPC UA Publisher* configuration.
 
 ![SubscriberConfigClasses](../../Docs/Images/SubscriberConfigClasses.png)

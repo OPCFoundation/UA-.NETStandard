@@ -938,16 +938,16 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public bool Republish(uint subscriptionId, uint sequenceNumber)
+        public bool Republish(uint subscriptionId, uint sequenceNumber, out ServiceResult error)
         {
             using (Activity activity = ActivitySource.StartActivity())
             {
-                return m_session.Republish(subscriptionId, sequenceNumber);
+                return m_session.Republish(subscriptionId, sequenceNumber, out error);
             }
         }
 
         /// <inheritdoc/>
-        public async Task<bool> RepublishAsync(uint subscriptionId, uint sequenceNumber, CancellationToken ct = default)
+        public async Task<(bool, ServiceResult)> RepublishAsync(uint subscriptionId, uint sequenceNumber, CancellationToken ct = default)
         {
             using (Activity activity = ActivitySource.StartActivity())
             {
