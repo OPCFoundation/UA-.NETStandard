@@ -844,7 +844,7 @@ namespace Opc.Ua.PubSub.Configuration
         }
 
         /// <summary>
-        /// Removes a WriterGroupDataType instance from current configuration specified by confgiId
+        /// Removes a WriterGroupDataType instance from current configuration specified by configId
         /// </summary>
         /// <param name="writerGroupId"></param>
         /// <returns>
@@ -997,7 +997,7 @@ namespace Opc.Ua.PubSub.Configuration
         }
 
         /// <summary>
-        /// Removes a DataSetWriterDataType instance from current configuration specified by confgiId
+        /// Removes a DataSetWriterDataType instance from current configuration specified by configId
         /// </summary>
         /// <param name="dataSetWriterId"></param>
         /// <returns>
@@ -1159,7 +1159,7 @@ namespace Opc.Ua.PubSub.Configuration
         }
 
         /// <summary>
-        /// Removes a ReaderGroupDataType instance from current configuration specified by confgiId
+        /// Removes a ReaderGroupDataType instance from current configuration specified by configId
         /// </summary>
         /// <param name="readerGroupId"></param>
         /// <returns>
@@ -1311,7 +1311,7 @@ namespace Opc.Ua.PubSub.Configuration
         }
 
         /// <summary>
-        /// Removes a DataSetReaderDataType instance from current configuration specified by confgiId
+        /// Removes a DataSetReaderDataType instance from current configuration specified by configId
         /// </summary>
         /// <param name="dataSetReaderId"></param>
         /// <returns>

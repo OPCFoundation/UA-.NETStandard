@@ -479,7 +479,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the BuiltInType type for the DataTypeId.
         /// </summary>
-        /// <param name="datatypeId">The data type identyfier for a node in a server's address space..</param>
+        /// <param name="datatypeId">The data type identifier for a node in a server's address space..</param>
         /// <param name="typeTree">The type tree for a server. .</param>
         /// <returns>
         /// A <see cref="BuiltInType"/> value for <paramref name="datatypeId"/>
@@ -515,7 +515,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the BuiltInType type for the DataTypeId.
         /// </summary>
-        /// <param name="datatypeId">The data type identyfier for a node in a server's address space..</param>
+        /// <param name="datatypeId">The data type identifier for a node in a server's address space..</param>
         /// <param name="typeTree">The type tree for a server. .</param>
         /// <param name="ct"></param>
         /// <returns>

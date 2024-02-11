@@ -22,7 +22,7 @@ namespace Opc.Ua
     public interface IEncodeable : ICloneable
     {
         /// <summary>
-        /// Returns the NodeId for the encodable type.
+        /// Returns the NodeId for the encodeable type.
         /// </summary>
         /// <value>The NodeId.</value>
         ExpandedNodeId TypeId { get; }

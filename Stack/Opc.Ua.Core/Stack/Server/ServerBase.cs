@@ -344,7 +344,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the list of base addresses.
         /// </summary>
-        private void InitializeBaseAddresses(ApplicationConfiguration configuration)
+        protected void InitializeBaseAddresses(ApplicationConfiguration configuration)
         {
             BaseAddresses = new List<BaseAddress>();
 
@@ -1035,7 +1035,7 @@ namespace Opc.Ua
                 return accessibleAddresses;
             }
 
-            // client gets all of the endpoints if it using a known variant of the hostname.
+            // client gets all of the endpoints if it using a known variant of the hostname
             if (NormalizeHostname(endpointUrl.DnsSafeHost) == NormalizeHostname("localhost"))
             {
                 return baseAddresses;
@@ -1051,7 +1051,12 @@ namespace Opc.Ua
                 }
             }
 
-            return accessibleAddresses;
+            if (accessibleAddresses.Count != 0)
+            {
+                return accessibleAddresses;
+            }
+
+            return baseAddresses;
         }
 
         /// <summary>
@@ -1063,9 +1068,9 @@ namespace Opc.Ua
 
             if ((baseAddress.ProfileUri == Profiles.HttpsBinaryTransport) &&
                 url.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) &&
-                (!(url.EndsWith("discovery", StringComparison.Ordinal))))
+                (!(url.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))))
             {
-                url += "/discovery";
+                url += ConfiguredEndpoint.DiscoverySuffix;
             }
 
             return url;
@@ -1147,12 +1152,7 @@ namespace Opc.Ua
                         continue;
                     }
 
-                    if (endpointUrl.Scheme != baseAddress.Url.Scheme)
-                    {
-                        continue;
-                    }
-
-                    if (endpointUrl.Port != baseAddress.Url.Port)
+                    if ((endpointUrl.Scheme != baseAddress.Url.Scheme) || (endpointUrl.Port != baseAddress.Url.Port))
                     {
                         continue;
                     }
@@ -1177,9 +1177,17 @@ namespace Opc.Ua
                     translation.UserIdentityTokens = endpoint.UserIdentityTokens;
                     translation.Server = application;
 
-                    translations.Add(translation);
+                    if (!translations.Exists(match =>
+                        match.EndpointUrl.Equals(translation.EndpointUrl, StringComparison.Ordinal) &&
+                        match.SecurityMode == translation.SecurityMode &&
+                        match.SecurityPolicyUri.Equals(translation.SecurityPolicyUri, StringComparison.Ordinal)))
+                    {
+                        translations.Add(translation);
+                    }
                 }
             }
+
+            translations.Sort((ep1, ep2) => string.Compare(ep1.EndpointUrl, ep2.EndpointUrl, StringComparison.Ordinal));
 
             return translations;
         }

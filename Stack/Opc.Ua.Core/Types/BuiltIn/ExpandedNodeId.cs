@@ -163,7 +163,7 @@ namespace Opc.Ua
         /// of the node we are wrapping.
         /// </remarks>
         /// <param name="value">The numeric id of the node we are wrapping</param>
-        /// <param name="namespaceIndex">The namspace index that this node belongs to</param>
+        /// <param name="namespaceIndex">The namespace index that this node belongs to</param>
         public ExpandedNodeId(uint value, ushort namespaceIndex)
         {
             Initialize();
@@ -235,7 +235,7 @@ namespace Opc.Ua
         /// </summary>
         /// <remarks>
         /// Creates a new instance of the class while specifying the <see cref="Guid"/> value
-        /// of the node and the namesapceIndex we are wrapping.
+        /// of the node and the namespaceIndex we are wrapping.
         /// </remarks>
         /// <param name="value">The Guid value of the node we are wrapping</param>
         /// <param name="namespaceIndex">The index of the namespace that this node should belong to</param>

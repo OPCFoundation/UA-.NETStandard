@@ -24,6 +24,15 @@ namespace Opc.Ua
     {
         #region Supporting Properties and Methods
         /// <summary>
+        /// The identifier for the Node being updated.
+        /// </summary>
+        public virtual NodeId NodeId
+        {
+            get;
+            set;
+        }
+
+        /// <summary>
         /// A handle assigned to the item during processing.
         /// </summary>
         public object Handle

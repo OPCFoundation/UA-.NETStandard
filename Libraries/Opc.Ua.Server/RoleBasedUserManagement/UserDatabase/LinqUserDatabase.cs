@@ -31,31 +31,40 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Security.Cryptography;
 using Newtonsoft.Json;
 using static System.Net.Mime.MediaTypeNames;
 
-namespace Opc.Ua.Gds.Server.Database.Linq
+namespace Opc.Ua.Server.UserDatabase
 {
     [Serializable]
     class User
     {
+        [JsonRequired]
         public Guid ID { get; set; }
         public string UserName { get; set; }
         public string Hash { get; set; }
-        public GdsRole GdsRole { get; set; }
+        public IEnumerable<Role> Roles { get; set; }
     }
 
+    /// <summary>
+    /// Implementation of a Serializable User Database using LINQ for querying users
+    /// </summary>
     [Serializable]
-    public class LinQUsersDatabase : IUsersDatabase
+    public class LinqUserDatabase : IUserDatabase
     {
         #region IUsersDatabase
+        /// <summary>
+        /// initializes the collection the users database is working with
+        /// </summary>
         public virtual void Initialize()
         {
         }
 
-        public bool CreateUser(string userName, string password, GdsRole role)
+        /// <inheritdoc/>
+        public bool CreateUser(string userName, string password, IEnumerable<Role> roles)
         {
             if (string.IsNullOrEmpty(userName))
             {
@@ -73,7 +82,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             string hash = Hash(password);
 
-            var user = new User { UserName = userName, Hash = hash, GdsRole = role };
+            var user = new User { UserName = userName, Hash = hash, Roles = roles };
 
             Users.Add(user);
 
@@ -81,7 +90,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             return true;
         }
-
+        /// <inheritdoc/>
         public bool DeleteUser(string userName)
         {
             if (string.IsNullOrEmpty(userName))
@@ -98,7 +107,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             Users.Remove(user);
             return true;
         }
-
+        /// <inheritdoc/>
         public bool CheckCredentials(string userName, string password)
         {
             if (string.IsNullOrEmpty(userName))
@@ -119,8 +128,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             return Check(user.Hash, password);
         }
-
-        public GdsRole GetUserRole(string userName)
+        /// <inheritdoc/>
+        public IEnumerable<Role> GetUserRoles(string userName)
         {
             if (string.IsNullOrEmpty(userName))
             {
@@ -133,9 +142,9 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 throw new ArgumentException("No user found with the UserName " + userName);
             }
 
-            return user.GdsRole;
+            return user.Roles;
         }
-
+        /// <inheritdoc/>
         public bool ChangePassword(string userName, string oldPassword, string newPassword)
         {
             if (string.IsNullOrEmpty(userName))
@@ -169,6 +178,9 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         #endregion
 
         #region Public Members
+        /// <summary>
+        /// Persists the changes to the users database
+        /// </summary>
         public virtual void Save()
         {
         }

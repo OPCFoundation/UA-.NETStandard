@@ -120,10 +120,10 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <summary>
-        /// Finds the sever capability with the specified identifier.
+        /// Finds the server capability with the specified identifier.
         /// </summary>
         /// <param name="id">The identifier.</param>
-        /// <returns>The sever capability, if found. NULL if it does not exist.</returns>
+        /// <returns>The server capability, if found. NULL if it does not exist.</returns>
         public ServerCapability Find(string id)
         {
             if (id != null)

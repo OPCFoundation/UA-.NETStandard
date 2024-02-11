@@ -503,7 +503,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="createAlways">if set to <c>true</c> ConfiguredEndpointCollection is always returned,
         ///	even if loading from disk fails</param>
-        /// <returns>Colection of configured endpoints from the disk.</returns>
+        /// <returns>Collection of configured endpoints from the disk.</returns>
         public ConfiguredEndpointCollection LoadCachedEndpoints(bool createAlways)
         {
             return LoadCachedEndpoints(createAlways, false);
@@ -516,7 +516,7 @@ namespace Opc.Ua
         /// even if loading from disk fails</param>
         /// <param name="overrideConfiguration">if set to <c>true</c> overrides the configuration.</param>
         /// <returns>
-        /// Colection of configured endpoints from the disk.
+        /// Collection of configured endpoints from the disk.
         /// </returns>
         public ConfiguredEndpointCollection LoadCachedEndpoints(bool createAlways, bool overrideConfiguration)
         {

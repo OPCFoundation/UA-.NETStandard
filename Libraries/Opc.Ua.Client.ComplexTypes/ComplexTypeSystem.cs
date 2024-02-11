@@ -334,7 +334,7 @@ namespace Opc.Ua.Client.ComplexTypes
         internal bool DisableDataTypeDefinition { get; set; } = false;
 
         /// <summary>
-        /// Disable the use of DataType Dictinaries to create the complex type definition.
+        /// Disable the use of DataType Dictionaries to create the complex type definition.
         /// </summary>
         internal bool DisableDataTypeDictionary { get; set; } = false;
         #endregion Internal Properties

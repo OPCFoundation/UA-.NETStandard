@@ -57,12 +57,12 @@ namespace Opc.Ua
             }
 
 
-            // find the software certficate.
+            // find the software certificate.
             byte[] encodedData = null;
 
             if (encodedData == null)
             {
-                return ServiceResult.Create(StatusCodes.BadCertificateInvalid, "Could not find extension containing the software certficate.");
+                return ServiceResult.Create(StatusCodes.BadCertificateInvalid, "Could not find extension containing the software certificate.");
             }
 
             try

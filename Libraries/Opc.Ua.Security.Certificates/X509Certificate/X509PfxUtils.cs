@@ -41,6 +41,11 @@ namespace Opc.Ua.Security.Certificates
     public static class X509PfxUtils
     {
         /// <summary>
+        /// Internal random number generator.
+        /// </summary>
+        private static readonly Random s_rnd = new Random(0x62541);
+
+        /// <summary>
         /// The size of the block used to test a sign or encrypt operation.
         /// </summary>
         public const int TestBlockSize = 0x20;
@@ -106,7 +111,7 @@ namespace Opc.Ua.Security.Certificates
 
             if (!result && throwOnError)
             {
-                throw new CryptographicException("The public/private key pair in the certficates do not match.");
+                throw new CryptographicException("The public/private key pair in the certificates do not match.");
             }
 
             return result;
@@ -182,8 +187,7 @@ namespace Opc.Ua.Security.Certificates
             RSA rsaPrivateKey)
         {
             byte[] testBlock = new byte[TestBlockSize];
-            var rnd = new Random();
-            rnd.NextBytes(testBlock);
+            s_rnd.NextBytes(testBlock);
             byte[] encryptedBlock = rsaPublicKey.Encrypt(testBlock, RSAEncryptionPadding.OaepSHA1);
             byte[] decryptedBlock = rsaPrivateKey.Decrypt(encryptedBlock, RSAEncryptionPadding.OaepSHA1);
             if (decryptedBlock != null)
@@ -201,8 +205,7 @@ namespace Opc.Ua.Security.Certificates
             RSA rsaPrivateKey)
         {
             byte[] testBlock = new byte[TestBlockSize];
-            var rnd = new Random();
-            rnd.NextBytes(testBlock);
+            s_rnd.NextBytes(testBlock);
             byte[] signature = rsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
             return rsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         }
@@ -247,7 +250,7 @@ namespace Opc.Ua.Security.Certificates
             }
             if (!result && throwOnError)
             {
-                throw new CryptographicException("The public/private key pair in the certficates do not match.");
+                throw new CryptographicException("The public/private key pair in the certificates do not match.");
             }
             return result;
         }
@@ -260,8 +263,7 @@ namespace Opc.Ua.Security.Certificates
             ECDsa ecdsaPrivateKey)
         {
             byte[] testBlock = new byte[TestBlockSize];
-            var rnd = new Random();
-            rnd.NextBytes(testBlock);
+            s_rnd.NextBytes(testBlock);
             byte[] signature = ecdsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA256);
             return ecdsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA256);
         }

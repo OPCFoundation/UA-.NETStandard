@@ -1096,6 +1096,7 @@ namespace Opc.Ua.Server
                     historyServerCapabilitiesNode.InsertDataCapability.Value = false;
                     historyServerCapabilitiesNode.DeleteRawCapability.Value = false;
                     historyServerCapabilitiesNode.DeleteAtTimeCapability.Value = false;
+                    historyServerCapabilitiesNode.ServerTimestampSupported.Value = false;
 
                     NodeState parent = FindPredefinedNode(ObjectIds.Server_ServerCapabilities, typeof(ServerCapabilitiesState));
 
@@ -1547,7 +1548,8 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
-                SystemConfigurationIdentity user = context.UserIdentity as SystemConfigurationIdentity;
+                IUserIdentity user = context.UserIdentity as RoleBasedIdentity;
+
                 if (user == null ||
                     user.TokenType == UserTokenType.Anonymous ||
                     !user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin))

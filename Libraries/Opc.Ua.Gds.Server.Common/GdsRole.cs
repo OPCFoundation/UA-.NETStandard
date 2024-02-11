@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2023 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,28 +27,32 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
-using System.Threading;
-using System.Threading.Tasks;
+using Opc.Ua.Server;
 
-namespace Opc.Ua.Client
+namespace Opc.Ua.Gds.Server
 {
     /// <summary>
-    /// Object that creates instances of an Opc.Ua.Client.Session object.
+    /// The supported roles in a GDS server.
     /// </summary>
-    public class HeaderUpdatingSessionFactory : TraceableSessionFactory
+    public class GdsRole : Role
     {
         /// <summary>
-        /// The default instance of the factory.
+        /// The GDS application Administrator.
         /// </summary>
-        public new static readonly HeaderUpdatingSessionFactory Instance = new HeaderUpdatingSessionFactory();
+        public static Role ApplicationAdmin { get; } = new Role(NodeId.Null, "ApplicationAdmin");
 
         /// <summary>
-        /// Force use of the default instance.
+        /// This Role grants rights to register, update and unregister any OPC UA Application.
         /// </summary>
-        protected HeaderUpdatingSessionFactory()
-        {
-        }        
+        public static Role DiscoveryAdmin { get; } = new Role( NodeId.Null, "DiscoveryAdmin");
+
+        /// <summary>
+        /// The GDS application user.
+        /// </summary>
+        public static Role ApplicationUser { get; } = new Role(NodeId.Null, "ApplicationUser");
+
+        public GdsRole(NodeId roleId, string name):
+            base(roleId, name)
+        {}
     }
 }

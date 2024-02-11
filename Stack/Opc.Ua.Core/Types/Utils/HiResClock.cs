@@ -49,25 +49,24 @@ namespace Opc.Ua
         {
             get
             {
-                if (s_Default.m_disabled)
-                {
-                    return (long)(DateTime.UtcNow.Ticks / TimeSpan.TicksPerMillisecond);
-                }
-                return (long)(Stopwatch.GetTimestamp() / s_Default.m_ticksPerMillisecond);
+                return (long)(s_Default.m_ticksDelegate() / s_Default.m_ticksPerMillisecond);
             }
         }
 
         /// <summary>
+        /// Returns a monotonic increasing tick count based on the frequency of the underlying timer.
+        /// </summary>
+        public static long Ticks => s_Default.m_ticksDelegate();
+
+        /// <summary>
         /// Return the frequency of the ticks.
         /// </summary>
-        public static long Frequency => s_Default.m_disabled ?
-            TimeSpan.TicksPerSecond : s_Default.m_frequency;
+        public static long Frequency => s_Default.m_frequency;
 
         /// <summary>
         /// Return the number of ticks per millisecond.
         /// </summary>
-        public static double TicksPerMillisecond => s_Default.m_disabled ?
-            TimeSpan.TicksPerMillisecond : s_Default.m_ticksPerMillisecond;
+        public static double TicksPerMillisecond => s_Default.m_ticksPerMillisecond;
 
         /// <summary>
         /// Disables the hires clock.
@@ -87,16 +86,11 @@ namespace Opc.Ua
                     // check if already initialized.
                     if (!s_Default.m_initialized)
                     {
-                        if (s_Default.m_disabled && !value)
+                        if (s_Default.m_disabled != value)
                         {
                             // reset baseline
-                            s_Default = new HiResClock();
+                            s_Default = new HiResClock(value);
                         }
-                        else
-                        {
-                            s_Default.m_disabled = value;
-                        }
-
                         s_Default.m_initialized = true;
                     }
                     else
@@ -114,18 +108,19 @@ namespace Opc.Ua
         public static void Reset()
         {
             // reset baseline
-            s_Default = new HiResClock();
+            s_Default = new HiResClock(s_Default.m_disabled);
         }
 
         /// <summary>
         /// Constructs a HiRes clock class.
         /// </summary>
-        private HiResClock()
+        private HiResClock(bool disabled)
         {
             m_initialized = false;
             m_offset = DateTime.UtcNow.Ticks;
-            if (!Stopwatch.IsHighResolution)
+            if (!Stopwatch.IsHighResolution || disabled)
             {
+                m_ticksDelegate = UtcNowTicks;
                 m_frequency = TimeSpan.TicksPerSecond;
                 m_ticksPerMillisecond = TimeSpan.TicksPerMillisecond;
                 m_baseline = m_offset;
@@ -134,17 +129,25 @@ namespace Opc.Ua
             else
             {
                 m_baseline = Stopwatch.GetTimestamp();
+                m_ticksDelegate = Stopwatch.GetTimestamp;
                 m_frequency = Stopwatch.Frequency;
                 m_ticksPerMillisecond = m_frequency / 1000.0;
+                m_disabled = false;
             }
             m_ratio = ((decimal)TimeSpan.TicksPerSecond) / m_frequency;
         }
 
         /// <summary>
+        /// Helper for tick functions.
+        /// </summary>
+        private delegate long TicksDelegate();
+        private long UtcNowTicks() => DateTime.UtcNow.Ticks;
+
+        /// <summary>
         /// Defines a global instance.
         /// </summary>
-        private static HiResClock s_Default = new HiResClock();
-
+        private static HiResClock s_Default = new HiResClock(false);
+        private TicksDelegate m_ticksDelegate;
         private long m_frequency;
         private long m_baseline;
         private long m_offset;

@@ -222,7 +222,7 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         /// <remarks>
-        /// Reverse connect for the https transport listener is not implemeted.
+        /// Reverse connect for the https transport listener is not implemented.
         /// </remarks>
         public void CreateReverseConnection(Uri url, int timeout)
         {
