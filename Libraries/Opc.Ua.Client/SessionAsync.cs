@@ -208,7 +208,8 @@ namespace Opc.Ua.Client
             // save session id.
             lock (SyncRoot)
             {
-                SessionCreated(sessionId, sessionCookie);
+                // save session id and cookie in base
+                base.SessionCreated(sessionId, sessionCookie);
             }
 
             Utils.LogInfo("Revised session timeout value: {0}. ", m_sessionTimeout);
@@ -336,6 +337,9 @@ namespace Opc.Ua.Client
 
                 // raise event that session configuration chnaged.
                 IndicateSessionConfigurationChanged();
+
+                // call session created callback, which was already set in base class only.
+                SessionCreated(sessionId, sessionCookie);
             }
             catch (Exception)
             {
@@ -1589,7 +1593,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<bool> RepublishAsync(uint subscriptionId, uint sequenceNumber, CancellationToken ct)
+        public async Task<(bool, ServiceResult)> RepublishAsync(uint subscriptionId, uint sequenceNumber, CancellationToken ct)
         {
             // send republish request.
             RequestHeader requestHeader = new RequestHeader {
@@ -1621,7 +1625,7 @@ namespace Opc.Ua.Client
                     false,
                     notificationMessage);
 
-                return true;
+                return (true, ServiceResult.Good);
             }
             catch (Exception e)
             {

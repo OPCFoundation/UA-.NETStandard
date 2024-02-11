@@ -132,7 +132,7 @@ namespace Opc.Ua
         /// <summary>
         /// The default LocalFolder.
         /// </summary>
-        public static readonly string DefaultLocalFolder = Directory.GetCurrentDirectory();
+        public static string DefaultLocalFolder { get; set; } = Directory.GetCurrentDirectory();
 
         /// <summary>
         /// The full name of the Opc.Ua.Core assembly.

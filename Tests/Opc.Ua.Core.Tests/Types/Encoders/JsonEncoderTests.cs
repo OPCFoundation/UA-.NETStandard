@@ -366,7 +366,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         /// <summary>
         /// Use a constructor with external Stream,
-        /// keep the steam open for more encodings.
+        /// keep the stream open for more encodings.
         /// </summary>
         [Test]
         public void Constructor_Stream()

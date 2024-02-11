@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -54,6 +55,22 @@ namespace Opc.Ua.Server.Tests
         public bool SecurityNone { get; set; } = false;
         public string UriScheme { get; set; } = Utils.UriSchemeOpcTcp;
         public int Port { get; private set; }
+        public bool UseTracing { get; set; }
+        public ActivityListener ActivityListener { get; private set; }
+
+        public ServerFixture(bool useTracing, bool disableActivityLogging)
+        {
+            UseTracing = useTracing;
+            if (UseTracing)
+            {
+                StartActivityListenerInternal(disableActivityLogging);
+            }
+        }
+
+        public ServerFixture()
+        {
+
+        }
 
         public async Task LoadConfiguration(string pkiRoot = null)
         {
@@ -234,6 +251,37 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Configures Activity Listener and registers with Activity Source.
+        /// </summary>
+        public void StartActivityListenerInternal(bool disableActivityLogging = false)
+        {
+            if (disableActivityLogging)
+            {
+                // Create an instance of ActivityListener without logging
+                ActivityListener = new ActivityListener() {
+                    ShouldListenTo = (source) => (source.Name == EndpointBase.ActivitySourceName),
+                    Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
+                    ActivityStarted = _ => { },
+                    ActivityStopped = _ => { }
+                };
+            }
+            else
+            {
+                // Create an instance of ActivityListener and configure its properties with logging
+                ActivityListener = new ActivityListener() {
+                    ShouldListenTo = (source) => (source.Name == EndpointBase.ActivitySourceName),
+                    Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
+                    ActivityStarted = activity => Utils.LogInfo("Server Started: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} ParentId: {3,-32}",
+                        activity.OperationName, activity.TraceId, activity.SpanId, activity.ParentId),
+                    ActivityStopped = activity => Utils.LogInfo("Server Stopped: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} ParentId: {3,-32} Duration: {4}",
+                        activity.OperationName, activity.TraceId, activity.SpanId, activity.ParentId, activity.Duration),
+                };
+            }
+            ActivitySource.AddActivityListener(ActivityListener);
+        }
+
+
+        /// <summary>
         /// Stop the server.
         /// </summary>
         public Task StopAsync()
@@ -241,6 +289,8 @@ namespace Opc.Ua.Server.Tests
             Server?.Stop();
             Server?.Dispose();
             Server = null;
+            ActivityListener?.Dispose();
+            ActivityListener = null;
             return Task.Delay(100);
         }
     }

@@ -40,6 +40,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Client
 {
@@ -52,6 +53,8 @@ namespace Opc.Ua.Client
         private const int kMinPublishRequestCountMax = 100;
         private const int kDefaultPublishRequestCount = 1;
         private const int kKeepAliveGuardBand = 1000;
+        private const int kPublishRequestSequenceNumberOutOfOrderThreshold = 10;
+        private const int kPublishRequestSequenceNumberOutdatedThreshold = 100;
 
         #region Constructors
         /// <summary>
@@ -375,7 +378,7 @@ namespace Opc.Ua.Client
                 Utils.SilentDispose(m_nodeCache);
                 m_nodeCache = null;
 
-                IList<Subscription> subscriptions = null;
+                List<Subscription> subscriptions = null;
                 lock (SyncRoot)
                 {
                     subscriptions = new List<Subscription>(m_subscriptions);
@@ -386,6 +389,7 @@ namespace Opc.Ua.Client
                 {
                     Utils.SilentDispose(subscription);
                 }
+                subscriptions.Clear();
             }
 
             base.Dispose(disposing);
@@ -2440,7 +2444,8 @@ namespace Opc.Ua.Client
             // save session id.
             lock (SyncRoot)
             {
-                SessionCreated(sessionId, sessionCookie);
+                // save session id and cookie in base
+                base.SessionCreated(sessionId, sessionCookie);
             }
 
             Utils.LogInfo("Revised session timeout value: {0}. ", m_sessionTimeout);
@@ -2566,6 +2571,9 @@ namespace Opc.Ua.Client
 
                 // raise event that session configuration chnaged.
                 IndicateSessionConfigurationChanged();
+
+                // notify session created callback, which was already set in base class only.
+                SessionCreated(sessionId, sessionCookie);
             }
             catch (Exception)
             {
@@ -4909,8 +4917,8 @@ namespace Opc.Ua.Client
 #endif
             }
 
-            uint timeoutHint = (uint)((timeout > 0) ? timeout : 0);
-            timeoutHint = Math.Min((uint)OperationTimeout / 2, timeoutHint);
+            uint timeoutHint = (uint)((timeout > 0) ? (uint)timeout : uint.MaxValue);
+            timeoutHint = Math.Min((uint)(OperationTimeout / 2), timeoutHint);
 
             // send publish request.
             var requestHeader = new RequestHeader {
@@ -5012,11 +5020,14 @@ namespace Opc.Ua.Client
                     out acknowledgeResults,
                     out acknowledgeDiagnosticInfos);
 
+                LogLevel logLevel = LogLevel.Warning;
                 foreach (StatusCode code in acknowledgeResults)
                 {
-                    if (StatusCode.IsBad(code))
+                    if (StatusCode.IsBad(code) && code != StatusCodes.BadSequenceNumberUnknown)
                     {
-                        Utils.LogError("Error - Publish call finished. ResultCode={0}; SubscriptionId={1};", code.ToString(), subscriptionId);
+                        Utils.Log(logLevel, "Publish Ack Response. ResultCode={0}; SubscriptionId={1}", code.ToString(), subscriptionId);
+                        // only show the first error as warning
+                        logLevel = LogLevel.Trace;
                     }
                 }
 
@@ -5154,8 +5165,11 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public bool Republish(uint subscriptionId, uint sequenceNumber)
+        public bool Republish(uint subscriptionId, uint sequenceNumber, out ServiceResult error)
         {
+            bool result = true;
+            error = ServiceResult.Good;
+
             // send republish request.
             RequestHeader requestHeader = new RequestHeader {
                 TimeoutHint = (uint)OperationTimeout,
@@ -5185,13 +5199,13 @@ namespace Opc.Ua.Client
                     null,
                     false,
                     notificationMessage);
-
-                return true;
             }
             catch (Exception e)
             {
-                return ProcessRepublishResponseError(e, subscriptionId, sequenceNumber);
+                (result, error) = ProcessRepublishResponseError(e, subscriptionId, sequenceNumber);
             }
+
+            return result;
         }
 
         /// <inheritdoc/>
@@ -5468,34 +5482,22 @@ namespace Opc.Ua.Client
 
             // find the matching description (TBD - check domains against certificate).
             bool found = false;
-            Uri expectedUrl = Utils.ParseUri(m_endpoint.Description.EndpointUrl);
 
-            if (expectedUrl != null)
+            var foundDescription = FindMatchingDescription(serverEndpoints, m_endpoint.Description, true);
+            if (foundDescription != null)
             {
-                for (int ii = 0; ii < serverEndpoints.Count; ii++)
+                found = true;
+                // ensure endpoint has up to date information.
+                UpdateDescription(m_endpoint.Description, foundDescription);
+            }
+            else
+            {
+                foundDescription = FindMatchingDescription(serverEndpoints, m_endpoint.Description, false);
+                if (foundDescription != null)
                 {
-                    EndpointDescription serverEndpoint = serverEndpoints[ii];
-                    Uri actualUrl = Utils.ParseUri(serverEndpoint.EndpointUrl);
-
-                    if (actualUrl != null && actualUrl.Scheme == expectedUrl.Scheme)
-                    {
-                        if (serverEndpoint.SecurityPolicyUri == m_endpoint.Description.SecurityPolicyUri)
-                        {
-                            if (serverEndpoint.SecurityMode == m_endpoint.Description.SecurityMode)
-                            {
-                                // ensure endpoint has up to date information.
-                                m_endpoint.Description.Server.ApplicationName = serverEndpoint.Server.ApplicationName;
-                                m_endpoint.Description.Server.ApplicationUri = serverEndpoint.Server.ApplicationUri;
-                                m_endpoint.Description.Server.ApplicationType = serverEndpoint.Server.ApplicationType;
-                                m_endpoint.Description.Server.ProductUri = serverEndpoint.Server.ProductUri;
-                                m_endpoint.Description.TransportProfileUri = serverEndpoint.TransportProfileUri;
-                                m_endpoint.Description.UserIdentityTokens = serverEndpoint.UserIdentityTokens;
-
-                                found = true;
-                                break;
-                            }
-                        }
-                    }
+                    found = true;
+                    // ensure endpoint has up to date information.
+                    UpdateDescription(m_endpoint.Description, foundDescription);
                 }
             }
 
@@ -5506,6 +5508,55 @@ namespace Opc.Ua.Client
                     StatusCodes.BadSecurityChecksFailed,
                     "Server did not return an EndpointDescription that matched the one used to create the secure channel.");
             }
+        }
+
+        /// <summary>
+        /// Find and return matching application description
+        /// </summary>
+        /// <param name="endpointDescriptions">The descriptions to search through</param> 
+        /// <param name="match">The description to match</param> 
+        /// <param name="matchPort">Match criteria includes port</param>
+        /// <returns>Matching description or null if no description is matching</returns>
+        private EndpointDescription FindMatchingDescription(EndpointDescriptionCollection endpointDescriptions,
+            EndpointDescription match,
+            bool matchPort)
+        {
+            Uri expectedUrl = Utils.ParseUri(match.EndpointUrl);
+            for (int ii = 0; ii < endpointDescriptions.Count; ii++)
+            {
+                EndpointDescription serverEndpoint = endpointDescriptions[ii];
+                Uri actualUrl = Utils.ParseUri(serverEndpoint.EndpointUrl);
+
+                if (actualUrl != null &&
+                    actualUrl.Scheme == expectedUrl.Scheme &&
+                    (matchPort ? actualUrl.Port == expectedUrl.Port : true))
+                {
+                    if (serverEndpoint.SecurityPolicyUri == m_endpoint.Description.SecurityPolicyUri)
+                    {
+                        if (serverEndpoint.SecurityMode == m_endpoint.Description.SecurityMode)
+                        {
+                            return serverEndpoint;
+                        }
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Update the target description from the source description
+        /// </summary>
+        /// <param name="target"></param>
+        /// <param name="source"></param>
+        private void UpdateDescription(EndpointDescription target, EndpointDescription source)
+        {
+            target.Server.ApplicationName = source.Server.ApplicationName;
+            target.Server.ApplicationUri = source.Server.ApplicationUri;
+            target.Server.ApplicationType = source.Server.ApplicationType;
+            target.Server.ProductUri = source.Server.ProductUri;
+            target.TransportProfileUri = source.TransportProfileUri;
+            target.UserIdentityTokens = source.UserIdentityTokens;
         }
 
         /// <summary>
@@ -5659,7 +5710,7 @@ namespace Opc.Ua.Client
         /// <param name="e">The exception that occurred during the republish operation.</param>
         /// <param name="subscriptionId">The subscription Id for which the republish was requested. </param>
         /// <param name="sequenceNumber">The sequencenumber for which the republish was requested.</param>
-        private bool ProcessRepublishResponseError(Exception e, uint subscriptionId, uint sequenceNumber)
+        private (bool, ServiceResult) ProcessRepublishResponseError(Exception e, uint subscriptionId, uint sequenceNumber)
         {
 
             ServiceResult error = new ServiceResult(e);
@@ -5667,6 +5718,7 @@ namespace Opc.Ua.Client
             bool result = true;
             switch (error.StatusCode.Code)
             {
+                case StatusCodes.BadSubscriptionIdInvalid:
                 case StatusCodes.BadMessageNotAvailable:
                     Utils.LogWarning("Message {0}-{1} no longer available.", subscriptionId, sequenceNumber);
                     break;
@@ -5707,7 +5759,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            return result;
+            return (result, error);
         }
 
         /// <summary>
@@ -5795,21 +5847,27 @@ namespace Opc.Ua.Client
                         acknowledgementsToSend.Add(acknowledgement);
                         UpdateLatestSequenceNumberToSend(ref latestSequenceNumberToSend, acknowledgement.SequenceNumber);
                     }
+                    // a publish response may by processed out of order,
+                    // allow for a tolerance until the sequence number is removed.
+                    else if (Math.Abs((int)(acknowledgement.SequenceNumber - latestSequenceNumberToSend)) < kPublishRequestSequenceNumberOutOfOrderThreshold)
+                    {
+                        acknowledgementsToSend.Add(acknowledgement);
+                    }
                     else
                     {
                         Utils.LogWarning("SessionId {0}, SubscriptionId {1}, Sequence number={2} was not received in the available sequence numbers.", SessionId, subscriptionId, acknowledgement.SequenceNumber);
                     }
                 }
 
-                // Check for sleeping sequence numbers. May have been not acked due to a network glitch. 
+                // Check for outdated sequence numbers. May have been not acked due to a network glitch. 
                 if (latestSequenceNumberToSend != 0 && availableSequenceNumbers?.Count > 0)
                 {
                     foreach (var sequenceNumber in availableSequenceNumbers)
                     {
-                        if ((int)(latestSequenceNumberToSend - sequenceNumber) > 100)
+                        if ((int)(latestSequenceNumberToSend - sequenceNumber) > kPublishRequestSequenceNumberOutdatedThreshold)
                         {
                             AddAcknowledgementToSend(acknowledgementsToSend, subscriptionId, sequenceNumber);
-                            Utils.LogWarning("SessionId {0}, SubscriptionId {1}, Sequence number={2} was sleeping, acknowledged.", SessionId, subscriptionId, sequenceNumber);
+                            Utils.LogWarning("SessionId {0}, SubscriptionId {1}, Sequence number={2} was outdated, acknowledged.", SessionId, subscriptionId, sequenceNumber);
                         }
                     }
                 }
@@ -6395,7 +6453,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        internal KeepAliveEventArgs(
+        public KeepAliveEventArgs(
             ServiceResult status,
             ServerState currentState,
             DateTime currentTime)
@@ -6451,7 +6509,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        internal NotificationEventArgs(
+        public NotificationEventArgs(
             Subscription subscription,
             NotificationMessage notificationMessage,
             IList<string> stringTable)
@@ -6497,7 +6555,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        internal PublishErrorEventArgs(ServiceResult status)
+        public PublishErrorEventArgs(ServiceResult status)
         {
             m_status = status;
         }
@@ -6555,7 +6613,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        internal PublishSequenceNumbersToAcknowledgeEventArgs(
+        public PublishSequenceNumbersToAcknowledgeEventArgs(
             SubscriptionAcknowledgementCollection acknowledgementsToSend,
             SubscriptionAcknowledgementCollection deferredAcknowledgementsToSend)
         {

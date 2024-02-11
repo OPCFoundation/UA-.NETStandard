@@ -18,7 +18,7 @@ using Opc.Ua.Security.Certificates;
 namespace Opc.Ua
 {
     /// <summary>
-    /// An abstract interface to certficate stores.
+    /// An abstract interface to certificate stores.
     /// </summary>
     public interface ICertificateStore : IDisposable
     {
@@ -67,7 +67,7 @@ namespace Opc.Ua
         Task<bool> Delete(string thumbprint);
 
         /// <summary>
-        /// Finds the certificate with the specified thumprint.
+        /// Finds the certificate with the specified thumbprint.
         /// </summary>
         /// <param name="thumbprint">The thumbprint.</param>
         /// <returns>The matching certificate</returns>
@@ -79,7 +79,7 @@ namespace Opc.Ua
         bool SupportsLoadPrivateKey { get; }
 
         /// <summary>
-        /// Finds the certificate with the specified thumprint.
+        /// Finds the certificate with the specified thumbprint.
         /// </summary>
         /// <param name="thumbprint">The thumbprint.</param>
         /// <param name="subjectName">The certificate subject.</param>

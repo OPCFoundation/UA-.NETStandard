@@ -51,7 +51,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         #region Test Methods
         /// <summary>
-        /// Verify encode and decode of an encodable type.
+        /// Verify encode and decode of an encodeable type.
         /// </summary>
         [Theory]
         [Category("EncodableTypes")]

@@ -147,7 +147,7 @@ namespace Opc.Ua
         /// Converts the URI to a URI that can be used for comparison.
         /// </summary>
         /// <param name="profileUri">The profile URI.</param>
-        /// <returns>The normalixed URI.</returns>
+        /// <returns>The normalized URI.</returns>
         public static string NormalizeUri(string profileUri)
         {
             if (System.String.IsNullOrEmpty(profileUri))

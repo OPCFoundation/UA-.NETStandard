@@ -1925,7 +1925,7 @@ namespace Opc.Ua
         /// <summary>
         /// The server capabilities.
         /// The latest set of server capabilities is listed 
-        /// <see href="http://www.opcfoundation.org/UA/schemas/1.04/ServerCapabilities.csv">here.</see>
+        /// <see href="http://www.opcfoundation.org/UA/schemas/1.05/ServerCapabilities.csv">here.</see>
         /// </summary>
         /// <value>The array of server capabilites.</value>
         [DataMember(IsRequired = false, Order = 30)]
@@ -2888,7 +2888,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The name of the certifcate store that contains the trusted certficates. 
+        /// The name of the certificate store that contains the trusted certificates. 
         /// </summary>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
         [Obsolete("Use StoreType/StorePath instead")]
@@ -2899,7 +2899,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The location of the certifcate store that contains the trusted certficates. 
+        /// The location of the certificate store that contains the trusted certificates. 
         /// </summary>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 3)]
         [Obsolete("Use StoreType/StorePath instead")]
@@ -3263,7 +3263,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets the DER encoded certificate data or create emebeded in this instance certifcate using the DER encoded certificate data.
+        /// Gets the DER encoded certificate data or create emebeded in this instance certificate using the DER encoded certificate data.
         /// </summary>
         /// <value>A byte array containing the X.509 certificate data.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 60)]
@@ -3343,7 +3343,7 @@ namespace Opc.Ua
 
     #region ConfiguredEndpointCollection Class
     /// <summary>
-    /// Stores a list of cached enpoints.
+    /// Stores a list of cached endpoints.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public partial class ConfiguredEndpointCollection

@@ -66,7 +66,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Create instance of <see cref="UaNetworkMessage"/>.
         /// </summary>
-        /// <param name="writerGroupConfiguration">The <see cref="WriterGroupDataType"/> confguration object that produced this message.</param>
+        /// <param name="writerGroupConfiguration">The <see cref="WriterGroupDataType"/> configuration object that produced this message.</param>
         /// <param name="uaDataSetMessages">The containing data set messages.</param>
         protected UaNetworkMessage(WriterGroupDataType writerGroupConfiguration, List<UaDataSetMessage> uaDataSetMessages)
         {
