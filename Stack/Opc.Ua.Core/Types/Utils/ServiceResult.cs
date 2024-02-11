@@ -809,12 +809,12 @@ namespace Opc.Ua
         {
             if (exception != null && exception.Message != null)
             {
-                if (exception.Message.StartsWith("[") || exception is ServiceResultException)
+                if (exception.Message.StartsWith("[", StringComparison.Ordinal) || exception is ServiceResultException)
                 {
                     return exception.Message;
                 }
 
-                return String.Format(CultureInfo.InvariantCulture, "[{0}] {1}", exception.GetType().Name, exception.Message);
+                return Utils.Format("[{0}] {1}", exception.GetType().Name, exception.Message);
             }
 
             return String.Empty;

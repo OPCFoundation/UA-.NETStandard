@@ -511,17 +511,17 @@ namespace Opc.Ua
             {
                 if (m_body is byte[] byteString)
                 {
-                    return String.Format(formatProvider, "Byte[{0}]", byteString.Length);
+                    return string.Format(formatProvider, "Byte[{0}]", byteString.Length);
                 }
 
                 if (m_body is XmlElement element)
                 {
-                    return String.Format(formatProvider, "<{0}>", element.Name);
+                    return string.Format(formatProvider, "<{0}>", element.Name);
                 }
 
                 if (m_body is IFormattable formattable)
                 {
-                    return String.Format(formatProvider, "{0}", formattable.ToString(null, formatProvider));
+                    return string.Format(formatProvider, "{0}", formattable.ToString(null, formatProvider));
                 }
 
                 if (m_body is IEncodeable)
@@ -557,12 +557,12 @@ namespace Opc.Ua
                         body.Append('}');
                     }
 
-                    return String.Format(formatProvider, "{0}", body);
+                    return string.Format(formatProvider, "{0}", body);
                 }
 
                 if (!NodeId.IsNull(this.m_typeId))
                 {
-                    return String.Format(formatProvider, "{{{0}}}", this.m_typeId);
+                    return string.Format(formatProvider, "{{{0}}}", this.m_typeId);
                 }
 
                 return "(null)";

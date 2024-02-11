@@ -347,12 +347,12 @@ namespace Opc.Ua
         /// 'create our node
         /// node1 = new NodeId(id1)
         /// 
-        /// 'now to compare the node to the ids using a simple comparisson and Equals:
+        /// 'now to compare the node to the ids using a simple comparison and Equals:
         /// Utils.LogInfo("Comparing NodeId to uint")
-        /// Utils.LogInfo( String.Format("   Comparing 100 to 100 = [equals] {0}", node1.Equals(id1)) )
-        /// Utils.LogInfo( String.Format("   Comparing 100 to 100 = [  =   ] {0}", node1 = id1) )
-        /// Utils.LogInfo( String.Format("   Comparing 100 to 101 = [equals] {0}", node1.Equals(id2)) )
-        /// Utils.LogInfo( String.Format("   Comparing 100 to 101 = [  =   ] {0}", node1 = id2) )
+        /// Utils.LogInfo("   Comparing 100 to 100 = [equals] {0}", node1.Equals(id1))
+        /// Utils.LogInfo("   Comparing 100 to 100 = [  =   ] {0}", node1 = id1)
+        /// Utils.LogInfo("   Comparing 100 to 101 = [equals] {0}", node1.Equals(id2))
+        /// Utils.LogInfo("   Comparing 100 to 101 = [  =   ] {0}", node1 = id2)
         /// 
         /// </code>
         /// <para>
@@ -402,10 +402,10 @@ namespace Opc.Ua
         /// 
         /// 'now to compare the node to the guids
         /// Utils.LogInfo("Comparing NodeId to GUID")
-        /// Utils.LogInfo( String.Format( "  Comparing {0} to {0} = [equals] {2}", id1, id1, node1.Equals(id1)) );
-        /// Utils.LogInfo( String.Format( "  Comparing {0} to {0} = [  =   ] {2}", id1, id1, node1 = id1) );
-        /// Utils.LogInfo( String.Format( "  Comparing {0} to {0} = [equals] {2}", id1, id2, node1.Equals(id2)) );
-        /// Utils.LogInfo( String.Format( "  Comparing {0} to {0} = [  =   ] {2}", id1, id2, node1 = id2) );
+        /// Utils.LogInfo("  Comparing {0} to {0} = [equals] {2}", id1, id1, node1.Equals(id1));
+        /// Utils.LogInfo("  Comparing {0} to {0} = [  =   ] {2}", id1, id1, node1 = id1);
+        /// Utils.LogInfo("  Comparing {0} to {0} = [equals] {2}", id1, id2, node1.Equals(id2));
+        /// Utils.LogInfo("  Comparing {0} to {0} = [  =   ] {2}", id1, id2, node1 = id2);
         /// 
         /// </code>
         /// <para>
@@ -464,10 +464,10 @@ namespace Opc.Ua
         /// 
         /// 'now to compare the node to the guids
         /// Utils.LogInfo("Comparing NodeId to Byte()")
-        /// Utils.LogInfo( String.Format("Comparing {0} to {0} = [equals] {2}", id1String, id1String, node1.Equals(id1)) )
-        /// Utils.LogInfo( String.Format("Comparing {0} to {0} = [  =   ] {2}", id1String, id1String, node1 = id1) )
-        /// Utils.LogInfo( String.Format("Comparing {0} to {1} = [equals] {2}", id1String, id2String, node1.Equals(id2)) )
-        /// Utils.LogInfo( String.Format("Comparing {0} to {1} = [  =   ] {2}", id1String, id2String, node1 = id2) )
+        /// Utils.LogInfo("Comparing {0} to {0} = [equals] {2}", id1String, id1String, node1.Equals(id1))
+        /// Utils.LogInfo("Comparing {0} to {0} = [  =   ] {2}", id1String, id1String, node1 = id1)
+        /// Utils.LogInfo("Comparing {0} to {1} = [equals] {2}", id1String, id2String, node1.Equals(id2))
+        /// Utils.LogInfo("Comparing {0} to {1} = [  =   ] {2}", id1String, id2String, node1 = id2)
         /// 
         /// </code>
         /// <para>
@@ -518,10 +518,10 @@ namespace Opc.Ua
         /// 
         /// 'now to compare the node to the guids
         /// Utils.LogInfo("Comparing NodeId to String");
-        /// Utils.LogInfo(String.Format("Comparing {0} to {1} = [equals] {2}", id1, id1, node1.Equals(id1)));
-        /// Utils.LogInfo(String.Format("Comparing {0} to {1} = [  =   ] {2}", id1, id1, node1 = id1));
-        /// Utils.LogInfo(String.Format("Comparing {0} to {1} = [equals] {2}", id1, id2, node1.Equals(id2)));
-        /// Utils.LogInfo(String.Format("Comparing {0} to {1} = [  =   ] {2}", id1, id2, node1 = id2));
+        /// Utils.LogInfo("Comparing {0} to {1} = [equals] {2}", id1, id1, node1.Equals(id1));
+        /// Utils.LogInfo("Comparing {0} to {1} = [  =   ] {2}", id1, id1, node1 = id1);
+        /// Utils.LogInfo("Comparing {0} to {1} = [equals] {2}", id1, id2, node1.Equals(id2));
+        /// Utils.LogInfo("Comparing {0} to {1} = [  =   ] {2}", id1, id2, node1 = id2);
         /// 
         /// </code>
         /// </example>

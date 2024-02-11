@@ -64,7 +64,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(unicastIPAddress, "unicastIPAddress is null");
 
             NetworkAddressUrlDataType publisherAddress = new NetworkAddressUrlDataType();
-            publisherAddress.Url = string.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, unicastIPAddress.ToString());
+            publisherAddress.Url = Utils.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, unicastIPAddress.ToString());
             publisherConfiguration.Connections.First().Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
@@ -141,7 +141,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(broadcastIPAddress, "broadcastIPAddress is null");
 
             NetworkAddressUrlDataType publisherAddress = new NetworkAddressUrlDataType();
-            publisherAddress.Url = string.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, broadcastIPAddress.ToString());
+            publisherAddress.Url = Utils.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, broadcastIPAddress.ToString());
             publisherConfiguration.Connections.First().Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
@@ -216,7 +216,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(multicastIPAddress, "multicastIPAddress is null");
 
             NetworkAddressUrlDataType publisherAddress = new NetworkAddressUrlDataType();
-            publisherAddress.Url = string.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, multicastIPAddress.ToString());
+            publisherAddress.Url = Utils.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, multicastIPAddress.ToString());
             publisherConfiguration.Connections.First().Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
@@ -292,7 +292,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(multicastIPAddress, "multicastIPAddress is null");
 
             NetworkAddressUrlDataType publisherAddress = new NetworkAddressUrlDataType();
-            publisherAddress.Url = string.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, multicastIPAddress.ToString());
+            publisherAddress.Url = Utils.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, multicastIPAddress.ToString());
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
@@ -374,7 +374,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(multicastIPAddress, "multicastIPAddress is null");
 
             NetworkAddressUrlDataType publisherAddress = new NetworkAddressUrlDataType();
-            publisherAddress.Url = string.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, multicastIPAddress.ToString());
+            publisherAddress.Url = Utils.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, multicastIPAddress.ToString());
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
@@ -449,7 +449,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(multicastIPAddress, "multicastIPAddress is null");
 
             NetworkAddressUrlDataType publisherAddress = new NetworkAddressUrlDataType();
-            publisherAddress.Url = string.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, multicastIPAddress.ToString());
+            publisherAddress.Url = Utils.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, multicastIPAddress.ToString());
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
@@ -543,7 +543,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             }
             catch (Exception ex)
             {
-                Assert.Warn(string.Format("OnReceive() failed due to the following reason: {0}", ex.Message));
+                Assert.Warn(Utils.Format("OnReceive() failed due to the following reason: {0}", ex.Message));
             }
         }
 

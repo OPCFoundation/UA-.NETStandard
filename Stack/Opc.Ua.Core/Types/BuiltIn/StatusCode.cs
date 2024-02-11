@@ -480,10 +480,10 @@ namespace Opc.Ua
 
                 if (!String.IsNullOrEmpty(text))
                 {
-                    return String.Format(formatProvider, "{0}", text);
+                    return string.Format(formatProvider, "{0}", text);
                 }
 
-                return String.Format(formatProvider, "0x{0:X8}", m_code);
+                return string.Format(formatProvider, "0x{0:X8}", m_code);
 
             }
 

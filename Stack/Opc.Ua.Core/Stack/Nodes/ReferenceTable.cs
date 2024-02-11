@@ -180,7 +180,7 @@ namespace Opc.Ua
                 throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
             }
 
-            return Utils.Format("References {0}", m_references.Count);
+            return string.Format(formatProvider, "References {0}", m_references.Count);
         }
         #endregion
 

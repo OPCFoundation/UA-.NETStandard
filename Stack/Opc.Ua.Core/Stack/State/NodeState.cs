@@ -211,10 +211,10 @@ namespace Opc.Ua
 
             if (!QualifiedName.IsNull(m_browseName))
             {
-                return Utils.Format("[{0}]{1}", m_nodeClass, m_displayName);
+                return string.Format(formatProvider, "[{0}]{1}", m_nodeClass, m_displayName);
             }
 
-            return Utils.Format("[{0}]{1}", m_nodeClass, m_nodeId);
+            return string.Format(formatProvider, "[{0}]{1}", m_nodeClass, m_nodeId);
         }
         #endregion
 
