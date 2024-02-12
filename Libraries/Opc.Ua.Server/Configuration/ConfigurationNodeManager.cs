@@ -299,7 +299,7 @@ namespace Opc.Ua.Server
         /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
         public void HasApplicationSecureAdminAccess(ISystemContext context)
         {
-            HasApplicationSecureAdminAccess(context);
+            HasApplicationSecureAdminAccess(context, "");
         }
 
 
