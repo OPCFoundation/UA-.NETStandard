@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
-using System.Xml;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
@@ -148,41 +147,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
         }
 
-        [Benchmark]
-        [Test]
-        public void DateTimeDecodeXml()
-        {
-            _ = XmlConvert.ToDateTime(m_dateTimeText, XmlDateTimeSerializationMode.Utc);
-        }
-
-        [Benchmark]
-        [Test]
-        public void DateTimeDecodeTryParseExact()
-        {
-            DateTime.TryParseExact(m_dateTimeText, "o", CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime dateTime);
-            var _ = dateTime;
-        }
-
-        [Benchmark]
-        [Test]
-        public void DateTimeDecodeTryParse()
-        {
-            DateTime.TryParse(m_dateTimeText, out DateTime dateTime);
-            var _ = dateTime;
-        }
-
-        [Benchmark]
-        public void DateTimeEncodeString()
-        {
-            _ = m_dateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK", CultureInfo.InvariantCulture);
-        }
-
-        [Benchmark]
-        public void DateTimeEncodeO()
-        {
-            _ = m_dateTime.ToString("o");
-        }
-
         #region Private Methods
         private void TestEncoding(IEncoder encoder)
         {
@@ -231,8 +195,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_recyclableMemoryStream = new Microsoft.IO.RecyclableMemoryStream(m_memoryManager);
             m_bufferManager = new BufferManager(nameof(BinaryEncoder), kBufferSize);
             m_arraySegmentStream = new ArraySegmentStream(m_bufferManager, kBufferSize, 0, kBufferSize);
-            m_dateTimeText = "2018-12-31T23:59:59.9999999Z";
-            m_dateTime = DateTime.UtcNow;
         }
 
         [OneTimeTearDown]
@@ -264,8 +226,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_recyclableMemoryStream = new Microsoft.IO.RecyclableMemoryStream(m_memoryManager);
             m_bufferManager = new BufferManager(nameof(BinaryEncoder), kBufferSize);
             m_arraySegmentStream = new ArraySegmentStream(m_bufferManager, kBufferSize, 0, kBufferSize);
-            m_dateTime = DateTime.UtcNow;
-            m_dateTimeText = "2018-12-31T23:59:59.9999999Z";
         }
 
         /// <summary>
@@ -295,8 +255,80 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         private Microsoft.IO.RecyclableMemoryStream m_recyclableMemoryStream;
         private BufferManager m_bufferManager;
         private ArraySegmentStream m_arraySegmentStream;
-        private DateTime m_dateTime;
-        private string m_dateTimeText;
         #endregion
     }
+
+    [TestFixture, Category("JsonEncoder")]
+    [SetCulture("en-us"), SetUICulture("en-us")]
+    [NonParallelizable]
+    [MemoryDiagnoser]
+    [DisassemblyDiagnoser]
+    public class JsonEncoderDateTimeBenchmark
+    {
+        [Params(0, 4, 7)]
+        public int DateTimeOmittedZeros { get; set; } = 0;
+
+        [Benchmark]
+        [Test]
+        public void DateTimeEncodeToString()
+        {
+            _ = m_dateTime.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK", CultureInfo.InvariantCulture);
+        }
+
+        [Benchmark]
+        [Test]
+        public void ConvertToUniversalTime()
+        {
+            _ = JsonEncoder.ConvertToUniversalTime(m_dateTime);
+        }
+
+        #region Test Setup
+        [OneTimeSetUp]
+        public void OneTimeSetUp()
+        {
+            // for validating benchmark tests
+            m_dateTime = DateTime.UtcNow;
+        }
+
+        [OneTimeTearDown]
+        public void OneTimeTearDown()
+        {
+        }
+        #endregion
+
+        #region Benchmark Setup
+        /// <summary>
+        /// Set up some variables for benchmarks.
+        /// </summary>
+        [GlobalSetup]
+        public void GlobalSetup()
+        {
+            // for validating benchmark tests
+            switch (DateTimeOmittedZeros)
+            {
+                case 4: m_dateTime = new DateTime(2011, 11, 11, 11, 11, 11, 999, DateTimeKind.Utc); break;
+                case 7: m_dateTime = new DateTime(2011, 11, 11, 11, 11, 11, DateTimeKind.Utc); break;
+                default:
+                    do
+                    {
+                        m_dateTime = DateTime.UtcNow;
+                    } while (m_dateTime.Ticks % 10 == 0);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Tear down benchmark variables.
+        /// </summary>
+        [GlobalCleanup]
+        public void GlobalCleanup()
+        {
+        }
+        #endregion
+
+        #region Private Fields
+        private DateTime m_dateTime;
+        #endregion
+    }
+
 }

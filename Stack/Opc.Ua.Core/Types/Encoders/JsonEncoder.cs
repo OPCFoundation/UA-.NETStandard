@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Xml;
 
@@ -800,10 +801,7 @@ namespace Opc.Ua
             }
             else
             {
-                // Note: "o" is a shortcut for "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK" and implicitly
-                // uses invariant culture and gregorian calendar, but executes up to 10 times faster
-                // in contrary to the explicit format string, trailing zeroes are omitted
-                WriteSimpleField(fieldName, value.ToUniversalTime().ToString("o"), true);
+                WriteSimpleField(fieldName, ConvertToUniversalTime(value), true);
             }
         }
 
@@ -1358,7 +1356,7 @@ namespace Opc.Ua
         public void WriteEnumerated(string fieldName, Enum value)
         {
             int numeric = Convert.ToInt32(value, CultureInfo.InvariantCulture);
-            var numericString = numeric.ToString();
+            var numericString = numeric.ToString(CultureInfo.InvariantCulture);
             if (UseReversibleEncoding)
             {
                 WriteSimpleField(fieldName, numericString, false);
@@ -2568,6 +2566,48 @@ namespace Opc.Ua
                     m_context.MaxEncodingNestingLevels);
             }
             m_nestingLevel++;
+        }
+
+        /// <summary>
+        /// Write Utc time in the format "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK".
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static string ConvertToUniversalTime(DateTime value)
+        {
+            // The length of the DateTime string encoded by "o"
+            const int DateTimeRoundTripKindLength = 28;
+            // the index of the last digit which can be omitted if 0
+            const int DateTimeRoundTripKindLastDigit = DateTimeRoundTripKindLength - 2;
+            // the index of the first digit which can be omitted (7 digits total)
+            const int DateTimeRoundTripKindFirstDigit = DateTimeRoundTripKindLastDigit - 7;
+
+            // Note: "o" is a shortcut for "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK" and implicitly
+            // uses invariant culture and gregorian calendar, but executes up to 10 times faster
+            // in contrary to the explicit format string, trailing zeroes are not omitted!
+            string valueString = value.ToUniversalTime().ToString("o");
+
+            // check if trailing zeroes can be omitted
+            int i = DateTimeRoundTripKindLastDigit;
+            while (i > DateTimeRoundTripKindFirstDigit)
+            {
+                if (valueString[i] != '0')
+                {
+                    break;
+                }
+                i--;
+            }
+
+            if (i < DateTimeRoundTripKindLastDigit)
+            {
+                // check if the dot has to be removed too
+                if (i == DateTimeRoundTripKindFirstDigit)
+                {
+                    i--;
+                }
+                valueString = valueString.Remove(i + 1, DateTimeRoundTripKindLastDigit - i);
+            }
+
+            return valueString;
         }
         #endregion
     }
