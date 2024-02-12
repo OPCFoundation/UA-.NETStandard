@@ -219,7 +219,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Decrypts the CipherText using the SecurityPolicyUri and returns the PlainTetx.
+        /// Decrypts the CipherText using the SecurityPolicyUri and returns the PlainText.
         /// </summary>
         public static byte[] Decrypt(X509Certificate2 certificate, string securityPolicyUri, EncryptedData dataToDecrypt)
         {

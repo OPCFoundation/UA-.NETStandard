@@ -94,7 +94,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // this test cannot create the required certs on macOS with legacy bouncy castle support
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                Assert.Ignore("Creating the alternate certifcates via Pfx is not supported on mac OS.");
+                Assert.Ignore("Creating the alternate certificates via Pfx is not supported on mac OS.");
             }
 #endif
 

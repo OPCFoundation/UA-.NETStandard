@@ -22,7 +22,7 @@ using System.Xml;
 namespace Opc.Ua
 {
     /// <summary>
-    /// Stores a list of cached enpoints.
+    /// Stores a list of cached endpoints.
     /// </summary>
     public partial class ConfiguredEndpointCollection : ICloneable
     {

@@ -342,14 +342,14 @@ namespace Opc.Ua.Bindings
 
             SocketError error = SocketError.NotInitialized;
             CallbackAction doCallback = (SocketError socketError) => callback(this, new TcpMessageSocketConnectAsyncEventArgs(socketError) { UserToken = state });
-            IPAddress[] hostAdresses;
+            IPAddress[] hostAddresses;
             try
             {
                 // Get DNS host information
 #if NET6_0_OR_GREATER
-                hostAdresses = await Dns.GetHostAddressesAsync(endpointUrl.DnsSafeHost, cts).ConfigureAwait(false);
+                hostAddresses = await Dns.GetHostAddressesAsync(endpointUrl.DnsSafeHost, cts).ConfigureAwait(false);
 #else
-                hostAdresses = await Dns.GetHostAddressesAsync(endpointUrl.DnsSafeHost).ConfigureAwait(false);
+                hostAddresses = await Dns.GetHostAddressesAsync(endpointUrl.DnsSafeHost).ConfigureAwait(false);
 #endif
             }
             catch (SocketException e)
@@ -360,8 +360,8 @@ namespace Opc.Ua.Bindings
             }
 
             // Get IPv4 and IPv6 address
-            IPAddress[] addressesV4 = hostAdresses.Where(a => a.AddressFamily == AddressFamily.InterNetwork).ToArray();
-            IPAddress[] addressesV6 = hostAdresses.Where(a => a.AddressFamily == AddressFamily.InterNetworkV6).ToArray();
+            IPAddress[] addressesV4 = hostAddresses.Where(a => a.AddressFamily == AddressFamily.InterNetwork).ToArray();
+            IPAddress[] addressesV6 = hostAddresses.Where(a => a.AddressFamily == AddressFamily.InterNetworkV6).ToArray();
 
             // Get port
             int port = endpointUrl.Port;

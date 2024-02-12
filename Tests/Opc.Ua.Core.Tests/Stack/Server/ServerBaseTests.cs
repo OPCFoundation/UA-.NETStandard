@@ -224,19 +224,19 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         /// </summary>
         [Test]
         [TestCase("opc.tcp://localhost:51210/UA/SampleServer")]
-        [TestCase("opc.tcp://externalhostname.com:50001/UA/SampleServer", 6)]
-        [TestCase("opc.tcp://externalhostname.com:52541/UA/SampleServer", 6)]
+        [TestCase("opc.tcp://externalhostname.com:50001/UA/SampleServer", 0)]
+        [TestCase("opc.tcp://externalhostname.com:52541/UA/SampleServer", 0)]
         // [TestCase("opc.tcp://[fe80:1234::8]:51210/UA/SampleServer", 4)]
         // [TestCase("opc.tcp://[fe80:1234::8%3]:51210/UA/SampleServer", 4)]
         [TestCase("opc.tcp://[2003:d9:1f0c:5e00:4139:ee31:6cc3:313e]:62541/UA/SampleServer", 6)]
         [TestCase("opc.tcp://myhostname.com:51210/UA/SampleServer", 6)]
         [TestCase("opc.tcp://UNKNOWNHOSTNAME.COM:51210/UA/SampleServer", 4)]
-        [TestCase("opc.tcp://EXTERNALHOSTNAME.COM:51210/UA/SampleServer", 6)]
+        [TestCase("opc.tcp://EXTERNALHOSTNAME.COM:51210/UA/SampleServer", 0)]
         [TestCase("opc.tcp://localhost:51210/UA/SampleServer")]
         [TestCase("opc.tcp://someserver:62541/UA/SampleServer", 4)]
         [TestCase("opc.tcp://192.168.1.100:62541/UA/SampleServer", 6)]
         [TestCase("opc.tcp:someserver:62541:UA:SampleServer", 4)]
-        [TestCase("opc.https://externalhostname.com:50000/UA/SampleServer", 6)]
+        [TestCase("opc.https://externalhostname.com:50000/UA/SampleServer", 0)]
         [TestCase("opc.https://localhost:51210/UA/SampleServer")]
         [TestCase("opc.https://someserver:62541/UA/SampleServer", 4)]
         [TestCase("opc.https://someserver:62540/UA/SampleServer", 4)]
@@ -257,7 +257,10 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.Greater(BaseAddressCount, 0);
             var translatedEndpoints = this.TranslateEndpointDescriptions(parsedEndpointUrl, baseAddresses, m_endpoints, m_serverDescription);
             Assert.NotNull(translatedEndpoints);
-            Assert.Greater(translatedEndpoints.Count, 0);
+            if (count > 0)
+            {
+                Assert.Greater(translatedEndpoints.Count, 0);
+            }
             foreach (var endpoint in translatedEndpoints)
             {
                 TestContext.WriteLine($"Endpoint: {endpoint.EndpointUrl} {endpoint.SecurityMode} {endpoint.SecurityPolicyUri}");

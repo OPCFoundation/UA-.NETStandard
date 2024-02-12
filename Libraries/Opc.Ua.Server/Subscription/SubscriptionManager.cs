@@ -782,7 +782,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            // acknowlege previous messages.
+            // acknowledge previous messages.
             queue.Acknowledge(
                 context,
                 subscriptionAcknowledgements,
