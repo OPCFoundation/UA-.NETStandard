@@ -801,7 +801,7 @@ namespace Opc.Ua
             }
             else
             {
-                WriteSimpleField(fieldName, ConvertToUniversalTime(value), true);
+                WriteSimpleField(fieldName, ConvertUniversalTimeToString(value), true);
             }
         }
 
