@@ -31,6 +31,10 @@ namespace Opc.Ua
         private static readonly char s_comma = ',';
         private static readonly char s_quotation = '\"';
         private static readonly char s_backslash = '\\';
+        private static readonly char s_leftCurlyBrace = '{';
+        private static readonly char s_rightCurlyBrace = '}';
+        private static readonly char s_leftSquareBracket = '[';
+        private static readonly char s_rightSquareBracket = ']';
         private Stream m_stream;
         private MemoryStream m_memoryStream;
         private StreamWriter m_writer;
@@ -149,11 +153,11 @@ namespace Opc.Ua
         {
             if (m_topLevelIsArray)
             {
-                m_writer.Write("[");
+                m_writer.Write(s_leftSquareBracket);
             }
             else
             {
-                m_writer.Write("{");
+                m_writer.Write(s_leftCurlyBrace);
             }
         }
         #endregion
@@ -366,7 +370,7 @@ namespace Opc.Ua
             }
 
             m_commaRequired = false;
-            m_writer.Write('{');
+            m_writer.Write(s_leftCurlyBrace);
         }
 
         /// <inheritdoc/>
@@ -395,7 +399,7 @@ namespace Opc.Ua
             }
 
             m_commaRequired = false;
-            m_writer.Write('[');
+            m_writer.Write(s_leftSquareBracket);
         }
 
         /// <inheritdoc/>
@@ -404,7 +408,7 @@ namespace Opc.Ua
             if (m_nestingLevel > 1 || m_topLevelIsArray ||
                (m_nestingLevel == 1 && !m_levelOneSkipped))
             {
-                m_writer.Write('}');
+                m_writer.Write(s_rightCurlyBrace);
                 m_commaRequired = true;
             }
 
@@ -417,7 +421,7 @@ namespace Opc.Ua
             if (m_nestingLevel > 1 || m_topLevelIsArray ||
                (m_nestingLevel == 1 && !m_levelOneSkipped))
             {
-                m_writer.Write(']');
+                m_writer.Write(s_rightSquareBracket);
                 m_commaRequired = true;
             }
 
