@@ -158,11 +158,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Connects to an endpoint.
         /// </summary>
-        Task<bool> BeginConnect(
+        bool BeginConnect(
             Uri endpointUrl,
             EventHandler<IMessageSocketAsyncEventArgs> callback,
-            object state,
-            CancellationToken cts);
+            object state);
 
         /// <summary>
         /// Forcefully closes the socket.

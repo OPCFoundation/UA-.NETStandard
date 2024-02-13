@@ -120,7 +120,6 @@ namespace Opc.Ua.Bindings
             if (url == null) throw new ArgumentNullException(nameof(url));
             if (timeout <= 0) throw new ArgumentException("Timeout must be greater than zero.", nameof(timeout));
 
-            Task task;
             lock (DataLock)
             {
                 if (State != TcpChannelState.Closed)
@@ -155,12 +154,7 @@ namespace Opc.Ua.Bindings
                 else
                 {
                     Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
-                    task = Task.Run(async () => {
-                        using (var cts = new CancellationTokenSource(timeout))
-                        {
-                            await (Socket?.BeginConnect(m_via, m_ConnectCallback, operation, cts.Token) ?? Task.FromResult(false)).ConfigureAwait(false);
-                        }
-                    });
+                    Socket.BeginConnect(m_via, m_ConnectCallback, operation);
                 }
             }
             return m_handshakeOperation;
@@ -874,7 +868,6 @@ namespace Opc.Ua.Bindings
             {
                 Utils.LogInfo("ChannelId {0}: Scheduled Handshake Starting: TokenId={1}", ChannelId, CurrentToken?.TokenId);
 
-                Task task;
                 lock (DataLock)
                 {
                     // check if renewing a token.
@@ -930,10 +923,7 @@ namespace Opc.Ua.Bindings
 
                         State = TcpChannelState.Connecting;
                         Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
-                        task = Task.Run(async () =>
-                            await (Socket?.BeginConnect(
-                                m_via, m_ConnectCallback, m_handshakeOperation,
-                                CancellationToken.None) ?? Task.FromResult(false)).ConfigureAwait(false));
+                        Socket.BeginConnect(m_via, m_ConnectCallback, m_handshakeOperation);
                     }
                 }
             }
@@ -1563,7 +1553,7 @@ namespace Opc.Ua.Bindings
         private TimerCallback m_startHandshake;
         private AsyncCallback m_handshakeComplete;
         private List<QueuedOperation> m_queuedOperations;
-        private readonly string g_ImplementationString = ".NET Standard ClientChannel {0} " + Utils.GetAssemblyBuildNumber();
+        private readonly string g_ImplementationString = "UA.NETStandard ClientChannel {0} " + Utils.GetAssemblyBuildNumber();
         #endregion
     }
 }
