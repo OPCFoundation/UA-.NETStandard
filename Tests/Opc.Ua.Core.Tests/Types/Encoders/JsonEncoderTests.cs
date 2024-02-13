@@ -920,7 +920,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void DateTimeEncodeStringTest(DateTime testDateTime)
         {
             string resultString = testDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK", CultureInfo.InvariantCulture);
-            string resultO = JsonEncoder.ConvertToUniversalTime(testDateTime);
+            string resultO = JsonEncoder.ConvertUniversalTimeToString(testDateTime);
             Assert.NotNull(resultString);
             Assert.NotNull(resultO);
 

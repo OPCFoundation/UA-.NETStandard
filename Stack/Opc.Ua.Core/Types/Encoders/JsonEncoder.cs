@@ -2572,7 +2572,7 @@ namespace Opc.Ua
         /// Write Utc time in the format "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK".
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static string ConvertToUniversalTime(DateTime value)
+        internal static string ConvertUniversalTimeToString(DateTime value)
         {
             // The length of the DateTime string encoded by "o"
             const int DateTimeRoundTripKindLength = 28;
@@ -2582,8 +2582,8 @@ namespace Opc.Ua
             const int DateTimeRoundTripKindFirstDigit = DateTimeRoundTripKindLastDigit - 7;
 
             // Note: "o" is a shortcut for "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK" and implicitly
-            // uses invariant culture and gregorian calendar, but executes up to 10 times faster
-            // in contrary to the explicit format string, trailing zeroes are not omitted!
+            // uses invariant culture and gregorian calendar, but executes up to 10 times faster.
+            // But in contrary to the explicit format string, trailing zeroes are not omitted!
             string valueString = value.ToUniversalTime().ToString("o");
 
             // check if trailing zeroes can be omitted
@@ -2599,7 +2599,7 @@ namespace Opc.Ua
 
             if (i < DateTimeRoundTripKindLastDigit)
             {
-                // check if the dot has to be removed too
+                // check if the decimal point has to be removed too
                 if (i == DateTimeRoundTripKindFirstDigit)
                 {
                     i--;

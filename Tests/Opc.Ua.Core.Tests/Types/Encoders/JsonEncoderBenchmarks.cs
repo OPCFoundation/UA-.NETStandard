@@ -279,7 +279,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void ConvertToUniversalTime()
         {
-            _ = JsonEncoder.ConvertToUniversalTime(m_dateTime);
+            _ = JsonEncoder.ConvertUniversalTimeToString(m_dateTime);
         }
 
         #region Test Setup
