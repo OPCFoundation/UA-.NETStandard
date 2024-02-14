@@ -14,7 +14,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
     public class SessionLessServiceMessageTests
     {
         [Test]
-        public void WhenServerUrisAreLessThanNamespaces_ShouldNotThrowAndMustReturnCorrectServerUris()
+        public void WhenServerUrisAreLessThanNamespacesShouldNotThrowAndMustReturnCorrectServerUris()
         {
             //arrange
             UInt32 uriVersion = 1234;

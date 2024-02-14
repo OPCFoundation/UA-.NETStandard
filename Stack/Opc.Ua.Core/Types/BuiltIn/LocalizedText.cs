@@ -116,7 +116,7 @@ namespace Opc.Ua
 
             try
             {
-                m_text = String.Format(culture, m_translationInfo.Text, m_translationInfo.Args);
+                m_text = string.Format(culture, m_translationInfo.Text, m_translationInfo.Args);
             }
             catch
             {
@@ -375,7 +375,7 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                return String.Format(formatProvider, "{0}", this.m_text);
+                return string.Format(formatProvider, "{0}", this.m_text);
             }
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));

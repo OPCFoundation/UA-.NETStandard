@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Xml.Serialization;
@@ -479,10 +480,10 @@ namespace Opc.Ua
 
                 if (!String.IsNullOrEmpty(text))
                 {
-                    return String.Format(formatProvider, "{0}", text);
+                    return string.Format(formatProvider, "{0}", text);
                 }
 
-                return String.Format(formatProvider, "0x{0:X8}", m_code);
+                return string.Format(formatProvider, "0x{0:X8}", m_code);
 
             }
 
@@ -540,7 +541,7 @@ namespace Opc.Ua
 
             if ((0x0000FFFF & Code) != 0)
             {
-                buffer.AppendFormat(" [{0:X4}]", (0x0000FFFF & Code));
+                buffer.AppendFormat(CultureInfo.InvariantCulture, " [{0:X4}]", (0x0000FFFF & Code));
             }
 
             return buffer.ToString();

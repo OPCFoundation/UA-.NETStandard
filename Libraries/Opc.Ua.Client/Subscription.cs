@@ -2433,7 +2433,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private bool UpdateMonitoringMode(
             IList<MonitoredItem> monitoredItems,
-            IList<ServiceResult> errors,
+            List<ServiceResult> errors,
             StatusCodeCollection results,
             DiagnosticInfoCollection diagnosticInfos,
             ResponseHeader responseHeader,
@@ -2518,7 +2518,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void PrepareItemsToModify(
             MonitoredItemModifyRequestCollection requestItems,
-            IList<MonitoredItem> itemsToModify)
+            List<MonitoredItem> itemsToModify)
         {
             lock (m_cache)
             {
@@ -2589,7 +2589,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void PrepareResolveItemNodeIds(
             BrowsePathCollection browsePaths,
-            IList<MonitoredItem> itemsToBrowse)
+            List<MonitoredItem> itemsToBrowse)
         {
             lock (m_cache)
             {

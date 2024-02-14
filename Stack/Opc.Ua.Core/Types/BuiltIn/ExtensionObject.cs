@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
@@ -501,7 +502,7 @@ namespace Opc.Ua
         /// <param name="format">(Unused). Leave this as null</param>
         /// <param name="formatProvider">The provider of a mechanism for retrieving an object to control formatting.</param>
         /// <returns>
-        /// A <see cref="T:System.String"/> containing the value of the current embeded instance in the specified format.
+        /// A <see cref="System.String"/> containing the value of the current embeded instance in the specified format.
         /// </returns>
         /// <exception cref="FormatException">Thrown if the <i>format</i> parameter is not null</exception>
         public string ToString(string format, IFormatProvider formatProvider)
@@ -510,17 +511,17 @@ namespace Opc.Ua
             {
                 if (m_body is byte[] byteString)
                 {
-                    return String.Format(formatProvider, "Byte[{0}]", byteString.Length);
+                    return string.Format(formatProvider, "Byte[{0}]", byteString.Length);
                 }
 
                 if (m_body is XmlElement element)
                 {
-                    return String.Format(formatProvider, "<{0}>", element.Name);
+                    return string.Format(formatProvider, "<{0}>", element.Name);
                 }
 
                 if (m_body is IFormattable formattable)
                 {
-                    return String.Format(formatProvider, "{0}", formattable.ToString(null, formatProvider));
+                    return string.Format(formatProvider, "{0}", formattable.ToString(null, formatProvider));
                 }
 
                 if (m_body is IEncodeable)
@@ -546,7 +547,7 @@ namespace Opc.Ua
                                     body.Append(" | ");
                                 }
 
-                                body.AppendFormat("{0}", property.GetGetMethod().Invoke(m_body, null));
+                                body.AppendFormat(formatProvider, "{0}", property.GetGetMethod().Invoke(m_body, null));
                             }
                         }
                     }
@@ -556,12 +557,12 @@ namespace Opc.Ua
                         body.Append('}');
                     }
 
-                    return String.Format(formatProvider, "{0}", body);
+                    return string.Format(formatProvider, "{0}", body);
                 }
 
                 if (!NodeId.IsNull(this.m_typeId))
                 {
-                    return String.Format(formatProvider, "{{{0}}}", this.m_typeId);
+                    return string.Format(formatProvider, "{{{0}}}", this.m_typeId);
                 }
 
                 return "(null)";

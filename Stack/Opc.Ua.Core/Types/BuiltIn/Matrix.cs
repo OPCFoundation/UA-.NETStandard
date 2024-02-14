@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text;
 
@@ -193,7 +194,7 @@ namespace Opc.Ua
             {
                 StringBuilder buffer = new StringBuilder();
 
-                buffer.AppendFormat("{0}[", m_elements.GetType().GetElementType().Name);
+                buffer.AppendFormat(formatProvider, "{0}[", m_elements.GetType().GetElementType().Name);
 
                 for (int ii = 0; ii < m_dimensions.Length; ii++)
                 {

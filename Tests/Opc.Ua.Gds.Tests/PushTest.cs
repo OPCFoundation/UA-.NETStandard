@@ -797,16 +797,12 @@ namespace Opc.Ua.Gds.Tests
                 var storeCrls = await store.EnumerateCRLs().ConfigureAwait(false);
                 foreach (var crl in storeCrls)
                 {
-                    if (!updatedCrls.Contains(crl))
+                    if (!updatedCrls.Remove(crl))
                     {
                         if (!await store.DeleteCRL(crl).ConfigureAwait(false))
                         {
                             result = false;
                         }
-                    }
-                    else
-                    {
-                        updatedCrls.Remove(crl);
                     }
                 }
                 foreach (var crl in updatedCrls)

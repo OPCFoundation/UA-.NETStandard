@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
@@ -107,8 +108,8 @@ namespace Opc.Ua.PubSub.Transport
         internal static List<UdpClient> GetUdpClients(UsedInContext pubSubContext, string networkInterface, IPEndPoint configuredEndpoint)
         {
             StringBuilder buffer = new StringBuilder();
-            buffer.AppendFormat("networkAddressUrl.NetworkInterface = {0} \n", networkInterface ?? "null");
-            buffer.AppendFormat("configuredEndpoint = {0}", configuredEndpoint != null ? configuredEndpoint.ToString() : "null");
+            buffer.AppendFormat(CultureInfo.InvariantCulture, "networkAddressUrl.NetworkInterface = {0} \n", networkInterface ?? "null");
+            buffer.AppendFormat(CultureInfo.InvariantCulture, "configuredEndpoint = {0}", configuredEndpoint != null ? configuredEndpoint.ToString() : "null");
 
             Utils.Trace(Utils.TraceMasks.Information, buffer.ToString());
 

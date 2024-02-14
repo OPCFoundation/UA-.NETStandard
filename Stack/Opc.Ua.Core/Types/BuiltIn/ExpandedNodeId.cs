@@ -473,7 +473,7 @@ namespace Opc.Ua
         {
             get
             {
-                return Format();
+                return Format(CultureInfo.InvariantCulture);
             }
             set
             {
@@ -514,25 +514,25 @@ namespace Opc.Ua
         /// Note: Only information already included in the ExpandedNodeId-Instance will be included in the result
         /// </para>
         /// </remarks>
-        public string Format()
+        public string Format(IFormatProvider formatProvider)
         {
             StringBuilder buffer = new StringBuilder();
-            Format(buffer);
+            Format(formatProvider ?? CultureInfo.InvariantCulture, buffer);
             return buffer.ToString();
         }
 
         /// <summary>
         /// Formats the node ids as string and adds it to the buffer.
         /// </summary>
-        public void Format(StringBuilder buffer)
+        public void Format(IFormatProvider formatProvider, StringBuilder buffer)
         {
             if (m_nodeId != null)
             {
-                Format(buffer, m_nodeId.Identifier, m_nodeId.IdType, m_nodeId.NamespaceIndex, m_namespaceUri, m_serverIndex);
+                Format(formatProvider, buffer, m_nodeId.Identifier, m_nodeId.IdType, m_nodeId.NamespaceIndex, m_namespaceUri, m_serverIndex);
             }
             else
             {
-                Format(buffer, null, IdType.Numeric, 0, m_namespaceUri, m_serverIndex);
+                Format(formatProvider, buffer, null, IdType.Numeric, 0, m_namespaceUri, m_serverIndex);
             }
         }
 
@@ -545,11 +545,24 @@ namespace Opc.Ua
             IdType identifierType,
             ushort namespaceIndex,
             string namespaceUri,
+            uint serverIndex) =>
+            Format(CultureInfo.InvariantCulture, buffer, identifier, identifierType, namespaceIndex, namespaceUri, serverIndex);
+
+        /// <summary>
+        /// Formats the node ids as string and adds it to the buffer.
+        /// </summary>
+        public static void Format(
+            IFormatProvider formatProvider,
+            StringBuilder buffer,
+            object identifier,
+            IdType identifierType,
+            ushort namespaceIndex,
+            string namespaceUri,
             uint serverIndex)
         {
             if (serverIndex != 0)
             {
-                buffer.AppendFormat(CultureInfo.InvariantCulture, "svr={0};", serverIndex);
+                buffer.AppendFormat(formatProvider, "svr={0};", serverIndex);
             }
 
             if (!String.IsNullOrEmpty(namespaceUri))
@@ -565,7 +578,7 @@ namespace Opc.Ua
                         case ';':
                         case '%':
                         {
-                            buffer.AppendFormat(CultureInfo.InvariantCulture, "%{0:X2}", Convert.ToInt16(ch));
+                            buffer.AppendFormat(formatProvider, "%{0:X2}", Convert.ToInt16(ch));
                             break;
                         }
 
@@ -580,7 +593,7 @@ namespace Opc.Ua
                 buffer.Append(';');
             }
 
-            NodeId.Format(buffer, identifier, identifierType, namespaceIndex);
+            NodeId.Format(formatProvider, buffer, identifier, identifierType, namespaceIndex);
         }
         #endregion
 
@@ -935,7 +948,7 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                return Format();
+                return Format(formatProvider);
             }
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
