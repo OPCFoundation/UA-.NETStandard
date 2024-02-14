@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Xml;
 
@@ -26,6 +27,14 @@ namespace Opc.Ua
     {
         #region Private Fields
         private const int kStreamWriterBufferSize = 1024;
+        private static readonly string s_quotationColon = "\":";
+        private static readonly char s_comma = ',';
+        private static readonly char s_quotation = '\"';
+        private static readonly char s_backslash = '\\';
+        private static readonly char s_leftCurlyBrace = '{';
+        private static readonly char s_rightCurlyBrace = '}';
+        private static readonly char s_leftSquareBracket = '[';
+        private static readonly char s_rightSquareBracket = ']';
         private Stream m_stream;
         private MemoryStream m_memoryStream;
         private StreamWriter m_writer;
@@ -144,11 +153,11 @@ namespace Opc.Ua
         {
             if (m_topLevelIsArray)
             {
-                m_writer.Write("[");
+                m_writer.Write(s_leftSquareBracket);
             }
             else
             {
-                m_writer.Write("{");
+                m_writer.Write(s_leftCurlyBrace);
             }
         }
         #endregion
@@ -342,14 +351,14 @@ namespace Opc.Ua
 
             if (m_commaRequired)
             {
-                m_writer.Write(",");
+                m_writer.Write(s_comma);
             }
 
             if (!String.IsNullOrEmpty(fieldName))
             {
-                m_writer.Write("\"");
+                m_writer.Write(s_quotation);
                 EscapeString(fieldName);
-                m_writer.Write("\":");
+                m_writer.Write(s_quotationColon);
             }
             else if (!m_commaRequired)
             {
@@ -361,7 +370,7 @@ namespace Opc.Ua
             }
 
             m_commaRequired = false;
-            m_writer.Write("{");
+            m_writer.Write(s_leftCurlyBrace);
         }
 
         /// <inheritdoc/>
@@ -371,14 +380,14 @@ namespace Opc.Ua
 
             if (m_commaRequired)
             {
-                m_writer.Write(",");
+                m_writer.Write(s_comma);
             }
 
             if (!String.IsNullOrEmpty(fieldName))
             {
-                m_writer.Write("\"");
+                m_writer.Write(s_quotation);
                 EscapeString(fieldName);
-                m_writer.Write("\":");
+                m_writer.Write(s_quotationColon);
             }
             else if (!m_commaRequired)
             {
@@ -390,7 +399,7 @@ namespace Opc.Ua
             }
 
             m_commaRequired = false;
-            m_writer.Write("[");
+            m_writer.Write(s_leftSquareBracket);
         }
 
         /// <inheritdoc/>
@@ -399,7 +408,7 @@ namespace Opc.Ua
             if (m_nestingLevel > 1 || m_topLevelIsArray ||
                (m_nestingLevel == 1 && !m_levelOneSkipped))
             {
-                m_writer.Write("}");
+                m_writer.Write(s_rightCurlyBrace);
                 m_commaRequired = true;
             }
 
@@ -412,7 +421,7 @@ namespace Opc.Ua
             if (m_nestingLevel > 1 || m_topLevelIsArray ||
                (m_nestingLevel == 1 && !m_levelOneSkipped))
             {
-                m_writer.Write("]");
+                m_writer.Write(s_rightSquareBracket);
                 m_commaRequired = true;
             }
 
@@ -489,8 +498,8 @@ namespace Opc.Ua
             m_namespaces.Pop();
         }
 
-        private static readonly char[] m_specialChars = new char[] { '"', '\\', '\n', '\r', '\t', '\b', '\f', };
-        private static readonly char[] m_substitution = new char[] { '"', '\\', 'n', 'r', 't', 'b', 'f' };
+        private static readonly char[] m_specialChars = new char[] { s_quotation, s_backslash, '\n', '\r', '\t', '\b', '\f', };
+        private static readonly char[] m_substitution = new char[] { s_quotation, s_backslash, 'n', 'r', 't', 'b', 'f' };
 
         private void EscapeString(string value)
         {
@@ -502,7 +511,7 @@ namespace Opc.Ua
                 {
                     if (m_specialChars[ii] == ch)
                     {
-                        m_writer.Write('\\');
+                        m_writer.Write(s_backslash);
                         m_writer.Write(m_substitution[ii]);
                         found = true;
                         break;
@@ -534,18 +543,18 @@ namespace Opc.Ua
 
                 if (m_commaRequired)
                 {
-                    m_writer.Write(",");
+                    m_writer.Write(s_comma);
                 }
 
-                m_writer.Write("\"");
+                m_writer.Write(s_quotation);
                 EscapeString(fieldName);
-                m_writer.Write("\":");
+                m_writer.Write(s_quotationColon);
             }
             else
             {
                 if (m_commaRequired)
                 {
-                    m_writer.Write(",");
+                    m_writer.Write(s_comma);
                 }
             }
 
@@ -553,9 +562,9 @@ namespace Opc.Ua
             {
                 if (quotes)
                 {
-                    m_writer.Write("\"");
+                    m_writer.Write(s_quotation);
                     EscapeString(value);
-                    m_writer.Write("\"");
+                    m_writer.Write(s_quotation);
                 }
                 else
                 {
@@ -796,8 +805,7 @@ namespace Opc.Ua
             }
             else
             {
-                WriteSimpleField(fieldName, value.ToUniversalTime()
-                    .ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK", CultureInfo.InvariantCulture), true);
+                WriteSimpleField(fieldName, ConvertUniversalTimeToString(value), true);
             }
         }
 
@@ -1135,14 +1143,14 @@ namespace Opc.Ua
 
                 if (m_commaRequired)
                 {
-                    m_writer.Write(",");
+                    m_writer.Write(s_comma);
                 }
 
                 if (!String.IsNullOrEmpty(fieldName))
                 {
-                    m_writer.Write("\"");
+                    m_writer.Write(s_quotation);
                     EscapeString(fieldName);
-                    m_writer.Write("\":");
+                    m_writer.Write(s_quotationColon);
                 }
 
                 WriteVariantContents(value.Value, value.TypeInfo);
@@ -1352,7 +1360,7 @@ namespace Opc.Ua
         public void WriteEnumerated(string fieldName, Enum value)
         {
             int numeric = Convert.ToInt32(value, CultureInfo.InvariantCulture);
-            var numericString = numeric.ToString();
+            var numericString = numeric.ToString(CultureInfo.InvariantCulture);
             if (UseReversibleEncoding)
             {
                 WriteSimpleField(fieldName, numericString, false);
@@ -2423,7 +2431,6 @@ namespace Opc.Ua
                 // field is omitted
             }
         }
-
         #endregion
 
         #region Private Methods
@@ -2563,6 +2570,48 @@ namespace Opc.Ua
                     m_context.MaxEncodingNestingLevels);
             }
             m_nestingLevel++;
+        }
+
+        /// <summary>
+        /// Write Utc time in the format "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK".
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static string ConvertUniversalTimeToString(DateTime value)
+        {
+            // The length of the DateTime string encoded by "o"
+            const int DateTimeRoundTripKindLength = 28;
+            // the index of the last digit which can be omitted if 0
+            const int DateTimeRoundTripKindLastDigit = DateTimeRoundTripKindLength - 2;
+            // the index of the first digit which can be omitted (7 digits total)
+            const int DateTimeRoundTripKindFirstDigit = DateTimeRoundTripKindLastDigit - 7;
+
+            // Note: "o" is a shortcut for "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK" and implicitly
+            // uses invariant culture and gregorian calendar, but executes up to 10 times faster.
+            // But in contrary to the explicit format string, trailing zeroes are not omitted!
+            string valueString = value.ToUniversalTime().ToString("o");
+
+            // check if trailing zeroes can be omitted
+            int i = DateTimeRoundTripKindLastDigit;
+            while (i > DateTimeRoundTripKindFirstDigit)
+            {
+                if (valueString[i] != '0')
+                {
+                    break;
+                }
+                i--;
+            }
+
+            if (i < DateTimeRoundTripKindLastDigit)
+            {
+                // check if the decimal point has to be removed too
+                if (i == DateTimeRoundTripKindFirstDigit)
+                {
+                    i--;
+                }
+                valueString = valueString.Remove(i + 1, DateTimeRoundTripKindLastDigit - i);
+            }
+
+            return valueString;
         }
         #endregion
     }

@@ -9,8 +9,11 @@
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
+
+using System;
 using System.Runtime.CompilerServices;
 
+[assembly: CLSCompliant(false)]
 #if SIGNASSEMBLY
 [assembly: InternalsVisibleTo("Opc.Ua.Core.Tests, PublicKey = " +
     // OPC Foundation Strong Name Public Key

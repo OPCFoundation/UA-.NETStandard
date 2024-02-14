@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -125,7 +126,7 @@ namespace Opc.Ua.Security.Certificates
                 if (rsaPrivateKey != null)
                 {
                     // write private key as PKCS#8
-                    exportedPkcs8PrivateKey = String.IsNullOrEmpty(password) ?
+                    exportedPkcs8PrivateKey = string.IsNullOrEmpty(password) ?
                         rsaPrivateKey.ExportPkcs8PrivateKey() :
                         rsaPrivateKey.ExportEncryptedPkcs8PrivateKey(password.ToCharArray(),
                             new PbeParameters(PbeEncryptionAlgorithm.TripleDes3KeyPkcs12, HashAlgorithmName.SHA1, 2000));
@@ -137,10 +138,10 @@ namespace Opc.Ua.Security.Certificates
                         if (ecdsaPrivateKey != null)
                         {
                             // write private key as PKCS#8
-                            exportedPkcs8PrivateKey = String.IsNullOrEmpty(password) ?
-                            ecdsaPrivateKey.ExportPkcs8PrivateKey() :
-                            ecdsaPrivateKey.ExportEncryptedPkcs8PrivateKey(password.ToCharArray(),
-                                new PbeParameters(PbeEncryptionAlgorithm.TripleDes3KeyPkcs12, HashAlgorithmName.SHA1, 2000));
+                            exportedPkcs8PrivateKey = string.IsNullOrEmpty(password) ?
+                                ecdsaPrivateKey.ExportPkcs8PrivateKey() :
+                                ecdsaPrivateKey.ExportEncryptedPkcs8PrivateKey(password.ToCharArray(),
+                                    new PbeParameters(PbeEncryptionAlgorithm.TripleDes3KeyPkcs12, HashAlgorithmName.SHA1, 2000));
                         }
                     }
                 }
@@ -156,23 +157,35 @@ namespace Opc.Ua.Security.Certificates
         private static byte[] EncodeAsPEM(byte[] content, string contentType)
         {
             if (content == null) throw new ArgumentNullException(nameof(content));
-            if (String.IsNullOrEmpty(contentType)) throw new ArgumentNullException(nameof(contentType));
+            if (string.IsNullOrEmpty(contentType)) throw new ArgumentNullException(nameof(contentType));
 
             const int LineLength = 64;
             string base64 = Convert.ToBase64String(content);
-            using (TextWriter textWriter = new StringWriter())
+            using (var textWriter = new StringWriter())
             {
                 textWriter.WriteLine("-----BEGIN {0}-----", contentType);
-                while (base64.Length > LineLength)
+
+                int offset = 0;
+                while (base64.Length - offset > LineLength)
                 {
 #if NETSTANDARD2_1 || NET5_0_OR_GREATER
-                    textWriter.WriteLine(base64.AsSpan(0, LineLength));
+                    textWriter.WriteLine(base64.AsSpan(offset, LineLength));
 #else
-                    textWriter.WriteLine(base64.Substring(0, LineLength));
+                    textWriter.WriteLine(base64.Substring(offset, LineLength));
 #endif
-                    base64 = base64.Substring(LineLength);
+                    offset += LineLength;
                 }
-                textWriter.WriteLine(base64);
+
+                var length = base64.Length - offset;
+                if (length > 0)
+                {
+#if NETSTANDARD2_1 || NET5_0_OR_GREATER
+                    textWriter.WriteLine(base64.AsSpan(offset, length));
+#else
+                    textWriter.WriteLine(base64.Substring(offset, length));
+#endif
+                }
+
                 textWriter.WriteLine("-----END {0}-----", contentType);
                 return Encoding.ASCII.GetBytes(textWriter.ToString());
             }
