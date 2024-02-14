@@ -20,7 +20,6 @@ namespace Opc.Ua.Gds.Server
         /// <param name="applicationId">If <see cref="GdsRole.ApplicationSelfAdmin"/> is allowed specifies the id of the Application-Entry to access</param>
         public static void HasAuthorization(ISystemContext context, IEnumerable<Role> roles, [Optional] NodeId applicationId)
         {
-
             if (context != null)
             {
                 List<Role> allowedRoles = roles.ToList();

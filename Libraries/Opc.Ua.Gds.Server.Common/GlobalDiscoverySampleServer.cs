@@ -227,6 +227,7 @@ namespace Opc.Ua.Gds.Server
                     }
 #pragma warning restore CS0618 // Type or member is obsolete
                     args.Identity = new GdsRoleBasedIdentity(new UserIdentity(userNameToken), roles);
+                    return;
                 }
             }
 
@@ -355,7 +356,7 @@ namespace Opc.Ua.Gds.Server
         private void RegisterDefaultUsers()
         {
             m_userDatabase.CreateUser("sysadmin", "demo", new List<Role> { GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin, Role.SecurityAdmin, Role.ConfigureAdmin });
-            m_userDatabase.CreateUser("appadmin", "demo", new List<Role> { GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin });
+            m_userDatabase.CreateUser("appadmin", "demo", new List<Role> { Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin });
             m_userDatabase.CreateUser("appuser", "demo", new List<Role> { Role.AuthenticatedUser });
         }
 
