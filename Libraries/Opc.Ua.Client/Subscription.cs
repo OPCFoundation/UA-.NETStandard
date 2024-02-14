@@ -509,7 +509,7 @@ namespace Opc.Ua.Client
             {
                 lock (m_cache)
                 {
-                    return new List<MonitoredItem>(m_monitoredItems.Values);
+                    return m_monitoredItems.Values.AsEnumerable();
                 }
             }
         }
@@ -1741,7 +1741,7 @@ namespace Opc.Ua.Client
                     // only republish consecutive sequence numbers
                     // triggers the republish mechanism immediately,
                     // if event is in the past
-                    var now = DateTime.UtcNow.AddMilliseconds(-kRepublishMessageTimeout*2);
+                    var now = DateTime.UtcNow.AddMilliseconds(-kRepublishMessageTimeout * 2);
                     uint lastSequenceNumberToRepublish = m_lastSequenceNumberProcessed - 1;
                     int availableNumbers = availableSequenceNumbers.Count;
                     int republishMessages = 0;
