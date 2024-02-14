@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text;
 
@@ -190,28 +191,28 @@ namespace Opc.Ua
                 {
                     if (ServiceResult.IsBad(selectResult))
                     {
-                        buffer.AppendFormat("Select Clause Error: {0}", selectResult.ToString());
+                        buffer.AppendFormat(CultureInfo.InvariantCulture, "Select Clause Error: {0}", selectResult.ToString());
                         buffer.AppendLine();
                     }
                 }
 
                 if (ServiceResult.IsBad(WhereClauseResult.Status))
                 {
-                    buffer.AppendFormat("Where Clause Error: {0}", WhereClauseResult.Status.ToString());
+                    buffer.AppendFormat(CultureInfo.InvariantCulture, "Where Clause Error: {0}", WhereClauseResult.Status.ToString());
                     buffer.AppendLine();
 
                     foreach (ContentFilter.ElementResult elementResult in WhereClauseResult.ElementResults)
                     {
                         if (elementResult != null && ServiceResult.IsBad(elementResult.Status))
                         {
-                            buffer.AppendFormat("Element Error: {0}", elementResult.Status.ToString());
+                            buffer.AppendFormat(CultureInfo.InvariantCulture, "Element Error: {0}", elementResult.Status.ToString());
                             buffer.AppendLine();
 
                             foreach (ServiceResult operandResult in elementResult.OperandResults)
                             {
                                 if (ServiceResult.IsBad(operandResult))
                                 {
-                                    buffer.AppendFormat("Operand Error: {0}", operandResult.ToString());
+                                    buffer.AppendFormat(CultureInfo.InvariantCulture, "Operand Error: {0}", operandResult.ToString());
                                     buffer.AppendLine();
                                 }
                             }
@@ -445,14 +446,14 @@ namespace Opc.Ua
         /// <summary>
         /// Formats the value of the current instance using the specified format.
         /// </summary>
-        /// <param name="format">The <see cref="T:System.String"/> specifying the format to use.
+        /// <param name="format">The <see cref="System.String"/> specifying the format to use.
         /// -or-
-        /// null to use the default format defined for the type of the <see cref="T:System.IFormattable"/> implementation.</param>
-        /// <param name="formatProvider">The <see cref="T:System.IFormatProvider"/> to use to format the value.
+        /// null to use the default format defined for the type of the <see cref="System.IFormattable"/> implementation.</param>
+        /// <param name="formatProvider">The <see cref="System.IFormatProvider"/> to use to format the value.
         /// -or-
         /// null to obtain the numeric format information from the current locale setting of the operating system.</param>
         /// <returns>
-        /// A <see cref="T:System.String"/> containing the value of the current instance in the specified format.
+        /// A <see cref="System.String"/> containing the value of the current instance in the specified format.
         /// </returns>
         public string ToString(string format, IFormatProvider formatProvider)
         {
@@ -570,21 +571,22 @@ namespace Opc.Ua
 
             if (node != null)
             {
-                buffer.AppendFormat("{0}", TypeDefinitionId);
+                // TODO: why is if and else the same codepath
+                buffer.AppendFormat(CultureInfo.InvariantCulture, "{0}", TypeDefinitionId);
             }
             else
             {
-                buffer.AppendFormat("{0}", TypeDefinitionId);
+                buffer.AppendFormat(CultureInfo.InvariantCulture, "{0}", TypeDefinitionId);
             }
 
             if (BrowsePath != null && BrowsePath.Count > 0)
             {
-                buffer.AppendFormat("{0}", Format(BrowsePath));
+                buffer.AppendFormat(CultureInfo.InvariantCulture, "{0}", Format(BrowsePath));
             }
 
             if (!String.IsNullOrEmpty(IndexRange))
             {
-                buffer.AppendFormat("[{0}]", NumericRange.Parse(IndexRange));
+                buffer.AppendFormat(CultureInfo.InvariantCulture, "[{0}]", NumericRange.Parse(IndexRange));
             }
 
             return buffer.ToString();
@@ -617,7 +619,7 @@ namespace Opc.Ua
 
                 if (browseName.NamespaceIndex != 0)
                 {
-                    buffer.AppendFormat("{0}:", browseName.NamespaceIndex);
+                    buffer.AppendFormat(CultureInfo.InvariantCulture, "{0}:", browseName.NamespaceIndex);
                 }
 
                 for (int jj = 0; jj < browseName.Name.Length; jj++)

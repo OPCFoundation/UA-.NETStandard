@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -1656,14 +1657,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                     Assert.IsNotNull(fieldMetaData, "DataSetMetaData.Field - Name: '{0}' read by json decoder not found into decoded DataSetMetaData.Fields collection.", jsonFieldMetaData.Name);
                     Assert.IsTrue(Utils.IsEqual(jsonFieldMetaData, fieldMetaData), "FieldMetaData found in decoded collection is not identical with original one. Encoded: {0} Decoded: {1}",
-                        string.Format("Name: {0}, Description: {1}, DataSetFieldId: {2}, BuiltInType: {3}, DataType: {4}, TypeId: {5}",
+                        Utils.Format("Name: {0}, Description: {1}, DataSetFieldId: {2}, BuiltInType: {3}, DataType: {4}, TypeId: {5}",
                             jsonFieldMetaData.Name,
                             jsonFieldMetaData.Description,
                             jsonFieldMetaData.DataSetFieldId,
                             jsonFieldMetaData.BuiltInType,
                             jsonFieldMetaData.DataType,
                             jsonFieldMetaData.TypeId),
-                         string.Format("Name: {0}, Description: {1}, DataSetFieldId: {2}, BuiltInType: {3}, DataType: {4}, TypeId: {5}",
+                         Utils.Format("Name: {0}, Description: {1}, DataSetFieldId: {2}, BuiltInType: {3}, DataType: {4}, TypeId: {5}",
                             fieldMetaData.Name,
                             fieldMetaData.Description,
                             fieldMetaData.DataSetFieldId,
@@ -1683,8 +1684,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     return MetaDataFailOptions.MetaData_ConfigurationVersion;
                 }
                 Assert.IsTrue(Utils.IsEqual(jsonNetworkMessage.DataSetMetaData.ConfigurationVersion, dataSetMetaData.ConfigurationVersion), "DataSetMetaData.ConfigurationVersion was not decoded correctly, Encoded: {0} Decoded: {1}",
-                    string.Format("MajorVersion: {0}, MinorVersion: {1}", jsonNetworkMessage.DataSetMetaData.ConfigurationVersion.MajorVersion, jsonNetworkMessage.DataSetMetaData.ConfigurationVersion.MinorVersion),
-                    string.Format("MajorVersion: {0}, MinorVersion: {1}", dataSetMetaData.ConfigurationVersion.MajorVersion, dataSetMetaData.ConfigurationVersion.MinorVersion));
+                    Utils.Format("MajorVersion: {0}, MinorVersion: {1}", jsonNetworkMessage.DataSetMetaData.ConfigurationVersion.MajorVersion, jsonNetworkMessage.DataSetMetaData.ConfigurationVersion.MinorVersion),
+                    Utils.Format("MajorVersion: {0}, MinorVersion: {1}", dataSetMetaData.ConfigurationVersion.MajorVersion, dataSetMetaData.ConfigurationVersion.MinorVersion));
 
                 #endregion
 
@@ -1937,7 +1938,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                         Convert.ToUInt16(ServiceMessageContext.GlobalContext.NamespaceUris.GetIndex(((ExpandedNodeId)decodedFieldValue).NamespaceUri));
 
                                                     StringBuilder stringBuilder = new StringBuilder();
-                                                    ExpandedNodeId.Format(stringBuilder, expandedNodeId.Identifier, expandedNodeId.IdType, namespaceIndex, string.Empty, expandedNodeId.ServerIndex);
+                                                    ExpandedNodeId.Format(CultureInfo.InvariantCulture, stringBuilder, expandedNodeId.Identifier, expandedNodeId.IdType, namespaceIndex, string.Empty, expandedNodeId.ServerIndex);
                                                     decodedFieldValue = new ExpandedNodeId(stringBuilder.ToString());
                                                 }
                                                 // by convention array decoders always return the Array type
@@ -2014,7 +2015,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                             Convert.ToUInt16(ServiceMessageContext.GlobalContext.NamespaceUris.GetIndex(((ExpandedNodeId)dataValue.Value).NamespaceUri));
 
                                                         StringBuilder stringBuilder = new StringBuilder();
-                                                        ExpandedNodeId.Format(stringBuilder, expandedNodeId.Identifier, expandedNodeId.IdType, namespaceIndex, string.Empty, expandedNodeId.ServerIndex);
+                                                        ExpandedNodeId.Format(CultureInfo.InvariantCulture, stringBuilder, expandedNodeId.Identifier, expandedNodeId.IdType, namespaceIndex, string.Empty, expandedNodeId.ServerIndex);
                                                         dataValue.Value = new ExpandedNodeId(stringBuilder.ToString());
                                                     }
                                                     Assert.IsTrue(Utils.IsEqual(field.Value.Value, dataValue.Value),
@@ -2048,8 +2049,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         {
                             ConfigurationVersionDataType configurationVersion = jsonDecoder.ReadEncodeable(DataSetMessageMetaDataVersion, typeof(ConfigurationVersionDataType)) as ConfigurationVersionDataType;
                             Assert.IsTrue(Utils.IsEqual(jsonDataSetMessage.MetaDataVersion, configurationVersion), "jsonDataSetMessage.MetaDataVersion was not decoded correctly, Encoded: {0} Decoded: {1}",
-                            string.Format("MajorVersion: {0}, MinorVersion: {1}", jsonDataSetMessage.MetaDataVersion.MajorVersion, jsonDataSetMessage.MetaDataVersion.MinorVersion),
-                            string.Format("MajorVersion: {0}, MinorVersion: {1}", configurationVersion?.MajorVersion, configurationVersion?.MinorVersion));
+                            Utils.Format("MajorVersion: {0}, MinorVersion: {1}", jsonDataSetMessage.MetaDataVersion.MajorVersion, jsonDataSetMessage.MetaDataVersion.MinorVersion),
+                            Utils.Format("MajorVersion: {0}, MinorVersion: {1}", configurationVersion?.MajorVersion, configurationVersion?.MinorVersion));
                         }
 
                         if (jsonDecoder.ReadField(DataSetMessageTimestamp, out token))

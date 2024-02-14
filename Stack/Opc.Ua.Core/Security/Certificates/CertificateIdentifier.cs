@@ -41,11 +41,7 @@ namespace Opc.Ua
         /// </returns>
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            if (!String.IsNullOrEmpty(format))
-            {
-                throw new FormatException();
-            }
-
+            if (format != null) throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
             return ToString();
         }
         #endregion
