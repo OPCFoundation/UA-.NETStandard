@@ -16,7 +16,7 @@ using System.Security.Cryptography.X509Certificates;
 namespace Opc.Ua.Security
 {
     /// <summary>
-    /// Implemented by types that have knownledge of an application configuration.
+    /// Implemented by types that have knowledge of an application configuration.
     /// </summary>
     public interface ISecurityConfigurationManager
     {

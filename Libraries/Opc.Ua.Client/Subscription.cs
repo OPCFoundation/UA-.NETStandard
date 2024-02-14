@@ -602,7 +602,7 @@ namespace Opc.Ua.Client
         public ISession Session
         {
             get => m_session;
-            internal set => m_session = value;
+            protected internal set => m_session = value;
         }
 
         /// <summary>
@@ -2436,7 +2436,12 @@ namespace Opc.Ua.Client
 
             if (!created && m_id != 0)
             {
-                throw new ServiceResultException(StatusCodes.BadInvalidState, "Subscription has alredy been created.");
+                throw new ServiceResultException(StatusCodes.BadInvalidState, "Subscription has already been created.");
+            }
+
+            if (!created && Session is null) // Occurs only on Create() and CreateAsync()
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidState, "Subscription has not been assigned to a Session");
             }
         }
 
