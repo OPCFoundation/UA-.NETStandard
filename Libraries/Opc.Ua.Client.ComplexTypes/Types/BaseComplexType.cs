@@ -200,7 +200,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="format">(Unused). Leave this as null</param>
         /// <param name="formatProvider">The provider of a mechanism for retrieving an object to control formatting.</param>
         /// <returns>
-        /// A <see cref="System.String"/> containing the value of the current embeded instance in the specified format.
+        /// A <see cref="System.String"/> containing the value of the current embedded instance in the specified format.
         /// </returns>
         /// <exception cref="FormatException">Thrown if the <i>format</i> parameter is not null</exception>
         public virtual string ToString(string format, IFormatProvider formatProvider)
@@ -221,7 +221,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 if (!NodeId.IsNull(this.TypeId))
                 {
-                    return String.Format(formatProvider, "{{{0}}}", this.TypeId);
+                    return string.Format(formatProvider, "{{{0}}}", this.TypeId);
                 }
 
                 return "(null)";

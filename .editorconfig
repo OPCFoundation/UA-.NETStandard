@@ -327,8 +327,14 @@ dotnet_diagnostic.CA1507.severity                                             = 
 # CA1510: Use ArgumentNullException throw helper
 dotnet_diagnostic.CA1510.severity                                             = none
 
+# CA1711: Identifiers should not have incorrect suffix
+dotnet_diagnostic.CA1711.severity                                             = silent
+
 # IDE1005: Simplify delegate invocation
 dotnet_diagnostic.IDE1005.severity                                            = warning
+
+# CA1305: Specify IFormatProvider
+dotnet_diagnostic.CA1305.severity                                             = warning
 
 # exclude generated code
 [**/Generated/*.cs]

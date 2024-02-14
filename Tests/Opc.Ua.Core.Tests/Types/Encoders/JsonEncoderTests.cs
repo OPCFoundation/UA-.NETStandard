@@ -80,7 +80,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// shall be followed by the JSON encoder accordingly.
         /// </summary>
         [DatapointSource]
-        public JsonValidationData[] Data = new JsonValidationDataCollection() {
+        public static readonly JsonValidationData[] Data = new JsonValidationDataCollection() {
             {   BuiltInType.Boolean, true,"true", null },
             {   BuiltInType.Boolean, false, null, null },
             {   BuiltInType.Boolean, false, "false", null, true },
