@@ -492,7 +492,7 @@ namespace Opc.Ua
         private static readonly char[] m_specialChars = new char[] { '"', '\\', '\n', '\r', '\t', '\b', '\f', };
         private static readonly char[] m_substitution = new char[] { '"', '\\', 'n', 'r', 't', 'b', 'f' };
 
-        private void EscapeString(string value)
+        private void EscapeString1(string value)
         {
             foreach (char ch in value)
             {
@@ -521,6 +521,42 @@ namespace Opc.Ua
                     m_writer.Write(ch);
                 }
             }
+        }
+
+        private static readonly Dictionary<char, string> m_substitution1 = new Dictionary<char, string>
+        {
+            { '"', "\\\"" },
+            { '\\', "\\\\" },
+            { '\n', "\\n" },
+            { '\r', "\\r" },
+            { '\t', "\\t" },
+            { '\b', "\\b" },
+            { '\f', "\\f" }
+        };
+        private void EscapeString(string value)
+        {
+            StringBuilder m_stringBuilder = new StringBuilder(value.Length * 2);
+
+            foreach (char ch in value)
+            {
+                // chekc if ch is present in the dictionary
+                if (m_substitution1.TryGetValue(ch, out string escapeSequence))
+                {
+                    m_stringBuilder.Append(escapeSequence);
+                }
+                else if (ch < 32)
+                {
+                    m_stringBuilder.Append("\\u");
+                    m_stringBuilder.Append(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
+                    continue;
+                }
+                else
+                {
+                    m_stringBuilder.Append(ch);
+                }
+            }
+
+            m_writer.Write(m_stringBuilder.ToString());
         }
 
         private void WriteSimpleField(string fieldName, string value, bool quotes)

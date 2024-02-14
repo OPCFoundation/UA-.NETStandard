@@ -146,6 +146,24 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
         }
 
+        /// <summary>
+        /// Benchmark test for EscapeString.
+        /// </summary>
+        [Benchmark]
+        [Test]
+        public void JsonEncoderEscapeString()
+        {
+            using (var jsonEncoder = new JsonEncoder(m_context, false))
+            {
+                jsonEncoder.WriteString("String", m_testString);
+                var result = jsonEncoder.CloseAndReturnText();
+
+                Assert.NotNull(result);
+                Assert.AreEqual(1, result.Split(new string[] { m_testString }, StringSplitOptions.None).Length);
+
+            }
+        }
+
         #region Private Methods
         private void TestEncoding(IEncoder encoder)
         {
@@ -254,6 +272,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         private Microsoft.IO.RecyclableMemoryStream m_recyclableMemoryStream;
         private BufferManager m_bufferManager;
         private ArraySegmentStream m_arraySegmentStream;
+        // private string m_testString = "Hello\tWorld\nThis is a \"test\" string with \\backslashes and \r\nnewlines\f";
+        private string m_testString = "This is a test string with special characters: \" \n \r \t \b \f \\ and some control characters: \0 \x01 \x02 \x03 \x04";
         #endregion
     }
 }
