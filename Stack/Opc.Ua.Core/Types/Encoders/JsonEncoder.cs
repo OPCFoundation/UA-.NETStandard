@@ -35,6 +35,7 @@ namespace Opc.Ua
         private static readonly char s_rightCurlyBrace = '}';
         private static readonly char s_leftSquareBracket = '[';
         private static readonly char s_rightSquareBracket = ']';
+        private static readonly string s_null = "null";
         private Stream m_stream;
         private MemoryStream m_memoryStream;
         private StreamWriter m_writer;
@@ -363,7 +364,7 @@ namespace Opc.Ua
                 m_writer.Write(s_comma);
             }
 
-            if (!String.IsNullOrEmpty(fieldName))
+            if (!string.IsNullOrEmpty(fieldName))
             {
                 m_writer.Write(s_quotation);
                 EscapeString(fieldName);
@@ -392,7 +393,7 @@ namespace Opc.Ua
                 m_writer.Write(s_comma);
             }
 
-            if (!String.IsNullOrEmpty(fieldName))
+            if (!string.IsNullOrEmpty(fieldName))
             {
                 m_writer.Write(s_quotation);
                 EscapeString(fieldName);
@@ -543,14 +544,14 @@ namespace Opc.Ua
 
         private void WriteSimpleFieldNull(string fieldName)
         {
-            if (String.IsNullOrEmpty(fieldName))
+            if (string.IsNullOrEmpty(fieldName))
             {
                 if (m_commaRequired)
                 {
                     m_writer.Write(s_comma);
                 }
 
-                m_writer.Write("null");
+                m_writer.Write(s_null);
 
                 m_commaRequired = true;
             }
@@ -558,7 +559,7 @@ namespace Opc.Ua
 
         private void WriteSimpleField(string fieldName, string value)
         {
-            if (!String.IsNullOrEmpty(fieldName))
+            if (!string.IsNullOrEmpty(fieldName))
             {
                 if (value == null)
                 {
@@ -588,7 +589,7 @@ namespace Opc.Ua
             }
             else
             {
-                m_writer.Write("null");
+                m_writer.Write(s_null);
             }
 
             m_commaRequired = true;
@@ -596,7 +597,7 @@ namespace Opc.Ua
 
         private void WriteSimpleField(string fieldName, string value, EscapeOptions options)
         {
-            if (!String.IsNullOrEmpty(fieldName))
+            if (!string.IsNullOrEmpty(fieldName))
             {
                 if (value == null)
                 {
@@ -649,7 +650,7 @@ namespace Opc.Ua
             }
             else
             {
-                m_writer.Write("null");
+                m_writer.Write(s_null);
             }
 
             m_commaRequired = true;
@@ -961,7 +962,7 @@ namespace Opc.Ua
 
             {
                 var uri = m_context.NamespaceUris.GetString(namespaceIndex);
-                if (!String.IsNullOrEmpty(uri))
+                if (!string.IsNullOrEmpty(uri))
                 {
                     WriteSimpleField(fieldName, uri, EscapeOptions.Quotes);
                     return;
@@ -1079,7 +1080,7 @@ namespace Opc.Ua
             {
                 var uri = m_context.ServerUris.GetString(serverIndex);
 
-                if (!String.IsNullOrEmpty(uri))
+                if (!string.IsNullOrEmpty(uri))
                 {
                     WriteSimpleField("ServerUri", uri, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
                     PopStructure();
@@ -1172,7 +1173,7 @@ namespace Opc.Ua
 
                 WriteSimpleField("Text", value.Text, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
 
-                if (!String.IsNullOrEmpty(value.Locale))
+                if (!string.IsNullOrEmpty(value.Locale))
                 {
                     WriteSimpleField("Locale", value.Locale, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
                 }
@@ -1222,7 +1223,7 @@ namespace Opc.Ua
                     m_writer.Write(s_comma);
                 }
 
-                if (!String.IsNullOrEmpty(fieldName))
+                if (!string.IsNullOrEmpty(fieldName))
                 {
                     m_writer.Write(s_quotation);
                     EscapeString(fieldName);
