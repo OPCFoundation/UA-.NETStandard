@@ -114,7 +114,7 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
                     m_writer.WriteLine(e.Exception);
                     m_traceList.Add(e.Exception.Message);
                 }
-                string message = string.Format(e.Format, e.Arguments);
+                string message = Utils.Format(e.Format, e.Arguments);
                 m_writer.WriteLine(message);
                 m_traceList.Add(message);
             }

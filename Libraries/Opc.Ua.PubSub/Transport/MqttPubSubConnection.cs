@@ -653,7 +653,7 @@ namespace Opc.Ua.PubSub.Transport
                     (MqttProtocolVersion)((MqttClientProtocolConfiguration)transportProtocolConfiguration)
                     .ProtocolVersion;
                 // create uniques client id
-                string clientId = "ClientId_" + new Random().Next().ToString("D10");
+                string clientId = $"ClientId_{new Random().Next():D10}";
                 // MQTTS mqttConnection.
                 if (connectionUri.Scheme == Utils.UriSchemeMqtts)
                 {

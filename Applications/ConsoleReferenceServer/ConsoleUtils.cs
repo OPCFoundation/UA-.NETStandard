@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -319,14 +320,18 @@ namespace Quickstarts
             if (logConsole)
             {
                 loggerConfiguration.WriteTo.Console(
-                    restrictedToMinimumLevel: (LogEventLevel)consoleLogLevel
+                    restrictedToMinimumLevel: (LogEventLevel)consoleLogLevel,
+                    formatProvider: CultureInfo.InvariantCulture
                     );
             }
 #if DEBUG
             else
             {
                 loggerConfiguration
-                    .WriteTo.Debug(restrictedToMinimumLevel: (LogEventLevel)consoleLogLevel);
+                    .WriteTo.Debug(
+                        restrictedToMinimumLevel: (LogEventLevel)consoleLogLevel,
+                        formatProvider: CultureInfo.InvariantCulture
+                        );
             }
 #endif
             LogLevel fileLevel = LogLevel.Information;

@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Xml;
@@ -715,7 +716,7 @@ namespace Opc.Ua
         /// Reads an encodeable object from the stream.
         /// </summary>
         /// <param name="fieldName">The encodeable object field name</param>
-        /// <param name="systemType">The system type of the encopdeable object to be read</param>
+        /// <param name="systemType">The system type of the encodeable object to be read</param>
         /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instance that will be read.</param>
         /// <returns>An <see cref="IEncodeable"/> object that was read from the stream.</returns>
         public IEncodeable ReadEncodeable(string fieldName, System.Type systemType, ExpandedNodeId encodeableTypeId = null)
@@ -1316,7 +1317,7 @@ namespace Opc.Ua
         /// Reads an encodeable array from the stream.
         /// </summary>
         /// <param name="fieldName">The encodeable array field name</param>
-        /// <param name="systemType">The system type of the encopdeable objects to be read object</param>
+        /// <param name="systemType">The system type of the encodeable objects to be read object</param>
         /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instances that will be read.</param>
         /// <returns>An <see cref="IEncodeable"/> array that was read from the stream.</returns>
         public Array ReadEncodeableArray(string fieldName, System.Type systemType, ExpandedNodeId encodeableTypeId = null)
@@ -1469,7 +1470,7 @@ namespace Opc.Ua
                         for (int i = 0; i < length; i++)
                         {
                             IEncodeable element = ReadEncodeable(null, systemType, encodeableTypeId);
-                            elements.SetValue(Convert.ChangeType(element, systemType), i);
+                            elements.SetValue(Convert.ChangeType(element, systemType, CultureInfo.InvariantCulture), i);
                         }
                     }
 

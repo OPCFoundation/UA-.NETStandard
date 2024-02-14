@@ -2346,7 +2346,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Stores a on dimensional arrau value in the variant.
+        /// Stores a on dimensional array value in the variant.
         /// </summary>
         private void SetArray(Array array, TypeInfo typeInfo)
         {

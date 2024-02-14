@@ -475,15 +475,15 @@ namespace Opc.Ua.Server.Tests
 
                 // Issue a Publish request
                 m_requestHeader.Timestamp = DateTime.UtcNow;
-                var acknoledgements = new SubscriptionAcknowledgementCollection();
-                var response = serverTestServices.Publish(m_requestHeader, acknoledgements,
+                var acknowledgements = new SubscriptionAcknowledgementCollection();
+                var response = serverTestServices.Publish(m_requestHeader, acknowledgements,
                     out uint publishedId, out UInt32Collection availableSequenceNumbers,
                     out bool moreNotifications, out NotificationMessage notificationMessage,
                     out StatusCodeCollection _, out DiagnosticInfoCollection diagnosticInfos);
 
                 Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
                 ServerFixtureUtils.ValidateResponse(response);
-                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements, response.StringTable);
+                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
                 Assert.AreEqual(subscriptionIds[0], publishedId);
                 Assert.AreEqual(1, notificationMessage.NotificationData.Count);
 
@@ -492,14 +492,14 @@ namespace Opc.Ua.Server.Tests
                 for (int i = 0; i < timesToCallPublish; i++)
                 {
                     m_requestHeader.Timestamp = DateTime.UtcNow;
-                    response = serverTestServices.Publish(m_requestHeader, acknoledgements,
+                    response = serverTestServices.Publish(m_requestHeader, acknowledgements,
                         out publishedId, out availableSequenceNumbers,
                         out moreNotifications, out notificationMessage,
                         out StatusCodeCollection _, out diagnosticInfos);
 
                     Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
                     ServerFixtureUtils.ValidateResponse(response);
-                    ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements, response.StringTable);
+                    ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
                     Assert.AreEqual(subscriptionIds[0], publishedId);
                     Assert.AreEqual(0, notificationMessage.NotificationData.Count);
                 }
@@ -522,14 +522,14 @@ namespace Opc.Ua.Server.Tests
 
                 // Still nothing to publish since previous ResendData call did not execute
                 m_requestHeader.Timestamp = DateTime.UtcNow;
-                response = serverTestServices.Publish(m_requestHeader, acknoledgements,
+                response = serverTestServices.Publish(m_requestHeader, acknowledgements,
                     out publishedId, out availableSequenceNumbers,
                     out moreNotifications, out notificationMessage,
                     out StatusCodeCollection _, out diagnosticInfos);
 
                 Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
                 ServerFixtureUtils.ValidateResponse(response);
-                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements, response.StringTable);
+                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
                 Assert.AreEqual(subscriptionIds[0], publishedId);
                 Assert.AreEqual(0, notificationMessage.NotificationData.Count);
 
@@ -549,14 +549,14 @@ namespace Opc.Ua.Server.Tests
 
                 // Data should be available for publishing now
                 m_requestHeader.Timestamp = DateTime.UtcNow;
-                response = serverTestServices.Publish(m_requestHeader, acknoledgements,
+                response = serverTestServices.Publish(m_requestHeader, acknowledgements,
                     out publishedId, out availableSequenceNumbers,
                     out moreNotifications, out notificationMessage,
                     out StatusCodeCollection _, out diagnosticInfos);
 
                 Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
                 ServerFixtureUtils.ValidateResponse(response);
-                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements, response.StringTable);
+                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
                 Assert.AreEqual(subscriptionIds[0], publishedId);
                 Assert.AreEqual(1, notificationMessage.NotificationData.Count);
                 var items = notificationMessage.NotificationData.FirstOrDefault();
@@ -570,14 +570,14 @@ namespace Opc.Ua.Server.Tests
                 {
                     // remaining queue Data should be sent in this publish
                     m_requestHeader.Timestamp = DateTime.UtcNow;
-                    response = serverTestServices.Publish(m_requestHeader, acknoledgements,
+                    response = serverTestServices.Publish(m_requestHeader, acknowledgements,
                         out publishedId, out availableSequenceNumbers,
                         out moreNotifications, out notificationMessage,
                         out StatusCodeCollection _, out diagnosticInfos);
 
                     Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
                     ServerFixtureUtils.ValidateResponse(response);
-                    ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements, response.StringTable);
+                    ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
                     Assert.AreEqual(subscriptionIds[0], publishedId);
                     Assert.AreEqual(1, notificationMessage.NotificationData.Count);
                     items = notificationMessage.NotificationData.FirstOrDefault();
@@ -591,14 +591,14 @@ namespace Opc.Ua.Server.Tests
 
                 // Nothing to publish since previous ResendData call did not execute
                 m_requestHeader.Timestamp = DateTime.UtcNow;
-                response = serverTestServices.Publish(m_requestHeader, acknoledgements,
+                response = serverTestServices.Publish(m_requestHeader, acknowledgements,
                     out publishedId, out availableSequenceNumbers,
                     out moreNotifications, out notificationMessage,
                     out StatusCodeCollection _, out diagnosticInfos);
 
                 Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
                 ServerFixtureUtils.ValidateResponse(response);
-                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements, response.StringTable);
+                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
                 Assert.AreEqual(subscriptionIds[0], publishedId);
                 Assert.AreEqual(0, notificationMessage.NotificationData.Count);
 

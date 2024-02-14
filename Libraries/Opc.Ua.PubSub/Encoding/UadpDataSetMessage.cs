@@ -32,6 +32,7 @@ using System;
 using System.Collections.Generic;
 using System.Xml;
 using System.Linq;
+using System.Globalization;
 
 namespace Opc.Ua.PubSub.Encoding
 {
@@ -380,7 +381,7 @@ namespace Opc.Ua.PubSub.Encoding
                     // DataSetFieldCount is not persisted for RawData
                     foreach (Field field in DataSet.Fields)
                     {
-                        UadpDataSetMessage.EncodeFieldAsRawData(binaryEncoder, field);
+                        UadpDataSetMessage.EncodeFieldAsRawData(binaryEncoder, field, CultureInfo.InvariantCulture);
                     }
                     break;
                 case FieldTypeEncodingMask.Reserved:
@@ -422,7 +423,7 @@ namespace Opc.Ua.PubSub.Encoding
                         binaryEncoder.WriteDataValue("FieldValue", field.Value);
                         break;
                     case FieldTypeEncodingMask.RawData:
-                        UadpDataSetMessage.EncodeFieldAsRawData(binaryEncoder, field);
+                        UadpDataSetMessage.EncodeFieldAsRawData(binaryEncoder, field, CultureInfo.InvariantCulture);
                         break;
                     case FieldTypeEncodingMask.Reserved:
                         // ignore
@@ -675,7 +676,8 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         /// <param name="binaryEncoder"></param>
         /// <param name="field"></param>
-        private static void EncodeFieldAsRawData(BinaryEncoder binaryEncoder, Field field)
+        /// <param name="formatProvider"></param>
+        private static void EncodeFieldAsRawData(BinaryEncoder binaryEncoder, Field field, IFormatProvider formatProvider)
         {
             try
             {
@@ -693,40 +695,40 @@ namespace Opc.Ua.PubSub.Encoding
                     switch ((BuiltInType)field.FieldMetaData.BuiltInType)
                     {
                         case BuiltInType.Boolean:
-                            binaryEncoder.WriteBoolean("Bool", Convert.ToBoolean(valueToEncode));
+                            binaryEncoder.WriteBoolean("Bool", Convert.ToBoolean(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.SByte:
-                            binaryEncoder.WriteSByte("SByte", Convert.ToSByte(valueToEncode));
+                            binaryEncoder.WriteSByte("SByte", Convert.ToSByte(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.Byte:
-                            binaryEncoder.WriteByte("Byte", Convert.ToByte(valueToEncode));
+                            binaryEncoder.WriteByte("Byte", Convert.ToByte(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.Int16:
-                            binaryEncoder.WriteInt16("Int16", Convert.ToInt16(valueToEncode));
+                            binaryEncoder.WriteInt16("Int16", Convert.ToInt16(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.UInt16:
-                            binaryEncoder.WriteUInt16("UInt16", Convert.ToUInt16(valueToEncode));
+                            binaryEncoder.WriteUInt16("UInt16", Convert.ToUInt16(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.Int32:
-                            binaryEncoder.WriteInt32("Int32", Convert.ToInt32(valueToEncode));
+                            binaryEncoder.WriteInt32("Int32", Convert.ToInt32(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.UInt32:
-                            binaryEncoder.WriteUInt32("UInt32", Convert.ToUInt32(valueToEncode));
+                            binaryEncoder.WriteUInt32("UInt32", Convert.ToUInt32(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.Int64:
-                            binaryEncoder.WriteInt64("Int64", Convert.ToInt64(valueToEncode));
+                            binaryEncoder.WriteInt64("Int64", Convert.ToInt64(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.UInt64:
-                            binaryEncoder.WriteUInt64("UInt64", Convert.ToUInt64(valueToEncode));
+                            binaryEncoder.WriteUInt64("UInt64", Convert.ToUInt64(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.Float:
-                            binaryEncoder.WriteFloat("Float", Convert.ToSingle(valueToEncode));
+                            binaryEncoder.WriteFloat("Float", Convert.ToSingle(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.Double:
-                            binaryEncoder.WriteDouble("Double", Convert.ToDouble(valueToEncode));
+                            binaryEncoder.WriteDouble("Double", Convert.ToDouble(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.DateTime:
-                            binaryEncoder.WriteDateTime("DateTime", Convert.ToDateTime(valueToEncode));
+                            binaryEncoder.WriteDateTime("DateTime", Convert.ToDateTime(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.Guid:
                             binaryEncoder.WriteGuid("GUID", (Uuid)valueToEncode);
@@ -756,7 +758,7 @@ namespace Opc.Ua.PubSub.Encoding
                             binaryEncoder.WriteXmlElement("XmlElement", valueToEncode as XmlElement);
                             break;
                         case BuiltInType.Enumeration:
-                            binaryEncoder.WriteInt32("Enumeration", Convert.ToInt32(valueToEncode));
+                            binaryEncoder.WriteInt32("Enumeration", Convert.ToInt32(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.ExtensionObject:
                             binaryEncoder.WriteExtensionObject("ExtensionObject", valueToEncode as ExtensionObject);

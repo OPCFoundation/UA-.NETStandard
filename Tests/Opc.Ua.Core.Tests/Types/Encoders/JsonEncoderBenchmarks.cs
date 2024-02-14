@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using BenchmarkDotNet.Attributes;
@@ -68,7 +69,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Benchmark]
         [Test]
-        public void StreamWriter_RecyclableMemoryStream()
+        public void StreamWriterRecyclableMemoryStream()
         {
             using (var memoryStream = new Microsoft.IO.RecyclableMemoryStream(m_memoryManager))
             using (var test = new StreamWriter(memoryStream, Encoding.UTF8, StreamSize))
@@ -80,7 +81,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Benchmark]
         [Test]
-        public void StreamWriter_MemoryStream()
+        public void StreamWriterMemoryStream()
         {
             using (var memoryStream = new MemoryStream())
             using (var test = new StreamWriter(memoryStream, Encoding.UTF8, StreamSize))
@@ -92,7 +93,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Benchmark]
         [Test]
-        public void JsonEncoder_Constructor2()
+        public void JsonEncoderConstructor2()
         {
             using (var jsonEncoder = new JsonEncoder(m_context, false))
             {
@@ -106,7 +107,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Benchmark]
         [Test]
-        public void JsonEncoder_StreamLeaveOpen_MemoryStream()
+        public void JsonEncoderStreamLeaveOpenMemoryStream()
         {
             JsonEncoder_StreamLeaveOpen(m_memoryStream);
         }
@@ -116,7 +117,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Benchmark]
         [Test]
-        public void JsonEncoder_StreamLeaveOpen_RecyclableMemoryStream()
+        public void JsonEncoderStreamLeaveOpenRecyclableMemoryStream()
         {
             JsonEncoder_StreamLeaveOpen(m_recyclableMemoryStream);
         }
@@ -126,7 +127,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Benchmark]
         [Test]
-        public void JsonEncoder_StreamLeaveOpen_ArraySegmentStream()
+        public void JsonEncoderStreamLeaveOpenArraySegmentStream()
         {
             JsonEncoder_StreamLeaveOpen(m_arraySegmentStream);
         }
@@ -137,7 +138,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Benchmark]
         [Test]
-        public void JsonEncoder_Constructor_Streamwriter_Reflection2()
+        public void JsonEncoderConstructorStreamwriterReflection2()
         {
             using (var jsonEncoder = new JsonEncoder(m_context, false, false, m_memoryStream, true, StreamSize))
             {
@@ -276,4 +277,78 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         private string m_testString = "This is a test string with special characters: \" \n \r \t \b \f \\ and some control characters: \0 \x01 \x02 \x03 \x04";
         #endregion
     }
+
+    [TestFixture, Category("JsonEncoder")]
+    [SetCulture("en-us"), SetUICulture("en-us")]
+    [NonParallelizable]
+    [MemoryDiagnoser]
+    [DisassemblyDiagnoser]
+    public class JsonEncoderDateTimeBenchmark
+    {
+        [Params(0, 4, 7)]
+        public int DateTimeOmittedZeros { get; set; } = 0;
+
+        [Benchmark]
+        [Test]
+        public void DateTimeEncodeToString()
+        {
+            _ = m_dateTime.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK", CultureInfo.InvariantCulture);
+        }
+
+        [Benchmark]
+        [Test]
+        public void ConvertToUniversalTime()
+        {
+            _ = JsonEncoder.ConvertUniversalTimeToString(m_dateTime);
+        }
+
+        #region Test Setup
+        [OneTimeSetUp]
+        public void OneTimeSetUp()
+        {
+            // for validating benchmark tests
+            m_dateTime = DateTime.UtcNow;
+        }
+
+        [OneTimeTearDown]
+        public void OneTimeTearDown()
+        {
+        }
+        #endregion
+
+        #region Benchmark Setup
+        /// <summary>
+        /// Set up some variables for benchmarks.
+        /// </summary>
+        [GlobalSetup]
+        public void GlobalSetup()
+        {
+            // for validating benchmark tests
+            switch (DateTimeOmittedZeros)
+            {
+                case 4: m_dateTime = new DateTime(2011, 11, 11, 11, 11, 11, 999, DateTimeKind.Utc); break;
+                case 7: m_dateTime = new DateTime(2011, 11, 11, 11, 11, 11, DateTimeKind.Utc); break;
+                default:
+                    do
+                    {
+                        m_dateTime = DateTime.UtcNow;
+                    } while (m_dateTime.Ticks % 10 == 0);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Tear down benchmark variables.
+        /// </summary>
+        [GlobalCleanup]
+        public void GlobalCleanup()
+        {
+        }
+        #endregion
+
+        #region Private Fields
+        private DateTime m_dateTime;
+        #endregion
+    }
+
 }

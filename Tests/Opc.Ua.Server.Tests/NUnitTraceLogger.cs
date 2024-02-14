@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using System.IO;
 
 namespace Opc.Ua.Server.Tests
@@ -85,7 +86,7 @@ namespace Opc.Ua.Server.Tests
                 {
                     m_writer.WriteLine(e.Exception);
                 }
-                m_writer.WriteLine(string.Format(e.Format, e.Arguments ?? Array.Empty<object>()));
+                m_writer.WriteLine(string.Format(CultureInfo.InvariantCulture, e.Format, e.Arguments ?? Array.Empty<object>()));
             }
         }
     }
