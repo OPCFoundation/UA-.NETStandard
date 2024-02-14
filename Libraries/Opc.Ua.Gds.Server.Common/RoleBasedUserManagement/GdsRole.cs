@@ -42,20 +42,27 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// The GDS application Administrator.
         /// </summary>
+        [Obsolete("use well known Roles DiscoveryAdmin, CertificateAuthorityAdmin, RegistrationAuthorityAdmin")]
         public static Role ApplicationAdmin { get; } = new Role(NodeId.Null, "ApplicationAdmin");
 
-        /// <summary>
-        /// This Role grants rights to register, update and unregister any OPC UA Application.
-        /// </summary>
-        public static Role DiscoveryAdmin { get; } = new Role(NodeId.Null, "DiscoveryAdmin");
 
         /// <summary>
         /// The GDS application user.
         /// </summary>
+        [Obsolete("use well known Roles DiscoveryAdmin, CertificateAuthorityAdmin, RegistrationAuthorityAdmin")]
         public static Role ApplicationUser { get; } = new Role(NodeId.Null, "ApplicationUser");
 
         /// <summary>
-        /// Can manage the own Certificates and pull trust list
+        /// This Role grants rights to register, update and unregister any OPC UA Application.
+        /// </summary>
+        public static Role DiscoveryAdmin { get; } = new Role(ExpandedNodeId.ToNodeId(ObjectIds.WellKnownRole_DiscoveryAdmin, new NamespaceTable(new string[] { Namespaces.OpcUa, Namespaces.OpcUaGds })), BrowseNames.WellKnownRole_DiscoveryAdmin);
+
+        public static Role CertificateAuthorityAdmin { get; } = new Role(ExpandedNodeId.ToNodeId(ObjectIds.WellKnownRole_CertificateAuthorityAdmin, new NamespaceTable(new string[] { Namespaces.OpcUa, Namespaces.OpcUaGds })), BrowseNames.WellKnownRole_CertificateAuthorityAdmin);
+
+        public static Role RegistrationAuthorityAdmin { get; } = new Role(ExpandedNodeId.ToNodeId(ObjectIds.WellKnownRole_RegistrationAuthorityAdmin, new NamespaceTable(new string[] { Namespaces.OpcUa, Namespaces.OpcUaGds })), BrowseNames.WellKnownRole_RegistrationAuthorityAdmin);
+
+        /// <summary>
+        ///  A privilege to manage the own Certificates and pull trust list
         /// </summary>
         public static Role ApplicationSelfAdmin { get; } = new Role(NodeId.Null, "ApplicationSelfAdmin");
 

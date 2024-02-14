@@ -210,19 +210,23 @@ namespace Opc.Ua.Gds.Server
                     }
                     IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
                     //GdsAdmin
+#pragma warning disable CS0618 // Type or member is obsolete
                     if (roles.Contains(GdsRole.ApplicationAdmin))
                     {
-                        args.Identity = new GdsRoleBasedIdentity(new UserIdentity(userNameToken), new List<Role> { GdsRole.ApplicationAdmin });
+                        args.Identity = new GdsRoleBasedIdentity(new UserIdentity(userNameToken), new List<Role> { GdsRole.DiscoveryAdmin, GdsRole.CertificateAuthorityAdmin });
                         Utils.LogInfo("ApplicationAdmin Token Accepted: {0}", args.Identity.DisplayName);
                         return;
                     }
-                    //GdsUser
+
+                              //GdsUser
                     if (roles.Contains(GdsRole.ApplicationUser))
                     {
-                        args.Identity = new GdsRoleBasedIdentity(new UserIdentity(userNameToken), new List<Role> { GdsRole.ApplicationUser });
+                        args.Identity = new GdsRoleBasedIdentity(new UserIdentity(userNameToken), new List<Role> { Role.AuthenticatedUser });
                         Utils.LogInfo("ApplicationUser Token Accepted: {0}", args.Identity.DisplayName);
                         return;
-                    }                   
+                    }
+#pragma warning restore CS0618 // Type or member is obsolete
+                    args.Identity = new GdsRoleBasedIdentity(new UserIdentity(userNameToken), roles);
                 }
             }
 
@@ -235,8 +239,8 @@ namespace Opc.Ua.Gds.Server
                 // todo: is cert listed in admin list? then 
                 // role = GdsRole.ApplicationAdmin;
 
-                Utils.LogInfo("X509 Token Accepted: {0} as {1}", args.Identity.DisplayName, GdsRole.ApplicationUser);
-                args.Identity = new GdsRoleBasedIdentity(new UserIdentity(x509Token), new List<Role> { GdsRole.ApplicationUser });
+                Utils.LogInfo("X509 Token Accepted: {0} as {1}", args.Identity.DisplayName, Role.AuthenticatedUser);
+                args.Identity = new GdsRoleBasedIdentity(new UserIdentity(x509Token), new List<Role> { Role.AuthenticatedUser });
                 return;
             }
 
@@ -350,9 +354,9 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         private void RegisterDefaultUsers()
         {
-            m_userDatabase.CreateUser("sysadmin", "demo", new List<Role> { GdsRole.ApplicationAdmin, Role.SecurityAdmin, Role.ConfigureAdmin });
-            m_userDatabase.CreateUser("appadmin", "demo", new List<Role> { GdsRole.ApplicationAdmin });
-            m_userDatabase.CreateUser("appuser", "demo", new List<Role> { GdsRole.ApplicationUser });
+            m_userDatabase.CreateUser("sysadmin", "demo", new List<Role> { GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin, Role.SecurityAdmin, Role.ConfigureAdmin });
+            m_userDatabase.CreateUser("appadmin", "demo", new List<Role> { GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin });
+            m_userDatabase.CreateUser("appuser", "demo", new List<Role> { Role.AuthenticatedUser });
         }
 
         /// <summary>
