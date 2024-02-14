@@ -106,7 +106,7 @@ namespace Opc.Ua.Schema
         /// </summary>
         protected static Exception Exception(string format, object arg1)
         {
-            return new InvalidOperationException(String.Format(CultureInfo.InvariantCulture, format, arg1));
+            return new InvalidOperationException(Utils.Format(format, arg1));
         }
 
         /// <summary>
@@ -114,7 +114,7 @@ namespace Opc.Ua.Schema
         /// </summary>
         protected static Exception Exception(string format, object arg1, object arg2)
         {
-            return new InvalidOperationException(String.Format(CultureInfo.InvariantCulture, format, arg1, arg2));
+            return new InvalidOperationException(Utils.Format(format, arg1, arg2));
         }
 
         /// <summary>
@@ -122,7 +122,7 @@ namespace Opc.Ua.Schema
         /// </summary>
         protected static Exception Exception(string format, object arg1, object arg2, object arg3)
         {
-            return new InvalidOperationException(String.Format(CultureInfo.InvariantCulture, format, arg1, arg2, arg3));
+            return new InvalidOperationException(Utils.Format(format, arg1, arg2, arg3));
         }
 
         /// <summary>
@@ -280,7 +280,7 @@ namespace Opc.Ua.Schema
             }
             catch (Exception e)
             {
-                throw new FileNotFoundException(String.Format(CultureInfo.InvariantCulture, "Could not load resource '{0}'.", path), e);
+                throw new FileNotFoundException(Utils.Format("Could not load resource '{0}'.", path), e);
             }
         }
 

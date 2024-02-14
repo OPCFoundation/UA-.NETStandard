@@ -3335,7 +3335,7 @@ namespace Opc.Ua.Server
         /// <returns>Returns the master node manager for the server, the return type is <seealso cref="MasterNodeManager"/>.</returns>
         protected virtual MasterNodeManager CreateMasterNodeManager(IServerInternal server, ApplicationConfiguration configuration)
         {
-            IList<INodeManager> nodeManagers = new List<INodeManager>();
+            var nodeManagers = new List<INodeManager>();
 
             foreach (var nodeManagerFactory in m_nodeManagerFactories)
             {
@@ -3440,7 +3440,7 @@ namespace Opc.Ua.Server
         private int m_lastRegistrationInterval;
         private int m_minNonceLength;
         private bool m_useRegisterServer2;
-        private IList<INodeManagerFactory> m_nodeManagerFactories;
-#endregion
+        private List<INodeManagerFactory> m_nodeManagerFactories;
+        #endregion
     }
 }

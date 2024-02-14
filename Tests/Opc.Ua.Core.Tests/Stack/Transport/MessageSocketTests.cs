@@ -45,7 +45,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         #region Test Methods
 
         [Test]
-        public void IMessageSocket_IPEndpoint_Returned()
+        public void IMessageSocketIPEndpointReturned()
         {
             var messageSocketMock = new Mock<IMessageSocket>();
             var endPoint = new IPEndPoint(IPAddress.Parse("192.168.0.1"), 55062);

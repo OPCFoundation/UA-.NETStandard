@@ -4085,7 +4085,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Prepare a list of subscriptions to delete.
         /// </summary>
-        private bool PrepareSubscriptionsToDelete(IEnumerable<Subscription> subscriptions, IList<Subscription> subscriptionsToDelete)
+        private bool PrepareSubscriptionsToDelete(IEnumerable<Subscription> subscriptions, List<Subscription> subscriptionsToDelete)
         {
             bool removed = false;
             lock (SyncRoot)
@@ -4113,7 +4113,7 @@ namespace Opc.Ua.Client
             IList<NodeId> nodeIdCollection,
             NodeClass nodeClass,
             ReadValueIdCollection attributesToRead,
-            IList<IDictionary<uint, DataValue>> attributesPerNodeId,
+            List<IDictionary<uint, DataValue>> attributesPerNodeId,
             IList<Node> nodeCollection,
             bool optionalAttributes)
         {
@@ -4203,7 +4203,7 @@ namespace Opc.Ua.Client
             DataValueCollection nodeClassValues,
             DiagnosticInfoCollection diagnosticInfos,
             ReadValueIdCollection attributesToRead,
-            IList<IDictionary<uint, DataValue>> attributesPerNodeId,
+            List<IDictionary<uint, DataValue>> attributesPerNodeId,
             IList<Node> nodeCollection,
             IList<ServiceResult> errors,
             bool optionalAttributes
@@ -4481,7 +4481,7 @@ namespace Opc.Ua.Client
 
                     if (value != null)
                     {
-                        variableNode.MinimumSamplingInterval = Convert.ToDouble(attributes[Attributes.MinimumSamplingInterval].Value);
+                        variableNode.MinimumSamplingInterval = Convert.ToDouble(attributes[Attributes.MinimumSamplingInterval].Value, CultureInfo.InvariantCulture);
                     }
 
                     // AccessLevelEx Attribute
@@ -4762,7 +4762,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Create a dictionary of attributes to read for a nodeclass.
         /// </summary>
-        private IDictionary<uint, DataValue> CreateAttributes(NodeClass nodeclass = NodeClass.Unspecified, bool optionalAttributes = true)
+        private SortedDictionary<uint, DataValue> CreateAttributes(NodeClass nodeclass = NodeClass.Unspecified, bool optionalAttributes = true)
         {
             // Attributes to read for all types of nodes
             var attributes = new SortedDictionary<uint, DataValue>() {

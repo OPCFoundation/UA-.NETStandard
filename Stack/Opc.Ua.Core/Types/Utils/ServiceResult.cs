@@ -722,22 +722,22 @@ namespace Opc.Ua
             {
                 if (!String.IsNullOrEmpty(m_namespaceUri))
                 {
-                    buffer.AppendFormat(" ({0}:{1})", m_namespaceUri, m_symbolicId);
+                    buffer.AppendFormat(CultureInfo.InvariantCulture, " ({0}:{1})", m_namespaceUri, m_symbolicId);
                 }
                 else if (m_symbolicId != buffer.ToString())
                 {
-                    buffer.AppendFormat(" ({0})", m_symbolicId);
+                    buffer.AppendFormat(CultureInfo.InvariantCulture, " ({0})", m_symbolicId);
                 }
             }
 
             if (!LocalizedText.IsNullOrEmpty(m_localizedText))
             {
-                buffer.AppendFormat(" '{0}'", m_localizedText);
+                buffer.AppendFormat(CultureInfo.InvariantCulture, " '{0}'", m_localizedText);
             }
 
             if ((0x0000FFFF & Code) != 0)
             {
-                buffer.AppendFormat(" [{0:X4}]", (0x0000FFFF & Code));
+                buffer.AppendFormat(CultureInfo.InvariantCulture, " [{0:X4}]", (0x0000FFFF & Code));
             }
 
             return buffer.ToString();
@@ -809,12 +809,12 @@ namespace Opc.Ua
         {
             if (exception != null && exception.Message != null)
             {
-                if (exception.Message.StartsWith("[") || exception is ServiceResultException)
+                if (exception.Message.StartsWith("[", StringComparison.Ordinal) || exception is ServiceResultException)
                 {
                     return exception.Message;
                 }
 
-                return String.Format(CultureInfo.InvariantCulture, "[{0}] {1}", exception.GetType().Name, exception.Message);
+                return Utils.Format("[{0}] {1}", exception.GetType().Name, exception.Message);
             }
 
             return String.Empty;

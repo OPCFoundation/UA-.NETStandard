@@ -134,7 +134,7 @@ namespace Opc.Ua.Bindings
 
                 Socket = new TcpMessageSocket(this, socket, BufferManager, Quotas.MaxBufferSize);
 
-                Utils.LogInfo("{0} SOCKET ATTACHED: {1:X8}, ChannelId={2}", ChannelName, Socket.Handle, ChannelId);
+                Utils.LogTrace("{0} SOCKET ATTACHED: {1:X8}, ChannelId={2}", ChannelName, Socket.Handle, ChannelId);
 
                 Socket.ReadNextMessage();
 
@@ -190,13 +190,6 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-                Utils.LogError(
-                    "{0} ForceChannelFault Socket={1:X8}, ChannelId={2}, TokenId={3}, Reason={4}",
-                    ChannelName,
-                    (Socket != null) ? Socket.Handle : 0,
-                    (CurrentToken != null) ? CurrentToken.ChannelId : 0,
-                    (CurrentToken != null) ? CurrentToken.TokenId : 0,
-                    reason);
 
                 CompleteReverseHello(new ServiceResultException(reason));
 
@@ -204,6 +197,23 @@ namespace Opc.Ua.Bindings
                 if (State == TcpChannelState.Faulted)
                 {
                     return;
+                }
+
+                bool close = false;
+                if (State != TcpChannelState.Connecting)
+                {
+                    Utils.LogError(
+                        "{0} ForceChannelFault Socket={1:X8}, ChannelId={2}, TokenId={3}, Reason={4}",
+                        ChannelName,
+                        (Socket != null) ? Socket.Handle : 0,
+                        (CurrentToken != null) ? CurrentToken.ChannelId : 0,
+                        (CurrentToken != null) ? CurrentToken.TokenId : 0,
+                        reason);
+                }
+                else
+                {
+                    // Close immediately if the client never got out of connecting state
+                    close = true;
                 }
 
                 // send error and close response.
@@ -218,11 +228,19 @@ namespace Opc.Ua.Bindings
                 State = TcpChannelState.Faulted;
                 m_responseRequired = false;
 
-                // notify any monitors.
-                NotifyMonitors(reason, false);
+                if (close)
+                {
+                    // close channel immediately.
+                    ChannelClosed();
+                }
+                else
+                {
+                    // notify any monitors.
+                    NotifyMonitors(reason, false);
 
-                // ensure the channel will be cleaned up if the client does not reconnect.
-                StartCleanupTimer(reason);
+                    // ensure the channel will be cleaned up if the client does not reconnect.
+                    StartCleanupTimer(reason);
+                }
             }
         }
 
@@ -240,11 +258,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void CleanupTimer()
         {
-            if (m_cleanupTimer != null)
-            {
-                m_cleanupTimer.Dispose();
-                m_cleanupTimer = null;
-            }
+            Utils.SilentDispose(m_cleanupTimer);
+            m_cleanupTimer = null;
         }
 
         /// <summary>
@@ -255,6 +270,7 @@ namespace Opc.Ua.Bindings
             lock (DataLock)
             {
                 CleanupTimer();
+
                 // nothing to do if the channel is now open or closed.
                 if (State == TcpChannelState.Closed || State == TcpChannelState.Open)
                 {
@@ -268,7 +284,7 @@ namespace Opc.Ua.Bindings
                     reason = new ServiceResult(StatusCodes.BadTimeout);
                 }
 
-                Utils.LogInfo(
+                Utils.LogTrace(
                     "{0} Cleanup Socket={1:X8}, ChannelId={2}, TokenId={3}, Reason={4}",
                     ChannelName,
                     (Socket != null) ? Socket.Handle : 0,

@@ -73,7 +73,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Browse\AttrbuteListCtrl.Designer.cs">
+    <Compile Include="Browse\AttributeListCtrl.Designer.cs">
       <DependentUpon>AttributeListCtrl.cs</DependentUpon>
     </Compile>
     <Compile Include="Browse\AttributeListCtrl.cs">
@@ -112,11 +112,11 @@
     <Compile Include="Common\ClientUtils.Designer.cs">
       <DependentUpon>ClientUtils.cs</DependentUpon>
     </Compile>
-    <Compile Include="Common\Client\AttrributesListViewCtrl.cs">
+    <Compile Include="Common\Client\AttributesListViewCtrl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="Common\Client\AttrributesListViewCtrl.Designer.cs">
-      <DependentUpon>AttrributesListViewCtrl.cs</DependentUpon>
+    <Compile Include="Common\Client\AttributesListViewCtrl.Designer.cs">
+      <DependentUpon>AttributesListViewCtrl.cs</DependentUpon>
     </Compile>
     <Compile Include="Common\Client\BrowseNodeCtrl.cs">
       <SubType>UserControl</SubType>
@@ -656,8 +656,8 @@
       <DependentUpon>ClientUtils.cs</DependentUpon>
       <SubType>Designer</SubType>
     </EmbeddedResource>
-    <EmbeddedResource Include="Common\Client\AttrributesListViewCtrl.resx">
-      <DependentUpon>AttrributesListViewCtrl.cs</DependentUpon>
+    <EmbeddedResource Include="Common\Client\AttributesListViewCtrl.resx">
+      <DependentUpon>AttributesListViewCtrl.cs</DependentUpon>
       <SubType>Designer</SubType>
     </EmbeddedResource>
     <EmbeddedResource Include="Common\Client\BrowseNodeCtrl.resx">

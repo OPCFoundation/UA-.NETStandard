@@ -139,7 +139,7 @@ namespace Opc.Ua.Configuration.Tests
 
         public bool SupportsStorePath(string storePath)
         {
-            return storePath != null && storePath.StartsWith(TestCertStore.StoreTypePrefix);
+            return storePath != null && storePath.StartsWith(TestCertStore.StoreTypePrefix, StringComparison.Ordinal);
         }
     }
 
