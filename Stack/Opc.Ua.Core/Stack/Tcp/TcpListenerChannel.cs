@@ -100,7 +100,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sets the callback used to raise channel audit events.
         /// </summary>
-        public void SetReportOpenSecureChannellAuditCalback(ReportAuditOpenSecureChannelEventHandler callback)
+        public void SetReportOpenSecureChannelAuditCallback(ReportAuditOpenSecureChannelEventHandler callback)
         {
             lock (DataLock)
             {
@@ -111,7 +111,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sets the callback used to raise channel audit events.
         /// </summary>
-        public void SetReportCloseSecureChannellAuditCalback(ReportAuditCloseSecureChannelEventHandler callback)
+        public void SetReportCloseSecureChannelAuditCallback(ReportAuditCloseSecureChannelEventHandler callback)
         {
             lock (DataLock)
             {
@@ -122,7 +122,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sets the callback used to raise channel audit events.
         /// </summary>
-        public void SetReportCertificateAuditCalback(ReportAuditCertificateEventHandler callback)
+        public void SetReportCertificateAuditCallback(ReportAuditCertificateEventHandler callback)
         {
             lock (DataLock)
             {

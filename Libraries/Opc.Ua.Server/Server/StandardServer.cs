@@ -2373,7 +2373,7 @@ namespace Opc.Ua.Server
         {
             System.Net.IPAddress[] targetAddresses = Utils.GetHostAddresses(Utils.GetHostName());
 
-            foreach (string domain in X509Utils.GetDomainsFromCertficate(e.Certificate))
+            foreach (string domain in X509Utils.GetDomainsFromCertificate(e.Certificate))
             {
                 System.Net.IPAddress[] actualAddresses = Utils.GetHostAddresses(domain);
 
