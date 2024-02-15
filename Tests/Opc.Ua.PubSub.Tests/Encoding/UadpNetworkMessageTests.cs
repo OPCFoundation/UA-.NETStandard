@@ -494,7 +494,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             for (uint index = 0; index < 100; index++)
             {
                 DataValue value = new DataValue(new Variant(index));
-                m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId(string.Format("Mass_{0}", index), NamespaceIndexMassTest),
+                m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId(Utils.Format("Mass_{0}", index), NamespaceIndexMassTest),
                     Attributes.Value, value);
             }
             #endregion

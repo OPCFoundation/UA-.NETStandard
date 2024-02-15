@@ -114,8 +114,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 BuiltInType = TypeInfo.GetBuiltInType(structureField.DataType);
             }
 
-            public string Name;
-            public BuiltInType BuiltInType;
+            public string Name { get; set; }
+            public BuiltInType BuiltInType { get; set; }
 
             public string ToString(string format, IFormatProvider formatProvider)
             {

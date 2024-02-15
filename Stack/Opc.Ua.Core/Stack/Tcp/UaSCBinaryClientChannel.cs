@@ -668,7 +668,7 @@ namespace Opc.Ua.Bindings
                 m_requestedToken.Lifetime = (int)response.SecurityToken.RevisedLifetime;
                 m_requestedToken.ServerNonce = response.ServerNonce;
 
-                string implementation = String.Format(g_ImplementationString, m_socketFactory.Implementation);
+                string implementation = Utils.Format(g_ImplementationString, m_socketFactory.Implementation);
 
                 // log security information.
                 if (State == TcpChannelState.Opening)

@@ -16,6 +16,7 @@ using System.Text;
 using System.Xml;
 using System.Runtime.Serialization;
 using System.Reflection;
+using System.Globalization;
 
 namespace Opc.Ua
 {
@@ -1270,7 +1271,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            string[] fields = value.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            string[] fields = value.Split(s_commaSeparator, StringSplitOptions.RemoveEmptyEntries);
 
             if (fields == null || fields.Length == 0)
             {
@@ -1283,7 +1284,7 @@ namespace Opc.Ua
             {
                 try
                 {
-                    arrayDimensions[ii] = Convert.ToUInt32(fields[ii]);
+                    arrayDimensions[ii] = Convert.ToUInt32(fields[ii], CultureInfo.InvariantCulture);
                 }
                 catch
                 {
@@ -2029,6 +2030,7 @@ namespace Opc.Ua
         private double m_minimumSamplingInterval;
         private bool m_historizing;
         private VariableCopyPolicy m_copyPolicy;
+        private static readonly char[] s_commaSeparator = new char[] { ',' };
         #endregion
     }
 
@@ -2491,10 +2493,7 @@ namespace Opc.Ua
             ISystemContext context,
             NodeState node)
         {
-            if (OnBeforeRead != null)
-            {
-                OnBeforeRead(context, this, node);
-            }
+            OnBeforeRead?.Invoke(context, this, node);
         }
 
         /// <summary>

@@ -129,7 +129,8 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            if (((messageType & ChunkTypeMask) != Final) && ((messageType & ChunkTypeMask) != Intermediate))
+            uint chunkTypeMask = messageType & ChunkTypeMask;
+            if ((chunkTypeMask != Final) && (chunkTypeMask != Intermediate))
             {
                 return false;
             }

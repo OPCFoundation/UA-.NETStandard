@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -513,7 +514,7 @@ namespace Opc.Ua.Configuration
                         message.AppendLine("Use it instead?");
                         message.AppendLine("Requested: {0}");
                         message.AppendLine("Found: {1}");
-                        if (!await ApplicationInstance.ApproveMessageAsync(String.Format(message.ToString(), id.SubjectName, certificate.Subject), silent).ConfigureAwait(false))
+                        if (!await ApplicationInstance.ApproveMessageAsync(Utils.Format(message.ToString(), id.SubjectName, certificate.Subject), silent).ConfigureAwait(false))
                         {
                             throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
                                 message.ToString(), id.SubjectName, certificate.Subject);
