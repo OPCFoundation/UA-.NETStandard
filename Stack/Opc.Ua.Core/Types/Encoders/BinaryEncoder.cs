@@ -2257,7 +2257,7 @@ namespace Opc.Ua
                     case BuiltInType.LocalizedText: { WriteLocalizedText(null, (LocalizedText)valueToEncode); return; }
                     case BuiltInType.ExtensionObject: { WriteExtensionObject(null, (ExtensionObject)valueToEncode); return; }
                     case BuiltInType.DataValue: { WriteDataValue(null, (DataValue)valueToEncode); return; }
-                    case BuiltInType.Enumeration: { WriteInt32(null, Convert.ToInt32(valueToEncode)); return; }
+                    case BuiltInType.Enumeration: { WriteInt32(null, Convert.ToInt32(valueToEncode, CultureInfo.InvariantCulture)); return; }
                     case BuiltInType.DiagnosticInfo: { WriteDiagnosticInfo(null, (DiagnosticInfo)valueToEncode); break; }
                 }
 

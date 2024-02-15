@@ -351,10 +351,10 @@ namespace Opc.Ua
             {
                 if (m_end < 0)
                 {
-                    return String.Format(formatProvider, "{0}", m_begin);
+                    return string.Format(formatProvider, "{0}", m_begin);
                 }
 
-                return String.Format(formatProvider, "{0}:{1}", m_begin, m_end);
+                return string.Format(formatProvider, "{0}:{1}", m_begin, m_end);
             }
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));

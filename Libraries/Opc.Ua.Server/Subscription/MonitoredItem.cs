@@ -830,7 +830,7 @@ namespace Opc.Ua.Server
                     if (!m_calculator.QueueRawValue(value))
                     {
                         Utils.LogTrace("Value received out of order: {1}, ServerHandle={0}",
-                            m_id, value.SourceTimestamp.ToLocalTime().ToString("HH:mm:ss.fff"));
+                            m_id, value.SourceTimestamp.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture));
                     }
 
                     DataValue processedValue = m_calculator.GetProcessedValue(false);
