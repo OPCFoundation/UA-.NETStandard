@@ -23,6 +23,7 @@ using System.Text;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
+using System.Net.Sockets;
 
 namespace Opc.Ua
 {
@@ -935,7 +936,28 @@ namespace Opc.Ua
                 }
 
                 // substitute the computer name for any local IP if an IP is used by client.
-                IPAddress[] addresses = Utils.GetHostAddresses(Utils.GetHostName());
+                IPAddress[] addresses = Array.Empty<IPAddress>();
+                try
+                {
+                    addresses = Utils.GetHostAddresses(computerName);
+                }
+                catch (SocketException e)
+                {
+                    Utils.LogWarning(e, "Unable to get host addresses for hostname {0}.", hostname);
+                }
+
+                if (addresses.Length == 0)
+                {
+                    string fullName = Dns.GetHostName();
+                    try
+                    {
+                        addresses = Utils.GetHostAddresses(fullName);
+                    }
+                    catch (SocketException e)
+                    {
+                        Utils.LogError(e, "Unable to get host addresses for DNS hostname {0}.", fullName);
+                    }
+                }
 
                 for (int ii = 0; ii < addresses.Length; ii++)
                 {
@@ -956,7 +978,7 @@ namespace Opc.Ua
             {
                 entry = Dns.GetHostEntry(computerName);
             }
-            catch (System.Net.Sockets.SocketException e)
+            catch (SocketException e)
             {
                 Utils.LogError(e, "Unable to check aliases for hostname {0}.", computerName);
             }
