@@ -16,6 +16,7 @@ using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 using System.Xml;
 
 namespace Opc.Ua
@@ -35,7 +36,7 @@ namespace Opc.Ua
         private static readonly char s_rightCurlyBrace = '}';
         private static readonly char s_leftSquareBracket = '[';
         private static readonly char s_rightSquareBracket = ']';
-        private static readonly StringBuilder m_stringBuilder = new StringBuilder();
+        private ThreadLocal<StringBuilder> m_stringBuilderPool = new ThreadLocal<StringBuilder>(() => new StringBuilder());
         private Stream m_stream;
         private MemoryStream m_memoryStream;
         private StreamWriter m_writer;
@@ -517,28 +518,29 @@ namespace Opc.Ua
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void EscapeString(string value)
         {
-            m_stringBuilder.Clear();
-            m_stringBuilder.EnsureCapacity(value.Length * 2);
+            StringBuilder stringBuilder = m_stringBuilderPool.Value;
+            stringBuilder.Clear();
+            stringBuilder.EnsureCapacity(value.Length * 2);
 
             foreach (char ch in value)
             {
                 // Check if ch is present in the dictionary
                 if (m_substitution.TryGetValue(ch, out string escapeSequence))
                 {
-                    m_stringBuilder.Append(escapeSequence);
+                    stringBuilder.Append(escapeSequence);
                 }
                 else if (ch < 32)
                 {
-                    m_stringBuilder.Append("\\u");
-                    m_stringBuilder.Append(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
+                    stringBuilder.Append("\\u");
+                    stringBuilder.Append(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
                 }
                 else
                 {
-                    m_stringBuilder.Append(ch);
+                    stringBuilder.Append(ch);
                 }
             }
 
-            m_writer.Write(m_stringBuilder);
+            m_writer.Write(stringBuilder);
         }
 
         private void WriteSimpleField(string fieldName, string value, bool quotes)

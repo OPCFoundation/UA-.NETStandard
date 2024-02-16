@@ -34,6 +34,7 @@ using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 using System.Xml;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Diagnosers;
@@ -462,32 +463,33 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void EscapeString(string value)
         {
-            m_stringBuilder.Clear();
-            m_stringBuilder.EnsureCapacity(value.Length * 2);
+            StringBuilder stringBuilder = m_stringBuilderPool.Value;
+            stringBuilder.Clear();
+            stringBuilder.EnsureCapacity(value.Length * 2);
 
             foreach (char ch in value)
             {
                 // Check if ch is present in the dictionary
                 if (m_replace.TryGetValue(ch, out string escapeSequence))
                 {
-                    m_stringBuilder.Append(escapeSequence);
+                    stringBuilder.Append(escapeSequence);
                 }
                 else if (ch < 32)
                 {
-                    m_stringBuilder.Append("\\u");
-                    m_stringBuilder.Append(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
+                    stringBuilder.Append("\\u");
+                    stringBuilder.Append(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
                 }
                 else
                 {
-                    m_stringBuilder.Append(ch);
+                    stringBuilder.Append(ch);
                 }
             }
-            m_streamWriter.Write(m_stringBuilder);
+            m_streamWriter.Write(stringBuilder);
         }
         #endregion
 
         #region Private Fields
-        private static readonly StringBuilder m_stringBuilder = new StringBuilder();
+        private ThreadLocal<StringBuilder> m_stringBuilderPool = new ThreadLocal<StringBuilder>(() => new StringBuilder());
         private static string m_testString;
         private Microsoft.IO.RecyclableMemoryStreamManager m_memoryManager;
         private Microsoft.IO.RecyclableMemoryStream m_recyclableMemoryStream;
