@@ -338,7 +338,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         #endregion
     }
 
-
     [TestFixture, Category("JsonEncoder")]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [NonParallelizable]
@@ -350,7 +349,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Params(1,2,3,4)]
         public int StringVariantIndex  { get; set; } = 4;
 
-        [Test]
         [Benchmark]
         public void EscapeStringBenchmark1()
         {
@@ -375,9 +373,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void OneTimeSetUp()
         {
             m_memoryManager = new Microsoft.IO.RecyclableMemoryStreamManager();
-            m_memoryStream = new Microsoft.IO.RecyclableMemoryStream(m_memoryManager);// new MemoryStream();
+            m_memoryStream = new Microsoft.IO.RecyclableMemoryStream(m_memoryManager);
             m_streamWriter = new StreamWriter(m_memoryStream, Encoding.UTF8, m_streamSize, false);
-
             m_testString = "Test string ascii, special characters \n \b and control characters \0 \x04 ␀ ␁ ␂ ␃ ␄";
         }
 
