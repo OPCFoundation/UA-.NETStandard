@@ -498,58 +498,32 @@ namespace Opc.Ua
             m_namespaces.Pop();
         }
 
-        private static readonly char[] m_specialChars = new char[] { s_quotation, s_backslash, '\n', '\r', '\t', '\b', '\f', };
-        private static readonly char[] m_substitution = new char[] { s_quotation, s_backslash, 'n', 'r', 't', 'b', 'f' };
-
-        private void EscapeString1(string value)
+        private static readonly Dictionary<char, string> m_substitution = new Dictionary<char, string>
         {
-            foreach (char ch in value)
-            {
-                bool found = false;
-
-                for (int ii = 0; ii < m_specialChars.Length; ii++)
-                {
-                    if (m_specialChars[ii] == ch)
-                    {
-                        m_writer.Write(s_backslash);
-                        m_writer.Write(m_substitution[ii]);
-                        found = true;
-                        break;
-                    }
-                }
-
-                if (!found)
-                {
-                    if (ch < 32)
-                    {
-                        m_writer.Write("\\u");
-                        m_writer.Write("{0:X4}", (int)ch);
-                        continue;
-                    }
-
-                    m_writer.Write(ch);
-                }
-            }
-        }
-
-        private static readonly Dictionary<char, string> m_substitution1 = new Dictionary<char, string>
-        {
-            { '"', "\\\"" },
-            { '\\', "\\\\" },
+            { s_quotation, "\\\"" },
+            { s_backslash, "\\\\" },
             { '\n', "\\n" },
             { '\r', "\\r" },
             { '\t', "\\t" },
             { '\b', "\\b" },
             { '\f', "\\f" }
         };
+
+        /// <summary>
+        /// Escapes a string and writes it to the stream.
+        /// </summary>
+        /// <param name="value"></param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void EscapeString(string value)
         {
             StringBuilder m_stringBuilder = new StringBuilder(value.Length * 2);
 
+            Dictionary<char, string> substitution = new Dictionary<char, string>(m_substitution);
+
             foreach (char ch in value)
             {
-                // chekc if ch is present in the dictionary
-                if (m_substitution1.TryGetValue(ch, out string escapeSequence))
+                // Check if ch is present in the dictionary
+                if (substitution.TryGetValue(ch, out string escapeSequence))
                 {
                     m_stringBuilder.Append(escapeSequence);
                 }
@@ -557,7 +531,6 @@ namespace Opc.Ua
                 {
                     m_stringBuilder.Append("\\u");
                     m_stringBuilder.Append(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
-                    continue;
                 }
                 else
                 {
@@ -565,7 +538,7 @@ namespace Opc.Ua
                 }
             }
 
-            m_writer.Write(m_stringBuilder.ToString());
+            m_writer.Write(m_stringBuilder);
         }
 
         private void WriteSimpleField(string fieldName, string value, bool quotes)

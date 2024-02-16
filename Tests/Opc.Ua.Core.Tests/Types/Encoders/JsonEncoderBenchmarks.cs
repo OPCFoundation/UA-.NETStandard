@@ -28,12 +28,19 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Xml;
 using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Diagnosers;
+using FastSerialization;
+using Microsoft.Extensions.Logging;
+using Microsoft.IO;
 using NUnit.Framework;
+using NUnit.Framework.Constraints;
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
@@ -147,24 +154,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
         }
 
-        /// <summary>
-        /// Benchmark test for EscapeString.
-        /// </summary>
-        [Benchmark]
-        [Test]
-        public void JsonEncoderEscapeString()
-        {
-            using (var jsonEncoder = new JsonEncoder(m_context, false))
-            {
-                jsonEncoder.WriteString("String", m_testString);
-                var result = jsonEncoder.CloseAndReturnText();
-
-                Assert.NotNull(result);
-                Assert.AreEqual(1, result.Split(new string[] { m_testString }, StringSplitOptions.None).Length);
-
-            }
-        }
-
         #region Private Methods
         private void TestEncoding(IEncoder encoder)
         {
@@ -273,8 +262,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         private Microsoft.IO.RecyclableMemoryStream m_recyclableMemoryStream;
         private BufferManager m_bufferManager;
         private ArraySegmentStream m_arraySegmentStream;
-        // private string m_testString = "Hello\tWorld\nThis is a \"test\" string with \\backslashes and \r\nnewlines\f";
-        private string m_testString = "This is a test string with special characters: \" \n \r \t \b \f \\ and some control characters: \0 \x01 \x02 \x03 \x04";
         #endregion
     }
 
@@ -351,4 +338,176 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         #endregion
     }
 
+
+    [TestFixture, Category("JsonEncoder")]
+    [SetCulture("en-us"), SetUICulture("en-us")]
+    [NonParallelizable]
+    [MemoryDiagnoser]
+    [DisassemblyDiagnoser(printSource: true)]
+    public class JsonEncoderEscapeStringBenchmark
+    {
+
+        [Params(1,2,3,4)]
+        public int TestStringIndex { get; set; } = 4;
+
+        [Test]
+        [Benchmark]
+        public void EscapeStringBenchmark1()
+        {
+            m_memoryStream.SetLength(0);
+            m_memoryStream.Position = 0;
+            EscapedStringToStream(m_testString);
+            m_streamWriter?.Flush();
+        }
+
+        [Test]
+        [Benchmark]
+        public void EscapeStringBenchmark2()
+        {
+            m_memoryStream.SetLength(0);
+            m_memoryStream.Position = 0;
+            EscapeString(m_testString);
+            m_streamWriter?.Flush();
+        }
+
+        #region Test Setup
+        [OneTimeSetUp]
+        public void OneTimeSetUp()
+        {
+            m_memoryManager = new Microsoft.IO.RecyclableMemoryStreamManager();
+            m_memoryStream = new Microsoft.IO.RecyclableMemoryStream(m_memoryManager);// new MemoryStream();
+            m_streamWriter = new StreamWriter(m_memoryStream, Encoding.UTF8, m_streamSize, false);
+
+            m_testString = "Test string ascii, special characters \n \b and control characters \0 \x04 ␀ ␁ ␂ ␃ ␄";
+        }
+
+        [OneTimeTearDown]
+        public void OneTimeTearDown()
+        {
+            var result = Encoding.UTF8.GetString(m_memoryStream.ToArray());
+            Assert.NotNull(result);
+
+            m_streamWriter?.Dispose();
+            m_streamWriter = null;
+            m_memoryStream?.Dispose();
+            m_memoryStream = null;
+            m_recyclableMemoryStream?.Dispose();
+            m_recyclableMemoryStream = null;
+            m_memoryManager = null;
+        }
+        #endregion
+
+        #region Benchmark Setup
+        /// <summary>
+        /// Set up some variables for benchmarks.
+        /// </summary>
+        [GlobalSetup]
+        public void GlobalSetup()
+        {
+            m_memoryStream = new MemoryStream();
+            m_streamWriter = new StreamWriter(m_memoryStream, Encoding.UTF8, m_streamSize, false);
+
+            // for validating benchmark tests
+            switch (TestStringIndex)
+            {
+                case 1: m_testString = "Ascii characters 12345"; break;
+                case 2: m_testString = "\" \n \r \t \b \f \\"; break;
+                case 3: m_testString = "\0 \x01 \x02 \x03 \x04"; break;
+                default: m_testString = "Ascii characters , special characters \n \b & control characters \0 \x04 ␀ ␁ ␂ ␃ ␄"; break;
+            }
+        }
+
+        [GlobalCleanup]
+        public void GlobalCleanup()
+        {
+            m_streamWriter?.Dispose();
+            m_streamWriter = null;
+            m_memoryStream?.Dispose();
+            m_memoryStream = null;
+            m_recyclableMemoryStream?.Dispose();
+            m_recyclableMemoryStream = null;
+            m_memoryManager = null;
+        }
+        #endregion
+
+        #region Private Methods
+        private void EscapedStringToStream(string value)
+        {
+            foreach (char ch in value)
+            {
+                bool found = false;
+
+                for (int ii = 0; ii < m_specialChars.Length; ii++)
+                {
+                    if (m_specialChars[ii] == ch)
+                    {
+                        m_streamWriter.Write('\\');
+                        m_streamWriter.Write(m_substitution[ii]);
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found)
+                {
+                    if (ch < 32)
+                    {
+                        m_streamWriter.Write("\\u");
+                        m_streamWriter.Write("{0:X4}", (int)ch);
+                        continue;
+                    }
+
+                    m_streamWriter.Write(ch);
+                }
+            }
+        }
+
+        private static readonly Dictionary<char, string> m_replace = new Dictionary<char, string>
+        {
+            {  '\"', "\\\"" },
+            {  '\\', "\\\\" },
+            { '\n', "\\n" },
+            { '\r', "\\r" },
+            { '\t', "\\t" },
+            { '\b', "\\b" },
+            { '\f', "\\f" }
+        };
+        private void EscapeString(string value)
+        {
+            StringBuilder m_stringBuilder = new StringBuilder(value.Length * 2);
+
+            Dictionary<char, string> substitution = new Dictionary<char, string>(m_replace);
+
+            foreach (char ch in value)
+            {
+                // Check if ch is present in the dictionary
+                if (substitution.TryGetValue(ch, out string escapeSequence))
+                {
+                    m_stringBuilder.Append(escapeSequence);
+                }
+                else if (ch < 32)
+                {
+                    m_stringBuilder.Append("\\u");
+                    m_stringBuilder.Append(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
+                }
+                else
+                {
+                    m_stringBuilder.Append(ch);
+                }
+            }
+            m_streamWriter.Write(m_stringBuilder);
+        }
+        #endregion
+
+        #region Private Fields
+        private static string m_testString;
+        private Microsoft.IO.RecyclableMemoryStreamManager m_memoryManager;
+        private Microsoft.IO.RecyclableMemoryStream m_recyclableMemoryStream;
+        private MemoryStream m_memoryStream;
+        private StreamWriter m_streamWriter;
+        private int m_streamSize = 2048;
+        private static readonly char[] m_specialChars = new char[] { '\"', '\\', '\n', '\r', '\t', '\b', '\f', };
+        private static readonly char[] m_substitution = new char[] { '\"', '\\', 'n', 'r', 't', 'b', 'f' };
+        #endregion
+    }
 }
