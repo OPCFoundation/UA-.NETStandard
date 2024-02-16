@@ -35,6 +35,7 @@ namespace Opc.Ua
         private static readonly char s_rightCurlyBrace = '}';
         private static readonly char s_leftSquareBracket = '[';
         private static readonly char s_rightSquareBracket = ']';
+        private static readonly StringBuilder m_stringBuilder = new StringBuilder();
         private Stream m_stream;
         private MemoryStream m_memoryStream;
         private StreamWriter m_writer;
@@ -516,14 +517,13 @@ namespace Opc.Ua
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void EscapeString(string value)
         {
-            StringBuilder m_stringBuilder = new StringBuilder(value.Length * 2);
-
-            Dictionary<char, string> substitution = new Dictionary<char, string>(m_substitution);
+            m_stringBuilder.Clear();
+            m_stringBuilder.EnsureCapacity(value.Length * 2);
 
             foreach (char ch in value)
             {
                 // Check if ch is present in the dictionary
-                if (substitution.TryGetValue(ch, out string escapeSequence))
+                if (m_substitution.TryGetValue(ch, out string escapeSequence))
                 {
                     m_stringBuilder.Append(escapeSequence);
                 }

@@ -32,6 +32,7 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Xml;
 using BenchmarkDotNet.Attributes;
@@ -346,8 +347,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     public class JsonEncoderEscapeStringBenchmark
     {
 
-        [Params(1,2,3,4)]
-        public int StringVariantIndex  { get; set; } = 4;
+        [Params(1,2,3)]
+        public int StringVariantIndex  { get; set; } = 3;
 
         [Benchmark]
         public void EscapeStringBenchmark1()
@@ -355,7 +356,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_memoryStream.SetLength(0);
             m_memoryStream.Position = 0;
             EscapedStringToStream(m_testString);
-            m_streamWriter?.Flush();
         }
 
         [Test]
@@ -365,7 +365,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_memoryStream.SetLength(0);
             m_memoryStream.Position = 0;
             EscapeString(m_testString);
-            m_streamWriter?.Flush();
         }
 
         #region Test Setup
@@ -381,6 +380,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
+            m_streamWriter?.Flush();
             var result = Encoding.UTF8.GetString(m_memoryStream.ToArray());
             Assert.NotNull(result);
 
@@ -407,9 +407,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // for validating benchmark tests
             switch (StringVariantIndex )
             {
-                case 1: m_testString = "Ascii characters 12345"; break;
-                case 2: m_testString = "\" \n \r \t \b \f \\"; break;
-                case 3: m_testString = "\0 \x01 \x02 \x03 \x04"; break;
+                case 1: m_testString = "\" \n \r \t \b \f \\"; break;
+                case 2: m_testString = "\0 \x01 \x02 \x03 \x04"; break;
                 default: m_testString = "Ascii characters , special characters \n \b & control characters \0 \x04 ␀ ␁ ␂ ␃ ␄"; break;
             }
         }
@@ -417,6 +416,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [GlobalCleanup]
         public void GlobalCleanup()
         {
+            m_streamWriter?.Flush();
             m_streamWriter?.Dispose();
             m_streamWriter = null;
             m_memoryStream?.Dispose();
@@ -459,26 +459,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
         }
 
-        private static readonly Dictionary<char, string> m_replace = new Dictionary<char, string>
-        {
-            {  '\"', "\\\"" },
-            {  '\\', "\\\\" },
-            { '\n', "\\n" },
-            { '\r', "\\r" },
-            { '\t', "\\t" },
-            { '\b', "\\b" },
-            { '\f', "\\f" }
-        };
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void EscapeString(string value)
         {
-            StringBuilder m_stringBuilder = new StringBuilder(value.Length * 2);
-
-            Dictionary<char, string> substitution = new Dictionary<char, string>(m_replace);
+            m_stringBuilder.Clear();
+            m_stringBuilder.EnsureCapacity(value.Length * 2);
 
             foreach (char ch in value)
             {
                 // Check if ch is present in the dictionary
-                if (substitution.TryGetValue(ch, out string escapeSequence))
+                if (m_replace.TryGetValue(ch, out string escapeSequence))
                 {
                     m_stringBuilder.Append(escapeSequence);
                 }
@@ -497,14 +487,25 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         #endregion
 
         #region Private Fields
+        private static readonly StringBuilder m_stringBuilder = new StringBuilder();
         private static string m_testString;
         private Microsoft.IO.RecyclableMemoryStreamManager m_memoryManager;
         private Microsoft.IO.RecyclableMemoryStream m_recyclableMemoryStream;
         private MemoryStream m_memoryStream;
         private StreamWriter m_streamWriter;
-        private int m_streamSize = 2048;
+        private int m_streamSize = 1024;
         private static readonly char[] m_specialChars = new char[] { '\"', '\\', '\n', '\r', '\t', '\b', '\f', };
         private static readonly char[] m_substitution = new char[] { '\"', '\\', 'n', 'r', 't', 'b', 'f' };
+        private static readonly Dictionary<char, string> m_replace = new Dictionary<char, string>
+        {
+            {  '\"', "\\\"" },
+            {  '\\', "\\\\" },
+            { '\n', "\\n" },
+            { '\r', "\\r" },
+            { '\t', "\\t" },
+            { '\b', "\\b" },
+            { '\f', "\\f" }
+        };
         #endregion
     }
 }
