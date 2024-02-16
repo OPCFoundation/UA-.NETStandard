@@ -348,7 +348,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     {
 
         [Params(1,2,3,4)]
-        public int TestStringIndex { get; set; } = 4;
+        public int StringVariantIndex  { get; set; } = 4;
 
         [Test]
         [Benchmark]
@@ -408,7 +408,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_streamWriter = new StreamWriter(m_memoryStream, Encoding.UTF8, m_streamSize, false);
 
             // for validating benchmark tests
-            switch (TestStringIndex)
+            switch (StringVariantIndex )
             {
                 case 1: m_testString = "Ascii characters 12345"; break;
                 case 2: m_testString = "\" \n \r \t \b \f \\"; break;
