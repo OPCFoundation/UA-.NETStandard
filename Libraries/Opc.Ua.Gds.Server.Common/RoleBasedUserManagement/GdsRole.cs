@@ -40,19 +40,6 @@ namespace Opc.Ua.Gds.Server
     public class GdsRole : Role
     {
         /// <summary>
-        /// The GDS application Administrator.
-        /// </summary>
-        [Obsolete("use well known Roles DiscoveryAdmin, CertificateAuthorityAdmin, RegistrationAuthorityAdmin")]
-        public static Role ApplicationAdmin { get; } = new Role(NodeId.Null, "ApplicationAdmin");
-
-
-        /// <summary>
-        /// The GDS application user.
-        /// </summary>
-        [Obsolete("use well known Roles DiscoveryAdmin, CertificateAuthorityAdmin, RegistrationAuthorityAdmin")]
-        public static Role ApplicationUser { get; } = new Role(NodeId.Null, "ApplicationUser");
-
-        /// <summary>
         /// This Role grants rights to register, update and unregister any OPC UA Application.
         /// </summary>
         public static Role DiscoveryAdmin { get; } = new Role(ExpandedNodeId.ToNodeId(ObjectIds.WellKnownRole_DiscoveryAdmin, new NamespaceTable(new string[] { Namespaces.OpcUa, Namespaces.OpcUaGds })), BrowseNames.WellKnownRole_DiscoveryAdmin);

@@ -1381,6 +1381,7 @@ namespace Opc.Ua.Gds.Tests
             TestContext.Progress.WriteLine($"GDS Client({admin}) connected -- {memberName}");
         }
 
+
         private void DisconnectGDS(
             [System.Runtime.CompilerServices.CallerMemberName] string memberName = ""
             )

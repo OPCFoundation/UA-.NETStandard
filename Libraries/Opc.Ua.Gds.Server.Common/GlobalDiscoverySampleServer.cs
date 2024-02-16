@@ -209,23 +209,7 @@ namespace Opc.Ua.Gds.Server
                         return;
                     }
                     IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
-                    //GdsAdmin
-#pragma warning disable CS0618 // Type or member is obsolete
-                    if (roles.Contains(GdsRole.ApplicationAdmin))
-                    {
-                        args.Identity = new GdsRoleBasedIdentity(new UserIdentity(userNameToken), new List<Role> { GdsRole.DiscoveryAdmin, GdsRole.CertificateAuthorityAdmin });
-                        Utils.LogInfo("ApplicationAdmin Token Accepted: {0}", args.Identity.DisplayName);
-                        return;
-                    }
 
-                              //GdsUser
-                    if (roles.Contains(GdsRole.ApplicationUser))
-                    {
-                        args.Identity = new GdsRoleBasedIdentity(new UserIdentity(userNameToken), new List<Role> { Role.AuthenticatedUser });
-                        Utils.LogInfo("ApplicationUser Token Accepted: {0}", args.Identity.DisplayName);
-                        return;
-                    }
-#pragma warning restore CS0618 // Type or member is obsolete
                     args.Identity = new GdsRoleBasedIdentity(new UserIdentity(userNameToken), roles);
                     return;
                 }
@@ -358,6 +342,9 @@ namespace Opc.Ua.Gds.Server
             m_userDatabase.CreateUser("sysadmin", "demo", new List<Role> { GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin, Role.SecurityAdmin, Role.ConfigureAdmin });
             m_userDatabase.CreateUser("appadmin", "demo", new List<Role> { Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin });
             m_userDatabase.CreateUser("appuser", "demo", new List<Role> { Role.AuthenticatedUser });
+
+            m_userDatabase.CreateUser("DiscoveryAdmin", "demo", new List<Role> { Role.AuthenticatedUser, GdsRole.DiscoveryAdmin });
+            m_userDatabase.CreateUser("CertificateAuthorityAdmin", "demo", new List<Role> { Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin});
         }
 
         /// <summary>
