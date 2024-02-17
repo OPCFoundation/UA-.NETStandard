@@ -357,6 +357,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_memoryStream.SetLength(0);
             m_memoryStream.Position = 0;
             EscapedStringToStream(m_testString);
+            m_streamWriter.Flush();
         }
 
         [Test]
@@ -366,6 +367,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_memoryStream.SetLength(0);
             m_memoryStream.Position = 0;
             EscapeString(m_testString);
+            m_streamWriter.Flush();
         }
 
         #region Test Setup
@@ -374,14 +376,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             m_memoryManager = new Microsoft.IO.RecyclableMemoryStreamManager();
             m_memoryStream = new Microsoft.IO.RecyclableMemoryStream(m_memoryManager);
-            m_streamWriter = new StreamWriter(m_memoryStream, Encoding.UTF8, m_streamSize, false);
+            m_streamWriter = new StreamWriter(m_memoryStream, new UTF8Encoding(false), m_streamSize, false);
             m_testString = "Test string ascii, special characters \n \b and control characters \0 \x04 ␀ ␁ ␂ ␃ ␄";
         }
 
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
-            m_streamWriter?.Flush();
             var result = Encoding.UTF8.GetString(m_memoryStream.ToArray());
             Assert.NotNull(result);
 
@@ -403,7 +404,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void GlobalSetup()
         {
             m_memoryStream = new MemoryStream();
-            m_streamWriter = new StreamWriter(m_memoryStream, Encoding.UTF8, m_streamSize, false);
+            m_streamWriter = new StreamWriter(m_memoryStream, new UTF8Encoding(false), m_streamSize, false);
 
             // for validating benchmark tests
             switch (StringVariantIndex )
@@ -417,7 +418,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [GlobalCleanup]
         public void GlobalCleanup()
         {
-            m_streamWriter?.Flush();
             m_streamWriter?.Dispose();
             m_streamWriter = null;
             m_memoryStream?.Dispose();
