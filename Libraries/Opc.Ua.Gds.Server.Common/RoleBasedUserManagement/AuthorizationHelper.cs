@@ -38,14 +38,22 @@ namespace Opc.Ua.Gds.Server
                 throw new ServiceResultException(StatusCodes.BadUserAccessDenied, $"At least one of the Roles {string.Join(", ", roles)} is required to call the method");
             }
         }
-
+        /// <summary>
+        /// Checks if the current session (context) is allowed to access the trust List (has roles CertificateAuthorityAdmin, SecurityAdmin or <see cref="GdsRole.ApplicationSelfAdmin"/>)
+        /// </summary>
+        /// <param name="context">the current <see cref="ISystemContext"/></param>
+        /// <param name="trustedStorePath">path of the trustList, needed to check for Application Self Admin priviledge</param>
+        /// <param name="certTypeMap">all supported cert types, needed to check for Application Self Admin priviledge </param>
+        /// <param name="applicationsDatabase">all registered applications  <see cref="IApplicationsDatabase"/> , needed to check for Application Self Admin priviledge </param>
+        /// <exception cref="ServiceResultException"></exception>
         public static void HasTrustListAccess(ISystemContext context, string trustedStorePath, Dictionary<NodeId, string> certTypeMap, IApplicationsDatabase applicationsDatabase)
         {
             var roles = new List<Role> { GdsRole.CertificateAuthorityAdmin, Role.SecurityAdmin };
             if (HasRole(context.UserIdentity, roles))
                 return;
 
-            if (CheckSelfAdminPrivilege(context.UserIdentity, trustedStorePath, certTypeMap, applicationsDatabase))
+            if (!string.IsNullOrEmpty(trustedStorePath) && certTypeMap != null && applicationsDatabase != null &&
+                CheckSelfAdminPrivilege(context.UserIdentity, trustedStorePath, certTypeMap, applicationsDatabase))
                 return;
 
             throw new ServiceResultException(StatusCodes.BadUserAccessDenied, $"At least one of the Roles {string.Join(", ", roles)} or ApplicationSelfAdminPrivilege is required to use the TrustList");
