@@ -29,6 +29,7 @@
 
 using System;
 using System.Formats.Asn1;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -55,14 +56,14 @@ namespace Opc.Ua.Security.Certificates
             {
                 for (int ii = buffer.Length - 1; ii >= 0; ii--)
                 {
-                    builder.AppendFormat("{0:X2}", buffer[ii]);
+                    builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
                 }
             }
             else
             {
                 for (int ii = 0; ii < buffer.Length; ii++)
                 {
-                    builder.AppendFormat("{0:X2}", buffer[ii]);
+                    builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
                 }
             }
 

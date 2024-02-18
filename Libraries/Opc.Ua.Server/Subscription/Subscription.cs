@@ -2168,10 +2168,10 @@ namespace Opc.Ua.Server
         {
             ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(m_session);
 
-            string messageTemplate = String.Format("Condition refresh {{0}} for subscription {0}.", m_id);
+            string messageTemplate = Utils.Format("Condition refresh {{0}} for subscription {0}.", m_id);
             if (monitoredItemId > 0)
             {
-                messageTemplate = String.Format("Condition refresh {{0}} for subscription {0}, monitored item {1}.", m_id, monitoredItemId);
+                messageTemplate = Utils.Format("Condition refresh {{0}} for subscription {0}, monitored item {1}.", m_id, monitoredItemId);
             }
 
             lock (m_lock)
@@ -2184,7 +2184,7 @@ namespace Opc.Ua.Server
                 message = new TranslationInfo(
                     "RefreshStartEvent",
                     "en-US",
-                    String.Format(messageTemplate, "started"));
+                    Utils.Format(messageTemplate, "started"));
 
                 e.Initialize(
                     systemContext,
@@ -2238,7 +2238,7 @@ namespace Opc.Ua.Server
                 message = new TranslationInfo(
                     "RefreshEndEvent",
                     "en-US",
-                    String.Format(messageTemplate, "completed"));
+                    Utils.Format(messageTemplate, "completed"));
 
                 e.Initialize(
                     systemContext,

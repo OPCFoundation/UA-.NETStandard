@@ -86,7 +86,7 @@ After this step the Publisher will publish data as configured.
 
 ## Publisher Configuration
 
-The Publisher configuration is a subset of the [PubSub Configuration](../../Docs/PubSub.md#pubsub-configuration). A functional *Publisher* application needs to have a configuration (*PubSubConfgurationDataType* instance) that contains a list of published data sets (*PublishedDataSetDataType* instances) and at least one connection (*PubSubConnectionDataType* instance) with at least one writer group configuration (*WriterGroupDataType* instance). The writer group contains at least one data set writer (*DataSetWriterDataType* instance) pointing to a published data set from the current configuration.
+The Publisher configuration is a subset of the [PubSub Configuration](../../Docs/PubSub.md#pubsub-configuration). A functional *Publisher* application needs to have a configuration (*PubSubConfigurationDataType* instance) that contains a list of published data sets (*PublishedDataSetDataType* instances) and at least one connection (*PubSubConnectionDataType* instance) with at least one writer group configuration (*WriterGroupDataType* instance). The writer group contains at least one data set writer (*DataSetWriterDataType* instance) pointing to a published data set from the current configuration.
 
 The diagram shows the subset of classes involved in an *OPC UA Publisher* configuration.
 

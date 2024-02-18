@@ -760,10 +760,7 @@ namespace Opc.Ua
         {
             try
             {
-                if (OnTimedUnshelve != null)
-                {
-                    OnTimedUnshelve((ISystemContext)state, this);
-                }
+                OnTimedUnshelve?.Invoke((ISystemContext)state, this);
                 this.OnUnshelveTimeUpdate(state);
             }
             catch (Exception e)

@@ -503,7 +503,7 @@ namespace Opc.Ua.Gds.Tests
         [Test, Order(430)]
         public void QueryServersByName()
         {
-            // search aplications by name
+            // search applications by name
             const int searchPatternLength = 5;
             foreach (var application in m_goodApplicationTestSet)
             {
@@ -535,7 +535,7 @@ namespace Opc.Ua.Gds.Tests
         [Test, Order(440)]
         public void QueryServersByAppUri()
         {
-            // search aplications by name
+            // search applications by name
             const int searchPatternLength = 5;
             foreach (var application in m_goodApplicationTestSet)
             {
@@ -567,7 +567,7 @@ namespace Opc.Ua.Gds.Tests
         [Test, Order(450)]
         public void QueryServersByProductUri()
         {
-            // search aplications by name
+            // search applications by name
             const int searchPatternLength = 5;
             foreach (var application in m_goodApplicationTestSet)
             {

@@ -3,7 +3,7 @@ name: Build and Test .NET 8.0
 on:
   push:
   pull_request:
-    branches: [ master ]
+    branches: [ master, main ]
     paths:
     - '**.cs'
     - '**.csproj'
@@ -11,9 +11,6 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-
-env:
-  ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
 
 jobs:
   build-and-test:
@@ -68,10 +65,10 @@ jobs:
       if: ${{ always() }}
 
     - name: Upload to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         name: codecov-umbrella
-        #token: ${{ secrets.CODECOV_TOKEN }}
+        token: ${{ secrets.CODECOV_TOKEN }}
         directory: ${{ env.TESTRESULTS }}
         env_vars: CSPROJ,OS,DOTNET_VERSION,CONFIGURATION
         fail_ci_if_error: false
