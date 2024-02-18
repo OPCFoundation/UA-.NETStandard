@@ -977,7 +977,9 @@ namespace Opc.Ua.Gds.Tests
             foreach (var application in m_goodApplicationTestSet)
             {
                 m_gdsClient.GDSClient.RevokeCertificate(application.ApplicationRecord.ApplicationId, application.Certificate);
-
+            }
+            foreach (var application in m_invalidApplicationTestSet)
+            {
                 Assert.That(() => {
                     m_gdsClient.GDSClient.RevokeCertificate(application.ApplicationRecord.ApplicationId, application.Certificate);
                 }, Throws.Exception);

@@ -270,25 +270,36 @@ namespace Opc.Ua.Gds.Server
             return null;
         }
 
-        private async Task RevokeCertificateAsync(byte[] certificate)
+        private async Task<bool> RevokeCertificateAsync(byte[] certificate)
         {
+            bool revoked = false;
             if (certificate != null && certificate.Length > 0)
             {
                 ICertificateGroup certificateGroup = GetGroupForCertificate(certificate);
 
                 if (certificateGroup != null)
                 {
+                    X509Certificate2 x509 = null;
                     try
                     {
-                        var x509 = new X509Certificate2(certificate);
-                        await certificateGroup.RevokeCertificateAsync(x509).ConfigureAwait(false);
+                        x509 = new X509Certificate2(certificate);
+                        Security.Certificates.X509CRL crl = await certificateGroup.RevokeCertificateAsync(x509).ConfigureAwait(false);
+                        if (crl != null)
+                        {
+                            revoked = true;
+                        }
                     }
                     catch (Exception e)
                     {
                         Utils.LogError(e, "Unexpected error revoking certificate. {0} for Authority={1}", new X509Certificate2(certificate).Subject, certificateGroup.Id);
                     }
+                    finally
+                    {
+                        x509?.Dispose();
+                    }
                 }
             }
+            return revoked;
         }
 
         protected async Task<ICertificateGroup> InitializeCertificateGroup(CertificateGroupConfiguration certificateGroupConfiguration)
@@ -402,6 +413,8 @@ namespace Opc.Ua.Gds.Server
                     }
 
                     Opc.Ua.Gds.CertificateDirectoryState activeNode = new Opc.Ua.Gds.CertificateDirectoryState(passiveNode.Parent);
+
+                    activeNode.RevokeCertificate = new RevokeCertificateMethodState(passiveNode);
 
                     activeNode.Create(context, passiveNode);
                     activeNode.QueryServers.OnCall = new QueryServersMethodStateMethodCallHandler(OnQueryServers);
@@ -592,29 +605,27 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(StatusCodes.BadNotFound, "The ApplicationId does not refer to a registered application.");
             }
+            if (certificate == null || certificate.Length == 0 )
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "The certificate is not a Certificate for the specified Application that was issued by the CertificateManager.");
+            }
 
             bool revoked = false;
-            var certifcateToRevoke = new X509Certificate2(certificate);
             foreach (var certType in m_certTypeMap)
             {
-                try
+                byte[] applicationCertificate;
+
+                if (!m_database.GetApplicationCertificate(applicationId, certType.Value, out applicationCertificate)
+                    || applicationCertificate == null
+                    || !Utils.IsEqual(applicationCertificate, certificate))
                 {
-                    byte[] applicationCertificate;
-                    if (m_database.GetApplicationCertificate(applicationId, certType.Value, out applicationCertificate))
-                    {
-                        if (applicationCertificate != null)
-                        {
-                            if (new X509Certificate2(applicationCertificate).Equals(certifcateToRevoke))
-                            {
-                                RevokeCertificateAsync(certificate).Wait();
-                                revoked = true;
-                            }
-                        }
-                    }
+                    continue;
                 }
-                catch
+
+                revoked = RevokeCertificateAsync(certificate).Result;
+                if (revoked)
                 {
-                    Utils.LogError("Failed to revoke: {0}", certType.Value);
+                    break;
                 }
             }
             if (!revoked)
