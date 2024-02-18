@@ -38,7 +38,7 @@ To make it easier to implement a real user name / pw implementation, avoiding ha
 
 https://github.com/OPCFoundation/UA-.NETStandard/tree/61edad9d6361b566baa5fdd69a23e7ac58c3433d/Libraries/Opc.Ua.Server/RoleBasedUserManagement/UserDatabase
 
-'''
+```
 public interface IUserDatabase
     {
         /// <summary>
@@ -82,7 +82,7 @@ public interface IUserDatabase
         /// <returns>true if change was sucessfull</returns>
         bool ChangePassword(string userName, string oldPassword, string newPassword);
     }
-'''
+```
 
 An implementation targeting SQL Server using Entity Framework 6 is available in the Samples Repo:
 https://github.com/OPCFoundation/UA-.NETStandard-Samples/blob/e100ac787507988da95223a031af76fe57b5e11d/Samples/GDS/Server/SqlUsersDatabase.cs
