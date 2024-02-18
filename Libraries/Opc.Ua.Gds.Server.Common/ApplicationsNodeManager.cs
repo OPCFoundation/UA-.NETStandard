@@ -629,20 +629,31 @@ namespace Opc.Ua.Gds.Server
                 }
             }
 
-            //create CertificateValidator with secure defaults
+            //create CertificateValidator initialized with GDS CAs
             var certificateValidator = new CertificateValidator();
-            certificateValidator.Update(m_configuration.SecurityConfiguration.TrustedIssuerCertificates, null, null);
+
+            var gdsCAs = new CertificateTrustList() {
+                StorePath = m_globalDiscoveryServerConfiguration.AuthoritiesStorePath,
+                StoreType = CertificateStoreIdentifier.DetermineStoreType(m_globalDiscoveryServerConfiguration.AuthoritiesStorePath)
+            };
+
+            certificateValidator.Update(null, gdsCAs, null);
+
+            
 
 
             validityTime = DateTime.MinValue;
 
-            try
+            using (var x509 = new X509Certificate2(certificate))
             {
-                certificateValidator.Validate(new X509Certificate2(certificate));
-            }
-            catch (ServiceResultException se)
-            {
-                certificateStatus = se.StatusCode;
+                try
+                {
+                    certificateValidator.Validate(x509);
+                }
+                catch (ServiceResultException se)
+                {
+                    certificateStatus = se.StatusCode;
+                }
             }
 
             return ServiceResult.Good;
