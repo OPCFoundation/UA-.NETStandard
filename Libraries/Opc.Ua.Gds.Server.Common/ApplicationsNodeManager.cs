@@ -631,7 +631,7 @@ namespace Opc.Ua.Gds.Server
 
             //create CertificateValidator with secure defaults
             var certificateValidator = new CertificateValidator();
-            certificateValidator.Update(m_securityConfiguration.TrustedIssuerCertificates, null, null);
+            certificateValidator.Update(m_configuration.SecurityConfiguration.TrustedIssuerCertificates, null, null);
 
 
             validityTime = DateTime.MinValue;
