@@ -574,6 +574,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.IsTrue(Utils.IsEqual(resultLegacy, resultLegacyPlus));
             Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpan));
             Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanChars));
+            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanCharsInline));
             Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanIndex));
             Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanDict));
         }
@@ -717,10 +718,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     {
                         if (lastOffset < i)
                         {
-#if NET48
-                            m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset).ToString());
-#else
+#if NETCOREAPP2_1_OR_GREATER
                             m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset));
+#else
+                            m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset).ToString());
 #endif
                         }
                         lastOffset = i + 1;
@@ -735,10 +736,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     if (lastOffset < i)
                     {
-#if NET48
-                        m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset).ToString());
-#else
+#if NETCOREAPP2_1_OR_GREATER
                         m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset));
+#else
+                        m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset).ToString());
 #endif
                     }
                     lastOffset = i + 1;
@@ -752,10 +753,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
             else if (lastOffset < charSpan.Length)
             {
-#if NET48
-                m_streamWriter.Write(charSpan.Slice(lastOffset, charSpan.Length - lastOffset).ToString());
-#else
+#if NETCOREAPP2_1_OR_GREATER
                 m_streamWriter.Write(charSpan.Slice(lastOffset, charSpan.Length - lastOffset));
+#else
+                m_streamWriter.Write(charSpan.Slice(lastOffset, charSpan.Length - lastOffset).ToString());
 #endif
             }
         }
@@ -780,10 +781,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     {
                         if (lastOffset < i)
                         {
-#if NET48
-                            m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset).ToString());
-#else
+#if NETCOREAPP2_1_OR_GREATER
                             m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset));
+#else
+                            m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset).ToString());
 #endif
                         }
                         lastOffset = i + 1;
@@ -799,10 +800,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     if (lastOffset < i - 1)
                     {
-#if NET48
-                        m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset).ToString());
-#else
+#if NETCOREAPP2_1_OR_GREATER
                         m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset));
+#else
+                        m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset).ToString());
 #endif
                     }
                     else
@@ -821,18 +822,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             if (lastOffset == 0)
             {
-#if NET48
-                m_streamWriter.Write(value);
-#else
+#if NETCOREAPP2_1_OR_GREATER
                 m_streamWriter.Write(charSpan);
+#else
+                m_streamWriter.Write(value);
 #endif
             }
             else if (lastOffset < charSpan.Length)
             {
-#if NET48
-                m_streamWriter.Write(charSpan.Slice(lastOffset, charSpan.Length - lastOffset).ToString());
-#else
+#if NETCOREAPP2_1_OR_GREATER
                 m_streamWriter.Write(charSpan.Slice(lastOffset, charSpan.Length - lastOffset));
+#else
+                m_streamWriter.Write(charSpan.Slice(lastOffset, charSpan.Length - lastOffset).ToString());
 #endif
             }
         }
@@ -842,10 +843,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             if (lastOffset < index - 2)
             {
-#if NET48
-                m_streamWriter.Write(valueSpan.Slice(lastOffset, index - lastOffset).ToString());
-#else
+#if NETCOREAPP2_1_OR_GREATER
                 m_streamWriter.Write(valueSpan.Slice(lastOffset, index - lastOffset));
+#else
+                m_streamWriter.Write(valueSpan.Slice(lastOffset, index - lastOffset).ToString());
 #endif
             }
             else
@@ -896,10 +897,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             if (lastOffset == 0)
             {
-#if NET48
-                m_streamWriter.Write(value);
-#else
+#if NETCOREAPP2_1_OR_GREATER
                 m_streamWriter.Write(charSpan);
+#else
+                m_streamWriter.Write(value);
 #endif
             }
             else
@@ -922,10 +923,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     if (lastOffset < i)
                     {
-#if NET48
-                        m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset).ToString());
-#else
+#if NETCOREAPP2_1_OR_GREATER
                         m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset));
+#else
+                        m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset).ToString());
 #endif
                     }
                     lastOffset = i + 1;
@@ -938,10 +939,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     if (lastOffset < i)
                     {
-#if NET48
-                        m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset).ToString());
-#else
+#if NETCOREAPP2_1_OR_GREATER
                         m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset));
+#else
+                        m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset).ToString());
 #endif
                     }
                     lastOffset = i + 1;
@@ -956,43 +957,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
             else if (lastOffset < charSpan.Length)
             {
-#if NET48
-                m_streamWriter.Write(charSpan.Slice(lastOffset, charSpan.Length - lastOffset).ToString());
-#else
+#if NETCOREAPP2_1_OR_GREATER
                 m_streamWriter.Write(charSpan.Slice(lastOffset, charSpan.Length - lastOffset));
+#else
+                m_streamWriter.Write(charSpan.Slice(lastOffset, charSpan.Length - lastOffset).ToString());
 #endif
             }
         }
 
-#if mist
-        public static byte[] EscapeValue(
-             ReadOnlySpan<byte> utf8Value,
-             int firstEscapeIndexVal,
-             JavaScriptEncoder encoder)
-        {
-            Debug.Assert(int.MaxValue / JsonConstants.MaxExpansionFactorWhileEscaping >= utf8Value.Length);
-            Debug.Assert(firstEscapeIndexVal >= 0 && firstEscapeIndexVal < utf8Value.Length);
-
-            byte[]? valueArray = null;
-
-            int length = JsonWriterHelper.GetMaxEscapedLength(utf8Value.Length, firstEscapeIndexVal);
-
-            Span<byte> escapedValue = length <= JsonConstants.StackallocByteThreshold ?
-                stackalloc byte[JsonConstants.StackallocByteThreshold] :
-                (valueArray = ArrayPool<byte>.Shared.Rent(length));
-
-            JsonWriterHelper.EscapeString(utf8Value, escapedValue, firstEscapeIndexVal, encoder, out int written);
-
-            byte[] escapedString = escapedValue.Slice(0, written).ToArray();
-
-            if (valueArray != null)
-            {
-                ArrayPool<byte>.Shared.Return(valueArray);
-            }
-
-            return escapedString;
-        }
-#endif
         private void EscapeStringSpanDict(string value)
         {
             ReadOnlySpan<char> charSpan = value.AsSpan();
@@ -1006,10 +978,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     if (lastOffset < i)
                     {
-#if NET48
-                        m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset).ToString());
-#else
+#if NETCOREAPP2_1_OR_GREATER
                         m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset));
+#else
+                        m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset).ToString());
 #endif
                     }
                     lastOffset = i + 1;
@@ -1022,10 +994,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     if (lastOffset < i)
                     {
-#if NET48
-                        m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset).ToString());
-#else
+#if NETCOREAPP2_1_OR_GREATER
                         m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset));
+#else
+                        m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset).ToString());
 #endif
                     }
                     lastOffset = i + 1;
@@ -1040,10 +1012,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
             else if (lastOffset < charSpan.Length)
             {
-#if NET48
-                m_streamWriter.Write(charSpan.Slice(lastOffset, charSpan.Length - lastOffset).ToString());
-#else
+#if NETCOREAPP2_1_OR_GREATER
                 m_streamWriter.Write(charSpan.Slice(lastOffset, charSpan.Length - lastOffset));
+#else
+                m_streamWriter.Write(charSpan.Slice(lastOffset, charSpan.Length - lastOffset).ToString());
 #endif
             }
         }
@@ -1100,6 +1072,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         #endregion
 
         #region Private Fields
+        private ThreadLocal<StringBuilder> m_stringBuilderPool = new ThreadLocal<StringBuilder>(() => new StringBuilder());
         private StringBuilder m_stringBuilder = new StringBuilder();
         private static string m_testString;
         private RecyclableMemoryStreamManager m_memoryManager;
