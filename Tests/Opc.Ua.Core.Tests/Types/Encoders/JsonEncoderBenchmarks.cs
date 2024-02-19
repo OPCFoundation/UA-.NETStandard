@@ -590,7 +590,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
-            m_streamWriter?.Flush();
             var result = Encoding.UTF8.GetString(m_memoryStream.ToArray());
             Assert.NotNull(result);
 
@@ -618,7 +617,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [GlobalCleanup]
         public void GlobalCleanup()
         {
-            m_streamWriter?.Flush();
             m_streamWriter?.Dispose();
             m_streamWriter = null;
             m_memoryStream?.Dispose();
@@ -1085,24 +1083,24 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 // Check if ch is present in the dictionary
                 if (m_replace.TryGetValue(ch, out string escapeSequence))
                 {
-                    stringBuilder.Append(escapeSequence);
+                    m_stringBuilder.Append(escapeSequence);
                 }
                 else if (ch < 32)
                 {
-                    stringBuilder.Append("\\u");
-                    stringBuilder.Append(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
+                    m_stringBuilder.Append("\\u");
+                    m_stringBuilder.Append(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
                 }
                 else
                 {
-                    stringBuilder.Append(ch);
+                    m_stringBuilder.Append(ch);
                 }
             }
-            m_streamWriter.Write(stringBuilder);
+            m_streamWriter.Write(m_stringBuilder);
         }
         #endregion
 
         #region Private Fields
-        private ThreadLocal<StringBuilder> m_stringBuilderPool = new ThreadLocal<StringBuilder>(() => new StringBuilder());
+        private StringBuilder m_stringBuilder = new StringBuilder();
         private static string m_testString;
         private RecyclableMemoryStreamManager m_memoryManager;
         private RecyclableMemoryStream m_memoryStream;
