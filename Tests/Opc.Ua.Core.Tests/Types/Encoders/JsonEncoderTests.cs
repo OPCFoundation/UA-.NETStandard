@@ -949,6 +949,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             TestContext.Out.WriteLine("Decoded: {0} {1}", decodedO.ToString("o"), decodedString.ToString("o"));
             Assert.AreEqual(decodedO, decodedString);
+            Assert.AreEqual(testDateTime, decodedO);
         }
         #endregion
 

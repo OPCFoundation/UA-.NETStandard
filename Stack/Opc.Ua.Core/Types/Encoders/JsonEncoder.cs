@@ -36,6 +36,7 @@ namespace Opc.Ua
         private static readonly char s_rightCurlyBrace = '}';
         private static readonly char s_leftSquareBracket = '[';
         private static readonly char s_rightSquareBracket = ']';
+        private static readonly UTF8Encoding s_utf8Encoding = new UTF8Encoding(false);
         private ThreadLocal<StringBuilder> m_stringBuilderPool = new ThreadLocal<StringBuilder>(() => new StringBuilder());
         private Stream m_stream;
         private MemoryStream m_memoryStream;
@@ -89,12 +90,12 @@ namespace Opc.Ua
             if (m_stream == null)
             {
                 m_memoryStream = new MemoryStream();
-                m_writer = new StreamWriter(m_memoryStream, new UTF8Encoding(false), streamSize, false);
+                m_writer = new StreamWriter(m_memoryStream, s_utf8Encoding, streamSize, false);
                 m_leaveOpen = false;
             }
             else
             {
-                m_writer = new StreamWriter(m_stream, new UTF8Encoding(false), streamSize, m_leaveOpen);
+                m_writer = new StreamWriter(m_stream, s_utf8Encoding, streamSize, m_leaveOpen);
             }
 
             InitializeWriter();
@@ -119,7 +120,7 @@ namespace Opc.Ua
             if (m_writer == null)
             {
                 m_stream = new MemoryStream();
-                m_writer = new StreamWriter(m_stream, new UTF8Encoding(false), kStreamWriterBufferSize);
+                m_writer = new StreamWriter(m_stream, s_utf8Encoding, kStreamWriterBufferSize);
             }
 
             InitializeWriter();
@@ -295,11 +296,11 @@ namespace Opc.Ua
             {
                 if (m_topLevelIsArray)
                 {
-                    m_writer.Write("]");
+                    m_writer.Write(']');
                 }
                 else
                 {
-                    m_writer.Write("}");
+                    m_writer.Write('}');
                 }
             }
 
@@ -515,7 +516,6 @@ namespace Opc.Ua
         /// Escapes a string and writes it to the stream.
         /// </summary>
         /// <param name="value"></param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void EscapeString(string value)
         {
             StringBuilder stringBuilder = m_stringBuilderPool.Value;

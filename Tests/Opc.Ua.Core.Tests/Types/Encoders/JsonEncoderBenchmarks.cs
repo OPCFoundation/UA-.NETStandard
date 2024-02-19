@@ -28,21 +28,16 @@
  * ======================================================================*/
 
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
-using System.Xml;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Diagnosers;
-using FastSerialization;
-using Microsoft.Extensions.Logging;
 using Microsoft.IO;
 using NUnit.Framework;
-using NUnit.Framework.Constraints;
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
@@ -80,7 +75,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void StreamWriterRecyclableMemoryStream()
         {
-            using (var memoryStream = new Microsoft.IO.RecyclableMemoryStream(m_memoryManager))
+            using (var memoryStream = new RecyclableMemoryStream(m_memoryManager))
             using (var test = new StreamWriter(memoryStream, Encoding.UTF8, StreamSize))
                 test.Flush();
         }
@@ -200,8 +195,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // for validating benchmark tests
             m_context = new ServiceMessageContext();
             m_memoryStream = new MemoryStream();
-            m_memoryManager = new Microsoft.IO.RecyclableMemoryStreamManager();
-            m_recyclableMemoryStream = new Microsoft.IO.RecyclableMemoryStream(m_memoryManager);
+            m_memoryManager = new RecyclableMemoryStreamManager();
+            m_recyclableMemoryStream = new RecyclableMemoryStream(m_memoryManager);
             m_bufferManager = new BufferManager(nameof(BinaryEncoder), kBufferSize);
             m_arraySegmentStream = new ArraySegmentStream(m_bufferManager, kBufferSize, 0, kBufferSize);
         }
@@ -231,8 +226,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // for validating benchmark tests
             m_context = new ServiceMessageContext();
             m_memoryStream = new MemoryStream();
-            m_memoryManager = new Microsoft.IO.RecyclableMemoryStreamManager();
-            m_recyclableMemoryStream = new Microsoft.IO.RecyclableMemoryStream(m_memoryManager);
+            m_memoryManager = new RecyclableMemoryStreamManager();
+            m_recyclableMemoryStream = new RecyclableMemoryStream(m_memoryManager);
             m_bufferManager = new BufferManager(nameof(BinaryEncoder), kBufferSize);
             m_arraySegmentStream = new ArraySegmentStream(m_bufferManager, kBufferSize, 0, kBufferSize);
         }
@@ -260,8 +255,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         private static IList<Int32> s_list = new List<Int32>() { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
         private IServiceMessageContext m_context;
         private MemoryStream m_memoryStream;
-        private Microsoft.IO.RecyclableMemoryStreamManager m_memoryManager;
-        private Microsoft.IO.RecyclableMemoryStream m_recyclableMemoryStream;
+        private RecyclableMemoryStreamManager m_memoryManager;
+        private RecyclableMemoryStream m_recyclableMemoryStream;
         private BufferManager m_bufferManager;
         private ArraySegmentStream m_arraySegmentStream;
         #endregion
@@ -347,35 +342,249 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     [DisassemblyDiagnoser(printSource: true)]
     public class JsonEncoderEscapeStringBenchmark
     {
+        public const int InnerLoops = 100;
+        [DatapointSource]
+        [Params(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)]
+        public int StringVariantIndex { get; set; } = 1;
 
-        [Params(1,2,3)]
-        public int StringVariantIndex  { get; set; } = 3;
-
-        [Benchmark]
-        public void EscapeStringBenchmark1()
+        [DatapointSource]
+        // for benchmarking with different escaped strings
+        public static readonly string[] EscapeTestStrings =
         {
-            m_memoryStream.SetLength(0);
+            // The use case without escape characters, plain text
+                "The quick brown fox jumps over the lazy dog.",
+            // The use case with many control characters escaped, 1 char spaces
+                "\" \n \r \t \b \f \\ ",
+            // The use case with many control characters escaped, 2 char spaces
+                "  \"  \n  \r  \t  \b  \f  \\  ",
+            // The use case with many control characters escaped, 3 char spaces
+                "   \"   \n   \r   \t   \b   \f   \\   ",
+            // The use case with many control characters escaped, 5 char spaces
+                "     \"     \n     \r     \t     \b     \f     \\     ",
+            // The use case with many binary characters escaped, 1 char spaces
+                "\0 \x01 \x02 \x03 \x04 ",
+            // The use case with many binary characters escaped, 2 char spaces
+                "  \0  \x01  \x02  \x03  \x04  ",
+            // The use case with many binary characters escaped, 3 char spaces
+                "   \0   \x01   \x02   \x03   \x04   ",
+            // The use case with many binary characters escaped, 5 char spaces
+                "     \0     \x01     \x02     \x03     \x04     ",
+            // The use case with all escape characters and a long string
+                "Ascii characters, special characters \n \b & control characters \0 \x04 ␀ ␁ ␂ ␃ ␄. This is a test.",
+        };
+
+        /// <summary>
+        /// Benchmark encoding of the previous implementation.
+        /// </summary>
+        [Benchmark(Baseline = true)]
+        public void EscapeStringLegacy()
+        {
             m_memoryStream.Position = 0;
-            EscapedStringToStream(m_testString);
+            int repeats = InnerLoops;
+            while (repeats-- > 0)
+            {
+                EscapedStringLegacy(m_testString);
+            }
+            m_streamWriter.Flush();
         }
 
-        [Test]
+        /// <summary>
+        /// Benchmark encoding of the previous implementation with snall improvement for binary encoding.
+        /// </summary>
         [Benchmark]
-        public void EscapeStringBenchmark2()
+        public void EscapeStringLegacyPlus()
         {
-            m_memoryStream.SetLength(0);
             m_memoryStream.Position = 0;
-            EscapeString(m_testString);
+            int repeats = InnerLoops;
+            while (repeats-- > 0)
+            {
+                EscapedStringLegacyPlus(m_testString);
+            }
+            m_streamWriter.Flush();
+        }
+
+        /// <summary>
+        /// A new implementation using StringBuilder.
+        /// </summary>
+        [Benchmark]
+        public void EscapeStringStringBuilder()
+        {
+            m_memoryStream.Position = 0;
+            int repeats = InnerLoops;
+            while (repeats-- > 0)
+            {
+                EscapeString(m_testString);
+            }
+            m_streamWriter.Flush();
+        }
+
+        /// <summary>
+        /// A new implementation using ThreadLocal StringBuilder.
+        /// </summary>
+        [Benchmark]
+        public void EscapeStringThreadLocal()
+        {
+            m_memoryStream.Position = 0;
+            int repeats = InnerLoops;
+            while (repeats-- > 0)
+            {
+                EscapeStringThreadLocal(m_testString);
+            }
+            m_streamWriter.Flush();
+        }
+
+        /// <summary>
+        /// A new implementation using ReadOnlySpan.
+        /// </summary>
+        [Benchmark]
+        public void EscapeStringSpan()
+        {
+            m_memoryStream.Position = 0;
+            int repeats = InnerLoops;
+            while (repeats-- > 0)
+            {
+                EscapeStringSpan(m_testString);
+            }
+            m_streamWriter.Flush();
+        }
+
+        /// <summary>
+        /// A new implementation using ReadOnlySpan and char write.
+        /// </summary>
+        [Benchmark]
+        public void EscapeStringSpanChars()
+        {
+            m_memoryStream.Position = 0;
+            int repeats = InnerLoops;
+            while (repeats-- > 0)
+            {
+                EscapeStringSpanChars(m_testString);
+            }
+            m_streamWriter.Flush();
+        }
+
+        /// <summary>
+        /// A new implementation using ReadOnlySpan and char write.
+        /// </summary>
+        [Benchmark]
+        public void EscapeStringSpanCharsInline()
+        {
+            m_memoryStream.Position = 0;
+            int repeats = InnerLoops;
+            while (repeats-- > 0)
+            {
+                EscapeStringSpanCharsInline(m_testString);
+            }
+            m_streamWriter.Flush();
+        }
+
+        /// <summary>
+        /// A new implementation using ReadOnlySpan and IndexOf.
+        /// </summary>
+        [Benchmark]
+        public void EscapeStringSpanIndex()
+        {
+            m_memoryStream.Position = 0;
+            int repeats = InnerLoops;
+            while (repeats-- > 0)
+            {
+                EscapeStringSpanIndex(m_testString);
+            }
+            m_streamWriter.Flush();
+        }
+
+        /// <summary>
+        /// A new implementation using ReadOnlySpan and Dictionary.
+        /// </summary>
+        [Benchmark]
+        public void EscapeStringSpanDict()
+        {
+            m_memoryStream.Position = 0;
+            int repeats = InnerLoops;
+            while (repeats-- > 0)
+            {
+                EscapeStringSpanDict(m_testString);
+            }
+            m_streamWriter.Flush();
+        }
+
+        [Theory]
+        [TestCase("No Escape chars", 0)]
+        [TestCase("control chars escaped", 1)]
+        [TestCase("binary chars escaped", 2)]
+        [TestCase("mixed escape chars", 3)]
+        public void EscapeStringValidation(string name, int index)
+        {
+            m_memoryStream = new RecyclableMemoryStream(m_memoryManager);
+            m_streamWriter = new StreamWriter(m_memoryStream, new UTF8Encoding(false), m_streamSize, false);
+
+            m_testString = EscapeTestStrings[index];
+            TestContext.Out.WriteLine(m_testString);
+            var testArray = m_testString.ToCharArray();
+
+            m_memoryStream.Position = 0;
+            EscapeStringLegacy();
+            m_streamWriter.Flush();
+            byte[] resultLegacy = m_memoryStream.ToArray();
+            TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultLegacy));
+
+            m_memoryStream.Position = 0;
+            EscapeStringLegacyPlus();
+            m_streamWriter.Flush();
+            byte[] resultLegacyPlus = m_memoryStream.ToArray();
+            TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultLegacyPlus));
+
+            m_memoryStream.Position = 0;
+            EscapeStringStringBuilder();
+            m_streamWriter.Flush();
+            byte[] result = m_memoryStream.ToArray();
+            TestContext.Out.WriteLine(Encoding.UTF8.GetString(result));
+
+            m_memoryStream.Position = 0;
+            EscapeStringSpan(m_testString);
+            m_streamWriter.Flush();
+            byte[] resultSpan = m_memoryStream.ToArray();
+            TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultSpan));
+
+            m_memoryStream.Position = 0;
+            EscapeStringSpanChars(m_testString);
+            m_streamWriter.Flush();
+            byte[] resultSpanChars = m_memoryStream.ToArray();
+            TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultSpanChars));
+
+            m_memoryStream.Position = 0;
+            EscapeStringSpanCharsInline(m_testString);
+            m_streamWriter.Flush();
+            byte[] resultSpanCharsInline = m_memoryStream.ToArray();
+            TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultSpanCharsInline));
+
+            m_memoryStream.Position = 0;
+            EscapeStringSpanIndex(m_testString);
+            m_streamWriter.Flush();
+            byte[] resultSpanIndex = m_memoryStream.ToArray();
+            TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultSpanIndex));
+
+            m_memoryStream.Position = 0;
+            EscapeStringSpanDict(m_testString);
+            m_streamWriter.Flush();
+            byte[] resultSpanDict = m_memoryStream.ToArray();
+            TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultSpanDict));
+
+            Assert.IsTrue(Utils.IsEqual(resultLegacy, result));
+            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultLegacyPlus));
+            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpan));
+            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanChars));
+            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanIndex));
+            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanDict));
         }
 
         #region Test Setup
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            m_memoryManager = new Microsoft.IO.RecyclableMemoryStreamManager();
-            m_memoryStream = new Microsoft.IO.RecyclableMemoryStream(m_memoryManager);
-            m_streamWriter = new StreamWriter(m_memoryStream, Encoding.UTF8, m_streamSize, false);
-            m_testString = "Test string ascii, special characters \n \b and control characters \0 \x04 ␀ ␁ ␂ ␃ ␄";
+            m_memoryManager = new RecyclableMemoryStreamManager();
+            m_memoryStream = new RecyclableMemoryStream(m_memoryManager);
+            m_streamWriter = new StreamWriter(m_memoryStream, new UTF8Encoding(false), m_streamSize, false);
         }
 
         [OneTimeTearDown]
@@ -389,29 +598,21 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_streamWriter = null;
             m_memoryStream?.Dispose();
             m_memoryStream = null;
-            m_recyclableMemoryStream?.Dispose();
-            m_recyclableMemoryStream = null;
             m_memoryManager = null;
         }
         #endregion
 
         #region Benchmark Setup
-        /// <summary>
+        /// <summary>4
         /// Set up some variables for benchmarks.
         /// </summary>
         [GlobalSetup]
         public void GlobalSetup()
         {
-            m_memoryStream = new MemoryStream();
-            m_streamWriter = new StreamWriter(m_memoryStream, Encoding.UTF8, m_streamSize, false);
-
-            // for validating benchmark tests
-            switch (StringVariantIndex )
-            {
-                case 1: m_testString = "\" \n \r \t \b \f \\"; break;
-                case 2: m_testString = "\0 \x01 \x02 \x03 \x04"; break;
-                default: m_testString = "Ascii characters , special characters \n \b & control characters \0 \x04 ␀ ␁ ␂ ␃ ␄"; break;
-            }
+            m_memoryManager = new RecyclableMemoryStreamManager();
+            m_memoryStream = new RecyclableMemoryStream(m_memoryManager);
+            m_streamWriter = new StreamWriter(m_memoryStream, new UTF8Encoding(false), m_streamSize, false);
+            m_testString = EscapeTestStrings[StringVariantIndex - 1];
         }
 
         [GlobalCleanup]
@@ -422,14 +623,15 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_streamWriter = null;
             m_memoryStream?.Dispose();
             m_memoryStream = null;
-            m_recyclableMemoryStream?.Dispose();
-            m_recyclableMemoryStream = null;
             m_memoryManager = null;
         }
         #endregion
 
         #region Private Methods
-        private void EscapedStringToStream(string value)
+        /// <summary>
+        /// Version used previously in JsonEncoder.
+        /// </summary>
+        private void EscapedStringLegacy(string value)
         {
             foreach (char ch in value)
             {
@@ -460,8 +662,419 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
         }
 
+        /// <summary>
+        /// Version used previously in JsonEncoder plus improvement of binary encoding.
+        /// </summary>
+        /// <remarks>
+        /// For the underlying stream writer it is faster to write two chars than a 2 char string.
+        /// </remarks>
+        private void EscapedStringLegacyPlus(string value)
+        {
+            foreach (char ch in value)
+            {
+                bool found = false;
+
+                for (int ii = 0; ii < m_specialChars.Length; ii++)
+                {
+                    if (m_specialChars[ii] == ch)
+                    {
+                        m_streamWriter.Write('\\');
+                        m_streamWriter.Write(m_substitution[ii]);
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found)
+                {
+                    if (ch < 32)
+                    {
+                        m_streamWriter.Write('\\');
+                        m_streamWriter.Write('u');
+                        m_streamWriter.Write(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
+                        continue;
+                    }
+
+                    m_streamWriter.Write(ch);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Using a span to escape the string, write strings to stream writer if possible.
+        /// </summary>
+        private void EscapeStringSpan(string value)
+        {
+            ReadOnlySpan<char> charSpan = value.AsSpan();
+            int lastOffset = 0;
+
+            for (int i = 0; i < charSpan.Length; i++)
+            {
+                bool found = false;
+                char ch = charSpan[i];
+
+                for (int ii = 0; ii < m_specialChars.Length; ii++)
+                {
+                    if (m_specialChars[ii] == ch)
+                    {
+                        if (lastOffset < i)
+                        {
+#if NET48
+                            m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset).ToString());
+#else
+                            m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset));
+#endif
+                        }
+                        lastOffset = i + 1;
+                        m_streamWriter.Write(m_substitutionStrings[ii]);
+                        found = true;
+                        break;
+                    }
+                }
+
+                // Check if ch is present in the dictionary
+                if (!found && ch < 32)
+                {
+                    if (lastOffset < i)
+                    {
+#if NET48
+                        m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset).ToString());
+#else
+                        m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset));
+#endif
+                    }
+                    lastOffset = i + 1;
+                    m_streamWriter.Write("\\u");
+                    m_streamWriter.Write(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
+                }
+            }
+            if (lastOffset == 0)
+            {
+                m_streamWriter.Write(value);
+            }
+            else if (lastOffset < charSpan.Length)
+            {
+#if NET48
+                m_streamWriter.Write(charSpan.Slice(lastOffset, charSpan.Length - lastOffset).ToString());
+#else
+                m_streamWriter.Write(charSpan.Slice(lastOffset, charSpan.Length - lastOffset));
+#endif
+            }
+        }
+
+        /// <summary>
+        /// Use span to escape the string, write only chars to stream writer.
+        /// </summary>
+        /// <param name="value"></param>
+        private void EscapeStringSpanChars(string value)
+        {
+            ReadOnlySpan<char> charSpan = value.AsSpan();
+
+            int lastOffset = 0;
+            for (int i = 0; i < charSpan.Length; i++)
+            {
+                bool found = false;
+                char ch = charSpan[i];
+
+                for (int ii = 0; ii < m_specialChars.Length; ii++)
+                {
+                    if (m_specialChars[ii] == ch)
+                    {
+                        if (lastOffset < i)
+                        {
+#if NET48
+                            m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset).ToString());
+#else
+                            m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset));
+#endif
+                        }
+                        lastOffset = i + 1;
+                        m_streamWriter.Write('\\');
+                        m_streamWriter.Write(m_substitution[ii]);
+                        found = true;
+                        break;
+                    }
+                }
+
+                // Check if ch is present in the dictionary
+                if (!found && ch < 32)
+                {
+                    if (lastOffset < i - 1)
+                    {
+#if NET48
+                        m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset).ToString());
+#else
+                        m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset));
+#endif
+                    }
+                    else
+                    {
+                        while (lastOffset < i)
+                        {
+                            m_streamWriter.Write(charSpan[lastOffset++]);
+                        }
+                    }
+                    lastOffset = i + 1;
+                    m_streamWriter.Write('\\');
+                    m_streamWriter.Write('u');
+                    m_streamWriter.Write(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
+                }
+            }
+
+            if (lastOffset == 0)
+            {
+#if NET48
+                m_streamWriter.Write(value);
+#else
+                m_streamWriter.Write(charSpan);
+#endif
+            }
+            else if (lastOffset < charSpan.Length)
+            {
+#if NET48
+                m_streamWriter.Write(charSpan.Slice(lastOffset, charSpan.Length - lastOffset).ToString());
+#else
+                m_streamWriter.Write(charSpan.Slice(lastOffset, charSpan.Length - lastOffset));
+#endif
+            }
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void WriteSpan(ref int lastOffset, ReadOnlySpan<char> valueSpan, int index)
+        {
+            if (lastOffset < index - 2)
+            {
+#if NET48
+                m_streamWriter.Write(valueSpan.Slice(lastOffset, index - lastOffset).ToString());
+#else
+                m_streamWriter.Write(valueSpan.Slice(lastOffset, index - lastOffset));
+#endif
+            }
+            else
+            {
+                while (lastOffset < index)
+                {
+                    m_streamWriter.Write(valueSpan[lastOffset++]);
+                }
+            }
+            lastOffset = index + 1;
+        }
+
+        /// <summary>
+        /// Write only chars to stream writer, inline the write sequence for readability.
+        /// </summary>
+        /// <param name="value"></param>
+        private void EscapeStringSpanCharsInline(string value)
+        {
+            ReadOnlySpan<char> charSpan = value.AsSpan();
+            int lastOffset = 0;
+
+            for (int i = 0; i < charSpan.Length; i++)
+            {
+                bool found = false;
+                char ch = charSpan[i];
+
+                for (int ii = 0; ii < m_specialChars.Length; ii++)
+                {
+                    if (m_specialChars[ii] == ch)
+                    {
+                        WriteSpan(ref lastOffset, charSpan, i);
+                        m_streamWriter.Write('\\');
+                        m_streamWriter.Write(m_substitution[ii]);
+                        found = true;
+                        break;
+                    }
+                }
+
+                // Check if ch is present in the dictionary
+                if (!found && ch < 32)
+                {
+                    WriteSpan(ref lastOffset, charSpan, i);
+                    m_streamWriter.Write('\\');
+                    m_streamWriter.Write('u');
+                    m_streamWriter.Write(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
+                }
+            }
+
+            if (lastOffset == 0)
+            {
+#if NET48
+                m_streamWriter.Write(value);
+#else
+                m_streamWriter.Write(charSpan);
+#endif
+            }
+            else
+            {
+                WriteSpan(ref lastOffset, charSpan, charSpan.Length);
+            }
+        }
+
+        private void EscapeStringSpanIndex(string value)
+        {
+            ReadOnlySpan<char> charSpan = value.AsSpan();
+
+            int lastOffset = 0;
+            for (int i = 0; i < charSpan.Length; i++)
+            {
+                char ch = charSpan[i];
+
+                int index = m_specialString.IndexOf(ch);
+                if (index >= 0)
+                {
+                    if (lastOffset < i)
+                    {
+#if NET48
+                        m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset).ToString());
+#else
+                        m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset));
+#endif
+                    }
+                    lastOffset = i + 1;
+                    m_streamWriter.Write(m_substitutionStrings[index]);
+                    continue;
+                }
+
+                // Check if ch is present in the dictionary
+                if (ch < 32)
+                {
+                    if (lastOffset < i)
+                    {
+#if NET48
+                        m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset).ToString());
+#else
+                        m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset));
+#endif
+                    }
+                    lastOffset = i + 1;
+                    m_streamWriter.Write('\\');
+                    m_streamWriter.Write('u');
+                    m_streamWriter.Write(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
+                }
+            }
+            if (lastOffset == 0)
+            {
+                m_streamWriter.Write(value);
+            }
+            else if (lastOffset < charSpan.Length)
+            {
+#if NET48
+                m_streamWriter.Write(charSpan.Slice(lastOffset, charSpan.Length - lastOffset).ToString());
+#else
+                m_streamWriter.Write(charSpan.Slice(lastOffset, charSpan.Length - lastOffset));
+#endif
+            }
+        }
+
+#if mist
+        public static byte[] EscapeValue(
+             ReadOnlySpan<byte> utf8Value,
+             int firstEscapeIndexVal,
+             JavaScriptEncoder encoder)
+        {
+            Debug.Assert(int.MaxValue / JsonConstants.MaxExpansionFactorWhileEscaping >= utf8Value.Length);
+            Debug.Assert(firstEscapeIndexVal >= 0 && firstEscapeIndexVal < utf8Value.Length);
+
+            byte[]? valueArray = null;
+
+            int length = JsonWriterHelper.GetMaxEscapedLength(utf8Value.Length, firstEscapeIndexVal);
+
+            Span<byte> escapedValue = length <= JsonConstants.StackallocByteThreshold ?
+                stackalloc byte[JsonConstants.StackallocByteThreshold] :
+                (valueArray = ArrayPool<byte>.Shared.Rent(length));
+
+            JsonWriterHelper.EscapeString(utf8Value, escapedValue, firstEscapeIndexVal, encoder, out int written);
+
+            byte[] escapedString = escapedValue.Slice(0, written).ToArray();
+
+            if (valueArray != null)
+            {
+                ArrayPool<byte>.Shared.Return(valueArray);
+            }
+
+            return escapedString;
+        }
+#endif
+        private void EscapeStringSpanDict(string value)
+        {
+            ReadOnlySpan<char> charSpan = value.AsSpan();
+
+            int lastOffset = 0;
+            for (int i = 0; i < charSpan.Length; i++)
+            {
+                char ch = charSpan[i];
+
+                if (m_replace.TryGetValue(ch, out string escapeSequence))
+                {
+                    if (lastOffset < i)
+                    {
+#if NET48
+                        m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset).ToString());
+#else
+                        m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset));
+#endif
+                    }
+                    lastOffset = i + 1;
+                    m_streamWriter.Write(escapeSequence);
+                    continue;
+                }
+
+                // Check if ch is present in the dictionary
+                if (ch < 32)
+                {
+                    if (lastOffset < i)
+                    {
+#if NET48
+                        m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset).ToString());
+#else
+                        m_streamWriter.Write(charSpan.Slice(lastOffset, i - lastOffset));
+#endif
+                    }
+                    lastOffset = i + 1;
+                    m_streamWriter.Write('\\');
+                    m_streamWriter.Write('u');
+                    m_streamWriter.Write(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
+                }
+            }
+            if (lastOffset == 0)
+            {
+                m_streamWriter.Write(value);
+            }
+            else if (lastOffset < charSpan.Length)
+            {
+#if NET48
+                m_streamWriter.Write(charSpan.Slice(lastOffset, charSpan.Length - lastOffset).ToString());
+#else
+                m_streamWriter.Write(charSpan.Slice(lastOffset, charSpan.Length - lastOffset));
+#endif
+            }
+        }
+
         private void EscapeString(string value)
+        {
+            StringBuilder stringBuilder = new StringBuilder(value.Length * 2);
+
+            foreach (char ch in value)
+            {
+                // Check if ch is present in the dictionary
+                if (m_replace.TryGetValue(ch, out string escapeSequence))
+                {
+                    stringBuilder.Append(escapeSequence);
+                }
+                else if (ch < 32)
+                {
+                    stringBuilder.Append("\\u");
+                    stringBuilder.Append(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
+                }
+                else
+                {
+                    stringBuilder.Append(ch);
+                }
+            }
+            m_streamWriter.Write(stringBuilder);
+        }
+
+        private void EscapeStringThreadLocal(string value)
         {
             StringBuilder stringBuilder = m_stringBuilderPool.Value;
             stringBuilder.Clear();
@@ -491,13 +1104,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         #region Private Fields
         private ThreadLocal<StringBuilder> m_stringBuilderPool = new ThreadLocal<StringBuilder>(() => new StringBuilder());
         private static string m_testString;
-        private Microsoft.IO.RecyclableMemoryStreamManager m_memoryManager;
-        private Microsoft.IO.RecyclableMemoryStream m_recyclableMemoryStream;
-        private MemoryStream m_memoryStream;
+        private RecyclableMemoryStreamManager m_memoryManager;
+        private RecyclableMemoryStream m_memoryStream;
         private StreamWriter m_streamWriter;
         private int m_streamSize = 1024;
+        private static readonly string m_specialString = "\"\\\n\r\t\b\f";
         private static readonly char[] m_specialChars = new char[] { '\"', '\\', '\n', '\r', '\t', '\b', '\f', };
         private static readonly char[] m_substitution = new char[] { '\"', '\\', 'n', 'r', 't', 'b', 'f' };
+        private static readonly string[] m_substitutionStrings = new string[] { "\\\"", "\\\\", "\\n", "\\r", "\\t", "\\b", "\\f" };
         private static readonly Dictionary<char, string> m_replace = new Dictionary<char, string>
         {
             {  '\"', "\\\"" },
