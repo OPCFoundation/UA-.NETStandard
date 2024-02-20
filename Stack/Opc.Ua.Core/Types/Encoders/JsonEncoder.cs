@@ -501,16 +501,62 @@ namespace Opc.Ua
             m_namespaces.Pop();
         }
 
-        private static readonly Dictionary<char, string> m_substitution = new Dictionary<char, string>
+        private static readonly char[] m_specialChars = new char[] { s_quotation, s_backslash, '\n', '\r', '\t', '\b', '\f', };
+#if NETCOREAPP2_1_OR_GREATER
+        private static readonly string[] m_substitutionStrings = new string[] { "\\\"", "\\\\", "\\n", "\\r", "\\t", "\\b", "\\f" };
+
+        /// <summary>
+        /// Using a span to escape the string, write strings to stream writer if possible.
+        /// </summary>
+        /// <param name="value"></param>
+        private void EscapeString(string value)
         {
-            { s_quotation, "\\\"" },
-            { s_backslash, "\\\\" },
-            { '\n', "\\n" },
-            { '\r', "\\r" },
-            { '\t', "\\t" },
-            { '\b', "\\b" },
-            { '\f', "\\f" }
-        };
+            ReadOnlySpan<char> charSpan = value.AsSpan();
+            int lastOffset = 0;
+
+            for (int i = 0; i < charSpan.Length; i++)
+            {
+                bool found = false;
+                char ch = charSpan[i];
+
+                for (int ii = 0; ii < m_specialChars.Length; ii++)
+                {
+                    if (m_specialChars[ii] == ch)
+                    {
+                        if (lastOffset < i)
+                        {
+                            m_writer.Write(charSpan.Slice(lastOffset, i - lastOffset));
+                        }
+                        lastOffset = i + 1;
+                        m_writer.Write(m_substitutionStrings[ii]);
+                        found = true;
+                        break;
+                    }
+                }
+
+                // Check if ch is present in the dictionary
+                if (!found && ch < 32)
+                {
+                    if (lastOffset < i)
+                    {
+                        m_writer.Write(charSpan.Slice(lastOffset, i - lastOffset));
+                    }
+                    lastOffset = i + 1;
+                    m_writer.Write("\\u");
+                    m_writer.Write(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
+                }
+            }
+            if (lastOffset == 0)
+            {
+                m_writer.Write(value);
+            }
+            else if (lastOffset < charSpan.Length)
+            {
+                m_writer.Write(charSpan.Slice(lastOffset, charSpan.Length - lastOffset));
+            }
+        }
+#else
+        private static readonly char[] m_substitution = new char[] { '\"', '\\', 'n', 'r', 't', 'b', 'f' };
 
         /// <summary>
         /// Escapes a string and writes it to the stream.
@@ -518,29 +564,35 @@ namespace Opc.Ua
         /// <param name="value"></param>
         private void EscapeString(string value)
         {
-            m_stringBuilder.Clear();
-            m_stringBuilder.EnsureCapacity(value.Length * 2);
-
             foreach (char ch in value)
             {
-                // Check if ch is present in the dictionary
-                if (m_substitution.TryGetValue(ch, out string escapeSequence))
+                bool found = false;
+
+                for (int ii = 0; ii < m_specialChars.Length; ii++)
                 {
-                    m_stringBuilder.Append(escapeSequence);
+                    if (m_specialChars[ii] == ch)
+                    {
+                        m_writer.Write('\\');
+                        m_writer.Write(m_substitution[ii]);
+                        found = true;
+                        break;
+                    }
                 }
-                else if (ch < 32)
+
+                if (!found)
                 {
-                    m_stringBuilder.Append("\\u");
-                    m_stringBuilder.Append(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
-                }
-                else
-                {
-                    m_stringBuilder.Append(ch);
+                    if (ch < 32)
+                    {
+                        m_writer.Write('\\');
+                        m_writer.Write('u');
+                        m_writer.Write(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
+                        continue;
+                    }
+                    m_writer.Write(ch);
                 }
             }
-
-            m_writer.Write(m_stringBuilder);
         }
+#endif
 
         private void WriteSimpleField(string fieldName, string value, bool quotes)
         {
@@ -2221,7 +2273,7 @@ namespace Opc.Ua
 
             PopArray();
         }
-        #endregion
+#endregion
 
         #region Public Methods
         /// <summary>
