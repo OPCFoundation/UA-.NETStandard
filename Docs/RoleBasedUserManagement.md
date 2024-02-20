@@ -7,7 +7,7 @@ Those permissions are then assigned to a role.
 The role is assigned to one or multiple Identities by the Server.
 
 Since #2444 the OPC UA .NET Standard Stack implements the well known roles from:
-https://reference.opcfoundation.org/Core/Part3/v105/docs/4.9.2
+[UA Part 3: Address Space Model - 4.9.2 Well Known Roles](https://reference.opcfoundation.org/Core/Part3/v105/docs/4.9.2)
 
 - Anonymous
 - AuthenticatedUser
@@ -22,23 +22,23 @@ https://reference.opcfoundation.org/Core/Part3/v105/docs/4.9.2
 
 To get started using well known roles in your server the first thing you have to do is returning a RoleBasedIdentity in the overriden SessionManager_ImpersonateUser Method.
 
-https://github.com/OPCFoundation/UA-.NETStandard/blob/61edad9d6361b566baa5fdd69a23e7ac58c3433d/Applications/Quickstarts.Servers/ReferenceServer/ReferenceServer.cs#L229C22-L229C52
+[ReferenceServer.cs (SessionManager_ImpersonateUser)](https://github.com/OPCFoundation/UA-.NETStandard/blob/61edad9d6361b566baa5fdd69a23e7ac58c3433d/Applications/Quickstarts.Servers/ReferenceServer/ReferenceServer.cs#L229C22-L229C52)
 
-https://github.com/OPCFoundation/UA-.NETStandard/blob/61edad9d6361b566baa5fdd69a23e7ac58c3433d/Applications/Quickstarts.Servers/ReferenceServer/ReferenceServer.cs#L327
+[ReferenceServer.cs (new RoleBasedIdentity)](https://github.com/OPCFoundation/UA-.NETStandard/blob/61edad9d6361b566baa5fdd69a23e7ac58c3433d/Applications/Quickstarts.Servers/ReferenceServer/ReferenceServer.cs#L327)
 
 You can add as many roles to your returned identity as needed.
 
 All well knwon roles are created as static properties in the Role class of the server:
 
-https://github.com/OPCFoundation/UA-.NETStandard/blob/61edad9d6361b566baa5fdd69a23e7ac58c3433d/Libraries/Opc.Ua.Server/RoleBasedUserManagement/RoleBasedIdentity.cs
+[RoleBasedIdentity.cs](https://github.com/OPCFoundation/UA-.NETStandard/blob/61edad9d6361b566baa5fdd69a23e7ac58c3433d/Libraries/Opc.Ua.Server/RoleBasedUserManagement/RoleBasedIdentity.cs)
 
 If you want to add additional roles you can refer to the GDS implementation which adds some user defined roles.
 
 To make it easier to implement a real user name / pw implementation, avoiding hardcoded passwords, the Server Library provides an interface and a sample implementation for a users database:
 
-https://github.com/OPCFoundation/UA-.NETStandard/tree/61edad9d6361b566baa5fdd69a23e7ac58c3433d/Libraries/Opc.Ua.Server/RoleBasedUserManagement/UserDatabase
+[RoleBasedUserManagement/UserDatabase](https://github.com/OPCFoundation/UA-.NETStandard/tree/61edad9d6361b566baa5fdd69a23e7ac58c3433d/Libraries/Opc.Ua.Server/RoleBasedUserManagement/UserDatabase)
 
-```
+```C#
 public interface IUserDatabase
     {
         /// <summary>
@@ -85,27 +85,28 @@ public interface IUserDatabase
 ```
 
 An implementation targeting SQL Server using Entity Framework 6 is available in the Samples Repo:
-https://github.com/OPCFoundation/UA-.NETStandard-Samples/blob/e100ac787507988da95223a031af76fe57b5e11d/Samples/GDS/Server/SqlUsersDatabase.cs
+[SqlUsersDatabase.cs](https://github.com/OPCFoundation/UA-.NETStandard-Samples/blob/e100ac787507988da95223a031af76fe57b5e11d/Samples/GDS/Server/SqlUsersDatabase.cs)
 
 To enable the authorization for your servers methods you can take a look at the HasApplicationSecureAdminAccess method of the ConfigurationNodeManager:
 
-https://github.com/OPCFoundation/UA-.NETStandard/blob/61edad9d6361b566baa5fdd69a23e7ac58c3433d/Libraries/Opc.Ua.Server/Configuration/ConfigurationNodeManager.cs#L300C9-L319C10
+[ConfigurationNodeManager.cs](https://github.com/OPCFoundation/UA-.NETStandard/blob/61edad9d6361b566baa5fdd69a23e7ac58c3433d/Libraries/Opc.Ua.Server/Configuration/ConfigurationNodeManager.cs#L300C9-L319C10)
 
 This method verifies the current session has the needed roles to access the methods.
 
 ## GDS
 
-The GDS supports some additional well known roles starting with #2338
+The GDS supports some additional well known roles starting with 
+[GDS: implement ApplicationSelfAdmin privilege in GlobalDiscoverySampleServer by romanett · Pull Request #2338](https://github.com/OPCFoundation/UA-.NETStandard/pull/2338)
 
-https://reference.opcfoundation.org/GDS/v105/docs/6.2
-https://reference.opcfoundation.org/GDS/v105/docs/7.2
+[UA Part 12: Discovery and Global Services - 6.2 Roles and Privileges](https://reference.opcfoundation.org/GDS/v105/docs/6.2)
+[UA Part 12: Discovery and Global Services - 7.2 Roles and Privileges](https://reference.opcfoundation.org/GDS/v105/docs/7.2)
 
 - DiscoveryAdmin
 - SecurityAdmin
 - CertificateAuthorityAdmin
 - RegistrationAuthorityAdmin
 
-https://github.com/OPCFoundation/UA-.NETStandard/blob/61edad9d6361b566baa5fdd69a23e7ac58c3433d/Libraries/Opc.Ua.Gds.Server.Common/GdsRole.cs
+[GdsRole.cs](https://github.com/OPCFoundation/UA-.NETStandard/blob/61edad9d6361b566baa5fdd69a23e7ac58c3433d/Libraries/Opc.Ua.Gds.Server.Common/GdsRole.cs)
 
 
 Additionally the ApplicationSelfAdmin privilege is supported.
@@ -113,15 +114,15 @@ In the UA .NET Standard Stack the ApplicationSelfAdmin privilege is implemented 
 
 To store its users the GDS implements the IUserDatabase interface from the server library.
 
-https://github.com/OPCFoundation/UA-.NETStandard/tree/61edad9d6361b566baa5fdd69a23e7ac58c3433d/Libraries/Opc.Ua.Server/RoleBasedUserManagement/UserDatabase
+[Opc.Ua.Server/RoleBasedUserManagement/UserDatabase](https://github.com/OPCFoundation/UA-.NETStandard/tree/61edad9d6361b566baa5fdd69a23e7ac58c3433d/Libraries/Opc.Ua.Server/RoleBasedUserManagement/UserDatabase)
 
 The JsonUserDatabase path is stored in the GDS Configuration:
-https://github.com/OPCFoundation/UA-.NETStandard/blob/61edad9d6361b566baa5fdd69a23e7ac58c3433d/Libraries/Opc.Ua.Gds.Server.Common/GlobalDiscoveryServerConfiguration.cs#L91
+[GlobalDiscoveryServerConfiguration.cs](https://github.com/OPCFoundation/UA-.NETStandard/blob/61edad9d6361b566baa5fdd69a23e7ac58c3433d/Libraries/Opc.Ua.Gds.Server.Common/GlobalDiscoveryServerConfiguration.cs#L91)
 
 The GDS allows library users to supply their own implementation using the constructor:
-https://github.com/OPCFoundation/UA-.NETStandard/blob/61edad9d6361b566baa5fdd69a23e7ac58c3433d/Libraries/Opc.Ua.Gds.Server.Common/GlobalDiscoverySampleServer.cs#L55C2-L63C10
+[GlobalDiscoverySampleServer.cs](https://github.com/OPCFoundation/UA-.NETStandard/blob/61edad9d6361b566baa5fdd69a23e7ac58c3433d/Libraries/Opc.Ua.Gds.Server.Common/GlobalDiscoverySampleServer.cs#L55C2-L63C10)
 
 ## Limitations
 
 - Does not really make use of the permissions <-> roles 
-- Does not implement the RoleBasedSecurity Information Model from: https://reference.opcfoundation.org/Core/Part18/v105/docs/
+- Does not implement the RoleBasedSecurity Information Model from: [](https://reference.opcfoundation.org/Core/Part18/v105/docs/)
