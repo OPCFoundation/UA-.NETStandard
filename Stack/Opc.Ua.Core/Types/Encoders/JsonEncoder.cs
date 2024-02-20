@@ -16,7 +16,6 @@ using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Threading;
 using System.Xml;
 
 namespace Opc.Ua
@@ -296,11 +295,11 @@ namespace Opc.Ua
             {
                 if (m_topLevelIsArray)
                 {
-                    m_writer.Write(']');
+                    m_writer.Write(s_rightSquareBracket);
                 }
                 else
                 {
-                    m_writer.Write('}');
+                    m_writer.Write(s_rightCurlyBrace);
                 }
             }
 
@@ -571,7 +570,7 @@ namespace Opc.Ua
                 {
                     if (m_specialChars[ii] == ch)
                     {
-                        m_writer.Write('\\');
+                        m_writer.Write(s_backslash);
                         m_writer.Write(m_substitution[ii]);
                         found = true;
                         break;
@@ -582,7 +581,7 @@ namespace Opc.Ua
                 {
                     if (ch < 32)
                     {
-                        m_writer.Write('\\');
+                        m_writer.Write(s_backslash);
                         m_writer.Write('u');
                         m_writer.Write(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
                         continue;
