@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Text;
@@ -76,8 +77,8 @@ namespace Opc.Ua.PubSub.Configuration
             catch (Exception e)
             {
                 StringBuilder buffer = new StringBuilder();
-                buffer.AppendFormat("Configuration file could not be loaded: {0}\r\n", filePath);
-                buffer.AppendFormat("Error: {0}", e.Message);
+                buffer.AppendFormat(CultureInfo.InvariantCulture, "Configuration file could not be loaded: {0}\r\n", filePath);
+                buffer.AppendFormat(CultureInfo.InvariantCulture, "Error: {0}", e.Message);
 
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,

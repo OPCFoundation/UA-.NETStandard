@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 
 namespace Opc.Ua
@@ -23,14 +24,14 @@ namespace Opc.Ua
         /// <summary>
         /// Formats the value of the current instance using the specified format.
         /// </summary>
-        /// <param name="format">The <see cref="T:System.String"/> specifying the format to use.
+        /// <param name="format">The <see cref="System.String"/> specifying the format to use.
         /// -or-
-        /// null to use the default format defined for the type of the <see cref="T:System.IFormattable"/> implementation.</param>
-        /// <param name="formatProvider">The <see cref="T:System.IFormatProvider"/> to use to format the value.
+        /// null to use the default format defined for the type of the <see cref="System.IFormattable"/> implementation.</param>
+        /// <param name="formatProvider">The <see cref="System.IFormatProvider"/> to use to format the value.
         /// -or-
         /// null to obtain the numeric format information from the current locale setting of the operating system.</param>
         /// <returns>
-        /// A <see cref="T:System.String"/> containing the value of the current instance in the specified format.
+        /// A <see cref="System.String"/> containing the value of the current instance in the specified format.
         /// </returns>
         public string ToString(string format, IFormatProvider formatProvider)
         {
@@ -436,14 +437,14 @@ namespace Opc.Ua
         /// <summary>
         /// Formats the value of the current instance using the specified format.
         /// </summary>
-        /// <param name="format">The <see cref="T:System.String"/> specifying the format to use.
+        /// <param name="format">The <see cref="System.String"/> specifying the format to use.
         /// -or-
-        /// null to use the default format defined for the type of the <see cref="T:System.IFormattable"/> implementation.</param>
-        /// <param name="formatProvider">The <see cref="T:System.IFormatProvider"/> to use to format the value.
+        /// null to use the default format defined for the type of the <see cref="System.IFormattable"/> implementation.</param>
+        /// <param name="formatProvider">The <see cref="System.IFormatProvider"/> to use to format the value.
         /// -or-
         /// null to obtain the numeric format information from the current locale setting of the operating system.</param>
         /// <returns>
-        /// A <see cref="T:System.String"/> containing the value of the current instance in the specified format.
+        /// A <see cref="System.String"/> containing the value of the current instance in the specified format.
         /// </returns>
         public string ToString(string format, IFormatProvider formatProvider)
         {
@@ -724,7 +725,7 @@ namespace Opc.Ua
                 case FilterOperator.IsNull:
                 case FilterOperator.Not:
                 {
-                    buffer.AppendFormat("{0} '{1}'", FilterOperator, operand1);
+                    buffer.AppendFormat(CultureInfo.InvariantCulture, "{0} '{1}'", FilterOperator, operand1);
                     break;
                 }
 
@@ -739,30 +740,30 @@ namespace Opc.Ua
                 case FilterOperator.BitwiseAnd:
                 case FilterOperator.BitwiseOr:
                 {
-                    buffer.AppendFormat("'{1}' {0} '{2}'", FilterOperator, operand1, operand2);
+                    buffer.AppendFormat(CultureInfo.InvariantCulture, "'{1}' {0} '{2}'", FilterOperator, operand1, operand2);
                     break;
                 }
 
                 case FilterOperator.Between:
                 {
-                    buffer.AppendFormat("'{1}' <= '{0}' <= '{2}'", operand1, operand2, operand3);
+                    buffer.AppendFormat(CultureInfo.InvariantCulture, "'{1}' <= '{0}' <= '{2}'", operand1, operand2, operand3);
                     break;
                 }
 
                 case FilterOperator.Cast:
                 {
-                    buffer.AppendFormat("({1}){0}", operand1, operand2);
+                    buffer.AppendFormat(CultureInfo.InvariantCulture, "({1}){0}", operand1, operand2);
                     break;
                 }
 
                 case FilterOperator.InList:
                 {
-                    buffer.AppendFormat("'{0}' in ", operand1);
+                    buffer.AppendFormat(CultureInfo.InvariantCulture, "'{0}' in ", operand1);
                     buffer.Append('{');
 
                     for (int ii = 1; ii < operands.Count; ii++)
                     {
-                        buffer.AppendFormat("'{0}'", operands[ii].ToString());
+                        buffer.AppendFormat(CultureInfo.InvariantCulture, "'{0}'", operands[ii].ToString());
                         if (ii < operands.Count - 1)
                         {
                             buffer.Append(", ");
@@ -775,7 +776,7 @@ namespace Opc.Ua
 
                 case FilterOperator.RelatedTo:
                 {
-                    buffer.AppendFormat("'{0}' ", operand1);
+                    buffer.AppendFormat(CultureInfo.InvariantCulture, "'{0}' ", operand1);
 
                     string referenceType = operand2;
 
@@ -792,11 +793,11 @@ namespace Opc.Ua
                         }
                     }
 
-                    buffer.AppendFormat("{0} '{1}'", referenceType, operand2);
+                    buffer.AppendFormat(CultureInfo.InvariantCulture, "{0} '{1}'", referenceType, operand2);
 
                     if (operand3 != null)
                     {
-                        buffer.AppendFormat("Hops='{0}'", operand3);
+                        buffer.AppendFormat(CultureInfo.InvariantCulture, "Hops='{0}'", operand3);
                     }
 
                     break;
@@ -956,14 +957,14 @@ namespace Opc.Ua
         /// <summary>
         /// Formats the value of the current instance using the specified format.
         /// </summary>
-        /// <param name="format">The <see cref="T:System.String"/> specifying the format to use.
+        /// <param name="format">The <see cref="System.String"/> specifying the format to use.
         /// -or-
-        /// null to use the default format defined for the type of the <see cref="T:System.IFormattable"/> implementation.</param>
-        /// <param name="formatProvider">The <see cref="T:System.IFormatProvider"/> to use to format the value.
+        /// null to use the default format defined for the type of the <see cref="System.IFormattable"/> implementation.</param>
+        /// <param name="formatProvider">The <see cref="System.IFormatProvider"/> to use to format the value.
         /// -or-
         /// null to obtain the numeric format information from the current locale setting of the operating system.</param>
         /// <returns>
-        /// A <see cref="T:System.String"/> containing the value of the current instance in the specified format.
+        /// A <see cref="System.String"/> containing the value of the current instance in the specified format.
         /// </returns>
         public string ToString(string format, IFormatProvider formatProvider)
         {
@@ -1097,26 +1098,26 @@ namespace Opc.Ua
 
             if (node != null)
             {
-                buffer.AppendFormat("{0}", NodeId);
+                buffer.AppendFormat(CultureInfo.InvariantCulture, "{0}", NodeId);
             }
             else
             {
-                buffer.AppendFormat("{0}", NodeId);
+                buffer.AppendFormat(CultureInfo.InvariantCulture, "{0}", NodeId);
             }
 
             if (!RelativePath.IsEmpty(BrowsePath))
             {
-                buffer.AppendFormat("/{0}", BrowsePath.Format(nodeTable.TypeTree));
+                buffer.AppendFormat(CultureInfo.InvariantCulture, "/{0}", BrowsePath.Format(nodeTable.TypeTree));
             }
 
             if (!String.IsNullOrEmpty(IndexRange))
             {
-                buffer.AppendFormat("[{0}]", NumericRange.Parse(IndexRange));
+                buffer.AppendFormat(CultureInfo.InvariantCulture, "[{0}]", NumericRange.Parse(IndexRange));
             }
 
             if (!String.IsNullOrEmpty(Alias))
             {
-                buffer.AppendFormat("- '{0}'", Alias);
+                buffer.AppendFormat(CultureInfo.InvariantCulture, "- '{0}'", Alias);
             }
 
             return buffer.ToString();
@@ -1146,20 +1147,20 @@ namespace Opc.Ua
         /// <summary>
         /// Formats the value of the current instance using the specified format.
         /// </summary>
-        /// <param name="format">The <see cref="T:System.String"/> specifying the format to use.
+        /// <param name="format">The <see cref="System.String"/> specifying the format to use.
         /// -or-
-        /// null to use the default format defined for the type of the <see cref="T:System.IFormattable"/> implementation.</param>
-        /// <param name="formatProvider">The <see cref="T:System.IFormatProvider"/> to use to format the value.
+        /// null to use the default format defined for the type of the <see cref="System.IFormattable"/> implementation.</param>
+        /// <param name="formatProvider">The <see cref="System.IFormatProvider"/> to use to format the value.
         /// -or-
         /// null to obtain the numeric format information from the current locale setting of the operating system.</param>
         /// <returns>
-        /// A <see cref="T:System.String"/> containing the value of the current instance in the specified format.
+        /// A <see cref="System.String"/> containing the value of the current instance in the specified format.
         /// </returns>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
             {
-                return String.Format("[{0}]", m_index);
+                return string.Format(formatProvider, "[{0}]", m_index);
             }
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
@@ -1242,20 +1243,20 @@ namespace Opc.Ua
         /// <summary>
         /// Formats the value of the current instance using the specified format.
         /// </summary>
-        /// <param name="format">The <see cref="T:System.String"/> specifying the format to use.
+        /// <param name="format">The <see cref="System.String"/> specifying the format to use.
         /// -or-
-        /// null to use the default format defined for the type of the <see cref="T:System.IFormattable"/> implementation.</param>
-        /// <param name="formatProvider">The <see cref="T:System.IFormatProvider"/> to use to format the value.
+        /// null to use the default format defined for the type of the <see cref="System.IFormattable"/> implementation.</param>
+        /// <param name="formatProvider">The <see cref="System.IFormatProvider"/> to use to format the value.
         /// -or-
         /// null to obtain the numeric format information from the current locale setting of the operating system.</param>
         /// <returns>
-        /// A <see cref="T:System.String"/> containing the value of the current instance in the specified format.
+        /// A <see cref="System.String"/> containing the value of the current instance in the specified format.
         /// </returns>
         public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
             {
-                return String.Format("{0}", m_value);
+                return string.Format(formatProvider, "{0}", m_value);
             }
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));

@@ -299,7 +299,7 @@ namespace Opc.Ua.Bindings
         {
             if (disposing)
             {
-                m_socket.Dispose();
+                m_socket?.Dispose();
             }
         }
         #endregion
@@ -309,7 +309,7 @@ namespace Opc.Ua.Bindings
         /// Gets the socket handle.
         /// </summary>
         /// <value>The socket handle.</value>
-        public int Handle => m_socket != null ? m_socket.GetHashCode() : -1;
+        public int Handle => m_socket?.GetHashCode() ?? -1;
 
         /// <summary>
         /// Gets the local endpoint.
@@ -318,7 +318,16 @@ namespace Opc.Ua.Bindings
         /// See the Remarks section for more information.</exception>
         /// <exception cref="System.ObjectDisposedException">The System.Net.Sockets.Socket has been closed.</exception>
         /// <returns>The System.Net.EndPoint that the System.Net.Sockets.Socket is using for communications.</returns>
-        public EndPoint LocalEndpoint => m_socket.LocalEndPoint;
+        public EndPoint LocalEndpoint => m_socket?.LocalEndPoint;
+
+        /// <summary>
+        /// Gets the local endpoint.
+        /// </summary>
+        /// <exception cref="System.Net.Sockets.SocketException">An error occurred when attempting to access the socket.
+        /// See the Remarks section for more information.</exception>
+        /// <exception cref="System.ObjectDisposedException">The System.Net.Sockets.Socket has been closed.</exception>
+        /// <returns>The System.Net.EndPoint that the System.Net.Sockets.Socket is using for communications.</returns>
+        public EndPoint RemoteEndpoint => m_socket?.RemoteEndPoint;
 
         /// <summary>
         /// Gets the transport channel features implemented by this message socket.
@@ -521,15 +530,20 @@ namespace Opc.Ua.Bindings
             // start reading the message body.
             if (m_incomingMessageSize < 0)
             {
-                m_incomingMessageSize = BitConverter.ToInt32(m_receiveBuffer, 4);
+                UInt32 messageType = BitConverter.ToUInt32(m_receiveBuffer, 0);
+                if (!TcpMessageType.IsValid(messageType))
+                {
+                    m_readState = ReadState.Error;
 
+                    return ServiceResult.Create(
+                        StatusCodes.BadTcpMessageTypeInvalid,
+                        "Message type {0:X8} is invalid.",
+                        messageType);
+                }
+
+                m_incomingMessageSize = BitConverter.ToInt32(m_receiveBuffer, 4);
                 if (m_incomingMessageSize <= 0 || m_incomingMessageSize > m_receiveBufferSize)
                 {
-                    Utils.LogError(
-                        "BadTcpMessageTooLarge: BufferSize={0}; MessageSize={1}",
-                        m_receiveBufferSize,
-                        m_incomingMessageSize);
-
                     m_readState = ReadState.Error;
 
                     return ServiceResult.Create(

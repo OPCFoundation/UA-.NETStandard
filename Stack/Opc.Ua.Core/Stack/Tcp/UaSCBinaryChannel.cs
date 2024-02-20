@@ -741,7 +741,7 @@ namespace Opc.Ua.Bindings
             {
                 if (m_state != value)
                 {
-                    Utils.LogInfo("ChannelId {0}: in {1} state.", ChannelId, value);
+                    Utils.LogTrace("ChannelId {0}: in {1} state.", ChannelId, value);
                 }
 
                 m_state = value;
