@@ -501,7 +501,7 @@ namespace Opc.Ua
         }
 
         private static readonly char[] m_specialChars = new char[] { s_quotation, s_backslash, '\n', '\r', '\t', '\b', '\f', };
-        private static readonly char[] m_substitution = new char[] { '\"', '\\', 'n', 'r', 't', 'b', 'f' };
+        private static readonly char[] m_substitution = new char[] { s_quotation, s_backslash, 'n', 'r', 't', 'b', 'f' };
 
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
         /// <summary>
