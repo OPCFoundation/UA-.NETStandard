@@ -7,6 +7,7 @@ Those permissions are then assigned to a role.
 The role is assigned to one or multiple Identities by the Server.
 
 Since #2444 the OPC UA .NET Standard Stack implements the well known roles from:
+
 [UA Part 3: Address Space Model - 4.9.2 Well Known Roles](https://reference.opcfoundation.org/Core/Part3/v105/docs/4.9.2)
 
 - Anonymous
@@ -99,6 +100,7 @@ The GDS supports some additional well known roles starting with
 [GDS: implement ApplicationSelfAdmin privilege in GlobalDiscoverySampleServer by romanett · Pull Request #2338](https://github.com/OPCFoundation/UA-.NETStandard/pull/2338)
 
 [UA Part 12: Discovery and Global Services - 6.2 Roles and Privileges](https://reference.opcfoundation.org/GDS/v105/docs/6.2)
+
 [UA Part 12: Discovery and Global Services - 7.2 Roles and Privileges](https://reference.opcfoundation.org/GDS/v105/docs/7.2)
 
 - DiscoveryAdmin
