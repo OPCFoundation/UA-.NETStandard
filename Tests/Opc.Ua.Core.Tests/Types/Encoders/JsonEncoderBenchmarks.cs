@@ -340,7 +340,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     [NonParallelizable]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser(printSource: true)]
-    public class JsonEncoderEscapeStringBenchmark
+    public class JsonEncoderEscapeStringBenchmarks
     {
         public const int InnerLoops = 100;
         [DatapointSource]
@@ -510,14 +510,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         [Theory]
         [TestCase("No Escape chars", 0)]
-        [TestCase("control chars escaped", 1)]
-        [TestCase("binary chars escaped", 2)]
-        [TestCase("mixed escape chars", 3)]
+        [TestCase("control chars escaped, 1 char space", 1)]
+        [TestCase("control chars escaped, 2 char spaces", 2)]
+        [TestCase("control chars escaped, 3 char spaces", 3)]
+        [TestCase("control chars escaped, 5 char spaces", 4)]
+        [TestCase("binary chars escaped, 1 char space", 5)]
+        [TestCase("binary chars escaped, 2 char spaces", 6)]
+        [TestCase("binary chars escaped, 3 char spaces", 7)]
+        [TestCase("binary chars escaped, 5 char spaces", 8)]
+        [TestCase("all escape chars and long string", 9)]
         public void EscapeStringValidation(string name, int index)
         {
-            m_memoryStream = new RecyclableMemoryStream(m_memoryManager);
-            m_streamWriter = new StreamWriter(m_memoryStream, new UTF8Encoding(false), m_streamSize, false);
-
             m_testString = EscapeTestStrings[index];
             TestContext.Out.WriteLine(m_testString);
             var testArray = m_testString.ToCharArray();
@@ -539,6 +542,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_streamWriter.Flush();
             byte[] result = m_memoryStream.ToArray();
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(result));
+
+            m_memoryStream.Position = 0;
+            EscapeStringThreadLocal();
+            m_streamWriter.Flush();
+            byte[] resultThreadLocal = m_memoryStream.ToArray();
+            TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultThreadLocal));
 
             m_memoryStream.Position = 0;
             EscapeStringSpan(m_testString);
@@ -572,6 +581,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             Assert.IsTrue(Utils.IsEqual(resultLegacy, result));
             Assert.IsTrue(Utils.IsEqual(resultLegacy, resultLegacyPlus));
+            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultThreadLocal));
             Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpan));
             Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanChars));
             Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanCharsInline));
@@ -591,9 +601,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
-            var result = Encoding.UTF8.GetString(m_memoryStream.ToArray());
-            Assert.NotNull(result);
-
             m_streamWriter?.Dispose();
             m_streamWriter = null;
             m_memoryStream?.Dispose();
@@ -1055,25 +1062,24 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 // Check if ch is present in the dictionary
                 if (m_replace.TryGetValue(ch, out string escapeSequence))
                 {
-                    m_stringBuilder.Append(escapeSequence);
+                    stringBuilder.Append(escapeSequence);
                 }
                 else if (ch < 32)
                 {
-                    m_stringBuilder.Append("\\u");
-                    m_stringBuilder.Append(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
+                    stringBuilder.Append("\\u");
+                    stringBuilder.Append(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
                 }
                 else
                 {
-                    m_stringBuilder.Append(ch);
+                    stringBuilder.Append(ch);
                 }
             }
-            m_streamWriter.Write(m_stringBuilder);
+            m_streamWriter.Write(stringBuilder);
         }
         #endregion
 
         #region Private Fields
         private ThreadLocal<StringBuilder> m_stringBuilderPool = new ThreadLocal<StringBuilder>(() => new StringBuilder());
-        private StringBuilder m_stringBuilder = new StringBuilder();
         private static string m_testString;
         private RecyclableMemoryStreamManager m_memoryManager;
         private RecyclableMemoryStream m_memoryStream;
