@@ -501,9 +501,9 @@ namespace Opc.Ua
         }
 
         private static readonly char[] m_specialChars = new char[] { s_quotation, s_backslash, '\n', '\r', '\t', '\b', '\f', };
-#if NETCOREAPP2_1_OR_GREATER
-        private static readonly string[] m_substitutionStrings = new string[] { "\\\"", "\\\\", "\\n", "\\r", "\\t", "\\b", "\\f" };
+        private static readonly char[] m_substitution = new char[] { '\"', '\\', 'n', 'r', 't', 'b', 'f' };
 
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
         /// <summary>
         /// Using a span to escape the string, write strings to stream writer if possible.
         /// </summary>
@@ -522,12 +522,9 @@ namespace Opc.Ua
                 {
                     if (m_specialChars[ii] == ch)
                     {
-                        if (lastOffset < i)
-                        {
-                            m_writer.Write(charSpan.Slice(lastOffset, i - lastOffset));
-                        }
-                        lastOffset = i + 1;
-                        m_writer.Write(m_substitutionStrings[ii]);
+                        WriteSpan(ref lastOffset, charSpan, i);
+                        m_writer.Write('\\');
+                        m_writer.Write(m_substitution[ii]);
                         found = true;
                         break;
                     }
@@ -535,27 +532,40 @@ namespace Opc.Ua
 
                 if (!found && ch < 32)
                 {
-                    if (lastOffset < i)
-                    {
-                        m_writer.Write(charSpan.Slice(lastOffset, i - lastOffset));
-                    }
-                    lastOffset = i + 1;
-                    m_writer.Write("\\u");
+                    WriteSpan(ref lastOffset, charSpan, i);
+                    m_writer.Write('\\');
+                    m_writer.Write('u');
                     m_writer.Write(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
                 }
             }
+
             if (lastOffset == 0)
             {
                 m_writer.Write(value);
             }
-            else if (lastOffset < charSpan.Length)
+            else
             {
-                m_writer.Write(charSpan.Slice(lastOffset, charSpan.Length - lastOffset));
+                WriteSpan(ref lastOffset, charSpan, charSpan.Length);
             }
         }
-#else
-        private static readonly char[] m_substitution = new char[] { '\"', '\\', 'n', 'r', 't', 'b', 'f' };
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void WriteSpan(ref int lastOffset, ReadOnlySpan<char> valueSpan, int index)
+        {
+            if (lastOffset < index - 2)
+            {
+                m_writer.Write(valueSpan.Slice(lastOffset, index - lastOffset).ToString());
+            }
+            else
+            {
+                while (lastOffset < index)
+                {
+                    m_writer.Write(valueSpan[lastOffset++]);
+                }
+            }
+            lastOffset = index + 1;
+        }
+#else
         /// <summary>
         /// Escapes a string and writes it to the stream.
         /// </summary>
