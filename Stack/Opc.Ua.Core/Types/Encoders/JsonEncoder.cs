@@ -534,7 +534,6 @@ namespace Opc.Ua
                     }
                 }
 
-                // Check if ch is present in the dictionary
                 if (!found && ch < 32)
                 {
                     if (lastOffset < i)

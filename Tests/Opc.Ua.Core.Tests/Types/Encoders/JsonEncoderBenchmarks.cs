@@ -738,7 +738,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     }
                 }
 
-                // Check if ch is present in the dictionary
                 if (!found && ch < 32)
                 {
                     if (lastOffset < i)
@@ -802,7 +801,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     }
                 }
 
-                // Check if ch is present in the dictionary
                 if (!found && ch < 32)
                 {
                     if (lastOffset < i - 1)
@@ -892,7 +890,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     }
                 }
 
-                // Check if ch is present in the dictionary
                 if (!found && ch < 32)
                 {
                     WriteSpan(ref lastOffset, charSpan, i);
@@ -941,7 +938,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     continue;
                 }
 
-                // Check if ch is present in the dictionary
                 if (ch < 32)
                 {
                     if (lastOffset < i)
@@ -996,7 +992,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     continue;
                 }
 
-                // Check if ch is present in the dictionary
                 if (ch < 32)
                 {
                     if (lastOffset < i)
@@ -1033,7 +1028,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             foreach (char ch in value)
             {
-                // Check if ch is present in the dictionary
                 if (m_replace.TryGetValue(ch, out string escapeSequence))
                 {
                     stringBuilder.Append(escapeSequence);
@@ -1059,7 +1053,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             foreach (char ch in value)
             {
-                // Check if ch is present in the dictionary
                 if (m_replace.TryGetValue(ch, out string escapeSequence))
                 {
                     stringBuilder.Append(escapeSequence);
