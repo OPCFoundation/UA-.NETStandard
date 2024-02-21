@@ -554,7 +554,7 @@ namespace Opc.Ua
         {
             if (lastOffset < index - 2)
             {
-                m_writer.Write(valueSpan.Slice(lastOffset, index - lastOffset).ToString());
+                m_writer.Write(valueSpan.Slice(lastOffset, index - lastOffset));
             }
             else
             {
