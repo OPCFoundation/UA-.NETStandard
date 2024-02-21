@@ -89,56 +89,56 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.Byte, (Byte)0, "0", null, true },
             {   BuiltInType.Byte, (Byte)88, "88", null },
             {   BuiltInType.Byte, (Byte)188, "188", null },
-            {   BuiltInType.Byte, Byte.MinValue, Byte.MinValue.ToString(), null, true},
-            {   BuiltInType.Byte, Byte.MaxValue, Byte.MaxValue.ToString(), null },
+            {   BuiltInType.Byte, Byte.MinValue, Byte.MinValue.ToString(CultureInfo.InvariantCulture), null, true},
+            {   BuiltInType.Byte, Byte.MaxValue, Byte.MaxValue.ToString(CultureInfo.InvariantCulture), null },
 
             {   BuiltInType.SByte, (SByte)0, null, null },
             {   BuiltInType.SByte, (SByte)0, "0", null, true },
             {   BuiltInType.SByte, (SByte)(-77), "-77", null },
             {   BuiltInType.SByte, (SByte)(77), "77", null },
-            {   BuiltInType.SByte, SByte.MaxValue, SByte.MaxValue.ToString(), null },
-            {   BuiltInType.SByte, SByte.MinValue, SByte.MinValue.ToString(), null },
+            {   BuiltInType.SByte, SByte.MaxValue, SByte.MaxValue.ToString(CultureInfo.InvariantCulture), null },
+            {   BuiltInType.SByte, SByte.MinValue, SByte.MinValue.ToString(CultureInfo.InvariantCulture), null },
 
             {   BuiltInType.UInt16, (UInt16)0, null, null},
             {   BuiltInType.UInt16, (UInt16)0, "0", null, true },
             {   BuiltInType.UInt16, (UInt16)12345, "12345", null },
             {   BuiltInType.UInt16, (UInt16)44444, "44444", null },
-            {   BuiltInType.UInt16, UInt16.MinValue, UInt16.MinValue.ToString(), null, true },
-            {   BuiltInType.UInt16, UInt16.MaxValue, UInt16.MaxValue.ToString(), null },
+            {   BuiltInType.UInt16, UInt16.MinValue, UInt16.MinValue.ToString(CultureInfo.InvariantCulture), null, true },
+            {   BuiltInType.UInt16, UInt16.MaxValue, UInt16.MaxValue.ToString(CultureInfo.InvariantCulture), null },
 
             {   BuiltInType.Int16, (Int16)0, null, null },
             {   BuiltInType.Int16, (Int16)0, "0", null, true },
             {   BuiltInType.Int16, (Int16)(-12345), "-12345", null },
             {   BuiltInType.Int16, (Int16)12345, "12345", null },
-            {   BuiltInType.Int16, Int16.MaxValue, Int16.MaxValue.ToString(), null },
-            {   BuiltInType.Int16, Int16.MinValue, Int16.MinValue.ToString(), null },
+            {   BuiltInType.Int16, Int16.MaxValue, Int16.MaxValue.ToString(CultureInfo.InvariantCulture), null },
+            {   BuiltInType.Int16, Int16.MinValue, Int16.MinValue.ToString(CultureInfo.InvariantCulture), null },
 
             {   BuiltInType.UInt32, (UInt32)0, null, null },
             {   BuiltInType.UInt32, (UInt32)0, "0", null, true },
             {   BuiltInType.UInt32, (UInt32)1234567, "1234567", null },
             {   BuiltInType.UInt32, (UInt32)4444444, "4444444", null },
-            {   BuiltInType.UInt32, UInt32.MinValue, UInt32.MinValue.ToString(), null, true },
-            {   BuiltInType.UInt32, UInt32.MaxValue, UInt32.MaxValue.ToString(), null },
+            {   BuiltInType.UInt32, UInt32.MinValue, UInt32.MinValue.ToString(CultureInfo.InvariantCulture), null, true },
+            {   BuiltInType.UInt32, UInt32.MaxValue, UInt32.MaxValue.ToString(CultureInfo.InvariantCulture), null },
 
             {   BuiltInType.Int32, 0, null, null },
             {   BuiltInType.Int32, 0, "0", null, true },
             {   BuiltInType.Int32, -12345678, "-12345678", null },
             {   BuiltInType.Int32, 12345678, "12345678", null },
-            {   BuiltInType.Int32, Int32.MaxValue, Int32.MaxValue.ToString(), null },
-            {   BuiltInType.Int32, Int32.MinValue, Int32.MinValue.ToString(), null },
+            {   BuiltInType.Int32, Int32.MaxValue, Int32.MaxValue.ToString(CultureInfo.InvariantCulture), null },
+            {   BuiltInType.Int32, Int32.MinValue, Int32.MinValue.ToString(CultureInfo.InvariantCulture), null },
 
             {   BuiltInType.Int64, (Int64)0, null, null },
             {   BuiltInType.Int64, (Int64)0, Quotes("0"), null, true },
-            {   BuiltInType.Int64, kInt64Value, Quotes(kInt64Value.ToString()), null },
-            {   BuiltInType.Int64, (Int64)kUInt64Value, Quotes(kUInt64Value.ToString()), null },
-            {   BuiltInType.Int64, Int64.MinValue, Quotes(Int64.MinValue.ToString()), null },
-            {   BuiltInType.Int64, Int64.MaxValue, Quotes(Int64.MaxValue.ToString()), null },
+            {   BuiltInType.Int64, kInt64Value, Quotes(kInt64Value.ToString(CultureInfo.InvariantCulture)), null },
+            {   BuiltInType.Int64, (Int64)kUInt64Value, Quotes(kUInt64Value.ToString(CultureInfo.InvariantCulture)), null },
+            {   BuiltInType.Int64, Int64.MinValue, Quotes(Int64.MinValue.ToString(CultureInfo.InvariantCulture)), null },
+            {   BuiltInType.Int64, Int64.MaxValue, Quotes(Int64.MaxValue.ToString(CultureInfo.InvariantCulture)), null },
 
             {   BuiltInType.UInt64, (UInt64)0, null, null },
             {   BuiltInType.UInt64, (UInt64)0, Quotes("0"), null, true },
-            {   BuiltInType.UInt64, (UInt64)kUInt64Value, Quotes(kUInt64Value.ToString()), null },
-            {   BuiltInType.UInt64, UInt64.MinValue, Quotes(UInt64.MinValue.ToString()), null, true },
-            {   BuiltInType.UInt64, UInt64.MaxValue, Quotes(UInt64.MaxValue.ToString()), null },
+            {   BuiltInType.UInt64, (UInt64)kUInt64Value, Quotes(kUInt64Value.ToString(CultureInfo.InvariantCulture)), null },
+            {   BuiltInType.UInt64, UInt64.MinValue, Quotes(UInt64.MinValue.ToString(CultureInfo.InvariantCulture)), null, true },
+            {   BuiltInType.UInt64, UInt64.MaxValue, Quotes(UInt64.MaxValue.ToString(CultureInfo.InvariantCulture)), null },
 
             {   BuiltInType.Float, (Single)0, null, null},
             {   BuiltInType.Float, (Single)0, "0", null, true},
@@ -949,6 +949,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             TestContext.Out.WriteLine("Decoded: {0} {1}", decodedO.ToString("o"), decodedString.ToString("o"));
             Assert.AreEqual(decodedO, decodedString);
+            Assert.AreEqual(testDateTime, decodedO);
         }
         #endregion
 
