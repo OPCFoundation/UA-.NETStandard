@@ -129,7 +129,7 @@ namespace Opc.Ua
             if (m_writer == null)
             {
                 m_stream = new MemoryStream();
-                m_writer = new StreamWriter(m_stream, new UTF8Encoding(false), kStreamWriterBufferSize);
+                m_writer = new StreamWriter(m_stream, s_utf8Encoding, kStreamWriterBufferSize);
             }
 
             InitializeWriter();
