@@ -479,6 +479,21 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         /// <summary>
+        /// A new implementation using ReadOnlySpan and char write with const arrays.
+        /// </summary>
+        [Benchmark]
+        public void EscapeStringSpanCharsInlineConst()
+        {
+            m_memoryStream.Position = 0;
+            int repeats = InnerLoops;
+            while (repeats-- > 0)
+            {
+                EscapeStringSpanCharsInlineConst(m_testString);
+            }
+            m_streamWriter.Flush();
+        }
+
+        /// <summary>
         /// A new implementation using ReadOnlySpan and IndexOf.
         /// </summary>
         [Benchmark]
@@ -568,6 +583,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultSpanCharsInline));
 
             m_memoryStream.Position = 0;
+            EscapeStringSpanCharsInlineConst(m_testString);
+            m_streamWriter.Flush();
+            byte[] resultSpanCharsInlineConst = m_memoryStream.ToArray();
+            TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultSpanCharsInlineConst));
+
+            m_memoryStream.Position = 0;
             EscapeStringSpanIndex(m_testString);
             m_streamWriter.Flush();
             byte[] resultSpanIndex = m_memoryStream.ToArray();
@@ -585,6 +606,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpan));
             Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanChars));
             Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanCharsInline));
+            Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanCharsInlineConst));
             Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanIndex));
             Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSpanDict));
         }
@@ -913,6 +935,49 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
         }
 
+        // create version of EscapeStringSpanCharsInline that references cosnt arrays
+        private void EscapeStringSpanCharsInlineConst(string value)
+        {
+            ReadOnlySpan<char> charSpan = value.AsSpan();
+            int lastOffset = 0;
+
+            for (int i = 0; i < charSpan.Length; i++)
+            {
+                bool found = false;
+                char ch = charSpan[i];
+
+                for (int ii = 0; ii < m_specialCharsConst.Length; ii++)
+                {
+                    if (m_specialCharsConst[ii] == ch)
+                    {
+                        WriteSpan(ref lastOffset, charSpan, i);
+                        m_streamWriter.Write('\\');
+                        m_streamWriter.Write(m_substitutionConst[ii]);
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found && ch < 32)
+                {
+                    WriteSpan(ref lastOffset, charSpan, i);
+                    m_streamWriter.Write('\\');
+                    m_streamWriter.Write('u');
+                    m_streamWriter.Write(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
+                }
+            }
+
+            if (lastOffset == 0)
+            {
+                m_streamWriter.Write(value);
+            }
+            else
+            {
+                WriteSpan(ref lastOffset, charSpan, charSpan.Length);
+            }
+        }
+
+
         private void EscapeStringSpanIndex(string value)
         {
             ReadOnlySpan<char> charSpan = value.AsSpan();
@@ -1079,8 +1144,49 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         private StreamWriter m_streamWriter;
         private int m_streamSize = 1024;
         private static readonly string m_specialString = "\"\\\n\r\t\b\f";
-        private static readonly char[] m_specialChars = new char[] { '\"', '\\', '\n', '\r', '\t', '\b', '\f', };
-        private static readonly char[] m_substitution = new char[] { '\"', '\\', 'n', 'r', 't', 'b', 'f' };
+
+        // Declare static readonly characters for the special characters
+        private static readonly char sro_quotation = '\"';
+        private static readonly char sro_backslash = '\\';
+        private static readonly char sro_newline = '\n';
+        private static readonly char sro_return = '\r';
+        private static readonly char sro_tab = '\t';
+        private static readonly char sro_backspace = '\b';
+        private static readonly char sro_formfeed = '\f';
+        private static readonly char[] m_specialChars = new char[] { sro_quotation, sro_backslash, sro_newline, sro_return, sro_tab, sro_backspace, sro_formfeed };
+
+        // Declare static readonly characters for the substitution characters
+        private static readonly char sro_quotationSub = '\"';
+        private static readonly char sro_backslashSub = '\\';
+        private static readonly char sro_newlineSub = 'n';
+        private static readonly char sro_returnSub = 'r';
+        private static readonly char sro_tabSub = 't';
+        private static readonly char sro_backspaceSub = 'b';
+        private static readonly char sro_formfeedSub = 'f';
+        private static readonly char[] m_substitution = new char[] { sro_quotationSub, sro_backslashSub, sro_newlineSub, sro_returnSub, sro_tabSub, sro_backspaceSub, sro_formfeedSub };
+
+        // Special characters as const
+        private const char s_quotation = '\"';
+        private const char s_backslash = '\\';
+        private const char s_newline = '\n';
+        private const char s_return = '\r';
+        private const char s_tab = '\t';
+        private const char s_backspace = '\b';
+        private const char s_formfeed = '\f';
+
+        private static readonly char[] m_specialCharsConst = new char[] { s_quotation, s_backslash, s_newline, s_return, s_tab, s_backspace, s_formfeed };
+
+        // Substitution as const
+        private const char s_quotationSub = '\"';
+        private const char s_backslashSub = '\\';
+        private const char s_newlineSub = 'n';
+        private const char s_returnSub = 'r';
+        private const char s_tabSub = 't';
+        private const char s_backspaceSub = 'b';
+        private const char s_formfeedSub = 'f';
+
+        private static readonly char[] m_substitutionConst = new char[] { s_quotationSub, s_backslashSub, s_newlineSub, s_returnSub, s_tabSub, s_backspaceSub, s_formfeedSub };
+
         private static readonly string[] m_substitutionStrings = new string[] { "\\\"", "\\\\", "\\n", "\\r", "\\t", "\\b", "\\f" };
         private static readonly Dictionary<char, string> m_replace = new Dictionary<char, string>
         {
