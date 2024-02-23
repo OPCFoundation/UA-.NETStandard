@@ -50,17 +50,17 @@ The following platform is deprecated but can still be built and tested:
 To reduce the ci build overhead and the number of tests to be run in Visual Studio, only the tagged versions (* and **) are part of a qualifying ci build to pass a pull request. 
 All other platforms are only tested in weekly scheduled or manual ci builds.
 
-By default, in Visual Studio only the platforms tagged with (*) are tested. In order to test the other platforms in a command line window or in VS, there is a custom build variable defined to target a specific build. E.g. to target a .NETStandard2.0 build, the test runners are compiled with .NET 6.0 but the class libraries target only netstandard2.0, to force the use of that target.
+By default, in Visual Studio only the platforms tagged with (*) are tested. In order to test the other platforms in a command line window or in VS, there is a custom build variable defined to target a specific build. E.g. to target a .NETStandard2.1 build, the test runners are compiled with .NET 6.0 but the class libraries target only netstandard2.1, to force the use of that target.
 Another option is to test run such a custom target in a command window with a batch file [CustomTest.bat](../Tests/customtest.bat) which is provided to clean up, restore the project and to run the tests. To run the custom tests in Visual Studio a section in [target.props](../targets.props) needs to be uncommented and the target platform value must be set. 
 
 ```xml
 <!-- 
   Uncomment the following lines to test a custom test target 
-  supported values: net462, netstandard2.0, netstandard2.1, net48, net6.0, net8.0
+  supported values: net462, netstandard2.1, net48, net6.0, net8.0
  -->
   
   <PropertyGroup>
-    <CustomTestTarget>netstandard2.0</CustomTestTarget>
+    <CustomTestTarget>netstandard2.1</CustomTestTarget>
   </PropertyGroup> 
 ```
 
