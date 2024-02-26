@@ -1261,6 +1261,33 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Escapes a URI string using the percent encoding.
+        /// </summary>
+        public static string EscapeUri(string uri)
+        {
+            if (!String.IsNullOrWhiteSpace(uri))
+            {
+                var builder = new UriBuilder(uri.Replace(";", "%3b"));
+                return builder.Uri.AbsoluteUri;
+            }
+
+            return String.Empty;
+        }
+
+        /// <summary>
+        /// Unescapes a URI string using the percent encoding.
+        /// </summary>
+        public static string UnescapeUri(string uri)
+        {
+            if (!String.IsNullOrWhiteSpace(uri))
+            {
+                return Uri.UnescapeDataString(uri);
+            }
+
+            return String.Empty;
+        }
+
+        /// <summary>
         /// Parses a URI string. Returns null if it is invalid.
         /// </summary>
         public static Uri ParseUri(string uri)
@@ -1724,6 +1751,12 @@ namespace Opc.Ua
 
             // strings are special a reference type that does not need to be copied.
             if (type == typeof(string))
+            {
+                return value;
+            }
+
+            // Guid are special a reference type that does not need to be copied.
+            if (type == typeof(Guid))
             {
                 return value;
             }

@@ -555,28 +555,7 @@ namespace Opc.Ua
             if (!String.IsNullOrEmpty(namespaceUri))
             {
                 buffer.Append("nsu=");
-
-                for (int ii = 0; ii < namespaceUri.Length; ii++)
-                {
-                    char ch = namespaceUri[ii];
-
-                    switch (ch)
-                    {
-                        case ';':
-                        case '%':
-                        {
-                            buffer.AppendFormat(CultureInfo.InvariantCulture, "%{0:X2}", Convert.ToInt16(ch));
-                            break;
-                        }
-
-                        default:
-                        {
-                            buffer.Append(ch);
-                            break;
-                        }
-                    }
-                }
-
+                buffer.Append(Utils.EscapeUri(namespaceUri));
                 buffer.Append(';');
             }
 
@@ -651,7 +630,7 @@ namespace Opc.Ua
                 // check for null.
                 if (String.IsNullOrEmpty(text))
                 {
-                    return ExpandedNodeId.Null;
+                    return Null;
                 }
 
                 return new ExpandedNodeId(text);
@@ -1047,6 +1026,131 @@ namespace Opc.Ua
         #endregion
 
         #region Static Members
+        /// <summary>
+        /// Parses an absolute NodeId formatted as a string and converts it a local NodeId.
+        /// </summary>
+        /// <param name="context">The current context,</param>
+        /// <param name="text">The text to parse.</param>
+        /// <param name="updateTables">TRUE if new URIs may be added to the NamespaceUris or ServerUris.</param>
+        /// <returns>The local identifier.</returns>
+        /// <exception cref="ServiceResultException">Thrown if the namespace URI is not in the namespace table.</exception>
+        public static ExpandedNodeId Parse(IServiceMessageContext context, string text, bool updateTables = false)
+        {
+            if (String.IsNullOrEmpty(text))
+            {
+                return Null;
+            }
+
+            var originalText = text;
+            int serverIndex = 0;
+
+            if (text.StartsWith("svu=", StringComparison.Ordinal))
+            {
+                int index = text.IndexOf(';', 4);
+
+                if (index < 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"Invalid ExpandedNodeId ({originalText}).");
+                }
+
+                var serverUri = Utils.UnescapeUri(text.Substring(4, index - 4));
+                serverIndex = (updateTables) ? context.ServerUris.GetIndexOrAppend(serverUri) : context.ServerUris.GetIndex(serverUri);
+
+                if (serverIndex < 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"No mapping to ServerIndex for ServerUri ({serverUri}).");
+                }
+
+                text = text.Substring(index + 1);
+            }
+
+            int namespaceIndex = 0;
+            string namespaceUri = null;
+
+            if (text.StartsWith("nsu=", StringComparison.Ordinal))
+            {
+                int index = text.IndexOf(';', 4);
+
+                if (index < 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"Invalid ExpandedNodeId ({originalText}).");
+                }
+
+                namespaceUri = Utils.UnescapeUri(text.Substring(4, index - 4));
+                namespaceIndex = (updateTables) ? context.NamespaceUris.GetIndexOrAppend(namespaceUri) : context.NamespaceUris.GetIndex(namespaceUri);
+
+                text = text.Substring(index + 1);
+            }
+
+            var nodeId = NodeId.Parse(context, text, updateTables);
+
+            if (namespaceIndex > 0)
+            {
+                return new ExpandedNodeId(
+                    nodeId.Identifier,
+                    (ushort)namespaceIndex,
+                    null,
+                    (uint)serverIndex);
+            }
+
+            return new ExpandedNodeId(nodeId, namespaceUri, (uint)serverIndex);
+        }
+
+        /// <summary>
+        /// Formats a NodeId as a string.
+        /// </summary>
+        /// <param name="context">The current context.</param>
+        /// <param name="useUris">The NamespaceUri and/or ServerUri is used instead of the indexes.</param>
+        /// <returns>The formatted identifier.</returns>
+        public string Format(IServiceMessageContext context, bool useUris = false)
+        {
+            if (NodeId.IsNull(m_nodeId))
+            {
+                return null;
+            }
+
+            var buffer = new StringBuilder();
+
+            if (m_serverIndex > 0)
+            {
+                if (useUris)
+                {
+                    var serverUri = context.ServerUris.GetString(m_serverIndex);
+
+                    if (!String.IsNullOrEmpty(serverUri))
+                    {
+                        buffer.Append("svu=");
+                        buffer.Append(Utils.EscapeUri(serverUri));
+                        buffer.Append(';');
+                    }
+                    else
+                    {
+                        buffer.Append("svr=");
+                        buffer.Append(m_serverIndex);
+                        buffer.Append(';');
+                    }
+                }
+                else
+                {
+                    buffer.Append("svr=");
+                    buffer.Append(m_serverIndex);
+                    buffer.Append(';');
+                }
+            }
+
+            if (!String.IsNullOrEmpty(m_namespaceUri))
+            {
+                buffer.Append("nsu=");
+                buffer.Append(Utils.EscapeUri(m_namespaceUri));
+                buffer.Append(';');
+            }
+
+            var id = m_nodeId.Format(context, useUris);
+            buffer.Append(id);
+
+            return buffer.ToString();
+        }
+
         /// <summary>
         /// Parses an absolute NodeId formatted as a string and converts it a local NodeId.
         /// </summary>

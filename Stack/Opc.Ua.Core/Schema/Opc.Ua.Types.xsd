@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <!--
- * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -377,7 +377,7 @@
   <!--
     <xs:complexType name="Matrix">
       <xs:sequence>
-        <xs:element name="Dimensions" type="tns:ListOfUInt32" minOccurs="0" nillable="true" />
+        <xs:element name="Dimensions" type="tns:ListOfInt32" minOccurs="0" nillable="true" />
         <xs:element name="Value" minOccurs="0" nillable="true">
           <xs:complexType mixed="false">
             <xs:choice maxOccurs="unbounded">
@@ -5934,5 +5934,136 @@
     </xs:restriction>
   </xs:simpleType>
   <xs:element name="ExceptionDeviationFormat" type="tns:ExceptionDeviationFormat" />
+
+  <xs:complexType name="TestAbstractStructure">
+    <xs:sequence>
+      <xs:element name="A" type="xs:short" minOccurs="0" />
+      <xs:element name="B" type="xs:double" minOccurs="0" />
+      <xs:element name="C" type="xs:string" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="TestAbstractStructure" type="tns:TestAbstractStructure" />
+
+  <xs:complexType name="ListOfTestAbstractStructure">
+    <xs:sequence>
+      <xs:element name="TestAbstractStructure" type="tns:TestAbstractStructure" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfTestAbstractStructure" type="tns:ListOfTestAbstractStructure" nillable="true"></xs:element>
+
+  <xs:complexType name="TestConcreteStructure">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:TestAbstractStructure">
+        <xs:sequence>
+          <xs:element name="D" type="xs:short" minOccurs="0" />
+          <xs:element name="E" type="xs:double" minOccurs="0" />
+          <xs:element name="F" type="xs:string" minOccurs="0" nillable="true" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="TestConcreteStructure" type="tns:TestConcreteStructure" />
+
+  <xs:complexType name="ListOfTestConcreteStructure">
+    <xs:sequence>
+      <xs:element name="TestConcreteStructure" type="tns:TestConcreteStructure" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfTestConcreteStructure" type="tns:ListOfTestConcreteStructure" nillable="true"></xs:element>
+
+  <xs:complexType name="TestScalarStructure">
+    <xs:sequence>
+      <xs:element name="A" type="xs:boolean" minOccurs="0" />
+      <xs:element name="B" type="xs:byte" minOccurs="0" />
+      <xs:element name="C" type="xs:unsignedByte" minOccurs="0" />
+      <xs:element name="D" type="xs:short" minOccurs="0" />
+      <xs:element name="E" type="xs:unsignedShort" minOccurs="0" />
+      <xs:element name="F" type="xs:int" minOccurs="0" />
+      <xs:element name="G" type="xs:unsignedInt" minOccurs="0" />
+      <xs:element name="H" type="xs:long" minOccurs="0" />
+      <xs:element name="I" type="xs:unsignedLong" minOccurs="0" />
+      <xs:element name="J" type="xs:float" minOccurs="0" />
+      <xs:element name="K" type="xs:double" minOccurs="0" />
+      <xs:element name="L" type="ua:Guid" minOccurs="0" />
+      <xs:element name="M" type="xs:dateTime" minOccurs="0" />
+      <xs:element name="N" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="O" type="xs:base64Binary" minOccurs="0" nillable="true" />
+      <xs:element name="P" type="ua:NodeId" minOccurs="0" nillable="true" />
+      <xs:element name="Q" type="ua:ExpandedNodeId" minOccurs="0" nillable="true" />
+      <xs:element name="R" type="ua:QualifiedName" minOccurs="0" nillable="true" />
+      <xs:element name="S" type="ua:LocalizedText" minOccurs="0" nillable="true" />
+      <xs:element name="T" type="ua:StatusCode" minOccurs="0" />
+      <xs:element name="U" minOccurs="0" nillable="true">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:any minOccurs="0" processContents="lax" />
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="V" type="ua:Variant" minOccurs="0" />
+      <xs:element name="W" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="TestScalarStructure" type="tns:TestScalarStructure" />
+
+  <xs:complexType name="ListOfTestScalarStructure">
+    <xs:sequence>
+      <xs:element name="TestScalarStructure" type="tns:TestScalarStructure" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfTestScalarStructure" type="tns:ListOfTestScalarStructure" nillable="true"></xs:element>
+
+  <xs:complexType name="TestArrayStructure">
+    <xs:sequence>
+      <xs:element name="A" type="ua:ListOfBoolean" minOccurs="0" nillable="true" />
+      <xs:element name="B" type="ua:ListOfSByte" minOccurs="0" nillable="true" />
+      <xs:element name="C" type="tns:ListOfByte" minOccurs="0" nillable="true" />
+      <xs:element name="D" type="ua:ListOfInt16" minOccurs="0" nillable="true" />
+      <xs:element name="E" type="ua:ListOfUInt16" minOccurs="0" nillable="true" />
+      <xs:element name="F" type="ua:ListOfInt32" minOccurs="0" nillable="true" />
+      <xs:element name="G" type="ua:ListOfUInt32" minOccurs="0" nillable="true" />
+      <xs:element name="H" type="ua:ListOfInt64" minOccurs="0" nillable="true" />
+      <xs:element name="I" type="ua:ListOfUInt64" minOccurs="0" nillable="true" />
+      <xs:element name="J" type="ua:ListOfFloat" minOccurs="0" nillable="true" />
+      <xs:element name="K" type="ua:ListOfDouble" minOccurs="0" nillable="true" />
+      <xs:element name="L" type="ua:ListOfGuid" minOccurs="0" nillable="true" />
+      <xs:element name="M" type="ua:ListOfDateTime" minOccurs="0" nillable="true" />
+      <xs:element name="N" type="ua:ListOfString" minOccurs="0" nillable="true" />
+      <xs:element name="O" type="ua:ListOfByteString" minOccurs="0" nillable="true" />
+      <xs:element name="P" type="ua:ListOfNodeId" minOccurs="0" nillable="true" />
+      <xs:element name="Q" type="ua:ListOfExpandedNodeId" minOccurs="0" nillable="true" />
+      <xs:element name="R" type="ua:ListOfQualifiedName" minOccurs="0" nillable="true" />
+      <xs:element name="S" type="ua:ListOfLocalizedText" minOccurs="0" nillable="true" />
+      <xs:element name="T" type="ua:ListOfStatusCode" minOccurs="0" nillable="true" />
+      <xs:element name="U" type="ua:ListOfXmlElement" minOccurs="0" nillable="true" />
+      <xs:element name="V" type="ua:ListOfVariant" minOccurs="0" nillable="true" />
+      <xs:element name="W" type="ua:ListOfExtensionObject" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="TestArrayStructure" type="tns:TestArrayStructure" />
+
+  <xs:complexType name="ListOfTestArrayStructure">
+    <xs:sequence>
+      <xs:element name="TestArrayStructure" type="tns:TestArrayStructure" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfTestArrayStructure" type="tns:ListOfTestArrayStructure" nillable="true"></xs:element>
+
+  <xs:complexType name="TestStructure">
+    <xs:sequence>
+      <xs:element name="A" type="tns:TestScalarStructure" minOccurs="0" nillable="true" />
+      <xs:element name="B" type="tns:TestArrayStructure" minOccurs="0" nillable="true" />
+      <xs:element name="C" type="tns:ListOfTestScalarStructure" minOccurs="0" nillable="true" />
+      <xs:element name="D" type="tns:ListOfTestArrayStructure" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="TestStructure" type="tns:TestStructure" />
+
+  <xs:complexType name="ListOfTestStructure">
+    <xs:sequence>
+      <xs:element name="TestStructure" type="tns:TestStructure" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfTestStructure" type="tns:ListOfTestStructure" nillable="true"></xs:element>
 
 </xs:schema>

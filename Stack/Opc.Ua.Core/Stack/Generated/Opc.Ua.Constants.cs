@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -1379,6 +1379,21 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ExceptionDeviationFormat = 890;
+
+        /// <remarks />
+        public const uint TestAbstractStructure = 15399;
+
+        /// <remarks />
+        public const uint TestConcreteStructure = 15400;
+
+        /// <remarks />
+        public const uint TestScalarStructure = 15015;
+
+        /// <remarks />
+        public const uint TestArrayStructure = 15016;
+
+        /// <remarks />
+        public const uint TestStructure = 15017;
     }
     #endregion
 
@@ -5411,6 +5426,21 @@ namespace Opc.Ua
         public const uint Annotation_Encoding_DefaultBinary = 893;
 
         /// <remarks />
+        public const uint TestAbstractStructure_Encoding_DefaultBinary = 15401;
+
+        /// <remarks />
+        public const uint TestConcreteStructure_Encoding_DefaultBinary = 15402;
+
+        /// <remarks />
+        public const uint TestScalarStructure_Encoding_DefaultBinary = 15024;
+
+        /// <remarks />
+        public const uint TestArrayStructure_Encoding_DefaultBinary = 15025;
+
+        /// <remarks />
+        public const uint TestStructure_Encoding_DefaultBinary = 15026;
+
+        /// <remarks />
         public const uint Union_Encoding_DefaultXml = 12758;
 
         /// <remarks />
@@ -6392,6 +6422,21 @@ namespace Opc.Ua
         public const uint Annotation_Encoding_DefaultXml = 892;
 
         /// <remarks />
+        public const uint TestAbstractStructure_Encoding_DefaultXml = 15403;
+
+        /// <remarks />
+        public const uint TestConcreteStructure_Encoding_DefaultXml = 15404;
+
+        /// <remarks />
+        public const uint TestScalarStructure_Encoding_DefaultXml = 15232;
+
+        /// <remarks />
+        public const uint TestArrayStructure_Encoding_DefaultXml = 15233;
+
+        /// <remarks />
+        public const uint TestStructure_Encoding_DefaultXml = 15234;
+
+        /// <remarks />
         public const uint Union_Encoding_DefaultJson = 15085;
 
         /// <remarks />
@@ -7371,6 +7416,21 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint Annotation_Encoding_DefaultJson = 15382;
+
+        /// <remarks />
+        public const uint TestAbstractStructure_Encoding_DefaultJson = 15405;
+
+        /// <remarks />
+        public const uint TestConcreteStructure_Encoding_DefaultJson = 15431;
+
+        /// <remarks />
+        public const uint TestScalarStructure_Encoding_DefaultJson = 15396;
+
+        /// <remarks />
+        public const uint TestArrayStructure_Encoding_DefaultJson = 15397;
+
+        /// <remarks />
+        public const uint TestStructure_Encoding_DefaultJson = 15398;
     }
     #endregion
 
@@ -10461,6 +10521,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint Server_ServerRedundancy_RedundancySupport = 3709;
+
+        /// <remarks />
+        public const uint Server_ServerRedundancy_RedundantServerArray = 11313;
 
         /// <remarks />
         public const uint Server_GetMonitoredItems_InputArguments = 11493;
@@ -25519,6 +25582,21 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ExceptionDeviationFormat = new NodeId(Opc.Ua.DataTypes.ExceptionDeviationFormat);
+
+        /// <remarks />
+        public static readonly NodeId TestAbstractStructure = new NodeId(Opc.Ua.DataTypes.TestAbstractStructure);
+
+        /// <remarks />
+        public static readonly NodeId TestConcreteStructure = new NodeId(Opc.Ua.DataTypes.TestConcreteStructure);
+
+        /// <remarks />
+        public static readonly NodeId TestScalarStructure = new NodeId(Opc.Ua.DataTypes.TestScalarStructure);
+
+        /// <remarks />
+        public static readonly NodeId TestArrayStructure = new NodeId(Opc.Ua.DataTypes.TestArrayStructure);
+
+        /// <remarks />
+        public static readonly NodeId TestStructure = new NodeId(Opc.Ua.DataTypes.TestStructure);
     }
     #endregion
 
@@ -29551,6 +29629,21 @@ namespace Opc.Ua
         public static readonly NodeId Annotation_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.Annotation_Encoding_DefaultBinary);
 
         /// <remarks />
+        public static readonly NodeId TestAbstractStructure_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TestAbstractStructure_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId TestConcreteStructure_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TestConcreteStructure_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId TestScalarStructure_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TestScalarStructure_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId TestArrayStructure_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TestArrayStructure_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId TestStructure_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TestStructure_Encoding_DefaultBinary);
+
+        /// <remarks />
         public static readonly NodeId Union_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.Union_Encoding_DefaultXml);
 
         /// <remarks />
@@ -30532,6 +30625,21 @@ namespace Opc.Ua
         public static readonly NodeId Annotation_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.Annotation_Encoding_DefaultXml);
 
         /// <remarks />
+        public static readonly NodeId TestAbstractStructure_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TestAbstractStructure_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId TestConcreteStructure_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TestConcreteStructure_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId TestScalarStructure_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TestScalarStructure_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId TestArrayStructure_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TestArrayStructure_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId TestStructure_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TestStructure_Encoding_DefaultXml);
+
+        /// <remarks />
         public static readonly NodeId Union_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.Union_Encoding_DefaultJson);
 
         /// <remarks />
@@ -31511,6 +31619,21 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId Annotation_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.Annotation_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId TestAbstractStructure_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TestAbstractStructure_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId TestConcreteStructure_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TestConcreteStructure_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId TestScalarStructure_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TestScalarStructure_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId TestArrayStructure_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TestArrayStructure_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId TestStructure_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TestStructure_Encoding_DefaultJson);
     }
     #endregion
 
@@ -34601,6 +34724,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId Server_ServerRedundancy_RedundancySupport = new NodeId(Opc.Ua.Variables.Server_ServerRedundancy_RedundancySupport);
+
+        /// <remarks />
+        public static readonly NodeId Server_ServerRedundancy_RedundantServerArray = new NodeId(Opc.Ua.Variables.Server_ServerRedundancy_RedundantServerArray);
 
         /// <remarks />
         public static readonly NodeId Server_GetMonitoredItems_InputArguments = new NodeId(Opc.Ua.Variables.Server_GetMonitoredItems_InputArguments);
@@ -53086,7 +53212,22 @@ namespace Opc.Ua
         public const string TemporaryFileTransferType = "TemporaryFileTransferType";
 
         /// <remarks />
+        public const string TestAbstractStructure = "TestAbstractStructure";
+
+        /// <remarks />
+        public const string TestArrayStructure = "TestArrayStructure";
+
+        /// <remarks />
+        public const string TestConcreteStructure = "TestConcreteStructure";
+
+        /// <remarks />
         public const string TestingConditionClassType = "TestingConditionClassType";
+
+        /// <remarks />
+        public const string TestScalarStructure = "TestScalarStructure";
+
+        /// <remarks />
+        public const string TestStructure = "TestStructure";
 
         /// <remarks />
         public const string ThreeDCartesianCoordinates = "3DCartesianCoordinates";

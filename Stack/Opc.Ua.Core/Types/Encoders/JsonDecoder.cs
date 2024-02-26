@@ -31,6 +31,11 @@ namespace Opc.Ua
         /// The name of the Root array if the json is defined as an array 
         /// </summary>
         public const string RootArrayName = "___root_array___";
+
+        /// <summary>
+        /// If TRUE then the NamespaceUris and ServerUris tables are updated with new URIs read from the JSON stream.
+        /// </summary>
+        public bool UpdateNamespaceTable { get; set; }
         #endregion
 
         #region Private Fields
@@ -844,6 +849,10 @@ namespace Opc.Ua
                 return NodeId.Null;
             }
 
+            if (token is string text)
+            {
+                return NodeId.Parse(m_context, text, UpdateNamespaceTable);
+            }
 
             if (!(token is Dictionary<string, object> value))
             {
@@ -930,6 +939,10 @@ namespace Opc.Ua
                 return ExpandedNodeId.Null;
             }
 
+            if (token is string text)
+            {
+                return ExpandedNodeId.Parse(m_context, text, UpdateNamespaceTable);
+            }
 
             if (!(token is Dictionary<string, object> value))
             {
@@ -1062,6 +1075,10 @@ namespace Opc.Ua
                 return QualifiedName.Null;
             }
 
+            if (token is string text)
+            {
+                return QualifiedName.Parse(m_context, text, UpdateNamespaceTable);
+            }
 
             if (!(token is Dictionary<string, object> value))
             {
@@ -1272,7 +1289,6 @@ namespace Opc.Ua
             {
                 return extension;
             }
-
 
             if (!(token is Dictionary<string, object> value))
             {

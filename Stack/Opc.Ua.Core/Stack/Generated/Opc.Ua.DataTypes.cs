@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -206,7 +206,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class Union : IEncodeable, IJsonEncodeable
+    public abstract partial class Union : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -1560,7 +1560,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class Vector : IEncodeable, IJsonEncodeable
+    public abstract partial class Vector : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -1938,7 +1938,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class CartesianCoordinates : IEncodeable, IJsonEncodeable
+    public abstract partial class CartesianCoordinates : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -2316,7 +2316,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class Orientation : IEncodeable, IJsonEncodeable
+    public abstract partial class Orientation : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -2694,7 +2694,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class Frame : IEncodeable, IJsonEncodeable
+    public abstract partial class Frame : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -5277,7 +5277,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DataTypeSchemaHeader : IEncodeable, IJsonEncodeable
+    public abstract partial class DataTypeSchemaHeader : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -5546,7 +5546,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DataTypeDescription : IEncodeable, IJsonEncodeable
+    public abstract partial class DataTypeDescription : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -8318,7 +8318,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class PublishedDataSetSourceDataType : IEncodeable, IJsonEncodeable
+    public abstract partial class PublishedDataSetSourceDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -9796,7 +9796,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DataSetWriterTransportDataType : IEncodeable, IJsonEncodeable
+    public abstract partial class DataSetWriterTransportDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -9962,7 +9962,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DataSetWriterMessageDataType : IEncodeable, IJsonEncodeable
+    public abstract partial class DataSetWriterMessageDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -10128,7 +10128,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class PubSubGroupDataType : IEncodeable, IJsonEncodeable
+    public abstract partial class PubSubGroupDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -10735,7 +10735,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class WriterGroupTransportDataType : IEncodeable, IJsonEncodeable
+    public abstract partial class WriterGroupTransportDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -10901,7 +10901,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class WriterGroupMessageDataType : IEncodeable, IJsonEncodeable
+    public abstract partial class WriterGroupMessageDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -11394,7 +11394,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ConnectionTransportDataType : IEncodeable, IJsonEncodeable
+    public abstract partial class ConnectionTransportDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -11560,7 +11560,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class NetworkAddressDataType : IEncodeable, IJsonEncodeable
+    public abstract partial class NetworkAddressDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -12147,7 +12147,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ReaderGroupTransportDataType : IEncodeable, IJsonEncodeable
+    public abstract partial class ReaderGroupTransportDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -12313,7 +12313,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class ReaderGroupMessageDataType : IEncodeable, IJsonEncodeable
+    public abstract partial class ReaderGroupMessageDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -12918,7 +12918,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DataSetReaderTransportDataType : IEncodeable, IJsonEncodeable
+    public abstract partial class DataSetReaderTransportDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -13084,7 +13084,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DataSetReaderMessageDataType : IEncodeable, IJsonEncodeable
+    public abstract partial class DataSetReaderMessageDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -13250,7 +13250,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class SubscribedDataSetDataType : IEncodeable, IJsonEncodeable
+    public abstract partial class SubscribedDataSetDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -17732,7 +17732,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class QosDataType : IEncodeable, IJsonEncodeable
+    public abstract partial class QosDataType : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -24134,7 +24134,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class DataTypeDefinition : IEncodeable, IJsonEncodeable
+    public abstract partial class DataTypeDefinition : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -27664,7 +27664,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class OptionSet : IEncodeable, IJsonEncodeable
+    public abstract partial class OptionSet : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -33944,7 +33944,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class UserIdentityToken : IEncodeable, IJsonEncodeable
+    public abstract partial class UserIdentityToken : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -45134,7 +45134,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class FilterOperand : IEncodeable, IJsonEncodeable
+    public abstract partial class FilterOperand : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -48346,7 +48346,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class HistoryReadDetails : IEncodeable, IJsonEncodeable
+    public abstract partial class HistoryReadDetails : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -51033,7 +51033,7 @@ namespace Opc.Ua
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class HistoryUpdateDetails : IEncodeable, IJsonEncodeable
+    public abstract partial class HistoryUpdateDetails : IEncodeable, IJsonEncodeable
     {
         #region Constructors
         /// <remarks />
@@ -67848,6 +67848,1932 @@ namespace Opc.Ua
         [EnumMember(Value = "Unknown_4")]
         Unknown = 4,
     }
+    #endif
+    #endregion
+
+    #region TestAbstractStructure Class
+    #if (!OPCUA_EXCLUDE_TestAbstractStructure)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public abstract partial class TestAbstractStructure : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public TestAbstractStructure()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_a = (short)0;
+            m_b = (double)0;
+            m_c = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "A", IsRequired = false, Order = 1)]
+        public short A
+        {
+            get { return m_a;  }
+            set { m_a = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "B", IsRequired = false, Order = 2)]
+        public double B
+        {
+            get { return m_b;  }
+            set { m_b = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "C", IsRequired = false, Order = 3)]
+        public string C
+        {
+            get { return m_c;  }
+            set { m_c = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.TestAbstractStructure; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.TestAbstractStructure_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TestAbstractStructure_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.TestAbstractStructure_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteInt16("A", A);
+            encoder.WriteDouble("B", B);
+            encoder.WriteString("C", C);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            A = decoder.ReadInt16("A");
+            B = decoder.ReadDouble("B");
+            C = decoder.ReadString("C");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            TestAbstractStructure value = encodeable as TestAbstractStructure;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_a, value.m_a)) return false;
+            if (!Utils.IsEqual(m_b, value.m_b)) return false;
+            if (!Utils.IsEqual(m_c, value.m_c)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (TestAbstractStructure)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TestAbstractStructure clone = (TestAbstractStructure)base.MemberwiseClone();
+
+            clone.m_a = (short)Utils.Clone(this.m_a);
+            clone.m_b = (double)Utils.Clone(this.m_b);
+            clone.m_c = (string)Utils.Clone(this.m_c);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private short m_a;
+        private double m_b;
+        private string m_c;
+        #endregion
+    }
+
+    #region TestAbstractStructureCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfTestAbstractStructure", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TestAbstractStructure")]
+    public partial class TestAbstractStructureCollection : List<TestAbstractStructure>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public TestAbstractStructureCollection() {}
+
+        /// <remarks />
+        public TestAbstractStructureCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public TestAbstractStructureCollection(IEnumerable<TestAbstractStructure> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator TestAbstractStructureCollection(TestAbstractStructure[] values)
+        {
+            if (values != null)
+            {
+                return new TestAbstractStructureCollection(values);
+            }
+
+            return new TestAbstractStructureCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator TestAbstractStructure[](TestAbstractStructureCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (TestAbstractStructureCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TestAbstractStructureCollection clone = new TestAbstractStructureCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((TestAbstractStructure)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region TestConcreteStructure Class
+    #if (!OPCUA_EXCLUDE_TestConcreteStructure)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class TestConcreteStructure : Opc.Ua.TestAbstractStructure
+    {
+        #region Constructors
+        /// <remarks />
+        public TestConcreteStructure()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_d = (short)0;
+            m_e = (double)0;
+            m_f = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "D", IsRequired = false, Order = 1)]
+        public short D
+        {
+            get { return m_d;  }
+            set { m_d = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "E", IsRequired = false, Order = 2)]
+        public double E
+        {
+            get { return m_e;  }
+            set { m_e = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "F", IsRequired = false, Order = 3)]
+        public string F
+        {
+            get { return m_f;  }
+            set { m_f = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.TestConcreteStructure; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.TestConcreteStructure_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.TestConcreteStructure_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.TestConcreteStructure_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteInt16("D", D);
+            encoder.WriteDouble("E", E);
+            encoder.WriteString("F", F);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            D = decoder.ReadInt16("D");
+            E = decoder.ReadDouble("E");
+            F = decoder.ReadString("F");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            TestConcreteStructure value = encodeable as TestConcreteStructure;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!base.IsEqual(encodeable)) return false;
+            if (!Utils.IsEqual(m_d, value.m_d)) return false;
+            if (!Utils.IsEqual(m_e, value.m_e)) return false;
+            if (!Utils.IsEqual(m_f, value.m_f)) return false;
+
+            return base.IsEqual(encodeable);
+        }    
+
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (TestConcreteStructure)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TestConcreteStructure clone = (TestConcreteStructure)base.MemberwiseClone();
+
+            clone.m_d = (short)Utils.Clone(this.m_d);
+            clone.m_e = (double)Utils.Clone(this.m_e);
+            clone.m_f = (string)Utils.Clone(this.m_f);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private short m_d;
+        private double m_e;
+        private string m_f;
+        #endregion
+    }
+
+    #region TestConcreteStructureCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfTestConcreteStructure", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TestConcreteStructure")]
+    public partial class TestConcreteStructureCollection : List<TestConcreteStructure>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public TestConcreteStructureCollection() {}
+
+        /// <remarks />
+        public TestConcreteStructureCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public TestConcreteStructureCollection(IEnumerable<TestConcreteStructure> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator TestConcreteStructureCollection(TestConcreteStructure[] values)
+        {
+            if (values != null)
+            {
+                return new TestConcreteStructureCollection(values);
+            }
+
+            return new TestConcreteStructureCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator TestConcreteStructure[](TestConcreteStructureCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (TestConcreteStructureCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TestConcreteStructureCollection clone = new TestConcreteStructureCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((TestConcreteStructure)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region TestScalarStructure Class
+    #if (!OPCUA_EXCLUDE_TestScalarStructure)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class TestScalarStructure : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public TestScalarStructure()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_a = true;
+            m_b = (sbyte)0;
+            m_c = (byte)0;
+            m_d = (short)0;
+            m_e = (ushort)0;
+            m_f = (int)0;
+            m_g = (uint)0;
+            m_h = (long)0;
+            m_i = (ulong)0;
+            m_j = (float)0;
+            m_k = (double)0;
+            m_l = Uuid.Empty;
+            m_m = DateTime.MinValue;
+            m_n = null;
+            m_o = null;
+            m_p = null;
+            m_q = null;
+            m_r = null;
+            m_s = null;
+            m_t = StatusCodes.Good;
+            m_u = null;
+            m_v = Variant.Null;
+            m_w = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "A", IsRequired = false, Order = 1)]
+        public bool A
+        {
+            get { return m_a;  }
+            set { m_a = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "B", IsRequired = false, Order = 2)]
+        public sbyte B
+        {
+            get { return m_b;  }
+            set { m_b = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "C", IsRequired = false, Order = 3)]
+        public byte C
+        {
+            get { return m_c;  }
+            set { m_c = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "D", IsRequired = false, Order = 4)]
+        public short D
+        {
+            get { return m_d;  }
+            set { m_d = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "E", IsRequired = false, Order = 5)]
+        public ushort E
+        {
+            get { return m_e;  }
+            set { m_e = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "F", IsRequired = false, Order = 6)]
+        public int F
+        {
+            get { return m_f;  }
+            set { m_f = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "G", IsRequired = false, Order = 7)]
+        public uint G
+        {
+            get { return m_g;  }
+            set { m_g = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "H", IsRequired = false, Order = 8)]
+        public long H
+        {
+            get { return m_h;  }
+            set { m_h = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "I", IsRequired = false, Order = 9)]
+        public ulong I
+        {
+            get { return m_i;  }
+            set { m_i = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "J", IsRequired = false, Order = 10)]
+        public float J
+        {
+            get { return m_j;  }
+            set { m_j = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "K", IsRequired = false, Order = 11)]
+        public double K
+        {
+            get { return m_k;  }
+            set { m_k = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "L", IsRequired = false, Order = 12)]
+        public Uuid L
+        {
+            get { return m_l;  }
+            set { m_l = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "M", IsRequired = false, Order = 13)]
+        public DateTime M
+        {
+            get { return m_m;  }
+            set { m_m = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "N", IsRequired = false, Order = 14)]
+        public string N
+        {
+            get { return m_n;  }
+            set { m_n = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "O", IsRequired = false, Order = 15)]
+        public byte[] O
+        {
+            get { return m_o;  }
+            set { m_o = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "P", IsRequired = false, Order = 16)]
+        public NodeId P
+        {
+            get { return m_p;  }
+            set { m_p = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Q", IsRequired = false, Order = 17)]
+        public ExpandedNodeId Q
+        {
+            get { return m_q;  }
+            set { m_q = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "R", IsRequired = false, Order = 18)]
+        public QualifiedName R
+        {
+            get { return m_r;  }
+            set { m_r = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "S", IsRequired = false, Order = 19)]
+        public LocalizedText S
+        {
+            get { return m_s;  }
+            set { m_s = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "T", IsRequired = false, Order = 20)]
+        public StatusCode T
+        {
+            get { return m_t;  }
+            set { m_t = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "U", IsRequired = false, Order = 21)]
+        public XmlElement U
+        {
+            get { return m_u;  }
+            set { m_u = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "V", IsRequired = false, Order = 22)]
+        public Variant V
+        {
+            get { return m_v;  }
+            set { m_v = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "W", IsRequired = false, Order = 23)]
+        public ExtensionObject W
+        {
+            get { return m_w;  }
+            set { m_w = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.TestScalarStructure; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.TestScalarStructure_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TestScalarStructure_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.TestScalarStructure_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteBoolean("A", A);
+            encoder.WriteSByte("B", B);
+            encoder.WriteByte("C", C);
+            encoder.WriteInt16("D", D);
+            encoder.WriteUInt16("E", E);
+            encoder.WriteInt32("F", F);
+            encoder.WriteUInt32("G", G);
+            encoder.WriteInt64("H", H);
+            encoder.WriteUInt64("I", I);
+            encoder.WriteFloat("J", J);
+            encoder.WriteDouble("K", K);
+            encoder.WriteGuid("L", L);
+            encoder.WriteDateTime("M", M);
+            encoder.WriteString("N", N);
+            encoder.WriteByteString("O", O);
+            encoder.WriteNodeId("P", P);
+            encoder.WriteExpandedNodeId("Q", Q);
+            encoder.WriteQualifiedName("R", R);
+            encoder.WriteLocalizedText("S", S);
+            encoder.WriteStatusCode("T", T);
+            encoder.WriteXmlElement("U", U);
+            encoder.WriteVariant("V", V);
+            encoder.WriteExtensionObject("W", W);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            A = decoder.ReadBoolean("A");
+            B = decoder.ReadSByte("B");
+            C = decoder.ReadByte("C");
+            D = decoder.ReadInt16("D");
+            E = decoder.ReadUInt16("E");
+            F = decoder.ReadInt32("F");
+            G = decoder.ReadUInt32("G");
+            H = decoder.ReadInt64("H");
+            I = decoder.ReadUInt64("I");
+            J = decoder.ReadFloat("J");
+            K = decoder.ReadDouble("K");
+            L = decoder.ReadGuid("L");
+            M = decoder.ReadDateTime("M");
+            N = decoder.ReadString("N");
+            O = decoder.ReadByteString("O");
+            P = decoder.ReadNodeId("P");
+            Q = decoder.ReadExpandedNodeId("Q");
+            R = decoder.ReadQualifiedName("R");
+            S = decoder.ReadLocalizedText("S");
+            T = decoder.ReadStatusCode("T");
+            U = decoder.ReadXmlElement("U");
+            V = decoder.ReadVariant("V");
+            W = decoder.ReadExtensionObject("W");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            TestScalarStructure value = encodeable as TestScalarStructure;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_a, value.m_a)) return false;
+            if (!Utils.IsEqual(m_b, value.m_b)) return false;
+            if (!Utils.IsEqual(m_c, value.m_c)) return false;
+            if (!Utils.IsEqual(m_d, value.m_d)) return false;
+            if (!Utils.IsEqual(m_e, value.m_e)) return false;
+            if (!Utils.IsEqual(m_f, value.m_f)) return false;
+            if (!Utils.IsEqual(m_g, value.m_g)) return false;
+            if (!Utils.IsEqual(m_h, value.m_h)) return false;
+            if (!Utils.IsEqual(m_i, value.m_i)) return false;
+            if (!Utils.IsEqual(m_j, value.m_j)) return false;
+            if (!Utils.IsEqual(m_k, value.m_k)) return false;
+            if (!Utils.IsEqual(m_l, value.m_l)) return false;
+            if (!Utils.IsEqual(m_m, value.m_m)) return false;
+            if (!Utils.IsEqual(m_n, value.m_n)) return false;
+            if (!Utils.IsEqual(m_o, value.m_o)) return false;
+            if (!Utils.IsEqual(m_p, value.m_p)) return false;
+            if (!Utils.IsEqual(m_q, value.m_q)) return false;
+            if (!Utils.IsEqual(m_r, value.m_r)) return false;
+            if (!Utils.IsEqual(m_s, value.m_s)) return false;
+            if (!Utils.IsEqual(m_t, value.m_t)) return false;
+            if (!Utils.IsEqual(m_u, value.m_u)) return false;
+            if (!Utils.IsEqual(m_v, value.m_v)) return false;
+            if (!Utils.IsEqual(m_w, value.m_w)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (TestScalarStructure)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TestScalarStructure clone = (TestScalarStructure)base.MemberwiseClone();
+
+            clone.m_a = (bool)Utils.Clone(this.m_a);
+            clone.m_b = (sbyte)Utils.Clone(this.m_b);
+            clone.m_c = (byte)Utils.Clone(this.m_c);
+            clone.m_d = (short)Utils.Clone(this.m_d);
+            clone.m_e = (ushort)Utils.Clone(this.m_e);
+            clone.m_f = (int)Utils.Clone(this.m_f);
+            clone.m_g = (uint)Utils.Clone(this.m_g);
+            clone.m_h = (long)Utils.Clone(this.m_h);
+            clone.m_i = (ulong)Utils.Clone(this.m_i);
+            clone.m_j = (float)Utils.Clone(this.m_j);
+            clone.m_k = (double)Utils.Clone(this.m_k);
+            clone.m_l = (Uuid)Utils.Clone(this.m_l);
+            clone.m_m = (DateTime)Utils.Clone(this.m_m);
+            clone.m_n = (string)Utils.Clone(this.m_n);
+            clone.m_o = (byte[])Utils.Clone(this.m_o);
+            clone.m_p = (NodeId)Utils.Clone(this.m_p);
+            clone.m_q = (ExpandedNodeId)Utils.Clone(this.m_q);
+            clone.m_r = (QualifiedName)Utils.Clone(this.m_r);
+            clone.m_s = (LocalizedText)Utils.Clone(this.m_s);
+            clone.m_t = (StatusCode)Utils.Clone(this.m_t);
+            clone.m_u = (XmlElement)Utils.Clone(this.m_u);
+            clone.m_v = (Variant)Utils.Clone(this.m_v);
+            clone.m_w = (ExtensionObject)Utils.Clone(this.m_w);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private bool m_a;
+        private sbyte m_b;
+        private byte m_c;
+        private short m_d;
+        private ushort m_e;
+        private int m_f;
+        private uint m_g;
+        private long m_h;
+        private ulong m_i;
+        private float m_j;
+        private double m_k;
+        private Uuid m_l;
+        private DateTime m_m;
+        private string m_n;
+        private byte[] m_o;
+        private NodeId m_p;
+        private ExpandedNodeId m_q;
+        private QualifiedName m_r;
+        private LocalizedText m_s;
+        private StatusCode m_t;
+        private XmlElement m_u;
+        private Variant m_v;
+        private ExtensionObject m_w;
+        #endregion
+    }
+
+    #region TestScalarStructureCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfTestScalarStructure", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TestScalarStructure")]
+    public partial class TestScalarStructureCollection : List<TestScalarStructure>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public TestScalarStructureCollection() {}
+
+        /// <remarks />
+        public TestScalarStructureCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public TestScalarStructureCollection(IEnumerable<TestScalarStructure> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator TestScalarStructureCollection(TestScalarStructure[] values)
+        {
+            if (values != null)
+            {
+                return new TestScalarStructureCollection(values);
+            }
+
+            return new TestScalarStructureCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator TestScalarStructure[](TestScalarStructureCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (TestScalarStructureCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TestScalarStructureCollection clone = new TestScalarStructureCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((TestScalarStructure)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region TestArrayStructure Class
+    #if (!OPCUA_EXCLUDE_TestArrayStructure)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class TestArrayStructure : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public TestArrayStructure()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_a = new BooleanCollection();
+            m_b = new SByteCollection();
+            m_c = new ByteCollection();
+            m_d = new Int16Collection();
+            m_e = new UInt16Collection();
+            m_f = new Int32Collection();
+            m_g = new UInt32Collection();
+            m_h = new Int64Collection();
+            m_i = new UInt64Collection();
+            m_j = new FloatCollection();
+            m_k = new DoubleCollection();
+            m_l = new UuidCollection();
+            m_m = new DateTimeCollection();
+            m_n = new StringCollection();
+            m_o = new ByteStringCollection();
+            m_p = new NodeIdCollection();
+            m_q = new ExpandedNodeIdCollection();
+            m_r = new QualifiedNameCollection();
+            m_s = new LocalizedTextCollection();
+            m_t = new StatusCodeCollection();
+            m_u = new XmlElementCollection();
+            m_v = new VariantCollection();
+            m_w = new ExtensionObjectCollection();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "A", IsRequired = false, Order = 1)]
+        public BooleanCollection A
+        {
+            get
+            {
+                return m_a;
+            }
+
+            set
+            {
+                m_a = value;
+
+                if (value == null)
+                {
+                    m_a = new BooleanCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "B", IsRequired = false, Order = 2)]
+        public SByteCollection B
+        {
+            get
+            {
+                return m_b;
+            }
+
+            set
+            {
+                m_b = value;
+
+                if (value == null)
+                {
+                    m_b = new SByteCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "C", IsRequired = false, Order = 3)]
+        public ByteCollection C
+        {
+            get
+            {
+                return m_c;
+            }
+
+            set
+            {
+                m_c = value;
+
+                if (value == null)
+                {
+                    m_c = new ByteCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "D", IsRequired = false, Order = 4)]
+        public Int16Collection D
+        {
+            get
+            {
+                return m_d;
+            }
+
+            set
+            {
+                m_d = value;
+
+                if (value == null)
+                {
+                    m_d = new Int16Collection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "E", IsRequired = false, Order = 5)]
+        public UInt16Collection E
+        {
+            get
+            {
+                return m_e;
+            }
+
+            set
+            {
+                m_e = value;
+
+                if (value == null)
+                {
+                    m_e = new UInt16Collection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "F", IsRequired = false, Order = 6)]
+        public Int32Collection F
+        {
+            get
+            {
+                return m_f;
+            }
+
+            set
+            {
+                m_f = value;
+
+                if (value == null)
+                {
+                    m_f = new Int32Collection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "G", IsRequired = false, Order = 7)]
+        public UInt32Collection G
+        {
+            get
+            {
+                return m_g;
+            }
+
+            set
+            {
+                m_g = value;
+
+                if (value == null)
+                {
+                    m_g = new UInt32Collection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "H", IsRequired = false, Order = 8)]
+        public Int64Collection H
+        {
+            get
+            {
+                return m_h;
+            }
+
+            set
+            {
+                m_h = value;
+
+                if (value == null)
+                {
+                    m_h = new Int64Collection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "I", IsRequired = false, Order = 9)]
+        public UInt64Collection I
+        {
+            get
+            {
+                return m_i;
+            }
+
+            set
+            {
+                m_i = value;
+
+                if (value == null)
+                {
+                    m_i = new UInt64Collection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "J", IsRequired = false, Order = 10)]
+        public FloatCollection J
+        {
+            get
+            {
+                return m_j;
+            }
+
+            set
+            {
+                m_j = value;
+
+                if (value == null)
+                {
+                    m_j = new FloatCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "K", IsRequired = false, Order = 11)]
+        public DoubleCollection K
+        {
+            get
+            {
+                return m_k;
+            }
+
+            set
+            {
+                m_k = value;
+
+                if (value == null)
+                {
+                    m_k = new DoubleCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "L", IsRequired = false, Order = 12)]
+        public UuidCollection L
+        {
+            get
+            {
+                return m_l;
+            }
+
+            set
+            {
+                m_l = value;
+
+                if (value == null)
+                {
+                    m_l = new UuidCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "M", IsRequired = false, Order = 13)]
+        public DateTimeCollection M
+        {
+            get
+            {
+                return m_m;
+            }
+
+            set
+            {
+                m_m = value;
+
+                if (value == null)
+                {
+                    m_m = new DateTimeCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "N", IsRequired = false, Order = 14)]
+        public StringCollection N
+        {
+            get
+            {
+                return m_n;
+            }
+
+            set
+            {
+                m_n = value;
+
+                if (value == null)
+                {
+                    m_n = new StringCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "O", IsRequired = false, Order = 15)]
+        public ByteStringCollection O
+        {
+            get
+            {
+                return m_o;
+            }
+
+            set
+            {
+                m_o = value;
+
+                if (value == null)
+                {
+                    m_o = new ByteStringCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "P", IsRequired = false, Order = 16)]
+        public NodeIdCollection P
+        {
+            get
+            {
+                return m_p;
+            }
+
+            set
+            {
+                m_p = value;
+
+                if (value == null)
+                {
+                    m_p = new NodeIdCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Q", IsRequired = false, Order = 17)]
+        public ExpandedNodeIdCollection Q
+        {
+            get
+            {
+                return m_q;
+            }
+
+            set
+            {
+                m_q = value;
+
+                if (value == null)
+                {
+                    m_q = new ExpandedNodeIdCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "R", IsRequired = false, Order = 18)]
+        public QualifiedNameCollection R
+        {
+            get
+            {
+                return m_r;
+            }
+
+            set
+            {
+                m_r = value;
+
+                if (value == null)
+                {
+                    m_r = new QualifiedNameCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "S", IsRequired = false, Order = 19)]
+        public LocalizedTextCollection S
+        {
+            get
+            {
+                return m_s;
+            }
+
+            set
+            {
+                m_s = value;
+
+                if (value == null)
+                {
+                    m_s = new LocalizedTextCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "T", IsRequired = false, Order = 20)]
+        public StatusCodeCollection T
+        {
+            get
+            {
+                return m_t;
+            }
+
+            set
+            {
+                m_t = value;
+
+                if (value == null)
+                {
+                    m_t = new StatusCodeCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "U", IsRequired = false, Order = 21)]
+        public XmlElementCollection U
+        {
+            get
+            {
+                return m_u;
+            }
+
+            set
+            {
+                m_u = value;
+
+                if (value == null)
+                {
+                    m_u = new XmlElementCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "V", IsRequired = false, Order = 22)]
+        public VariantCollection V
+        {
+            get
+            {
+                return m_v;
+            }
+
+            set
+            {
+                m_v = value;
+
+                if (value == null)
+                {
+                    m_v = new VariantCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "W", IsRequired = false, Order = 23)]
+        public ExtensionObjectCollection W
+        {
+            get { return m_w;  }
+            set { m_w = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.TestArrayStructure; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.TestArrayStructure_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TestArrayStructure_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.TestArrayStructure_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteBooleanArray("A", A);
+            encoder.WriteSByteArray("B", B);
+            encoder.WriteByteArray("C", C);
+            encoder.WriteInt16Array("D", D);
+            encoder.WriteUInt16Array("E", E);
+            encoder.WriteInt32Array("F", F);
+            encoder.WriteUInt32Array("G", G);
+            encoder.WriteInt64Array("H", H);
+            encoder.WriteUInt64Array("I", I);
+            encoder.WriteFloatArray("J", J);
+            encoder.WriteDoubleArray("K", K);
+            encoder.WriteGuidArray("L", L);
+            encoder.WriteDateTimeArray("M", M);
+            encoder.WriteStringArray("N", N);
+            encoder.WriteByteStringArray("O", O);
+            encoder.WriteNodeIdArray("P", P);
+            encoder.WriteExpandedNodeIdArray("Q", Q);
+            encoder.WriteQualifiedNameArray("R", R);
+            encoder.WriteLocalizedTextArray("S", S);
+            encoder.WriteStatusCodeArray("T", T);
+            encoder.WriteXmlElementArray("U", U);
+            encoder.WriteVariantArray("V", V);
+            encoder.WriteExtensionObjectArray("W", W);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            A = decoder.ReadBooleanArray("A");
+            B = decoder.ReadSByteArray("B");
+            C = decoder.ReadByteArray("C");
+            D = decoder.ReadInt16Array("D");
+            E = decoder.ReadUInt16Array("E");
+            F = decoder.ReadInt32Array("F");
+            G = decoder.ReadUInt32Array("G");
+            H = decoder.ReadInt64Array("H");
+            I = decoder.ReadUInt64Array("I");
+            J = decoder.ReadFloatArray("J");
+            K = decoder.ReadDoubleArray("K");
+            L = decoder.ReadGuidArray("L");
+            M = decoder.ReadDateTimeArray("M");
+            N = decoder.ReadStringArray("N");
+            O = decoder.ReadByteStringArray("O");
+            P = decoder.ReadNodeIdArray("P");
+            Q = decoder.ReadExpandedNodeIdArray("Q");
+            R = decoder.ReadQualifiedNameArray("R");
+            S = decoder.ReadLocalizedTextArray("S");
+            T = decoder.ReadStatusCodeArray("T");
+            U = decoder.ReadXmlElementArray("U");
+            V = decoder.ReadVariantArray("V");
+            W = decoder.ReadExtensionObjectArray("W");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            TestArrayStructure value = encodeable as TestArrayStructure;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_a, value.m_a)) return false;
+            if (!Utils.IsEqual(m_b, value.m_b)) return false;
+            if (!Utils.IsEqual(m_c, value.m_c)) return false;
+            if (!Utils.IsEqual(m_d, value.m_d)) return false;
+            if (!Utils.IsEqual(m_e, value.m_e)) return false;
+            if (!Utils.IsEqual(m_f, value.m_f)) return false;
+            if (!Utils.IsEqual(m_g, value.m_g)) return false;
+            if (!Utils.IsEqual(m_h, value.m_h)) return false;
+            if (!Utils.IsEqual(m_i, value.m_i)) return false;
+            if (!Utils.IsEqual(m_j, value.m_j)) return false;
+            if (!Utils.IsEqual(m_k, value.m_k)) return false;
+            if (!Utils.IsEqual(m_l, value.m_l)) return false;
+            if (!Utils.IsEqual(m_m, value.m_m)) return false;
+            if (!Utils.IsEqual(m_n, value.m_n)) return false;
+            if (!Utils.IsEqual(m_o, value.m_o)) return false;
+            if (!Utils.IsEqual(m_p, value.m_p)) return false;
+            if (!Utils.IsEqual(m_q, value.m_q)) return false;
+            if (!Utils.IsEqual(m_r, value.m_r)) return false;
+            if (!Utils.IsEqual(m_s, value.m_s)) return false;
+            if (!Utils.IsEqual(m_t, value.m_t)) return false;
+            if (!Utils.IsEqual(m_u, value.m_u)) return false;
+            if (!Utils.IsEqual(m_v, value.m_v)) return false;
+            if (!Utils.IsEqual(m_w, value.m_w)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (TestArrayStructure)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TestArrayStructure clone = (TestArrayStructure)base.MemberwiseClone();
+
+            clone.m_a = (BooleanCollection)Utils.Clone(this.m_a);
+            clone.m_b = (SByteCollection)Utils.Clone(this.m_b);
+            clone.m_c = (ByteCollection)Utils.Clone(this.m_c);
+            clone.m_d = (Int16Collection)Utils.Clone(this.m_d);
+            clone.m_e = (UInt16Collection)Utils.Clone(this.m_e);
+            clone.m_f = (Int32Collection)Utils.Clone(this.m_f);
+            clone.m_g = (UInt32Collection)Utils.Clone(this.m_g);
+            clone.m_h = (Int64Collection)Utils.Clone(this.m_h);
+            clone.m_i = (UInt64Collection)Utils.Clone(this.m_i);
+            clone.m_j = (FloatCollection)Utils.Clone(this.m_j);
+            clone.m_k = (DoubleCollection)Utils.Clone(this.m_k);
+            clone.m_l = (UuidCollection)Utils.Clone(this.m_l);
+            clone.m_m = (DateTimeCollection)Utils.Clone(this.m_m);
+            clone.m_n = (StringCollection)Utils.Clone(this.m_n);
+            clone.m_o = (ByteStringCollection)Utils.Clone(this.m_o);
+            clone.m_p = (NodeIdCollection)Utils.Clone(this.m_p);
+            clone.m_q = (ExpandedNodeIdCollection)Utils.Clone(this.m_q);
+            clone.m_r = (QualifiedNameCollection)Utils.Clone(this.m_r);
+            clone.m_s = (LocalizedTextCollection)Utils.Clone(this.m_s);
+            clone.m_t = (StatusCodeCollection)Utils.Clone(this.m_t);
+            clone.m_u = (XmlElementCollection)Utils.Clone(this.m_u);
+            clone.m_v = (VariantCollection)Utils.Clone(this.m_v);
+            clone.m_w = (ExtensionObjectCollection)Utils.Clone(this.m_w);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private BooleanCollection m_a;
+        private SByteCollection m_b;
+        private ByteCollection m_c;
+        private Int16Collection m_d;
+        private UInt16Collection m_e;
+        private Int32Collection m_f;
+        private UInt32Collection m_g;
+        private Int64Collection m_h;
+        private UInt64Collection m_i;
+        private FloatCollection m_j;
+        private DoubleCollection m_k;
+        private UuidCollection m_l;
+        private DateTimeCollection m_m;
+        private StringCollection m_n;
+        private ByteStringCollection m_o;
+        private NodeIdCollection m_p;
+        private ExpandedNodeIdCollection m_q;
+        private QualifiedNameCollection m_r;
+        private LocalizedTextCollection m_s;
+        private StatusCodeCollection m_t;
+        private XmlElementCollection m_u;
+        private VariantCollection m_v;
+        private ExtensionObjectCollection m_w;
+        #endregion
+    }
+
+    #region TestArrayStructureCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfTestArrayStructure", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TestArrayStructure")]
+    public partial class TestArrayStructureCollection : List<TestArrayStructure>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public TestArrayStructureCollection() {}
+
+        /// <remarks />
+        public TestArrayStructureCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public TestArrayStructureCollection(IEnumerable<TestArrayStructure> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator TestArrayStructureCollection(TestArrayStructure[] values)
+        {
+            if (values != null)
+            {
+                return new TestArrayStructureCollection(values);
+            }
+
+            return new TestArrayStructureCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator TestArrayStructure[](TestArrayStructureCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (TestArrayStructureCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TestArrayStructureCollection clone = new TestArrayStructureCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((TestArrayStructure)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region TestStructure Class
+    #if (!OPCUA_EXCLUDE_TestStructure)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class TestStructure : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public TestStructure()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_a = new TestScalarStructure();
+            m_b = new TestArrayStructure();
+            m_c = new TestScalarStructureCollection();
+            m_d = new TestArrayStructureCollection();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "A", IsRequired = false, Order = 1)]
+        public TestScalarStructure A
+        {
+            get
+            {
+                return m_a;
+            }
+
+            set
+            {
+                m_a = value;
+
+                if (value == null)
+                {
+                    m_a = new TestScalarStructure();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "B", IsRequired = false, Order = 2)]
+        public TestArrayStructure B
+        {
+            get
+            {
+                return m_b;
+            }
+
+            set
+            {
+                m_b = value;
+
+                if (value == null)
+                {
+                    m_b = new TestArrayStructure();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "C", IsRequired = false, Order = 3)]
+        public TestScalarStructureCollection C
+        {
+            get
+            {
+                return m_c;
+            }
+
+            set
+            {
+                m_c = value;
+
+                if (value == null)
+                {
+                    m_c = new TestScalarStructureCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "D", IsRequired = false, Order = 4)]
+        public TestArrayStructureCollection D
+        {
+            get
+            {
+                return m_d;
+            }
+
+            set
+            {
+                m_d = value;
+
+                if (value == null)
+                {
+                    m_d = new TestArrayStructureCollection();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.TestStructure; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.TestStructure_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TestStructure_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.TestStructure_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteEncodeable("A", A, typeof(TestScalarStructure));
+            encoder.WriteEncodeable("B", B, typeof(TestArrayStructure));
+            encoder.WriteEncodeableArray("C", C.ToArray(), typeof(TestScalarStructure));
+            encoder.WriteEncodeableArray("D", D.ToArray(), typeof(TestArrayStructure));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            A = (TestScalarStructure)decoder.ReadEncodeable("A", typeof(TestScalarStructure));
+            B = (TestArrayStructure)decoder.ReadEncodeable("B", typeof(TestArrayStructure));
+            C = (TestScalarStructureCollection)decoder.ReadEncodeableArray("C", typeof(TestScalarStructure));
+            D = (TestArrayStructureCollection)decoder.ReadEncodeableArray("D", typeof(TestArrayStructure));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            TestStructure value = encodeable as TestStructure;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_a, value.m_a)) return false;
+            if (!Utils.IsEqual(m_b, value.m_b)) return false;
+            if (!Utils.IsEqual(m_c, value.m_c)) return false;
+            if (!Utils.IsEqual(m_d, value.m_d)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (TestStructure)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TestStructure clone = (TestStructure)base.MemberwiseClone();
+
+            clone.m_a = (TestScalarStructure)Utils.Clone(this.m_a);
+            clone.m_b = (TestArrayStructure)Utils.Clone(this.m_b);
+            clone.m_c = (TestScalarStructureCollection)Utils.Clone(this.m_c);
+            clone.m_d = (TestArrayStructureCollection)Utils.Clone(this.m_d);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private TestScalarStructure m_a;
+        private TestArrayStructure m_b;
+        private TestScalarStructureCollection m_c;
+        private TestArrayStructureCollection m_d;
+        #endregion
+    }
+
+    #region TestStructureCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfTestStructure", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TestStructure")]
+    public partial class TestStructureCollection : List<TestStructure>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public TestStructureCollection() {}
+
+        /// <remarks />
+        public TestStructureCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public TestStructureCollection(IEnumerable<TestStructure> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator TestStructureCollection(TestStructure[] values)
+        {
+            if (values != null)
+            {
+                return new TestStructureCollection(values);
+            }
+
+            return new TestStructureCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator TestStructure[](TestStructureCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (TestStructureCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TestStructureCollection clone = new TestStructureCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((TestStructure)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
     #endif
     #endregion
 }
