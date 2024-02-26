@@ -175,25 +175,25 @@ namespace Opc.Ua.Gds.Server
         public async virtual Task<X509CRL> RevokeCertificateAsync(
             X509Certificate2 certificate)
         {
-            Task<X509CRL> crl = RevokeCertificateAsync(
+            X509CRL crl = await RevokeCertificateAsync(
                 AuthoritiesStorePath,
                 certificate,
-                null);
+                null).ConfigureAwait(false);
 
-            //Also update TrustedList CRL so registerd Applications can get the new CRL
-            await crl.ContinueWith((_) =>
-                UpdateAuthorityCertInCertificateStore(Configuration.TrustedListPath)
-                , TaskContinuationOptions.OnlyOnRanToCompletion).ConfigureAwait(false);
-
-            //Also update TrustedIssuerCertificates Store
-            if (!String.IsNullOrEmpty(TrustedIssuerCertificatesStorePath))
+            // Also update TrustedList CRL so registerd Applications can get the new CRL
+            if (crl != null)
             {
-                await crl.ContinueWith((_) =>
-                    UpdateAuthorityCertInCertificateStore(TrustedIssuerCertificatesStorePath)
-                    , TaskContinuationOptions.OnlyOnRanToCompletion).ConfigureAwait(false);
+                await UpdateAuthorityCertInCertificateStore(Configuration.TrustedListPath).ConfigureAwait(false);
+
+                //Also update TrustedIssuerCertificates Store
+                if (!String.IsNullOrEmpty(TrustedIssuerCertificatesStorePath))
+                {
+                    await UpdateAuthorityCertInCertificateStore(TrustedIssuerCertificatesStorePath).ConfigureAwait(false);
+                }
             }
-            //return crl
-            return await crl.ConfigureAwait(false);
+
+            // return crl
+            return crl;
         }
 
         public virtual Task VerifySigningRequestAsync(
@@ -319,35 +319,34 @@ namespace Opc.Ua.Gds.Server
             }
 
             DateTime yesterday = DateTime.Today.AddDays(-1);
-            using (X509Certificate2 newCertificate = CertificateFactory.CreateCertificate(subjectName)
+            using (X509Certificate2 newCertificate = await CertificateFactory.CreateCertificate(subjectName)
                 .SetNotBefore(yesterday)
                 .SetLifeTime(Configuration.CACertificateLifetime)
                 .SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.CACertificateHashSize))
                 .SetCAConstraint()
                 .SetRSAKeySize(Configuration.CACertificateKeySize)
                 .CreateForRSA()
-                .AddToStore(
+                .AddToStoreAsync(
                     AuthoritiesStoreType,
-                    AuthoritiesStorePath))
+                    AuthoritiesStorePath).ConfigureAwait(false))
             {
 
                 // save only public key
                 Certificate = new X509Certificate2(newCertificate.RawData);
 
                 // initialize revocation list
-                Task<X509CRL> crlTask = RevokeCertificateAsync(AuthoritiesStorePath, newCertificate, null);
+                X509CRL crl = await RevokeCertificateAsync(AuthoritiesStorePath, newCertificate, null).ConfigureAwait(false);
 
                 //Update TrustedList Store
-                await crlTask.ContinueWith((_) =>
-                    UpdateAuthorityCertInCertificateStore(Configuration.TrustedListPath)
-                    , TaskContinuationOptions.OnlyOnRanToCompletion).ConfigureAwait(false);
-
-                //Update TrustedIssuerCertificates Store
-                if (!string.IsNullOrEmpty(TrustedIssuerCertificatesStorePath))
+                if (crl != null)
                 {
-                    await crlTask.ContinueWith((_) =>
-                        UpdateAuthorityCertInCertificateStore(TrustedIssuerCertificatesStorePath)
-                        , TaskContinuationOptions.OnlyOnRanToCompletion).ConfigureAwait(false);
+                    await UpdateAuthorityCertInCertificateStore(Configuration.TrustedListPath).ConfigureAwait(false);
+
+                    // Update TrustedIssuerCertificates Store
+                    if (!string.IsNullOrEmpty(TrustedIssuerCertificatesStorePath))
+                    {
+                        await UpdateAuthorityCertInCertificateStore(TrustedIssuerCertificatesStorePath).ConfigureAwait(false);
+                    }
                 }
                 return Certificate;
             }

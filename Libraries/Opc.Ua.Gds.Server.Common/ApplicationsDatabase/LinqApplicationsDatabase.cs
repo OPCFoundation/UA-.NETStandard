@@ -665,7 +665,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         public override bool GetApplicationCertificate(
             NodeId applicationId,
-            string certificateType,
+            string certificateTypeId,
             out byte[] certificate)
         {
             certificate = null;
@@ -685,7 +685,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     throw new ArgumentException("A record with the specified application id does not exist.", nameof(applicationId));
                 }
 
-                if (!application.Certificate.TryGetValue(certificateType, out certificate))
+                if (!application.Certificate.TryGetValue(certificateTypeId, out certificate))
                 {
                     return false;
                 }
@@ -695,7 +695,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         public override bool SetApplicationTrustLists(
             NodeId applicationId,
-            string certificateType,
+            string certificateTypeId,
             string trustListId
             )
         {
@@ -711,7 +711,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
                 if (trustListId != null)
                 {
-                    result.TrustListId[certificateType] = trustListId;
+                    result.TrustListId[certificateTypeId] = trustListId;
                 }
                 SaveChanges();
             }
@@ -721,7 +721,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         public override bool GetApplicationTrustLists(
             NodeId applicationId,
-            string certificateType,
+            string certificateTypeId,
             out string trustListId
             )
         {
@@ -736,7 +736,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 {
                     return false;
                 }
-                return result.TrustListId.TryGetValue(certificateType, out trustListId);
+                return result.TrustListId.TryGetValue(certificateTypeId, out trustListId);
             }
         }
         #endregion
