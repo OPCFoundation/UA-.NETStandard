@@ -114,18 +114,6 @@ stages:
       jobnamesuffix: net462
       agents: '@{ windows = "windows-2022" }'
       customtestarget: net462
-- stage: testnetstandard20
-  dependsOn: [build]
-  displayName: 'Test .NETStandard 2.0'
-  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
-  jobs:
-  - template: .azurepipelines/test.yml
-    parameters:
-      framework: net6.0
-      configuration: Release
-      jobnamesuffix: netstandard20
-      agents: '@{ windows = "windows-2019"; linux="ubuntu-20.04"}'
-      customtestarget: netstandard2.0
 - stage: testnetstandard21
   dependsOn: [build]
   displayName: 'Test .NETStandard 2.1'

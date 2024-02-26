@@ -35,6 +35,8 @@ namespace Opc.Ua
         private static readonly char s_rightCurlyBrace = '}';
         private static readonly char s_leftSquareBracket = '[';
         private static readonly char s_rightSquareBracket = ']';
+        private StringBuilder m_stringBuilder = new StringBuilder();
+        private static readonly UTF8Encoding s_utf8Encoding = new UTF8Encoding(false);
         private Stream m_stream;
         private MemoryStream m_memoryStream;
         private StreamWriter m_writer;
@@ -87,12 +89,12 @@ namespace Opc.Ua
             if (m_stream == null)
             {
                 m_memoryStream = new MemoryStream();
-                m_writer = new StreamWriter(m_memoryStream, new UTF8Encoding(false), streamSize, false);
+                m_writer = new StreamWriter(m_memoryStream, s_utf8Encoding, streamSize, false);
                 m_leaveOpen = false;
             }
             else
             {
-                m_writer = new StreamWriter(m_stream, new UTF8Encoding(false), streamSize, m_leaveOpen);
+                m_writer = new StreamWriter(m_stream, s_utf8Encoding, streamSize, m_leaveOpen);
             }
 
             InitializeWriter();
@@ -117,7 +119,7 @@ namespace Opc.Ua
             if (m_writer == null)
             {
                 m_stream = new MemoryStream();
-                m_writer = new StreamWriter(m_stream, new UTF8Encoding(false), kStreamWriterBufferSize);
+                m_writer = new StreamWriter(m_stream, s_utf8Encoding, kStreamWriterBufferSize);
             }
 
             InitializeWriter();
@@ -293,11 +295,11 @@ namespace Opc.Ua
             {
                 if (m_topLevelIsArray)
                 {
-                    m_writer.Write("]");
+                    m_writer.Write(s_rightSquareBracket);
                 }
                 else
                 {
-                    m_writer.Write("}");
+                    m_writer.Write(s_rightCurlyBrace);
                 }
             }
 
@@ -501,6 +503,73 @@ namespace Opc.Ua
         private static readonly char[] m_specialChars = new char[] { s_quotation, s_backslash, '\n', '\r', '\t', '\b', '\f', };
         private static readonly char[] m_substitution = new char[] { s_quotation, s_backslash, 'n', 'r', 't', 'b', 'f' };
 
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+        /// <summary>
+        /// Using a span to escape the string, write strings to stream writer if possible.
+        /// </summary>
+        /// <param name="value"></param>
+        private void EscapeString(string value)
+        {
+            ReadOnlySpan<char> charSpan = value.AsSpan();
+            int lastOffset = 0;
+
+            for (int i = 0; i < charSpan.Length; i++)
+            {
+                bool found = false;
+                char ch = charSpan[i];
+
+                for (int ii = 0; ii < m_specialChars.Length; ii++)
+                {
+                    if (m_specialChars[ii] == ch)
+                    {
+                        WriteSpan(ref lastOffset, charSpan, i);
+                        m_writer.Write('\\');
+                        m_writer.Write(m_substitution[ii]);
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found && ch < 32)
+                {
+                    WriteSpan(ref lastOffset, charSpan, i);
+                    m_writer.Write('\\');
+                    m_writer.Write('u');
+                    m_writer.Write(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
+                }
+            }
+
+            if (lastOffset == 0)
+            {
+                m_writer.Write(value);
+            }
+            else
+            {
+                WriteSpan(ref lastOffset, charSpan, charSpan.Length);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void WriteSpan(ref int lastOffset, ReadOnlySpan<char> valueSpan, int index)
+        {
+            if (lastOffset < index - 2)
+            {
+                m_writer.Write(valueSpan.Slice(lastOffset, index - lastOffset));
+            }
+            else
+            {
+                while (lastOffset < index)
+                {
+                    m_writer.Write(valueSpan[lastOffset++]);
+                }
+            }
+            lastOffset = index + 1;
+        }
+#else
+        /// <summary>
+        /// Escapes a string and writes it to the stream.
+        /// </summary>
+        /// <param name="value"></param>
         private void EscapeString(string value)
         {
             foreach (char ch in value)
@@ -522,15 +591,16 @@ namespace Opc.Ua
                 {
                     if (ch < 32)
                     {
-                        m_writer.Write("\\u");
-                        m_writer.Write("{0:X4}", (int)ch);
+                        m_writer.Write(s_backslash);
+                        m_writer.Write('u');
+                        m_writer.Write(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
                         continue;
                     }
-
                     m_writer.Write(ch);
                 }
             }
         }
+#endif
 
         private void WriteSimpleField(string fieldName, string value, bool quotes)
         {
