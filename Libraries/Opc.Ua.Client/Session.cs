@@ -5523,8 +5523,7 @@ namespace Opc.Ua.Client
             EndpointDescription endpoint = m_endpoint.Description;
             SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, endpoint.SecurityPolicyUri, dataToSign);
 
-            // check that the user identity is supported by the endpoint.
-            UserTokenPolicy identityPolicy = endpoint.FindUserTokenPolicy(m_identity.TokenType, m_identity.IssuedTokenType);
+            UserTokenPolicy identityPolicy = m_endpoint.Description.FindUserTokenPolicy(m_identity.PolicyId);
 
             if (identityPolicy == null)
             {

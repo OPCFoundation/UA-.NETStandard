@@ -1697,7 +1697,7 @@ namespace Opc.Ua
             bool domainFound = false;
 
             // check the certificate domains.
-            IList<string> domains = X509Utils.GetDomainsFromCertficate(serverCertificate);
+            IList<string> domains = X509Utils.GetDomainsFromCertificate(serverCertificate);
 
             if (domains != null && domains.Count > 0)
             {
