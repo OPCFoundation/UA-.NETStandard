@@ -631,16 +631,11 @@ namespace Opc.Ua.Gds.Server
 
             //create CertificateValidator initialized with GDS CAs
             var certificateValidator = new CertificateValidator();
-
-            var gdsCAs = new CertificateTrustList() {
+            var authorities = new CertificateTrustList() {
                 StorePath = m_globalDiscoveryServerConfiguration.AuthoritiesStorePath,
                 StoreType = CertificateStoreIdentifier.DetermineStoreType(m_globalDiscoveryServerConfiguration.AuthoritiesStorePath)
             };
-
-            certificateValidator.Update(null, gdsCAs, null);
-
-            
-
+            certificateValidator.Update(null, authorities, null);
 
             validityTime = DateTime.MinValue;
 
@@ -655,10 +650,8 @@ namespace Opc.Ua.Gds.Server
                     certificateStatus = se.StatusCode;
                 }
             }
-
             return ServiceResult.Good;
         }
-
 
         private ServiceResult CheckHttpsDomain(ApplicationRecordDataType application, string commonName)
         {
