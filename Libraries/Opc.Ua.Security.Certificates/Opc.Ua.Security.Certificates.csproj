@@ -21,11 +21,6 @@
         <PackageReference Include="BouncyCastle.Cryptography" Version="2.2.1" />
       </ItemGroup>
     </When>
-    <When Condition="'$(TargetFramework)' == 'netstandard2.0'">
-      <ItemGroup>
-        <PackageReference Include="BouncyCastle.Cryptography" Version="2.2.1" />
-      </ItemGroup>
-    </When>
     <Otherwise>
       <PropertyGroup>
         <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
