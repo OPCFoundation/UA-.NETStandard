@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,9 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices.ComTypes;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Gds.Server
@@ -72,7 +70,7 @@ namespace Opc.Ua.Gds.Server
 
         public GdsRoleBasedIdentity(IUserIdentity identity, IEnumerable<Role> roles)
      : base(identity, roles)
-        {}
+        { }
 
         /// <summary>
         /// The applicationId in case the ApplicationSelfAdminPrivilege is used

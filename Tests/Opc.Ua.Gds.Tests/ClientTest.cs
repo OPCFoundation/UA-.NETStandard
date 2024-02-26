@@ -35,8 +35,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Org.BouncyCastle.Tls;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Opc.Ua.Gds.Tests
 {

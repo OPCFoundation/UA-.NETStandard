@@ -1338,7 +1338,7 @@ namespace Opc.Ua.Gds.Server
         #region AuthorizationHelpers
         private void HasTrustListAccess(ISystemContext context, string trustedStorePath)
         {
-                AuthorizationHelper.HasTrustListAccess(context, trustedStorePath, m_certTypeMap, m_database);
+            AuthorizationHelper.HasTrustListAccess(context, trustedStorePath, m_certTypeMap, m_database);
         }
         #endregion
 
