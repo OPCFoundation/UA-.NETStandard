@@ -1502,7 +1502,7 @@ namespace Opc.Ua.Client
 
                 try
                 {
-                    _ = await operation.EndAsync(kReconnectTimeout, true, ct).ConfigureAwait(false);
+                    _ = await operation.EndAsync(kReconnectTimeout / 2, true, ct).ConfigureAwait(false);
                 }
                 catch (ServiceResultException)
                 {

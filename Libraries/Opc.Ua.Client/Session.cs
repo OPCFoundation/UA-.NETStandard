@@ -5668,7 +5668,7 @@ namespace Opc.Ua.Client
 
                 default:
                     result = false;
-                    Utils.LogError("Unexpected error {0} sending republish request.", error);
+                    Utils.LogError(e, "Unexpected error sending republish request.");
                     break;
             }
 

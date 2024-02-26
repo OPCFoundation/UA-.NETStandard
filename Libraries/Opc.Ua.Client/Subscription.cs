@@ -46,7 +46,7 @@ namespace Opc.Ua.Client
     {
         const int kMinKeepAliveTimerInterval = 1000;
         const int kKeepAliveTimerMargin = 1000;
-        const int kRepublishMessageTimeout = 2000;
+        const int kRepublishMessageTimeout = 2500;
         const int kRepublishMessageExpiredTimeout = 10000;
 
         #region Constructors
@@ -1979,7 +1979,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private int BeginPublishTimeout()
         {
-            return Math.Max(Math.Min(m_keepAliveInterval * 3, Int32.MaxValue), kMinKeepAliveTimerInterval); ;
+            return Math.Max(Math.Min(m_keepAliveInterval * 3, Int32.MaxValue), kMinKeepAliveTimerInterval);
         }
 
         /// <summary>
