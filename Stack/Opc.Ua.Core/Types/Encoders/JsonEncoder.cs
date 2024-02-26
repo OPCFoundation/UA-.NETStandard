@@ -452,6 +452,11 @@ namespace Opc.Ua
         public bool UseReversibleEncoding { get; private set; }
 
         /// <summary>
+        /// The Json encoder uses string NodeIds.
+        /// </summary>
+        public bool UseStringNodeIds { get; set; }
+
+        /// <summary>
         /// The Json encoder to encoder namespace URI instead of
         /// namespace Index in NodeIds.
         /// </summary>
@@ -952,6 +957,12 @@ namespace Opc.Ua
                 return;
             }
 
+            if (UseStringNodeIds || !UseReversibleEncoding)
+            {
+                WriteSimpleField(fieldName, value.Format(m_context, ForceNamespaceUri), true);
+                return;
+            }
+
             PushStructure(fieldName);
 
             ushort namespaceIndex = value.NamespaceIndex;
@@ -972,10 +983,15 @@ namespace Opc.Ua
         /// </summary>
         public void WriteExpandedNodeId(string fieldName, ExpandedNodeId value)
         {
-            if (value == null || value.InnerNodeId == null ||
-                (!UseReversibleEncoding && NodeId.IsNull(value)))
+            if (value == null || value.InnerNodeId == null || (!UseReversibleEncoding && NodeId.IsNull(value)))
             {
                 WriteSimpleField(fieldName, null, false);
+                return;
+            }
+
+            if (UseStringNodeIds || !UseReversibleEncoding)
+            {
+                WriteSimpleField(fieldName, value.Format(m_context, ForceNamespaceUri), true);
                 return;
             }
 
@@ -987,6 +1003,7 @@ namespace Opc.Ua
             {
                 namespaceUri = Context.NamespaceUris.GetString(namespaceIndex);
             }
+
             WriteNodeIdContents(value.InnerNodeId, namespaceUri);
 
             uint serverIndex = value.ServerIndex;
@@ -1059,6 +1076,12 @@ namespace Opc.Ua
             if (QualifiedName.IsNull(value))
             {
                 WriteSimpleField(fieldName, null, false);
+                return;
+            }
+
+            if (UseStringNodeIds || !UseReversibleEncoding)
+            {
+                WriteSimpleField(fieldName, value.Format(m_context, ForceNamespaceUri), true);
                 return;
             }
 
@@ -1352,7 +1375,7 @@ namespace Opc.Ua
         public void WriteEnumerated(string fieldName, Enum value)
         {
             int numeric = Convert.ToInt32(value, CultureInfo.InvariantCulture);
-            var numericString = numeric.ToString();
+            var numericString = numeric.ToString(CultureInfo.InvariantCulture);
             if (UseReversibleEncoding)
             {
                 WriteSimpleField(fieldName, numericString, false);

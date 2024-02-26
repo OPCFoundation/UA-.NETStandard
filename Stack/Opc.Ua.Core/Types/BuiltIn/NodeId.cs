@@ -275,9 +275,9 @@ namespace Opc.Ua
                 return;
             }
 
-            if (value is Uuid)
+            if (value is Uuid uuid)
             {
-                SetIdentifier(IdType.Guid, value);
+                SetIdentifier(IdType.Guid, (Guid)uuid);
                 return;
             }
 
@@ -312,6 +312,192 @@ namespace Opc.Ua
         #endregion
 
         #region Static Members
+        /// <summary>
+        /// Parses an NodeId formatted as a string and converts it a NodeId.
+        /// </summary>
+        /// <param name="context">The current context.</param>
+        /// <param name="text">The text to parse.</param>
+        /// <param name="updateTables">TRUE if new URIs may be added to the NamespaceUris.</param>
+        /// <returns>The NodeId.</returns>
+        /// <exception cref="ServiceResultException">Thrown if the namespace URI is not in the namespace table.</exception>
+        public static NodeId Parse(IServiceMessageContext context, string text, bool updateTables = false)
+        {
+            if (String.IsNullOrEmpty(text))
+            {
+                return Null;
+            }
+
+            var originalText = text;
+            int namespaceIndex = 0;
+
+            if (text.StartsWith("nsu=", StringComparison.Ordinal))
+            {
+                int index = text.IndexOf(';', 4);
+
+                if (index < 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"Invalid NodeId ({originalText}).");
+                }
+
+                var namespaceUri = Utils.UnescapeUri(text.Substring(4, index - 4));
+                namespaceIndex = (updateTables) ? context.NamespaceUris.GetIndexOrAppend(namespaceUri) : context.NamespaceUris.GetIndex(namespaceUri);
+
+                if (namespaceIndex < 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"No mapping to NamespaceIndex for NamespaceUri ({namespaceUri}).");
+                }
+
+                text = text.Substring(index + 1);
+            }
+
+            if (text.StartsWith("ns=", StringComparison.Ordinal))
+            {
+                int index = text.IndexOf(';', 3);
+
+                if (index < 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"Invalid ExpandedNodeId ({originalText}).");
+                }
+
+                if (UInt16.TryParse(text.Substring(3, index - 3), out ushort ns))
+                {
+                    namespaceIndex = ns;
+                }
+
+                text = text.Substring(index + 1);
+            }
+
+            var idType = text.Substring(0, 1);
+            text = text.Substring(2);
+
+            switch (idType)
+            {
+                case "i":
+                {
+                    if (UInt32.TryParse(text, out uint number))
+                    {
+                        return new NodeId(number, (ushort)namespaceIndex);
+                    }
+
+                    break;
+                }
+
+                case "s":
+                {
+                    if (!String.IsNullOrWhiteSpace(text))
+                    {
+                        return new NodeId(text, (ushort)namespaceIndex);
+                    }
+
+                    break;
+                }
+
+                case "b":
+                {
+                    try
+                    {
+                        var bytes = Convert.FromBase64String(text);
+                        return new NodeId(bytes, (ushort)namespaceIndex);
+                    }
+                    catch (Exception)
+                    {
+                        // error handled after the switch statement.
+                    }
+
+                    break;
+                }
+
+                case "g":
+                {
+                    if (Guid.TryParse(text, out var guid))
+                    {
+                        return new NodeId(guid, (ushort)namespaceIndex);
+                    }
+
+                    break;
+                }
+            }
+
+            throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"Invalid NodeId Identifier ({originalText}).");
+        }
+
+        /// <summary>
+        /// Formats a NodeId as a string.
+        /// </summary>
+        /// <param name="context">The current context.</param>
+        /// <param name="useNamespaceUri">The NamespaceUri is used instead of the NamespaceIndex.</param>
+        /// <returns>The formatted identifier.</returns>
+        public string Format(IServiceMessageContext context, bool useNamespaceUri = false)
+        {
+            if (m_identifier == null)
+            {
+                return null;
+            }
+
+            var buffer = new StringBuilder();
+
+            if (m_namespaceIndex > 0)
+            {
+                if (useNamespaceUri)
+                {
+                    var namespaceUri = context.NamespaceUris.GetString(m_namespaceIndex);
+
+                    if (!String.IsNullOrEmpty(namespaceUri))
+                    {
+                        buffer.Append("nsu=");
+                        buffer.Append(Utils.EscapeUri(namespaceUri));
+                        buffer.Append(';');
+                    }
+                    else
+                    {
+                        buffer.Append("ns=");
+                        buffer.Append(m_namespaceIndex);
+                        buffer.Append(';');
+                    }
+                }
+                else
+                {
+                    buffer.Append("ns=");
+                    buffer.Append(m_namespaceIndex);
+                    buffer.Append(';');
+                }
+            }
+
+            switch (m_identifierType)
+            {
+                case IdType.Numeric:
+                {
+                    buffer.Append("i=");
+                    buffer.Append((uint)m_identifier);
+                    break;
+                }
+
+                default:
+                case IdType.String:
+                {
+                    buffer.Append("s=");
+                    buffer.Append(m_identifier.ToString());
+                    break;
+                }
+
+                case IdType.Guid:
+                {
+                    buffer.Append("g=");
+                    buffer.Append((Guid)m_identifier);
+                    break;
+                }
+
+                case IdType.Opaque:
+                {
+                    buffer.Append("b=");
+                    buffer.Append(Convert.ToBase64String((byte[])m_identifier));
+                    break;
+                }
+            }
+
+            return buffer.ToString();
+        }
+
         /// <summary>
         /// Converts an identifier and a namespaceUri to a local NodeId using the namespaceTable.
         /// </summary>
@@ -867,6 +1053,12 @@ namespace Opc.Ua
                 case IdType.Opaque:
                 {
                     m_identifier = Utils.Clone(value);
+                    break;
+                }
+
+                case IdType.Guid:
+                {
+                    m_identifier = (Guid)value;
                     break;
                 }
 
@@ -1635,12 +1827,25 @@ namespace Opc.Ua
 
                 case IdType.Guid:
                 {
-                    Guid id1 = (Guid)m_identifier;
-                    if (id is Uuid)
+                    if (m_identifier is Guid id2)
                     {
-                        return id1.CompareTo((Uuid)id);
+                        if (id is Uuid)
+                        {
+                            return id2.CompareTo((Uuid)id);
+                        }
+                        return id2.CompareTo((Guid)id);
                     }
-                    return id1.CompareTo((Guid)id);
+
+                    if (m_identifier is Uuid id1)
+                    {
+                        if (id is Uuid)
+                        {
+                            return id1.CompareTo(id);
+                        }
+                        return id1.CompareTo((Guid)id);
+                    }
+
+                    return -1;
                 }
 
                 case IdType.Opaque:
