@@ -22,7 +22,7 @@ using System.Xml;
 namespace Opc.Ua
 {
     /// <summary>
-    /// Stores a list of cached enpoints.
+    /// Stores a list of cached endpoints.
     /// </summary>
     public partial class ConfiguredEndpointCollection : ICloneable
     {
@@ -1210,7 +1210,7 @@ namespace Opc.Ua
             {
                 if (endpointUrl.Scheme.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal))
                 {
-                    return new Uri(String.Format(CultureInfo.InvariantCulture, "{0}" + DiscoverySuffix, endpointUrl));
+                    return new Uri(Utils.Format("{0}{1}", endpointUrl, DiscoverySuffix));
                 }
                 else
                 {
@@ -1294,7 +1294,7 @@ namespace Opc.Ua
                     m_description.EndpointUrl = null;
                 }
 
-                m_description.EndpointUrl = String.Format(CultureInfo.InvariantCulture, "{0}", value);
+                m_description.EndpointUrl = Utils.Format("{0}", value);
             }
         }
 

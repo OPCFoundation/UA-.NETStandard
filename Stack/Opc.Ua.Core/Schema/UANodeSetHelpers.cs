@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Xml;
@@ -1211,7 +1212,7 @@ namespace Opc.Ua.Export
             {
                 try
                 {
-                    dimensions[ii] = Convert.ToUInt32(fields[ii]);
+                    dimensions[ii] = Convert.ToUInt32(fields[ii], CultureInfo.InvariantCulture);
                 }
                 catch
                 {

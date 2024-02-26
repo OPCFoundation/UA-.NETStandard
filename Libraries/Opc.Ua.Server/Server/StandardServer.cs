@@ -2373,7 +2373,7 @@ namespace Opc.Ua.Server
         {
             System.Net.IPAddress[] targetAddresses = Utils.GetHostAddresses(Utils.GetHostName());
 
-            foreach (string domain in X509Utils.GetDomainsFromCertficate(e.Certificate))
+            foreach (string domain in X509Utils.GetDomainsFromCertificate(e.Certificate))
             {
                 System.Net.IPAddress[] actualAddresses = Utils.GetHostAddresses(domain);
 
@@ -3250,7 +3250,7 @@ namespace Opc.Ua.Server
         /// <returns>Returns the master node manager for the server, the return type is <seealso cref="MasterNodeManager"/>.</returns>
         protected virtual MasterNodeManager CreateMasterNodeManager(IServerInternal server, ApplicationConfiguration configuration)
         {
-            IList<INodeManager> nodeManagers = new List<INodeManager>();
+            var nodeManagers = new List<INodeManager>();
 
             foreach (var nodeManagerFactory in m_nodeManagerFactories)
             {
@@ -3355,7 +3355,7 @@ namespace Opc.Ua.Server
         private int m_lastRegistrationInterval;
         private int m_minNonceLength;
         private bool m_useRegisterServer2;
-        private IList<INodeManagerFactory> m_nodeManagerFactories;
+        private List<INodeManagerFactory> m_nodeManagerFactories;
         #endregion
     }
 }

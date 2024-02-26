@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.Serialization;
@@ -191,7 +192,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 },
                 new object[]    // values to assign
                 {
-                    Name+"_"+Value.ToString()
+                    Name+"_"+Value.ToString(CultureInfo.InvariantCulture)
                 });
             typeBuilder.SetCustomAttribute(builder);
         }

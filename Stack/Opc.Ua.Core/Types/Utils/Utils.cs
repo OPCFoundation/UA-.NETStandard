@@ -316,7 +316,7 @@ namespace Opc.Ua
             {
                 try
                 {
-                    output = String.Format(CultureInfo.InvariantCulture, message, args);
+                    output = string.Format(CultureInfo.InvariantCulture, message, args);
                 }
                 catch (Exception)
                 {
@@ -1611,7 +1611,7 @@ namespace Opc.Ua
         {
             if (source != null)
             {
-                return String.Format(CultureInfo.InvariantCulture, "{0}", source);
+                return string.Format(CultureInfo.InvariantCulture, "{0}", source);
             }
 
             return String.Empty;
@@ -1622,7 +1622,7 @@ namespace Opc.Ua
         /// </summary>
         public static string Format(string text, params object[] args)
         {
-            return String.Format(CultureInfo.InvariantCulture, text, args);
+            return string.Format(CultureInfo.InvariantCulture, text, args);
         }
 
         /// <summary>

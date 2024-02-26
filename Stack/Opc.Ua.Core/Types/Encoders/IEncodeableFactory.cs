@@ -49,11 +49,11 @@ namespace Opc.Ua
         void AddEncodeableType(ExpandedNodeId encodingId, Type systemType);
 
         /// <summary>
-        /// Adds all encodable types exported from an assembly to the factory.
+        /// Adds all encodeable types exported from an assembly to the factory.
         /// </summary>
         /// <remarks>
         /// <para>
-        /// Adds all encodable types exported from an assembly to the factory.
+        /// Adds all encodeable types exported from an assembly to the factory.
         /// <br/></para>
         /// <para>
         /// This method uses reflection on the specified assembly to export all of the

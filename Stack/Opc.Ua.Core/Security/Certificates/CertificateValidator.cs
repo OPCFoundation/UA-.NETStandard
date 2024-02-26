@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -1301,11 +1302,12 @@ namespace Opc.Ua
                 }
             }
 
-            if (endpoint != null && !FindDomain(certificate, endpoint))
+            Uri endpointUrl = endpoint?.EndpointUrl;
+            if (endpointUrl != null && !FindDomain(certificate, endpointUrl))
             {
                 string message = Utils.Format(
                     "The domain '{0}' is not listed in the server certificate.",
-                    endpoint.EndpointUrl.DnsSafeHost);
+                    endpointUrl.DnsSafeHost);
                 sresult = new ServiceResult(StatusCodes.BadCertificateHostNameInvalid,
                     null, null, message, null, sresult
                     );
@@ -1462,13 +1464,12 @@ namespace Opc.Ua
                 }
             }
 
-            bool domainFound = FindDomain(serverCertificate, endpoint);
-
-            if (!domainFound)
+            Uri endpointUrl = endpoint?.EndpointUrl;
+            if (endpointUrl != null && !FindDomain(serverCertificate, endpointUrl))
             {
                 bool accept = false;
                 const string message = "The domain '{0}' is not listed in the server certificate.";
-                var serviceResult = ServiceResultException.Create(StatusCodes.BadCertificateHostNameInvalid, message, endpoint.EndpointUrl.DnsSafeHost);
+                var serviceResult = ServiceResultException.Create(StatusCodes.BadCertificateHostNameInvalid, message, endpointUrl.DnsSafeHost);
                 if (m_CertificateValidation != null)
                 {
                     var args = new CertificateValidationEventArgs(new ServiceResult(serviceResult), serverCertificate);
@@ -1480,7 +1481,7 @@ namespace Opc.Ua
                 {
                     if (serverValidation)
                     {
-                        Utils.LogError(message, endpoint.EndpointUrl.DnsSafeHost);
+                        Utils.LogError(message, endpointUrl.DnsSafeHost);
                     }
                     else
                     {
@@ -1647,11 +1648,11 @@ namespace Opc.Ua
         {
             var message = new StringBuilder()
                 .AppendLine(error)
-                .AppendFormat("Subject: {0}", certificate.Subject)
+                .AppendFormat(CultureInfo.InvariantCulture, "Subject: {0}", certificate.Subject)
                 .AppendLine();
             if (!string.Equals(certificate.Subject, certificate.Issuer, StringComparison.Ordinal))
             {
-                message.AppendFormat("Issuer: {0}", certificate.Issuer)
+                message.AppendFormat(CultureInfo.InvariantCulture, "Issuer: {0}", certificate.Issuer)
                 .AppendLine();
             }
             return message.ToString();
@@ -1689,21 +1690,21 @@ namespace Opc.Ua
         /// endpoint that was used to connect a session.
         /// </summary>
         /// <param name="serverCertificate">The server certificate which is tested for domain names.</param>
-        /// <param name="endpoint">The endpoint which was used to connect.</param>
+        /// <param name="endpointUrl">The endpoint Url which was used to connect.</param>
         /// <returns>True if domain was found.</returns>
-        private bool FindDomain(X509Certificate2 serverCertificate, ConfiguredEndpoint endpoint)
+        private bool FindDomain(X509Certificate2 serverCertificate, Uri endpointUrl)
         {
             bool domainFound = false;
 
             // check the certificate domains.
-            IList<string> domains = X509Utils.GetDomainsFromCertficate(serverCertificate);
+            IList<string> domains = X509Utils.GetDomainsFromCertificate(serverCertificate);
 
             if (domains != null && domains.Count > 0)
             {
                 string hostname;
-                string dnsHostName = hostname = endpoint.EndpointUrl.DnsSafeHost;
+                string dnsHostName = hostname = endpointUrl.DnsSafeHost;
                 bool isLocalHost = false;
-                if (endpoint.EndpointUrl.HostNameType == UriHostNameType.Dns)
+                if (endpointUrl.HostNameType == UriHostNameType.Dns)
                 {
                     if (String.Equals(dnsHostName, "localhost", StringComparison.OrdinalIgnoreCase))
                     {

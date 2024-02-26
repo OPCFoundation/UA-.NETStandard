@@ -111,7 +111,7 @@ namespace Opc.Ua.Security.Certificates
 
             if (!result && throwOnError)
             {
-                throw new CryptographicException("The public/private key pair in the certficates do not match.");
+                throw new CryptographicException("The public/private key pair in the certificates do not match.");
             }
 
             return result;
@@ -250,7 +250,7 @@ namespace Opc.Ua.Security.Certificates
             }
             if (!result && throwOnError)
             {
-                throw new CryptographicException("The public/private key pair in the certficates do not match.");
+                throw new CryptographicException("The public/private key pair in the certificates do not match.");
             }
             return result;
         }

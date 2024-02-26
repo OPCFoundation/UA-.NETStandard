@@ -218,7 +218,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 if (!NodeId.IsNull(this.TypeId))
                 {
-                    return String.Format(formatProvider, "{{{0}}}", this.TypeId);
+                    return string.Format(formatProvider, "{{{0}}}", this.TypeId);
                 }
 
                 return "(null)";

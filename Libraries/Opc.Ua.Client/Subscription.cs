@@ -2405,7 +2405,12 @@ namespace Opc.Ua.Client
 
             if (!created && m_id != 0)
             {
-                throw new ServiceResultException(StatusCodes.BadInvalidState, "Subscription has alredy been created.");
+                throw new ServiceResultException(StatusCodes.BadInvalidState, "Subscription has already been created.");
+            }
+
+            if (!created && Session is null) // Occurs only on Create() and CreateAsync()
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidState, "Subscription has not been assigned to a Session");
             }
         }
 
@@ -2428,7 +2433,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private bool UpdateMonitoringMode(
             IList<MonitoredItem> monitoredItems,
-            IList<ServiceResult> errors,
+            List<ServiceResult> errors,
             StatusCodeCollection results,
             DiagnosticInfoCollection diagnosticInfos,
             ResponseHeader responseHeader,
@@ -2513,7 +2518,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void PrepareItemsToModify(
             MonitoredItemModifyRequestCollection requestItems,
-            IList<MonitoredItem> itemsToModify)
+            List<MonitoredItem> itemsToModify)
         {
             lock (m_cache)
             {
@@ -2584,7 +2589,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void PrepareResolveItemNodeIds(
             BrowsePathCollection browsePaths,
-            IList<MonitoredItem> itemsToBrowse)
+            List<MonitoredItem> itemsToBrowse)
         {
             lock (m_cache)
             {
