@@ -709,7 +709,7 @@ namespace Opc.Ua.Configuration
 
             bool valid = true;
             IList<string> serverDomainNames = configuration.GetServerDomainNames();
-            IList<string> certificateDomainNames = X509Utils.GetDomainsFromCertficate(certificate);
+            IList<string> certificateDomainNames = X509Utils.GetDomainsFromCertificate(certificate);
 
             Utils.LogInfo("Server Domain names:");
             foreach (var name in serverDomainNames)
