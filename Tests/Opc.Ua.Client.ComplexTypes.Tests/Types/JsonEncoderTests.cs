@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using Newtonsoft.Json.Linq;
@@ -104,8 +105,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             {   BuiltInType.Int16, (Int16)(-12345), "-12345", null },
             {   BuiltInType.UInt32, (UInt32)1234567, "1234567", null },
             {   BuiltInType.Int32, (Int32)(-12345678), "-12345678", null },
-            {   BuiltInType.Int64, kInt64Value, Quotes(kInt64Value.ToString()), null },
-            {   BuiltInType.UInt64, (UInt64)kUInt64Value, Quotes(kUInt64Value.ToString()), null },
+            {   BuiltInType.Int64, kInt64Value, Quotes(kInt64Value.ToString(CultureInfo.InvariantCulture)), null },
+            {   BuiltInType.UInt64, (UInt64)kUInt64Value, Quotes(kUInt64Value.ToString(CultureInfo.InvariantCulture)), null },
             {   BuiltInType.Float, (float)3.14, "3.14", "3.14" },
             // TODO: why is JToken.DeepEquals failing here?
             //{   BuiltInType.Float, float.PositiveInfinity, "Infinity", "Infinity" },
