@@ -148,7 +148,7 @@ namespace Opc.Ua.Client.Controls
                     // fill in domains.
                     buffer = new StringBuilder();
 
-                    foreach (string domain in X509Utils.GetDomainsFromCertficate(data))
+                    foreach (string domain in X509Utils.GetDomainsFromCertificate(data))
                     {
                         if (buffer.Length > 0)
                         {

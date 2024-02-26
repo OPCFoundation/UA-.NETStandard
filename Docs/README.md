@@ -10,6 +10,7 @@ UA Core stack related:
 * Using the [Reverse Connect](ReverseConnect.md) for the UA-TCP transport.
 * Support for the [TransferSubscriptions](TransferSubscription.md) service set.
 * Improved support for [Logging](Logging.md) with `ILogger` and `EventSource`.
+* Support for [WellKnownRoles & RoleBasedUserManagement](RoleBasedUserManagement.md).
 
 Reference application related:
 * [Reference Server](../Applications/ReferenceServer/README.md) documentation for running against CTT.

@@ -242,9 +242,9 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Replace the Event Id of a branch, usually due to an Acknowledgment
+        /// Replace the Event Id of a branch, usually due to an Acknowledgement
         /// </summary>
-        /// <param name="originalEventId">Event Id prior to the Acknowledgment</param>
+        /// <param name="originalEventId">Event Id prior to the Acknowledgement</param>
         /// <param name="alarm">Branch, containing the updated EventId to be stored</param>
         protected void ReplaceBranchEvent(byte[] originalEventId, ConditionState alarm)
         {

@@ -30,6 +30,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -258,7 +259,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             stringBuilder.AppendLine("RevokedCertificates:");
             foreach (var revokedCert in x509Crl.RevokedCertificates)
             {
-                stringBuilder.AppendFormat("{0:20}", revokedCert.SerialNumber).Append(", ").Append(revokedCert.RevocationDate).Append(", ");
+                stringBuilder.AppendFormat(CultureInfo.InvariantCulture, "{0:20}", revokedCert.SerialNumber).Append(", ").Append(revokedCert.RevocationDate).Append(", ");
                 foreach (var entryExt in revokedCert.CrlEntryExtensions)
                 {
                     stringBuilder.Append(entryExt.Format(false)).Append(' ');

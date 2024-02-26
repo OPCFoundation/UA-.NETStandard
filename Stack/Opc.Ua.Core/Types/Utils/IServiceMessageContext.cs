@@ -21,11 +21,6 @@ namespace Opc.Ua
     {
         #region Public Properties
         /// <summary>
-        /// Returns the object used to synchronize access to the context.
-        /// </summary>
-        object SyncRoot { get; }
-
-        /// <summary>
         /// The maximum length for any string, byte string or xml element.
         /// </summary>
         int MaxStringLength { get; }
