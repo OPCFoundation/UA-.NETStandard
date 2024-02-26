@@ -104,7 +104,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 SecurityNone = true,
                 AutoAccept = true,
                 AllNodeManagers = true,
-                OperationLimits = true,
+                OperationLimits = true
             };
             if (writer != null)
             {
@@ -113,8 +113,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out, m_pkiRoot).ConfigureAwait(false);
 
             m_clientFixture = new ClientFixture();
-            m_clientFixture.UseTracing = true;
-            m_clientFixture.StartActivityListener();
 
             await m_clientFixture.LoadClientConfiguration(m_pkiRoot).ConfigureAwait(false);
             m_clientFixture.Config.TransportQuotas.MaxMessageSize = 4 * 1024 * 1024;

@@ -315,10 +315,14 @@ namespace Opc.Ua.Client
                     // breaking change, the callback must only assign the new
                     // session if the property is != null
                     m_session = null;
-                    Utils.LogInfo("Reconnect aborted, KeepAlive recovered.");
+                    Utils.LogInfo("Reconnect {0} aborted, KeepAlive recovered.", m_session?.SessionId);
+                }
+                else
+                {
+                    Utils.LogInfo("Reconnect {0}.", m_session?.SessionId);
                 }
 
-                // do the reconnect.
+                // do the reconnect or recover state.
                 if (keepaliveRecovered ||
                     await DoReconnectAsync().ConfigureAwait(false))
                 {

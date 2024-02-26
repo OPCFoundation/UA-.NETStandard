@@ -451,9 +451,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public virtual Task ValidateAsync(X509Certificate2Collection chain, CancellationToken ct)
+        public virtual Task ValidateAsync(X509Certificate2Collection certificateChain, CancellationToken ct)
         {
-            return ValidateAsync(chain, null, ct);
+            return ValidateAsync(certificateChain, null, ct);
         }
 
         /// <summary>
@@ -566,12 +566,6 @@ namespace Opc.Ua
                 LogInnerServiceResults(LogLevel.Error, se.Result.InnerResult);
                 throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
             }
-            else
-            {
-                Utils.LogCertificate(LogLevel.Warning, "Certificate Validation failed. Reason={0}.",
-                    certificate, se.Result.StatusCode);
-                LogInnerServiceResults(LogLevel.Warning, se.Result.InnerResult);
-            }
 
             // invoke callback.
             bool accept = false;
@@ -625,9 +619,10 @@ namespace Opc.Ua
             // throw if rejected.
             if (!accept)
             {
-                // write the invalid certificate chain to rejected store if specified.
-                Utils.LogCertificate(LogLevel.Error, "Certificate rejected. Reason={0}.",
-                    certificate, serviceResult != null ? serviceResult.StatusCode.ToString() : "Unknown Error");
+                // only log errors if the cert validation failed and it was not accepted
+                Utils.LogCertificate(LogLevel.Error, "Certificate validation failed with suppressible errors but was rejected. Reason={0}.",
+                    certificate, se.Result.StatusCode);
+                LogInnerServiceResults(LogLevel.Error, se.Result.InnerResult);
 
                 // save the chain in rejected store to allow to add cert to a trusted or issuer store
                 SaveCertificates(chain);

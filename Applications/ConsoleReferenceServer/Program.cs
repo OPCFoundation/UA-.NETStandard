@@ -30,6 +30,7 @@
 using System;
 using System.Globalization;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
@@ -141,7 +142,8 @@ namespace Quickstarts.ReferenceServer
                 output.WriteLine("Server started. Press Ctrl-C to exit...");
 
                 // wait for timeout or Ctrl-C
-                var quitEvent = ConsoleUtils.CtrlCHandler();
+                var quitCTS = new CancellationTokenSource();
+                var quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
                 bool ctrlc = quitEvent.WaitOne(timeout);
 
                 // stop server. May have to wait for clients to disconnect.
