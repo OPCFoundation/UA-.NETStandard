@@ -80,7 +80,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// shall be followed by the JSON encoder accordingly.
         /// </summary>
         [DatapointSource]
-        public JsonValidationData[] Data = new JsonValidationDataCollection() {
+        public static readonly JsonValidationData[] Data = new JsonValidationDataCollection() {
             {   BuiltInType.Boolean, true,"true", null },
             {   BuiltInType.Boolean, false, null, null },
             {   BuiltInType.Boolean, false, "false", null, true },
@@ -89,56 +89,56 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.Byte, (Byte)0, "0", null, true },
             {   BuiltInType.Byte, (Byte)88, "88", null },
             {   BuiltInType.Byte, (Byte)188, "188", null },
-            {   BuiltInType.Byte, Byte.MinValue, Byte.MinValue.ToString(), null, true},
-            {   BuiltInType.Byte, Byte.MaxValue, Byte.MaxValue.ToString(), null },
+            {   BuiltInType.Byte, Byte.MinValue, Byte.MinValue.ToString(CultureInfo.InvariantCulture), null, true},
+            {   BuiltInType.Byte, Byte.MaxValue, Byte.MaxValue.ToString(CultureInfo.InvariantCulture), null },
 
             {   BuiltInType.SByte, (SByte)0, null, null },
             {   BuiltInType.SByte, (SByte)0, "0", null, true },
             {   BuiltInType.SByte, (SByte)(-77), "-77", null },
             {   BuiltInType.SByte, (SByte)(77), "77", null },
-            {   BuiltInType.SByte, SByte.MaxValue, SByte.MaxValue.ToString(), null },
-            {   BuiltInType.SByte, SByte.MinValue, SByte.MinValue.ToString(), null },
+            {   BuiltInType.SByte, SByte.MaxValue, SByte.MaxValue.ToString(CultureInfo.InvariantCulture), null },
+            {   BuiltInType.SByte, SByte.MinValue, SByte.MinValue.ToString(CultureInfo.InvariantCulture), null },
 
             {   BuiltInType.UInt16, (UInt16)0, null, null},
             {   BuiltInType.UInt16, (UInt16)0, "0", null, true },
             {   BuiltInType.UInt16, (UInt16)12345, "12345", null },
             {   BuiltInType.UInt16, (UInt16)44444, "44444", null },
-            {   BuiltInType.UInt16, UInt16.MinValue, UInt16.MinValue.ToString(), null, true },
-            {   BuiltInType.UInt16, UInt16.MaxValue, UInt16.MaxValue.ToString(), null },
+            {   BuiltInType.UInt16, UInt16.MinValue, UInt16.MinValue.ToString(CultureInfo.InvariantCulture), null, true },
+            {   BuiltInType.UInt16, UInt16.MaxValue, UInt16.MaxValue.ToString(CultureInfo.InvariantCulture), null },
 
             {   BuiltInType.Int16, (Int16)0, null, null },
             {   BuiltInType.Int16, (Int16)0, "0", null, true },
             {   BuiltInType.Int16, (Int16)(-12345), "-12345", null },
             {   BuiltInType.Int16, (Int16)12345, "12345", null },
-            {   BuiltInType.Int16, Int16.MaxValue, Int16.MaxValue.ToString(), null },
-            {   BuiltInType.Int16, Int16.MinValue, Int16.MinValue.ToString(), null },
+            {   BuiltInType.Int16, Int16.MaxValue, Int16.MaxValue.ToString(CultureInfo.InvariantCulture), null },
+            {   BuiltInType.Int16, Int16.MinValue, Int16.MinValue.ToString(CultureInfo.InvariantCulture), null },
 
             {   BuiltInType.UInt32, (UInt32)0, null, null },
             {   BuiltInType.UInt32, (UInt32)0, "0", null, true },
             {   BuiltInType.UInt32, (UInt32)1234567, "1234567", null },
             {   BuiltInType.UInt32, (UInt32)4444444, "4444444", null },
-            {   BuiltInType.UInt32, UInt32.MinValue, UInt32.MinValue.ToString(), null, true },
-            {   BuiltInType.UInt32, UInt32.MaxValue, UInt32.MaxValue.ToString(), null },
+            {   BuiltInType.UInt32, UInt32.MinValue, UInt32.MinValue.ToString(CultureInfo.InvariantCulture), null, true },
+            {   BuiltInType.UInt32, UInt32.MaxValue, UInt32.MaxValue.ToString(CultureInfo.InvariantCulture), null },
 
             {   BuiltInType.Int32, 0, null, null },
             {   BuiltInType.Int32, 0, "0", null, true },
             {   BuiltInType.Int32, -12345678, "-12345678", null },
             {   BuiltInType.Int32, 12345678, "12345678", null },
-            {   BuiltInType.Int32, Int32.MaxValue, Int32.MaxValue.ToString(), null },
-            {   BuiltInType.Int32, Int32.MinValue, Int32.MinValue.ToString(), null },
+            {   BuiltInType.Int32, Int32.MaxValue, Int32.MaxValue.ToString(CultureInfo.InvariantCulture), null },
+            {   BuiltInType.Int32, Int32.MinValue, Int32.MinValue.ToString(CultureInfo.InvariantCulture), null },
 
             {   BuiltInType.Int64, (Int64)0, null, null },
             {   BuiltInType.Int64, (Int64)0, Quotes("0"), null, true },
-            {   BuiltInType.Int64, kInt64Value, Quotes(kInt64Value.ToString()), null },
-            {   BuiltInType.Int64, (Int64)kUInt64Value, Quotes(kUInt64Value.ToString()), null },
-            {   BuiltInType.Int64, Int64.MinValue, Quotes(Int64.MinValue.ToString()), null },
-            {   BuiltInType.Int64, Int64.MaxValue, Quotes(Int64.MaxValue.ToString()), null },
+            {   BuiltInType.Int64, kInt64Value, Quotes(kInt64Value.ToString(CultureInfo.InvariantCulture)), null },
+            {   BuiltInType.Int64, (Int64)kUInt64Value, Quotes(kUInt64Value.ToString(CultureInfo.InvariantCulture)), null },
+            {   BuiltInType.Int64, Int64.MinValue, Quotes(Int64.MinValue.ToString(CultureInfo.InvariantCulture)), null },
+            {   BuiltInType.Int64, Int64.MaxValue, Quotes(Int64.MaxValue.ToString(CultureInfo.InvariantCulture)), null },
 
             {   BuiltInType.UInt64, (UInt64)0, null, null },
             {   BuiltInType.UInt64, (UInt64)0, Quotes("0"), null, true },
-            {   BuiltInType.UInt64, (UInt64)kUInt64Value, Quotes(kUInt64Value.ToString()), null },
-            {   BuiltInType.UInt64, UInt64.MinValue, Quotes(UInt64.MinValue.ToString()), null, true },
-            {   BuiltInType.UInt64, UInt64.MaxValue, Quotes(UInt64.MaxValue.ToString()), null },
+            {   BuiltInType.UInt64, (UInt64)kUInt64Value, Quotes(kUInt64Value.ToString(CultureInfo.InvariantCulture)), null },
+            {   BuiltInType.UInt64, UInt64.MinValue, Quotes(UInt64.MinValue.ToString(CultureInfo.InvariantCulture)), null, true },
+            {   BuiltInType.UInt64, UInt64.MaxValue, Quotes(UInt64.MaxValue.ToString(CultureInfo.InvariantCulture)), null },
 
             {   BuiltInType.Float, (Single)0, null, null},
             {   BuiltInType.Float, (Single)0, "0", null, true},
@@ -349,7 +349,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Validate constructor signature.
         /// </summary>
         [Theory]
-        public void Constructor_Default(bool useReversible, bool topLevelIsArray)
+        public void ConstructorDefault(bool useReversible, bool topLevelIsArray)
         {
             var context = new ServiceMessageContext();
             using (IJsonEncoder jsonEncoder = new JsonEncoder(context, useReversible, topLevelIsArray))
@@ -366,10 +366,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         /// <summary>
         /// Use a constructor with external Stream,
-        /// keep the steam open for more encodings.
+        /// keep the stream open for more encodings.
         /// </summary>
         [Test]
-        public void Constructor_Stream()
+        public void ConstructorStream()
         {
             var context = new ServiceMessageContext();
             var memoryStream = new MemoryStream();
@@ -446,7 +446,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [TestCase(false, "{\"Foo\":\"bar_1\"}")]
         [TestCase(true, "[{\"Foo\":\"bar_1\"}]")]
-        public void Test_WriteSingleEncodeableWithoutName(bool topLevelIsArray, string expected)
+        public void TestWriteSingleEncodeableWithoutName(bool topLevelIsArray, string expected)
         {
             TestContext.Out.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expected);
@@ -474,7 +474,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// A single encodeable in an array cannot have a fieldname.
         /// </summary>
         [Test]
-        public void Test_WriteSingleEncodeableWithName()
+        public void TestWriteSingleEncodeableWithName()
         {
             var expected = "{\"bar_1\":{\"Foo\":\"bar_1\"}}";
             TestContext.Out.WriteLine("Expected:");
@@ -503,7 +503,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// A single dynamic encodeable 
         /// </summary>
         [Test]
-        public void Test_WriteSingleDynamicEncodeableWithName()
+        public void TestWriteSingleDynamicEncodeableWithName()
         {
             var expected = "{\"bar_1\":{\"Foo\":\"bar_1\"}}";
             TestContext.Out.WriteLine("Expected:");
@@ -532,7 +532,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Extension object with dynamic encodeable encoded to and from Json and xml
         /// </summary>
         [Test]
-        public void Test_ExtensionObjectWithDynamicEncodeable()
+        public void TestExtensionObjectWithDynamicEncodeable()
         {
             var expectedJson = "{\"TypeId\":{\"IdType\":1,\"Id\":\"test_dyn2_typeid\"},\"Body\":{\"Foo\":\"bar_1\",\"Foo2\":\"bar_2\"}}";
             var expectedXml = "<uax:ExtensionObject xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">"
@@ -621,7 +621,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// A single encodeable in an array cannot have a fieldname.
         /// </summary>
         [Test]
-        public void Test_WriteSingleEncodeableWithNameAndArrayAsTopLevel_Expect_Exception()
+        public void TestWriteSingleEncodeableWithNameAndArrayAsTopLevelExpectException()
         {
             using (var encodeable = new FooBarEncodeable())
             {
@@ -636,7 +636,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// A single encodeable in an array cannot have a fieldname.
         /// </summary>
         [Test]
-        public void Test_WriteMultipleEncodeableWithoutName_Expect_Exception()
+        public void TestWriteMultipleEncodeableWithoutNameExpectException()
         {
             // invalid JSON
             // "{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}"
@@ -659,7 +659,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// It is not valid to have a JSON object within another object without fieldname
         /// </summary>
         [TestCase(true, "[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]")]
-        public void Test_WriteMultipleEncodeablesWithoutFieldNames(bool topLevelIsArray, string expected)
+        public void TestWriteMultipleEncodeablesWithoutFieldNames(bool topLevelIsArray, string expected)
         {
             TestContext.Out.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expected);
@@ -694,7 +694,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Write multiple encodeables with fieldnames.
         /// </summary>
         [Test]
-        public void Test_WriteMultipleEncodeablesWithFieldNames()
+        public void TestWriteMultipleEncodeablesWithFieldNames()
         {
             var expected = "{\"bar_1\":{\"Foo\":\"bar_1\"},\"bar_2\":{\"Foo\":\"bar_2\"},\"bar_3\":{\"Foo\":\"bar_3\"}}";
 
@@ -731,7 +731,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Write encodeable array with fieldname.
         /// </summary>
         [Test]
-        public void Test_WriteEncodeableArrayWithFieldName()
+        public void TestWriteEncodeableArrayWithFieldName()
         {
             var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
 
@@ -747,7 +747,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [TestCase(false, "[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]")]
         [TestCase(true, "[[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]]")]
-        public void Test_WriteEncodeableArrayWithoutFieldName(bool topLevelIsArray, string expected)
+        public void TestWriteEncodeableArrayWithoutFieldName(bool topLevelIsArray, string expected)
         {
             var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
 
@@ -762,7 +762,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Write encodeable top level array with fieldname.
         /// </summary>
         [Test]
-        public void Test_WriteEncodeableArrayWithFieldNameAndArrayAsTopLevel_Expect_Exception()
+        public void TestWriteEncodeableArrayWithFieldNameAndArrayAsTopLevelExpectException()
         {
             var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
 
@@ -778,7 +778,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Write encodeable top level array without fieldname.
         /// </summary>
         [Test]
-        public void Test_WriteEncodeableArrayWithoutFieldNameAndArrayAsTopLevel()
+        public void TestWriteEncodeableArrayWithoutFieldNameAndArrayAsTopLevel()
         {
             var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
 
@@ -882,6 +882,75 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }
             }
         }
+
+        /// <summary>
+        /// Validate that the DateTime format strings return an equal result.
+        /// </summary>
+        [Test, Repeat(kRandomRepeats)]
+        public void DateTimeEncodeRandomStringTest()
+        {
+            SetRepeatedRandomSeed();
+            DateTime randomDateTime = DataGenerator.GetRandomDateTime().ToUniversalTime();
+            DateTimeEncodeStringTest(randomDateTime);
+        }
+
+        /// <summary>
+        /// Validate that the DateTime format strings return an equal result.
+        /// </summary>
+        [Test]
+        [TestCase("1952-12-14T17:48:51.3559888Z")]
+        [TestCase("1952-12-14T17:48:51.3559880Z")]
+        [TestCase("1952-12-14T17:48:51.3559800Z")]
+        [TestCase("1952-12-14T17:48:51.3559000Z")]
+        [TestCase("1952-12-14T17:48:51.3550000Z")]
+        [TestCase("1952-12-14T17:48:51.3500000Z")]
+        [TestCase("1952-12-14T17:48:51.3000000Z")]
+        [TestCase("1952-12-14T17:48:51.0000000Z")]
+        [TestCase("1952-12-14T17:48:51Z")]
+        public void DateTimeEncodeStringTestCase(string dateTimeString)
+        {
+            bool success = DateTime.TryParse(dateTimeString, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out DateTime dateTime);
+            Assert.True(success);
+            DateTimeEncodeStringTest(dateTime);
+        }
+
+        /// <summary>
+        /// Validate that the DateTime format strings return an equal result.
+        /// </summary>
+        public void DateTimeEncodeStringTest(DateTime testDateTime)
+        {
+            string resultString = testDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK", CultureInfo.InvariantCulture);
+            string resultO = JsonEncoder.ConvertUniversalTimeToString(testDateTime);
+            Assert.NotNull(resultString);
+            Assert.NotNull(resultO);
+
+            TestContext.Out.WriteLine("Encoded: \"o\": {0} \"yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK\": {1}", resultO, resultString);
+
+            // last char is always 'Z', Utc time
+            Assert.AreEqual('Z', resultString[resultString.Length - 1]);
+            Assert.AreEqual('Z', resultO[resultO.Length - 1]);
+
+            Assert.AreEqual(resultString, resultO);
+
+            DateTime decodedXmlString = XmlConvert.ToDateTime(resultString, XmlDateTimeSerializationMode.Utc);
+            DateTime decodedXmlO = XmlConvert.ToDateTime(resultO, XmlDateTimeSerializationMode.Utc);
+
+            Assert.NotNull(decodedXmlString);
+            Assert.NotNull(decodedXmlO);
+
+            TestContext.Out.WriteLine("Decoded Xml: {0} {1}", decodedXmlO.ToString("o"), decodedXmlString.ToString("o"));
+            Assert.True(Utils.IsEqual(decodedXmlString, decodedXmlO));
+
+            // ensure decoded values are identical
+            bool successString = DateTime.TryParse(resultString, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out DateTime decodedString);
+            bool successO = DateTime.TryParse(resultO, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out DateTime decodedO);
+            Assert.True(successString);
+            Assert.True(successO);
+
+            TestContext.Out.WriteLine("Decoded: {0} {1}", decodedO.ToString("o"), decodedString.ToString("o"));
+            Assert.AreEqual(decodedO, decodedString);
+            Assert.AreEqual(testDateTime, decodedO);
+        }
         #endregion
 
         #region Benchmarks
@@ -911,7 +980,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Benchmark]
         [Test]
-        public void JsonEncoder_Constructor()
+        public void JsonEncoderConstructor()
         {
             using (var jsonEncoder = new JsonEncoder(m_context, false))
             {

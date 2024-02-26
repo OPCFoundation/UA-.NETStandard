@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -433,12 +433,6 @@ namespace Opc.Ua.Gds
         public const uint KeyCredentialManagementFolderType_ServiceName_Placeholder_FinishRequest = 196;
 
         /// <remarks />
-        public const uint KeyCredentialManagement_ServiceName_Placeholder_StartRequest = 1012;
-
-        /// <remarks />
-        public const uint KeyCredentialManagement_ServiceName_Placeholder_FinishRequest = 1015;
-
-        /// <remarks />
         public const uint KeyCredentialServiceType_StartRequest = 1023;
 
         /// <remarks />
@@ -449,9 +443,6 @@ namespace Opc.Ua.Gds
 
         /// <remarks />
         public const uint AuthorizationServicesFolderType_ServiceName_Placeholder_GetServiceDescription = 238;
-
-        /// <remarks />
-        public const uint AuthorizationServices_ServiceName_Placeholder_GetServiceDescription = 1001;
 
         /// <remarks />
         public const uint AuthorizationServiceType_GetServiceDescription = 1004;
@@ -1132,42 +1123,6 @@ namespace Opc.Ua.Gds
         public const uint DirectoryType_QueryServers_OutputArguments = 25;
 
         /// <remarks />
-        public const uint CertificateDirectoryType_FindApplications_InputArguments = 66;
-
-        /// <remarks />
-        public const uint CertificateDirectoryType_FindApplications_OutputArguments = 67;
-
-        /// <remarks />
-        public const uint CertificateDirectoryType_RegisterApplication_InputArguments = 69;
-
-        /// <remarks />
-        public const uint CertificateDirectoryType_RegisterApplication_OutputArguments = 70;
-
-        /// <remarks />
-        public const uint CertificateDirectoryType_UpdateApplication_InputArguments = 194;
-
-        /// <remarks />
-        public const uint CertificateDirectoryType_UnregisterApplication_InputArguments = 72;
-
-        /// <remarks />
-        public const uint CertificateDirectoryType_GetApplication_InputArguments = 214;
-
-        /// <remarks />
-        public const uint CertificateDirectoryType_GetApplication_OutputArguments = 215;
-
-        /// <remarks />
-        public const uint CertificateDirectoryType_QueryApplications_InputArguments = 872;
-
-        /// <remarks />
-        public const uint CertificateDirectoryType_QueryApplications_OutputArguments = 873;
-
-        /// <remarks />
-        public const uint CertificateDirectoryType_QueryServers_InputArguments = 74;
-
-        /// <remarks />
-        public const uint CertificateDirectoryType_QueryServers_OutputArguments = 75;
-
-        /// <remarks />
         public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustList_Size = 514;
 
         /// <remarks />
@@ -1262,6 +1217,12 @@ namespace Opc.Ua.Gds
 
         /// <remarks />
         public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = 15019;
+
+        /// <remarks />
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassId = 15020;
+
+        /// <remarks />
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassName = 15021;
 
         /// <remarks />
         public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = 15022;
@@ -1424,6 +1385,12 @@ namespace Opc.Ua.Gds
 
         /// <remarks />
         public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = 15167;
+
+        /// <remarks />
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassId = 15168;
+
+        /// <remarks />
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassName = 15169;
 
         /// <remarks />
         public const uint CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = 15170;
@@ -1654,6 +1621,12 @@ namespace Opc.Ua.Gds
         public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = 15315;
 
         /// <remarks />
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassId = 15316;
+
+        /// <remarks />
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassName = 15317;
+
+        /// <remarks />
         public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = 15318;
 
         /// <remarks />
@@ -1814,6 +1787,12 @@ namespace Opc.Ua.Gds
 
         /// <remarks />
         public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = 15463;
+
+        /// <remarks />
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassId = 15464;
+
+        /// <remarks />
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassName = 15465;
 
         /// <remarks />
         public const uint CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = 15466;
@@ -2044,6 +2023,12 @@ namespace Opc.Ua.Gds
         public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = 15611;
 
         /// <remarks />
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassId = 15612;
+
+        /// <remarks />
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassName = 15613;
+
+        /// <remarks />
         public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = 15614;
 
         /// <remarks />
@@ -2204,6 +2189,12 @@ namespace Opc.Ua.Gds
 
         /// <remarks />
         public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = 15759;
+
+        /// <remarks />
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassId = 15760;
+
+        /// <remarks />
+        public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassName = 15761;
 
         /// <remarks />
         public const uint CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = 15762;
@@ -2422,27 +2413,6 @@ namespace Opc.Ua.Gds
         public const uint KeyCredentialManagementFolderType_ServiceName_Placeholder_Revoke_InputArguments = 229;
 
         /// <remarks />
-        public const uint KeyCredentialManagement_ServiceName_Placeholder_ResourceUri = 1010;
-
-        /// <remarks />
-        public const uint KeyCredentialManagement_ServiceName_Placeholder_ProfileUris = 1011;
-
-        /// <remarks />
-        public const uint KeyCredentialManagement_ServiceName_Placeholder_StartRequest_InputArguments = 1013;
-
-        /// <remarks />
-        public const uint KeyCredentialManagement_ServiceName_Placeholder_StartRequest_OutputArguments = 1014;
-
-        /// <remarks />
-        public const uint KeyCredentialManagement_ServiceName_Placeholder_FinishRequest_InputArguments = 1016;
-
-        /// <remarks />
-        public const uint KeyCredentialManagement_ServiceName_Placeholder_FinishRequest_OutputArguments = 1017;
-
-        /// <remarks />
-        public const uint KeyCredentialManagement_ServiceName_Placeholder_Revoke_InputArguments = 1019;
-
-        /// <remarks />
         public const uint KeyCredentialServiceType_ResourceUri = 1021;
 
         /// <remarks />
@@ -2480,21 +2450,6 @@ namespace Opc.Ua.Gds
 
         /// <remarks />
         public const uint AuthorizationServicesFolderType_ServiceName_Placeholder_RequestAccessToken_OutputArguments = 242;
-
-        /// <remarks />
-        public const uint AuthorizationServices_ServiceName_Placeholder_ServiceUri = 1000;
-
-        /// <remarks />
-        public const uint AuthorizationServices_ServiceName_Placeholder_ServiceCertificate = 962;
-
-        /// <remarks />
-        public const uint AuthorizationServices_ServiceName_Placeholder_GetServiceDescription_OutputArguments = 1002;
-
-        /// <remarks />
-        public const uint AuthorizationServices_ServiceName_Placeholder_RequestAccessToken_InputArguments = 964;
-
-        /// <remarks />
-        public const uint AuthorizationServices_ServiceName_Placeholder_RequestAccessToken_OutputArguments = 965;
 
         /// <remarks />
         public const uint AuthorizationServiceType_ServiceUri = 1003;
@@ -2645,6 +2600,12 @@ namespace Opc.Ua.Gds
 
         /// <remarks />
         public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = 15924;
+
+        /// <remarks />
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassId = 15925;
+
+        /// <remarks />
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassName = 15926;
 
         /// <remarks />
         public const uint Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = 15927;
@@ -2807,6 +2768,12 @@ namespace Opc.Ua.Gds
 
         /// <remarks />
         public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = 16072;
+
+        /// <remarks />
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassId = 16073;
+
+        /// <remarks />
+        public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassName = 16074;
 
         /// <remarks />
         public const uint Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = 16075;
@@ -3037,6 +3004,12 @@ namespace Opc.Ua.Gds
         public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = 16220;
 
         /// <remarks />
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassId = 16221;
+
+        /// <remarks />
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassName = 16222;
+
+        /// <remarks />
         public const uint Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = 16223;
 
         /// <remarks />
@@ -3197,6 +3170,12 @@ namespace Opc.Ua.Gds
 
         /// <remarks />
         public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = 16368;
+
+        /// <remarks />
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassId = 16369;
+
+        /// <remarks />
+        public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassName = 16370;
 
         /// <remarks />
         public const uint Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = 16371;
@@ -3427,6 +3406,12 @@ namespace Opc.Ua.Gds
         public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = 16516;
 
         /// <remarks />
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassId = 16517;
+
+        /// <remarks />
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassName = 16518;
+
+        /// <remarks />
         public const uint Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = 16519;
 
         /// <remarks />
@@ -3587,6 +3572,12 @@ namespace Opc.Ua.Gds
 
         /// <remarks />
         public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = 16664;
+
+        /// <remarks />
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassId = 16665;
+
+        /// <remarks />
+        public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassName = 16666;
 
         /// <remarks />
         public const uint Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = 16667;
@@ -4193,12 +4184,6 @@ namespace Opc.Ua.Gds
         public static readonly ExpandedNodeId KeyCredentialManagementFolderType_ServiceName_Placeholder_FinishRequest = new ExpandedNodeId(Opc.Ua.Gds.Methods.KeyCredentialManagementFolderType_ServiceName_Placeholder_FinishRequest, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <remarks />
-        public static readonly ExpandedNodeId KeyCredentialManagement_ServiceName_Placeholder_StartRequest = new ExpandedNodeId(Opc.Ua.Gds.Methods.KeyCredentialManagement_ServiceName_Placeholder_StartRequest, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId KeyCredentialManagement_ServiceName_Placeholder_FinishRequest = new ExpandedNodeId(Opc.Ua.Gds.Methods.KeyCredentialManagement_ServiceName_Placeholder_FinishRequest, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
         public static readonly ExpandedNodeId KeyCredentialServiceType_StartRequest = new ExpandedNodeId(Opc.Ua.Gds.Methods.KeyCredentialServiceType_StartRequest, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <remarks />
@@ -4209,9 +4194,6 @@ namespace Opc.Ua.Gds
 
         /// <remarks />
         public static readonly ExpandedNodeId AuthorizationServicesFolderType_ServiceName_Placeholder_GetServiceDescription = new ExpandedNodeId(Opc.Ua.Gds.Methods.AuthorizationServicesFolderType_ServiceName_Placeholder_GetServiceDescription, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId AuthorizationServices_ServiceName_Placeholder_GetServiceDescription = new ExpandedNodeId(Opc.Ua.Gds.Methods.AuthorizationServices_ServiceName_Placeholder_GetServiceDescription, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <remarks />
         public static readonly ExpandedNodeId AuthorizationServiceType_GetServiceDescription = new ExpandedNodeId(Opc.Ua.Gds.Methods.AuthorizationServiceType_GetServiceDescription, Opc.Ua.Gds.Namespaces.OpcUaGds);
@@ -4892,42 +4874,6 @@ namespace Opc.Ua.Gds
         public static readonly ExpandedNodeId DirectoryType_QueryServers_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.DirectoryType_QueryServers_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <remarks />
-        public static readonly ExpandedNodeId CertificateDirectoryType_FindApplications_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_FindApplications_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId CertificateDirectoryType_FindApplications_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_FindApplications_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId CertificateDirectoryType_RegisterApplication_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_RegisterApplication_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId CertificateDirectoryType_RegisterApplication_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_RegisterApplication_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId CertificateDirectoryType_UpdateApplication_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_UpdateApplication_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId CertificateDirectoryType_UnregisterApplication_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_UnregisterApplication_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId CertificateDirectoryType_GetApplication_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_GetApplication_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId CertificateDirectoryType_GetApplication_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_GetApplication_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId CertificateDirectoryType_QueryApplications_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_QueryApplications_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId CertificateDirectoryType_QueryApplications_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_QueryApplications_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId CertificateDirectoryType_QueryServers_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_QueryServers_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId CertificateDirectoryType_QueryServers_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_QueryServers_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
         public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustList_Size = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustList_Size, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <remarks />
@@ -5022,6 +4968,12 @@ namespace Opc.Ua.Gds
 
         /// <remarks />
         public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <remarks />
         public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName, Opc.Ua.Gds.Namespaces.OpcUaGds);
@@ -5184,6 +5136,12 @@ namespace Opc.Ua.Gds
 
         /// <remarks />
         public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <remarks />
         public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName, Opc.Ua.Gds.Namespaces.OpcUaGds);
@@ -5414,6 +5372,12 @@ namespace Opc.Ua.Gds
         public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <remarks />
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <remarks />
         public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <remarks />
@@ -5574,6 +5538,12 @@ namespace Opc.Ua.Gds
 
         /// <remarks />
         public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <remarks />
         public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName, Opc.Ua.Gds.Namespaces.OpcUaGds);
@@ -5804,6 +5774,12 @@ namespace Opc.Ua.Gds
         public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <remarks />
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <remarks />
         public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <remarks />
@@ -5964,6 +5940,12 @@ namespace Opc.Ua.Gds
 
         /// <remarks />
         public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassId = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <remarks />
         public static readonly ExpandedNodeId CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = new ExpandedNodeId(Opc.Ua.Gds.Variables.CertificateDirectoryType_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName, Opc.Ua.Gds.Namespaces.OpcUaGds);
@@ -6182,27 +6164,6 @@ namespace Opc.Ua.Gds
         public static readonly ExpandedNodeId KeyCredentialManagementFolderType_ServiceName_Placeholder_Revoke_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.KeyCredentialManagementFolderType_ServiceName_Placeholder_Revoke_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <remarks />
-        public static readonly ExpandedNodeId KeyCredentialManagement_ServiceName_Placeholder_ResourceUri = new ExpandedNodeId(Opc.Ua.Gds.Variables.KeyCredentialManagement_ServiceName_Placeholder_ResourceUri, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId KeyCredentialManagement_ServiceName_Placeholder_ProfileUris = new ExpandedNodeId(Opc.Ua.Gds.Variables.KeyCredentialManagement_ServiceName_Placeholder_ProfileUris, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId KeyCredentialManagement_ServiceName_Placeholder_StartRequest_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.KeyCredentialManagement_ServiceName_Placeholder_StartRequest_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId KeyCredentialManagement_ServiceName_Placeholder_StartRequest_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.KeyCredentialManagement_ServiceName_Placeholder_StartRequest_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId KeyCredentialManagement_ServiceName_Placeholder_FinishRequest_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.KeyCredentialManagement_ServiceName_Placeholder_FinishRequest_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId KeyCredentialManagement_ServiceName_Placeholder_FinishRequest_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.KeyCredentialManagement_ServiceName_Placeholder_FinishRequest_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId KeyCredentialManagement_ServiceName_Placeholder_Revoke_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.KeyCredentialManagement_ServiceName_Placeholder_Revoke_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
         public static readonly ExpandedNodeId KeyCredentialServiceType_ResourceUri = new ExpandedNodeId(Opc.Ua.Gds.Variables.KeyCredentialServiceType_ResourceUri, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <remarks />
@@ -6240,21 +6201,6 @@ namespace Opc.Ua.Gds
 
         /// <remarks />
         public static readonly ExpandedNodeId AuthorizationServicesFolderType_ServiceName_Placeholder_RequestAccessToken_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServicesFolderType_ServiceName_Placeholder_RequestAccessToken_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId AuthorizationServices_ServiceName_Placeholder_ServiceUri = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServices_ServiceName_Placeholder_ServiceUri, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId AuthorizationServices_ServiceName_Placeholder_ServiceCertificate = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServices_ServiceName_Placeholder_ServiceCertificate, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId AuthorizationServices_ServiceName_Placeholder_GetServiceDescription_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServices_ServiceName_Placeholder_GetServiceDescription_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId AuthorizationServices_ServiceName_Placeholder_RequestAccessToken_InputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServices_ServiceName_Placeholder_RequestAccessToken_InputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
-
-        /// <remarks />
-        public static readonly ExpandedNodeId AuthorizationServices_ServiceName_Placeholder_RequestAccessToken_OutputArguments = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServices_ServiceName_Placeholder_RequestAccessToken_OutputArguments, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <remarks />
         public static readonly ExpandedNodeId AuthorizationServiceType_ServiceUri = new ExpandedNodeId(Opc.Ua.Gds.Variables.AuthorizationServiceType_ServiceUri, Opc.Ua.Gds.Namespaces.OpcUaGds);
@@ -6405,6 +6351,12 @@ namespace Opc.Ua.Gds
 
         /// <remarks />
         public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionSubClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <remarks />
         public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_CertificateExpired_ConditionName, Opc.Ua.Gds.Namespaces.OpcUaGds);
@@ -6567,6 +6519,12 @@ namespace Opc.Ua.Gds
 
         /// <remarks />
         public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionSubClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <remarks />
         public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultApplicationGroup_TrustListOutOfDate_ConditionName, Opc.Ua.Gds.Namespaces.OpcUaGds);
@@ -6797,6 +6755,12 @@ namespace Opc.Ua.Gds
         public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <remarks />
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionSubClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <remarks />
         public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_CertificateExpired_ConditionName, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <remarks />
@@ -6957,6 +6921,12 @@ namespace Opc.Ua.Gds
 
         /// <remarks />
         public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionSubClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <remarks />
         public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultHttpsGroup_TrustListOutOfDate_ConditionName, Opc.Ua.Gds.Namespaces.OpcUaGds);
@@ -7187,6 +7157,12 @@ namespace Opc.Ua.Gds
         public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <remarks />
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionSubClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <remarks />
         public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_CertificateExpired_ConditionName, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <remarks />
@@ -7347,6 +7323,12 @@ namespace Opc.Ua.Gds
 
         /// <remarks />
         public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassId = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassId, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        /// <remarks />
+        public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionSubClassName, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         /// <remarks />
         public static readonly ExpandedNodeId Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName = new ExpandedNodeId(Opc.Ua.Gds.Variables.Directory_CertificateGroups_DefaultUserTokenGroup_TrustListOutOfDate_ConditionName, Opc.Ua.Gds.Namespaces.OpcUaGds);

@@ -187,7 +187,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Checks if the actual array diminesions is compatible with the expected value rank and array dimensions.
+        /// Checks if the actual array dimensions is compatible with the expected value rank and array dimensions.
         /// </summary>
         public static bool IsValid(IList<uint> actualArrayDimensions, int valueRank, IList<uint> expectedArrayDimensions)
         {
@@ -261,7 +261,7 @@ namespace Opc.Ua
         public const double Indeterminate = -1;
 
         /// <summary>
-        /// TThe server can sample the variable continuously.
+        /// The server can sample the variable continuously.
         /// </summary>
         public const double Continuous = 0;
     }

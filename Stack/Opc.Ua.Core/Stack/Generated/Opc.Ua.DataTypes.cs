@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -1151,9 +1151,9 @@ namespace Opc.Ua
         {
             m_name = null;
             m_description = null;
-            m_dataType = null;
+            m_reserved = true;
             m_startingBitPosition = (uint)0;
-            m_numberOfBits = (uint)0;
+            m_endingBitPosition = (uint)0;
         }
         #endregion
 
@@ -1175,11 +1175,11 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        [DataMember(Name = "DataType", IsRequired = false, Order = 3)]
-        public NodeId DataType
+        [DataMember(Name = "Reserved", IsRequired = false, Order = 3)]
+        public bool Reserved
         {
-            get { return m_dataType;  }
-            set { m_dataType = value; }
+            get { return m_reserved;  }
+            set { m_reserved = value; }
         }
 
         /// <remarks />
@@ -1191,11 +1191,11 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        [DataMember(Name = "NumberOfBits", IsRequired = false, Order = 5)]
-        public uint NumberOfBits
+        [DataMember(Name = "EndingBitPosition", IsRequired = false, Order = 5)]
+        public uint EndingBitPosition
         {
-            get { return m_numberOfBits;  }
-            set { m_numberOfBits = value; }
+            get { return m_endingBitPosition;  }
+            set { m_endingBitPosition = value; }
         }
         #endregion
 
@@ -1219,9 +1219,9 @@ namespace Opc.Ua
 
             encoder.WriteString("Name", Name);
             encoder.WriteLocalizedText("Description", Description);
-            encoder.WriteNodeId("DataType", DataType);
+            encoder.WriteBoolean("Reserved", Reserved);
             encoder.WriteUInt32("StartingBitPosition", StartingBitPosition);
-            encoder.WriteUInt32("NumberOfBits", NumberOfBits);
+            encoder.WriteUInt32("EndingBitPosition", EndingBitPosition);
 
             encoder.PopNamespace();
         }
@@ -1233,9 +1233,9 @@ namespace Opc.Ua
 
             Name = decoder.ReadString("Name");
             Description = decoder.ReadLocalizedText("Description");
-            DataType = decoder.ReadNodeId("DataType");
+            Reserved = decoder.ReadBoolean("Reserved");
             StartingBitPosition = decoder.ReadUInt32("StartingBitPosition");
-            NumberOfBits = decoder.ReadUInt32("NumberOfBits");
+            EndingBitPosition = decoder.ReadUInt32("EndingBitPosition");
 
             decoder.PopNamespace();
         }
@@ -1257,9 +1257,9 @@ namespace Opc.Ua
 
             if (!Utils.IsEqual(m_name, value.m_name)) return false;
             if (!Utils.IsEqual(m_description, value.m_description)) return false;
-            if (!Utils.IsEqual(m_dataType, value.m_dataType)) return false;
+            if (!Utils.IsEqual(m_reserved, value.m_reserved)) return false;
             if (!Utils.IsEqual(m_startingBitPosition, value.m_startingBitPosition)) return false;
-            if (!Utils.IsEqual(m_numberOfBits, value.m_numberOfBits)) return false;
+            if (!Utils.IsEqual(m_endingBitPosition, value.m_endingBitPosition)) return false;
 
             return true;
         }
@@ -1277,9 +1277,9 @@ namespace Opc.Ua
 
             clone.m_name = (string)Utils.Clone(this.m_name);
             clone.m_description = (LocalizedText)Utils.Clone(this.m_description);
-            clone.m_dataType = (NodeId)Utils.Clone(this.m_dataType);
+            clone.m_reserved = (bool)Utils.Clone(this.m_reserved);
             clone.m_startingBitPosition = (uint)Utils.Clone(this.m_startingBitPosition);
-            clone.m_numberOfBits = (uint)Utils.Clone(this.m_numberOfBits);
+            clone.m_endingBitPosition = (uint)Utils.Clone(this.m_endingBitPosition);
 
             return clone;
         }
@@ -1288,9 +1288,9 @@ namespace Opc.Ua
         #region Private Fields
         private string m_name;
         private LocalizedText m_description;
-        private NodeId m_dataType;
+        private bool m_reserved;
         private uint m_startingBitPosition;
-        private uint m_numberOfBits;
+        private uint m_endingBitPosition;
         #endregion
     }
 

@@ -49,7 +49,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates a session configuration
         /// </summary>
-        internal SessionConfiguration(ISession session, byte[] serverNonce, NodeId authenthicationToken)
+        public SessionConfiguration(ISession session, byte[] serverNonce, NodeId authenthicationToken)
         {
             Timestamp = DateTime.UtcNow;
             SessionName = session.SessionName;

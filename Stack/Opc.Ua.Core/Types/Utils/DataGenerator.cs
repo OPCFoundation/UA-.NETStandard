@@ -35,7 +35,7 @@ namespace Opc.Ua.Test
         void NextBytes(byte[] bytes, int offset, int count);
 
         /// <summary>
-        /// Returns a random non-negative integer which does not exeed the specified maximum.
+        /// Returns a random non-negative integer which does not exceed the specified maximum.
         /// </summary>
         /// <param name="max">The maximum value to return.</param>
         /// <returns>A random value greater than 0 but less than or equal to max.</returns>
@@ -254,7 +254,7 @@ namespace Opc.Ua.Test
         }
 
         /// <summary>
-        /// Returns true of a boundary value should be used.
+        /// Returns true if a boundary value should be used.
         /// </summary>
         private bool UseBoundaryValue()
         {

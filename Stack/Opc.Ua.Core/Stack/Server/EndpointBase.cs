@@ -887,7 +887,7 @@ namespace Opc.Ua
             /// Saves an exception as response.
             /// </summary>
             /// <param name="e">The exception.</param>
-            private IServiceResponse SaveExceptionAsResponse(Exception e)
+            private ServiceFault SaveExceptionAsResponse(Exception e)
             {
                 try
                 {
@@ -915,13 +915,8 @@ namespace Opc.Ua
                         if (m_request.RequestHeader?.AdditionalHeader?.Body is AdditionalParametersType parameters &&
                             TryExtractActivityContextFromParameters(parameters, out var activityContext))
                         {
-                            using (var activity = ActivitySource.StartActivity(m_request.GetType().Name, ActivityKind.Server))
+                            using (var activity = ActivitySource.StartActivity(m_request.GetType().Name, ActivityKind.Server, activityContext))
                             {
-                                if (activityContext != default)
-                                {
-                                    activity.SetParentId(activityContext.TraceId, activityContext.SpanId, activityContext.TraceFlags);
-                                }
-
                                 // call the service.
                                 m_response = m_service.Invoke(m_request);
                             }

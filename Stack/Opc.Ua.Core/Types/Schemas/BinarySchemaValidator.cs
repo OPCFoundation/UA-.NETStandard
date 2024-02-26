@@ -178,7 +178,7 @@ namespace Opc.Ua.Schema.Binary
                 foreach (TypeDescription description in m_validatedDescriptions)
                 {
                     ValidateDescription(description);
-                    m_warnings.Add(String.Format(CultureInfo.InvariantCulture, "{0} '{1}' validated.", description.GetType().Name, description.Name));
+                    m_warnings.Add(string.Format(CultureInfo.InvariantCulture, "{0} '{1}' validated.", description.GetType().Name, description.Name));
                 }
             }
         }
@@ -407,12 +407,12 @@ namespace Opc.Ua.Schema.Binary
             {
                 if (!opaque.LengthInBitsSpecified)
                 {
-                    m_warnings.Add(String.Format(CultureInfo.InvariantCulture, "Warning: The opaque type '{0}' does not have a length specified.", description.Name));
+                    m_warnings.Add(string.Format(CultureInfo.InvariantCulture, "Warning: The opaque type '{0}' does not have a length specified.", description.Name));
                 }
 
                 if (IsNull(opaque.Documentation))
                 {
-                    m_warnings.Add(String.Format(CultureInfo.InvariantCulture, "Warning: The opaque type '{0}' does not have any documentation.", description.Name));
+                    m_warnings.Add(string.Format(CultureInfo.InvariantCulture, "Warning: The opaque type '{0}' does not have any documentation.", description.Name));
                 }
             }
 

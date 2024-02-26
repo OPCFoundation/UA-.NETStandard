@@ -190,7 +190,8 @@ namespace Quickstarts
                         m_configuration.ApplicationName,
                         SessionLifeTime,
                         UserIdentity,
-                        null
+                        null,
+                        ct
                     ).ConfigureAwait(false);
 
                     // Assign the created session

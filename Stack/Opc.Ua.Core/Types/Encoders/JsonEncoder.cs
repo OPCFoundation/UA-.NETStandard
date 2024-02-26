@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Xml;
 
@@ -26,6 +27,16 @@ namespace Opc.Ua
     {
         #region Private Fields
         private const int kStreamWriterBufferSize = 1024;
+        private static readonly string s_quotationColon = "\":";
+        private static readonly char s_comma = ',';
+        private static readonly char s_quotation = '\"';
+        private static readonly char s_backslash = '\\';
+        private static readonly char s_leftCurlyBrace = '{';
+        private static readonly char s_rightCurlyBrace = '}';
+        private static readonly char s_leftSquareBracket = '[';
+        private static readonly char s_rightSquareBracket = ']';
+        private static readonly UTF8Encoding s_utf8Encoding = new UTF8Encoding(false);
+        private static readonly string s_null = "null";
         private Stream m_stream;
         private MemoryStream m_memoryStream;
         private StreamWriter m_writer;
@@ -40,6 +51,15 @@ namespace Opc.Ua
         private bool m_levelOneSkipped;
         private bool m_dontWriteClosing;
         private bool m_leaveOpen;
+
+        [Flags]
+        private enum EscapeOptions : int
+        {
+            None = 0,
+            Quotes = 1,
+            NoValueEscape = 2,
+            NoFieldNameEscape = 4,
+        }
         #endregion
 
         #region Constructors
@@ -78,12 +98,12 @@ namespace Opc.Ua
             if (m_stream == null)
             {
                 m_memoryStream = new MemoryStream();
-                m_writer = new StreamWriter(m_memoryStream, new UTF8Encoding(false), streamSize, false);
+                m_writer = new StreamWriter(m_memoryStream, s_utf8Encoding, streamSize, false);
                 m_leaveOpen = false;
             }
             else
             {
-                m_writer = new StreamWriter(m_stream, new UTF8Encoding(false), streamSize, m_leaveOpen);
+                m_writer = new StreamWriter(m_stream, s_utf8Encoding, streamSize, m_leaveOpen);
             }
 
             InitializeWriter();
@@ -108,7 +128,7 @@ namespace Opc.Ua
             if (m_writer == null)
             {
                 m_stream = new MemoryStream();
-                m_writer = new StreamWriter(m_stream, new UTF8Encoding(false), kStreamWriterBufferSize);
+                m_writer = new StreamWriter(m_stream, s_utf8Encoding, kStreamWriterBufferSize);
             }
 
             InitializeWriter();
@@ -144,11 +164,11 @@ namespace Opc.Ua
         {
             if (m_topLevelIsArray)
             {
-                m_writer.Write("[");
+                m_writer.Write(s_leftSquareBracket);
             }
             else
             {
-                m_writer.Write("{");
+                m_writer.Write(s_leftCurlyBrace);
             }
         }
         #endregion
@@ -284,11 +304,11 @@ namespace Opc.Ua
             {
                 if (m_topLevelIsArray)
                 {
-                    m_writer.Write("]");
+                    m_writer.Write(s_rightSquareBracket);
                 }
                 else
                 {
-                    m_writer.Write("}");
+                    m_writer.Write(s_rightCurlyBrace);
                 }
             }
 
@@ -342,14 +362,14 @@ namespace Opc.Ua
 
             if (m_commaRequired)
             {
-                m_writer.Write(",");
+                m_writer.Write(s_comma);
             }
 
-            if (!String.IsNullOrEmpty(fieldName))
+            if (!string.IsNullOrEmpty(fieldName))
             {
-                m_writer.Write("\"");
+                m_writer.Write(s_quotation);
                 EscapeString(fieldName);
-                m_writer.Write("\":");
+                m_writer.Write(s_quotationColon);
             }
             else if (!m_commaRequired)
             {
@@ -361,7 +381,7 @@ namespace Opc.Ua
             }
 
             m_commaRequired = false;
-            m_writer.Write("{");
+            m_writer.Write(s_leftCurlyBrace);
         }
 
         /// <inheritdoc/>
@@ -371,14 +391,14 @@ namespace Opc.Ua
 
             if (m_commaRequired)
             {
-                m_writer.Write(",");
+                m_writer.Write(s_comma);
             }
 
-            if (!String.IsNullOrEmpty(fieldName))
+            if (!string.IsNullOrEmpty(fieldName))
             {
-                m_writer.Write("\"");
+                m_writer.Write(s_quotation);
                 EscapeString(fieldName);
-                m_writer.Write("\":");
+                m_writer.Write(s_quotationColon);
             }
             else if (!m_commaRequired)
             {
@@ -390,7 +410,7 @@ namespace Opc.Ua
             }
 
             m_commaRequired = false;
-            m_writer.Write("[");
+            m_writer.Write(s_leftSquareBracket);
         }
 
         /// <inheritdoc/>
@@ -399,7 +419,7 @@ namespace Opc.Ua
             if (m_nestingLevel > 1 || m_topLevelIsArray ||
                (m_nestingLevel == 1 && !m_levelOneSkipped))
             {
-                m_writer.Write("}");
+                m_writer.Write(s_rightCurlyBrace);
                 m_commaRequired = true;
             }
 
@@ -412,7 +432,7 @@ namespace Opc.Ua
             if (m_nestingLevel > 1 || m_topLevelIsArray ||
                (m_nestingLevel == 1 && !m_levelOneSkipped))
             {
-                m_writer.Write("]");
+                m_writer.Write(s_rightSquareBracket);
                 m_commaRequired = true;
             }
 
@@ -494,9 +514,76 @@ namespace Opc.Ua
             m_namespaces.Pop();
         }
 
-        private static readonly char[] m_specialChars = new char[] { '"', '\\', '\n', '\r', '\t', '\b', '\f', };
-        private static readonly char[] m_substitution = new char[] { '"', '\\', 'n', 'r', 't', 'b', 'f' };
+        private static readonly char[] m_specialChars = new char[] { s_quotation, s_backslash, '\n', '\r', '\t', '\b', '\f', };
+        private static readonly char[] m_substitution = new char[] { s_quotation, s_backslash, 'n', 'r', 't', 'b', 'f' };
 
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+        /// <summary>
+        /// Using a span to escape the string, write strings to stream writer if possible.
+        /// </summary>
+        /// <param name="value"></param>
+        private void EscapeString(string value)
+        {
+            ReadOnlySpan<char> charSpan = value.AsSpan();
+            int lastOffset = 0;
+
+            for (int i = 0; i < charSpan.Length; i++)
+            {
+                bool found = false;
+                char ch = charSpan[i];
+
+                for (int ii = 0; ii < m_specialChars.Length; ii++)
+                {
+                    if (m_specialChars[ii] == ch)
+                    {
+                        WriteSpan(ref lastOffset, charSpan, i);
+                        m_writer.Write('\\');
+                        m_writer.Write(m_substitution[ii]);
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found && ch < 32)
+                {
+                    WriteSpan(ref lastOffset, charSpan, i);
+                    m_writer.Write('\\');
+                    m_writer.Write('u');
+                    m_writer.Write(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
+                }
+            }
+
+            if (lastOffset == 0)
+            {
+                m_writer.Write(value);
+            }
+            else
+            {
+                WriteSpan(ref lastOffset, charSpan, charSpan.Length);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void WriteSpan(ref int lastOffset, ReadOnlySpan<char> valueSpan, int index)
+        {
+            if (lastOffset < index - 2)
+            {
+                m_writer.Write(valueSpan.Slice(lastOffset, index - lastOffset));
+            }
+            else
+            {
+                while (lastOffset < index)
+                {
+                    m_writer.Write(valueSpan[lastOffset++]);
+                }
+            }
+            lastOffset = index + 1;
+        }
+#else
+        /// <summary>
+        /// Escapes a string and writes it to the stream.
+        /// </summary>
+        /// <param name="value"></param>
         private void EscapeString(string value)
         {
             foreach (char ch in value)
@@ -507,7 +594,7 @@ namespace Opc.Ua
                 {
                     if (m_specialChars[ii] == ch)
                     {
-                        m_writer.Write('\\');
+                        m_writer.Write(s_backslash);
                         m_writer.Write(m_substitution[ii]);
                         found = true;
                         break;
@@ -518,19 +605,35 @@ namespace Opc.Ua
                 {
                     if (ch < 32)
                     {
-                        m_writer.Write("\\u");
-                        m_writer.Write("{0:X4}", (int)ch);
+                        m_writer.Write(s_backslash);
+                        m_writer.Write('u');
+                        m_writer.Write(((int)ch).ToString("X4", CultureInfo.InvariantCulture));
                         continue;
                     }
-
                     m_writer.Write(ch);
                 }
             }
         }
+#endif
 
-        private void WriteSimpleField(string fieldName, string value, bool quotes)
+        private void WriteSimpleFieldNull(string fieldName)
         {
-            if (!String.IsNullOrEmpty(fieldName))
+            if (string.IsNullOrEmpty(fieldName))
+            {
+                if (m_commaRequired)
+                {
+                    m_writer.Write(s_comma);
+                }
+
+                m_writer.Write(s_null);
+
+                m_commaRequired = true;
+            }
+        }
+
+        private void WriteSimpleField(string fieldName, string value)
+        {
+            if (!string.IsNullOrEmpty(fieldName))
             {
                 if (value == null)
                 {
@@ -539,28 +642,80 @@ namespace Opc.Ua
 
                 if (m_commaRequired)
                 {
-                    m_writer.Write(",");
+                    m_writer.Write(s_comma);
                 }
 
-                m_writer.Write("\"");
+                m_writer.Write(s_quotation);
                 EscapeString(fieldName);
-                m_writer.Write("\":");
+                m_writer.Write(s_quotationColon);
             }
             else
             {
                 if (m_commaRequired)
                 {
-                    m_writer.Write(",");
+                    m_writer.Write(s_comma);
                 }
             }
 
             if (value != null)
             {
-                if (quotes)
+                m_writer.Write(value);
+            }
+            else
+            {
+                m_writer.Write(s_null);
+            }
+
+            m_commaRequired = true;
+        }
+
+        private void WriteSimpleField(string fieldName, string value, EscapeOptions options)
+        {
+            if (!string.IsNullOrEmpty(fieldName))
+            {
+                if (value == null)
                 {
-                    m_writer.Write("\"");
-                    EscapeString(value);
-                    m_writer.Write("\"");
+                    return;
+                }
+
+                if (m_commaRequired)
+                {
+                    m_writer.Write(s_comma);
+                }
+
+                m_writer.Write(s_quotation);
+                if ((options & EscapeOptions.NoFieldNameEscape) == EscapeOptions.NoFieldNameEscape)
+                {
+                    m_writer.Write(fieldName);
+                }
+                else
+                {
+                    EscapeString(fieldName);
+                }
+                m_writer.Write(s_quotationColon);
+            }
+            else
+            {
+                if (m_commaRequired)
+                {
+                    m_writer.Write(s_comma);
+                }
+            }
+
+            if (value != null)
+            {
+                if ((options & EscapeOptions.Quotes) == EscapeOptions.Quotes)
+                {
+                    m_writer.Write(s_quotation);
+                    if ((options & EscapeOptions.NoValueEscape) == EscapeOptions.NoValueEscape)
+                    {
+                        m_writer.Write(value);
+                    }
+                    else
+                    {
+                        EscapeString(value);
+                    }
+                    m_writer.Write(s_quotation);
                 }
                 else
                 {
@@ -569,7 +724,7 @@ namespace Opc.Ua
             }
             else
             {
-                m_writer.Write("null");
+                m_writer.Write(s_null);
             }
 
             m_commaRequired = true;
@@ -582,17 +737,17 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultNumberValues && !value)
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
             if (value)
             {
-                WriteSimpleField(fieldName, "true", false);
+                WriteSimpleField(fieldName, "true");
             }
             else
             {
-                WriteSimpleField(fieldName, "false", false);
+                WriteSimpleField(fieldName, "false");
             }
         }
 
@@ -603,11 +758,11 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
-            WriteSimpleField(fieldName, value.ToString(CultureInfo.InvariantCulture), false);
+            WriteSimpleField(fieldName, value.ToString(CultureInfo.InvariantCulture));
         }
 
         /// <summary>
@@ -617,11 +772,11 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
-            WriteSimpleField(fieldName, value.ToString(CultureInfo.InvariantCulture), false);
+            WriteSimpleField(fieldName, value.ToString(CultureInfo.InvariantCulture));
         }
 
         /// <summary>
@@ -631,11 +786,11 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
-            WriteSimpleField(fieldName, value.ToString(CultureInfo.InvariantCulture), false);
+            WriteSimpleField(fieldName, value.ToString(CultureInfo.InvariantCulture));
         }
 
         /// <summary>
@@ -645,11 +800,11 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
-            WriteSimpleField(fieldName, value.ToString(CultureInfo.InvariantCulture), false);
+            WriteSimpleField(fieldName, value.ToString(CultureInfo.InvariantCulture));
         }
 
         /// <summary>
@@ -659,11 +814,11 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
-            WriteSimpleField(fieldName, value.ToString(CultureInfo.InvariantCulture), false);
+            WriteSimpleField(fieldName, value.ToString(CultureInfo.InvariantCulture));
         }
 
         /// <summary>
@@ -673,11 +828,11 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
-            WriteSimpleField(fieldName, value.ToString(CultureInfo.InvariantCulture), false);
+            WriteSimpleField(fieldName, value.ToString(CultureInfo.InvariantCulture));
         }
 
         /// <summary>
@@ -687,11 +842,11 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
-            WriteSimpleField(fieldName, value.ToString(CultureInfo.InvariantCulture), true);
+            WriteSimpleField(fieldName, value.ToString(CultureInfo.InvariantCulture), EscapeOptions.Quotes);
         }
 
         /// <summary>
@@ -701,11 +856,11 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
-            WriteSimpleField(fieldName, value.ToString(CultureInfo.InvariantCulture), true);
+            WriteSimpleField(fieldName, value.ToString(CultureInfo.InvariantCulture), EscapeOptions.Quotes);
         }
 
         /// <summary>
@@ -715,25 +870,25 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultNumberValues && (value > -Single.Epsilon) && (value < Single.Epsilon))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
             if (Single.IsNaN(value))
             {
-                WriteSimpleField(fieldName, "NaN", true);
+                WriteSimpleField(fieldName, "\"NaN\"");
             }
             else if (Single.IsPositiveInfinity(value))
             {
-                WriteSimpleField(fieldName, "Infinity", true);
+                WriteSimpleField(fieldName, "\"Infinity\"");
             }
             else if (Single.IsNegativeInfinity(value))
             {
-                WriteSimpleField(fieldName, "-Infinity", true);
+                WriteSimpleField(fieldName, "\"-Infinity\"");
             }
             else
             {
-                WriteSimpleField(fieldName, value.ToString("R", CultureInfo.InvariantCulture), false);
+                WriteSimpleField(fieldName, value.ToString("R", CultureInfo.InvariantCulture));
             }
         }
 
@@ -744,25 +899,25 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultNumberValues && (value > -Double.Epsilon) && (value < Double.Epsilon))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
             if (Double.IsNaN(value))
             {
-                WriteSimpleField(fieldName, "NaN", true);
+                WriteSimpleField(fieldName, "\"NaN\"");
             }
             else if (Double.IsPositiveInfinity(value))
             {
-                WriteSimpleField(fieldName, "Infinity", true);
+                WriteSimpleField(fieldName, "\"Infinity\"");
             }
             else if (Double.IsNegativeInfinity(value))
             {
-                WriteSimpleField(fieldName, "-Infinity", true);
+                WriteSimpleField(fieldName, "\"-Infinity\"");
             }
             else
             {
-                WriteSimpleField(fieldName, value.ToString("R", CultureInfo.InvariantCulture), false);
+                WriteSimpleField(fieldName, value.ToString("R", CultureInfo.InvariantCulture));
             }
         }
 
@@ -773,11 +928,11 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultValues && value == null)
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
-            WriteSimpleField(fieldName, value, true);
+            WriteSimpleField(fieldName, value, EscapeOptions.Quotes);
         }
 
         /// <summary>
@@ -787,22 +942,21 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultValues && value == DateTime.MinValue)
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
             if (value <= DateTime.MinValue)
             {
-                WriteSimpleField(fieldName, "0001-01-01T00:00:00Z", true);
+                WriteSimpleField(fieldName, "\"0001-01-01T00:00:00Z\"");
             }
             else if (value >= DateTime.MaxValue)
             {
-                WriteSimpleField(fieldName, "9999-12-31T23:59:59Z", true);
+                WriteSimpleField(fieldName, "\"9999-12-31T23:59:59Z\"");
             }
             else
             {
-                WriteSimpleField(fieldName, value.ToUniversalTime()
-                    .ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK", CultureInfo.InvariantCulture), true);
+                WriteSimpleField(fieldName, ConvertUniversalTimeToString(value), EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
             }
         }
 
@@ -813,11 +967,11 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultValues && value == Uuid.Empty)
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
-            WriteSimpleField(fieldName, value.ToString(), true);
+            WriteSimpleField(fieldName, value.ToString(), EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
         }
 
         /// <summary>
@@ -827,11 +981,11 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultValues && value == Guid.Empty)
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
-            WriteSimpleField(fieldName, value.ToString(), true);
+            WriteSimpleField(fieldName, value.ToString(), EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
         }
 
         /// <summary>
@@ -841,7 +995,7 @@ namespace Opc.Ua
         {
             if (value == null)
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -851,7 +1005,7 @@ namespace Opc.Ua
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }
 
-            WriteSimpleField(fieldName, Convert.ToBase64String(value), true);
+            WriteSimpleField(fieldName, Convert.ToBase64String(value), EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
         }
 
         /// <summary>
@@ -861,14 +1015,14 @@ namespace Opc.Ua
         {
             if (value == null)
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
             var xml = value.OuterXml;
             var bytes = Encoding.UTF8.GetBytes(xml);
 
-            WriteSimpleField(fieldName, Convert.ToBase64String(bytes), true);
+            WriteSimpleField(fieldName, Convert.ToBase64String(bytes), EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
         }
 
         private void WriteNamespaceIndex(string fieldName, ushort namespaceIndex)
@@ -882,9 +1036,9 @@ namespace Opc.Ua
 
             {
                 var uri = m_context.NamespaceUris.GetString(namespaceIndex);
-                if (!String.IsNullOrEmpty(uri))
+                if (!string.IsNullOrEmpty(uri))
                 {
-                    WriteSimpleField(fieldName, uri, true);
+                    WriteSimpleField(fieldName, uri, EscapeOptions.Quotes);
                     return;
                 }
             }
@@ -953,7 +1107,7 @@ namespace Opc.Ua
             if (value == null ||
                 (NodeId.IsNull(value) && (value.IdType == IdType.Numeric)))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -993,7 +1147,7 @@ namespace Opc.Ua
             if (value == null || value.InnerNodeId == null ||
                 (!UseReversibleEncoding && NodeId.IsNull(value)))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1039,9 +1193,9 @@ namespace Opc.Ua
             {
                 var uri = m_context.ServerUris.GetString(serverIndex);
 
-                if (!String.IsNullOrEmpty(uri))
+                if (!string.IsNullOrEmpty(uri))
                 {
-                    WriteSimpleField("ServerUri", uri, true);
+                    WriteSimpleField("ServerUri", uri, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
                     PopStructure();
                     return;
                 }
@@ -1068,7 +1222,7 @@ namespace Opc.Ua
         {
             if (fieldName != null && !IncludeDefaultValues && value == StatusCodes.Good)
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1081,8 +1235,8 @@ namespace Opc.Ua
             if (value != StatusCodes.Good)
             {
                 PushStructure(fieldName);
-                WriteSimpleField("Code", value.Code.ToString(CultureInfo.InvariantCulture), false);
-                WriteSimpleField("Symbol", StatusCode.LookupSymbolicId(value.CodeBits), true);
+                WriteSimpleField("Code", value.Code.ToString(CultureInfo.InvariantCulture), EscapeOptions.NoFieldNameEscape);
+                WriteSimpleField("Symbol", StatusCode.LookupSymbolicId(value.CodeBits), EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
                 PopStructure();
             }
         }
@@ -1102,7 +1256,7 @@ namespace Opc.Ua
         {
             if (QualifiedName.IsNull(value))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1135,7 +1289,7 @@ namespace Opc.Ua
         {
             if (LocalizedText.IsNullOrEmpty(value))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1143,18 +1297,18 @@ namespace Opc.Ua
             {
                 PushStructure(fieldName);
 
-                WriteSimpleField("Text", value.Text, true);
+                WriteSimpleField("Text", value.Text, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
 
-                if (!String.IsNullOrEmpty(value.Locale))
+                if (!string.IsNullOrEmpty(value.Locale))
                 {
-                    WriteSimpleField("Locale", value.Locale, true);
+                    WriteSimpleField("Locale", value.Locale, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
                 }
 
                 PopStructure();
             }
             else
             {
-                WriteSimpleField(fieldName, value.Text, true);
+                WriteSimpleField(fieldName, value.Text, EscapeOptions.Quotes);
             }
         }
 
@@ -1165,7 +1319,7 @@ namespace Opc.Ua
         {
             if (Variant.Null == value)
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1192,14 +1346,14 @@ namespace Opc.Ua
 
                 if (m_commaRequired)
                 {
-                    m_writer.Write(",");
+                    m_writer.Write(s_comma);
                 }
 
-                if (!String.IsNullOrEmpty(fieldName))
+                if (!string.IsNullOrEmpty(fieldName))
                 {
-                    m_writer.Write("\"");
+                    m_writer.Write(s_quotation);
                     EscapeString(fieldName);
-                    m_writer.Write("\":");
+                    m_writer.Write(s_quotationColon);
                 }
 
                 WriteVariantContents(value.Value, value.TypeInfo);
@@ -1227,7 +1381,7 @@ namespace Opc.Ua
         {
             if (value == null)
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1276,7 +1430,7 @@ namespace Opc.Ua
         {
             if (value == null || value.Encoding == ExtensionObjectEncoding.None)
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1333,7 +1487,7 @@ namespace Opc.Ua
                 {
                     if (value.Encoding == ExtensionObjectEncoding.Json)
                     {
-                        WriteSimpleField("Body", value.Body as string, true);
+                        WriteSimpleField("Body", value.Body as string, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
                     }
                     else
                     {
@@ -1360,7 +1514,7 @@ namespace Opc.Ua
         {
             if (value == null)
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1409,21 +1563,21 @@ namespace Opc.Ua
         public void WriteEnumerated(string fieldName, Enum value)
         {
             int numeric = Convert.ToInt32(value, CultureInfo.InvariantCulture);
-            var numericString = numeric.ToString();
+            var numericString = numeric.ToString(CultureInfo.InvariantCulture);
             if (UseReversibleEncoding)
             {
-                WriteSimpleField(fieldName, numericString, false);
+                WriteSimpleField(fieldName, numericString);
             }
             else
             {
                 var valueString = value.ToString();
                 if (valueString == numericString)
                 {
-                    WriteSimpleField(fieldName, numericString, true);
+                    WriteSimpleField(fieldName, numericString, EscapeOptions.Quotes);
                 }
                 else
                 {
-                    WriteSimpleField(fieldName, Utils.Format("{0}_{1}", value.ToString(), numeric), true);
+                    WriteSimpleField(fieldName, Utils.Format("{0}_{1}", value.ToString(), numeric), EscapeOptions.Quotes);
                 }
             }
         }
@@ -1434,7 +1588,7 @@ namespace Opc.Ua
         public void WriteEnumerated(string fieldName, int numeric)
         {
             var numericString = numeric.ToString(CultureInfo.InvariantCulture);
-            WriteSimpleField(fieldName, numericString, !UseReversibleEncoding);
+            WriteSimpleField(fieldName, numericString, !UseReversibleEncoding ? EscapeOptions.Quotes : EscapeOptions.None);
         }
 
         /// <summary>
@@ -1444,7 +1598,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1471,7 +1625,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1498,7 +1652,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1525,7 +1679,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1552,7 +1706,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1579,7 +1733,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1606,7 +1760,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1633,7 +1787,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1660,7 +1814,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1687,7 +1841,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1714,7 +1868,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1741,7 +1895,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1768,7 +1922,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1784,7 +1938,7 @@ namespace Opc.Ua
             {
                 if (values[ii] <= DateTime.MinValue)
                 {
-                    WriteSimpleField(null, null, false);
+                    WriteSimpleFieldNull(null);
                 }
                 else
                 {
@@ -1802,7 +1956,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1829,7 +1983,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1856,7 +2010,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1883,7 +2037,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1910,7 +2064,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1937,7 +2091,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1964,7 +2118,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1981,7 +2135,7 @@ namespace Opc.Ua
                 if (!UseReversibleEncoding &&
                     values[ii] == StatusCodes.Good)
                 {
-                    WriteSimpleField(null, null, false);
+                    WriteSimpleFieldNull(null);
                 }
                 else
                 {
@@ -1999,7 +2153,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2026,7 +2180,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2053,7 +2207,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2080,7 +2234,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2096,7 +2250,7 @@ namespace Opc.Ua
             {
                 if (values[ii] == Variant.Null)
                 {
-                    WriteSimpleField(null, null, false);
+                    WriteSimpleFieldNull(null);
                     continue;
                 }
 
@@ -2113,7 +2267,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2140,7 +2294,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2167,7 +2321,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2223,7 +2377,7 @@ namespace Opc.Ua
         {
             if (values == null || values.Length == 0)
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2338,7 +2492,7 @@ namespace Opc.Ua
         {
             if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2442,7 +2596,7 @@ namespace Opc.Ua
                         }
                         if (array == null)
                         {
-                            WriteSimpleField(fieldName, null, false);
+                            WriteSimpleFieldNull(fieldName);
                             return;
                         }
                         throw ServiceResultException.Create(
@@ -2480,7 +2634,6 @@ namespace Opc.Ua
                 // field is omitted
             }
         }
-
         #endregion
 
         #region Private Methods
@@ -2493,7 +2646,7 @@ namespace Opc.Ua
         {
             if (value == null || value.IsNullDiagnosticInfo)
             {
-                WriteSimpleField(fieldName, null, false);
+                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2505,27 +2658,27 @@ namespace Opc.Ua
 
                 if (value.SymbolicId >= 0)
                 {
-                    WriteSimpleField("SymbolicId", value.SymbolicId.ToString(CultureInfo.InvariantCulture), false);
+                    WriteSimpleField("SymbolicId", value.SymbolicId.ToString(CultureInfo.InvariantCulture), EscapeOptions.NoFieldNameEscape);
                 }
 
                 if (value.NamespaceUri >= 0)
                 {
-                    WriteSimpleField("NamespaceUri", value.NamespaceUri.ToString(CultureInfo.InvariantCulture), false);
+                    WriteSimpleField("NamespaceUri", value.NamespaceUri.ToString(CultureInfo.InvariantCulture), EscapeOptions.NoFieldNameEscape);
                 }
 
                 if (value.Locale >= 0)
                 {
-                    WriteSimpleField("Locale", value.Locale.ToString(CultureInfo.InvariantCulture), false);
+                    WriteSimpleField("Locale", value.Locale.ToString(CultureInfo.InvariantCulture), EscapeOptions.NoFieldNameEscape);
                 }
 
                 if (value.LocalizedText >= 0)
                 {
-                    WriteSimpleField("LocalizedText", value.LocalizedText.ToString(CultureInfo.InvariantCulture), false);
+                    WriteSimpleField("LocalizedText", value.LocalizedText.ToString(CultureInfo.InvariantCulture), EscapeOptions.NoFieldNameEscape);
                 }
 
                 if (value.AdditionalInfo != null)
                 {
-                    WriteSimpleField("AdditionalInfo", value.AdditionalInfo, true);
+                    WriteSimpleField("AdditionalInfo", value.AdditionalInfo, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
                 }
 
                 if (value.InnerStatusCode != StatusCodes.Good)
@@ -2586,7 +2739,7 @@ namespace Opc.Ua
                     // Write slice as value rank
                     if (m_commaRequired)
                     {
-                        m_writer.Write(",");
+                        m_writer.Write(s_comma);
                     }
                     WriteVariantContents(copy, new TypeInfo(typeInfo.BuiltInType, 1));
                     index += arrayLen;
@@ -2610,6 +2763,7 @@ namespace Opc.Ua
         /// <summary>
         /// Test and increment the nesting level.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CheckAndIncrementNestingLevel()
         {
             if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
@@ -2620,6 +2774,48 @@ namespace Opc.Ua
                     m_context.MaxEncodingNestingLevels);
             }
             m_nestingLevel++;
+        }
+
+        /// <summary>
+        /// Write Utc time in the format "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK".
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static string ConvertUniversalTimeToString(DateTime value)
+        {
+            // The length of the DateTime string encoded by "o"
+            const int DateTimeRoundTripKindLength = 28;
+            // the index of the last digit which can be omitted if 0
+            const int DateTimeRoundTripKindLastDigit = DateTimeRoundTripKindLength - 2;
+            // the index of the first digit which can be omitted (7 digits total)
+            const int DateTimeRoundTripKindFirstDigit = DateTimeRoundTripKindLastDigit - 7;
+
+            // Note: "o" is a shortcut for "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK" and implicitly
+            // uses invariant culture and gregorian calendar, but executes up to 10 times faster.
+            // But in contrary to the explicit format string, trailing zeroes are not omitted!
+            string valueString = value.ToUniversalTime().ToString("o");
+
+            // check if trailing zeroes can be omitted
+            int i = DateTimeRoundTripKindLastDigit;
+            while (i > DateTimeRoundTripKindFirstDigit)
+            {
+                if (valueString[i] != '0')
+                {
+                    break;
+                }
+                i--;
+            }
+
+            if (i < DateTimeRoundTripKindLastDigit)
+            {
+                // check if the decimal point has to be removed too
+                if (i == DateTimeRoundTripKindFirstDigit)
+                {
+                    i--;
+                }
+                valueString = valueString.Remove(i + 1, DateTimeRoundTripKindLastDigit - i);
+            }
+
+            return valueString;
         }
         #endregion
     }

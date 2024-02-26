@@ -257,6 +257,17 @@ namespace Opc.Ua.Export {
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
+        public string ModelVersion {
+            get {
+                return this.modelVersionField;
+            }
+            set {
+                this.modelVersionField = value;
+            }
+        }
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlAttributeAttribute()]
         [System.ComponentModel.DefaultValueAttribute(typeof(ushort), "0")]
         public ushort AccessRestrictions {
             get {

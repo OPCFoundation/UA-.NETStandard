@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -85,7 +85,7 @@ namespace Opc.Ua
         public const uint BadRequestTooLarge = 0x80B80000;
 
         /// <summary>
-        /// The response message size exceeds limits set by the client.
+        /// The response message size exceeds limits set by the client or server.
         /// </summary>
         public const uint BadResponseTooLarge = 0x80B90000;
 
@@ -518,6 +518,11 @@ namespace Opc.Ua
         /// The locale in the requested write operation is not supported.
         /// </summary>
         public const uint BadLocaleNotSupported = 0x80ED0000;
+
+        /// <summary>
+        /// The variable has no default value and no initial value.
+        /// </summary>
+        public const uint BadNoValue = 0x80F00000;
 
         /// <summary>
         /// The ServerUri is not a valid URI.

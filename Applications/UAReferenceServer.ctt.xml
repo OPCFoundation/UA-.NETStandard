@@ -655,7 +655,7 @@
          </Column>
          <Column column="2">
           <ItemData role="0" rolename="DisplayRole">
-           <Value typename="QString" type="10" data="The time in miliseconds which is needed by the server to ensure that the written value has been set in the underlying device."/>
+           <Value typename="QString" type="10" data="The time in milliseconds which is needed by the server to ensure that the written value has been set in the underlying device."/>
           </ItemData>
           <ChildRows size="0"/>
          </Column>
@@ -846,7 +846,7 @@
          </Column>
          <Column column="2">
           <ItemData role="0" rolename="DisplayRole">
-           <Value typename="QString" type="10" data="The time in miliseconds before the server reuses an unused SecureChannel."/>
+           <Value typename="QString" type="10" data="The time in milliseconds before the server reuses an unused SecureChannel."/>
           </ItemData>
           <ChildRows size="0"/>
          </Column>
@@ -4290,7 +4290,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type AnalogType and is a &lt;b>Byte&lt;/b>.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type AnalogType and is a &lt;b>Byte&lt;/b>.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -4328,7 +4328,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type AnalogType and is a &lt;b>Double&lt;/b>.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type AnalogType and is a &lt;b>Double&lt;/b>.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -4366,7 +4366,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type AnalogType and is a &lt;b>Float&lt;/b>.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type AnalogType and is a &lt;b>Float&lt;/b>.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -4404,7 +4404,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type AnalogType and is a &lt;b>Int16&lt;/b>.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type AnalogType and is a &lt;b>Int16&lt;/b>.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -4442,7 +4442,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type AnalogType and is a &lt;b>Int32&lt;/b>.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type AnalogType and is a &lt;b>Int32&lt;/b>.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -4480,7 +4480,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type AnalogType and is a &lt;b>Int64&lt;/b>.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type AnalogType and is a &lt;b>Int64&lt;/b>.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -4518,7 +4518,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type AnalogType and is a &lt;b>SByte&lt;/b>.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type AnalogType and is a &lt;b>SByte&lt;/b>.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -4556,7 +4556,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type AnalogType and is a &lt;b>UInt16&lt;/b>.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type AnalogType and is a &lt;b>UInt16&lt;/b>.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -4594,7 +4594,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type AnalogType and is a &lt;b>UInt32&lt;/b>.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type AnalogType and is a &lt;b>UInt32&lt;/b>.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -4632,7 +4632,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type AnalogType and is a &lt;b>UInt64&lt;/b>.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type AnalogType and is a &lt;b>UInt64&lt;/b>.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -5281,7 +5281,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type DataItem, and is a Byte.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type DataItem, and is a Byte.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -5319,7 +5319,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type DataItem, and is a DateTime.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>&lt;br>&lt;font color=&quot;red&quot;>Leave empty if your system does not support the full-resolution of a DateTime, i.e. 100-nanosecond intervals from 1601.&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type DataItem, and is a DateTime.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>&lt;br>&lt;font color=&quot;red&quot;>Leave empty if your system does not support the full-resolution of a DateTime, i.e. 100-nanosecond intervals from 1601.&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -5357,7 +5357,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type DataItem, and is a Double.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type DataItem, and is a Double.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -5395,7 +5395,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type DataItem, and is a Float.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type DataItem, and is a Float.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -5433,7 +5433,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type DataItem, and is a Int16.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type DataItem, and is a Int16.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -5471,7 +5471,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type DataItem, and is a Int32.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type DataItem, and is a Int32.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -5509,7 +5509,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type DataItem, and is a Int64.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type DataItem, and is a Int64.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -5547,7 +5547,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type DataItem, and is a SByte.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type DataItem, and is a SByte.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -5585,7 +5585,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type DataItem, and is a String.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type DataItem, and is a String.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -5623,7 +5623,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type DataItem, and is a UInt16.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type DataItem, and is a UInt16.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -5661,7 +5661,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type DataItem, and is a UInt32.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type DataItem, and is a UInt32.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -5699,7 +5699,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type DataItem, and is a UInt64.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type DataItem, and is a UInt64.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -5776,7 +5776,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specfically of type MultiStateDiscrete. Configure remaining MultiStateDiscrete options if available.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type MultiStateDiscrete. Configure remaining MultiStateDiscrete options if available.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -5814,7 +5814,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specfically of type MultiStateDiscrete.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type MultiStateDiscrete.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -5852,7 +5852,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specfically of type MultiStateDiscrete.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type MultiStateDiscrete.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -5890,7 +5890,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specfically of type MultiStateDiscrete.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type MultiStateDiscrete.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -5928,7 +5928,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specfically of type MultiStateDiscrete.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type MultiStateDiscrete.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -5966,7 +5966,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specfically of type MultiStateDiscrete. Configure remaining TwoStateDiscrete options if available.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type MultiStateDiscrete. Configure remaining TwoStateDiscrete options if available.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -6004,7 +6004,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specfically of type MultiStateDiscrete.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type MultiStateDiscrete.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -6042,7 +6042,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specfically of type MultiStateDiscrete.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type MultiStateDiscrete.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -6080,7 +6080,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specfically of type MultiStateDiscrete.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type MultiStateDiscrete.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -6118,7 +6118,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specfically of type MultiStateDiscrete.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type MultiStateDiscrete.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -6195,7 +6195,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type MultiStateValueDiscreteType, and is a Byte.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type MultiStateValueDiscreteType, and is a Byte.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -6233,7 +6233,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type MultiStateValueDiscreteType, and is a Int16.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type MultiStateValueDiscreteType, and is a Int16.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -6271,7 +6271,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type MultiStateValueDiscreteType, and is a Int32.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type MultiStateValueDiscreteType, and is a Int32.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -6309,7 +6309,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type MultiStateValueDiscreteType, and is a Int64.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type MultiStateValueDiscreteType, and is a Int64.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -6347,7 +6347,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type MultiStateValueDiscreteType, and is a SByte.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type MultiStateValueDiscreteType, and is a SByte.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -6385,7 +6385,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type MultiStateValueDiscreteType, and is a UInt16.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type MultiStateValueDiscreteType, and is a UInt16.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -6423,7 +6423,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type MultiStateValueDiscreteType, and is a UInt32.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type MultiStateValueDiscreteType, and is a UInt32.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -6461,7 +6461,7 @@
                   </Column>
                   <Column column="2">
                    <ItemData role="0" rolename="DisplayRole">
-                    <Value typename="QString" type="10" data="NodeId of a Node that is specficially of type MultiStateValueDiscreteType, and is a UInt64.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
+                    <Value typename="QString" type="10" data="NodeId of a Node that is specifically of type MultiStateValueDiscreteType, and is a UInt64.&lt;br>&lt;font color=&quot;blue&quot;>Access: Read/Write&lt;/font>"/>
                    </ItemData>
                    <ChildRows size="0"/>
                   </Column>
@@ -10837,7 +10837,7 @@
                </Column>
                <Column column="2">
                 <ItemData role="0" rolename="DisplayRole">
-                 <Value typename="QString" type="10" data="Server allows the Client to specfiy this attribute type when adding a node."/>
+                 <Value typename="QString" type="10" data="Server allows the Client to specify this attribute type when adding a node."/>
                 </ItemData>
                 <ChildRows size="0"/>
                </Column>
@@ -10875,7 +10875,7 @@
                </Column>
                <Column column="2">
                 <ItemData role="0" rolename="DisplayRole">
-                 <Value typename="QString" type="10" data="Server allows the Client to specfiy this attribute type when adding a node."/>
+                 <Value typename="QString" type="10" data="Server allows the Client to specify this attribute type when adding a node."/>
                 </ItemData>
                 <ChildRows size="0"/>
                </Column>
@@ -10913,7 +10913,7 @@
                </Column>
                <Column column="2">
                 <ItemData role="0" rolename="DisplayRole">
-                 <Value typename="QString" type="10" data="Server allows the Client to specfiy this attribute type when adding a node."/>
+                 <Value typename="QString" type="10" data="Server allows the Client to specify this attribute type when adding a node."/>
                 </ItemData>
                 <ChildRows size="0"/>
                </Column>
@@ -10951,7 +10951,7 @@
                </Column>
                <Column column="2">
                 <ItemData role="0" rolename="DisplayRole">
-                 <Value typename="QString" type="10" data="Server allows the Client to specfiy this attribute type when adding a node."/>
+                 <Value typename="QString" type="10" data="Server allows the Client to specify this attribute type when adding a node."/>
                 </ItemData>
                 <ChildRows size="0"/>
                </Column>
@@ -10989,7 +10989,7 @@
                </Column>
                <Column column="2">
                 <ItemData role="0" rolename="DisplayRole">
-                 <Value typename="QString" type="10" data="Server allows the Client to specfiy this attribute type when adding a node."/>
+                 <Value typename="QString" type="10" data="Server allows the Client to specify this attribute type when adding a node."/>
                 </ItemData>
                 <ChildRows size="0"/>
                </Column>
@@ -11027,7 +11027,7 @@
                </Column>
                <Column column="2">
                 <ItemData role="0" rolename="DisplayRole">
-                 <Value typename="QString" type="10" data="Server allows the Client to specfiy this attribute type when adding a node."/>
+                 <Value typename="QString" type="10" data="Server allows the Client to specify this attribute type when adding a node."/>
                 </ItemData>
                 <ChildRows size="0"/>
                </Column>
@@ -11065,7 +11065,7 @@
                </Column>
                <Column column="2">
                 <ItemData role="0" rolename="DisplayRole">
-                 <Value typename="QString" type="10" data="Server allows the Client to specfiy this attribute type when adding a node."/>
+                 <Value typename="QString" type="10" data="Server allows the Client to specify this attribute type when adding a node."/>
                 </ItemData>
                 <ChildRows size="0"/>
                </Column>
@@ -11103,7 +11103,7 @@
                </Column>
                <Column column="2">
                 <ItemData role="0" rolename="DisplayRole">
-                 <Value typename="QString" type="10" data="Server allows the Client to specfiy this attribute type when adding a node."/>
+                 <Value typename="QString" type="10" data="Server allows the Client to specify this attribute type when adding a node."/>
                 </ItemData>
                 <ChildRows size="0"/>
                </Column>
@@ -11141,7 +11141,7 @@
                </Column>
                <Column column="2">
                 <ItemData role="0" rolename="DisplayRole">
-                 <Value typename="QString" type="10" data="Server allows the Client to specfiy this attribute type when adding a node."/>
+                 <Value typename="QString" type="10" data="Server allows the Client to specify this attribute type when adding a node."/>
                 </ItemData>
                 <ChildRows size="0"/>
                </Column>
@@ -11179,7 +11179,7 @@
                </Column>
                <Column column="2">
                 <ItemData role="0" rolename="DisplayRole">
-                 <Value typename="QString" type="10" data="Server allows the Client to specfiy this attribute type when adding a node."/>
+                 <Value typename="QString" type="10" data="Server allows the Client to specify this attribute type when adding a node."/>
                 </ItemData>
                 <ChildRows size="0"/>
                </Column>
@@ -11217,7 +11217,7 @@
                </Column>
                <Column column="2">
                 <ItemData role="0" rolename="DisplayRole">
-                 <Value typename="QString" type="10" data="Server allows the Client to specfiy this attribute type when adding a node."/>
+                 <Value typename="QString" type="10" data="Server allows the Client to specify this attribute type when adding a node."/>
                 </ItemData>
                 <ChildRows size="0"/>
                </Column>
@@ -11255,7 +11255,7 @@
                </Column>
                <Column column="2">
                 <ItemData role="0" rolename="DisplayRole">
-                 <Value typename="QString" type="10" data="Server allows the Client to specfiy this attribute type when adding a node."/>
+                 <Value typename="QString" type="10" data="Server allows the Client to specify this attribute type when adding a node."/>
                 </ItemData>
                 <ChildRows size="0"/>
                </Column>
@@ -11293,7 +11293,7 @@
                </Column>
                <Column column="2">
                 <ItemData role="0" rolename="DisplayRole">
-                 <Value typename="QString" type="10" data="Server allows the Client to specfiy this attribute type when adding a node."/>
+                 <Value typename="QString" type="10" data="Server allows the Client to specify this attribute type when adding a node."/>
                 </ItemData>
                 <ChildRows size="0"/>
                </Column>
@@ -11331,7 +11331,7 @@
                </Column>
                <Column column="2">
                 <ItemData role="0" rolename="DisplayRole">
-                 <Value typename="QString" type="10" data="Server allows the Client to specfiy this attribute type when adding a node."/>
+                 <Value typename="QString" type="10" data="Server allows the Client to specify this attribute type when adding a node."/>
                 </ItemData>
                 <ChildRows size="0"/>
                </Column>
@@ -11369,7 +11369,7 @@
                </Column>
                <Column column="2">
                 <ItemData role="0" rolename="DisplayRole">
-                 <Value typename="QString" type="10" data="Server allows the Client to specfiy this attribute type when adding a node."/>
+                 <Value typename="QString" type="10" data="Server allows the Client to specify this attribute type when adding a node."/>
                 </ItemData>
                 <ChildRows size="0"/>
                </Column>
@@ -11407,7 +11407,7 @@
                </Column>
                <Column column="2">
                 <ItemData role="0" rolename="DisplayRole">
-                 <Value typename="QString" type="10" data="Server allows the Client to specfiy this attribute type when adding a node."/>
+                 <Value typename="QString" type="10" data="Server allows the Client to specify this attribute type when adding a node."/>
                 </ItemData>
                 <ChildRows size="0"/>
                </Column>
@@ -11445,7 +11445,7 @@
                </Column>
                <Column column="2">
                 <ItemData role="0" rolename="DisplayRole">
-                 <Value typename="QString" type="10" data="Server allows the Client to specfiy this attribute type when adding a node."/>
+                 <Value typename="QString" type="10" data="Server allows the Client to specify this attribute type when adding a node."/>
                 </ItemData>
                 <ChildRows size="0"/>
                </Column>
@@ -11483,7 +11483,7 @@
                </Column>
                <Column column="2">
                 <ItemData role="0" rolename="DisplayRole">
-                 <Value typename="QString" type="10" data="Server allows the Client to specfiy this attribute type when adding a node."/>
+                 <Value typename="QString" type="10" data="Server allows the Client to specify this attribute type when adding a node."/>
                 </ItemData>
                 <ChildRows size="0"/>
                </Column>
@@ -11521,7 +11521,7 @@
                </Column>
                <Column column="2">
                 <ItemData role="0" rolename="DisplayRole">
-                 <Value typename="QString" type="10" data="Server allows the Client to specfiy this attribute type when adding a node."/>
+                 <Value typename="QString" type="10" data="Server allows the Client to specify this attribute type when adding a node."/>
                 </ItemData>
                 <ChildRows size="0"/>
                </Column>
@@ -11559,7 +11559,7 @@
                </Column>
                <Column column="2">
                 <ItemData role="0" rolename="DisplayRole">
-                 <Value typename="QString" type="10" data="Server allows the Client to specfiy this attribute type when adding a node."/>
+                 <Value typename="QString" type="10" data="Server allows the Client to specify this attribute type when adding a node."/>
                 </ItemData>
                 <ChildRows size="0"/>
                </Column>
@@ -21291,7 +21291,7 @@
          </Column>
          <Column column="2">
           <ItemData role="0" rolename="DisplayRole">
-           <Value typename="QString" type="10" data="Checked=Do not add timestmap to result entry.&lt;br> This can be usefuly to diff results from several test runs."/>
+           <Value typename="QString" type="10" data="Checked=Do not add timestamp to result entry.&lt;br> This can be usefuly to diff results from several test runs."/>
           </ItemData>
           <ChildRows size="0"/>
          </Column>

@@ -17,11 +17,13 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Net;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
+using System.Net.Sockets;
 
 namespace Opc.Ua
 {
@@ -344,7 +346,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the list of base addresses.
         /// </summary>
-        private void InitializeBaseAddresses(ApplicationConfiguration configuration)
+        protected void InitializeBaseAddresses(ApplicationConfiguration configuration)
         {
             BaseAddresses = new List<BaseAddress>();
 
@@ -934,7 +936,28 @@ namespace Opc.Ua
                 }
 
                 // substitute the computer name for any local IP if an IP is used by client.
-                IPAddress[] addresses = Utils.GetHostAddresses(Utils.GetHostName());
+                IPAddress[] addresses = Array.Empty<IPAddress>();
+                try
+                {
+                    addresses = Utils.GetHostAddresses(computerName);
+                }
+                catch (SocketException e)
+                {
+                    Utils.LogWarning(e, "Unable to get host addresses for hostname {0}.", hostname);
+                }
+
+                if (addresses.Length == 0)
+                {
+                    string fullName = Dns.GetHostName();
+                    try
+                    {
+                        addresses = Utils.GetHostAddresses(fullName);
+                    }
+                    catch (SocketException e)
+                    {
+                        Utils.LogError(e, "Unable to get host addresses for DNS hostname {0}.", fullName);
+                    }
+                }
 
                 for (int ii = 0; ii < addresses.Length; ii++)
                 {
@@ -955,7 +978,7 @@ namespace Opc.Ua
             {
                 entry = Dns.GetHostEntry(computerName);
             }
-            catch (System.Net.Sockets.SocketException e)
+            catch (SocketException e)
             {
                 Utils.LogError(e, "Unable to check aliases for hostname {0}.", computerName);
             }
@@ -1023,7 +1046,10 @@ namespace Opc.Ua
                     {
                         if (alternateUrl.DnsSafeHost == endpointUrl.DnsSafeHost)
                         {
-                            accessibleAddresses.Add(new BaseAddress() { Url = alternateUrl, ProfileUri = baseAddress.ProfileUri, DiscoveryUrl = alternateUrl });
+                            if (!accessibleAddresses.Any(item => item.Url == alternateUrl))
+                            {
+                                accessibleAddresses.Add(new BaseAddress() { Url = alternateUrl, ProfileUri = baseAddress.ProfileUri, DiscoveryUrl = alternateUrl });
+                            }
                             break;
                         }
                     }
@@ -1035,7 +1061,7 @@ namespace Opc.Ua
                 return accessibleAddresses;
             }
 
-            // client gets all of the endpoints if it using a known variant of the hostname.
+            // client gets all of the endpoints if it using a known variant of the hostname
             if (NormalizeHostname(endpointUrl.DnsSafeHost) == NormalizeHostname("localhost"))
             {
                 return baseAddresses;
@@ -1051,7 +1077,12 @@ namespace Opc.Ua
                 }
             }
 
-            return accessibleAddresses;
+            if (accessibleAddresses.Count != 0)
+            {
+                return accessibleAddresses;
+            }
+
+            return baseAddresses;
         }
 
         /// <summary>
@@ -1062,10 +1093,10 @@ namespace Opc.Ua
             string url = baseAddress.Url.ToString();
 
             if ((baseAddress.ProfileUri == Profiles.HttpsBinaryTransport) &&
-                url.StartsWith(Utils.UriSchemeHttp) &&
-                (!(url.EndsWith("discovery"))))
+                url.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) &&
+                (!(url.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))))
             {
-                url += "/discovery";
+                url += ConfiguredEndpoint.DiscoverySuffix;
             }
 
             return url;
@@ -1128,58 +1159,74 @@ namespace Opc.Ua
         {
             EndpointDescriptionCollection translations = new EndpointDescriptionCollection();
 
-            // process endpoints
-            foreach (EndpointDescription endpoint in endpoints)
+            bool matchPort = false;
+            do
             {
-                UriBuilder endpointUrl = new UriBuilder(endpoint.EndpointUrl);
+                // first round with port match
+                matchPort = !matchPort;
 
-                // find matching base address.
-                foreach (BaseAddress baseAddress in baseAddresses)
+                // process endpoints
+                foreach (EndpointDescription endpoint in endpoints)
                 {
-                    bool translateHttpsEndpoint = false;
-                    if (endpoint.TransportProfileUri == Profiles.HttpsBinaryTransport && baseAddress.ProfileUri == Profiles.HttpsBinaryTransport)
+                    UriBuilder endpointUrl = new UriBuilder(endpoint.EndpointUrl);
+
+                    // find matching base address.
+                    foreach (BaseAddress baseAddress in baseAddresses)
                     {
-                        translateHttpsEndpoint = true;
+                        bool translateHttpsEndpoint = false;
+                        if (endpoint.TransportProfileUri == Profiles.HttpsBinaryTransport && baseAddress.ProfileUri == Profiles.HttpsBinaryTransport)
+                        {
+                            translateHttpsEndpoint = true;
+                        }
+
+                        if (endpoint.TransportProfileUri != baseAddress.ProfileUri && !translateHttpsEndpoint)
+                        {
+                            continue;
+                        }
+
+                        if (endpointUrl.Scheme != baseAddress.Url.Scheme)
+                        {
+                            continue;
+                        }
+
+                        // try to match port in the first round, skip in the second round
+                        if (matchPort && endpointUrl.Port != baseAddress.Url.Port)
+                        {
+                            continue;
+                        }
+
+                        EndpointDescription translation = new EndpointDescription();
+
+                        translation.EndpointUrl = baseAddress.Url.ToString();
+
+                        if (endpointUrl.Path.StartsWith(baseAddress.Url.PathAndQuery, StringComparison.Ordinal) &&
+                            endpointUrl.Path.Length > baseAddress.Url.PathAndQuery.Length)
+                        {
+                            string suffix = endpointUrl.Path.Substring(baseAddress.Url.PathAndQuery.Length);
+                            translation.EndpointUrl += suffix;
+                        }
+
+                        translation.ProxyUrl = endpoint.ProxyUrl;
+                        translation.SecurityLevel = endpoint.SecurityLevel;
+                        translation.SecurityMode = endpoint.SecurityMode;
+                        translation.SecurityPolicyUri = endpoint.SecurityPolicyUri;
+                        translation.ServerCertificate = endpoint.ServerCertificate;
+                        translation.TransportProfileUri = endpoint.TransportProfileUri;
+                        translation.UserIdentityTokens = endpoint.UserIdentityTokens;
+                        translation.Server = application;
+
+                        if (!translations.Exists(match =>
+                            match.EndpointUrl.Equals(translation.EndpointUrl, StringComparison.Ordinal) &&
+                            match.SecurityMode == translation.SecurityMode &&
+                            match.SecurityPolicyUri.Equals(translation.SecurityPolicyUri, StringComparison.Ordinal)))
+                        {
+                            translations.Add(translation);
+                        }
                     }
-
-                    if (endpoint.TransportProfileUri != baseAddress.ProfileUri && !translateHttpsEndpoint)
-                    {
-                        continue;
-                    }
-
-                    if (endpointUrl.Scheme != baseAddress.Url.Scheme)
-                    {
-                        continue;
-                    }
-
-                    if (endpointUrl.Port != baseAddress.Url.Port)
-                    {
-                        continue;
-                    }
-
-                    EndpointDescription translation = new EndpointDescription();
-
-                    translation.EndpointUrl = baseAddress.Url.ToString();
-
-                    if (endpointUrl.Path.StartsWith(baseAddress.Url.PathAndQuery, StringComparison.Ordinal) &&
-                        endpointUrl.Path.Length > baseAddress.Url.PathAndQuery.Length)
-                    {
-                        string suffix = endpointUrl.Path.Substring(baseAddress.Url.PathAndQuery.Length);
-                        translation.EndpointUrl += suffix;
-                    }
-
-                    translation.ProxyUrl = endpoint.ProxyUrl;
-                    translation.SecurityLevel = endpoint.SecurityLevel;
-                    translation.SecurityMode = endpoint.SecurityMode;
-                    translation.SecurityPolicyUri = endpoint.SecurityPolicyUri;
-                    translation.ServerCertificate = endpoint.ServerCertificate;
-                    translation.TransportProfileUri = endpoint.TransportProfileUri;
-                    translation.UserIdentityTokens = endpoint.UserIdentityTokens;
-                    translation.Server = application;
-
-                    translations.Add(translation);
                 }
-            }
+            } while (matchPort && translations.Count == 0);
+
+            translations.Sort((ep1, ep2) => string.Compare(ep1.EndpointUrl, ep2.EndpointUrl, StringComparison.Ordinal));
 
             return translations;
         }
