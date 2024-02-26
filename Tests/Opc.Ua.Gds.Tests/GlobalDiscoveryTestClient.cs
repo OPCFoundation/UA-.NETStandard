@@ -30,6 +30,7 @@
 using System;
 using System.IO;
 using System.Runtime.Serialization;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
@@ -120,10 +121,10 @@ namespace Opc.Ua.Gds.Tests
             AdminUser = new UserIdentity(gdsClientConfiguration.AdminUserName, gdsClientConfiguration.AdminPassword);
             Anonymous = new UserIdentity();
         }
+
         /// <summary>
-                /// Register the Test Client at the used GDS, needed to test the ApplicationSelfAdminPrivilege
-                /// </summary>
-                /// <param name="application"></param>
+        /// Register the Test Client at the used GDS, needed to test the ApplicationSelfAdminPrivilege
+        /// </summary>
         public bool RegisterTestClientAtGds()
         {
             try
@@ -154,7 +155,7 @@ namespace Opc.Ua.Gds.Tests
                     return false;
                 }
                 //apply cert
-                ApplyNewApplicationInstanceCertificate(certificate, privateKey);
+                ApplyNewApplicationInstanceCertificateAsync(certificate, privateKey).Wait();
                 OwnApplicationTestData.Certificate = certificate;
                 OwnApplicationTestData.PrivateKey = privateKey;
                 OwnApplicationTestData.CertificateRequestId = null;
@@ -164,7 +165,7 @@ namespace Opc.Ua.Gds.Tests
                 Console.WriteLine("RegisterTestClientAtGds at GDS failed" + e.ToString());
                 return false;
             }
-            
+
 
             return true;
         }
@@ -187,16 +188,17 @@ namespace Opc.Ua.Gds.Tests
         }
         #endregion
         #region Private Methods
-        private void ApplyNewApplicationInstanceCertificate(byte[] certificate, byte[] privateKey)
+        private async Task ApplyNewApplicationInstanceCertificateAsync(byte[] certificate, byte[] privateKey)
         {
-            var cert = CertificateFactory.CreateCertificateWithPEMPrivateKey(
-            new System.Security.Cryptography.X509Certificates.X509Certificate2(certificate),
-            privateKey);
-            m_client.Configuration.SecurityConfiguration.ApplicationCertificate.RawData = cert.RawData;
-            m_client.Configuration.SecurityConfiguration.ApplicationCertificate.Thumbprint = cert.Thumbprint;
-            var store = m_client.Configuration.SecurityConfiguration.ApplicationCertificate.OpenStore();
-            store.Add(cert);
-            m_application.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
+            using (var x509 = new X509Certificate2(certificate))
+            {
+                var certWithPrivateKey = CertificateFactory.CreateCertificateWithPEMPrivateKey(x509, privateKey);
+                m_client.Configuration.SecurityConfiguration.ApplicationCertificate.RawData = certWithPrivateKey.RawData;
+                m_client.Configuration.SecurityConfiguration.ApplicationCertificate.Thumbprint = certWithPrivateKey.Thumbprint;
+                var store = m_client.Configuration.SecurityConfiguration.ApplicationCertificate.OpenStore();
+                await store.Add(certWithPrivateKey).ConfigureAwait(false);
+            }
+            await m_application.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
         }
 
         private void FinishKeyPair(ApplicationTestData ownApplicationTestData, out byte[] certificate, out byte[] privateKey)
@@ -256,18 +258,18 @@ namespace Opc.Ua.Gds.Tests
         private ApplicationTestData GetOwnApplicationData()
         {
             ApplicationTestData
-                       //fill application record data type with own Data
-                       ownApplicationTestData = new ApplicationTestData {
-                           ApplicationRecord = new ApplicationRecordDataType {
-                               ApplicationUri = m_client.Configuration.ApplicationUri,
-                               ApplicationType = m_client.Configuration.ApplicationType,
-                               ProductUri = m_client.Configuration.ProductUri,
-                               ApplicationNames = new LocalizedTextCollection() { new LocalizedText(m_client.Configuration.ApplicationName) },
-                               ApplicationId = new NodeId(Guid.NewGuid())
-                           },
-                           PrivateKeyFormat = "PEM",
-                           Subject = $"CN={m_client.Configuration.ApplicationName},DC={Utils.GetHostName()},O=OPC Foundation",
-                       };
+                //fill application record data type with own Data
+                ownApplicationTestData = new ApplicationTestData {
+                    ApplicationRecord = new ApplicationRecordDataType {
+                        ApplicationUri = m_client.Configuration.ApplicationUri,
+                        ApplicationType = m_client.Configuration.ApplicationType,
+                        ProductUri = m_client.Configuration.ProductUri,
+                        ApplicationNames = new LocalizedTextCollection() { new LocalizedText(m_client.Configuration.ApplicationName) },
+                        ApplicationId = new NodeId(Guid.NewGuid())
+                    },
+                    PrivateKeyFormat = "PEM",
+                    Subject = $"CN={m_client.Configuration.ApplicationName},DC={Utils.GetHostName()},O=OPC Foundation",
+                };
             return ownApplicationTestData;
         }
 
