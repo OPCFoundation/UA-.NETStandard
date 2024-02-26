@@ -1,17 +1,15 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Gds.Server.Database.Linq;
+using Opc.Ua.Server;
+using Opc.Ua.Server.UserDatabase;
 
-namespace Opc.Ua.Gds.Tests
+namespace Opc.Ua.Server.Tests
 {
-    [TestFixture, Category("GDS")]
+    [TestFixture, Category("Server")]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [Parallelizable]
-    internal class LinqUsersDatabaseTests
+    internal class LinqUserDatabaseTests
     {
         #region Test Methods
 
@@ -19,21 +17,21 @@ namespace Opc.Ua.Gds.Tests
         public void CreateInvalidUser()
         {
             //Arrrange
-            var usersDb = new LinQUsersDatabase();
-            
+            var usersDb = new LinqUserDatabase();
+
             //Act+ Assert
             Assert.Throws<ArgumentException>(
-            () => usersDb.CreateUser("", "PW", Server.GdsRole.ApplicationAdmin));
+            () => usersDb.CreateUser("", "PW", new List<Role> { Role.AuthenticatedUser }));
             Assert.Throws<ArgumentException>(
-            () => usersDb.CreateUser("Name", "", Server.GdsRole.ApplicationAdmin));
+            () => usersDb.CreateUser("Name", "", new List<Role> { Role.AuthenticatedUser }));
         }
 
         [Test]
         public void DeleteExistingUser()
         {
             //Arrrange
-            var usersDb = new LinQUsersDatabase();
-            usersDb.CreateUser("TestUser", "PW", Server.GdsRole.ApplicationAdmin);
+            var usersDb = new LinqUserDatabase();
+            usersDb.CreateUser("TestUser", "PW", new List<Role> { Role.AuthenticatedUser });
             //Act
             var result = usersDb.DeleteUser("TestUser");
             //Assert
@@ -44,8 +42,8 @@ namespace Opc.Ua.Gds.Tests
         public void DeleteNonExistingUser()
         {
             //Arrrange
-            var usersDb = new LinQUsersDatabase();
-            usersDb.CreateUser("TestUser", "PW", Server.GdsRole.ApplicationAdmin);
+            var usersDb = new LinqUserDatabase();
+            usersDb.CreateUser("TestUser", "PW", new List<Role> { Role.AuthenticatedUser });
             //Act
             var result = usersDb.DeleteUser("NoTestUser");
             //Assert
@@ -56,8 +54,8 @@ namespace Opc.Ua.Gds.Tests
         public void ChangePwOfExistingUser()
         {
             //Arrrange
-            var usersDb = new LinQUsersDatabase();
-            usersDb.CreateUser("TestUser", "PW", Server.GdsRole.ApplicationAdmin);
+            var usersDb = new LinqUserDatabase();
+            usersDb.CreateUser("TestUser", "PW", new List<Role> { Role.AuthenticatedUser });
             //Act
             var result = usersDb.ChangePassword("TestUser", "PW", "newPW");
             var login = usersDb.CheckCredentials("TestUser", "newPW");
@@ -72,8 +70,8 @@ namespace Opc.Ua.Gds.Tests
         public void ChangePwOfNonExistingUser()
         {
             //Arrrange
-            var usersDb = new LinQUsersDatabase();
-            usersDb.CreateUser("TestUser", "PW", Server.GdsRole.ApplicationAdmin);
+            var usersDb = new LinqUserDatabase();
+            usersDb.CreateUser("TestUser", "PW", new List<Role> { Role.AuthenticatedUser });
             //Act
             var result = usersDb.DeleteUser("NoTestUser");
             //Assert
@@ -84,8 +82,8 @@ namespace Opc.Ua.Gds.Tests
         public void CheckPWofExistingUser()
         {
             //Arrrange
-            var usersDb = new LinQUsersDatabase();
-            usersDb.CreateUser("TestUser", "PW", Server.GdsRole.ApplicationAdmin);
+            var usersDb = new LinqUserDatabase();
+            usersDb.CreateUser("TestUser", "PW", new List<Role> { Role.AuthenticatedUser });
             //Act
             var result = usersDb.CheckCredentials("TestUser", "PW");
             var loginWrongPw = usersDb.CheckCredentials("TestUser", "newPW");
@@ -98,8 +96,8 @@ namespace Opc.Ua.Gds.Tests
         public void CheckPWofNonExistingUser()
         {
             //Arrrange
-            var usersDb = new LinQUsersDatabase();
-            usersDb.CreateUser("TestUser", "PW", Server.GdsRole.ApplicationAdmin);
+            var usersDb = new LinqUserDatabase();
+            usersDb.CreateUser("TestUser", "PW", new List<Role> { Role.AuthenticatedUser });
             //Act
             var result = usersDb.CheckCredentials("NoTestUser", "PW");
             //Assert

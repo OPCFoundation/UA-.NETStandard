@@ -1429,6 +1429,11 @@ namespace Opc.Ua
                 return true;
             }
 
+            if (other == null)
+            {
+                return false;
+            }
+
             // check for different namespace.
             if (other.NamespaceIndex != m_namespaceIndex)
             {

@@ -74,6 +74,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     }
                 }
             }
+            Utils.SilentDispose(m_testCertificate);
         }
         #endregion
 

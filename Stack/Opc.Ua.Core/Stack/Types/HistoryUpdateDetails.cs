@@ -24,24 +24,13 @@ namespace Opc.Ua
     {
         #region Supporting Properties and Methods
         /// <summary>
-        /// The NodeId associated with the instance.
+        /// The identifier for the Node being updated.
         /// </summary>
-        public virtual NodeId NodeId { get; set; }
-        //{
-        //    get
-        //    {
-        //        switch (this.GetType().Name)
-        //        {
-        //            case nameof(UpdateDataDetails): return ((UpdateDataDetails)this).NodeId;
-        //            case nameof(UpdateStructureDataDetails): return ((UpdateStructureDataDetails)this).NodeId;
-        //            case nameof(UpdateEventDetails): return ((UpdateEventDetails)this).NodeId;
-        //            case nameof(DeleteRawModifiedDetails): return ((DeleteRawModifiedDetails)this).NodeId;
-        //            case nameof(DeleteAtTimeDetails): return ((DeleteAtTimeDetails)this).NodeId;
-        //            case nameof(DeleteEventDetails): return ((DeleteEventDetails)this).NodeId;
-        //            default: return null;
-        //        }
-        //    }
-        //}
+        public virtual NodeId NodeId
+        {
+            get;
+            set;
+        }
 
         /// <summary>
         /// A handle assigned to the item during processing.

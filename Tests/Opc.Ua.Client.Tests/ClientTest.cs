@@ -29,13 +29,17 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
+using Moq;
+using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server.Tests;
@@ -567,7 +571,8 @@ namespace Opc.Ua.Client.Tests
                 channel1.Dispose();
 
                 // cannot read using a detached channel
-                Assert.Throws<NullReferenceException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
+                var exception = Assert.Throws<ServiceResultException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
+                Assert.AreEqual(StatusCodes.BadSecureChannelClosed, exception.StatusCode);
             }
 
             // the inactive channel
@@ -1293,6 +1298,115 @@ namespace Opc.Ua.Client.Tests
             {
                 transferSession?.Dispose();
             }
+        }
+
+        // Test class for testing protected methods in TraceableRequestHeaderClientSession
+        public class TestableTraceableRequestHeaderClientSession : TraceableRequestHeaderClientSession
+        {
+            public TestableTraceableRequestHeaderClientSession(
+                ISessionChannel channel,
+                ApplicationConfiguration configuration,
+                ConfiguredEndpoint endpoint)
+                : base(channel, configuration, endpoint)
+            {
+            }
+
+            // Expose the protected method for testing
+            public void TestableUpdateRequestHeader(IServiceRequest request, bool useDefaults)
+            {
+                base.UpdateRequestHeader(request, useDefaults);
+            }
+        }
+
+        public static ActivityContext TestExtractActivityContextFromParameters(AdditionalParametersType parameters)
+        {
+            if (parameters == null)
+            {
+                return default;
+            }
+
+            ActivityTraceId traceId = default;
+            ActivitySpanId spanId = default;
+            ActivityTraceFlags traceFlags = ActivityTraceFlags.None;
+
+            foreach (var item in parameters.Parameters)
+            {
+                if (item.Key == "traceparent")
+                {
+                    var traceparent = item.Value.ToString();
+                    int firstDash = traceparent.IndexOf('-');
+                    int secondDash = traceparent.IndexOf('-', firstDash + 1);
+                    int thirdDash = traceparent.IndexOf('-', secondDash + 1);
+
+                    if (firstDash != -1 && secondDash != -1)
+                    {
+                        ReadOnlySpan<char> traceIdSpan = traceparent.AsSpan(firstDash + 1, secondDash - firstDash - 1);
+                        ReadOnlySpan<char> spanIdSpan = traceparent.AsSpan(secondDash + 1, thirdDash - secondDash - 1);
+                        ReadOnlySpan<char> traceFlagsSpan = traceparent.AsSpan(thirdDash + 1);
+
+                        traceId = ActivityTraceId.CreateFromString(traceIdSpan);
+                        spanId = ActivitySpanId.CreateFromString(spanIdSpan);
+                        traceFlags = traceFlagsSpan.SequenceEqual("01".AsSpan()) ? ActivityTraceFlags.Recorded : ActivityTraceFlags.None;
+
+                        return new ActivityContext(traceId, spanId, traceFlags);
+                    }
+                    return default;
+                }
+            }
+
+            // no traceparent header found
+            return default;
+        }
+
+        [Test, Order(900)]
+        public async Task ClientTestRequestHeaderUpdate()
+        {
+            var rootActivity = new Activity("Test_Activity_Root") {
+                ActivityTraceFlags = ActivityTraceFlags.Recorded,
+            }.Start();
+
+            var activityListener = new ActivityListener {
+                ShouldListenTo = s => true,
+                Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
+            };
+
+            ActivitySource.AddActivityListener(activityListener);
+
+            using (var activity = new ActivitySource("TestActivitySource").StartActivity("Test_Activity"))
+            {
+                if (activity != null && activity.Id != null)
+                {
+                    var endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints).ConfigureAwait(false);
+                    Assert.NotNull(endpoint);
+
+                    // Mock the channel and session
+                    var channelMock = new Mock<ITransportChannel>();
+                    var sessionChannelMock = channelMock.As<ISessionChannel>();
+
+                    TestableTraceableRequestHeaderClientSession testableTraceableRequestHeaderClientSession = new TestableTraceableRequestHeaderClientSession(sessionChannelMock.Object, ClientFixture.Config, endpoint);
+                    CreateSessionRequest request = new CreateSessionRequest();
+                    request.RequestHeader = new RequestHeader();
+
+                    // Mock call TestableUpdateRequestHeader() to simulate the header update
+                    testableTraceableRequestHeaderClientSession.TestableUpdateRequestHeader(request, true);
+
+                    // Get the AdditionalHeader from the request
+                    var additionalHeader = request.RequestHeader.AdditionalHeader as ExtensionObject;
+                    Assert.NotNull(additionalHeader);
+
+                    // Simulate extraction
+                    var extractedContext = TestExtractActivityContextFromParameters(additionalHeader.Body as AdditionalParametersType);
+
+                    // Verify that the trace context is propagated.
+                    Assert.AreEqual(activity.TraceId, extractedContext.TraceId);
+                    Assert.AreEqual(activity.SpanId, extractedContext.SpanId);
+
+                    TestContext.Out.WriteLine($"Activity TraceId: {activity.TraceId}, Activity SpanId: {activity.SpanId}");
+                    TestContext.Out.WriteLine($"Extracted TraceId: {extractedContext.TraceId}, Extracted SpanId: {extractedContext.SpanId}");
+                }
+            }
+
+            rootActivity.Stop();
         }
 
         /// <summary>

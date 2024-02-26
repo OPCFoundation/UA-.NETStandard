@@ -302,7 +302,7 @@ namespace Opc.Ua.Gds.Server
             }
         
             DateTime yesterday = DateTime.Today.AddDays(-1);
-            X509Certificate2 newCertificate = CertificateFactory.CreateCertificate(subjectName)
+            using (X509Certificate2 newCertificate = CertificateFactory.CreateCertificate(subjectName)
                 .SetNotBefore(yesterday)
                 .SetLifeTime(Configuration.CACertificateLifetime)
                 .SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.CACertificateHashSize))
@@ -311,17 +311,19 @@ namespace Opc.Ua.Gds.Server
                 .CreateForRSA()
                 .AddToStore(
                     AuthoritiesStoreType,
-                    AuthoritiesStorePath);
+                    AuthoritiesStorePath))
+            {
 
-            // save only public key
-            Certificate = new X509Certificate2(newCertificate.RawData);
+                // save only public key
+                Certificate = new X509Certificate2(newCertificate.RawData);
 
-            // initialize revocation list
-            await RevokeCertificateAsync(AuthoritiesStorePath, newCertificate, null).ConfigureAwait(false);
+                // initialize revocation list
+                await RevokeCertificateAsync(AuthoritiesStorePath, newCertificate, null).ConfigureAwait(false);
 
-            await UpdateAuthorityCertInTrustedList().ConfigureAwait(false);
+                await UpdateAuthorityCertInTrustedList().ConfigureAwait(false);
 
-            return Certificate;
+                return Certificate;
+            }
         }
 
         #endregion

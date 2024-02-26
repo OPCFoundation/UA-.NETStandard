@@ -33,9 +33,9 @@ namespace Opc.Ua
 
             if (parsedUrl.Scheme.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal))
             {
-                if (!parsedUrl.Path.EndsWith("/discovery"))
+                if (!parsedUrl.Path.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))
                 {
-                    parsedUrl.Path += "/discovery";
+                    parsedUrl.Path += ConfiguredEndpoint.DiscoverySuffix;
                 }
             }
 
