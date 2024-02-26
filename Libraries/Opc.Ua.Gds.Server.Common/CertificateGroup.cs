@@ -480,7 +480,10 @@ namespace Opc.Ua.Gds.Server
                             X509Certificate2Collection certs = await store.FindByThumbprint(certificate.Thumbprint).ConfigureAwait(false);
                             if (certs.Count == 0)
                             {
-                                await store.Add(new X509Certificate2(certificate.RawData)).ConfigureAwait(false);
+                                using (var x509 = new X509Certificate2(certificate.RawData))
+                                {
+                                    await store.Add(x509).ConfigureAwait(false);
+                                }
                             }
 
                             // delete existing CRL in trusted list

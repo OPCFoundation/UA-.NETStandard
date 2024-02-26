@@ -195,10 +195,10 @@ namespace Opc.Ua.Gds.Tests
                 var certWithPrivateKey = CertificateFactory.CreateCertificateWithPEMPrivateKey(x509, privateKey);
                 m_client.Configuration.SecurityConfiguration.ApplicationCertificate.RawData = certWithPrivateKey.RawData;
                 m_client.Configuration.SecurityConfiguration.ApplicationCertificate.Thumbprint = certWithPrivateKey.Thumbprint;
+                m_client.Configuration.SecurityConfiguration.ApplicationCertificate.Certificate = certWithPrivateKey;
                 var store = m_client.Configuration.SecurityConfiguration.ApplicationCertificate.OpenStore();
                 await store.Add(certWithPrivateKey).ConfigureAwait(false);
             }
-            await m_application.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
         }
 
         private void FinishKeyPair(ApplicationTestData ownApplicationTestData, out byte[] certificate, out byte[] privateKey)
