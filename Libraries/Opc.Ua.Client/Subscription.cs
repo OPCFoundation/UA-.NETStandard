@@ -509,7 +509,7 @@ namespace Opc.Ua.Client
             {
                 lock (m_cache)
                 {
-                    return m_monitoredItems.Values.AsEnumerable();
+                    return new List<MonitoredItem>(m_monitoredItems.Values);
                 }
             }
         }
