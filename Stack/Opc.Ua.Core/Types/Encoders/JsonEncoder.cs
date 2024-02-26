@@ -966,7 +966,7 @@ namespace Opc.Ua
                 return;
             }
 
-            WriteSimpleField(fieldName, value.ToString(), EscapeOptions.Quotes);
+            WriteSimpleField(fieldName, value.ToString(), EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
         }
 
         /// <summary>
@@ -980,7 +980,7 @@ namespace Opc.Ua
                 return;
             }
 
-            WriteSimpleField(fieldName, value.ToString(), EscapeOptions.Quotes);
+            WriteSimpleField(fieldName, value.ToString(), EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
         }
 
         /// <summary>
