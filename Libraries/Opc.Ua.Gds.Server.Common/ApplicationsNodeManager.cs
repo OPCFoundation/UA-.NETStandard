@@ -596,15 +596,7 @@ namespace Opc.Ua.Gds.Server
         ref StatusCode certificateStatus,
         ref DateTime validityTime)
         {
-            //Check if connected using a secure channel
-            OperationContext operationContext = (context as SystemContext)?.OperationContext as OperationContext;
-            if (operationContext != null)
-            {
-                if (operationContext.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt)
-                {
-                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Method has to be called from an authenticated secure channel.");
-                }
-            }
+            AuthorizationHelper.HasAuthenticatedSecureChannel(context);
 
             //create CertificateValidator initialized with GDS CAs
             var certificateValidator = new CertificateValidator();
