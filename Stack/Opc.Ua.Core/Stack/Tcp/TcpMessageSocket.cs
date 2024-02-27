@@ -241,8 +241,6 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class TcpMessageSocket : IMessageSocket
     {
-        private static readonly int s_defaultRetryNextAddressTimeout = 1000;
-
         #region Constructors
         /// <summary>
         /// Creates an unconnected socket.
@@ -301,7 +299,7 @@ namespace Opc.Ua.Bindings
         {
             if (disposing)
             {
-                m_socket.Dispose();
+                m_socket?.Dispose();
             }
         }
         #endregion
@@ -311,7 +309,7 @@ namespace Opc.Ua.Bindings
         /// Gets the socket handle.
         /// </summary>
         /// <value>The socket handle.</value>
-        public int Handle => m_socket != null ? m_socket.GetHashCode() : -1;
+        public int Handle => m_socket?.GetHashCode() ?? -1;
 
         /// <summary>
         /// Gets the local endpoint.
@@ -320,7 +318,16 @@ namespace Opc.Ua.Bindings
         /// See the Remarks section for more information.</exception>
         /// <exception cref="System.ObjectDisposedException">The System.Net.Sockets.Socket has been closed.</exception>
         /// <returns>The System.Net.EndPoint that the System.Net.Sockets.Socket is using for communications.</returns>
-        public EndPoint LocalEndpoint => m_socket.LocalEndPoint;
+        public EndPoint LocalEndpoint => m_socket?.LocalEndPoint;
+
+        /// <summary>
+        /// Gets the local endpoint.
+        /// </summary>
+        /// <exception cref="System.Net.Sockets.SocketException">An error occurred when attempting to access the socket.
+        /// See the Remarks section for more information.</exception>
+        /// <exception cref="System.ObjectDisposedException">The System.Net.Sockets.Socket has been closed.</exception>
+        /// <returns>The System.Net.EndPoint that the System.Net.Sockets.Socket is using for communications.</returns>
+        public EndPoint RemoteEndpoint => m_socket?.RemoteEndPoint;
 
         /// <summary>
         /// Gets the transport channel features implemented by this message socket.
@@ -331,37 +338,16 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Connects to an endpoint.
         /// </summary>
-        public async Task<bool> BeginConnect(
+        public bool BeginConnect(
             Uri endpointUrl,
             EventHandler<IMessageSocketAsyncEventArgs> callback,
-            object state,
-            CancellationToken cts)
+            object state)
         {
             if (endpointUrl == null) throw new ArgumentNullException(nameof(endpointUrl));
             if (m_socket != null) throw new InvalidOperationException("The socket is already connected.");
 
             SocketError error = SocketError.NotInitialized;
             CallbackAction doCallback = (SocketError socketError) => callback(this, new TcpMessageSocketConnectAsyncEventArgs(socketError) { UserToken = state });
-            IPAddress[] hostAdresses;
-            try
-            {
-                // Get DNS host information
-#if NET6_0_OR_GREATER
-                hostAdresses = await Dns.GetHostAddressesAsync(endpointUrl.DnsSafeHost, cts).ConfigureAwait(false);
-#else
-                hostAdresses = await Dns.GetHostAddressesAsync(endpointUrl.DnsSafeHost).ConfigureAwait(false);
-#endif
-            }
-            catch (SocketException e)
-            {
-                Utils.LogWarning("Name resolution failed for: {0} Error: {1}", endpointUrl.DnsSafeHost, e.Message);
-                error = e.SocketErrorCode;
-                goto ErrorExit;
-            }
-
-            // Get IPv4 and IPv6 address
-            IPAddress[] addressesV4 = hostAdresses.Where(a => a.AddressFamily == AddressFamily.InterNetwork).ToArray();
-            IPAddress[] addressesV6 = hostAdresses.Where(a => a.AddressFamily == AddressFamily.InterNetworkV6).ToArray();
 
             // Get port
             int port = endpointUrl.Port;
@@ -370,80 +356,13 @@ namespace Opc.Ua.Bindings
                 port = Utils.UaTcpDefaultPort;
             }
 
-            int arrayV4Index = 0;
-            int arrayV6Index = 0;
-            bool moreAddresses;
-            m_socketResponses = 0;
-
-            m_tcs = new TaskCompletionSource<SocketError>();
-            do
+            DnsEndPoint endpoint = new DnsEndPoint(endpointUrl.DnsSafeHost, port);
+            error = BeginConnect(endpoint, doCallback);
+            if (error == SocketError.InProgress || error == SocketError.Success)
             {
-                error = SocketError.NotInitialized;
+                return true;
+            }
 
-                lock (m_socketLock)
-                {
-                    if (addressesV6.Length > arrayV6Index)
-                    {
-                        m_socketResponses++;
-                    }
-
-                    if (addressesV4.Length > arrayV4Index)
-                    {
-                        m_socketResponses++;
-                    }
-
-                    if (m_tcs.Task.IsCompleted)
-                    {
-                        m_tcs = new TaskCompletionSource<SocketError>();
-                    }
-                }
-
-                if (addressesV6.Length > arrayV6Index && m_socket == null)
-                {
-                    if (BeginConnect(addressesV6[arrayV6Index], AddressFamily.InterNetworkV6, port, doCallback) == SocketError.Success)
-                    {
-                        return true;
-                    }
-                    arrayV6Index++;
-                }
-
-                if (addressesV4.Length > arrayV4Index && m_socket == null)
-                {
-                    if (BeginConnect(addressesV4[arrayV4Index], AddressFamily.InterNetwork, port, doCallback) == SocketError.Success)
-                    {
-                        return true;
-                    }
-                    arrayV4Index++;
-                }
-
-                moreAddresses = addressesV6.Length > arrayV6Index || addressesV4.Length > arrayV4Index;
-                if (moreAddresses && !m_tcs.Task.IsCompleted)
-                {
-                    await Task.Delay(s_defaultRetryNextAddressTimeout, cts).ContinueWith(tsk => {
-                        if (tsk.IsCanceled)
-                        {
-                            moreAddresses = false;
-                        }
-                    }, cts).ConfigureAwait(false);
-                }
-
-                if (!moreAddresses || m_tcs.Task.IsCompleted)
-                {
-                    error = await m_tcs.Task.ConfigureAwait(false);
-                    switch (error)
-                    {
-                        case SocketError.Success:
-                            return true;
-                        case SocketError.ConnectionRefused:
-                            break;
-                        default:
-                            goto ErrorExit;
-                    }
-                }
-            } while (moreAddresses);
-
-        ErrorExit:
-            doCallback(error);
 
             return false;
         }
@@ -611,15 +530,20 @@ namespace Opc.Ua.Bindings
             // start reading the message body.
             if (m_incomingMessageSize < 0)
             {
-                m_incomingMessageSize = BitConverter.ToInt32(m_receiveBuffer, 4);
+                UInt32 messageType = BitConverter.ToUInt32(m_receiveBuffer, 0);
+                if (!TcpMessageType.IsValid(messageType))
+                {
+                    m_readState = ReadState.Error;
 
+                    return ServiceResult.Create(
+                        StatusCodes.BadTcpMessageTypeInvalid,
+                        "Message type {0:X8} is invalid.",
+                        messageType);
+                }
+
+                m_incomingMessageSize = BitConverter.ToInt32(m_receiveBuffer, 4);
                 if (m_incomingMessageSize <= 0 || m_incomingMessageSize > m_receiveBufferSize)
                 {
-                    Utils.LogError(
-                        "BadTcpMessageTooLarge: BufferSize={0}; MessageSize={1}",
-                        m_receiveBufferSize,
-                        m_incomingMessageSize);
-
                     m_readState = ReadState.Error;
 
                     return ServiceResult.Create(
@@ -768,6 +692,28 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Try to connect to endpoint and do callback if connected successfully
+        /// </summary>
+        /// <param name="endpoint">The DNS endpoint</param>
+        /// <param name="callback">Callback that must be executed if the connection would be established</param>
+        private SocketError BeginConnect(DnsEndPoint endpoint, CallbackAction callback)
+        {
+            var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+            var args = new SocketAsyncEventArgs() {
+                UserToken = callback,
+                RemoteEndPoint = endpoint,
+            };
+            args.Completed += OnSocketConnected;
+            if (!socket.ConnectAsync(args))
+            {
+                // I/O completed synchronously
+                OnSocketConnected(socket, args);
+                return args.SocketError;
+            }
+            return SocketError.InProgress;
+        }
+
+        /// <summary>
         /// Handle socket connection event
         /// </summary>
         /// <param name="sender"></param>
@@ -776,29 +722,22 @@ namespace Opc.Ua.Bindings
         {
             var socket = sender as Socket;
             bool success = false;
+
             lock (m_socketLock)
             {
-                m_socketResponses--;
                 if (!m_closed && m_socket == null)
                 {
                     if (args.SocketError == SocketError.Success)
                     {
                         m_socket = socket;
                         success = true;
-                        m_tcs.SetResult(args.SocketError);
-                    }
-                    else if (m_socketResponses == 0)
-                    {
-                        m_tcs.SetResult(args.SocketError);
                     }
                 }
             }
 
-            if (success)
-            {
-                ((CallbackAction)args.UserToken)(args.SocketError);
-            }
-            else
+            ((CallbackAction)args.UserToken)(args.SocketError);
+
+            if (!success)
             {
                 try
                 {
@@ -858,8 +797,6 @@ namespace Opc.Ua.Bindings
         private readonly object m_socketLock = new object();
         private Socket m_socket;
         private bool m_closed;
-        private TaskCompletionSource<SocketError> m_tcs;
-        private int m_socketResponses;
 
         /// <summary>
         /// States for the nested read handler.

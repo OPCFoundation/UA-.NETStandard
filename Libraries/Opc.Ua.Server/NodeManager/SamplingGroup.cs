@@ -312,7 +312,7 @@ namespace Opc.Ua.Server
                     return samplingRate.Start;
                 }
 
-                // check if within range specfied by the group.
+                // check if within range specified by the group.
                 double maxSamplingRate = samplingRate.Start;
 
                 if (samplingRate.Increment > 0)

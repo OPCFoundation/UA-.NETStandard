@@ -455,7 +455,7 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// A class that creates instances of nodes based on the paramters provided.
+    /// A class that creates instances of nodes based on the parameters provided.
     /// </summary>
     public class NodeStateFactory
     {

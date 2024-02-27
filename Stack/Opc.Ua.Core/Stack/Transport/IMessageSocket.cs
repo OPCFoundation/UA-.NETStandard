@@ -12,6 +12,7 @@
 
 
 using System;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -148,7 +149,16 @@ namespace Opc.Ua.Bindings
         /// See the Remarks section for more information.</exception>
         /// <exception cref="System.ObjectDisposedException">The Socket has been closed.</exception>
         /// <returns>The System.Net.EndPoint that the Socket is using for communications.</returns>
-        System.Net.EndPoint LocalEndpoint { get; }
+        EndPoint LocalEndpoint { get; }
+
+        /// <summary>
+        /// Gets the remote endpoint.
+        /// </summary>
+        /// <exception cref="System.Net.Sockets.SocketException">An error occurred when attempting to access the socket.
+        /// See the Remarks section for more information.</exception>
+        /// <exception cref="System.ObjectDisposedException">The Socket has been closed.</exception>
+        /// <returns>The System.Net.EndPoint that the Socket is using for communications.</returns>
+        EndPoint RemoteEndpoint { get; }
 
         /// <summary>
         /// Returns the features implemented by the message socket.
@@ -158,11 +168,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Connects to an endpoint.
         /// </summary>
-        Task<bool> BeginConnect(
+        bool BeginConnect(
             Uri endpointUrl,
             EventHandler<IMessageSocketAsyncEventArgs> callback,
-            object state,
-            CancellationToken cts);
+            object state);
 
         /// <summary>
         /// Forcefully closes the socket.

@@ -351,7 +351,7 @@ namespace Opc.Ua.Client.Controls
                 }
 
                 // look up domains.
-                IList<string> domains = X509Utils.GetDomainsFromCertficate(certificate);
+                IList<string> domains = X509Utils.GetDomainsFromCertificate(certificate);
 
                 StringBuilder buffer = new StringBuilder();
 

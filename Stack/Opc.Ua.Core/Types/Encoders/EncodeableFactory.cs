@@ -307,9 +307,9 @@ namespace Opc.Ua
         /// <param name="context"></param>
         public static XmlQualifiedName GetXmlName(object value, IServiceMessageContext context)
         {
-            if (value is IDynamicComplexTypeInstance xmlEncodable)
+            if (value is IDynamicComplexTypeInstance xmlEncodeable)
             {
-                var xmlName = xmlEncodable.GetXmlName(context);
+                var xmlName = xmlEncodeable.GetXmlName(context);
                 if (xmlName != null)
                 {
                     return xmlName;
@@ -378,11 +378,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Adds all encodable types exported from an assembly to the factory.
+        /// Adds all encodeable types exported from an assembly to the factory.
         /// </summary>
         /// <remarks>
         /// <para>
-        /// Adds all encodable types exported from an assembly to the factory.
+        /// Adds all encodeable types exported from an assembly to the factory.
         /// <br/></para>
         /// <para>
         /// This method uses reflection on the specified assembly to export all of the

@@ -68,7 +68,7 @@ namespace Opc.Ua
         #region Static Methods
         private static bool IsPlatformSupportedUri(string name)
         {
-            if (name.Equals(nameof(Aes256_Sha256_RsaPss)) &&
+            if (name.Equals(nameof(Aes256_Sha256_RsaPss), StringComparison.Ordinal) &&
                 !RsaUtils.IsSupportingRSAPssSign.Value)
             {
                 return false;
@@ -219,7 +219,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Decrypts the CipherText using the SecurityPolicyUri and returns the PlainTetx.
+        /// Decrypts the CipherText using the SecurityPolicyUri and returns the PlainText.
         /// </summary>
         public static byte[] Decrypt(X509Certificate2 certificate, string securityPolicyUri, EncryptedData dataToDecrypt)
         {

@@ -118,7 +118,7 @@ namespace Opc.Ua.PubSub
             }
             else
             {
-                ApplicationId = $"opcua:{System.Net.Dns.GetHostName()}:{new Random().Next().ToString("D10")}";
+                ApplicationId = $"opcua:{System.Net.Dns.GetHostName()}:{new Random().Next():D10}";
             }
 
             m_dataCollector = new DataCollector(m_dataStore);
@@ -201,7 +201,7 @@ namespace Opc.Ua.PubSub
             // validate input argument 
             if (configFilePath == null)
             {
-                throw new ArgumentException(nameof(configFilePath));
+                throw new ArgumentNullException(nameof(configFilePath));
             }
             if (!File.Exists(configFilePath))
             {
@@ -272,10 +272,7 @@ namespace Opc.Ua.PubSub
         {
             try
             {
-                if (RawDataReceived != null)
-                {
-                    RawDataReceived(this, e);
-                }
+                RawDataReceived?.Invoke(this, e);
             }
             catch (Exception ex)
             {
@@ -291,10 +288,7 @@ namespace Opc.Ua.PubSub
         {
             try
             {
-                if (DataReceived != null)
-                {
-                    DataReceived(this, e);
-                }
+                DataReceived?.Invoke(this, e);
             }
             catch (Exception ex)
             {
@@ -310,10 +304,7 @@ namespace Opc.Ua.PubSub
         {
             try
             {
-                if (MetaDataReceived != null)
-                {
-                    MetaDataReceived(this, e);
-                }
+                MetaDataReceived?.Invoke(this, e);
             }
             catch (Exception ex)
             {
@@ -328,10 +319,7 @@ namespace Opc.Ua.PubSub
         {
             try
             {
-                if (DataSetWriterConfigurationReceived != null)
-                {
-                    DataSetWriterConfigurationReceived(this, e);
-                }
+                DataSetWriterConfigurationReceived?.Invoke(this, e);
             }
             catch (Exception ex)
             {
@@ -347,10 +335,7 @@ namespace Opc.Ua.PubSub
         {
             try
             {
-                if (PublisherEndpointsReceived != null)
-                {
-                    PublisherEndpointsReceived(this, e);
-                }
+                PublisherEndpointsReceived?.Invoke(this, e);
             }
             catch (Exception ex)
             {
@@ -366,10 +351,7 @@ namespace Opc.Ua.PubSub
         {
             try
             {
-                if (ConfigurationUpdating != null)
-                {
-                    ConfigurationUpdating(this, e);
-                }
+                ConfigurationUpdating?.Invoke(this, e);
             }
             catch (Exception ex)
             {

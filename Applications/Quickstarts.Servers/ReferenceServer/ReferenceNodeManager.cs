@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Numerics;
 using System.Threading;
 using System.Xml;
@@ -233,7 +234,7 @@ namespace Quickstarts.ReferenceServer
 
                     BaseDataVariableState decimalVariable = CreateVariable(staticFolder, scalarStatic + "Decimal", "Decimal", DataTypeIds.DecimalDataType, ValueRanks.Scalar);
                     // Set an arbitrary precision decimal value.
-                    BigInteger largeInteger = BigInteger.Parse("1234567890123546789012345678901234567890123456789012345");
+                    BigInteger largeInteger = BigInteger.Parse("1234567890123546789012345678901234567890123456789012345", CultureInfo.InvariantCulture);
                     DecimalDataType decimalValue = new DecimalDataType {
                         Scale = 100,
                         Value = largeInteger.ToByteArray()
@@ -1689,8 +1690,8 @@ namespace Quickstarts.ReferenceServer
             // now to create the remaining NUMBERED items
             for (uint i = 0; i < numVariables; i++)
             {
-                string newName = string.Format("{0}{1}", name, i.ToString("000"));
-                string newPath = string.Format("{0}/Mass/{1}", path, newName);
+                string newName = string.Format(CultureInfo.InvariantCulture, "{0}{1}", name, i.ToString("000"));
+                string newPath = string.Format(CultureInfo.InvariantCulture, "{0}/Mass/{1}", path, newName);
                 itemsCreated.Add(CreateDataItemVariable(parent, newPath, newName, dataType, valueRank));
             }//for i
             return (itemsCreated.ToArray());
@@ -1722,7 +1723,7 @@ namespace Quickstarts.ReferenceServer
 
             if (typeInfo.BuiltInType != BuiltInType.DateTime)
             {
-                double number = Convert.ToDouble(value);
+                double number = Convert.ToDouble(value, CultureInfo.InvariantCulture);
                 number = Math.Round(number, (int)variable.ValuePrecision.Value);
                 value = Opc.Ua.TypeInfo.Cast(number, typeInfo.BuiltInType);
             }
@@ -1839,9 +1840,9 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Creates a new variable.
         /// </summary>
-        private DataItemState CreateTwoStateDiscreteItemVariable(NodeState parent, string path, string name, string trueState, string falseState)
+        private TwoStateDiscreteState CreateTwoStateDiscreteItemVariable(NodeState parent, string path, string name, string trueState, string falseState)
         {
-            TwoStateDiscreteState variable = new TwoStateDiscreteState(parent);
+            var variable = new TwoStateDiscreteState(parent);
 
             variable.NodeId = new NodeId(path, NamespaceIndex);
             variable.BrowseName = new QualifiedName(path, NamespaceIndex);
@@ -1886,7 +1887,7 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Creates a new variable.
         /// </summary>
-        private DataItemState CreateMultiStateDiscreteItemVariable(NodeState parent, string path, string name, params string[] values)
+        private MultiStateDiscreteState CreateMultiStateDiscreteItemVariable(NodeState parent, string path, string name, params string[] values)
         {
             MultiStateDiscreteState variable = new MultiStateDiscreteState(parent);
 
@@ -2036,7 +2037,7 @@ namespace Quickstarts.ReferenceServer
                 return StatusCodes.BadIndexRangeInvalid;
             }
 
-            double number = Convert.ToDouble(value);
+            double number = Convert.ToDouble(value, CultureInfo.InvariantCulture);
 
             if (number >= variable.EnumStrings.Value.Length || number < 0)
             {
@@ -2072,7 +2073,7 @@ namespace Quickstarts.ReferenceServer
                 return StatusCodes.BadIndexRangeInvalid;
             }
 
-            Int32 number = Convert.ToInt32(value);
+            Int32 number = Convert.ToInt32(value, CultureInfo.InvariantCulture);
             if (number >= variable.EnumValues.Value.Length || number < 0)
             {
                 return StatusCodes.BadOutOfRange;
@@ -2137,7 +2138,7 @@ namespace Quickstarts.ReferenceServer
                     return StatusCodes.BadIndexRangeInvalid;
                 }
 
-                double number = Convert.ToDouble(value);
+                double number = Convert.ToDouble(value, CultureInfo.InvariantCulture);
 
                 if (variable.InstrumentRange != null && (number < variable.InstrumentRange.Value.Low || number > variable.InstrumentRange.Value.High))
                 {
@@ -2257,8 +2258,8 @@ namespace Quickstarts.ReferenceServer
             // now to create the remaining NUMBERED items
             for (uint i = 0; i < numVariables; i++)
             {
-                string newName = string.Format("{0}_{1}", name, i.ToString("00"));
-                string newPath = string.Format("{0}_{1}", path, newName);
+                string newName = string.Format(CultureInfo.InvariantCulture, "{0}_{1}", name, i.ToString("00", CultureInfo.InvariantCulture));
+                string newPath = string.Format(CultureInfo.InvariantCulture, "{0}_{1}", path, newName);
                 itemsCreated.Add(CreateVariable(newParentFolder, newPath, newName, dataType, valueRank));
             }
             return (itemsCreated.ToArray());
@@ -2297,8 +2298,8 @@ namespace Quickstarts.ReferenceServer
             // now to create the remaining NUMBERED items
             for (uint i = 0; i < numVariables; i++)
             {
-                string newName = string.Format("{0}_{1}", name, i.ToString("00"));
-                string newPath = string.Format("{0}_{1}", path, newName);
+                string newName = string.Format(CultureInfo.InvariantCulture, "{0}_{1}", name, i.ToString("00", CultureInfo.InvariantCulture));
+                string newPath = string.Format(CultureInfo.InvariantCulture, "{0}_{1}", path, newName);
                 itemsCreated.Add(CreateDynamicVariable(newParentFolder, newPath, newName, dataType, valueRank));
             }//for i
             return (itemsCreated.ToArray());
@@ -2307,7 +2308,7 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Creates a new variable type.
         /// </summary>
-        private BaseVariableTypeState CreateVariableType(NodeState parent, IDictionary<NodeId, IList<IReference>> externalReferences, string path, string name, BuiltInType dataType, int valueRank)
+        private BaseDataVariableTypeState CreateVariableType(NodeState parent, IDictionary<NodeId, IList<IReference>> externalReferences, string path, string name, BuiltInType dataType, int valueRank)
         {
             BaseDataVariableTypeState type = new BaseDataVariableTypeState();
 

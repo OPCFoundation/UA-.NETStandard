@@ -337,7 +337,7 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                return String.Format(formatProvider, "{0}", m_value);
+                return string.Format(formatProvider, "{0}", m_value);
             }
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));

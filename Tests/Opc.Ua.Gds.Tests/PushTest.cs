@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
@@ -83,7 +82,7 @@ namespace Opc.Ua.Gds.Tests
             RegisterPushServerApplication(m_pushClient.PushClient.EndpointUrl);
 
             m_selfSignedServerCert = new X509Certificate2(m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
-            m_domainNames = X509Utils.GetDomainsFromCertficate(m_selfSignedServerCert).ToArray();
+            m_domainNames = X509Utils.GetDomainsFromCertificate(m_selfSignedServerCert).ToArray();
 
             await CreateCATestCerts(m_pushClient.TempStorePath).ConfigureAwait(false);
         }
@@ -797,16 +796,12 @@ namespace Opc.Ua.Gds.Tests
                 var storeCrls = await store.EnumerateCRLs().ConfigureAwait(false);
                 foreach (var crl in storeCrls)
                 {
-                    if (!updatedCrls.Contains(crl))
+                    if (!updatedCrls.Remove(crl))
                     {
                         if (!await store.DeleteCRL(crl).ConfigureAwait(false))
                         {
                             result = false;
                         }
-                    }
-                    else
-                    {
-                        updatedCrls.Remove(crl);
                     }
                 }
                 foreach (var crl in updatedCrls)

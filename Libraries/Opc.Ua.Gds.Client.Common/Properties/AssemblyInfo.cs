@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,32 +27,18 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.Server;
+using System;
+using System.Runtime.CompilerServices;
 
-namespace Opc.Ua.Gds.Server
-{
-    /// <summary>
-    /// The supported roles in a GDS server.
-    /// </summary>
-    public class GdsRole : Role
-    {
-        /// <summary>
-        /// The GDS application Administrator.
-        /// </summary>
-        public static Role ApplicationAdmin { get; } = new Role(NodeId.Null, "ApplicationAdmin");
-
-        /// <summary>
-        /// This Role grants rights to register, update and unregister any OPC UA Application.
-        /// </summary>
-        public static Role DiscoveryAdmin { get; } = new Role( NodeId.Null, "DiscoveryAdmin");
-
-        /// <summary>
-        /// The GDS application user.
-        /// </summary>
-        public static Role ApplicationUser { get; } = new Role(NodeId.Null, "ApplicationUser");
-
-        public GdsRole(NodeId roleId, string name):
-            base(roleId, name)
-        {}
-    }
-}
+[assembly: CLSCompliant(false)]
+#if SIGNASSEMBLY
+[assembly: InternalsVisibleTo("Opc.Ua.Gds.Tests, PublicKey = " +
+    // OPC Foundation Strong Name Public Key
+    "0024000004800000940000000602000000240000525341310004000001000100d987b12f068b35" +
+    "80429f3dde01397508880fc7e62621397618456ca1549aeacfbdb90c62adfe918f05ce3677b390" +
+    "f78357b8745cb6e1334655afce1a9527ac92fc829ff585ea79f007e52ba0f83ead627e3edda40b" +
+    "ec5ae574128fc9342cb57cb8285aa4e5b589c0ebef3be571b5c8f2ab1067f7c880e8f8882a73c8" +
+    "0a12a1ef")]
+#else
+[assembly: InternalsVisibleTo("Opc.Ua.Gds.Tests")]
+#endif
