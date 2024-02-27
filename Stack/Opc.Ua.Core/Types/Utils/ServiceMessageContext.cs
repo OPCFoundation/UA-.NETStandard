@@ -60,10 +60,7 @@ namespace Opc.Ua
         /// </summary>
         public static ServiceMessageContext ThreadContext
         {
-            get
-            {
-                return s_globalContext;
-            }
+            get => s_globalContext;
 
             set
             {
@@ -73,17 +70,12 @@ namespace Opc.Ua
 
         #region Public Properties
         /// <summary>
-        /// Returns the object used to synchronize access to the context.
-        /// </summary>
-        public object SyncRoot => m_lock;
-
-        /// <summary>
         /// The maximum length for any string, byte string or xml element.
         /// </summary>
         public int MaxStringLength
         {
-            get { lock (m_lock) { return m_maxStringLength; } }
-            set { lock (m_lock) { m_maxStringLength = value; } }
+            get => m_maxStringLength;
+            set { m_maxStringLength = value; }
         }
 
         /// <summary>
@@ -91,8 +83,8 @@ namespace Opc.Ua
         /// </summary>
         public int MaxArrayLength
         {
-            get { lock (m_lock) { return m_maxArrayLength; } }
-            set { lock (m_lock) { m_maxArrayLength = value; } }
+            get => m_maxArrayLength;
+            set { m_maxArrayLength = value; }
         }
 
         /// <summary>
@@ -100,8 +92,8 @@ namespace Opc.Ua
         /// </summary>
         public int MaxByteStringLength
         {
-            get { lock (m_lock) { return m_maxByteStringLength; } }
-            set { lock (m_lock) { m_maxByteStringLength = value; } }
+            get => m_maxByteStringLength;
+            set { m_maxByteStringLength = value; }
         }
 
         /// <summary>
@@ -109,8 +101,8 @@ namespace Opc.Ua
         /// </summary>
         public int MaxMessageSize
         {
-            get { lock (m_lock) { return m_maxMessageSize; } }
-            set { lock (m_lock) { m_maxMessageSize = value; } }
+            get => m_maxMessageSize;
+            set { m_maxMessageSize = value; }
         }
 
         /// <summary>
@@ -118,7 +110,7 @@ namespace Opc.Ua
         /// </summary>
         public uint MaxEncodingNestingLevels
         {
-            get { lock (m_lock) { return m_maxEncodingNestingLevels; } }
+            get => m_maxEncodingNestingLevels;
         }
 
         /// <summary>
@@ -126,23 +118,16 @@ namespace Opc.Ua
         /// </summary>
         public NamespaceTable NamespaceUris
         {
-            get
-            {
-                return m_namespaceUris;
-            }
+            get => m_namespaceUris;
 
             set
             {
-                lock (m_lock)
+                if (value == null)
                 {
-                    if (value == null)
-                    {
-                        m_namespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris;
-                        return;
-                    }
-
-                    m_namespaceUris = value;
+                    m_namespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris;
+                    return;
                 }
+                m_namespaceUris = value;
             }
         }
 
@@ -151,23 +136,17 @@ namespace Opc.Ua
         /// </summary>
         public StringTable ServerUris
         {
-            get
-            {
-                return m_serverUris;
-            }
+            get => m_serverUris;
 
             set
             {
-                lock (m_lock)
+                if (value == null)
                 {
-                    if (value == null)
-                    {
-                        m_serverUris = ServiceMessageContext.GlobalContext.ServerUris;
-                        return;
-                    }
-
-                    m_serverUris = value;
+                    m_serverUris = ServiceMessageContext.GlobalContext.ServerUris;
+                    return;
                 }
+
+                m_serverUris = value;
             }
         }
 
@@ -176,29 +155,22 @@ namespace Opc.Ua
         /// </summary>
         public IEncodeableFactory Factory
         {
-            get
-            {
-                return m_factory;
-            }
+            get => m_factory;
 
             set
             {
-                lock (m_lock)
+                if (value == null)
                 {
-                    if (value == null)
-                    {
-                        m_factory = ServiceMessageContext.GlobalContext.Factory;
-                        return;
-                    }
-
-                    m_factory = value;
+                    m_factory = ServiceMessageContext.GlobalContext.Factory;
+                    return;
                 }
+
+                m_factory = value;
             }
         }
         #endregion
 
         #region Private Fields
-        private readonly object m_lock = new object();
         private int m_maxStringLength;
         private int m_maxByteStringLength;
         private int m_maxArrayLength;

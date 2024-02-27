@@ -259,9 +259,9 @@ namespace Opc.Ua.Bindings
                 if (m_callback != null)
                 {
                     channel.SetRequestReceivedCallback(new TcpChannelRequestEventHandler(OnRequestReceived));
-                    channel.SetReportOpenSecureChannellAuditCalback(new ReportAuditOpenSecureChannelEventHandler(OnReportAuditOpenSecureChannelEvent));
-                    channel.SetReportCloseSecureChannellAuditCalback(new ReportAuditCloseSecureChannelEventHandler(OnReportAuditCloseSecureChannelEvent));
-                    channel.SetReportCertificateAuditCalback(new ReportAuditCertificateEventHandler(OnReportAuditCertificateEvent));
+                    channel.SetReportOpenSecureChannelAuditCallback(new ReportAuditOpenSecureChannelEventHandler(OnReportAuditOpenSecureChannelEvent));
+                    channel.SetReportCloseSecureChannelAuditCallback(new ReportAuditCloseSecureChannelEventHandler(OnReportAuditCloseSecureChannelEvent));
+                    channel.SetReportCertificateAuditCallback(new ReportAuditCertificateEventHandler(OnReportAuditCertificateEvent));
                 }
             }
             catch (Exception e)
@@ -506,9 +506,9 @@ namespace Opc.Ua.Bindings
                             if (m_callback != null)
                             {
                                 channel.SetRequestReceivedCallback(new TcpChannelRequestEventHandler(OnRequestReceived));
-                                channel.SetReportOpenSecureChannellAuditCalback(new ReportAuditOpenSecureChannelEventHandler(OnReportAuditOpenSecureChannelEvent));
-                                channel.SetReportCloseSecureChannellAuditCalback(new ReportAuditCloseSecureChannelEventHandler(OnReportAuditCloseSecureChannelEvent));
-                                channel.SetReportCertificateAuditCalback(new ReportAuditCertificateEventHandler(OnReportAuditCertificateEvent));
+                                channel.SetReportOpenSecureChannelAuditCallback(new ReportAuditOpenSecureChannelEventHandler(OnReportAuditOpenSecureChannelEvent));
+                                channel.SetReportCloseSecureChannelAuditCallback(new ReportAuditCloseSecureChannelEventHandler(OnReportAuditCloseSecureChannelEvent));
+                                channel.SetReportCertificateAuditCallback(new ReportAuditCertificateEventHandler(OnReportAuditCertificateEvent));
                             }
 
                             // get channel id
