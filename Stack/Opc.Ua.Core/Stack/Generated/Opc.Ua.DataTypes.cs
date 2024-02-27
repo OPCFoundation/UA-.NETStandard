@@ -43498,6 +43498,7 @@ namespace Opc.Ua
             m_maxArrayLength = (int)0;
             m_maxMessageSize = (int)0;
             m_maxBufferSize = (int)0;
+            m_maxChannelCount = (int)0;
             m_channelLifetime = (int)0;
             m_securityTokenLifetime = (int)0;
         }
@@ -43561,7 +43562,15 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        [DataMember(Name = "ChannelLifetime", IsRequired = false, Order = 8)]
+        [DataMember(Name = "MaxChannelCount", IsRequired = false, Order = 8)]
+        public int MaxChannelCount
+        {
+            get { return m_maxChannelCount; }
+            set { m_maxChannelCount = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ChannelLifetime", IsRequired = false, Order = 9)]
         public int ChannelLifetime
         {
             get { return m_channelLifetime;  }
@@ -43569,7 +43578,7 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        [DataMember(Name = "SecurityTokenLifetime", IsRequired = false, Order = 9)]
+        [DataMember(Name = "SecurityTokenLifetime", IsRequired = false, Order = 10)]
         public int SecurityTokenLifetime
         {
             get { return m_securityTokenLifetime;  }
@@ -43602,6 +43611,7 @@ namespace Opc.Ua
             encoder.WriteInt32("MaxArrayLength", MaxArrayLength);
             encoder.WriteInt32("MaxMessageSize", MaxMessageSize);
             encoder.WriteInt32("MaxBufferSize", MaxBufferSize);
+            encoder.WriteInt32("MaxChannelCount", MaxChannelCount);
             encoder.WriteInt32("ChannelLifetime", ChannelLifetime);
             encoder.WriteInt32("SecurityTokenLifetime", SecurityTokenLifetime);
 
@@ -43620,6 +43630,7 @@ namespace Opc.Ua
             MaxArrayLength = decoder.ReadInt32("MaxArrayLength");
             MaxMessageSize = decoder.ReadInt32("MaxMessageSize");
             MaxBufferSize = decoder.ReadInt32("MaxBufferSize");
+            MaxChannelCount = decoder.ReadInt32("MaxChannelCount");
             ChannelLifetime = decoder.ReadInt32("ChannelLifetime");
             SecurityTokenLifetime = decoder.ReadInt32("SecurityTokenLifetime");
 
@@ -43648,6 +43659,7 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_maxArrayLength, value.m_maxArrayLength)) return false;
             if (!Utils.IsEqual(m_maxMessageSize, value.m_maxMessageSize)) return false;
             if (!Utils.IsEqual(m_maxBufferSize, value.m_maxBufferSize)) return false;
+            if (!Utils.IsEqual(m_maxChannelCount, value.m_maxChannelCount)) return false;
             if (!Utils.IsEqual(m_channelLifetime, value.m_channelLifetime)) return false;
             if (!Utils.IsEqual(m_securityTokenLifetime, value.m_securityTokenLifetime)) return false;
 
@@ -43672,6 +43684,7 @@ namespace Opc.Ua
             clone.m_maxArrayLength = (int)Utils.Clone(this.m_maxArrayLength);
             clone.m_maxMessageSize = (int)Utils.Clone(this.m_maxMessageSize);
             clone.m_maxBufferSize = (int)Utils.Clone(this.m_maxBufferSize);
+            clone.m_maxChannelCount = (int)Utils.Clone(this.m_maxChannelCount);
             clone.m_channelLifetime = (int)Utils.Clone(this.m_channelLifetime);
             clone.m_securityTokenLifetime = (int)Utils.Clone(this.m_securityTokenLifetime);
 
@@ -43687,6 +43700,7 @@ namespace Opc.Ua
         private int m_maxArrayLength;
         private int m_maxMessageSize;
         private int m_maxBufferSize;
+        private int m_maxChannelCount;
         private int m_channelLifetime;
         private int m_securityTokenLifetime;
         #endregion

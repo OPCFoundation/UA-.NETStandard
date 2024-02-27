@@ -35,6 +35,7 @@ namespace Opc.Ua
             configuration.MaxMessageSize = UInt16.MaxValue * 64;
             configuration.MaxStringLength = UInt16.MaxValue;
             configuration.MaxBufferSize = UInt16.MaxValue;
+            configuration.MaxChannelCount = 1000;
             configuration.ChannelLifetime = 120000;
             configuration.SecurityTokenLifetime = 3600000;
 
@@ -60,6 +61,7 @@ namespace Opc.Ua
             configuration.MaxMessageSize = applicationConfiguration.TransportQuotas.MaxMessageSize;
             configuration.MaxStringLength = applicationConfiguration.TransportQuotas.MaxStringLength;
             configuration.MaxBufferSize = applicationConfiguration.TransportQuotas.MaxBufferSize;
+            configuration.MaxChannelCount = applicationConfiguration.TransportQuotas.MaxChannelCount;
             configuration.ChannelLifetime = applicationConfiguration.TransportQuotas.ChannelLifetime;
             configuration.SecurityTokenLifetime = applicationConfiguration.TransportQuotas.SecurityTokenLifetime;
 

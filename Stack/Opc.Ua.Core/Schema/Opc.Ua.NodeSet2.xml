@@ -56721,6 +56721,7 @@
       <Field Name="MaxArrayLength" DataType="i=6" />
       <Field Name="MaxMessageSize" DataType="i=6" />
       <Field Name="MaxBufferSize" DataType="i=6" />
+      <Field Name="MaxChannelCount" DataType="i=6" />
       <Field Name="ChannelLifetime" DataType="i=6" />
       <Field Name="SecurityTokenLifetime" DataType="i=6" />
     </Definition>

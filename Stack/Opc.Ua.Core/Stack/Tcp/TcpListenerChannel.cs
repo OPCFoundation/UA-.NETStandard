@@ -158,6 +158,18 @@ namespace Opc.Ua.Bindings
                 StartCleanupTimer(StatusCodes.BadTimeout);
             }
         }
+
+        /// <summary>
+        /// Set the channel Inactive and clean it up
+        /// </summary>
+        public void Cleanup()
+        {
+            lock (DataLock)
+            {
+                State = TcpChannelState.Inactive;
+            }
+            OnCleanup(StatusCodes.BadNoCommunication);
+        }
         #endregion
 
         #region Socket Event Handlers
@@ -545,6 +557,13 @@ namespace Opc.Ua.Bindings
         /// The report certificate audit event handler.
         /// </summary>
         protected ReportAuditCertificateEventHandler ReportAuditCertificateEvent => m_reportAuditCertificateEvent;
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// The last ActiveTime of the channel
+        /// </summary>
+        public long LastActiveTime => LastCommTime;
         #endregion
 
         #region Private Fields

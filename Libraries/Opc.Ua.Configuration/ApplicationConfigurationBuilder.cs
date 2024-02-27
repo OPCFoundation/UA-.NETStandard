@@ -493,6 +493,13 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        public IApplicationConfigurationBuilderTransportQuotas SetMaxChannelCount(int maxChannelCount)
+        {
+            ApplicationConfiguration.TransportQuotas.MaxChannelCount = maxChannelCount;
+            return this;
+        }
+
+        /// <inheritdoc/>
         public IApplicationConfigurationBuilderTransportQuotas SetSecurityTokenLifetime(int securityTokenLifetime)
         {
             ApplicationConfiguration.TransportQuotas.SecurityTokenLifetime = securityTokenLifetime;

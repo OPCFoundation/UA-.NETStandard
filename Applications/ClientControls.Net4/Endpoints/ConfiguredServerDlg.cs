@@ -493,6 +493,11 @@ namespace Opc.Ua.Client.Controls
                 return false;
             }
 
+            if (defaultConfiguration.MaxChannelCount != currentConfiguration.MaxChannelCount)
+            {
+                return false;
+            }
+
             if (defaultConfiguration.MaxArrayLength != currentConfiguration.MaxArrayLength)
             {
                 return false;

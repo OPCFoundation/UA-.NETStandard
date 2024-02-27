@@ -339,6 +339,9 @@ namespace Opc.Ua.Bindings
             const UInt32 kProtocolVersion = 0;
             const int kResponseBufferSize = 127;
 
+            // Communication is active on the chanell
+            Interlocked.Exchange(ref LastCommTime, HiResClock.TickCount64);
+
             // validate the channel state.
             if (State != TcpChannelState.Connecting)
             {
@@ -478,6 +481,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private bool ProcessOpenSecureChannelRequest(uint messageType, ArraySegment<byte> messageChunk)
         {
+            // Communication is active on the chanell
+            Interlocked.Exchange(ref LastCommTime, HiResClock.TickCount64);
+
             // validate the channel state.
             if (State != TcpChannelState.Opening && State != TcpChannelState.Open)
             {
@@ -802,6 +808,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private bool ProcessCloseSecureChannelRequest(uint messageType, ArraySegment<byte> messageChunk)
         {
+            // Communication is active on the channel
+            Interlocked.Exchange(ref LastCommTime, HiResClock.TickCount64);
+
             // validate security on the message.
             ChannelToken token = null;
             uint requestId = 0;
@@ -889,6 +898,10 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private bool ProcessRequestMessage(uint messageType, ArraySegment<byte> messageChunk)
         {
+
+            // Communication is active on the channel
+            Interlocked.Exchange(ref LastCommTime, HiResClock.TickCount64);
+            
             // validate the channel state.
             if (State != TcpChannelState.Open)
             {

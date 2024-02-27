@@ -488,6 +488,7 @@ namespace Opc.Ua.Bindings
             m_quotas = new ChannelQuotas {
                 MaxBufferSize = m_settings.Configuration.MaxBufferSize,
                 MaxMessageSize = m_settings.Configuration.MaxMessageSize,
+                MaxChannelCount = m_settings.Configuration.MaxChannelCount,
                 ChannelLifetime = m_settings.Configuration.ChannelLifetime,
                 SecurityTokenLifetime = m_settings.Configuration.SecurityTokenLifetime,
 

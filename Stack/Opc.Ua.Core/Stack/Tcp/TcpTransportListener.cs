@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
+using System.Timers;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
@@ -78,6 +79,12 @@ namespace Opc.Ua.Bindings
                         }
                         m_channels = null;
                     }
+
+                    if (m_inactivityDetectionTimer != null)
+                    {
+                        Utils.SilentDispose(m_inactivityDetectionTimer);
+                        m_inactivityDetectionTimer = null;
+                    }
                 }
             }
         }
@@ -119,8 +126,9 @@ namespace Opc.Ua.Bindings
 
             if (configuration != null)
             {
-                m_quotas.MaxBufferSize = configuration.MaxBufferSize;
+                m_inactivityDetectPeriod = configuration.ChannelLifetime; 
                 m_quotas.MaxMessageSize = configuration.MaxMessageSize;
+                m_quotas.MaxChannelCount = configuration.MaxChannelCount;
                 m_quotas.ChannelLifetime = configuration.ChannelLifetime;
                 m_quotas.SecurityTokenLifetime = configuration.SecurityTokenLifetime;
                 messageContext.MaxArrayLength = configuration.MaxArrayLength;
@@ -311,6 +319,14 @@ namespace Opc.Ua.Bindings
                     args.UserToken = m_listeningSocket;
                     m_listeningSocket.Bind(endpoint);
                     m_listeningSocket.Listen(Int32.MaxValue);
+
+                    m_inactivityDetectionTimer = new Timer() {
+                        Interval = m_inactivityDetectPeriod,
+                        AutoReset = true,
+                    };
+                    m_inactivityDetectionTimer.Elapsed += (sender, e) => DetectInactiveChannels();
+                    m_inactivityDetectionTimer.Start();
+
                     if (!m_listeningSocket.AcceptAsync(args))
                     {
                         OnAccept(null, args);
@@ -360,6 +376,23 @@ namespace Opc.Ua.Bindings
                     throw ServiceResultException.Create(
                         StatusCodes.BadNoCommunication,
                         "Failed to establish tcp listener sockets for Ipv4 and IPv6.");
+                }
+            }
+        }
+
+        /// <summary>
+        /// The callback timer which detects stale channels
+        /// </summary>
+        private void DetectInactiveChannels()
+        {
+            lock(m_lock)
+            {
+                foreach (var chEntry in m_channels)
+                {
+                    if (HiResClock.TickCount64 - chEntry.Value.LastActiveTime > m_quotas.ChannelLifetime)
+                    {
+                        chEntry.Value.Cleanup();
+                    }
                 }
             }
         }
@@ -474,6 +507,12 @@ namespace Opc.Ua.Bindings
                 repeatAccept = false;
                 lock (m_lock)
                 {
+                    if (m_quotas.MaxChannelCount < m_channels.Count)
+                    {
+                        Utils.LogError("OnAccept: Maximum number of channels {0} reached", m_channels.Count);
+                        e.Dispose();
+                        return;
+                    }
                     if (!(e.UserToken is Socket listeningSocket))
                     {
                         Utils.LogError("OnAccept: Listensocket was null.");
@@ -722,6 +761,8 @@ namespace Opc.Ua.Bindings
         private Dictionary<uint, TcpListenerChannel> m_channels;
         private ITransportListenerCallback m_callback;
         private bool m_reverseConnectListener;
+        private double m_inactivityDetectPeriod;
+        private Timer m_inactivityDetectionTimer;
         #endregion
     }
 
