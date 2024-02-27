@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
@@ -670,7 +671,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             {
                 var buildInfo = new BuildInfo() {
                     BuildDate = DataGenerator.GetRandomDateTime(),
-                    BuildNumber = "1.4." + DataGenerator.GetRandomByte().ToString(),
+                    BuildNumber = "1.4." + DataGenerator.GetRandomByte().ToString(CultureInfo.InvariantCulture),
                     ManufacturerName = "OPC Foundation",
                     ProductName = "Complex Type Client",
                     ProductUri = "http://opcfoundation.org/ComplexTypeClient",

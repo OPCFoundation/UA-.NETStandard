@@ -29,6 +29,10 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 * Sessions and Subscriptions.
 * A [PubSub](Docs/PubSub.md) library with samples.
 
+#### **New in 1.05.373**
+* 1.05 Nodeset
+* Support for [WellKnownRoles & RoleBasedUserManagement](Docs/RoleBasedUserManagement.md).
+
 #### **New in 1.4.368**
 * Improved support for [Logging](Docs/Logging.md) with `ILogger` and `EventSource`. 
 * Support for custom certificate stores with refactored `ICertificateStore` and `CertificateStoreType` interface.

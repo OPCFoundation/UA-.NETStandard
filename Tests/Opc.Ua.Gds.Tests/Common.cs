@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -144,7 +145,7 @@ namespace Opc.Ua.Gds.Tests
                     ServerCapabilities = serverCapabilities
                 },
                 DomainNames = domainNames,
-                Subject = String.Format("CN={0},DC={1},O=OPC Foundation", appName, localhost),
+                Subject = Utils.Format("CN={0},DC={1},O=OPC Foundation", appName, localhost),
                 PrivateKeyFormat = privateKeyFormat
             };
             return testData;
@@ -197,15 +198,15 @@ namespace Opc.Ua.Gds.Tests
                 int random = m_randomSource.NextInt32(7);
                 if ((result.Count == 0) || (random & 1) == 0)
                 {
-                    result.Add(String.Format("opc.tcp://{0}:{1}/{2}", name, (port++).ToString(), appUri));
+                    result.Add(Utils.Format("opc.tcp://{0}:{1}/{2}", name, (port++).ToString(CultureInfo.InvariantCulture), appUri));
                 }
                 if ((random & 2) == 0)
                 {
-                    result.Add(String.Format("http://{0}:{1}/{2}", name, (port++).ToString(), appUri));
+                    result.Add(Utils.Format("http://{0}:{1}/{2}", name, (port++).ToString(CultureInfo.InvariantCulture), appUri));
                 }
                 if ((random & 4) == 0)
                 {
-                    result.Add(String.Format("opc.https://{0}:{1}/{2}", name, (port++).ToString(), appUri));
+                    result.Add(Utils.Format("opc.https://{0}:{1}/{2}", name, (port++).ToString(CultureInfo.InvariantCulture), appUri));
                 }
             }
             return result;

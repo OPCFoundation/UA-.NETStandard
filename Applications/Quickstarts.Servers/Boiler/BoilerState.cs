@@ -131,7 +131,7 @@ namespace Boiler
         }
 
         /// <summary>
-        /// Rounds a value to the significate digits specified and adds a random perturbation.
+        /// Rounds a value to the significant digits specified and adds a random perturbation.
         /// </summary>
         private double RoundAndPerturb(double value, byte significantDigits)
         {
@@ -139,7 +139,7 @@ namespace Boiler
 
             if (value != 0)
             {
-                // need to move all significate digits above the decimal point.
+                // need to move all significant digits above the decimal point.
                 double offset = significantDigits - Math.Log10(Math.Abs(value));
 
                 offsetToApply = Math.Floor(offset);

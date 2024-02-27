@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -969,7 +970,7 @@ namespace Opc.Ua.Server
                     systemContext,
                     null,
                     ReferenceTypeIds.HasComponent,
-                    new QualifiedName(diagnostics.SubscriptionId.ToString()),
+                    new QualifiedName(diagnostics.SubscriptionId.ToString(CultureInfo.InvariantCulture)),
                     diagnosticsNode);
 
                 // add reference to subscription array.

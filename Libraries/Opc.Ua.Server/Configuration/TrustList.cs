@@ -75,7 +75,8 @@ namespace Opc.Ua.Server
         /// Delegate to validate the access to the trust list.
         /// </summary>
         /// <param name="context"></param>
-        public delegate void SecureAccess(ISystemContext context);
+        /// <param name="trustedStorePath">the path to identify the trustList</param>
+        public delegate void SecureAccess(ISystemContext context, string trustedStorePath);
         #endregion
 
         #region Private Methods
@@ -668,7 +669,7 @@ namespace Opc.Ua.Server
         {
             if (m_readAccess != null)
             {
-                m_readAccess.Invoke(context);
+                m_readAccess.Invoke(context, m_trustedStorePath);
             }
             else
             {
@@ -680,7 +681,7 @@ namespace Opc.Ua.Server
         {
             if (m_writeAccess != null)
             {
-                m_writeAccess.Invoke(context);
+                m_writeAccess.Invoke(context, m_trustedStorePath);
             }
             else
             {

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 using System.Threading;
 
@@ -868,21 +869,15 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 buffer.Append("PublishQueue ");
-                buffer.AppendFormat(context, args);
-
-                buffer.Append(", SessionId=");
+                buffer.AppendFormat(CultureInfo.InvariantCulture, context, args);
 
                 if (m_session != null)
                 {
-                    buffer.AppendFormat("{0}", m_session.Id);
-                }
-                else
-                {
-                    buffer.AppendFormat(", SessionId={0}", m_session.Id);
+                    buffer.AppendFormat(CultureInfo.InvariantCulture, ", SessionId={0}", m_session.Id);
                 }
 
-                buffer.AppendFormat(", SubscriptionCount={0}", m_queuedSubscriptions.Count);
-                buffer.AppendFormat(", RequestCount={0}", m_queuedRequests.Count);
+                buffer.AppendFormat(CultureInfo.InvariantCulture, ", SubscriptionCount={0}, RequestCount={1}",
+                    m_queuedSubscriptions.Count, m_queuedRequests.Count);
 
                 int readyToPublish = 0;
 
@@ -894,7 +889,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                buffer.AppendFormat(", ReadyToPublishCount={0}", readyToPublish);
+                buffer.AppendFormat(CultureInfo.InvariantCulture, ", ReadyToPublishCount={0}", readyToPublish);
 
                 int expiredRequests = 0;
 
@@ -906,10 +901,10 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                buffer.AppendFormat(", ExpiredCount={0}", expiredRequests);
+                buffer.AppendFormat(CultureInfo.InvariantCulture, ", ExpiredCount={0}", expiredRequests);
             }
 
-            Utils.LogTrace("{0}", buffer.ToString());
+            Utils.LogTrace(buffer.ToString());
         }
         #endregion
 

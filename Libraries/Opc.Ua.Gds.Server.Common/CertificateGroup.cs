@@ -28,10 +28,9 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
@@ -48,6 +47,7 @@ namespace Opc.Ua.Gds.Server
         public X509Certificate2 Certificate { get; set; }
         public TrustListState DefaultTrustList { get; set; }
         public Boolean UpdateRequired { get; set; }
+        public string TrustedIssuerCertificatesStorePath { get; } = null;
         #endregion
 
         public CertificateGroup()
@@ -57,12 +57,18 @@ namespace Opc.Ua.Gds.Server
 
         protected CertificateGroup(
             string authoritiesStorePath,
-            CertificateGroupConfiguration certificateGroupConfiguration
+            CertificateGroupConfiguration certificateGroupConfiguration,
+            [Optional] string trustedIssuerCertificatesStorePath
             )
         {
             AuthoritiesStorePath = authoritiesStorePath;
             AuthoritiesStoreType = CertificateStoreIdentifier.DetermineStoreType(AuthoritiesStorePath);
             Configuration = certificateGroupConfiguration;
+            if (trustedIssuerCertificatesStorePath != null)
+            {
+
+                TrustedIssuerCertificatesStorePath = trustedIssuerCertificatesStorePath;
+            }
             SubjectName = Configuration.SubjectName.Replace("localhost", Utils.GetHostName());
         }
 
@@ -114,10 +120,11 @@ namespace Opc.Ua.Gds.Server
         }
 
         public virtual ICertificateGroup Create(
-            string storePath,
-            CertificateGroupConfiguration certificateGroupConfiguration)
+            string authoritiesStorePath,
+            CertificateGroupConfiguration certificateGroupConfiguration,
+            [Optional] string trustedIssuerCertificatesStorePath)
         {
-            return new CertificateGroup(storePath, certificateGroupConfiguration);
+            return new CertificateGroup(authoritiesStorePath, certificateGroupConfiguration, trustedIssuerCertificatesStorePath);
         }
 
         /// <summary>
@@ -168,15 +175,25 @@ namespace Opc.Ua.Gds.Server
         public async virtual Task<X509CRL> RevokeCertificateAsync(
             X509Certificate2 certificate)
         {
-            Task<X509CRL> crl = RevokeCertificateAsync(
+            X509CRL crl = await RevokeCertificateAsync(
                 AuthoritiesStorePath,
                 certificate,
-                null);
+                null).ConfigureAwait(false);
 
-            //Also update TrustedList CRL so registerd Applications can get the new CRL
-            await crl.ContinueWith((_) => UpdateAuthorityCertInTrustedList(), TaskContinuationOptions.OnlyOnRanToCompletion).ConfigureAwait(false);
+            // Also update TrustedList CRL so registerd Applications can get the new CRL
+            if (crl != null)
+            {
+                await UpdateAuthorityCertInCertificateStore(Configuration.TrustedListPath).ConfigureAwait(false);
 
-            return await crl.ConfigureAwait(false);
+                //Also update TrustedIssuerCertificates Store
+                if (!String.IsNullOrEmpty(TrustedIssuerCertificatesStorePath))
+                {
+                    await UpdateAuthorityCertInCertificateStore(TrustedIssuerCertificatesStorePath).ConfigureAwait(false);
+                }
+            }
+
+            // return crl
+            return crl;
         }
 
         public virtual Task VerifySigningRequestAsync(
@@ -300,28 +317,37 @@ namespace Opc.Ua.Gds.Server
                 throw new ArgumentException("SubjectName provided does not match the SubjectName property of the CertificateGroup \n" +
                     "CA Certificate is not created until the subjectName " + SubjectName + " is provided", subjectName);
             }
-        
+
             DateTime yesterday = DateTime.Today.AddDays(-1);
-            using (X509Certificate2 newCertificate = CertificateFactory.CreateCertificate(subjectName)
+            using (X509Certificate2 newCertificate = await CertificateFactory.CreateCertificate(subjectName)
                 .SetNotBefore(yesterday)
                 .SetLifeTime(Configuration.CACertificateLifetime)
                 .SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.CACertificateHashSize))
                 .SetCAConstraint()
                 .SetRSAKeySize(Configuration.CACertificateKeySize)
                 .CreateForRSA()
-                .AddToStore(
+                .AddToStoreAsync(
                     AuthoritiesStoreType,
-                    AuthoritiesStorePath))
+                    AuthoritiesStorePath).ConfigureAwait(false))
             {
 
                 // save only public key
                 Certificate = new X509Certificate2(newCertificate.RawData);
 
                 // initialize revocation list
-                await RevokeCertificateAsync(AuthoritiesStorePath, newCertificate, null).ConfigureAwait(false);
+                X509CRL crl = await RevokeCertificateAsync(AuthoritiesStorePath, newCertificate, null).ConfigureAwait(false);
 
-                await UpdateAuthorityCertInTrustedList().ConfigureAwait(false);
+                //Update TrustedList Store
+                if (crl != null)
+                {
+                    await UpdateAuthorityCertInCertificateStore(Configuration.TrustedListPath).ConfigureAwait(false);
 
+                    // Update TrustedIssuerCertificates Store
+                    if (!string.IsNullOrEmpty(TrustedIssuerCertificatesStorePath))
+                    {
+                        await UpdateAuthorityCertInCertificateStore(TrustedIssuerCertificatesStorePath).ConfigureAwait(false);
+                    }
+                }
                 return Certificate;
             }
         }
@@ -435,40 +461,44 @@ namespace Opc.Ua.Gds.Server
 
         #region Private Methods
         /// <summary>
-        /// Updates the certificate authority certificate and CRL in the trusted list.
+        /// Updates the certificate authority certificate and CRL in the provided CertificateStore
         /// </summary>
-        protected async Task UpdateAuthorityCertInTrustedList()
+        /// <param name="path">the path of the CertificateStore</param>
+        /// <returns></returns>
+        protected async Task UpdateAuthorityCertInCertificateStore(string path)
         {
-            string trustedListStorePath = Configuration.TrustedListPath;
-            if (!String.IsNullOrEmpty(Configuration.TrustedListPath))
+            if (!String.IsNullOrEmpty(path))
             {
                 using (ICertificateStore authorityStore = CertificateStoreIdentifier.OpenStore(AuthoritiesStorePath))
-                using (ICertificateStore trustedStore = CertificateStoreIdentifier.OpenStore(trustedListStorePath))
+                using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(path))
                 {
                     X509Certificate2Collection certificates = await authorityStore.Enumerate().ConfigureAwait(false);
                     foreach (var certificate in certificates)
                     {
                         if (X509Utils.CompareDistinguishedName(certificate.Subject, SubjectName))
                         {
-                            X509Certificate2Collection certs = await trustedStore.FindByThumbprint(certificate.Thumbprint).ConfigureAwait(false);
+                            X509Certificate2Collection certs = await store.FindByThumbprint(certificate.Thumbprint).ConfigureAwait(false);
                             if (certs.Count == 0)
                             {
-                                await trustedStore.Add(new X509Certificate2(certificate.RawData)).ConfigureAwait(false);
+                                using (var x509 = new X509Certificate2(certificate.RawData))
+                                {
+                                    await store.Add(x509).ConfigureAwait(false);
+                                }
                             }
 
                             // delete existing CRL in trusted list
-                            foreach (var crl in await trustedStore.EnumerateCRLs(certificate, false).ConfigureAwait(false))
+                            foreach (var crl in await store.EnumerateCRLs(certificate, false).ConfigureAwait(false))
                             {
                                 if (crl.VerifySignature(certificate, false))
                                 {
-                                    await trustedStore.DeleteCRL(crl).ConfigureAwait(false);
+                                    await store.DeleteCRL(crl).ConfigureAwait(false);
                                 }
                             }
 
                             // copy latest CRL to trusted list
                             foreach (var crl in await authorityStore.EnumerateCRLs(certificate, true).ConfigureAwait(false))
                             {
-                                await trustedStore.AddCRL(crl).ConfigureAwait(false);
+                                await store.AddCRL(crl).ConfigureAwait(false);
                             }
                         }
                     }

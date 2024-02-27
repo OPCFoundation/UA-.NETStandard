@@ -126,7 +126,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// The maximum number of refrences to return in a single browse operation.
+        /// The maximum number of references to return in a single browse operation.
         /// </summary>
         [DataMember(Order = 2)]
         public uint MaxReferencesReturned

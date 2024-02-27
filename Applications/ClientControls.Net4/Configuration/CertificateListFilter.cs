@@ -125,7 +125,7 @@ namespace Opc.Ua.Client.Controls
 
                 if (!String.IsNullOrEmpty(m_domain))
                 {
-                    IList<string> domains = X509Utils.GetDomainsFromCertficate(certificate);
+                    IList<string> domains = X509Utils.GetDomainsFromCertificate(certificate);
 
                     bool found = false;
 

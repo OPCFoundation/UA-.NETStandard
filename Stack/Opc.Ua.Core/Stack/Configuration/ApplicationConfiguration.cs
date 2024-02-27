@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Text;
@@ -236,9 +237,9 @@ namespace Opc.Ua
             if (!file.Exists)
             {
                 var message = new StringBuilder();
-                message.AppendFormat("Configuration file does not exist: {0}", filePath);
+                message.AppendFormat(CultureInfo.InvariantCulture, "Configuration file does not exist: {0}", filePath);
                 message.AppendLine();
-                message.AppendFormat("Current directory is: {0}", Directory.GetCurrentDirectory());
+                message.AppendFormat(CultureInfo.InvariantCulture, "Current directory is: {0}", Directory.GetCurrentDirectory());
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError, message.ToString());
             }
@@ -273,9 +274,9 @@ namespace Opc.Ua
                 catch (Exception e)
                 {
                     var message = new StringBuilder();
-                    message.AppendFormat("Configuration file could not be loaded: {0}", file.FullName);
+                    message.AppendFormat(CultureInfo.InvariantCulture, "Configuration file could not be loaded: {0}", file.FullName);
                     message.AppendLine();
-                    message.AppendFormat("Error is: {0}", e.Message);
+                    message.AppendFormat(CultureInfo.InvariantCulture, "Error is: {0}", e.Message);
                     throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError, e, message.ToString());
                 }
@@ -322,7 +323,7 @@ namespace Opc.Ua
             catch (Exception e)
             {
                 var message = new StringBuilder();
-                message.AppendFormat("Configuration file could not be loaded: {0}", file.FullName);
+                message.AppendFormat(CultureInfo.InvariantCulture, "Configuration file could not be loaded: {0}", file.FullName);
                 message.AppendLine();
                 message.Append(e.Message);
                 throw ServiceResultException.Create(
@@ -364,9 +365,9 @@ namespace Opc.Ua
             catch (Exception e)
             {
                 var message = new StringBuilder();
-                message.AppendFormat("Configuration could not be loaded.");
+                message.AppendFormat(CultureInfo.InvariantCulture, "Configuration could not be loaded.");
                 message.AppendLine();
-                message.AppendFormat("Error is: {0}", e.Message);
+                message.AppendFormat(CultureInfo.InvariantCulture, "Error is: {0}", e.Message);
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError, e, message.ToString());
             }
@@ -502,7 +503,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="createAlways">if set to <c>true</c> ConfiguredEndpointCollection is always returned,
         ///	even if loading from disk fails</param>
-        /// <returns>Colection of configured endpoints from the disk.</returns>
+        /// <returns>Collection of configured endpoints from the disk.</returns>
         public ConfiguredEndpointCollection LoadCachedEndpoints(bool createAlways)
         {
             return LoadCachedEndpoints(createAlways, false);
@@ -515,7 +516,7 @@ namespace Opc.Ua
         /// even if loading from disk fails</param>
         /// <param name="overrideConfiguration">if set to <c>true</c> overrides the configuration.</param>
         /// <returns>
-        /// Colection of configured endpoints from the disk.
+        /// Collection of configured endpoints from the disk.
         /// </returns>
         public ConfiguredEndpointCollection LoadCachedEndpoints(bool createAlways, bool overrideConfiguration)
         {

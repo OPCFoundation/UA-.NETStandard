@@ -400,13 +400,13 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, itemsToModify, response.StringTable);
 
             // publish request
-            var acknoledgements = new SubscriptionAcknowledgementCollection();
-            response = services.Publish(requestHeader, acknoledgements,
+            var acknowledgements = new SubscriptionAcknowledgementCollection();
+            response = services.Publish(requestHeader, acknowledgements,
                         out uint subscriptionId, out UInt32Collection availableSequenceNumbers,
                         out bool moreNotifications, out NotificationMessage notificationMessage,
                         out StatusCodeCollection statuses, out diagnosticInfos);
-            ServerFixtureUtils.ValidateResponse(response, statuses, acknoledgements);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements, response.StringTable);
+            ServerFixtureUtils.ValidateResponse(response, statuses, acknowledgements);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
             Assert.AreEqual(id, subscriptionId);
             Assert.AreEqual(0, availableSequenceNumbers.Count);
 
@@ -422,16 +422,16 @@ namespace Opc.Ua.Server.Tests
             int loopCounter = (int)queueSize;
             Thread.Sleep(loopCounter * 1000);
 
-            acknoledgements = new SubscriptionAcknowledgementCollection();
+            acknowledgements = new SubscriptionAcknowledgementCollection();
             do
             {
                 // get publish responses
-                response = services.Publish(requestHeader, acknoledgements,
+                response = services.Publish(requestHeader, acknowledgements,
                     out subscriptionId, out availableSequenceNumbers,
                     out moreNotifications, out notificationMessage,
                     out statuses, out diagnosticInfos);
-                ServerFixtureUtils.ValidateResponse(response, statuses, acknoledgements);
-                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements, response.StringTable);
+                ServerFixtureUtils.ValidateResponse(response, statuses, acknowledgements);
+                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
                 Assert.AreEqual(id, subscriptionId);
 
                 var dataChangeNotification = notificationMessage.NotificationData[0].Body as DataChangeNotification;
@@ -440,13 +440,13 @@ namespace Opc.Ua.Server.Tests
                                 dataChangeNotification?.MonitoredItems[0].Value.ToString(),
                                 notificationMessage.PublishTime);
 
-                acknoledgements.Clear();
-                acknoledgements.Add(new SubscriptionAcknowledgement() {
+                acknowledgements.Clear();
+                acknowledgements.Add(new SubscriptionAcknowledgement() {
                     SubscriptionId = id,
                     SequenceNumber = notificationMessage.SequenceNumber
                 });
 
-            } while (acknoledgements.Count > 0 && --loopCounter > 0);
+            } while (acknowledgements.Count > 0 && --loopCounter > 0);
 
             // republish
             response = services.Republish(requestHeader, subscriptionId, notificationMessage.SequenceNumber, out notificationMessage);
@@ -498,19 +498,19 @@ namespace Opc.Ua.Server.Tests
             Thread.Sleep(1000);
 
             // publish request (use invalid sequence number for status)
-            var acknoledgements = new SubscriptionAcknowledgementCollection() {
+            var acknowledgements = new SubscriptionAcknowledgementCollection() {
                 new SubscriptionAcknowledgement()
                     { SubscriptionId = subscriptionId, SequenceNumber=123 }
                 };
-            response = services.Publish(requestHeader, acknoledgements,
+            response = services.Publish(requestHeader, acknowledgements,
                 out uint publishedId, out UInt32Collection availableSequenceNumbers,
                 out bool moreNotifications, out NotificationMessage notificationMessage,
                 out statuses, out diagnosticInfos);
-            ServerFixtureUtils.ValidateResponse(response, statuses, acknoledgements);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements, response.StringTable);
+            ServerFixtureUtils.ValidateResponse(response, statuses, acknowledgements);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
             Assert.AreEqual(subscriptionId, publishedId);
 
-            // static node, do not acknoledge
+            // static node, do not acknowledge
             Assert.AreEqual(1, availableSequenceNumbers.Count);
 
             return subscriptionIds;
@@ -556,14 +556,14 @@ namespace Opc.Ua.Server.Tests
             }
 
             requestHeader.Timestamp = DateTime.UtcNow;
-            var acknoledgements = new SubscriptionAcknowledgementCollection();
-            response = services.Publish(requestHeader, acknoledgements,
+            var acknowledgements = new SubscriptionAcknowledgementCollection();
+            response = services.Publish(requestHeader, acknowledgements,
                 out uint publishedId, out UInt32Collection availableSequenceNumbers,
                 out bool moreNotifications, out NotificationMessage notificationMessage,
                 out StatusCodeCollection _, out diagnosticInfos);
             Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
             ServerFixtureUtils.ValidateResponse(response);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements, response.StringTable);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
             Assert.AreEqual(subscriptionIds[0], publishedId);
             Assert.AreEqual(sendInitialData ? 1 : 0, notificationMessage.NotificationData.Count);
             if (sendInitialData)
@@ -596,20 +596,20 @@ namespace Opc.Ua.Server.Tests
             Thread.Sleep(100);
 
             // publish request
-            var acknoledgements = new SubscriptionAcknowledgementCollection();
-            var response = services.Publish(requestHeader, acknoledgements,
+            var acknowledgements = new SubscriptionAcknowledgementCollection();
+            var response = services.Publish(requestHeader, acknowledgements,
                 out uint publishedId, out UInt32Collection availableSequenceNumbers,
                 out bool moreNotifications, out NotificationMessage notificationMessage,
                 out StatusCodeCollection _, out var diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements, response.StringTable);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
             Assert.IsFalse(moreNotifications);
             Assert.IsTrue(subscriptionIds.Contains(publishedId));
             Assert.AreEqual(1, notificationMessage.NotificationData.Count);
             var statusMessage = notificationMessage.NotificationData[0].ToString();
             Assert.IsTrue(statusMessage.Contains("GoodSubscriptionTransferred"));
 
-            // static node, do not acknoledge
+            // static node, do not acknowledge
             if (availableSequenceNumbers != null)
             {
                 Assert.AreEqual(0, availableSequenceNumbers.Count);
