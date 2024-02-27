@@ -1076,6 +1076,23 @@ namespace Opc.Ua
 
                 text = text.Substring(index + 1);
             }
+            
+            if (text.StartsWith("svr=", StringComparison.Ordinal))
+            {
+                int index = text.IndexOf(';', 4);
+
+                if (index < 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"Invalid ExpandedNodeId ({originalText}).");
+                }
+
+                if (UInt16.TryParse(text.Substring(4, index - 4), out ushort ns))
+                {
+                    serverIndex = ns;
+                }
+
+                text = text.Substring(index + 1);
+            }
 
             int namespaceIndex = 0;
             string namespaceUri = null;

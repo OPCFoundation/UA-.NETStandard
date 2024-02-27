@@ -114,6 +114,11 @@ namespace Opc.Ua
         public const string HttpsBinaryTransport = "http://opcfoundation.org/UA-Profile/Transport/https-uabinary";
 
         /// <summary>
+        /// Communicates with UA JSON over HTTPS.
+        /// </summary>
+        public const string HttpsJsonTransport = "http://opcfoundation.org/UA-Profile/Transport/https-uajson";
+
+        /// <summary>
         /// Uri for "PubSub UDP UADP" Profile.
         /// This PubSub transport Facet defines a combination of the UDP transport protocol mapping with UADP message mapping
         /// </summary>

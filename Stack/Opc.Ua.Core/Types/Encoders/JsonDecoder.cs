@@ -106,6 +106,55 @@ namespace Opc.Ua
         #endregion
 
         #region Public Methods
+        private ushort ToNamespaceIndex(string uri)
+        {
+            var index = m_context.NamespaceUris.GetIndex(uri);
+
+            if (index < 0)
+            {
+                if (!UpdateNamespaceTable)
+                {
+                    return UInt16.MaxValue;
+                }
+                else
+                {
+                    index = m_context.NamespaceUris.GetIndexOrAppend(uri);
+                }
+            }
+
+            return (ushort)index;
+        }
+
+        private ushort ToNamespaceIndex(long index)
+        {
+            if (m_namespaceMappings == null || index <= 0)
+            {
+                return (ushort)index;
+            }
+
+            if (index < 0 || index >= m_namespaceMappings.Length)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError, $"No mapping for NamespaceIndex={index}.");
+            }
+
+            return m_namespaceMappings[index];
+        }
+
+        private ushort ToServerIndex(long index)
+        {
+            if (m_serverMappings == null || index <= 0)
+            {
+                return (ushort)index;
+            }
+
+            if (index < 0 || index >= m_serverMappings.Length)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError, $"No mapping for ServerIndex(={index}.");
+            }
+
+            return m_serverMappings[index];
+        }
+
         /// <summary>
         /// Decodes a session-less message from a buffer.
         /// </summary>
@@ -205,14 +254,48 @@ namespace Opc.Ua
 
             if (namespaceUris != null && m_context.NamespaceUris != null)
             {
-                m_namespaceMappings = m_context.NamespaceUris.CreateMapping(namespaceUris, false);
+                ushort[] namespaceMappings = new ushort[namespaceUris.Count];
+
+                for (uint ii = 0; ii < namespaceUris.Count; ii++)
+                {
+                    var uri = namespaceUris.GetString(ii);
+
+                    if (UpdateNamespaceTable)
+                    {
+                        namespaceMappings[ii] = m_context.NamespaceUris.GetIndexOrAppend(uri);
+                    }
+                    else
+                    {
+                       var index = m_context.NamespaceUris.GetIndex(namespaceUris.GetString(ii));
+                       namespaceMappings[ii] = (index >= 0) ? (UInt16)index : UInt16.MaxValue;
+                    }
+                }
+               
+                m_namespaceMappings = namespaceMappings;
             }
 
             m_serverMappings = null;
 
             if (serverUris != null && m_context.ServerUris != null)
             {
-                m_serverMappings = m_context.ServerUris.CreateMapping(serverUris, false);
+                ushort[] serverMappings = new ushort[serverUris.Count];
+
+                for (uint ii = 0; ii < serverUris.Count; ii++)
+                {
+                    var uri = serverUris.GetString(ii);
+
+                    if (UpdateNamespaceTable)
+                    {
+                        serverMappings[ii] = m_context.ServerUris.GetIndexOrAppend(uri);
+                    }
+                    else
+                    {
+                        var index = m_context.ServerUris.GetIndex(serverUris.GetString(ii));
+                        serverMappings[ii] = (index >= 0) ? (UInt16)index : UInt16.MaxValue;
+                    }
+                }
+
+                m_serverMappings = serverMappings;
             }
         }
 
@@ -851,7 +934,16 @@ namespace Opc.Ua
 
             if (token is string text)
             {
-                return NodeId.Parse(m_context, text, UpdateNamespaceTable);
+                var nodeId = NodeId.Parse(m_context, text, UpdateNamespaceTable);
+
+                var ns = ToNamespaceIndex(nodeId.NamespaceIndex);
+
+                if (ns != nodeId.NamespaceIndex)
+                {
+                    return new NodeId(nodeId.Identifier, ns);
+                }
+
+                return nodeId;
             }
 
             if (!(token is Dictionary<string, object> value))
@@ -881,14 +973,14 @@ namespace Opc.Ua
                     {
                         if (namespaceToken is string namespaceUri)
                         {
-                            namespaceIndex = m_context.NamespaceUris.GetIndexOrAppend(namespaceUri);
+                            namespaceIndex = ToNamespaceIndex(namespaceUri);
                         }
                     }
                     else
                     {
                         if (index.Value >= 0 || index.Value < UInt16.MaxValue)
                         {
-                            namespaceIndex = (ushort)index.Value;
+                            namespaceIndex = ToNamespaceIndex(index.Value);
                         }
                     }
                 }
@@ -941,7 +1033,29 @@ namespace Opc.Ua
 
             if (token is string text)
             {
-                return ExpandedNodeId.Parse(m_context, text, UpdateNamespaceTable);
+                var nodeId = ExpandedNodeId.Parse(m_context, text, UpdateNamespaceTable);
+
+                if (nodeId.NamespaceIndex != 0)
+                {
+                    var ns = ToNamespaceIndex(nodeId.NamespaceIndex);
+
+                    if (ns != nodeId.NamespaceIndex)
+                    {
+                        nodeId = new ExpandedNodeId(nodeId.Identifier, ns, nodeId.NamespaceUri, nodeId.ServerIndex);
+                    }
+                }
+
+                if (nodeId.ServerIndex != 0)
+                {
+                    var sv = ToServerIndex(nodeId.ServerIndex);
+
+                    if (sv != nodeId.ServerIndex)
+                    {
+                        nodeId = new ExpandedNodeId(nodeId.InnerNodeId, nodeId.NamespaceUri, sv);
+                    }
+                }
+
+                return nodeId;
             }
 
             if (!(token is Dictionary<string, object> value))
@@ -1077,7 +1191,19 @@ namespace Opc.Ua
 
             if (token is string text)
             {
-                return QualifiedName.Parse(m_context, text, UpdateNamespaceTable);
+                var qn = QualifiedName.Parse(m_context, text, UpdateNamespaceTable);
+
+                if (qn.NamespaceIndex != 0)
+                {
+                    var ns = ToNamespaceIndex(qn.NamespaceIndex);
+
+                    if (ns != qn.NamespaceIndex)
+                    {
+                        qn = new QualifiedName(qn.Name, ns);
+                    }
+                }
+
+                return qn;
             }
 
             if (!(token is Dictionary<string, object> value))

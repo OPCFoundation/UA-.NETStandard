@@ -22,7 +22,7 @@ namespace Opc.Ua
         /// <summary>
         /// The VersionTime of the namespaces URIs on the server.
         /// </summary>
-        public UInt32 UriVersion;
+        public UInt32 UrisVersion;
 
         /// <summary>
         /// The namespaces URIs referenced by the message.
@@ -47,7 +47,7 @@ namespace Opc.Ua
         /// <inheritdoc cref="IEncodeable.Encode(IEncoder)" />
         public void Encode(IEncoder encoder)
         {
-            encoder.WriteUInt32("UriVersion", UriVersion);
+            encoder.WriteUInt32("UriVersion", UrisVersion);
             if (NamespaceUris != null && NamespaceUris.Count > 1)
             {
                 string[] uris = new string[NamespaceUris.Count - 1];
@@ -110,7 +110,7 @@ namespace Opc.Ua
         /// <inheritdoc cref="IEncodeable.Decode(IDecoder)" />
         public void Decode(IDecoder decoder)
         {
-            UriVersion = decoder.ReadUInt32("UriVersion");
+            UrisVersion = decoder.ReadUInt32("UriVersion");
 
             NamespaceUris = new NamespaceTable();
             var uris = decoder.ReadStringArray("NamespaceUris");
