@@ -381,6 +381,8 @@ namespace Opc.Ua.Gds.Server
 
                     Opc.Ua.Gds.CertificateDirectoryState activeNode = new Opc.Ua.Gds.CertificateDirectoryState(passiveNode.Parent);
 
+                    activeNode.CheckRevocationStatus = new CheckRevocationStatusMethodState(passiveNode.Parent);
+
                     activeNode.Create(context, passiveNode);
                     activeNode.QueryServers.OnCall = new QueryServersMethodStateMethodCallHandler(OnQueryServers);
                     activeNode.QueryApplications.OnCall = new QueryApplicationsMethodStateMethodCallHandler(OnQueryApplications);
@@ -396,6 +398,7 @@ namespace Opc.Ua.Gds.Server
                     activeNode.GetCertificateStatus.OnCall = new GetCertificateStatusMethodStateMethodCallHandler(OnGetCertificateStatus);
                     activeNode.StartSigningRequest.OnCall = new StartSigningRequestMethodStateMethodCallHandler(OnStartSigningRequest);
                     activeNode.CheckRevocationStatus.OnCall = new CheckRevocationStatusMethodStateMethodCallHandler(OnCheckRevocationStatus);
+
                     // TODO
                     //activeNode.RevokeCertificate.OnCall = new RevokeCertificateMethodStateMethodCallHandler(OnRevokeCertificate);
 
@@ -603,25 +606,29 @@ namespace Opc.Ua.Gds.Server
                 }
             }
 
-                //create CertificateValidator with secure defaults
-                var certificateValidator = new CertificateValidator();
-            certificateValidator.Update(m_securityConfiguration.TrustedIssuerCertificates, null, null);
-
+            //create CertificateValidator initialized with GDS CAs
+            var certificateValidator = new CertificateValidator();
+            var authorities = new CertificateTrustList() {
+                StorePath = m_globalDiscoveryServerConfiguration.AuthoritiesStorePath,
+                StoreType = CertificateStoreIdentifier.DetermineStoreType(m_globalDiscoveryServerConfiguration.AuthoritiesStorePath)
+            };
+            certificateValidator.Update(null, authorities, null);
 
             validityTime = DateTime.MinValue;
 
-            try
+            using (var x509 = new X509Certificate2(certificate))
             {
-                certificateValidator.Validate(new X509Certificate2(certificate));
+                try
+                {
+                    certificateValidator.Validate(x509);
+                }
+                catch (ServiceResultException se)
+                {
+                    certificateStatus = se.StatusCode;
+                }
             }
-            catch (ServiceResultException se)
-            {
-                certificateStatus = se.StatusCode;
-            }
-
             return ServiceResult.Good;
         }
-
 
         private ServiceResult CheckHttpsDomain(ApplicationRecordDataType application, string commonName)
         {
