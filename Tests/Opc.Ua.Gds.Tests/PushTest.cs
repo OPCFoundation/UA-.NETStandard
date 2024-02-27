@@ -408,6 +408,9 @@ namespace Opc.Ua.Gds.Tests
             byte[] privateKey = null;
             byte[] certificate = null;
             byte[][] issuerCertificates = null;
+
+            Thread.Sleep(1000);
+
             DateTime now = DateTime.UtcNow;
             do
             {

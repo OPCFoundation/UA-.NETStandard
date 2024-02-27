@@ -1085,7 +1085,6 @@ namespace Opc.Ua.Gds.Tests
         #region Private Fields
         private const int kGoodApplicationsTestCount = 10;
         private const int kInvalidApplicationsTestCount = 10;
-        private const int kRandomStart = 1;
         private ApplicationTestDataGenerator m_appTestDataGenerator;
         private GlobalDiscoveryTestServer m_server;
         private GlobalDiscoveryTestClient m_gdsClient;
