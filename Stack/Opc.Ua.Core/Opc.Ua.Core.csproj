@@ -20,7 +20,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Schema\Opc.Ua.NodeSet2.xml.zip" />
     <None Remove="Schema\Opc.Ua.Types.bsd" />
     <None Remove="Schema\Opc.Ua.Types.xsd" />
     <None Remove="Schema\UANodeSet.xsd" />
@@ -85,9 +84,6 @@
   <Target Name="GetPackagingOutputs" />
 
   <!-- Produces a zipped version of the Nodeset 2 to reduce assembly size by 2.7MB ! -->
-  <ItemGroup>
-    <EmbeddedResource Include="Schema\Opc.Ua.NodeSet2.xml.zip" />
-  </ItemGroup>
 
   <PropertyGroup>
     <ZipTmp>$(BaseIntermediateOutputPath)/zipnodeset2</ZipTmp>

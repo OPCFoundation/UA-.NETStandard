@@ -1113,7 +1113,7 @@ namespace Opc.Ua
 
             if (UseStringNodeIds || !UseReversibleEncoding)
             {
-                WriteSimpleField(fieldName, value.Format(m_context, ForceNamespaceUri), true);
+                WriteSimpleField(fieldName, value.Format(m_context, ForceNamespaceUri), EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
                 return;
             }
 
@@ -1145,7 +1145,7 @@ namespace Opc.Ua
 
             if (UseStringNodeIds || !UseReversibleEncoding)
             {
-                WriteSimpleField(fieldName, value.Format(m_context, ForceNamespaceUri), true);
+                WriteSimpleField(fieldName, value.Format(m_context, ForceNamespaceUri), EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
                 return;
             }
 
@@ -1235,7 +1235,7 @@ namespace Opc.Ua
 
             if (UseStringNodeIds || !UseReversibleEncoding)
             {
-                WriteSimpleField(fieldName, value.Format(m_context, ForceNamespaceUri), true);
+                WriteSimpleField(fieldName, value.Format(m_context, ForceNamespaceUri), EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
                 return;
             }
 
