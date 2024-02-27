@@ -103,7 +103,7 @@ namespace Opc.Ua.Gds.Tests
                 .Create().ConfigureAwait(false);
 #endif
             // check the application certificate.
-            bool haveAppCertificate = await application.CheckApplicationInstanceCertificates(true).ConfigureAwait(false);
+            bool haveAppCertificate = await m_application.CheckApplicationInstanceCertificates(true).ConfigureAwait(false);
             if (!haveAppCertificate)
             {
                 throw new Exception("Application instance certificate invalid!");
