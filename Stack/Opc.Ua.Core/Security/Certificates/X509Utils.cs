@@ -45,7 +45,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < fields.Count; ii++)
             {
-                if (fields[ii].StartsWith("DC="))
+                if (fields[ii].StartsWith("DC=", StringComparison.Ordinal))
                 {
                     if (builder.Length > 0)
                     {
