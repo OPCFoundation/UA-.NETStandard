@@ -5767,6 +5767,7 @@ namespace Opc.Ua.Client
                     _ = availableSequenceNumbers?.Remove(notificationMessage.SequenceNumber);
                 }
 
+                // match an acknowledgement to be sent back to the server.
                 for (int ii = 0; ii < m_acknowledgementsToSend.Count; ii++)
                 {
                     SubscriptionAcknowledgement acknowledgement = m_acknowledgementsToSend[ii];
@@ -5775,7 +5776,8 @@ namespace Opc.Ua.Client
                     {
                         acknowledgementsToSend.Add(acknowledgement);
                     }
-                    else if (availableSequenceNumbers == null || availableSequenceNumbers.Remove(acknowledgement.SequenceNumber))
+                    else if (availableSequenceNumbers == null ||
+                        availableSequenceNumbers.Remove(acknowledgement.SequenceNumber))
                     {
                         acknowledgementsToSend.Add(acknowledgement);
                         UpdateLatestSequenceNumberToSend(ref latestSequenceNumberToSend, acknowledgement.SequenceNumber);

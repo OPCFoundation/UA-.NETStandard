@@ -12,7 +12,7 @@
   A build with all custom targets which are not part of a regular build
   is scheduled once a week in the DevOps build pipeline.
   Uncomment the following lines to test a custom test target 
-  supported values: net462, netstandard2.1, net48, net6.0, net8.0
+  supported values: net462, netstandard2.0, netstandard2.1, net472, net48, net6.0, net8.0
    -->
   <!--
   <PropertyGroup>
@@ -32,6 +32,17 @@
         <LibTargetFrameworks>net462</LibTargetFrameworks>
         <LibxTargetFrameworks>net462</LibxTargetFrameworks>
         <HttpsTargetFrameworks>net462</HttpsTargetFrameworks>
+      </PropertyGroup>
+    </When>
+    <When  Condition="'$(CustomTestTarget)' == 'net472'">
+      <PropertyGroup>
+        <AnalysisLevel>preview-all</AnalysisLevel>
+        <AppTargetFrameworks>net472</AppTargetFrameworks>
+        <AppTargetFramework>net472</AppTargetFramework>
+        <TestsTargetFrameworks>net472</TestsTargetFrameworks>
+        <LibTargetFrameworks>net472</LibTargetFrameworks>
+        <LibxTargetFrameworks>net472</LibxTargetFrameworks>
+        <HttpsTargetFrameworks>net472</HttpsTargetFrameworks>
       </PropertyGroup>
     </When>
     <When  Condition="'$(CustomTestTarget)' == 'netstandard2.0'">
