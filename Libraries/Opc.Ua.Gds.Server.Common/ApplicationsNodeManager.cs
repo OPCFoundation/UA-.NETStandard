@@ -255,23 +255,20 @@ namespace Opc.Ua.Gds.Server
 
                 if (certificateGroup != null)
                 {
-                    X509Certificate2 x509 = null;
-                    try
+                    using (X509Certificate2 x509 = new X509Certificate2(certificate))
                     {
-                        x509 = new X509Certificate2(certificate);
-                        Security.Certificates.X509CRL crl = await certificateGroup.RevokeCertificateAsync(x509).ConfigureAwait(false);
-                        if (crl != null)
+                        try
                         {
-                            revoked = true;
+                            Security.Certificates.X509CRL crl = await certificateGroup.RevokeCertificateAsync(x509).ConfigureAwait(false);
+                            if (crl != null)
+                            {
+                                revoked = true;
+                            }
                         }
-                    }
-                    catch (Exception e)
-                    {
-                        Utils.LogError(e, "Unexpected error revoking certificate. {0} for Authority={1}", new X509Certificate2(certificate).Subject, certificateGroup.Id);
-                    }
-                    finally
-                    {
-                        x509?.Dispose();
+                        catch (Exception e)
+                        {
+                            Utils.LogError(e, "Unexpected error revoking certificate. {0} for Authority={1}", new X509Certificate2(certificate).Subject, certificateGroup.Id);
+                        }
                     }
                 }
             }
@@ -575,13 +572,13 @@ namespace Opc.Ua.Gds.Server
              NodeId applicationId,
              byte[] certificate)
         {
-            HasApplicationAdminAccess(context);
+            AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.CertificateAuthorityAdmin);
 
             if (m_database.GetApplication(applicationId) == null)
             {
                 return new ServiceResult(StatusCodes.BadNotFound, "The ApplicationId does not refer to a registered application.");
             }
-            if (certificate == null || certificate.Length == 0 )
+            if (certificate == null || certificate.Length == 0)
             {
                 throw new ServiceResultException(StatusCodes.BadInvalidArgument, "The certificate is not a Certificate for the specified Application that was issued by the CertificateManager.");
             }

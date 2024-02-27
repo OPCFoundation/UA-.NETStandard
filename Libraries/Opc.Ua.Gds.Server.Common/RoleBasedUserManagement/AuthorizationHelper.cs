@@ -43,6 +43,7 @@ namespace Opc.Ua.Gds.Server
         internal static List<Role> DiscoveryAdmin { get; } = new List<Role> { GdsRole.DiscoveryAdmin };
         internal static List<Role> AuthenticatedUserOrSelfAdmin { get; } = new List<Role> { Role.AuthenticatedUser, GdsRole.ApplicationSelfAdmin };
         internal static List<Role> CertificateAuthorityAdminOrSelfAdmin { get; } = new List<Role> { GdsRole.CertificateAuthorityAdmin, GdsRole.ApplicationSelfAdmin };
+        internal static List<Role> CertificateAuthorityAdmin { get; } = new List<Role> { GdsRole.CertificateAuthorityAdmin };
 
         /// <summary>
         /// Checks if the current session (context) has one of the requested roles. If <see cref="GdsRole.ApplicationSelfAdmin"/> is allowed the applicationId needs to be specified
