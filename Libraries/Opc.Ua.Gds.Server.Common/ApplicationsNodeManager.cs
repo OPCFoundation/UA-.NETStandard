@@ -267,7 +267,7 @@ namespace Opc.Ua.Gds.Server
                         }
                         catch (Exception e)
                         {
-                            Utils.LogError(e, "Unexpected error revoking certificate. {0} for Authority={1}", new X509Certificate2(certificate).Subject, certificateGroup.Id);
+                            Utils.LogError(e, "Unexpected error revoking certificate. {0} for Authority={1}", x509.Subject, certificateGroup.Id);
                         }
                     }
                 }
