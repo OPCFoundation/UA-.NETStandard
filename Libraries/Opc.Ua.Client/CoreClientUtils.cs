@@ -72,7 +72,7 @@ namespace Opc.Ua.Client
             endpointConfiguration.OperationTimeout = discoverTimeout;
 
             // Connect to the local discovery server and find the available servers.
-            using (DiscoveryClient client = DiscoveryClient.Create(new Uri(String.Format(Utils.DiscoveryUrls[0], "localhost")), endpointConfiguration))
+            using (DiscoveryClient client = DiscoveryClient.Create(new Uri(Utils.Format(Utils.DiscoveryUrls[0], "localhost")), endpointConfiguration))
             {
                 ApplicationDescriptionCollection servers = client.FindServers(null);
 
@@ -90,13 +90,13 @@ namespace Opc.Ua.Client
 
                         // Many servers will use the '/discovery' suffix for the discovery endpoint.
                         // The URL without this prefix should be the base URL for the server. 
-                        if (discoveryUrl.EndsWith("/discovery"))
+                        if (discoveryUrl.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))
                         {
-                            discoveryUrl = discoveryUrl.Substring(0, discoveryUrl.Length - "/discovery".Length);
+                            discoveryUrl = discoveryUrl.Substring(0, discoveryUrl.Length - ConfiguredEndpoint.DiscoverySuffix.Length);
                         }
 
                         // ensure duplicates do not get added.
-                        if (!serverUrls.Contains(discoveryUrl))
+                        if (!serverUrls.Exists(serverUrl => serverUrl.Equals(discoveryUrl, StringComparison.OrdinalIgnoreCase)))
                         {
                             serverUrls.Add(discoveryUrl);
                         }
@@ -250,7 +250,7 @@ namespace Opc.Ua.Client
                 EndpointDescription endpoint = endpoints[ii];
 
                 // check for a match on the URL scheme.
-                if (endpoint.EndpointUrl.StartsWith(url.Scheme))
+                if (endpoint.EndpointUrl.StartsWith(url.Scheme, StringComparison.Ordinal))
                 {
                     // check if security was requested.
                     if (useSecurity)
@@ -297,7 +297,7 @@ namespace Opc.Ua.Client
             // pick the first available endpoint by default.
             if (selectedEndpoint == null && endpoints.Count > 0)
             {
-                selectedEndpoint = endpoints.FirstOrDefault(e => e.EndpointUrl?.StartsWith(url.Scheme) == true);
+                selectedEndpoint = endpoints.FirstOrDefault(e => e.EndpointUrl?.StartsWith(url.Scheme, StringComparison.Ordinal) == true);
             }
 
             // return the selected endpoint.
@@ -312,9 +312,9 @@ namespace Opc.Ua.Client
             // needs to add the '/discovery' back onto non-UA TCP URLs.
             if (discoveryUrl.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal))
             {
-                if (!discoveryUrl.EndsWith("/discovery", StringComparison.OrdinalIgnoreCase))
+                if (!discoveryUrl.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))
                 {
-                    discoveryUrl += "/discovery";
+                    discoveryUrl += ConfiguredEndpoint.DiscoverySuffix;
                 }
             }
 

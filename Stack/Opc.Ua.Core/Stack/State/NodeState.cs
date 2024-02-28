@@ -16,6 +16,7 @@ using System.Xml;
 using System.Text;
 using System.IO;
 using System.Linq;
+using System.Globalization;
 
 namespace Opc.Ua
 {
@@ -117,7 +118,7 @@ namespace Opc.Ua
         /// <param name="initializationString">The initialization string that is used to initializes the node.</param>
         public virtual void Initialize(ISystemContext context, string initializationString)
         {
-            if (initializationString.StartsWith("<"))
+            if (initializationString.StartsWith("<", StringComparison.Ordinal))
             {
                 using (System.IO.StringReader reader = new System.IO.StringReader(initializationString))
                 {
@@ -190,7 +191,7 @@ namespace Opc.Ua
         /// Returns a string representation of the node.
         /// </summary>
         /// <returns>
-        /// A <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
+        /// A <see cref="System.String"/> that represents the current <see cref="System.Object"/>.
         /// </returns>
         public override string ToString()
         {
@@ -200,14 +201,14 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a string representation of the node.
         /// </summary>
-        /// <param name="format">The <see cref="T:System.String"/> specifying the format to use.
+        /// <param name="format">The <see cref="System.String"/> specifying the format to use.
         /// -or-
-        /// null to use the default format defined for the type of the <see cref="T:System.IFormattable"/> implementation.</param>
-        /// <param name="formatProvider">The <see cref="T:System.IFormatProvider"/> to use to format the value.
+        /// null to use the default format defined for the type of the <see cref="System.IFormattable"/> implementation.</param>
+        /// <param name="formatProvider">The <see cref="System.IFormatProvider"/> to use to format the value.
         /// -or-
         /// null to obtain the numeric format information from the current locale setting of the operating system.</param>
         /// <returns>
-        /// A <see cref="T:System.String"/> containing the value of the current instance in the specified format.
+        /// A <see cref="System.String"/> containing the value of the current instance in the specified format.
         /// </returns>
         public string ToString(string format, IFormatProvider formatProvider)
         {
@@ -218,10 +219,10 @@ namespace Opc.Ua
 
             if (!QualifiedName.IsNull(m_browseName))
             {
-                return Utils.Format("[{0}]{1}", m_nodeClass, m_displayName);
+                return string.Format(formatProvider, "[{0}]{1}", m_nodeClass, m_displayName);
             }
 
-            return Utils.Format("[{0}]{1}", m_nodeClass, m_nodeId);
+            return string.Format(formatProvider, "[{0}]{1}", m_nodeClass, m_nodeId);
         }
         #endregion
 
@@ -447,7 +448,7 @@ namespace Opc.Ua
         /// Specifies  a mask indicating any access restrictions that apply to the node.
         /// </summary>
         /// <value>The server specific access restrictions of the node.</value>
-        public AccessRestrictionType AccessRestrictions
+        public AccessRestrictionType? AccessRestrictions
         {
             get
             {
@@ -2253,12 +2254,12 @@ namespace Opc.Ua
         /// <summary>
         /// Called when the AccessRestrictions attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<AccessRestrictionType> OnReadAccessRestrictions;
+        public NodeAttributeEventHandler<AccessRestrictionType?> OnReadAccessRestrictions;
 
         /// <summary>
         /// Called when the AccessRestrictions attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<AccessRestrictionType> OnWriteAccessRestrictions;
+        public NodeAttributeEventHandler<AccessRestrictionType?> OnWriteAccessRestrictions;
         #endregion
 
         #region Public Methods
@@ -3655,7 +3656,7 @@ namespace Opc.Ua
 
                 case Attributes.AccessRestrictions:
                 {
-                    AccessRestrictionType accessRestrictions = m_accessRestrictions;
+                    AccessRestrictionType? accessRestrictions = m_accessRestrictions;
 
                     NodeAttributeEventHandler<AccessRestrictionType> onReadAccessRestrictions = OnReadAccessRestrictions;
 
@@ -3666,7 +3667,7 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        value = (ushort)m_accessRestrictions;
+                        value = accessRestrictions;
                     }
 
                     if (value != null || result != null)
@@ -4056,7 +4057,7 @@ namespace Opc.Ua
                     {
                         if (value.GetType() == typeof(uint))
                         {
-                            accessRestrictionsRef = Convert.ToUInt16(value);
+                            accessRestrictionsRef = Convert.ToUInt16(value, CultureInfo.InvariantCulture);
                         }
                         else
                         {
@@ -4069,7 +4070,7 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    AccessRestrictionType accessRestrictions = (AccessRestrictionType)accessRestrictionsRef.Value;
+                    var accessRestrictions = (AccessRestrictionType?)accessRestrictionsRef.Value;
 
                     NodeAttributeEventHandler<AccessRestrictionType> onWriteAccessRestrictions = OnWriteAccessRestrictions;
 
@@ -4874,7 +4875,7 @@ namespace Opc.Ua
         private AttributeWriteMask m_userWriteMask;
         private RolePermissionTypeCollection m_rolePermissions;
         private RolePermissionTypeCollection m_userRolePermissions;
-        private AccessRestrictionType m_accessRestrictions;
+        private AccessRestrictionType? m_accessRestrictions;
         private IReferenceDictionary<object> m_references;
         private int m_areEventsMonitored;
         private bool m_initialized;

@@ -36,67 +36,20 @@ using System.Xml;
 
 namespace Opc.Ua.Server
 {
+
     /// <summary>
     /// Priviledged identity which can access the system configuration.
     /// </summary>
-    public class SystemConfigurationIdentity : IUserIdentity
+    public class SystemConfigurationIdentity : RoleBasedIdentity
     {
-        private IUserIdentity m_identity;
-
         /// <summary>
         /// Create a user identity with the priviledge
         /// to modify the system configuration.
         /// </summary>
         /// <param name="identity">The user identity.</param>
         public SystemConfigurationIdentity(IUserIdentity identity)
-        {
-            m_identity = identity;
+        :base(identity, new List<Role> {Role.SecurityAdmin, Role.ConfigureAdmin }){
         }
-
-        #region IUserIdentity
-        /// <inheritdoc/>
-        public string DisplayName
-        {
-            get { return m_identity.DisplayName; }
-        }
-
-        /// <inheritdoc/>
-        public string PolicyId
-        {
-            get { return m_identity.PolicyId; }
-        }
-
-        /// <inheritdoc/>
-        public UserTokenType TokenType
-        {
-            get { return m_identity.TokenType; }
-        }
-
-        /// <inheritdoc/>
-        public XmlQualifiedName IssuedTokenType
-        {
-            get { return m_identity.IssuedTokenType; }
-        }
-
-        /// <inheritdoc/>
-        public bool SupportsSignatures
-        {
-            get { return m_identity.SupportsSignatures; }
-        }
-
-        /// <inheritdoc/>
-        public NodeIdCollection GrantedRoleIds
-        {
-            get { return m_identity.GrantedRoleIds; }
-            set { m_identity.GrantedRoleIds = value; }
-        }
-
-        /// <inheritdoc/>
-        public UserIdentityToken GetIdentityToken()
-        {
-            return m_identity.GetIdentityToken();
-        }
-        #endregion
     }
 
     /// <summary>
@@ -346,6 +299,19 @@ namespace Opc.Ua.Server
         /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
         public void HasApplicationSecureAdminAccess(ISystemContext context)
         {
+            HasApplicationSecureAdminAccess(context, "");
+        }
+
+
+        /// <summary>
+        /// Determine if the impersonated user has admin access.
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="_"></param>
+        /// <exception cref="ServiceResultException"/>
+        /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
+        public void HasApplicationSecureAdminAccess(ISystemContext context, string _)
+        {
             OperationContext operationContext = (context as SystemContext)?.OperationContext as OperationContext;
             if (operationContext != null)
             {
@@ -355,10 +321,11 @@ namespace Opc.Ua.Server
                 }
 
                 // allow access to system configuration only through special identity
-                SystemConfigurationIdentity user = context.UserIdentity as SystemConfigurationIdentity;
-                if (user == null || user.TokenType == UserTokenType.Anonymous)
+                IUserIdentity user = context.UserIdentity as RoleBasedIdentity;               
+                if (user == null || user.TokenType == UserTokenType.Anonymous ||
+                    !user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin))
                 {
-                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "System Configuration Administrator access required.");
+                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Security Admin Role required.");
                 }
 
             }
@@ -575,7 +542,7 @@ namespace Opc.Ua.Server
             var passwordProvider = m_configuration.SecurityConfiguration.CertificatePasswordProvider;
             X509Certificate2 certWithPrivateKey = certificateGroup.ApplicationCertificate.LoadPrivateKeyEx(passwordProvider).Result;
             Utils.LogCertificate(Utils.TraceMasks.Security, "Create signing request: ", certWithPrivateKey);
-            certificateRequest = CertificateFactory.CreateSigningRequest(certWithPrivateKey, X509Utils.GetDomainsFromCertficate(certWithPrivateKey));
+            certificateRequest = CertificateFactory.CreateSigningRequest(certWithPrivateKey, X509Utils.GetDomainsFromCertificate(certWithPrivateKey));
             return ServiceResult.Good;
         }
 

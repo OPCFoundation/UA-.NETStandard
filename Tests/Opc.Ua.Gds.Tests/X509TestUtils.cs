@@ -148,7 +148,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.NotNull(subjectAlternateName);
             TestContext.Out.WriteLine($"Issuer Subject Alternate Name: {subjectAlternateName}");
             Assert.False(subjectAlternateName.Critical);
-            var domainNames = X509Utils.GetDomainsFromCertficate(signedCert);
+            var domainNames = X509Utils.GetDomainsFromCertificate(signedCert);
             foreach (var domainName in testApp.DomainNames)
             {
                 Assert.True(domainNames.Contains(domainName, StringComparer.OrdinalIgnoreCase));

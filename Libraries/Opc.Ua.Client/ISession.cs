@@ -102,7 +102,7 @@ namespace Opc.Ua.Client
         /// Raised when a publish request is about to acknowledge sequence numbers.
         /// </summary>
         /// <remarks>
-        /// If the client chose to defer acknowledge of sequenece numbers, it is responsible
+        /// If the client chose to defer acknowledge of sequence numbers, it is responsible
         /// to transfer these <see cref="SubscriptionAcknowledgement"/> to the deferred list.
         /// </remarks>
         event PublishSequenceNumbersToAcknowledgeEventHandler PublishSequenceNumbersToAcknowledge;
@@ -943,7 +943,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Sends a republish request.
         /// </summary>
-        bool Republish(uint subscriptionId, uint sequenceNumber);
+        bool Republish(uint subscriptionId, uint sequenceNumber, out ServiceResult error);
 
         /// <summary>
         /// Call the ResendData method on the server for all subscriptions.
@@ -954,7 +954,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Sends a republish request.
         /// </summary>
-        Task<bool> RepublishAsync(uint subscriptionId, uint sequenceNumber, CancellationToken ct = default);
+        Task<(bool, ServiceResult)> RepublishAsync(uint subscriptionId, uint sequenceNumber, CancellationToken ct = default);
 
         /// <summary>
         /// Call the ResendData method on the server for all subscriptions.

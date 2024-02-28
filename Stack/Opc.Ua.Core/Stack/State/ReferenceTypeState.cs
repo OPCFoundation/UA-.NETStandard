@@ -246,17 +246,17 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="decoder">The decoder.</param>
-        /// <param name="attibutesToLoad">The attributes to load.</param>
-        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attibutesToLoad)
+        /// <param name="attributesToLoad">The attributes to load.</param>
+        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attributesToLoad)
         {
-            base.Update(context, decoder, attibutesToLoad);
+            base.Update(context, decoder, attributesToLoad);
 
-            if ((attibutesToLoad & AttributesToSave.InverseName) != 0)
+            if ((attributesToLoad & AttributesToSave.InverseName) != 0)
             {
                 m_inverseName = decoder.ReadLocalizedText(null);
             }
 
-            if ((attibutesToLoad & AttributesToSave.Symmetric) != 0)
+            if ((attributesToLoad & AttributesToSave.Symmetric) != 0)
             {
                 m_symmetric = decoder.ReadBoolean(null);
             }

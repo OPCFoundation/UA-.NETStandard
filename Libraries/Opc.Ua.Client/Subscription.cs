@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading;
@@ -43,8 +44,10 @@ namespace Opc.Ua.Client
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public partial class Subscription : IDisposable, ICloneable
     {
-        const int MinKeepAliveTimerInterval = 1000;
-        const int KeepAliveTimerMargin = 1000;
+        const int kMinKeepAliveTimerInterval = 1000;
+        const int kKeepAliveTimerMargin = 1000;
+        const int kRepublishMessageTimeout = 2500;
+        const int kRepublishMessageExpiredTimeout = 10000;
 
         #region Constructors
         /// <summary>
@@ -599,7 +602,7 @@ namespace Opc.Ua.Client
         public ISession Session
         {
             get => m_session;
-            internal set => m_session = value;
+            protected internal set => m_session = value;
         }
 
         /// <summary>
@@ -797,7 +800,7 @@ namespace Opc.Ua.Client
             get
             {
                 TimeSpan timeSinceLastNotification = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - Interlocked.Read(ref m_lastNotificationTime));
-                if (timeSinceLastNotification.TotalMilliseconds > m_keepAliveInterval + KeepAliveTimerMargin)
+                if (timeSinceLastNotification.TotalMilliseconds > m_keepAliveInterval + kKeepAliveTimerMargin)
                 {
                     return true;
                 }
@@ -1475,8 +1478,9 @@ namespace Opc.Ua.Client
                     entry = node.Value;
                     LinkedListNode<IncomingMessage> next = node.Next;
 
-                    // can only pull off processed or expired messages.
-                    if (!entry.Processed && !(entry.Republished && entry.Timestamp.AddSeconds(10) < now))
+                    // can only pull off processed or expired or missing messages.
+                    if (!entry.Processed &&
+                        !(entry.Republished && (entry.RepublishStatus != StatusCodes.Good || entry.Timestamp.AddMilliseconds(kRepublishMessageExpiredTimeout) < now)))
                     {
                         break;
                     }
@@ -1737,7 +1741,7 @@ namespace Opc.Ua.Client
                     // only republish consecutive sequence numbers
                     // triggers the republish mechanism immediately,
                     // if event is in the past
-                    var now = DateTime.UtcNow.AddSeconds(-5);
+                    var now = DateTime.UtcNow.AddMilliseconds(-kRepublishMessageTimeout * 2);
                     uint lastSequenceNumberToRepublish = m_lastSequenceNumberProcessed - 1;
                     int availableNumbers = availableSequenceNumbers.Count;
                     int republishMessages = 0;
@@ -1838,10 +1842,10 @@ namespace Opc.Ua.Client
 
                 Interlocked.Exchange(ref m_lastNotificationTime, DateTime.UtcNow.Ticks);
                 m_keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * (m_currentKeepAliveCount + 1), Int32.MaxValue));
-                if (m_keepAliveInterval < MinKeepAliveTimerInterval)
+                if (m_keepAliveInterval < kMinKeepAliveTimerInterval)
                 {
                     m_keepAliveInterval = (int)(Math.Min(m_publishingInterval * (m_keepAliveCount + 1), Int32.MaxValue));
-                    m_keepAliveInterval = Math.Min(MinKeepAliveTimerInterval, m_keepAliveInterval);
+                    m_keepAliveInterval = Math.Min(kMinKeepAliveTimerInterval, m_keepAliveInterval);
                 }
 #if NET6_0_OR_GREATER
                 var publishTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(m_keepAliveInterval));
@@ -1975,7 +1979,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private int BeginPublishTimeout()
         {
-            return Math.Max(Math.Min(m_keepAliveInterval * 3, Int32.MaxValue), MinKeepAliveTimerInterval); ;
+            return Math.Max(Math.Min(m_keepAliveInterval * 3, Int32.MaxValue), kMinKeepAliveTimerInterval);
         }
 
         /// <summary>
@@ -2235,16 +2239,28 @@ namespace Opc.Ua.Client
                         // check for missing messages.
                         else if (ii.Next != null && ii.Value.Message == null && !ii.Value.Processed && !ii.Value.Republished)
                         {
-                            if (ii.Value.Timestamp.AddSeconds(2) < DateTime.UtcNow)
+                            // tolerate if a single request was received out of order
+                            if (ii.Next.Next != null &&
+                                ii.Value.Timestamp.AddMilliseconds(kRepublishMessageTimeout) < DateTime.UtcNow)
                             {
-                                if (messagesToRepublish == null)
-                                {
-                                    messagesToRepublish = new List<IncomingMessage>();
-                                }
-
-                                messagesToRepublish.Add(ii.Value);
                                 ii.Value.Republished = true;
                                 publishStateChangedMask |= PublishStateChangedMask.Republish;
+
+                                // only call republish if the sequence number is available
+                                if (m_availableSequenceNumbers?.Contains(ii.Value.SequenceNumber) == true)
+                                {
+                                    if (messagesToRepublish == null)
+                                    {
+                                        messagesToRepublish = new List<IncomingMessage>();
+                                    }
+
+                                    messagesToRepublish.Add(ii.Value);
+                                }
+                                else
+                                {
+                                    Utils.LogInfo("Skipped to receive RepublishAsync for {0}-{1}-BadMessageNotAvailable", subscriptionId, ii.Value.SequenceNumber);
+                                    ii.Value.RepublishStatus = StatusCodes.BadMessageNotAvailable;
+                                }
                             }
                         }
 #if DEBUG
@@ -2373,11 +2389,27 @@ namespace Opc.Ua.Client
                 // do any re-publishes.
                 if (messagesToRepublish != null && session != null && subscriptionId != 0)
                 {
-                    for (int ii = 0; ii < messagesToRepublish.Count; ii++)
+                    int count = messagesToRepublish.Count;
+                    var tasks = new Task<(bool, ServiceResult)>[count];
+                    for (int ii = 0; ii < count; ii++)
                     {
-                        if (!await session.RepublishAsync(subscriptionId, messagesToRepublish[ii].SequenceNumber, ct).ConfigureAwait(false))
+                        tasks[ii] = session.RepublishAsync(subscriptionId, messagesToRepublish[ii].SequenceNumber, ct);
+                    }
+
+                    await Task.WhenAll(tasks).ConfigureAwait(false);
+
+                    lock (m_cache)
+                    {
+                        for (int ii = 0; ii < count; ii++)
                         {
-                            messagesToRepublish[ii].Republished = false;
+                            bool success = false;
+                            ServiceResult serviceResult = StatusCodes.BadMessageNotAvailable;
+                            if (tasks[ii].IsCompleted)
+                            {
+                                (success, serviceResult) = tasks[ii].Result.ToTuple();
+                            }
+                            messagesToRepublish[ii].Republished = success;
+                            messagesToRepublish[ii].RepublishStatus = serviceResult.StatusCode;
                         }
                     }
                 }
@@ -2404,7 +2436,12 @@ namespace Opc.Ua.Client
 
             if (!created && m_id != 0)
             {
-                throw new ServiceResultException(StatusCodes.BadInvalidState, "Subscription has alredy been created.");
+                throw new ServiceResultException(StatusCodes.BadInvalidState, "Subscription has already been created.");
+            }
+
+            if (!created && Session is null) // Occurs only on Create() and CreateAsync()
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidState, "Subscription has not been assigned to a Session");
             }
         }
 
@@ -2427,7 +2464,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private bool UpdateMonitoringMode(
             IList<MonitoredItem> monitoredItems,
-            IList<ServiceResult> errors,
+            List<ServiceResult> errors,
             StatusCodeCollection results,
             DiagnosticInfoCollection diagnosticInfos,
             ResponseHeader responseHeader,
@@ -2512,7 +2549,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void PrepareItemsToModify(
             MonitoredItemModifyRequestCollection requestItems,
-            IList<MonitoredItem> itemsToModify)
+            List<MonitoredItem> itemsToModify)
         {
             lock (m_cache)
             {
@@ -2583,7 +2620,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void PrepareResolveItemNodeIds(
             BrowsePathCollection browsePaths,
-            IList<MonitoredItem> itemsToBrowse)
+            List<MonitoredItem> itemsToBrowse)
         {
             lock (m_cache)
             {
@@ -2699,6 +2736,7 @@ namespace Opc.Ua.Client
             IncomingMessage entry = null;
             LinkedListNode<IncomingMessage> node = m_incomingMessages.Last;
 
+            Debug.Assert(Monitor.IsEntered(m_cache));
             while (node != null)
             {
                 entry = node.Value;
@@ -2797,6 +2835,7 @@ namespace Opc.Ua.Client
             public NotificationMessage Message;
             public bool Processed;
             public bool Republished;
+            public StatusCode RepublishStatus;
         }
 
         private LinkedList<IncomingMessage> m_incomingMessages;

@@ -30,9 +30,11 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading;
 using Opc.Ua.Server;
 using Opc.Ua.Gds.Server.Database;
+using Opc.Ua.Server.UserDatabase;
+using System.Linq;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Server
 {
@@ -54,7 +56,7 @@ namespace Opc.Ua.Gds.Server
             IApplicationsDatabase database,
             ICertificateRequest request,
             ICertificateGroup certificateGroup,
-            IUsersDatabase userDatabase,
+            IUserDatabase userDatabase,
             bool autoApprove = true,
             bool createStandardUsers = true
             )
@@ -115,8 +117,7 @@ namespace Opc.Ua.Gds.Server
         /// </remarks>
         protected override ServerProperties LoadServerProperties()
         {
-            ServerProperties properties = new ServerProperties
-            {
+            ServerProperties properties = new ServerProperties {
                 ManufacturerName = "Some Company Inc",
                 ProductName = "Global Discovery Server",
                 ProductUri = "http://somecompany.com/GlobalDiscoveryServer",
@@ -199,31 +200,10 @@ namespace Opc.Ua.Gds.Server
             {
                 if (VerifyPassword(userNameToken))
                 {
-                    if (userNameToken.UserName == "sysadmin")
-                    {
-                        // Server configuration administrator, manages the GDS server security
-                        args.Identity = new SystemConfigurationIdentity(new UserIdentity(userNameToken));
-                        Utils.LogInfo("SystemConfigurationAdmin Token Accepted: {0}", args.Identity.DisplayName);
-                        return;
-                    }
-                    switch (m_userDatabase.GetUserRole(userNameToken.UserName))
-                    {
-                        // GDS administrator
-                        case GdsRole.ApplicationAdmin:
-                        {
-                            args.Identity = new RoleBasedIdentity(new UserIdentity(userNameToken), GdsRole.ApplicationAdmin);
-                            Utils.LogInfo("ApplicationAdmin Token Accepted: {0}", args.Identity.DisplayName);
-                            return;
-                        }
+                    IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
 
-                        // GDS user
-                        case GdsRole.ApplicationUser:
-                        {
-                            args.Identity = new RoleBasedIdentity(new UserIdentity(userNameToken), GdsRole.ApplicationUser);
-                            Utils.LogInfo("ApplicationUser Token Accepted: {0}", args.Identity.DisplayName);
-                            return;
-                        }
-                    }
+                    args.Identity = new GdsRoleBasedIdentity(new UserIdentity(userNameToken), roles);
+                    return;
                 }
             }
 
@@ -231,16 +211,66 @@ namespace Opc.Ua.Gds.Server
             X509IdentityToken x509Token = args.NewIdentity as X509IdentityToken;
             if (x509Token != null)
             {
-                GdsRole role = GdsRole.ApplicationUser;
                 VerifyUserTokenCertificate(x509Token.Certificate);
 
                 // todo: is cert listed in admin list? then 
                 // role = GdsRole.ApplicationAdmin;
 
-                Utils.LogInfo("X509 Token Accepted: {0} as {1}", args.Identity.DisplayName, role.ToString());
-                args.Identity = new RoleBasedIdentity(new UserIdentity(x509Token), role);
+                Utils.LogInfo("X509 Token Accepted: {0} as {1}", args.Identity.DisplayName, Role.AuthenticatedUser);
+                args.Identity = new GdsRoleBasedIdentity(new UserIdentity(x509Token), new List<Role> { Role.AuthenticatedUser });
                 return;
             }
+
+            //check if applicable for application self admin privilege
+            if (session.ClientCertificate != null)
+            {
+                if (VerifiyApplicationRegistered(session))
+                {
+                    ImpersonateAsApplicationSelfAdmin(session, args);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verifies if an Application is registered with the provided certificate at at the GDS
+        /// </summary>
+        /// <param name="session">the session</param>
+        /// <returns></returns>
+        private bool VerifiyApplicationRegistered(Session session)
+        {
+            X509Certificate2 applicationInstanceCertificate = session.ClientCertificate;
+            bool applicationRegistered = false;
+
+            Uri applicationUri = Utils.ParseUri(session.SessionDiagnostics.ClientDescription.ApplicationUri);
+            X509Utils.DoesUrlMatchCertificate(applicationInstanceCertificate, applicationUri);
+
+            //get access to GDS configuration section to find out ApplicationCertificatesStorePath
+            GlobalDiscoveryServerConfiguration configuration = Configuration.ParseExtension<GlobalDiscoveryServerConfiguration>();
+            if (configuration == null)
+            {
+                configuration = new GlobalDiscoveryServerConfiguration();
+            }
+            //check if application certificate is in the Store of the GDS
+            using (ICertificateStore ApplicationsStore = CertificateStoreIdentifier.OpenStore(configuration.ApplicationCertificatesStorePath))
+            {
+                var matchingCerts = ApplicationsStore.FindByThumbprint(applicationInstanceCertificate.Thumbprint).Result;
+
+                if (matchingCerts.Contains(applicationInstanceCertificate))
+                    applicationRegistered = true;
+            }
+            //check if application certificate is revoked
+            using (ICertificateStore AuthoritiesStore = CertificateStoreIdentifier.OpenStore(configuration.AuthoritiesStorePath))
+            {
+                var crls = AuthoritiesStore.EnumerateCRLs().Result;
+                foreach (X509CRL crl in crls)
+                {
+                    if (crl.IsRevoked(applicationInstanceCertificate))
+                    {
+                        applicationRegistered = false;
+                    }
+                }
+            }
+            return applicationRegistered;
         }
 
         /// <summary>
@@ -297,10 +327,35 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         private void RegisterDefaultUsers()
         {
-            m_userDatabase.CreateUser("sysadmin", "demo", GdsRole.ApplicationAdmin);
-            m_userDatabase.CreateUser("appadmin", "demo", GdsRole.ApplicationAdmin);
-            m_userDatabase.CreateUser("appuser", "demo", GdsRole.ApplicationUser);
+            m_userDatabase.CreateUser("sysadmin", "demo", new List<Role> { GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin, Role.SecurityAdmin, Role.ConfigureAdmin });
+            m_userDatabase.CreateUser("appadmin", "demo", new List<Role> { Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin });
+            m_userDatabase.CreateUser("appuser", "demo", new List<Role> { Role.AuthenticatedUser });
+
+            m_userDatabase.CreateUser("DiscoveryAdmin", "demo", new List<Role> { Role.AuthenticatedUser, GdsRole.DiscoveryAdmin });
+            m_userDatabase.CreateUser("CertificateAuthorityAdmin", "demo", new List<Role> { Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin });
         }
+
+        /// <summary>
+        /// Impersonates the current Session as ApplicationSelfAdmin
+        /// </summary>
+        /// <param name="session">the current session</param>
+        /// <param name="args">the impersonateEventArgs</param>
+        private void ImpersonateAsApplicationSelfAdmin(Session session, ImpersonateEventArgs args)
+        {
+            string applicationUri = session.SessionDiagnostics.ClientDescription.ApplicationUri;
+            ApplicationRecordDataType[] application = m_database.FindApplications(applicationUri);
+            if (application == null || application.Length != 1)
+            {
+                Utils.LogInfo("Cannot login based on ApplicationInstanceCertificate, no uniqure result for Application with URI: {0}", applicationUri);
+                return;
+            }
+            NodeId applicationId = application.FirstOrDefault().ApplicationId;
+            Utils.LogInfo("Application {0} accepted based on ApplicationInstanceCertificate as ApplicationSelfAdmin",
+                applicationUri);
+            args.Identity = new GdsRoleBasedIdentity(new UserIdentity(), new List<Role> { GdsRole.ApplicationSelfAdmin }, applicationId);
+            return;
+        }
+
         #endregion
 
         #region Private Fields
@@ -308,7 +363,7 @@ namespace Opc.Ua.Gds.Server
         private IApplicationsDatabase m_database = null;
         private ICertificateRequest m_request = null;
         private ICertificateGroup m_certificateGroup = null;
-        private IUsersDatabase m_userDatabase = null;
+        private IUserDatabase m_userDatabase = null;
         private bool m_autoApprove;
         private bool m_createStandardUsers;
         #endregion 

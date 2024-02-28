@@ -27,8 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Runtime.CompilerServices;
 
+[assembly: CLSCompliant(false)]
 #if SIGNASSEMBLY
 [assembly: InternalsVisibleTo("Opc.Ua.Security.Certificates.Tests, PublicKey = " +
     // OPC Foundation Strong Name Public Key

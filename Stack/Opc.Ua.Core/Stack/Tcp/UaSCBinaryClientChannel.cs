@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
@@ -79,7 +80,7 @@ namespace Opc.Ua.Bindings
                 ClientCertificateChain = clientCertificateChain;
             }
 
-            m_requests = new Dictionary<uint, WriteOperation>();
+            m_requests = new ConcurrentDictionary<uint, WriteOperation>();
             m_lastRequestId = 0;
             m_ConnectCallback = new EventHandler<IMessageSocketAsyncEventArgs>(OnConnectComplete);
             m_startHandshake = new TimerCallback(OnScheduledHandshake);
@@ -120,7 +121,6 @@ namespace Opc.Ua.Bindings
             if (url == null) throw new ArgumentNullException(nameof(url));
             if (timeout <= 0) throw new ArgumentException("Timeout must be greater than zero.", nameof(timeout));
 
-            Task task;
             lock (DataLock)
             {
                 if (State != TcpChannelState.Closed)
@@ -155,12 +155,7 @@ namespace Opc.Ua.Bindings
                 else
                 {
                     Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
-                    task = Task.Run(async () => {
-                        using (var cts = new CancellationTokenSource(timeout))
-                        {
-                            await (Socket?.BeginConnect(m_via, m_ConnectCallback, operation, cts.Token) ?? Task.FromResult(false)).ConfigureAwait(false);
-                        }
-                    });
+                    Socket.BeginConnect(m_via, m_ConnectCallback, operation);
                 }
             }
             return m_handshakeOperation;
@@ -224,7 +219,7 @@ namespace Opc.Ua.Bindings
             {
                 try
                 {
-                    _ = await operation.EndAsync(timeout, false, ct).ConfigureAwait(false);
+                    _ = await operation.EndAsync(timeout, true, ct).ConfigureAwait(false);
                 }
                 catch (ServiceResultException e)
                 {
@@ -674,7 +669,7 @@ namespace Opc.Ua.Bindings
                 m_requestedToken.Lifetime = (int)response.SecurityToken.RevisedLifetime;
                 m_requestedToken.ServerNonce = response.ServerNonce;
 
-                string implementation = String.Format(g_ImplementationString, m_socketFactory.Implementation);
+                string implementation = Utils.Format(g_ImplementationString, m_socketFactory.Implementation);
 
                 // log security information.
                 if (State == TcpChannelState.Opening)
@@ -773,17 +768,17 @@ namespace Opc.Ua.Bindings
         /// <returns>True if the function takes ownership of the buffer.</returns>
         protected override bool HandleIncomingMessage(uint messageType, ArraySegment<byte> messageChunk)
         {
+            // process a response.
+            if (TcpMessageType.IsType(messageType, TcpMessageType.Message))
+            {
+                //Utils.LogTrace("ChannelId {0}: ProcessResponseMessage", ChannelId);
+                return ProcessResponseMessage(messageType, messageChunk);
+            }
+
             lock (DataLock)
             {
-                // process a response.
-                if (TcpMessageType.IsType(messageType, TcpMessageType.Message))
-                {
-                    //Utils.LogTrace("ChannelId {0}: ProcessResponseMessage", ChannelId);
-                    return ProcessResponseMessage(messageType, messageChunk);
-                }
-
                 // check for acknowledge.
-                else if (messageType == TcpMessageType.Acknowledge)
+                if (messageType == TcpMessageType.Acknowledge)
                 {
                     //Utils.LogTrace("ChannelId {0}: ProcessAcknowledgeMessage", ChannelId);
                     return ProcessAcknowledgeMessage(messageChunk);
@@ -874,7 +869,6 @@ namespace Opc.Ua.Bindings
             {
                 Utils.LogInfo("ChannelId {0}: Scheduled Handshake Starting: TokenId={1}", ChannelId, CurrentToken?.TokenId);
 
-                Task task;
                 lock (DataLock)
                 {
                     // check if renewing a token.
@@ -930,10 +924,7 @@ namespace Opc.Ua.Bindings
 
                         State = TcpChannelState.Connecting;
                         Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
-                        task = Task.Run(async () =>
-                            await (Socket?.BeginConnect(
-                                m_via, m_ConnectCallback, m_handshakeOperation,
-                                CancellationToken.None) ?? Task.FromResult(false)).ConfigureAwait(false));
+                        Socket.BeginConnect(m_via, m_ConnectCallback, m_handshakeOperation);
                     }
                 }
             }
@@ -1244,7 +1235,10 @@ namespace Opc.Ua.Bindings
         {
             WriteOperation operation = new WriteOperation(timeout, callback, state);
             operation.RequestId = Utils.IncrementIdentifier(ref m_lastRequestId);
-            m_requests.Add(operation.RequestId, operation);
+            if (!m_requests.TryAdd(operation.RequestId, operation))
+            {
+                throw new ServiceResultException(StatusCodes.BadUnexpectedError, "Could not add operation to list of pending operations.");
+            }
             return operation;
         }
 
@@ -1258,15 +1252,12 @@ namespace Opc.Ua.Bindings
                 return;
             }
 
-            lock (DataLock)
+            if (m_handshakeOperation == operation)
             {
-                if (m_handshakeOperation == operation)
-                {
-                    m_handshakeOperation = null;
-                }
-
-                m_requests.Remove(operation.RequestId);
+                m_handshakeOperation = null;
             }
+
+            m_requests.TryRemove(operation.RequestId, out _);
         }
 
         /// <summary>
@@ -1552,7 +1543,7 @@ namespace Opc.Ua.Bindings
         private Uri m_url;
         private Uri m_via;
         private long m_lastRequestId;
-        private Dictionary<uint, WriteOperation> m_requests;
+        private ConcurrentDictionary<uint, WriteOperation> m_requests;
         private WriteOperation m_handshakeOperation;
         private ChannelToken m_requestedToken;
         private Timer m_handshakeTimer;
@@ -1563,7 +1554,7 @@ namespace Opc.Ua.Bindings
         private TimerCallback m_startHandshake;
         private AsyncCallback m_handshakeComplete;
         private List<QueuedOperation> m_queuedOperations;
-        private readonly string g_ImplementationString = ".NET Standard ClientChannel {0} " + Utils.GetAssemblyBuildNumber();
+        private readonly string g_ImplementationString = "UA.NETStandard ClientChannel {0} " + Utils.GetAssemblyBuildNumber();
         #endregion
     }
 }

@@ -329,7 +329,7 @@ namespace Opc.Ua.Client.Controls
         #endregion
 
         #region Public Interface
-        public EndpointDescriptionCollection AvailableEnpoints
+        public EndpointDescriptionCollection AvailableEndpoints
         {
             get { return m_availableEndpoints; }
         }

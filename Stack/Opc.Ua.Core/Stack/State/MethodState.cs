@@ -301,17 +301,17 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="decoder">The decoder.</param>
-        /// <param name="attibutesToLoad">The attributes to load.</param>
-        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attibutesToLoad)
+        /// <param name="attributesToLoad">The attributes to load.</param>
+        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attributesToLoad)
         {
-            base.Update(context, decoder, attibutesToLoad);
+            base.Update(context, decoder, attributesToLoad);
 
-            if ((attibutesToLoad & AttributesToSave.Executable) != 0)
+            if ((attributesToLoad & AttributesToSave.Executable) != 0)
             {
                 m_executable = decoder.ReadBoolean(null);
             }
 
-            if ((attibutesToLoad & AttributesToSave.UserExecutable) != 0)
+            if ((attributesToLoad & AttributesToSave.UserExecutable) != 0)
             {
                 m_userExecutable = decoder.ReadBoolean(null);
             }

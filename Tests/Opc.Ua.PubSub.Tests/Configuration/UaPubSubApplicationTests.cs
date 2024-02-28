@@ -52,7 +52,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Create call with null path")]
         public void ValidateUaPubSubApplicationCreateNullFilePath()
         {
-            Assert.Throws<ArgumentException>(() => UaPubSubApplication.Create((string)null), "Calling Create with null parameter shall throw error");
+            Assert.Throws<ArgumentNullException>(() => UaPubSubApplication.Create((string)null), "Calling Create with null parameter shall throw error");
         }
 
         [Test(Description = "Validate Create call with null PubSubConfigurationDataType")]

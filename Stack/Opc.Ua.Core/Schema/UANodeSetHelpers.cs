@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Xml;
@@ -299,6 +300,32 @@ namespace Opc.Ua.Export
             exportedNode.WriteMask = (uint)node.WriteMask;
             exportedNode.UserWriteMask = (uint)node.UserWriteMask;
             exportedNode.Extensions = node.Extensions;
+            exportedNode.RolePermissions = null;
+            exportedNode.AccessRestrictions = 0;
+            exportedNode.AccessRestrictionsSpecified = false;
+
+            if (node.RolePermissions != null)
+            {
+                var permissions = new List<RolePermission>();
+
+                foreach (var ii in node.RolePermissions)
+                {
+                    var permission = new RolePermission() {
+                        Permissions = ii.Permissions,
+                        Value = ExportAlias(ii.RoleId, context.NamespaceUris)
+                    };
+
+                    permissions.Add(permission);
+                }
+
+                exportedNode.RolePermissions = permissions.ToArray();
+            }
+
+            if (node.AccessRestrictions != null)
+            {
+                exportedNode.AccessRestrictions = (ushort)node.AccessRestrictions;
+                exportedNode.AccessRestrictionsSpecified = true;
+            }
 
             if (!String.IsNullOrEmpty(node.SymbolicName) && node.SymbolicName != node.BrowseName.Name)
             {
@@ -613,6 +640,28 @@ namespace Opc.Ua.Export
             importedNode.WriteMask = (AttributeWriteMask)node.WriteMask;
             importedNode.UserWriteMask = (AttributeWriteMask)node.UserWriteMask;
             importedNode.Extensions = node.Extensions;
+
+            if (node.RolePermissions != null)
+            {
+                var permissions = new RolePermissionTypeCollection();
+
+                foreach (var ii in node.RolePermissions)
+                {
+                    var permission = new RolePermissionType() {
+                        Permissions = ii.Permissions,
+                        RoleId = ImportNodeId(ii.Value, context.NamespaceUris, true)
+                    };
+
+                    permissions.Add(permission);
+                }
+
+                importedNode.RolePermissions = permissions;
+            }
+
+            if (node.AccessRestrictionsSpecified)
+            {
+                importedNode.AccessRestrictions = (AccessRestrictionType?)node.AccessRestrictions;
+            }
 
             if (!String.IsNullOrEmpty(node.SymbolicName))
             {
@@ -1163,7 +1212,7 @@ namespace Opc.Ua.Export
             {
                 try
                 {
-                    dimensions[ii] = Convert.ToUInt32(fields[ii]);
+                    dimensions[ii] = Convert.ToUInt32(fields[ii], CultureInfo.InvariantCulture);
                 }
                 catch
                 {
