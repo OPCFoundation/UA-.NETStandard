@@ -162,7 +162,7 @@ namespace Opc.Ua.Gds.Server
         }
         #endregion
 
-        #region Private methods
+        #region Private Methods
         private NodeId GetTrustListId(NodeId certificateGroupId)
         {
 
@@ -381,6 +381,8 @@ namespace Opc.Ua.Gds.Server
 
                     Opc.Ua.Gds.CertificateDirectoryState activeNode = new Opc.Ua.Gds.CertificateDirectoryState(passiveNode.Parent);
 
+                    activeNode.CheckRevocationStatus = new CheckRevocationStatusMethodState(passiveNode.Parent);
+
                     activeNode.Create(context, passiveNode);
                     activeNode.QueryServers.OnCall = new QueryServersMethodStateMethodCallHandler(OnQueryServers);
                     activeNode.QueryApplications.OnCall = new QueryApplicationsMethodStateMethodCallHandler(OnQueryApplications);
@@ -395,6 +397,8 @@ namespace Opc.Ua.Gds.Server
                     activeNode.GetTrustList.OnCall = new GetTrustListMethodStateMethodCallHandler(OnGetTrustList);
                     activeNode.GetCertificateStatus.OnCall = new GetCertificateStatusMethodStateMethodCallHandler(OnGetCertificateStatus);
                     activeNode.StartSigningRequest.OnCall = new StartSigningRequestMethodStateMethodCallHandler(OnStartSigningRequest);
+                    activeNode.CheckRevocationStatus.OnCall = new CheckRevocationStatusMethodStateMethodCallHandler(OnCheckRevocationStatus);
+
                     // TODO
                     //activeNode.RevokeCertificate.OnCall = new RevokeCertificateMethodStateMethodCallHandler(OnRevokeCertificate);
 
@@ -581,6 +585,41 @@ namespace Opc.Ua.Gds.Server
             AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.AuthenticatedUserOrSelfAdmin, applicationId); ;
             Utils.LogInfo("OnGetApplication: {0}", applicationId);
             application = m_database.GetApplication(applicationId);
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult OnCheckRevocationStatus(
+        ISystemContext context,
+        MethodState method,
+        NodeId objectId,
+        byte[] certificate,
+        ref StatusCode certificateStatus,
+        ref DateTime validityTime)
+        {
+            AuthorizationHelper.HasAuthenticatedSecureChannel(context);
+
+            //create CertificateValidator initialized with GDS CAs
+            var certificateValidator = new CertificateValidator();
+            var authorities = new CertificateTrustList() {
+                StorePath = m_globalDiscoveryServerConfiguration.AuthoritiesStorePath,
+                StoreType = CertificateStoreIdentifier.DetermineStoreType(m_globalDiscoveryServerConfiguration.AuthoritiesStorePath)
+            };
+            certificateValidator.Update(null, authorities, null);
+
+            //TODO return validityTime of Certificate once CertificateValidator supports it
+            validityTime = DateTime.MinValue;
+
+            using (var x509 = new X509Certificate2(certificate))
+            {
+                try
+                {
+                    certificateValidator.Validate(x509);
+                }
+                catch (ServiceResultException se)
+                {
+                    certificateStatus = se.StatusCode;
+                }
+            }
             return ServiceResult.Good;
         }
 
