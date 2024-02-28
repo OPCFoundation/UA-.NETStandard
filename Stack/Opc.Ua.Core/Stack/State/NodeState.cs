@@ -1211,7 +1211,7 @@ namespace Opc.Ua
 
             }
 
-            lock(m_referencesLock)
+            lock (m_referencesLock)
             {
                 if (m_references == null)
                 {
@@ -2327,7 +2327,7 @@ namespace Opc.Ua
         /// <param name="includeChildren">Whether to recursively set the flag on any children.</param>
         public void SetAreEventsMonitored(ISystemContext context, bool areEventsMonitored, bool includeChildren)
         {
-            lock(m_areEventsMonitoredLock)
+            lock (m_areEventsMonitoredLock)
             {
                 if (areEventsMonitored)
                 {
@@ -2338,7 +2338,7 @@ namespace Opc.Ua
                     m_areEventsMonitored--;
                 }
             }
-            
+
             // propagate monitoring flag to children.
             if (includeChildren)
             {
@@ -2515,7 +2515,7 @@ namespace Opc.Ua
                         notifiers.Add(notifier);
                     }
                 }
-            } 
+            }
         }
 
         /// <summary>
@@ -3113,7 +3113,7 @@ namespace Opc.Ua
                     }
                 }
             }
-            
+
             // recursively update targets for children.
             for (int ii = 0; ii < children.Count; ii++)
             {
@@ -3266,7 +3266,7 @@ namespace Opc.Ua
                 }
             }
 
-            foreach(var reference in referencesToAdd)
+            foreach (var reference in referencesToAdd)
             {
                 browser.Add(reference);
             }
@@ -3658,7 +3658,7 @@ namespace Opc.Ua
                 {
                     AccessRestrictionType? accessRestrictions = m_accessRestrictions;
 
-                    NodeAttributeEventHandler<AccessRestrictionType> onReadAccessRestrictions = OnReadAccessRestrictions;
+                    NodeAttributeEventHandler<AccessRestrictionType?> onReadAccessRestrictions = OnReadAccessRestrictions;
 
                     if (onReadAccessRestrictions != null)
                     {
@@ -4072,7 +4072,7 @@ namespace Opc.Ua
 
                     var accessRestrictions = (AccessRestrictionType?)accessRestrictionsRef.Value;
 
-                    NodeAttributeEventHandler<AccessRestrictionType> onWriteAccessRestrictions = OnWriteAccessRestrictions;
+                    NodeAttributeEventHandler<AccessRestrictionType?> onWriteAccessRestrictions = OnWriteAccessRestrictions;
 
                     if (onWriteAccessRestrictions != null)
                     {
@@ -4618,7 +4618,7 @@ namespace Opc.Ua
                 }
             }
 
-            if(removed)
+            if (removed)
             {
                 OnReferenceRemoved?.Invoke(this, referenceTypeId, isInverse, targetId);
             }
@@ -4649,12 +4649,12 @@ namespace Opc.Ua
                     {
                         m_references.Add(references[ii], null);
                         addedReferences.Add(references[ii]);
-                        
+
                     }
                 }
             }
 
-            foreach(IReference addedReference in addedReferences)
+            foreach (IReference addedReference in addedReferences)
             {
                 OnReferenceAdded?.Invoke(this, addedReference.ReferenceTypeId, addedReference.IsInverse, addedReference.TargetId);
             }
