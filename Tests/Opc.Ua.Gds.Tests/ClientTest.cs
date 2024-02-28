@@ -1297,6 +1297,19 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
+        [Test, Order(700)]
+        public void CheckGoodRevocationStatus()
+        {
+            AssertIgnoreTestWithoutGoodRegistration();
+            ConnectGDS(false);
+            foreach (var application in m_goodApplicationTestSet)
+            {
+                m_gdsClient.GDSClient.CheckRevocationStatus(application.Certificate, out StatusCode certificateStatus, out DateTime validityTime);
+                Assert.AreEqual(StatusCodes.Good, certificateStatus.Code);
+                Assert.NotNull(validityTime);
+            }
+        }
+
         [Test, Order(895)]
         public void RevokeGoodCertificates()
         {
@@ -1314,7 +1327,7 @@ namespace Opc.Ua.Gds.Tests
                 }, Throws.Exception);
             }
         }
-
+     
         [Test, Order(900)]
         public void UnregisterGoodApplications()
         {
@@ -1323,6 +1336,19 @@ namespace Opc.Ua.Gds.Tests
             foreach (var application in m_goodApplicationTestSet)
             {
                 m_gdsClient.GDSClient.UnregisterApplication(application.ApplicationRecord.ApplicationId);
+            }
+        }
+
+        [Test, Order(910)]
+        public void CheckRevocationStatusUnregisteredApplications()
+        {
+            AssertIgnoreTestWithoutGoodRegistration();
+            ConnectGDS(false);
+            foreach (var application in m_goodApplicationTestSet)
+            {
+                m_gdsClient.GDSClient.CheckRevocationStatus(application.Certificate, out StatusCode certificateStatus, out DateTime validityTime);
+                Assert.AreEqual(StatusCodes.BadCertificateRevoked, certificateStatus.Code);
+                Assert.NotNull(validityTime);
             }
         }
 
@@ -1448,7 +1474,6 @@ namespace Opc.Ua.Gds.Tests
         #region Private Fields
         private const int kGoodApplicationsTestCount = 10;
         private const int kInvalidApplicationsTestCount = 10;
-        private const int kRandomStart = 1;
         private ApplicationTestDataGenerator m_appTestDataGenerator;
         private GlobalDiscoveryTestServer m_server;
         private GlobalDiscoveryTestClient m_gdsClient;
