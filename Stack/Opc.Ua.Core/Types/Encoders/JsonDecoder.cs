@@ -934,14 +934,14 @@ namespace Opc.Ua
 
             if (token is string text)
             {
-                var nodeId = NodeId.Parse(m_context, text, UpdateNamespaceTable);
-
-                var ns = ToNamespaceIndex(nodeId.NamespaceIndex);
-
-                if (ns != nodeId.NamespaceIndex)
-                {
-                    return new NodeId(nodeId.Identifier, ns);
-                }
+                var nodeId = NodeId.Parse(
+                    m_context,
+                    text,
+                    new NodeIdParsingOptions() {
+                        UpdateTables = UpdateNamespaceTable,
+                        NamespaceMappings = m_namespaceMappings,
+                        ServerMappings = m_serverMappings
+                    });
 
                 return nodeId;
             }
@@ -1033,27 +1033,14 @@ namespace Opc.Ua
 
             if (token is string text)
             {
-                var nodeId = ExpandedNodeId.Parse(m_context, text, UpdateNamespaceTable);
-
-                if (nodeId.NamespaceIndex != 0)
-                {
-                    var ns = ToNamespaceIndex(nodeId.NamespaceIndex);
-
-                    if (ns != nodeId.NamespaceIndex)
-                    {
-                        nodeId = new ExpandedNodeId(nodeId.Identifier, ns, nodeId.NamespaceUri, nodeId.ServerIndex);
-                    }
-                }
-
-                if (nodeId.ServerIndex != 0)
-                {
-                    var sv = ToServerIndex(nodeId.ServerIndex);
-
-                    if (sv != nodeId.ServerIndex)
-                    {
-                        nodeId = new ExpandedNodeId(nodeId.InnerNodeId, nodeId.NamespaceUri, sv);
-                    }
-                }
+                var nodeId = ExpandedNodeId.Parse(
+                    m_context,
+                    text, 
+                    new NodeIdParsingOptions() {
+                        UpdateTables = UpdateNamespaceTable,
+                        NamespaceMappings = m_namespaceMappings,
+                        ServerMappings = m_serverMappings
+                    });
 
                 return nodeId;
             }

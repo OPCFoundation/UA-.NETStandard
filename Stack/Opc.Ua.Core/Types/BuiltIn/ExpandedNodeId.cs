@@ -1040,14 +1040,14 @@ namespace Opc.Ua
 
         #region Static Members
         /// <summary>
-        /// Parses an absolute NodeId formatted as a string and converts it a local NodeId.
+        /// Parses an ExpandedNodeId formatted as a string and converts it a local NodeId.
         /// </summary>
         /// <param name="context">The current context,</param>
         /// <param name="text">The text to parse.</param>
-        /// <param name="updateTables">TRUE if new URIs may be added to the NamespaceUris or ServerUris.</param>
+        /// <param name="options">The options to use when parsing the ExpandedNodeId.</param>
         /// <returns>The local identifier.</returns>
         /// <exception cref="ServiceResultException">Thrown if the namespace URI is not in the namespace table.</exception>
-        public static ExpandedNodeId Parse(IServiceMessageContext context, string text, bool updateTables = false)
+        public static ExpandedNodeId Parse(IServiceMessageContext context, string text, NodeIdParsingOptions options = null)
         {
             if (String.IsNullOrEmpty(text))
             {
@@ -1067,7 +1067,7 @@ namespace Opc.Ua
                 }
 
                 var serverUri = Utils.UnescapeUri(text.Substring(4, index - 4));
-                serverIndex = (updateTables) ? context.ServerUris.GetIndexOrAppend(serverUri) : context.ServerUris.GetIndex(serverUri);
+                serverIndex = (options?.UpdateTables == true) ? context.ServerUris.GetIndexOrAppend(serverUri) : context.ServerUris.GetIndex(serverUri);
 
                 if (serverIndex < 0)
                 {
@@ -1089,6 +1089,11 @@ namespace Opc.Ua
                 if (UInt16.TryParse(text.Substring(4, index - 4), out ushort ns))
                 {
                     serverIndex = ns;
+
+                    if (options.ServerMappings != null && options?.NamespaceMappings.Length < ns)
+                    {
+                        serverIndex = options.NamespaceMappings[ns];
+                    }
                 }
 
                 text = text.Substring(index + 1);
@@ -1107,12 +1112,12 @@ namespace Opc.Ua
                 }
 
                 namespaceUri = Utils.UnescapeUri(text.Substring(4, index - 4));
-                namespaceIndex = (updateTables) ? context.NamespaceUris.GetIndexOrAppend(namespaceUri) : context.NamespaceUris.GetIndex(namespaceUri);
+                namespaceIndex = (options?.UpdateTables == true) ? context.NamespaceUris.GetIndexOrAppend(namespaceUri) : context.NamespaceUris.GetIndex(namespaceUri);
 
                 text = text.Substring(index + 1);
             }
 
-            var nodeId = NodeId.Parse(context, text, updateTables);
+            var nodeId = NodeId.Parse(context, text, options);
 
             if (namespaceIndex > 0)
             {
