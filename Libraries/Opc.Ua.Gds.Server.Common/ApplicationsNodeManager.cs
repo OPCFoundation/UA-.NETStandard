@@ -637,6 +637,7 @@ namespace Opc.Ua.Gds.Server
             };
             certificateValidator.Update(null, authorities, null);
 
+            //TODO return validityTime of Certificate once CertificateValidator supports it
             validityTime = DateTime.MinValue;
 
             using (var x509 = new X509Certificate2(certificate))
