@@ -1257,10 +1257,7 @@ namespace Opc.Ua.Bindings
                 m_handshakeOperation = null;
             }
 
-            if (!m_requests.TryRemove(operation.RequestId, out _))
-            {
-                throw new ServiceResultException(StatusCodes.BadUnexpectedError, "Could not remove operation from list of pending operations.");
-            }
+            m_requests.TryRemove(operation.RequestId, out _);
         }
 
         /// <summary>
