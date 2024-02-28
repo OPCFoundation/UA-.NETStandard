@@ -563,7 +563,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The last ActiveTime of the channel
         /// </summary>
-        public long LastActiveTime => LastCommTime;
+        public int LastActiveTime => LastCommTime;
         #endregion
 
         #region Private Fields

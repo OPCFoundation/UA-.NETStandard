@@ -15,7 +15,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
-using System.Timers;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
@@ -126,7 +126,7 @@ namespace Opc.Ua.Bindings
 
             if (configuration != null)
             {
-                m_inactivityDetectPeriod = configuration.ChannelLifetime; 
+                m_inactivityDetectPeriod = configuration.ChannelLifetime / 2; 
                 m_quotas.MaxMessageSize = configuration.MaxMessageSize;
                 m_quotas.MaxChannelCount = configuration.MaxChannelCount;
                 m_quotas.ChannelLifetime = configuration.ChannelLifetime;
@@ -320,12 +320,10 @@ namespace Opc.Ua.Bindings
                     m_listeningSocket.Bind(endpoint);
                     m_listeningSocket.Listen(Int32.MaxValue);
 
-                    m_inactivityDetectionTimer = new Timer() {
-                        Interval = m_inactivityDetectPeriod,
-                        AutoReset = true,
-                    };
-                    m_inactivityDetectionTimer.Elapsed += (sender, e) => DetectInactiveChannels();
-                    m_inactivityDetectionTimer.Start();
+                    m_inactivityDetectionTimer = new Timer(DetectInactiveChannels,
+                        null,
+                        m_inactivityDetectPeriod,
+                        m_inactivityDetectPeriod);
 
                     if (!m_listeningSocket.AcceptAsync(args))
                     {
@@ -383,13 +381,15 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The callback timer which detects stale channels
         /// </summary>
-        private void DetectInactiveChannels()
+        /// <param name="state"></param>
+        private void DetectInactiveChannels(object state = null)
         {
+            int tickCount = HiResClock.TickCount;
             lock(m_lock)
             {
                 foreach (var chEntry in m_channels)
                 {
-                    if (HiResClock.TickCount64 - chEntry.Value.LastActiveTime > m_quotas.ChannelLifetime)
+                    if (tickCount - chEntry.Value.LastActiveTime > m_quotas.ChannelLifetime)
                     {
                         chEntry.Value.Cleanup();
                     }
@@ -761,7 +761,7 @@ namespace Opc.Ua.Bindings
         private Dictionary<uint, TcpListenerChannel> m_channels;
         private ITransportListenerCallback m_callback;
         private bool m_reverseConnectListener;
-        private double m_inactivityDetectPeriod;
+        private int m_inactivityDetectPeriod;
         private Timer m_inactivityDetectionTimer;
         #endregion
     }

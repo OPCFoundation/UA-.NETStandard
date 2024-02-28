@@ -527,7 +527,7 @@ namespace Opc.Ua.Bindings
         protected virtual void HandleWriteComplete(BufferCollection buffers, object state, int bytesWritten, ServiceResult result)
         {
             // Communication is active on the channel
-            Interlocked.Exchange(ref LastCommTime, HiResClock.TickCount64);
+            LastCommTime = HiResClock.TickCount;
 
             if (buffers != null)
             {
@@ -774,7 +774,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The last time that the channel received/send messages 
         /// </summary>
-        protected ref long LastCommTime => ref m_lastCommTime;
+        protected ref int LastCommTime => ref m_lastCommTime;
 
         #endregion
 
@@ -865,7 +865,7 @@ namespace Opc.Ua.Bindings
 
         private TcpChannelStateEventHandler m_StateChanged;
 
-        private long m_lastCommTime;
+        private int m_lastCommTime;
         #endregion
     }
 

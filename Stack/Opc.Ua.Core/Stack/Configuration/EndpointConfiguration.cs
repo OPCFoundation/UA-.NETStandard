@@ -11,7 +11,6 @@
 */
 
 using System;
-using System.Collections.Generic;
 
 namespace Opc.Ua
 {
@@ -67,6 +66,21 @@ namespace Opc.Ua
 
             return configuration;
         }
+        #endregion
+
+        #region PublicProperties
+        /// <summary>
+        /// The maximum channel count
+        /// </summary>
+        public int MaxChannelCount
+        {
+            get { return m_maxChannelCount; }
+            set { m_maxChannelCount = value; }
+        }
+        #endregion
+
+        #region Private members
+        private int m_maxChannelCount;
         #endregion
     }
 }
