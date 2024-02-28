@@ -481,7 +481,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private bool ProcessOpenSecureChannelRequest(uint messageType, ArraySegment<byte> messageChunk)
         {
-            // Communication is active on the chanell
+            // Communication is active on the channel
             LastCommTime = HiResClock.TickCount;
 
             // validate the channel state.

@@ -397,7 +397,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The maximum number supported of a secure channels.
+        /// The maximum number of supported secure channels.
         /// </summary>
         /// <value>The channel lifetime.</value>
         [DataMember(IsRequired = false, Order = 6)]
