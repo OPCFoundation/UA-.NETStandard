@@ -1310,6 +1310,24 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
+        [Test, Order(895)]
+        public void RevokeGoodCertificates()
+        {
+            AssertIgnoreTestWithoutInvalidRegistration();
+            AssertIgnoreTestWithoutGoodNewKeyPairRequest();
+            ConnectGDS(true);
+            foreach (var application in m_goodApplicationTestSet)
+            {
+                m_gdsClient.GDSClient.RevokeCertificate(application.ApplicationRecord.ApplicationId, application.Certificate);
+            }
+            foreach (var application in m_invalidApplicationTestSet)
+            {
+                Assert.That(() => {
+                    m_gdsClient.GDSClient.RevokeCertificate(application.ApplicationRecord.ApplicationId, application.Certificate);
+                }, Throws.Exception);
+            }
+        }
+     
         [Test, Order(900)]
         public void UnregisterGoodApplications()
         {

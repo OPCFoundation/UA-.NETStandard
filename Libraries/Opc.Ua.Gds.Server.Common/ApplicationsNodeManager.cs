@@ -246,19 +246,24 @@ namespace Opc.Ua.Gds.Server
             return null;
         }
 
-        private async Task RevokeCertificateAsync(byte[] certificate)
+        private async Task<bool> RevokeCertificateAsync(byte[] certificate)
         {
+            bool revoked = false;
             if (certificate != null && certificate.Length > 0)
             {
                 ICertificateGroup certificateGroup = GetGroupForCertificate(certificate);
 
                 if (certificateGroup != null)
                 {
-                    using (var x509 = new X509Certificate2(certificate))
+                    using (X509Certificate2 x509 = new X509Certificate2(certificate))
                     {
                         try
                         {
-                            await certificateGroup.RevokeCertificateAsync(x509).ConfigureAwait(false);
+                            Security.Certificates.X509CRL crl = await certificateGroup.RevokeCertificateAsync(x509).ConfigureAwait(false);
+                            if (crl != null)
+                            {
+                                revoked = true;
+                            }
                         }
                         catch (Exception e)
                         {
@@ -267,6 +272,7 @@ namespace Opc.Ua.Gds.Server
                     }
                 }
             }
+            return revoked;
         }
 
         protected async Task<ICertificateGroup> InitializeCertificateGroup(CertificateGroupConfiguration certificateGroupConfiguration)
@@ -381,6 +387,7 @@ namespace Opc.Ua.Gds.Server
 
                     Opc.Ua.Gds.CertificateDirectoryState activeNode = new Opc.Ua.Gds.CertificateDirectoryState(passiveNode.Parent);
 
+                    activeNode.RevokeCertificate = new RevokeCertificateMethodState(passiveNode);
                     activeNode.CheckRevocationStatus = new CheckRevocationStatusMethodState(passiveNode.Parent);
 
                     activeNode.Create(context, passiveNode);
@@ -397,10 +404,8 @@ namespace Opc.Ua.Gds.Server
                     activeNode.GetTrustList.OnCall = new GetTrustListMethodStateMethodCallHandler(OnGetTrustList);
                     activeNode.GetCertificateStatus.OnCall = new GetCertificateStatusMethodStateMethodCallHandler(OnGetCertificateStatus);
                     activeNode.StartSigningRequest.OnCall = new StartSigningRequestMethodStateMethodCallHandler(OnStartSigningRequest);
+                    activeNode.RevokeCertificate.OnCall = new RevokeCertificateMethodStateMethodCallHandler(OnRevokeCertificate);
                     activeNode.CheckRevocationStatus.OnCall = new CheckRevocationStatusMethodStateMethodCallHandler(OnCheckRevocationStatus);
-
-                    // TODO
-                    //activeNode.RevokeCertificate.OnCall = new RevokeCertificateMethodStateMethodCallHandler(OnRevokeCertificate);
 
                     activeNode.CertificateGroups.DefaultApplicationGroup.CertificateTypes.Value = new NodeId[] { Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType };
                     activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.LastUpdateTime.Value = DateTime.UtcNow;
@@ -559,6 +564,49 @@ namespace Opc.Ua.Gds.Server
 
             m_database.UnregisterApplication(applicationId);
 
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult OnRevokeCertificate(
+             ISystemContext context,
+             MethodState method,
+             NodeId objectId,
+             NodeId applicationId,
+             byte[] certificate)
+        {
+            AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.CertificateAuthorityAdmin);
+
+            if (m_database.GetApplication(applicationId) == null)
+            {
+                return new ServiceResult(StatusCodes.BadNotFound, "The ApplicationId does not refer to a registered application.");
+            }
+            if (certificate == null || certificate.Length == 0)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "The certificate is not a Certificate for the specified Application that was issued by the CertificateManager.");
+            }
+
+            bool revoked = false;
+            foreach (var certType in m_certTypeMap)
+            {
+                byte[] applicationCertificate;
+
+                if (!m_database.GetApplicationCertificate(applicationId, certType.Value, out applicationCertificate)
+                    || applicationCertificate == null
+                    || !Utils.IsEqual(applicationCertificate, certificate))
+                {
+                    continue;
+                }
+
+                revoked = RevokeCertificateAsync(certificate).Result;
+                if (revoked)
+                {
+                    break;
+                }
+            }
+            if (!revoked)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "The certificate is not a Certificate for the specified Application that was issued by the CertificateManager.");
+            }
             return ServiceResult.Good;
         }
 
