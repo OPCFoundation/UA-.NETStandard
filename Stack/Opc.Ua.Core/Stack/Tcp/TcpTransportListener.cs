@@ -318,7 +318,7 @@ namespace Opc.Ua.Bindings
                     args.Completed += OnAccept;
                     args.UserToken = m_listeningSocket;
                     m_listeningSocket.Bind(endpoint);
-                    m_listeningSocket.Listen(Int32.MaxValue);
+                    m_listeningSocket.Listen(kSocketBacklog);
 
                     m_inactivityDetectionTimer = new Timer(DetectInactiveChannels,
                         null,
@@ -763,6 +763,12 @@ namespace Opc.Ua.Bindings
         private bool m_reverseConnectListener;
         private int m_inactivityDetectPeriod;
         private Timer m_inactivityDetectionTimer;
+        #endregion
+
+        #region Private Constants
+
+        int kSocketBacklog = 10;
+
         #endregion
     }
 
