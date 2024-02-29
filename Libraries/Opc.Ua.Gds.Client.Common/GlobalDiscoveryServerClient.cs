@@ -585,6 +585,36 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <summary>
+        /// Checks the provided certificate for validity
+        /// </summary>
+        /// <param name="certificate">The DER encoded form of the Certificate to check.</param>
+        /// <param name="certificateStatus">The first error encountered when validating the Certificate.</param>
+        /// <param name="validityTime">When the result expires and should be rechecked. DateTime.MinValue if this is unknown.</param>
+        public void CheckRevocationStatus(byte[] certificate,
+            out StatusCode certificateStatus,
+            out DateTime validityTime)
+        {
+            certificateStatus = StatusCodes.Good;
+            validityTime = DateTime.MinValue;
+
+            if (!IsConnected)
+            {
+                Connect();
+            }
+
+            var outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_CheckRevocationStatus, Session.NamespaceUris),
+                certificate);
+
+            if (outputArguments.Count >= 2)
+            {
+                certificateStatus = (StatusCode)outputArguments[0];
+                validityTime = (DateTime)outputArguments[1];
+            }
+        }
+
+        /// <summary>
         /// Updates the application.
         /// </summary>
         /// <param name="application">The application.</param>
@@ -616,6 +646,25 @@ namespace Opc.Ua.Gds.Client
                 ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_UnregisterApplication, Session.NamespaceUris),
                 applicationId);
+        }
+
+        /// <summary>
+        /// Revokes a Certificate issued to the Application by the CertificateManager
+        /// </summary>
+        /// <param name="applicationId">The application id.</param>
+        /// <param name="certificate">The certificate to revoke</param>
+        public void RevokeCertificate(NodeId applicationId, byte[] certificate)
+        {
+            if (!IsConnected)
+            {
+                Connect();
+            }
+
+            Session.Call(
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_RevokeCertificate, Session.NamespaceUris),
+                applicationId,
+                certificate);
         }
 
         /// <summary>
