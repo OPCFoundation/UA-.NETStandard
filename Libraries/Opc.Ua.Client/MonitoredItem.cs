@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
+using Opc.Ua.Client.Events;
 
 namespace Opc.Ua.Client
 {
@@ -175,7 +176,112 @@ namespace Opc.Ua.Client
 
             // assign a unique handle.
             m_clientHandle = Utils.IncrementIdentifier(ref s_globalClientHandle);
+            AddEventHandler();
         }
+
+        private bool AddedEventHandlers = false;
+
+        /// <summary>
+        /// Add Event Handler to MonitoredItem -> Notification
+        /// </summary>
+        public void AddEventHandler()
+        {
+            if (!AddedEventHandlers)
+            {
+                m_Notification += MonitoredItem_Notification;
+                AddedEventHandlers = true;
+                EventNotification += Event_Notification;
+            }
+        }
+
+        private void Event_Notification(EventFilter eventFilter, EventFieldList eventFieldList)
+        {
+            var acknowledgeableEvent = GetAcknowledgeableEvent(eventFilter, eventFieldList);
+
+            foreach (var field in acknowledgeableEvent.Fields)
+            {
+                Console.WriteLine($"{field.Name}:{field.Value}");
+            }
+            try
+            {
+                acknowledgeableEvent.AddComment(new LocalizedText("Commented!"));
+                Console.WriteLine($"Commented!");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"couldnt comment! {e}");
+            }
+            try
+            {
+                acknowledgeableEvent.Confirm(new LocalizedText("Confirmed!"));
+                Console.WriteLine($"Confirmed!");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"couldnt Confirm! {e}");
+            }
+            try
+            {
+                acknowledgeableEvent.Acknowledge(new LocalizedText("Acknowledged!"));
+                Console.WriteLine($"Acknowledged!");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"couldnt Acknowledge! {e}");
+            }
+        }
+
+        private void MonitoredItem_Notification(MonitoredItem monitoredItem, MonitoredItemNotificationEventArgs e)
+        {
+            var dataChangeNotification = e.NotificationValue as MonitoredItemNotification;
+            if (dataChangeNotification != null)
+            {
+                DataChangeNotification?.Invoke(dataChangeNotification);
+                return;
+            }
+
+            var eventMonitoredItemNotification = e.NotificationValue as EventFieldList;
+            if (eventMonitoredItemNotification != null)
+            {
+                EventNotification?.Invoke((EventFilter)monitoredItem.Filter, eventMonitoredItemNotification);
+            }
+        }
+
+        /// <summary>
+        /// Get an Acknowledgeable event
+        /// </summary>
+        /// <param name="eventFilter"></param>
+        /// <param name="eventFieldList"></param>
+        /// <returns></returns>
+        public IEvent GetAcknowledgeableEvent(EventFilter eventFilter, EventFieldList eventFieldList)
+        {
+            ArgumentNullException.ThrowIfNull(eventFilter, nameof(eventFilter));
+            ArgumentNullException.ThrowIfNull(eventFieldList, nameof(eventFieldList));
+            return new OpcEvent(new EventMethodCollection(this.Subscription.Session), GetWrappedEventFields(eventFilter, eventFieldList));
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="eventFilter"></param>
+        /// <param name="eventFieldList"></param>
+        /// <returns></returns>
+        private List<EventField> GetWrappedEventFields(EventFilter eventFilter, EventFieldList eventFieldList)
+        {
+            var eventFields = eventFieldList.EventFields;
+            var wrappedEventFields = new List<EventField>();
+            for (int i = 0; i < eventFields.Count; i++)
+            {
+                var eventName = eventFilter.SelectClauses[i].ToString();
+                if (eventFilter.SelectClauses[i].AttributeId == Attributes.NodeId)
+                {
+                    eventName = "ConditionId";
+                }
+                wrappedEventFields.Add(new EventField(eventName, eventFields[i]));
+            }
+            return wrappedEventFields;
+        }
+
         #endregion
 
         #region Persistent Properties
@@ -592,6 +698,15 @@ namespace Opc.Ua.Client
                 }
             }
         }
+
+        /// <summary>
+        /// DataChangeNotification for the Monitored Item
+        /// </summary>
+        public event MonitoredItemNotificationHandler DataChangeNotification;
+        /// <summary>
+        /// Event Notification for the Monitored Item
+        /// </summary>
+        public event EventMonitoredItemNotificationNotificationHandler EventNotification;
 
         /// <summary>
         /// Reset the notification event handler.
@@ -1155,6 +1270,16 @@ namespace Opc.Ua.Client
     /// The delegate used to receive monitored item value notifications.
     /// </summary>
     public delegate void MonitoredItemNotificationEventHandler(MonitoredItem monitoredItem, MonitoredItemNotificationEventArgs e);
+
+    /// <summary>
+    /// Handler for data change notification
+    /// </summary>
+    public delegate void MonitoredItemNotificationHandler(MonitoredItemNotification notification);
+
+    /// <summary>
+    /// Handler for event change notification
+    /// </summary>
+    public delegate void EventMonitoredItemNotificationNotificationHandler(EventFilter eventFilter, EventFieldList eventFieldList);
     #endregion
 
     /// <summary>
