@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using Opc.Ua.Client.Events;
+using Opc.Ua.Client.Methods;
 
 namespace Opc.Ua.Client
 {
@@ -255,8 +256,16 @@ namespace Opc.Ua.Client
         /// <returns></returns>
         public IEvent GetAcknowledgeableEvent(EventFilter eventFilter, EventFieldList eventFieldList)
         {
-            ArgumentNullException.ThrowIfNull(eventFilter, nameof(eventFilter));
-            ArgumentNullException.ThrowIfNull(eventFieldList, nameof(eventFieldList));
+            //ArgumentNullException.ThrowIfNull(eventFilter, nameof(eventFilter));
+            //ArgumentNullException.ThrowIfNull(eventFieldList, nameof(eventFieldList));
+            if (eventFilter == null)
+            {
+                throw new ArgumentNullException(nameof(eventFilter));
+            }
+            if (eventFieldList == null)
+            {
+                throw new ArgumentNullException(nameof(eventFieldList));
+            }
             return new OpcEvent(new EventMethodCollection(this.Subscription.Session), GetWrappedEventFields(eventFilter, eventFieldList));
         }
 

@@ -1,6 +1,4 @@
-using Opc.Ua.Client.Methods;
-
-namespace Opc.Ua.Client.Events
+namespace Opc.Ua.Client.Methods
 {
     /// <summary>
     /// A standard event method

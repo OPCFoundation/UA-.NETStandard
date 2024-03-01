@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Opc.Ua.Client.Methods;
+using Opc.Ua.Client.Events;
 
-namespace Opc.Ua.Client.Events
+namespace Opc.Ua.Client.Methods
 {
     /// <summary>
     /// Base object for method object
@@ -61,7 +61,7 @@ namespace Opc.Ua.Client.Events
 
         private void LoadArguments()
         {
-            var references = _session.FetchReferences(MethodNodeId, BrowseDirection.Forward, ReferenceTypeIds.HasProperty);
+            var references = _session.FetchReferences(MethodNodeId/*, BrowseDirection.Forward, ReferenceTypeIds.HasProperty*/);
             foreach (var reference in references)
             {
                 if (reference.BrowseName.Name.Equals("InputArguments", StringComparison.Ordinal))
@@ -133,3 +133,4 @@ namespace Opc.Ua.Client.Events
             return new OutputArgument() { Name = argument.Name, Value = value.Value };
         }
     }
+}

@@ -1,4 +1,4 @@
-namespace Opc.Ua.Client.Events
+namespace Opc.Ua.Client.Methods
 {
     /// <summary>
     /// Method collection for standard events

@@ -84,6 +84,11 @@ namespace Opc.Ua.Client.Events
         }
 
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
         public static NodeId ToNodeId(this ReferenceDescription id)
         {
             return ExpandedNodeId.ToNodeId(id.NodeId, new NamespaceTable());
