@@ -121,7 +121,7 @@ namespace Opc.Ua
         /// <summary cref="IUserIdentity.DisplayName" />
         public string DisplayName
         {
-            get { return m_displayName; }
+            get { return m_displayName; } set { m_displayName = value; }
         }
 
         /// <summary cref="IUserIdentity.TokenType" />
