@@ -61,7 +61,7 @@ namespace Opc.Ua.Client.Methods
 
         private void LoadArguments()
         {
-            var references = _session.FetchReferences(MethodNodeId/*, BrowseDirection.Forward, ReferenceTypeIds.HasProperty*/);
+            var references = _session.FetchReferences(MethodNodeId, BrowseDirection.Forward, ReferenceTypeIds.HasProperty);
             foreach (var reference in references)
             {
                 if (reference.BrowseName.Name.Equals("InputArguments", StringComparison.Ordinal))
