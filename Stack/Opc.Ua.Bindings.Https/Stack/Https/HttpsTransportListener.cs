@@ -234,6 +234,23 @@ namespace Opc.Ua.Bindings
             ConnectionStatusChanged?.Invoke(null, null);
             throw new NotImplementedException();
         }
+
+                
+        /// <summary>
+        /// Handle Session Close
+        /// </summary>
+        /// <param name="channelId"></param>
+        public void HandleSessionClose(string channelId)
+        {
+        }
+
+        /// <summary>
+        /// Handle Session Create
+        /// </summary>
+        /// <param name="channelId"></param>
+        public void HandleSessionCreate(string channelId)
+        {
+        }
         #endregion
 
         #region Public Methods

@@ -2948,6 +2948,8 @@ namespace Opc.Ua.Server
                     Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSessionManager.");
                     SessionManager sessionManager = CreateSessionManager(m_serverInternal, configuration);
                     sessionManager.Startup();
+                    sessionManager.SessionCreated += SessionEvent;
+                    sessionManager.SessionClosing += SessionEvent;
 
                     // start the subscription manager.
                     Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
@@ -3086,6 +3088,8 @@ namespace Opc.Ua.Server
                 {
                     if (m_serverInternal != null)
                     {
+                        m_serverInternal.SessionManager.SessionClosing -= SessionEvent;
+                        m_serverInternal.SessionManager.SessionCreated -= SessionEvent;
                         m_serverInternal.SubscriptionManager.Shutdown();
                         m_serverInternal.SessionManager.Shutdown();
                         m_serverInternal.NodeManager.Shutdown();
@@ -3335,6 +3339,23 @@ namespace Opc.Ua.Server
         public virtual void RemoveNodeManager(INodeManagerFactory nodeManagerFactory)
         {
             m_nodeManagerFactories.Remove(nodeManagerFactory);
+        }
+        #endregion
+
+        #region Private Methods
+        /// <summary>
+        /// Reacts to a session event
+        /// </summary>
+        private void SessionEvent(Session session, SessionEventReason reason)
+        {
+            if (reason == SessionEventReason.Closing)
+            {
+                TransportListeners.ForEach(tl => tl.HandleSessionClose(session.SecureChannelId));
+            }
+            else if (reason == SessionEventReason.Created)
+            {
+                TransportListeners.ForEach(tl => tl.HandleSessionCreate(session.SecureChannelId));
+            }
         }
         #endregion
 

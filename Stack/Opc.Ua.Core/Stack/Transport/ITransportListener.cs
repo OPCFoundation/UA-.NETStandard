@@ -75,6 +75,18 @@ namespace Opc.Ua
         /// </summary>
         void CreateReverseConnection(Uri url, int timeout);
 
+        /// <summary>
+        /// Sets the state of the underlying channel to Inactive in case all  Sessions are closed
+        /// </summary>
+        void HandleSessionClose(string channelId);
+
+
+        /// <summary>
+        /// Whenever a new Session is created, increment usage counter for specified channel
+        /// </summary>
+        /// <param name="channelId"></param>
+        void HandleSessionCreate(string channelId);
+
     }
 
     /// <summary>

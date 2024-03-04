@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
@@ -146,6 +147,7 @@ namespace Opc.Ua.Bindings
 
             m_bufferManager = new BufferManager("Server", m_quotas.MaxBufferSize);
             m_channels = new Dictionary<uint, TcpListenerChannel>();
+            m_sessionsPerChannel = new Dictionary<string, uint>();
             m_reverseConnectListener = settings.ReverseConnectListener;
 
             // save the callback to the server.
@@ -162,6 +164,42 @@ namespace Opc.Ua.Bindings
         public void Close()
         {
             Stop();
+        }
+        
+        /// <summary>
+        /// Handle Session Close
+        /// </summary>
+        /// <param name="channelId"></param>
+        public void HandleSessionClose(string channelId)
+        {
+            if (m_sessionsPerChannel.TryGetValue(channelId, out uint actualValue))
+            {
+                uint decValue = --actualValue;
+                m_sessionsPerChannel[channelId] = decValue;
+
+                TcpListenerChannel foundChannel = m_channels.First(kv => kv.Value.GlobalChannelId == channelId).Value ?? null;
+
+                if (foundChannel != null && decValue == 0)
+                {
+                    foundChannel.SetInactive();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Handle Session Create
+        /// </summary>
+        /// <param name="channelId"></param>
+        public void HandleSessionCreate(string channelId)
+        {
+            if (m_sessionsPerChannel.TryGetValue(channelId, out uint actualValue))
+            {
+                m_sessionsPerChannel[channelId] = actualValue++;
+            }
+            else
+            {
+                m_sessionsPerChannel[channelId] = 1;
+            }
         }
         #endregion
 
@@ -763,6 +801,7 @@ namespace Opc.Ua.Bindings
         private bool m_reverseConnectListener;
         private int m_inactivityDetectPeriod;
         private Timer m_inactivityDetectionTimer;
+        private Dictionary<string, uint> m_sessionsPerChannel;
         #endregion
 
         #region Private Constants
