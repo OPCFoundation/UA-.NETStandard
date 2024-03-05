@@ -30,6 +30,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Client
 {
@@ -339,7 +340,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception exception)
             {
-                Utils.LogError(exception, "Unexpected error during reconnect.");
+                Utils.LogError("Unexpected error during reconnect: {0}", Redact.ExceptionMessage(exception.Message));
             }
 
             // schedule the next reconnect.
@@ -510,17 +511,17 @@ namespace Opc.Ua.Client
                     {
                         m_reconnectPeriod = m_baseReconnectPeriod;
                     }
-                    Utils.LogError("Could not reconnect due to failed security check. Request endpoint update from server. {0}", sre.Message);
+                    Utils.LogError("Could not reconnect due to failed security check. Request endpoint update from server. {0}", Redact.ExceptionMessage(sre.Message));
                 }
                 else
                 {
-                    Utils.LogError("Could not reconnect the Session. {0}", sre.Message);
+                    Utils.LogError("Could not reconnect the Session. {0}", Redact.ExceptionMessage(sre.Message));
                 }
                 return false;
             }
             catch (Exception exception)
             {
-                Utils.LogError("Could not reconnect the Session. {0}", exception.Message);
+                Utils.LogError("Could not reconnect the Session. {0}", Redact.ExceptionMessage(exception.Message));
                 return false;
             }
             finally
