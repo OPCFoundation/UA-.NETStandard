@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
@@ -408,6 +407,9 @@ namespace Opc.Ua.Gds.Tests
             byte[] privateKey = null;
             byte[] certificate = null;
             byte[][] issuerCertificates = null;
+
+            Thread.Sleep(1000);
+
             DateTime now = DateTime.UtcNow;
             do
             {
@@ -869,11 +871,11 @@ namespace Opc.Ua.Gds.Tests
             Assert.IsTrue(EraseStore(tempStorePath));
 
             string subjectName = "CN=CA Test Cert, O=OPC Foundation";
-            X509Certificate2 newCACert = CertificateFactory.CreateCertificate(
+            X509Certificate2 newCACert = await CertificateFactory.CreateCertificate(
                 null, null, subjectName, null)
                 .SetCAConstraint()
                 .CreateForRSA()
-                .AddToStore(CertificateStoreType.Directory, tempStorePath);
+                .AddToStoreAsync(CertificateStoreType.Directory, tempStorePath).ConfigureAwait(false);
 
             m_caCert = newCACert;
 
