@@ -1,4 +1,4 @@
-namespace Opc.Ua
+namespace Opc.Ua.Redaction
 {
     /// <summary>
     /// Represents a redaction (censoring) strategy.

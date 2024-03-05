@@ -1,4 +1,4 @@
-namespace Opc.Ua
+namespace Opc.Ua.Redaction
 {
     /// <summary>
     /// Wraps the supplied value and applies the redaction strategy when converting to string.
@@ -15,7 +15,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes a new instance of the <see cref="RedactionWrapper{T}"/> class with the default redaction strategy.
         /// </summary>
-        public RedactionWrapper(T value) : this(value, RedactionStrategy.GetDefaultStrategy<T>()) { }
+        public RedactionWrapper(T value) : this(value, RedactionStrategies.GetDefaultStrategy<T>()) { }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RedactionWrapper{T}"/> class.

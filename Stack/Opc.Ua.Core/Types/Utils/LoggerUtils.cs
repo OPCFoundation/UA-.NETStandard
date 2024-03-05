@@ -44,6 +44,7 @@ using System.Diagnostics;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua
 {
@@ -161,7 +162,7 @@ namespace Opc.Ua
                     {
                         allArgs[i] = args[i];
                     }
-                    allArgs[argsLength] = certificate.Subject;
+                    allArgs[argsLength] = Redact.Username(certificate.Subject);
                     allArgs[argsLength + 1] = certificate.Thumbprint;
                     Log(logLevel, eventId, builder.ToString(), allArgs);
                 }
