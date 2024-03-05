@@ -748,7 +748,7 @@ namespace Opc.Ua.Client
         {
             get
             {
-                TimeSpan delta = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - Interlocked.Read(ref m_lastKeepAliveTime));
+                TimeSpan delta = TimeSpan.FromTicks(HiResClock.Ticks - Interlocked.Read(ref m_lastKeepAliveTime));
 
                 // add a guard band to allow for network lag.
                 return (m_keepAliveInterval + kKeepAliveGuardBand) <= delta.TotalMilliseconds;
@@ -3689,7 +3689,7 @@ namespace Opc.Ua.Client
         {
             int keepAliveInterval = m_keepAliveInterval;
 
-            Interlocked.Exchange(ref m_lastKeepAliveTime, DateTime.UtcNow.Ticks);
+            Interlocked.Exchange(ref m_lastKeepAliveTime, HiResClock.Ticks);
 
             m_serverState = ServerState.Unknown;
 
@@ -3959,7 +3959,7 @@ namespace Opc.Ua.Client
                     return;
                 }
 
-                Interlocked.Exchange(ref m_lastKeepAliveTime, DateTime.UtcNow.Ticks);
+                Interlocked.Exchange(ref m_lastKeepAliveTime, HiResClock.Ticks);
 
                 lock (m_outstandingRequests)
                 {
@@ -3976,7 +3976,7 @@ namespace Opc.Ua.Client
             }
             else
             {
-                Interlocked.Exchange(ref m_lastKeepAliveTime, DateTime.UtcNow.Ticks);
+                Interlocked.Exchange(ref m_lastKeepAliveTime, HiResClock.Ticks);
             }
 
             // save server state.
@@ -4002,7 +4002,7 @@ namespace Opc.Ua.Client
         /// </summary>
         protected virtual bool OnKeepAliveError(ServiceResult result)
         {
-            long delta = DateTime.UtcNow.Ticks - Interlocked.Read(ref m_lastKeepAliveTime);
+            long delta = HiResClock.Ticks - Interlocked.Read(ref m_lastKeepAliveTime);
 
             Utils.LogInfo(
                 "KEEP ALIVE LATE: {0}s, EndpointUrl={1}, RequestCount={2}/{3}",
@@ -4017,7 +4017,7 @@ namespace Opc.Ua.Client
             {
                 try
                 {
-                    KeepAliveEventArgs args = new KeepAliveEventArgs(result, ServerState.Unknown, DateTime.UtcNow);
+                    KeepAliveEventArgs args = new KeepAliveEventArgs(result, ServerState.Unknown, HiResClock.UtcNow);
                     callback(this, args);
                     return !args.CancelKeepAlive;
                 }
