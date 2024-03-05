@@ -1,7 +1,7 @@
 
 using System;
-using CommandLine.Text;
 using NUnit.Framework;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
