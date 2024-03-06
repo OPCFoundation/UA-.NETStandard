@@ -1,4 +1,31 @@
-using System;
+/* ========================================================================
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ * 
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 namespace Opc.Ua.Redaction
 {
@@ -8,79 +35,14 @@ namespace Opc.Ua.Redaction
     public static class Redact
     {
         /// <summary>
-        /// Gets or sets if the redaction is enabled.
-        /// </summary>
-        public static bool IsEnabled { get; set; } = false;
-
-        /// <summary>
         /// Creates a wrapper to hold <paramref name="value"/>.
         /// When <see cref="object.ToString()"/> is called on the resulting wrapper
-        /// the supplied <paramref name="strategy"/> will be invoked to redact the sensitive data.
+        /// it will invoke the best matching redaction strategy to censor the
+        /// sensitive data held by <paramref name="value"/>.
         /// </summary>
-        public static RedactionWrapper<T> Default<T>(T value, IRedactionStrategy<T> strategy)
+        public static RedactionWrapper<T> Create<T>(T value)
         {
-            return new RedactionWrapper<T>(value, strategy);
-        }
-
-        /// <summary>
-        /// Creates a wrapper to hold <paramref name="username"/>.
-        /// When <see cref="object.ToString()"/> is called on the resulting wrapper
-        /// the <see cref="RedactionStrategies.UsernameStrategy"/> will be invoked to redact the sensitive data.
-        /// </summary>
-        public static RedactionWrapper<string> Username(string username)
-        {
-            return new RedactionWrapper<string>(username, RedactionStrategies.UsernameStrategy);
-        }
-
-        /// <summary>
-        /// Creates a wrapper to hold <paramref name="password"/>.
-        /// When <see cref="object.ToString()"/> is called on the resulting wrapper
-        /// the <see cref="RedactionStrategies.PasswordStrategy"/> will be invoked to redact the sensitive data.
-        /// </summary>
-        public static RedactionWrapper<string> Password(string password)
-        {
-            return new RedactionWrapper<string>(password, RedactionStrategies.PasswordStrategy);
-        }
-
-        /// <summary>
-        /// Creates a wrapper to hold <paramref name="endpoint"/>.
-        /// When <see cref="object.ToString()"/> is called on the resulting wrapper
-        /// the <see cref="RedactionStrategies.EndpointStrategy"/> will be invoked to redact the sensitive data.
-        /// </summary>
-        public static RedactionWrapper<string> Endpoint(string endpoint)
-        {
-            return new RedactionWrapper<string>(endpoint, RedactionStrategies.EndpointStrategy);
-        }
-
-        /// <summary>
-        /// Creates a wrapper to hold <paramref name="message"/>.
-        /// When <see cref="object.ToString()"/> is called on the resulting wrapper
-        /// the result will be redacted to 10 characters.
-        /// </summary>
-        public static RedactionWrapper<string> ExceptionMessage(string message)
-        {
-            return new RedactionWrapper<string>(message, RedactionStrategies.GetDefaultStrategy<string>(10));
-        }
-
-        /// <summary>
-        /// Creates a wrapper to hold <paramref name="uriBuilder"/>.
-        /// When <see cref="object.ToString()"/> is called on the resulting wrapper
-        /// the result will be redacted to according to the <see cref="RedactionStrategies.UriBuilderStrategy"/>.
-        /// </summary>
-        /// <param name="uriBuilder"></param>
-        public static RedactionWrapper<UriBuilder> Uri(UriBuilder uriBuilder)
-        {
-            return new RedactionWrapper<UriBuilder>(uriBuilder, RedactionStrategies.UriBuilderStrategy);
-        }
-
-        /// <summary>
-        /// Creates a wrapper to hold <paramref name="uri"/>.
-        /// When <see cref="object.ToString()"/> is called on the resulting wrapper
-        /// the result will be redacted to according to the <see cref="RedactionStrategies.UriStrategy"/>.
-        /// </summary>
-        public static RedactionWrapper<Uri> Uri(Uri uri)
-        {
-            return new RedactionWrapper<Uri>(uri, RedactionStrategies.UriStrategy);
+            return new RedactionWrapper<T>(value);
         }
     }
 }

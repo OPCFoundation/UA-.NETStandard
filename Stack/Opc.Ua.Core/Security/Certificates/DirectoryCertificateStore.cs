@@ -480,7 +480,7 @@ namespace Opc.Ua
                 // found a certificate, but some error occurred
                 if (certificateFound)
                 {
-                    Utils.LogError(Utils.TraceMasks.Security, "The private key for the certificate with subject {0} failed to import.", Redact.Username(subjectName));
+                    Utils.LogError(Utils.TraceMasks.Security, "The private key for the certificate with subject {0} failed to import.", Redact.Create(subjectName));
                     if (importException != null)
                     {
                         Utils.LogError(importException, "Certificate import failed.");

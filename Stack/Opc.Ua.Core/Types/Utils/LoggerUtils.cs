@@ -162,7 +162,7 @@ namespace Opc.Ua
                     {
                         allArgs[i] = args[i];
                     }
-                    allArgs[argsLength] = Redact.Username(certificate.Subject);
+                    allArgs[argsLength] = Redact.Create(certificate.Subject);
                     allArgs[argsLength + 1] = certificate.Thumbprint;
                     Log(logLevel, eventId, builder.ToString(), allArgs);
                 }

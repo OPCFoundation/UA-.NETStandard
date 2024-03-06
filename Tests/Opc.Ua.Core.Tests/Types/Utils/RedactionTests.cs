@@ -1,5 +1,7 @@
 
 using System;
+using System.Collections.Generic;
+using System.Reflection;
 using NUnit.Framework;
 using Opc.Ua.Redaction;
 
@@ -8,65 +10,108 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
     [TestFixture, Category("Utils")]
     public class RedactionTests
     {
-        private static readonly Func<string, RedactionWrapper<string>>[] _basicGenerators = new Func<string, RedactionWrapper<string>>[] {
-            Redact.Username,
-            Redact.Password,
-            Redact.Endpoint,
-        };
-
         [Test]
-        [TestCaseSource(nameof(_basicGenerators))]
-        public void DisabledRedactionResultsInOriginalValue(Func<string, RedactionWrapper<string>> generator)
+        public void FallbackStrategyIsInvokedWhenNoStrategyWasAdded()
         {
+            ResetStrategies();
+
             string original = "Original test string";
 
-            Redact.IsEnabled = false;
-            string result = generator(original).ToString();
+            string result = Redact.Create(original).ToString();
 
             Assert.That(result, Is.EqualTo(original));
         }
 
         [Test]
-        [TestCase("user1234", "us******", Description = "Username is redacted")]
-        [TestCase("User1", "Us******", Description = "Minimum length should be 8")]
-        [TestCase("a", "********", Description = "Shorter names should be fully concealed")]
-        [TestCase(null, "null", Description = "Null value gives 'null' string")]
-        public void UserNameRedactionTest(string original, string expected)
+        public void FallbackStrategyIsRedactingNullCorrectly()
         {
-            Redact.IsEnabled = true;
-            string result = Redact.Username(original).ToString();
+            ResetStrategies();
 
-            Assert.That(result, Is.EqualTo(expected));
+            string original = null;
+
+            string result = Redact.Create(original).ToString();
+
+            Assert.That(result, Is.EqualTo("null"));
         }
 
         [Test]
-        [TestCase("pass1234", "********", Description = "Password is fully concealed")]
-        [TestCase("a", "********", Description = "Minimum length should be 8")]
-        [TestCase("abcdefghijklmnopqrstuvwxyz", "********", Description = "Long passwords should be 8 characters long")]
-        [TestCase(null, "null", Description = "Null value gives 'null' string")]
-        public void PasswordRedationTest(string original, string expected)
+        public void FallbackStrategyIsInvokedWhenNoStrategyFoundForTheGivenType()
         {
-            Redact.IsEnabled = true;
-            string result = Redact.Password(original).ToString();
+            ResetStrategies();
 
-            Assert.That(result, Is.EqualTo(expected));
+            RedactionStrategies.AddStrategy(new TestRedactionStrategy(typeof(int), "int_"));
+
+            string original = "Original test string";
+
+            string result = Redact.Create(original).ToString();
+
+            Assert.That(result, Is.EqualTo(original));
         }
 
+        [Test]
+        public void StrategyIsInvokedWhenItExists()
+        {
+            ResetStrategies();
+
+            RedactionStrategies.AddStrategy(new TestRedactionStrategy(typeof(int), "int_"));
+
+            int original = 123;
+
+            string result = Redact.Create(original).ToString();
+
+            Assert.That(result, Is.EqualTo("int_123"));
+        }
 
         [Test]
-        [TestCase("opc", "********", Description = "Short address should be fully concealed")]
-        [TestCase("opcplc:50000", "opc*******", Description = "Address without scheme should have starting characters")]
-        [TestCase("127.0.1.2:1234", "127*******", Description = "IP without scheme should have starting digits")]
-        [TestCase("opc.tcp://opc", "opc.tcp://********", Description = "Short address without port should have scheme visible")]
-        [TestCase("opc.tcp://opcplc:50000", "opc.tcp://opc*****:50000", Description = "Full endpoint address should have scheme, port number, and starting characters visible")]
-        [TestCase("opc.tcp://127.0.1.2:1234", "opc.tcp://127******:1234", Description = "Full endpoint IP should have scheme, port number, and starting digits visible")]
-        [TestCase(null, "null", Description = "Null value gives 'null' string")]
-        public void EndpointRedactionTest(string original, string expected)
+        public void TheRightStrategyIsInvokedWhenMultipleStrategiesExist()
         {
-            Redact.IsEnabled = true;
-            string result = Redact.Endpoint(original).ToString();
+            ResetStrategies();
 
-            Assert.That(result, Is.EqualTo(expected));
+            RedactionStrategies.AddStrategy(new TestRedactionStrategy(typeof(int), "int_"));
+            RedactionStrategies.AddStrategy(new TestRedactionStrategy(typeof(string), "string_"));
+
+            int originalNumber = 456;
+
+            string resultNumber = Redact.Create(originalNumber).ToString();
+
+            Assert.That(resultNumber, Is.EqualTo("int_456"));
+
+            string originalString = "test string 890";
+
+            string resultString = Redact.Create(originalString).ToString();
+
+            Assert.That(resultString, Is.EqualTo("string_test string 890"));
+        }
+
+        private static void ResetStrategies()
+        {
+            Type t = typeof(RedactionStrategies);
+            FieldInfo field = t.GetField("m_strategies", BindingFlags.Static | BindingFlags.NonPublic);
+            List<IRedactionStrategy> strategies = field.GetValue(null) as List<IRedactionStrategy>;
+
+            strategies.Clear();
+        }
+
+        private class TestRedactionStrategy : IRedactionStrategy
+        {
+            private readonly Type m_type;
+            private readonly string m_prefix;
+
+            public TestRedactionStrategy(Type type , string prefix)
+            {
+
+                m_type = type;
+                m_prefix = prefix;
+            }
+            public bool CanRedact(Type type)
+            {
+                return type == m_type;
+            }
+
+            public string Redact(object value)
+            {
+                return $"{m_prefix}{value}";
+            }
         }
     }
 }

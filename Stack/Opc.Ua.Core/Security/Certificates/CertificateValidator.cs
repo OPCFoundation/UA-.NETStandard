@@ -1482,13 +1482,13 @@ namespace Opc.Ua
                 {
                     if (serverValidation)
                     {
-                        Utils.LogError(message, Redact.Endpoint(endpointUrl.DnsSafeHost));
+                        Utils.LogError(message, Redact.Create(endpointUrl));
                     }
                     else
                     {
                         // write the invalid certificate to rejected store if specified.
                         Utils.LogCertificate(LogLevel.Error, "Certificate rejected. Reason={0}.",
-                            serverCertificate, Redact.ExceptionMessage(serviceResult.ToString()));
+                            serverCertificate, Redact.Create(serviceResult));
                         SaveCertificate(serverCertificate);
                     }
 
