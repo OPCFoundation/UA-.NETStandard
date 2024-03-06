@@ -82,7 +82,7 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                if (HiResClock.UtcNow.Ticks -  m_createdAtTick > m_lifetime)
+                if (DateTime.UtcNow > m_createdAt.AddMilliseconds(m_lifetime))
                 {
                     return true;
                 }
@@ -98,7 +98,7 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                if (HiResClock.UtcNow.Ticks - m_createdAtTick > (m_lifetime * TcpMessageLimits.TokenActivationPeriod))
+                if (DateTime.UtcNow > m_createdAt.AddMilliseconds(m_lifetime * TcpMessageLimits.TokenActivationPeriod))
                 {
                     return true;
                 }
