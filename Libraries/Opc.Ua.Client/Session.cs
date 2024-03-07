@@ -764,7 +764,7 @@ namespace Opc.Ua.Client
 
                 // calcualte delta in miliseconds .use utc now and reduce delta
 
-                return new DateTime((DateTime.UtcNow.Ticks - HiResClock.CalculateMillisecondsTickCountDifference(Interlocked.Read(ref m_lastKeepAliveTime))), DateTimeKind.Utc);
+                return new DateTime(DateTime.UtcNow.Ticks - HiResClock.CalculateMillisecondsTickCountDifference(Interlocked.Read(ref m_lastKeepAliveTime)), DateTimeKind.Utc);
             }
         }
 
@@ -4003,7 +4003,7 @@ namespace Opc.Ua.Client
         /// </summary>
         protected virtual bool OnKeepAliveError(ServiceResult result)
         {
-            long delta = HiResClock.Ticks - Interlocked.Read(ref m_lastKeepAliveTime);
+            long delta = HiResClock.CalculateMillisecondsTickCountDifference(Interlocked.Read(ref m_lastKeepAliveTime));
 
             Utils.LogInfo(
                 "KEEP ALIVE LATE: {0}s, EndpointUrl={1}, RequestCount={2}/{3}",
@@ -4018,7 +4018,7 @@ namespace Opc.Ua.Client
             {
                 try
                 {
-                    KeepAliveEventArgs args = new KeepAliveEventArgs(result, ServerState.Unknown, HiResClock.UtcNow);
+                    KeepAliveEventArgs args = new KeepAliveEventArgs(result, ServerState.Unknown, new DateTime(DateTime.UtcNow.Ticks - HiResClock.CalculateMillisecondsTickCountDifference(Interlocked.Read(ref m_lastKeepAliveTime))));
                     callback(this, args);
                     return !args.CancelKeepAlive;
                 }
