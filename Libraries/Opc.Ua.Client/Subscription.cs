@@ -800,7 +800,6 @@ namespace Opc.Ua.Client
         {
             get
             {
-              //  TimeSpan timeSinceLastNotification = TimeSpan.FromTicks(HiResClock.Ticks - Interlocked.Read(ref m_lastNotificationTime));
                 if ((HiResClock.CalculateMillisecondsTicksDifference(Interlocked.Read(ref m_lastNotificationTime))) > m_keepAliveInterval + kKeepAliveTimerMargin)
                 {
                     return true;
