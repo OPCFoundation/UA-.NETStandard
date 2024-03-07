@@ -340,7 +340,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception exception)
             {
-                Utils.LogError("Unexpected error during reconnect: {0}", Redact.ExceptionMessage(exception.Message));
+                Utils.LogError("Unexpected error during reconnect: {0}", Redact.Create(exception));
             }
 
             // schedule the next reconnect.
@@ -511,17 +511,17 @@ namespace Opc.Ua.Client
                     {
                         m_reconnectPeriod = m_baseReconnectPeriod;
                     }
-                    Utils.LogError("Could not reconnect due to failed security check. Request endpoint update from server. {0}", Redact.ExceptionMessage(sre.Message));
+                    Utils.LogError("Could not reconnect due to failed security check. Request endpoint update from server. {0}", Redact.Create(sre));
                 }
                 else
                 {
-                    Utils.LogError("Could not reconnect the Session. {0}", Redact.ExceptionMessage(sre.Message));
+                    Utils.LogError("Could not reconnect the Session. {0}", Redact.Create(sre));
                 }
                 return false;
             }
             catch (Exception exception)
             {
-                Utils.LogError("Could not reconnect the Session. {0}", Redact.ExceptionMessage(exception.Message));
+                Utils.LogError("Could not reconnect the Session. {0}", Redact.Create(exception));
                 return false;
             }
             finally

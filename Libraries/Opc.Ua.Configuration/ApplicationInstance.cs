@@ -999,7 +999,7 @@ namespace Opc.Ua.Configuration
             }
             catch (Exception e)
             {
-                Utils.LogError("Could not add certificate to trusted peer store: {0}", Redaction.Redact.ExceptionMessage(e.Message));
+                Utils.LogError("Could not add certificate to trusted peer store: {0}", Redaction.Redact.Create(e));
             }
         }
 
