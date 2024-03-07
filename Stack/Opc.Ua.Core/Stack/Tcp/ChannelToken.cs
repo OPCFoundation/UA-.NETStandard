@@ -58,15 +58,6 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// When the token was created by the server (refers to the server's clock).
-        /// </summary>
-        public long CreatedAtTicks
-        {
-            get { return m_createdAtTick; }
-            set { m_createdAtTick = value; }
-        }
-
-        /// <summary>
         /// The lifetime of the token in milliseconds.
         /// </summary>
         public int Lifetime
@@ -228,7 +219,6 @@ namespace Opc.Ua.Bindings
         private uint m_channelId;
         private uint m_tokenId;
         private DateTime m_createdAt;
-        private long m_createdAtTick;
         private int m_lifetime;
         private byte[] m_clientNonce;
         private byte[] m_serverNonce;

@@ -54,6 +54,22 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Calculates the difference in milliseconds between the current TickCount and the provided reference tick count.
+        /// </summary>
+        public static long CalculateMillisecondsTickCountDifference(long referenceTickCount)
+        {
+            return (TickCount - referenceTickCount);
+        }
+
+        /// <summary>
+        /// Calculates the difference in milliseconds between the current Ticks and the provided reference tick count.
+        /// </summary>
+        public static long CalculateMillisecondsTicksDifference(long referenceTicks)
+        {
+            return (Ticks - referenceTicks);
+        }
+
+        /// <summary>
         /// Returns a monotonic increasing tick count based on the frequency of the underlying timer.
         /// </summary>
         public static long Ticks => s_Default.m_ticksDelegate();
@@ -67,6 +83,12 @@ namespace Opc.Ua
         /// Return the number of ticks per millisecond.
         /// </summary>
         public static double TicksPerMillisecond => s_Default.m_ticksPerMillisecond;
+
+        /// <summary>
+        /// The monotonic tick count.
+        /// </summary>
+        /// <remarks>It's resolution might not be the highest</remarks>
+        public static int TickCount => Environment.TickCount;
 
         /// <summary>
         /// Disables the hires clock.

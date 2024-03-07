@@ -748,10 +748,8 @@ namespace Opc.Ua.Client
         {
             get
             {
-                TimeSpan delta = TimeSpan.FromTicks(HiResClock.Ticks - Interlocked.Read(ref m_lastKeepAliveTime));
-
                 // add a guard band to allow for network lag.
-                return (m_keepAliveInterval + kKeepAliveGuardBand) <= delta.TotalMilliseconds;
+                return (m_keepAliveInterval + kKeepAliveGuardBand) <= HiResClock.CalculateMillisecondsTickCountDifference(Interlocked.Read(ref m_lastKeepAliveTime));
             }
         }
 
@@ -762,8 +760,11 @@ namespace Opc.Ua.Client
         {
             get
             {
-                var ticks = Interlocked.Read(ref m_lastKeepAliveTime);
-                return new DateTime(ticks, DateTimeKind.Utc);
+                //var ticks = Interlocked.Read(ref m_lastKeepAliveTime);
+
+                // calcualte delta in miliseconds .use utc now and reduce delta
+
+                return new DateTime((DateTime.UtcNow.Ticks - HiResClock.CalculateMillisecondsTickCountDifference(Interlocked.Read(ref m_lastKeepAliveTime))), DateTimeKind.Utc);
             }
         }
 
@@ -3689,7 +3690,7 @@ namespace Opc.Ua.Client
         {
             int keepAliveInterval = m_keepAliveInterval;
 
-            Interlocked.Exchange(ref m_lastKeepAliveTime, HiResClock.Ticks);
+            Interlocked.Exchange(ref m_lastKeepAliveTime, HiResClock.TickCount);
 
             m_serverState = ServerState.Unknown;
 
@@ -3959,7 +3960,7 @@ namespace Opc.Ua.Client
                     return;
                 }
 
-                Interlocked.Exchange(ref m_lastKeepAliveTime, HiResClock.Ticks);
+                Interlocked.Exchange(ref m_lastKeepAliveTime, HiResClock.TickCount);
 
                 lock (m_outstandingRequests)
                 {
@@ -3976,7 +3977,7 @@ namespace Opc.Ua.Client
             }
             else
             {
-                Interlocked.Exchange(ref m_lastKeepAliveTime, HiResClock.Ticks);
+                Interlocked.Exchange(ref m_lastKeepAliveTime, HiResClock.TickCount);
             }
 
             // save server state.
