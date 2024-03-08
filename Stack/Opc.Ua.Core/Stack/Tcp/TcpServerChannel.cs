@@ -903,7 +903,8 @@ namespace Opc.Ua.Bindings
             LastCommTime = HiResClock.TickCount;
             
             // validate the channel state.
-            if (State != TcpChannelState.Open)
+            // Inactive state is allowed pass-through since a new session might be opened/activated on the channel
+            if (State != TcpChannelState.Open && State != TcpChannelState.Inactive)
             {
                 ForceChannelFault(StatusCodes.BadTcpMessageTypeInvalid, "Client sent an unexpected request message.");
                 return false;

@@ -318,6 +318,7 @@ namespace Opc.Ua
             m_maxMessageSize = 1048576;
             m_maxBufferSize = 65535;
             m_channelLifetime = 600000;
+            m_maxChannelCount = 1000;
             m_securityTokenLifetime = 3600000;
         }
 

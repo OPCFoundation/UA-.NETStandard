@@ -80,12 +80,17 @@ namespace Opc.Ua
         /// </summary>
         void HandleSessionClose(string channelId);
 
-
         /// <summary>
         /// Whenever a new Session is created, increment usage counter for specified channel
         /// </summary>
         /// <param name="channelId"></param>
         void HandleSessionCreate(string channelId);
+
+        /// <summary>
+        /// Whenever a new Session is activated, increment usage counter for specified channel
+        /// </summary>
+        /// <param name="channelId"></param>
+        void HandleSessionActivate(string channelId);
 
     }
 

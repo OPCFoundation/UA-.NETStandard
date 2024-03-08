@@ -2950,6 +2950,7 @@ namespace Opc.Ua.Server
                     sessionManager.Startup();
                     sessionManager.SessionCreated += SessionEvent;
                     sessionManager.SessionClosing += SessionEvent;
+                    sessionManager.SessionActivated += SessionEvent;
 
                     // start the subscription manager.
                     Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
@@ -3090,6 +3091,7 @@ namespace Opc.Ua.Server
                     {
                         m_serverInternal.SessionManager.SessionClosing -= SessionEvent;
                         m_serverInternal.SessionManager.SessionCreated -= SessionEvent;
+                        m_serverInternal.SessionManager.SessionActivated -= SessionEvent;
                         m_serverInternal.SubscriptionManager.Shutdown();
                         m_serverInternal.SessionManager.Shutdown();
                         m_serverInternal.NodeManager.Shutdown();
@@ -3355,6 +3357,10 @@ namespace Opc.Ua.Server
             else if (reason == SessionEventReason.Created)
             {
                 TransportListeners.ForEach(tl => tl.HandleSessionCreate(session.SecureChannelId));
+            }
+            else if (reason == SessionEventReason.Activated)
+            {
+                TransportListeners.ForEach(tl => tl.HandleSessionActivate(session.SecureChannelId));
             }
         }
         #endregion

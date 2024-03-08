@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -147,7 +148,7 @@ namespace Opc.Ua.Bindings
 
             m_bufferManager = new BufferManager("Server", m_quotas.MaxBufferSize);
             m_channels = new Dictionary<uint, TcpListenerChannel>();
-            m_sessionsPerChannel = new Dictionary<string, uint>();
+            m_sessionsPerChannel = new ConcurrentDictionary<string, uint>();
             m_reverseConnectListener = settings.ReverseConnectListener;
 
             // save the callback to the server.
@@ -177,8 +178,11 @@ namespace Opc.Ua.Bindings
                 uint decValue = --actualValue;
                 m_sessionsPerChannel[channelId] = decValue;
 
-                TcpListenerChannel foundChannel = m_channels.First(kv => kv.Value.GlobalChannelId == channelId).Value ?? null;
-
+                TcpListenerChannel foundChannel = null;
+                lock (m_lock)
+                {
+                    foundChannel = m_channels.First(kv => kv.Value.GlobalChannelId == channelId).Value ?? null;
+                }
                 if (foundChannel != null && decValue == 0)
                 {
                     foundChannel.SetInactive();
@@ -194,11 +198,45 @@ namespace Opc.Ua.Bindings
         {
             if (m_sessionsPerChannel.TryGetValue(channelId, out uint actualValue))
             {
-                m_sessionsPerChannel[channelId] = actualValue++;
+                m_sessionsPerChannel[channelId] = actualValue + 1;
             }
             else
             {
                 m_sessionsPerChannel[channelId] = 1;
+
+                // Since the State of the channel might have been Inactive ensure the channel State is Open
+                TcpListenerChannel foundChannel = null;
+                lock (m_lock)
+                {
+                    foundChannel = m_channels.First(kv => kv.Value.GlobalChannelId == channelId).Value ?? null;
+                }
+                if (foundChannel != null)
+                {
+                    foundChannel.SetOpen();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Handle Session Activate
+        /// </summary>
+        /// <param name="channelId"></param>
+        public void HandleSessionActivate(string channelId)
+        {
+            if (!m_sessionsPerChannel.TryGetValue(channelId, out uint actualValue))
+            {
+                m_sessionsPerChannel[channelId] = 1;
+
+                // Since the State of the channel might have been Inactive ensure the channel State is Open
+                TcpListenerChannel foundChannel = null;
+                lock (m_lock)
+                {
+                    foundChannel = m_channels.First(kv => kv.Value.GlobalChannelId == channelId).Value ?? null;
+                }
+                if (foundChannel != null)
+                {
+                    foundChannel.SetOpen();
+                }
             }
         }
         #endregion
@@ -801,7 +839,7 @@ namespace Opc.Ua.Bindings
         private bool m_reverseConnectListener;
         private int m_inactivityDetectPeriod;
         private Timer m_inactivityDetectionTimer;
-        private Dictionary<string, uint> m_sessionsPerChannel;
+        private ConcurrentDictionary<string, uint> m_sessionsPerChannel;
         #endregion
 
         #region Private Constants

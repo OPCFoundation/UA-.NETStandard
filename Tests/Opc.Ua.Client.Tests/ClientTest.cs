@@ -41,6 +41,7 @@ using BenchmarkDotNet.Attributes;
 using Moq;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
+using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server.Tests;
 
@@ -367,7 +368,7 @@ namespace Opc.Ua.Client.Tests
                 var node = await session.ReadNodeAsync(nodeId, CancellationToken.None).ConfigureAwait(false);
                 var value = await session.ReadValueAsync(nodeId, CancellationToken.None).ConfigureAwait(false);
 
-                // keep channel open
+                // keep channel open/inactive
                 var result = await session.CloseAsync(1_000, false).ConfigureAwait(false);
                 Assert.AreEqual((StatusCode)StatusCodes.Good, result);
 
@@ -375,6 +376,67 @@ namespace Opc.Ua.Client.Tests
 
                 var sre = Assert.ThrowsAsync<ServiceResultException>(async () => await session.ReadNodeAsync(nodeId, CancellationToken.None).ConfigureAwait(false));
                 Assert.AreEqual((StatusCode)StatusCodes.BadSessionIdInvalid, sre.StatusCode);
+            }
+        }
+
+        [Test, Order(204)]
+        public async Task ConnectAndCloseAsyncReadAfterCloseSessionReconnect()
+        {
+            var securityPolicy = SecurityPolicies.Basic256Sha256;
+            using (var session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false))
+            {
+                Assert.NotNull(session);
+                Session.SessionClosing += Session_Closing;
+
+                var userIdentity = session.Identity;
+                var sessionName = session.SessionName;
+
+                var nodeId = new NodeId(Opc.Ua.VariableIds.ServerStatusType_BuildInfo);
+                var node = await session.ReadNodeAsync(nodeId, CancellationToken.None).ConfigureAwait(false);
+                var value = await session.ReadValueAsync(nodeId, CancellationToken.None).ConfigureAwait(false);
+
+                // keep channel open/inactive
+                var result = await session.CloseAsync(1_000, false).ConfigureAwait(false);
+                Assert.AreEqual((StatusCode)StatusCodes.Good, result);
+
+                await Task.Delay(5_000).ConfigureAwait(false);
+
+                var sre = Assert.ThrowsAsync<ServiceResultException>(async () => await session.ReadNodeAsync(nodeId, CancellationToken.None).ConfigureAwait(false));
+                Assert.AreEqual((StatusCode)StatusCodes.BadSessionIdInvalid, sre.StatusCode);
+
+                // reconect/reactivate
+                await session.OpenAsync(sessionName, userIdentity, CancellationToken.None).ConfigureAwait(false);
+
+                node = await session.ReadNodeAsync(nodeId, CancellationToken.None).ConfigureAwait(false);
+                value = await session.ReadValueAsync(nodeId, CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
+        [Test, Order(206)]
+        public async Task ConnectCloseSessionCloseChannel()
+        {
+            var securityPolicy = SecurityPolicies.Basic256Sha256;
+            using (var session = await ClientFixture.ConnectAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false))
+            {
+
+                Assert.NotNull(session);
+                Session.SessionClosing += Session_Closing;
+
+                var userIdentity = session.Identity;
+                var sessionName = session.SessionName;
+
+                var nodeId = new NodeId(Opc.Ua.VariableIds.ServerStatusType_BuildInfo);
+                var node = await session.ReadNodeAsync(nodeId, CancellationToken.None).ConfigureAwait(false);
+                var value = await session.ReadValueAsync(nodeId, CancellationToken.None).ConfigureAwait(false);
+
+                // keep channel opened but detach so no comm goes through
+                var channel = session.TransportChannel;
+                session.DetachChannel();
+
+                int waitTime = ServerFixture.Application.ApplicationConfiguration.TransportQuotas.ChannelLifetime + 5_000;
+                await Task.Delay(waitTime).ConfigureAwait(false);
+
+                Assert.IsNull(((TcpTransportChannel)channel).Socket);
             }
         }
 

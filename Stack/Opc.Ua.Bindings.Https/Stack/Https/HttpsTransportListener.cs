@@ -251,6 +251,14 @@ namespace Opc.Ua.Bindings
         public void HandleSessionCreate(string channelId)
         {
         }
+
+        /// <summary>
+        /// Handle Session Activate
+        /// </summary>
+        /// <param name="channelId"></param>
+        public void HandleSessionActivate(string channelId)
+        {
+        }
         #endregion
 
         #region Public Methods
