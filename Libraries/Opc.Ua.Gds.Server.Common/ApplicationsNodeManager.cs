@@ -36,6 +36,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Server;
+using Org.BouncyCastle.Crypto.Agreement;
 
 namespace Opc.Ua.Gds.Server
 {
@@ -388,7 +389,8 @@ namespace Opc.Ua.Gds.Server
                     Opc.Ua.Gds.CertificateDirectoryState activeNode = new Opc.Ua.Gds.CertificateDirectoryState(passiveNode.Parent);
 
                     activeNode.RevokeCertificate = new RevokeCertificateMethodState(passiveNode);
-                    activeNode.CheckRevocationStatus = new CheckRevocationStatusMethodState(passiveNode.Parent);
+                    activeNode.CheckRevocationStatus = new CheckRevocationStatusMethodState(passiveNode);
+                    activeNode.GetCertificates = new GetCertificatesMethodState(passiveNode);
 
                     activeNode.Create(context, passiveNode);
                     activeNode.QueryServers.OnCall = new QueryServersMethodStateMethodCallHandler(OnQueryServers);
@@ -406,6 +408,7 @@ namespace Opc.Ua.Gds.Server
                     activeNode.StartSigningRequest.OnCall = new StartSigningRequestMethodStateMethodCallHandler(OnStartSigningRequest);
                     activeNode.RevokeCertificate.OnCall = new RevokeCertificateMethodStateMethodCallHandler(OnRevokeCertificate);
                     activeNode.CheckRevocationStatus.OnCall = new CheckRevocationStatusMethodStateMethodCallHandler(OnCheckRevocationStatus);
+                    activeNode.GetCertificates.OnCall = new GetCertificatesMethodStateMethodCallHandler(OnGetCertificates);
 
                     activeNode.CertificateGroups.DefaultApplicationGroup.CertificateTypes.Value = new NodeId[] { Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType };
                     activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.LastUpdateTime.Value = DateTime.UtcNow;
@@ -668,6 +671,60 @@ namespace Opc.Ua.Gds.Server
                     certificateStatus = se.StatusCode;
                 }
             }
+            return ServiceResult.Good;
+        }
+
+        private ServiceResult OnGetCertificates(
+        ISystemContext context,
+        MethodState method,
+        NodeId objectId,
+        NodeId applicationId,
+        NodeId certificateGroupId,
+        ref NodeId[] certificateTypeIds,
+        ref byte[][] certificates)
+        {
+            AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin);
+
+            var certificateTypeIdsList = new List<NodeId>();
+            var certificatesList = new List<byte[]>();
+
+            if (m_database.GetApplication(applicationId) == null)
+            {
+                return new ServiceResult(StatusCodes.BadNotFound, "The ApplicationId does not refer to a registered application.");
+            }
+
+            //If CertificateGroupId is null, the CertificateManager shall return the Certificates for all CertificateGroups assigned to the Application.
+            if (certificateGroupId == null)
+            {
+                foreach (KeyValuePair<NodeId, string> certType in m_certTypeMap)
+                {
+                    if (m_database.GetApplicationCertificate(applicationId, certType.Value, out byte[] certificate)
+                        && certificate != null)
+                    {
+                        certificateTypeIdsList.Add(certType.Key);
+                        certificatesList.Add(certificate);
+                    }
+                }
+            }
+            //get only Certificate of the provided CertificateGroup
+            else
+            {
+                if (!m_certificateGroups.TryGetValue(certificateGroupId, out ICertificateGroup certificateGroup)
+                    || !m_certTypeMap.TryGetValue(certificateGroup.CertificateType, out string certificateTypeId))
+                {
+                    return new ServiceResult(StatusCodes.BadInvalidArgument, "The CertificateGroupId is not recognized or not valid for the Application.");
+                }
+                if (m_database.GetApplicationCertificate(applicationId, certificateTypeId, out byte[] certificate)
+                    && certificate != null)
+                {
+                    certificateTypeIdsList.Add(certificateGroup.CertificateType);
+                    certificatesList.Add(certificate);
+                }
+            }
+
+            certificates = certificatesList.ToArray();
+            certificateTypeIds = certificateTypeIdsList.ToArray();
+
             return ServiceResult.Good;
         }
 
