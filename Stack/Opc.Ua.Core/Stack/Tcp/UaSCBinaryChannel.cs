@@ -376,22 +376,19 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public virtual void OnMessageReceived(IMessageSocket source, ArraySegment<byte> message)
         {
-            lock (DataLock)
+            try
             {
-                try
-                {
-                    uint messageType = BitConverter.ToUInt32(message.Array, message.Offset);
+                uint messageType = BitConverter.ToUInt32(message.Array, message.Offset);
 
-                    if (!HandleIncomingMessage(messageType, message))
-                    {
-                        BufferManager.ReturnBuffer(message.Array, "OnMessageReceived");
-                    }
-                }
-                catch (Exception e)
+                if (!HandleIncomingMessage(messageType, message))
                 {
-                    HandleMessageProcessingError(e, StatusCodes.BadTcpInternalError, "An error occurred receiving a message.");
                     BufferManager.ReturnBuffer(message.Array, "OnMessageReceived");
                 }
+            }
+            catch (Exception e)
+            {
+                HandleMessageProcessingError(e, StatusCodes.BadTcpInternalError, "An error occurred receiving a message.");
+                BufferManager.ReturnBuffer(message.Array, "OnMessageReceived");
             }
         }
 

@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
@@ -63,7 +64,7 @@ namespace Opc.Ua.Bindings
                 ClientCertificateChain = clientCertificateChain;
             }
 
-            m_requests = new Dictionary<uint, WriteOperation>();
+            m_requests = new ConcurrentDictionary<uint, WriteOperation>();
             m_lastRequestId = 0;
             m_ConnectCallback = new EventHandler<IMessageSocketAsyncEventArgs>(OnConnectComplete);
             m_startHandshake = new TimerCallback(OnScheduledHandshake);
@@ -756,17 +757,17 @@ namespace Opc.Ua.Bindings
         /// <returns>True if the function takes ownership of the buffer.</returns>
         protected override bool HandleIncomingMessage(uint messageType, ArraySegment<byte> messageChunk)
         {
+            // process a response.
+            if (TcpMessageType.IsType(messageType, TcpMessageType.Message))
+            {
+                //Utils.LogTrace("ChannelId {0}: ProcessResponseMessage", ChannelId);
+                return ProcessResponseMessage(messageType, messageChunk);
+            }
+
             lock (DataLock)
             {
-                // process a response.
-                if (TcpMessageType.IsType(messageType, TcpMessageType.Message))
-                {
-                    //Utils.LogTrace("ChannelId {0}: ProcessResponseMessage", ChannelId);
-                    return ProcessResponseMessage(messageType, messageChunk);
-                }
-
                 // check for acknowledge.
-                else if (messageType == TcpMessageType.Acknowledge)
+                if (messageType == TcpMessageType.Acknowledge)
                 {
                     //Utils.LogTrace("ChannelId {0}: ProcessAcknowledgeMessage", ChannelId);
                     return ProcessAcknowledgeMessage(messageChunk);
@@ -1223,7 +1224,10 @@ namespace Opc.Ua.Bindings
         {
             WriteOperation operation = new WriteOperation(timeout, callback, state);
             operation.RequestId = Utils.IncrementIdentifier(ref m_lastRequestId);
-            m_requests.Add(operation.RequestId, operation);
+            if (!m_requests.TryAdd(operation.RequestId, operation))
+            {
+                throw new ServiceResultException(StatusCodes.BadUnexpectedError, "Could not add operation to list of pending operations.");
+            }
             return operation;
         }
 
@@ -1237,15 +1241,12 @@ namespace Opc.Ua.Bindings
                 return;
             }
 
-            lock (DataLock)
+            if (m_handshakeOperation == operation)
             {
-                if (m_handshakeOperation == operation)
-                {
-                    m_handshakeOperation = null;
-                }
-
-                m_requests.Remove(operation.RequestId);
+                m_handshakeOperation = null;
             }
+
+            m_requests.TryRemove(operation.RequestId, out _);
         }
 
         /// <summary>
@@ -1531,7 +1532,7 @@ namespace Opc.Ua.Bindings
         private Uri m_url;
         private Uri m_via;
         private long m_lastRequestId;
-        private Dictionary<uint, WriteOperation> m_requests;
+        private ConcurrentDictionary<uint, WriteOperation> m_requests;
         private WriteOperation m_handshakeOperation;
         private ChannelToken m_requestedToken;
         private Timer m_handshakeTimer;
