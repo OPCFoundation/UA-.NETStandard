@@ -35,6 +35,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Gds.Server.Database;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Org.BouncyCastle.Crypto.Agreement;
 
@@ -698,12 +699,11 @@ namespace Opc.Ua.Gds.Server
             {
                 foreach (KeyValuePair<NodeId, string> certType in m_certTypeMap)
                 {
-                    if (m_database.GetApplicationCertificate(applicationId, certType.Value, out byte[] certificate)
-                        && certificate != null)
-                    {
-                        certificateTypeIdsList.Add(certType.Key);
-                        certificatesList.Add(certificate);
-                    }
+                    AddCertificateToListIfNotRevoked(
+                        applicationId,
+                        certificateTypeIdsList,
+                        certificatesList,
+                        certType);
                 }
             }
             //get only Certificate of the provided CertificateGroup
@@ -714,18 +714,54 @@ namespace Opc.Ua.Gds.Server
                 {
                     return new ServiceResult(StatusCodes.BadInvalidArgument, "The CertificateGroupId is not recognized or not valid for the Application.");
                 }
-                if (m_database.GetApplicationCertificate(applicationId, certificateTypeId, out byte[] certificate)
-                    && certificate != null)
-                {
-                    certificateTypeIdsList.Add(certificateGroup.CertificateType);
-                    certificatesList.Add(certificate);
-                }
+
+                AddCertificateToListIfNotRevoked(
+                    applicationId,
+                    certificateTypeIdsList,
+                    certificatesList,
+                    new KeyValuePair<NodeId, string>(certificateGroup.CertificateType, certificateTypeId));
             }
 
             certificates = certificatesList.ToArray();
             certificateTypeIds = certificateTypeIdsList.ToArray();
 
             return ServiceResult.Good;
+        }
+
+        private void AddCertificateToListIfNotRevoked(
+            NodeId applicationId,
+            List<NodeId> certificateTypeIdsList,
+            List<byte[]> certificatesList,
+            KeyValuePair<NodeId, string> certType)
+        {
+            if (m_database.GetApplicationCertificate(applicationId, certType.Value, out byte[] certificate)
+                                    && certificate != null)
+            {
+                certificateTypeIdsList.Add(certType.Key);
+                if (!IsRevokedCertificateAsync(certificate).Result)
+                {
+                    certificatesList.Add(certificate);
+                }
+            }
+        }
+
+        private async Task<bool> IsRevokedCertificateAsync(byte[] certificate)
+        {
+            using (ICertificateStore AuthoritiesStore = CertificateStoreIdentifier.OpenStore(m_globalDiscoveryServerConfiguration.AuthoritiesStorePath))
+            {
+                using (var x509 = new X509Certificate2(certificate))
+                {
+                    var crls = await AuthoritiesStore.EnumerateCRLs().ConfigureAwait(false);
+                    foreach (X509CRL crl in crls)
+                    {
+                        if (crl.IsRevoked(x509))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
         }
 
         private ServiceResult CheckHttpsDomain(ApplicationRecordDataType application, string commonName)
