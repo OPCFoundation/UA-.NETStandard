@@ -436,7 +436,11 @@ namespace Opc.Ua.Client.Tests
                 int waitTime = ServerFixture.Application.ApplicationConfiguration.TransportQuotas.ChannelLifetime + 5_000;
                 await Task.Delay(waitTime).ConfigureAwait(false);
 
-                Assert.IsNull(((TcpTransportChannel)channel).Socket);
+                // Channel handling checked for TcpTransportChannel only
+                if (channel is TcpTransportChannel tcp)
+                {
+                    Assert.IsNull(tcp.Socket);
+                }
             }
         }
 
