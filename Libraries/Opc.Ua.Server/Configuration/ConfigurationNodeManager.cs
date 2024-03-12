@@ -198,7 +198,7 @@ namespace Opc.Ua.Server
             m_serverConfigurationNode.MaxTrustListSize.Value = (uint)configuration.ServerConfiguration.MaxTrustListSize;
             m_serverConfigurationNode.MulticastDnsEnabled.Value = configuration.ServerConfiguration.MultiCastDnsEnabled;
 
-            m_serverConfigurationNode.GetCertificates = new GetCertificatesMethodState(m_serverConfigurationNode.Parent);
+            m_serverConfigurationNode.GetCertificates = new GetCertificatesMethodState(m_serverConfigurationNode);
 
             m_serverConfigurationNode.UpdateCertificate.OnCall = new UpdateCertificateMethodStateMethodCallHandler(UpdateCertificate);
             m_serverConfigurationNode.CreateSigningRequest.OnCall = new CreateSigningRequestMethodStateMethodCallHandler(CreateSigningRequest);

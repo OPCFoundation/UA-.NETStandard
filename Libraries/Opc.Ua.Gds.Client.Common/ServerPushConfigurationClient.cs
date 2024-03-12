@@ -588,9 +588,14 @@ namespace Opc.Ua.Gds.Client
 
                 var outputArguments = m_session.Call(
                     ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration, m_session.NamespaceUris),
-                    ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfigurationType_GetCertificates, m_session.NamespaceUris),
+                    ExpandedNodeId.ToNodeId(new NodeId(32333), m_session.NamespaceUris),
                     certificateGroupId
                     );
+                    //Wrong Id, need to use the Method Id from ServerConfiguration_GetCertificates,32333,Method https://github.com/OPCFoundation/UA-Nodeset/blob/UA-1.05.03-2023-12-15/Schema/NodeIds.csv line 12359
+                    //https://github.com/OPCFoundation/UA-Nodeset/blob/7d389895a35fc5563b756e49b2369aa2263da77b/Schema/NodeIds.csv#L12359C1-L12359C49
+                    //ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfigurationType_GetCertificates, m_session.NamespaceUris);
+                    //This does not exist
+                    //ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_GetCertificates, m_session.NamespaceUris);
                 if (outputArguments.Count >= 2)
                 {
                     certificateTypeIds = outputArguments[0] as NodeId[];

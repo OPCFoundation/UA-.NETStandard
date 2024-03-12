@@ -853,6 +853,31 @@ namespace Opc.Ua.Gds.Tests
 
         }
 
+        
+        [Test, Order(540)]
+        public void GetGoodCertificates()
+        {
+            AssertIgnoreTestWithoutGoodRegistration();
+            AssertIgnoreTestWithoutGoodNewKeyPairRequest();
+            ConnectGDS(true);
+
+            Assert.That(() => {
+                m_gdsClient.GDSClient.GetCertificates(null, null, out var _, out var _);
+            }, Throws.Exception);
+
+            foreach (var application in m_goodApplicationTestSet)
+            {
+                m_gdsClient.GDSClient.GetCertificates(application.ApplicationRecord.ApplicationId, null, out NodeId[] certificateTypeIds, out byte[][] certificates);
+                Assert.That(certificateTypeIds.Length == 1);
+                Assert.NotNull(certificates[0]);
+                Assert.AreEqual(certificates[0], application.Certificate);
+                m_gdsClient.GDSClient.GetCertificates(application.ApplicationRecord.ApplicationId, application.CertificateGroupId, out NodeId[] certificateTypeIds2, out byte[][] certificates2);
+                Assert.That(certificateTypeIds2.Length == 1);
+                Assert.NotNull(certificates2[0]);
+                Assert.AreEqual(certificates2[0], application.Certificate);
+            }
+        }
+
         [Test, Order(550)]
         public void StartGoodSigningRequestWithInvalidAppURI()
         {
@@ -1327,7 +1352,7 @@ namespace Opc.Ua.Gds.Tests
                 }, Throws.Exception);
             }
         }
-     
+
         [Test, Order(900)]
         public void UnregisterGoodApplications()
         {
