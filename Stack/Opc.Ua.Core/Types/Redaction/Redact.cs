@@ -37,7 +37,7 @@ namespace Opc.Ua.Redaction
         /// <summary>
         /// Creates a wrapper to hold <paramref name="value"/>.
         /// When <see cref="object.ToString()"/> is called on the resulting wrapper
-        /// it will invoke the best matching redaction strategy to censor the
+        /// it will invoke the redaction strategy to censor the
         /// sensitive data held by <paramref name="value"/>.
         /// </summary>
         public static RedactionWrapper<T> Create<T>(T value)

@@ -28,8 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace Opc.Ua.Redaction
 {
@@ -44,59 +42,47 @@ namespace Opc.Ua.Redaction
     /// </code>
     /// </summary>
     /// <remarks>
-    /// The redaction is off by default and can be enabled by adding <see cref="IRedactionStrategy"/> implementations
-    /// via <see cref="AddStrategy(IRedactionStrategy)"/>.
-    /// <br/>
-    /// Suggestions for adding redaction strategies:
-    /// <list type="bullet">
-    ///   <item>add the redaction strategies early on in your application's lifecycle,</item>
-    ///   <item>the strategies should be added in order of their priority: more specific ones first</item>
-    ///   <item>lastly add a fallback strategy that handles any incoming type</item>
-    ///   <item>it's recommended to add strategies for
-    ///     <list type="bullet">
-    ///       <item><see cref="Uri"/></item>
-    ///       <item><see cref="UriBuilder"/></item>
-    ///       <item><see cref="Exception"/></item>
-    ///       <item><see cref="string"/></item>
-    ///     </list>
-    ///   </item>
-    /// </list>
+    /// The redaction is off by default and can be enabled by implementing <see cref="IRedactionStrategy"/>
+    /// and setting it via <see cref="SetStrategy(IRedactionStrategy)"/>.
     /// </remarks>
     public static partial class RedactionStrategies
     {
-        private static readonly IRedactionStrategy m_fallbackStrategy = new NullRedactionStrategy();
-        private static readonly List<IRedactionStrategy> m_strategies = new List<IRedactionStrategy>();
+        private static readonly IRedactionStrategy s_fallbackStrategy = new FallbackRedactionStrategy();
 
         /// <summary>
-        /// Add a redaction strategy to the collection.
+        /// Gets the current redaction strategy.
         /// </summary>
-        public static void AddStrategy(IRedactionStrategy strategy)
+        internal static IRedactionStrategy CurrentStrategy { get; private set; } = s_fallbackStrategy;
+
+        /// <summary>
+        /// Sets the current redaction strategy.
+        /// </summary>
+        public static void SetStrategy(IRedactionStrategy strategy)
         {
-            m_strategies.Add(strategy);
+            if (strategy == null)
+            {
+                throw new ArgumentNullException(nameof(strategy));
+            }
+
+            CurrentStrategy = strategy;
         }
 
         /// <summary>
-        /// Get the redaction strategy for the specified type.
+        /// Resets the fallback strategy to the default (empty) implementation.
         /// </summary>
-        public static IRedactionStrategy GetRedactionStrategyForType(Type type)
+        public static void ResetStrategy()
         {
-            return m_strategies.FirstOrDefault(s => s.CanRedact(type))
-                ?? m_fallbackStrategy;
+            CurrentStrategy = s_fallbackStrategy;
         }
 
         /// <summary>
-        /// Fallback for when no other strategy can redact the type. It returns the string representation of the value.
+        /// Fallback for when no other strategy was set. It returns the string representation of the value.
         /// </summary>
-        private class NullRedactionStrategy : IRedactionStrategy
+        private class FallbackRedactionStrategy : IRedactionStrategy
         {
             public string Redact(object value)
             {
                 return value?.ToString() ?? "null";
-            }
-
-            public bool CanRedact(Type type)
-            {
-                return true;
             }
         }
     }

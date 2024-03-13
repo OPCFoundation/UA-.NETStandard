@@ -48,9 +48,7 @@ namespace Opc.Ua.Redaction
         /// <inheritdoc />
         public override string ToString()
         {
-            IRedactionStrategy strategy = RedactionStrategies.GetRedactionStrategyForType(typeof(T));
-
-            return strategy.Redact(m_value);
+            return RedactionStrategies.CurrentStrategy.Redact(m_value);
         }
     }
 }

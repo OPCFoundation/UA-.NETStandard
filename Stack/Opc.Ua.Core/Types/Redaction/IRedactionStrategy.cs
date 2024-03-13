@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-
 namespace Opc.Ua.Redaction
 {
     /// <summary>
@@ -36,7 +34,7 @@ namespace Opc.Ua.Redaction
     /// </summary>
     /// <remarks>
     /// Use redaction to hide sensitive data in log messages, exception messages, etc.
-    /// Add your redaction strategy to <see cref="RedactionStrategies"/>.
+    /// To set your redaction strategy see <see cref="RedactionStrategies"/>.
     /// </remarks>
     public interface IRedactionStrategy
     {
@@ -44,10 +42,5 @@ namespace Opc.Ua.Redaction
         /// Returns a string representation of <paramref name="value"/> without sensitive data.
         /// </summary>
         string Redact(object value);
-
-        /// <summary>
-        /// Returns true if this redaction strategy can redact objects of the type <paramref name="type"/>.
-        /// </summary>
-        bool CanRedact(Type type);
     }
 }
