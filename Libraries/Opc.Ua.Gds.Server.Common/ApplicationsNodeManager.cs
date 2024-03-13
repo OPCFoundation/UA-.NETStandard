@@ -508,6 +508,11 @@ namespace Opc.Ua.Gds.Server
 
             applicationId = m_database.RegisterApplication(application);
 
+            if(applicationId != null)
+            {
+                
+            }
+
             return ServiceResult.Good;
         }
 
