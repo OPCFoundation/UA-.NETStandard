@@ -1010,7 +1010,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
         /// <param name="systemContext">The current system context.</param>
-        /// <param name="objectId">The id of the object ued for update certificate method</param>
+        /// <param name="objectId">The id of the object used for update certificate method</param>
         /// <param name="method">The method that triggered the audit event.</param>
         /// <param name="inputArguments">The input arguments used to call the method that triggered the audit event.</param>
         /// <param name="certificateGroupId">The id of the certificate group</param>
@@ -1077,54 +1077,43 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
         /// <param name="systemContext">The current system context.</param>
-        /// <param name="objectId">The id of the object ued for update certificate method</param>
+        /// <param name="objectId">The id of the object used for update certificate method</param>
         /// <param name="method">The method that triggered the audit event.</param>
         /// <param name="inputArguments">The input arguments used to call the method that triggered the audit event.</param>
-        /// <param name="exception">The exception resulted after executing the UpdateCertificate method. If null, the operation was successfull.</param>
         public static void ReportCertificateUpdateRequestedAuditEvent(
             this IAuditEventServer server,
             ISystemContext systemContext,
             NodeId objectId,
             MethodState method,
-            object[] inputArguments,
-            Exception exception = null)
+            object[] inputArguments)
         {
             try
             {
                 CertificateUpdateRequestedAuditEventState e = new CertificateUpdateRequestedAuditEventState(null);
 
-                TranslationInfo message = null;
-                if (exception == null)
-                {
-                    message = new TranslationInfo(
+                TranslationInfo message = new TranslationInfo(
                        "CertificateUpdateRequestedAuditEvent",
                        "en-US",
                        "CertificateUpdateRequestedAuditEvent.");
-                }
-                else
-                {
-                    message = new TranslationInfo(
-                      "CertificateUpdateRequestedAuditEvent",
-                      "en-US",
-                      $"CertificateUpdateRequestedAuditEvent - Exception: {exception.Message}.");
-                }
+                
+                
 
                 e.Initialize(
                    systemContext,
                    null,
                    EventSeverity.Min,
                    new LocalizedText(message),
-                   exception == null,
+                   true,
                    DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, BrowseNames.SourceNode, objectId, false);
                 e.SetChildValue(systemContext, BrowseNames.SourceName, "Method/UpdateCertificate", false);
                 e.SetChildValue(systemContext, BrowseNames.LocalTime, Utils.GetTimeZoneInfo(), false);
 
-                e.SetChildValue(systemContext, BrowseNames.MethodId, method.NodeId, false);
+                e.SetChildValue(systemContext, BrowseNames.MethodId, method?.NodeId, false);
                 e.SetChildValue(systemContext, BrowseNames.InputArguments, inputArguments, false);
 
-                server.ReportAuditEvent(systemContext, e);
+                server?.ReportAuditEvent(systemContext, e);
             }
             catch (Exception ex)
             {
