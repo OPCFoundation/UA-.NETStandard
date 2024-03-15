@@ -412,7 +412,7 @@ namespace Opc.Ua
                     if (m_minimumCertificateKeySize != value)
                     {
                         m_minimumCertificateKeySize = value;
-                        ResetValidatedCertificates();
+                        InternalResetValidatedCertificates();
                     }
                 }
                 finally
@@ -438,7 +438,7 @@ namespace Opc.Ua
                     if (m_minimumECCertificateKeySize != value)
                     {
                         m_minimumECCertificateKeySize = value;
-                        ResetValidatedCertificates();
+                        InternalResetValidatedCertificates();
                     }
 
                 }
@@ -465,7 +465,7 @@ namespace Opc.Ua
                     if (m_useValidatedCertificates != value)
                     {
                         m_useValidatedCertificates = value;
-                        ResetValidatedCertificates();
+                        InternalResetValidatedCertificates();
                     }
                 }
                 finally
