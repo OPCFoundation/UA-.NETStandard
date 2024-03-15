@@ -103,6 +103,10 @@ namespace Opc.Ua
                     {
                         return cachedCertificate;
                     }
+                    else
+                    {
+                        m_certificates.Remove(certificate.Thumbprint);
+                    }
                 }
 
                 // nothing more to do if no private key or dont care about accessibility.

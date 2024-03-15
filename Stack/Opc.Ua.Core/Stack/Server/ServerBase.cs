@@ -637,12 +637,12 @@ namespace Opc.Ua
         {
             get
             {
-                return m_InstanceCertificateTypesProvider;
+                return m_instanceCertificateTypesProvider;
             }
 
             private set
             {
-                m_InstanceCertificateTypesProvider = value;
+                m_instanceCertificateTypesProvider = value;
             }
         }
 
@@ -1689,7 +1689,7 @@ namespace Opc.Ua
         private object m_messageContext;
         private object m_serverError;
         private object m_certificateValidator;
-        private CertificateTypesProvider m_InstanceCertificateTypesProvider;
+        private CertificateTypesProvider m_instanceCertificateTypesProvider;
         private object m_serverProperties;
         private object m_configuration;
         private object m_serverDescription;

@@ -25,13 +25,13 @@ namespace Opc.Ua
         public ReentrantSemaphoreSlim()
         {
             m_semaphore = new SemaphoreSlim(1, 1);
-            m_reentrantCounter = 0;
+            m_reentrantCounter = new ThreadLocal<int>(() => 0);
         }
 
         public ReentrantSemaphoreSlim(int initialCount, int maxCount)
         {
             m_semaphore = new SemaphoreSlim(initialCount, maxCount);
-            m_reentrantCounter = 0;
+            m_reentrantCounter = new ThreadLocal<int>(() => 0);
         }
         #endregion
 
@@ -41,12 +41,11 @@ namespace Opc.Ua
         /// </summary>
         public void Wait()
         {
-            int counter = m_reentrantCounter;
-            if (counter == 0)
+            if (m_reentrantCounter.Value == 0)
             {
                 m_semaphore.Wait();
             }
-            m_reentrantCounter++;
+            m_reentrantCounter.Value++;
         }
 
         /// <summary>
@@ -54,24 +53,21 @@ namespace Opc.Ua
         /// </summary>
         public async Task WaitAsync(CancellationToken ct = default)
         {
-            int counter = m_reentrantCounter;
-            if (counter == 0)
+            if (m_reentrantCounter.Value == 0)
             {
                 await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
             }
-            m_reentrantCounter++;
+            m_reentrantCounter.Value++;
         }
 
         public void Release()
         {
-            int counter = m_reentrantCounter;
-            if (counter <= 0)
+            if (m_reentrantCounter.Value <= 0)
             {
                 throw new InvalidOperationException("Release called without a corresponding Wait");
             }
-            if (--counter == 0)
+            if (--m_reentrantCounter.Value == 0)
             {
-                m_reentrantCounter = 0;
                 m_semaphore.Release();
             }
         }
@@ -80,7 +76,7 @@ namespace Opc.Ua
 
         #region Private members
         private readonly SemaphoreSlim m_semaphore;
-        private int m_reentrantCounter;
+        private ThreadLocal<int> m_reentrantCounter;
         #endregion
 
     }
