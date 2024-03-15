@@ -417,7 +417,7 @@ namespace Opc.Ua.Security.Certificates
                                         true));
             }
 
-            if (!m_isCA)
+            if (!m_isCA && !forECDsa)
             {
                 if (X509Extensions.FindExtension<X509EnhancedKeyUsageExtension>(m_extensions) == null)
                 {

@@ -300,6 +300,7 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] CreateSigningRequest(
             X509Certificate2 certificate,
+            // TODO: provide CertificateType to return CSR per certificate type
             IList<String> domainNames = null
             )
         {

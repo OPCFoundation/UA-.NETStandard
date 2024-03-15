@@ -234,7 +234,7 @@ namespace Opc.Ua
                             Utils.Trace(Utils.TraceMasks.Security, "Could not find application certificate: {0}", applicationCertificate);
                             continue;
                         }
-                        // Add to list of application certificates only if not allready in list
+                        // Add to list of application certificates only if not already in list
                         // necessary since the application certificates may be updated multiple times
                         if (!m_applicationCertificates.Exists(cert => Utils.IsEqual(cert.RawData, certificate.RawData)))
                         {
