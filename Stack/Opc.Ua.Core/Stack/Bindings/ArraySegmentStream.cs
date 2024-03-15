@@ -88,37 +88,37 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Overridden Methods
-        /// <summary cref="Stream.CanRead" />
+        /// <inheritdoc/>
         public override bool CanRead
         {
             get { return true; }
         }
 
-        /// <summary cref="Stream.CanSeek" />
+        /// <inheritdoc/>
         public override bool CanSeek
         {
             get { return true; }
         }
 
-        /// <summary cref="Stream.CanWrite" />
+        /// <inheritdoc/>
         public override bool CanWrite
         {
             get { return true; }
         }
 
-        /// <summary cref="Stream.Flush" />
+        /// <inheritdoc/>
         public override void Flush()
         {
             // nothing to do.
         }
 
-        /// <summary cref="Stream.Length" />
+        /// <inheritdoc/>
         public override long Length
         {
             get { return GetAbsoluteLength(); }
         }
 
-        /// <summary cref="Stream.Position" />
+        /// <inheritdoc/>
         public override long Position
         {
             get
@@ -132,7 +132,7 @@ namespace Opc.Ua.Bindings
             }
         }
 
-        /// <summary cref="Stream.ReadByte()" />
+        /// <inheritdoc/>
         public override int ReadByte()
         {
             do
@@ -157,7 +157,49 @@ namespace Opc.Ua.Bindings
             } while (true);
         }
 
-        /// <summary cref="Stream.Read(byte[], int, int)" />
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+        /// <inheritdoc/>
+        public override int Read(Span<byte> buffer)
+        {
+            int count = buffer.Length;
+            int offset = 0;
+            int bytesRead = 0;
+
+            while (count > 0)
+            {
+                // check for end of stream.
+                if (m_currentBuffer.Array == null)
+                {
+                    return bytesRead;
+                }
+
+                int bytesLeft = GetBufferCount(m_bufferIndex) - m_currentPosition;
+
+                // copy the bytes requested.
+                if (bytesLeft > count)
+                {
+                    m_currentBuffer.AsSpan(m_currentPosition + m_currentBuffer.Offset, count).CopyTo(buffer.Slice(offset));
+                    bytesRead += count;
+                    m_currentPosition += count;
+                    return bytesRead;
+                }
+
+                // copy the bytes available and move to next buffer.
+                m_currentBuffer.AsSpan(m_currentPosition + m_currentBuffer.Offset, bytesLeft).CopyTo(buffer.Slice(offset));
+                bytesRead += bytesLeft;
+
+                offset += bytesLeft;
+                count -= bytesLeft;
+
+                // move to next buffer.
+                SetCurrentBuffer(m_bufferIndex + 1);
+            }
+
+            return bytesRead;
+        }
+#endif
+
+        /// <inheritdoc/>
         public override int Read(byte[] buffer, int offset, int count)
         {
             int bytesRead = 0;
@@ -195,7 +237,7 @@ namespace Opc.Ua.Bindings
             return bytesRead;
         }
 
-        /// <summary cref="Stream.Seek" />
+        /// <inheritdoc/>
         public override long Seek(long offset, SeekOrigin origin)
         {
             switch (origin)
@@ -247,13 +289,13 @@ namespace Opc.Ua.Bindings
             throw new IOException("Cannot seek beyond the end of the stream.");
         }
 
-        /// <summary cref="Stream.SetLength(long)" />
+        /// <inheritdoc/>
         public override void SetLength(long value)
         {
             throw new NotSupportedException();
         }
 
-        /// <summary cref="Stream.WriteByte(byte)" />
+        /// <inheritdoc/>
         public override void WriteByte(byte value)
         {
             do
@@ -286,7 +328,50 @@ namespace Opc.Ua.Bindings
             } while (true);
         }
 
-        /// <summary cref="Stream.Write(byte[],int,int)" />
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+        /// <inheritdoc/>
+        public override void Write(ReadOnlySpan<byte> buffer)
+        {
+            int count = buffer.Length;
+            int offset = 0;
+            while (count > 0)
+            {
+                // check for end of stream.
+                CheckEndOfStream();
+
+                int bytesLeft = m_currentBuffer.Count - m_currentPosition;
+
+                // copy the bytes requested.
+                if (bytesLeft >= count)
+                {
+                    buffer.Slice(offset, count).CopyTo(m_currentBuffer.AsSpan(m_currentPosition + m_currentBuffer.Offset));
+
+                    m_currentPosition += count;
+
+                    if (m_bufferIndex == m_buffers.Count - 1)
+                    {
+                        if (m_endOfLastBuffer < m_currentPosition)
+                        {
+                            m_endOfLastBuffer = m_currentPosition;
+                        }
+                    }
+
+                    return;
+                }
+
+                // copy the bytes available and move to next buffer.
+                buffer.Slice(offset, bytesLeft).CopyTo(m_currentBuffer.AsSpan(m_currentPosition + m_currentBuffer.Offset));
+
+                offset += bytesLeft;
+                count -= bytesLeft;
+
+                // move to next buffer.
+                SetCurrentBuffer(m_bufferIndex + 1);
+            }
+        }
+#endif
+
+        /// <inheritdoc/>
         public override void Write(byte[] buffer, int offset, int count)
         {
             while (count > 0)
@@ -325,7 +410,7 @@ namespace Opc.Ua.Bindings
             }
         }
 
-        /// <summary cref="MemoryStream.ToArray()" />
+        /// <inheritdoc/>
         public override byte[] ToArray()
         {
             int absoluteLength = GetAbsoluteLength();
