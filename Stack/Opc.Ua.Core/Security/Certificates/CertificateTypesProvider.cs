@@ -35,17 +35,22 @@ using System.Threading.Tasks;
 namespace Opc.Ua
 {
     /// <summary>
-    /// The identifier for an X509 certificate.
+    /// The provider for the X509 application certificates.
     /// </summary>
     public class CertificateTypesProvider
     {
         /// <summary>
-        /// Constructor
+        /// Create an instance of the certificate provider.
         /// </summary>
         public CertificateTypesProvider(ApplicationConfiguration config)
         {
             m_securityConfiguration = config.SecurityConfiguration;
-            m_certificateValidator = config.CertificateValidator;
+            m_certificateValidator = new CertificateValidator();
+            m_certificateValidator.Update(m_securityConfiguration).GetAwaiter().GetResult();
+            // for application certificates, allow untrusted and revocation status unknown, cache the known certs
+            m_certificateValidator.RejectUnknownRevocationStatus = false;
+            m_certificateValidator.AutoAcceptUntrustedCertificates = true;
+            m_certificateValidator.UseValidatedCertificates = true;
         }
 
         /// <summary>
