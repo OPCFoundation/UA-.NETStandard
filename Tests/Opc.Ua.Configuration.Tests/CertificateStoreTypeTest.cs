@@ -240,7 +240,7 @@ namespace Opc.Ua.Configuration.Tests
         public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, NodeId certificateType, string password)
             => m_innerStore.LoadPrivateKey(thumbprint, subjectName, certificateType, password);
 
-        [Obsolete]
+        [Obsolete("Method is deprecated. Use only for RSA certificates, the replacing LoadPrivateKey with certificateType parameter should be used.")]
         public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
             => m_innerStore.LoadPrivateKey(thumbprint, subjectName, password);
 

@@ -124,7 +124,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public override int GetHashCode()
         {
-            return HashCode.Combine(Thumbprint, m_storeLocation, m_storeName, SubjectName);
+            return HashCode.Combine(Thumbprint, m_storeLocation, m_storeName, SubjectName, CertificateType);
         }
         #endregion
 
@@ -523,7 +523,6 @@ namespace Opc.Ua
             else if (
                 CertificateType == ObjectTypeIds.RsaMinApplicationCertificateType ||
                 CertificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType ||
-                CertificateType == ObjectTypeIds.ApplicationCertificateType ||
                 securityConfiguration.IsDeprecatedConfiguration) // Deprecated configurations are implicitly RSA
             {
                 return securityConfiguration.MinimumCertificateKeySize;
@@ -649,7 +648,6 @@ namespace Opc.Ua
                     break;
                 case SecurityPolicies.Https:
                     result.Add(ObjectTypeIds.HttpsCertificateType);
-                    result.Add(ObjectTypeIds.ApplicationCertificateType);
                     break;
                 default:
                     break;

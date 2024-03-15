@@ -339,7 +339,7 @@ namespace Opc.Ua
         /// <summary>
         /// Loads the private key certificate with RSA signature from a PFX file in the certificate store.
         /// </summary>
-        [Obsolete("Use LoadPrivateKey with certificateType.")]
+        [Obsolete("Method is deprecated. Use only for RSA certificates, the replacing LoadPrivateKey with certificateType parameter should be used.")]
         public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
         {
             return LoadPrivateKey(thumbprint, subjectName, null, password);

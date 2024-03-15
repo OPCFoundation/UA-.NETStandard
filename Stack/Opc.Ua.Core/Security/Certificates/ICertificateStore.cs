@@ -86,7 +86,7 @@ namespace Opc.Ua
         /// <param name="password">The certificate password.</param>
         /// <remarks>Returns always null if SupportsLoadPrivateKey returns false.</remarks>
         /// <returns>The matching certificate with private key</returns>
-        [Obsolete("Must specify certificate type.")]
+        [Obsolete("Method is deprecated. Use only for RSA certificates, the replacing LoadPrivateKey with certificateType parameter should be used.")]
         Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password);
 
         /// <summary>

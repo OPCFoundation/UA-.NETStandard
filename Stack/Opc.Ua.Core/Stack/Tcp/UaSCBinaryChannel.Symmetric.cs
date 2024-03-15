@@ -834,14 +834,6 @@ namespace Opc.Ua.Bindings
                 {
                     return SymmetricSign(token, dataToSign, useClientKeys);
                 }
-
-#if GCMMODE
-                case SecurityPolicies.ECC_nistP256:
-                //case SecurityPolicies.Aes128_Gcm256_RsaOaep:
-                {
-                    return SymmetricSignWithAESGCM(token, dataToSign, useClientKeys);
-                }
-#endif
             }
         }
 
@@ -874,13 +866,6 @@ namespace Opc.Ua.Bindings
                 {
                     return SymmetricVerify(token, signature, dataToVerify, useClientKeys);
                 }
-#if GCMMODE
-                case SecurityPolicies.ECC_nistP256:
-                //case SecurityPolicies.Aes128_Gcm256_RsaOaep:
-                {
-                    return SymmetricVerifyWithAESGCM(token, signature, dataToVerify, useClientKeys);
-                }
-#endif
                 default:
                 {
                     return false;
@@ -999,60 +984,7 @@ namespace Opc.Ua.Bindings
             // return signature.
             return signature;
         }
-#if GCMMODE
-        /// <summary>
-        /// Signs the message using SHA1 HMAC
-        /// </summary>
-        private static byte[] SymmetricSignWithAESGCM(ChannelToken token, ArraySegment<byte> dataToSign, bool useClientKeys)
-        {
-            try
-            {
-                var key = (useClientKeys) ? token.ClientEncryptingKey : token.ServerSigningKey;
-                var nonce = (useClientKeys) ? token.ClientInitializationVector : token.ServerInitializationVector;
-                var macSize = (useClientKeys) ? token.ClientSigningKey.Length : token.ServerSigningKey.Length;
 
-                var header = new byte[TcpMessageLimits.SymmetricHeaderSize];
-                Buffer.BlockCopy(dataToSign.Array, 0, header, 0, header.Length);
-
-                var cipher = new GcmBlockCipher(new AesEngine());
-                var parameters = new AeadParameters(new KeyParameter(key), macSize, nonce, header);
-                cipher.Init(true, parameters);
-
-                var plainTextLength = dataToSign.Count - TcpMessageLimits.SymmetricHeaderSize;
-                var cipherLength = cipher.GetOutputSize(plainTextLength);
-                var cipherText = new byte[cipherLength];
-
-                var length = cipher.ProcessBytes(
-                    dataToSign.Array, 
-                    TcpMessageLimits.SymmetricHeaderSize,
-                    plainTextLength, 
-                    cipherText, 
-                    0);
-
-                cipher.DoFinal(cipherText, length);
-
-                Buffer.BlockCopy(cipherText, 0, dataToSign.Array, TcpMessageLimits.SymmetricHeaderSize, cipherText.Length);
-
-                // return signature.
-                var signature = new byte[cipherLength + header.Length - dataToSign.Count];
-                Buffer.BlockCopy(dataToSign.Array, dataToSign.Count, signature, 0, signature.Length);
-
-                int eod = dataToSign.Count + signature.Length;
-                int siz = BitConverter.ToInt32(dataToSign.Array, 4);
-
-                //if (!SymmetricVerifyWithAESGCM(token, signature, dataToSign, useClientKeys))
-                //{
-                //    int x = 0;
-                //}
-
-                return signature;
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-        }
-#endif
         /// <summary>
         /// Verifies a HMAC for a message.
         /// </summary>
@@ -1094,58 +1026,7 @@ namespace Opc.Ua.Bindings
 
             return true;
         }
-#if GCMMODE
-        /// <summary>
-        /// Verifies a HMAC for a message.
-        /// </summary>
-        private static bool SymmetricVerifyWithAESGCM(
-            ChannelToken token,
-            byte[] signature,
-            ArraySegment<byte> dataToVerify,
-            bool useClientKeys)
-        {
-            try
-            {
-                var key = (useClientKeys) ? token.ClientEncryptingKey : token.ServerSigningKey;
-                var nonce = (useClientKeys) ? token.ClientInitializationVector : token.ServerInitializationVector;
-                var macSize = (useClientKeys) ? token.ClientSigningKey.Length : token.ServerSigningKey.Length;
 
-                using (var cipherStream = new MemoryStream(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count + signature.Length))
-                {
-                    using (var cipherReader = new BinaryReader(cipherStream))
-                    {
-                        var header = cipherReader.ReadBytes(TcpMessageLimits.SymmetricHeaderSize);
-
-                        var cipher = new GcmBlockCipher(new AesEngine());
-                        var parameters = new AeadParameters(new KeyParameter(key), macSize, nonce, header);
-                        cipher.Init(false, parameters);
-
-                        var cipherText = cipherReader.ReadBytes(dataToVerify.Count - header.Length + signature.Length);
-                        var plainTextLength = cipher.GetOutputSize(cipherText.Length);
-                        var plainText = new byte[plainTextLength];
-
-                        try
-                        {
-                            var length = cipher.ProcessBytes(cipherText, 0, cipherText.Length, plainText, 0);
-                            cipher.DoFinal(plainText, length);
-                        }
-                        catch (InvalidCipherTextException e)
-                        {
-                            // validation failed.
-                            return false;
-                        }
-
-                        Buffer.BlockCopy(plainText, 0, dataToVerify.Array, dataToVerify.Offset + header.Length, plainText.Length);
-                        return true;
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                throw;
-            }
-        }
-#endif
         /// <summary>
         /// Encrypts a message using a symmetric algorithm.
         /// </summary>
