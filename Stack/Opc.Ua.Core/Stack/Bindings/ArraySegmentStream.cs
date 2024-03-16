@@ -10,6 +10,10 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#define STREAM_WITH_SPAN_SUPPORT
+#endif
+
 using System;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -148,7 +152,11 @@ namespace Opc.Ua.Bindings
                 // copy the bytes requested.
                 if (bytesLeft > 0)
                 {
+#if STREAM_WITH_SPAN_SUPPORT
+                    return m_currentBuffer[m_currentPosition++];
+#else
                     return m_currentBuffer.Array[m_currentBuffer.Offset + m_currentPosition++];
+#endif
                 }
 
                 // move to next buffer.
@@ -157,7 +165,7 @@ namespace Opc.Ua.Bindings
             } while (true);
         }
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if STREAM_WITH_SPAN_SUPPORT
         /// <inheritdoc/>
         public override int Read(Span<byte> buffer)
         {
@@ -178,14 +186,14 @@ namespace Opc.Ua.Bindings
                 // copy the bytes requested.
                 if (bytesLeft > count)
                 {
-                    m_currentBuffer.AsSpan(m_currentPosition + m_currentBuffer.Offset, count).CopyTo(buffer.Slice(offset));
+                    m_currentBuffer.AsSpan(m_currentPosition, count).CopyTo(buffer.Slice(offset));
                     bytesRead += count;
                     m_currentPosition += count;
                     return bytesRead;
                 }
 
                 // copy the bytes available and move to next buffer.
-                m_currentBuffer.AsSpan(m_currentPosition + m_currentBuffer.Offset, bytesLeft).CopyTo(buffer.Slice(offset));
+                m_currentBuffer.AsSpan(m_currentPosition, bytesLeft).CopyTo(buffer.Slice(offset));
                 bytesRead += bytesLeft;
 
                 offset += bytesLeft;
@@ -308,7 +316,11 @@ namespace Opc.Ua.Bindings
                 // copy the byte requested.
                 if (bytesLeft >= 1)
                 {
+#if STREAM_WITH_SPAN_SUPPORT
+                    m_currentBuffer[m_currentPosition] = value;
+#else
                     m_currentBuffer.Array[m_currentBuffer.Offset + m_currentPosition] = value;
+#endif
                     m_currentPosition++;
 
                     if (m_bufferIndex == m_buffers.Count - 1)
@@ -328,7 +340,7 @@ namespace Opc.Ua.Bindings
             } while (true);
         }
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if STREAM_WITH_SPAN_SUPPORT
         /// <inheritdoc/>
         public override void Write(ReadOnlySpan<byte> buffer)
         {
@@ -344,7 +356,7 @@ namespace Opc.Ua.Bindings
                 // copy the bytes requested.
                 if (bytesLeft >= count)
                 {
-                    buffer.Slice(offset, count).CopyTo(m_currentBuffer.AsSpan(m_currentPosition + m_currentBuffer.Offset));
+                    buffer.Slice(offset, count).CopyTo(m_currentBuffer.AsSpan(m_currentPosition));
 
                     m_currentPosition += count;
 
@@ -360,7 +372,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // copy the bytes available and move to next buffer.
-                buffer.Slice(offset, bytesLeft).CopyTo(m_currentBuffer.AsSpan(m_currentPosition + m_currentBuffer.Offset));
+                buffer.Slice(offset, bytesLeft).CopyTo(m_currentBuffer.AsSpan(m_currentPosition));
 
                 offset += bytesLeft;
                 count -= bytesLeft;
