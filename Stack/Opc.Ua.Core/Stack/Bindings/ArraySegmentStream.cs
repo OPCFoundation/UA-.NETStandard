@@ -321,15 +321,7 @@ namespace Opc.Ua.Bindings
 #else
                     m_currentBuffer.Array[m_currentBuffer.Offset + m_currentPosition] = value;
 #endif
-                    m_currentPosition++;
-
-                    if (m_bufferIndex == m_buffers.Count - 1)
-                    {
-                        if (m_endOfLastBuffer < m_currentPosition)
-                        {
-                            m_endOfLastBuffer = m_currentPosition;
-                        }
-                    }
+                    UpdateCurrentPosition(1);
 
                     return;
                 }
@@ -358,15 +350,7 @@ namespace Opc.Ua.Bindings
                 {
                     buffer.Slice(offset, count).CopyTo(m_currentBuffer.AsSpan(m_currentPosition));
 
-                    m_currentPosition += count;
-
-                    if (m_bufferIndex == m_buffers.Count - 1)
-                    {
-                        if (m_endOfLastBuffer < m_currentPosition)
-                        {
-                            m_endOfLastBuffer = m_currentPosition;
-                        }
-                    }
+                    UpdateCurrentPosition(count);
 
                     return;
                 }
@@ -398,15 +382,7 @@ namespace Opc.Ua.Bindings
                 {
                     Array.Copy(buffer, offset, m_currentBuffer.Array, m_currentPosition + m_currentBuffer.Offset, count);
 
-                    m_currentPosition += count;
-
-                    if (m_bufferIndex == m_buffers.Count - 1)
-                    {
-                        if (m_endOfLastBuffer < m_currentPosition)
-                        {
-                            m_endOfLastBuffer = m_currentPosition;
-                        }
-                    }
+                    UpdateCurrentPosition(count);
 
                     return;
                 }
@@ -450,6 +426,23 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Private Methods
+        /// <summary>
+        /// Update the current buffer count.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void UpdateCurrentPosition(int count)
+        {
+            m_currentPosition += count;
+
+            if (m_bufferIndex == m_buffers.Count - 1)
+            {
+                if (m_endOfLastBuffer < m_currentPosition)
+                {
+                    m_endOfLastBuffer = m_currentPosition;
+                }
+            }
+        }
+
         /// <summary>
         /// Sets the current buffer.
         /// </summary>
