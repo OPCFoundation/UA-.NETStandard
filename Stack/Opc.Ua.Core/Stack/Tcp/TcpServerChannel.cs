@@ -340,7 +340,7 @@ namespace Opc.Ua.Bindings
             const int kResponseBufferSize = 127;
 
             // Communication is active on the chanell
-            LastCommTime = HiResClock.TickCount;
+            UpdateLastCommTime();
 
             // validate the channel state.
             if (State != TcpChannelState.Connecting)
@@ -482,7 +482,7 @@ namespace Opc.Ua.Bindings
         private bool ProcessOpenSecureChannelRequest(uint messageType, ArraySegment<byte> messageChunk)
         {
             // Communication is active on the channel
-            LastCommTime = HiResClock.TickCount;
+            UpdateLastCommTime();
 
             // validate the channel state.
             if (State != TcpChannelState.Opening && State != TcpChannelState.Open)
@@ -809,7 +809,7 @@ namespace Opc.Ua.Bindings
         private bool ProcessCloseSecureChannelRequest(uint messageType, ArraySegment<byte> messageChunk)
         {
             // Communication is active on the channel
-            LastCommTime = HiResClock.TickCount;
+            UpdateLastCommTime();
 
             // validate security on the message.
             ChannelToken token = null;
@@ -900,7 +900,7 @@ namespace Opc.Ua.Bindings
         {
 
             // Communication is active on the channel
-            LastCommTime = HiResClock.TickCount;
+            UpdateLastCommTime();
             
             // validate the channel state.
             // Inactive state is allowed pass-through since a new session might be opened/activated on the channel

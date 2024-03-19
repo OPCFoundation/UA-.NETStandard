@@ -524,7 +524,7 @@ namespace Opc.Ua.Bindings
         protected virtual void HandleWriteComplete(BufferCollection buffers, object state, int bytesWritten, ServiceResult result)
         {
             // Communication is active on the channel
-            LastCommTime = HiResClock.TickCount;
+            UpdateLastCommTime();
 
             if (buffers != null)
             {
@@ -771,7 +771,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The last time that the channel received/send messages 
         /// </summary>
-        protected ref int LastCommTime => ref m_lastCommTime;
+        protected int LastCommTime { get { return m_lastCommTime; } }
 
         #endregion
 
@@ -834,6 +834,14 @@ namespace Opc.Ua.Bindings
                 return chunkCount;
             }
             return 1;
+        }
+
+        /// <summary>
+        /// Update the last time that communication has occured on the channel.
+        /// </summary>
+        protected void UpdateLastCommTime()
+        {
+            m_lastCommTime = HiResClock.TickCount;
         }
         #endregion
 
