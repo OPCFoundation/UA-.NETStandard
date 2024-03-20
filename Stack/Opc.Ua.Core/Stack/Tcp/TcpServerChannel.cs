@@ -65,7 +65,6 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_cleanupTimer")]
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
@@ -229,9 +228,6 @@ namespace Opc.Ua.Bindings
                     // put channel back in open state.
                     ActivateToken(token);
                     State = TcpChannelState.Open;
-
-                    // no need to cleanup.
-                    CleanupTimer();
 
                     // send response.
                     SendOpenSecureChannelResponse(requestId, token, request);

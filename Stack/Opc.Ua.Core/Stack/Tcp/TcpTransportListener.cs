@@ -332,6 +332,7 @@ namespace Opc.Ua.Bindings
                 m_lock.ExitWriteLock();
             }
 
+
             Utils.LogInfo("ChannelId {0}: closed", channelId);
         }
 
@@ -515,7 +516,7 @@ namespace Opc.Ua.Bindings
         {
             int tickCount = HiResClock.TickCount;
 
-            // Cleanup upgrades it in WriteLock
+            // Cleanup can upgrade it in WriteLock
             m_lock.EnterUpgradeableReadLock();
             try
             {
