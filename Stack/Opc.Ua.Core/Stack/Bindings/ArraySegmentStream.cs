@@ -69,6 +69,26 @@ namespace Opc.Ua.Bindings
         }
         #endregion
 
+        #region IDisposable
+        /// <inheritdoc/>
+        protected override void Dispose(bool disposing)
+        {
+            if (m_bufferManager != null)
+            {
+                for (int ii = 0; ii < m_buffers.Count; ii++)
+                {
+                    m_bufferManager.ReturnBuffer(m_buffers[ii].Array, "ArraySegmentStream.Dispose");
+                }
+            }
+
+            m_buffers.Clear();
+            m_buffers = null;
+            m_bufferManager = null;
+
+            base.Dispose(disposing);
+        }
+        #endregion
+
         #region Public Methods
         /// <summary>
         /// Returns ownership of the buffers stored in the stream.
@@ -166,6 +186,11 @@ namespace Opc.Ua.Bindings
         }
 
 #if STREAM_WITH_SPAN_SUPPORT
+        /// <summary>
+        /// Helper to benchmark the performance of the stream.
+        /// </summary>
+        internal int ReadMemoryStream(Span<byte> buffer) => base.Read(buffer);
+
         /// <inheritdoc/>
         public override int Read(Span<byte> buffer)
         {
@@ -333,6 +358,11 @@ namespace Opc.Ua.Bindings
         }
 
 #if STREAM_WITH_SPAN_SUPPORT
+        /// <summary>
+        /// Helper to benchmark the performance of the stream.
+        /// </summary>
+        internal void WriteMemoryStream(ReadOnlySpan<byte> buffer) => base.Write(buffer);
+
         /// <inheritdoc/>
         public override void Write(ReadOnlySpan<byte> buffer)
         {
