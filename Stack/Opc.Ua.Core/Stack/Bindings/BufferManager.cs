@@ -336,6 +336,11 @@ namespace Opc.Ua.Bindings
 #endif
             m_arrayPool.Return(buffer);
         }
+
+        /// <summary>
+        /// Returns the max size of data in the buffers.
+        /// </summary>
+        public int MaxBufferSize => m_maxBufferSize;
         #endregion
 
         #region Private Fields

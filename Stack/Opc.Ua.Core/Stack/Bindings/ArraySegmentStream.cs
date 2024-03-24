@@ -15,6 +15,7 @@
 #endif
 
 using System;
+using System.Buffers;
 using System.IO;
 using System.Runtime.CompilerServices;
 
@@ -67,23 +68,38 @@ namespace Opc.Ua.Bindings
 
             SetCurrentBuffer(0);
         }
+
+        /// <summary>
+        /// Creates a writeable stream that creates buffers as necessary.
+        /// </summary>
+        /// <param name="bufferManager">The buffer manager.</param>
+        public ArraySegmentStream(BufferManager bufferManager)
+            : this(bufferManager, bufferManager.MaxBufferSize, 0, bufferManager.MaxBufferSize)
+        {
+        }
         #endregion
 
         #region IDisposable
         /// <inheritdoc/>
         protected override void Dispose(bool disposing)
         {
-            if (m_bufferManager != null)
+            if (disposing)
             {
-                for (int ii = 0; ii < m_buffers.Count; ii++)
+                if (m_buffers != null)
                 {
-                    m_bufferManager.ReturnBuffer(m_buffers[ii].Array, "ArraySegmentStream.Dispose");
-                }
-            }
+                    if (m_bufferManager != null)
+                    {
+                        for (int ii = 0; ii < m_buffers.Count; ii++)
+                        {
+                            m_bufferManager.ReturnBuffer(m_buffers[ii].Array, "ArraySegmentStream.Dispose");
+                        }
+                    }
 
-            m_buffers.Clear();
-            m_buffers = null;
-            m_bufferManager = null;
+                    m_buffers.Clear();
+                    m_buffers = null;
+                }
+                m_bufferManager = null;
+            }
 
             base.Dispose(disposing);
         }
@@ -105,9 +121,42 @@ namespace Opc.Ua.Bindings
                 buffers.Add(new ArraySegment<byte>(m_buffers[ii].Array, m_buffers[ii].Offset, GetBufferCount(ii)));
             }
 
-            m_buffers.Clear();
+            ClearBuffers();
 
             return buffers;
+        }
+
+        /// <summary>
+        /// Returns sequence of the buffers stored in the stream.
+        /// </summary>
+        /// <remarks>
+        /// The buffers ownership is transferred to the sequence,
+        /// the stream can be disposed.
+        /// The new owner is responisble to dispose the sequence after use.
+        /// </remarks>
+        public BufferSequence GetSequence(string owner)
+        {
+            if (m_buffers.Count == 0)
+            {
+                return new BufferSequence(m_bufferManager, owner, null, ReadOnlySequence<byte>.Empty);
+            }
+
+            int endIndex = GetBufferCount(0);
+            var firstSegment = new BufferSegment(m_buffers[0].Array, m_buffers[0].Offset, endIndex);
+            m_bufferManager.TransferBuffer(m_buffers[0].Array, owner);
+            BufferSegment nextSegment = firstSegment;
+            for (int ii = 1; ii < m_buffers.Count; ii++)
+            {
+                m_bufferManager.TransferBuffer(m_buffers[ii].Array, owner);
+                endIndex = GetBufferCount(ii);
+                nextSegment = nextSegment.Append(m_buffers[ii].Array, m_buffers[ii].Offset, endIndex);
+            }
+
+            var sequence = new ReadOnlySequence<byte>(firstSegment, 0, nextSegment, endIndex);
+
+            ClearBuffers();
+
+            return new BufferSequence(m_bufferManager, owner, firstSegment, sequence);
         }
         #endregion
 
@@ -115,19 +164,19 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public override bool CanRead
         {
-            get { return true; }
+            get { return m_buffers != null; }
         }
 
         /// <inheritdoc/>
         public override bool CanSeek
         {
-            get { return true; }
+            get { return m_buffers != null; }
         }
 
         /// <inheritdoc/>
         public override bool CanWrite
         {
-            get { return true; }
+            get { return m_buffers != null; }
         }
 
         /// <inheritdoc/>
@@ -298,6 +347,13 @@ namespace Opc.Ua.Bindings
                 throw new IOException("Cannot seek beyond the beginning of the stream.");
             }
 
+            // special case
+            if (offset == 0)
+            {
+                SetCurrentBuffer(0);
+                return 0;
+            }
+
             int position = (int)offset;
 
             if (position >= GetAbsolutePosition())
@@ -431,6 +487,11 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public override byte[] ToArray()
         {
+            if (m_buffers == null)
+            {
+                throw new ObjectDisposedException(nameof(ArraySegmentStream));
+            }
+
             int absoluteLength = GetAbsoluteLength();
             if (absoluteLength == 0)
             {
@@ -565,6 +626,17 @@ namespace Opc.Ua.Bindings
 
                 SetCurrentBuffer(m_buffers.Count - 1);
             }
+        }
+
+        /// <summary>
+        /// Clears the buffers and resets the state variables.
+        /// </summary>
+        private void ClearBuffers()
+        {
+            m_buffers.Clear();
+            m_bufferIndex = 0;
+            m_endOfLastBuffer = 0;
+            SetCurrentBuffer(0);
         }
         #endregion
 
