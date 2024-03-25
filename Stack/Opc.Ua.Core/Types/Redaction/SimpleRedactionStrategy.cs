@@ -1,8 +1,8 @@
 /* ========================================================================
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -38,9 +38,9 @@ namespace Opc.Ua.Types.Redaction
     /// </summary>
     public class SimpleRedactionStrategy : IRedactionStrategy
     {
-        private const int k_defaultMinLength = 8;
-        private const int k_defaultMaxLength = 16;
-        private const char k_replacementChar = '*';
+        private const int kDefaultMinLength = 8;
+        private const int kDefaultMaxLength = 16;
+        private const char kReplacementChar = '*';
 
         private readonly int m_minLength;
         private readonly int m_maxLength;
@@ -49,7 +49,7 @@ namespace Opc.Ua.Types.Redaction
         /// <summary>
         /// Creates a new instance of the <see cref="SimpleRedactionStrategy"/> with default lengths.
         /// </summary>
-        public SimpleRedactionStrategy() : this(k_defaultMinLength, k_defaultMaxLength)
+        public SimpleRedactionStrategy() : this(kDefaultMinLength, kDefaultMaxLength)
         { }
 
         /// <summary>
@@ -98,15 +98,15 @@ namespace Opc.Ua.Types.Redaction
 
             if (valueString.Length < m_minLength)
             {
-                return new string(k_replacementChar, m_minLength);
+                return new string(kReplacementChar, m_minLength);
             }
 
             if (m_maxLength == -1 || valueString.Length <= m_maxLength)
             {
-                return new string(k_replacementChar, valueString.Length);
+                return new string(kReplacementChar, valueString.Length);
             }
 
-            return new string(k_replacementChar, m_maxLength);
+            return new string(kReplacementChar, m_maxLength);
         }
 
         private string RedactException(Exception exception)
