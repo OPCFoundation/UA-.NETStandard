@@ -30,11 +30,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
@@ -47,6 +49,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     {
         #region DataPointSources
         public const string X509StoreSubject = "CN=Opc.Ua.Core.Tests, O=OPC Foundation, OU=X509Store, C=US";
+        public const string X509StoreSubject2 = "CN=Opc.Ua.Core.Tests, O=OPC Foundation, OU=X509Store2, C=US";
 
         [DatapointSource]
         public string[] CertStores = GetCertStores();
@@ -72,6 +75,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             x509Store.Delete(cert.Thumbprint).Wait();
                         }
                     }
+                    if (x509Store.SupportsCRLs)
+                    {
+                        X509CRLCollection crls = x509Store.EnumerateCRLs().Result;
+                        foreach (X509CRL crl in crls)
+                        {
+                            if (X509Utils.CompareDistinguishedName(X509StoreSubject, crl.Issuer))
+                            {
+                                x509Store.DeleteCRL(crl).Wait();
+                            }
+                        }
+                    }
                 }
             }
             Utils.SilentDispose(m_testCertificate);
@@ -82,7 +96,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// <summary>
         /// Verify new app certificate is stored in X509Store with private key.
         /// </summary>
-        [Theory]
+        [Theory, Order(10)]
         public async Task VerifyAppCertX509Store(string storePath)
         {
             var appCertificate = GetTestCert();
@@ -120,7 +134,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Verify new app certificate is stored in Directory Store
         /// with password for private key (PFX).
         /// </summary>
-        [Test]
+        [Test, Order(20)]
         public async Task VerifyAppCertDirectoryStore()
         {
             var appCertificate = GetTestCert();
@@ -184,7 +198,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// <summary>
         /// Verify that old invalid cert stores throw.
         /// </summary>
-        [Test]
+        [Test, Order(30)]
         public void VerifyInvalidAppCertX509Store()
         {
             var appCertificate = GetTestCert();
@@ -197,6 +211,114 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     CertificateStoreType.X509Store,
                     "System\\UA_MachineDefault"));
         }
+
+        //Verify X509 Store supports no Crls on Linux or MacOs
+        [Theory, Order(40)]
+        public void VerifyNoCrlSupportOnLinuxOrMacOsX509Store(string storePath)
+        {
+            using (var x509Store = new X509CertificateStore())
+            {
+                x509Store.Open(storePath);
+                if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    Assert.False(x509Store.SupportsCRLs);
+                    Assert.Throws<ServiceResultException>(() => x509Store.EnumerateCRLs());
+                }
+                else
+                {
+                    Assert.True(x509Store.SupportsCRLs);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Add an new crl to the X509 store
+        /// </summary>
+        /// <returns></returns>
+        [Theory, Order(50)]
+        public async Task AddAndEnumerateNewCrlInX509StoreOnWindows(string storePath)
+        {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                Assert.Ignore("Crls in an X509Store are only supported on Windows");
+            }
+            using (var x509Store = new X509CertificateStore())
+            {
+                x509Store.Open(storePath);
+
+                Assert.True(x509Store.SupportsCRLs);
+
+                //add issuer to store
+                await x509Store.Add(GetTestCert()).ConfigureAwait(false);
+                //add Crl
+                var crlBuilder = CrlBuilder.Create(GetTestCert().SubjectName);
+                crlBuilder.AddRevokedCertificate(GetTestCert());
+                var crl = new X509CRL(crlBuilder.CreateForRSA(GetTestCert()));
+                await x509Store.AddCRL(crl).ConfigureAwait(false);
+
+                //enumerate Crls
+                X509CRLCollection crls = await x509Store.EnumerateCRLs().ConfigureAwait(false);
+
+                Assert.True(crls.Count == 1);
+                Assert.AreEqual(crl.RawData, crls[0].RawData);
+                Assert.AreEqual(GetTestCert().SerialNumber,
+                    crls[0].RevokedCertificates.First().SerialNumber);
+
+                //TestRevocation
+                var statusCode = await x509Store.IsRevoked(GetTestCert(), GetTestCert()).ConfigureAwait(false);
+                Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevoked, statusCode);
+
+                //await x509Store.Delete(GetTestCert().Thumbprint).ConfigureAwait(false);
+                //await x509Store.DeleteCRL(crl).ConfigureAwait(false);
+
+                //X509CRLCollection crls2 = await x509Store.EnumerateCRLs().ConfigureAwait(false);
+
+                //Assert.True(crls2.Count == 0);
+            }
+        }
+
+        /// <summary>
+        /// Enumerate and update an existing crl to the X509 store
+        /// </summary>
+        /// <returns></returns>
+        [Theory, Order(60)]
+        public async Task UpdateExistringCrlInX509StoreOnWindows(string storePath)
+        {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                Assert.Ignore("Crls in an X509Store are only supported on Windows");
+            }
+            using (var x509Store = new X509CertificateStore())
+            {
+                //enumerate Crls
+                X509CRL crl = (await x509Store.EnumerateCRLs().ConfigureAwait(false)).First();
+
+                //Test Revocation before adding cert
+                var statusCode = await x509Store.IsRevoked(GetTestCert(), GetTestCert2()).ConfigureAwait(false);
+                Assert.AreEqual((StatusCode)StatusCodes.Good, statusCode);
+
+                var crlBuilder = CrlBuilder.Create(crl);
+
+                crlBuilder.AddRevokedCertificate(GetTestCert2());
+                var updatedCrl = new X509CRL(crlBuilder.CreateForRSA(GetTestCert()));
+                await x509Store.AddCRL(updatedCrl).ConfigureAwait(false);
+
+                X509CRLCollection crls = await x509Store.EnumerateCRLs().ConfigureAwait(false);
+
+                Assert.True(crls.Count == 1);
+                Assert.True(crls[0].RevokedCertificates.Count == 2);
+                //Test Revocation after adding cert
+                var statusCode2 = await x509Store.IsRevoked(GetTestCert(), GetTestCert2()).ConfigureAwait(false);
+                Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevoked, statusCode2);
+
+                await x509Store.Delete(GetTestCert().Thumbprint).ConfigureAwait(false);
+                await x509Store.DeleteCRL(crl).ConfigureAwait(false);
+
+                X509CRLCollection crls2 = await x509Store.EnumerateCRLs().ConfigureAwait(false);
+
+                Assert.True(crls2.Count == 0);
+            }
+        }
         #endregion
 
         #region Private Methods
@@ -204,6 +326,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             return m_testCertificate ??
                 (m_testCertificate = CertificateFactory.CreateCertificate(X509StoreSubject).CreateForRSA());
+        }
+
+        private X509Certificate2 GetTestCert2()
+        {
+            return m_testCertificate2 ??
+                (m_testCertificate2 = CertificateFactory.CreateCertificate(X509StoreSubject2).CreateForRSA());
         }
 
         private static string[] GetCertStores()
@@ -221,6 +349,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         #region Private Fields
         private X509Certificate2 m_testCertificate;
+        private X509Certificate2 m_testCertificate2;
         #endregion
     }
 }
