@@ -41,6 +41,7 @@ namespace Opc.Ua.Gds.Server
     {
         internal static List<Role> AuthenticatedUser { get; } = new List<Role> { Role.AuthenticatedUser };
         internal static List<Role> DiscoveryAdmin { get; } = new List<Role> { GdsRole.DiscoveryAdmin };
+        internal static List<Role> DiscoveryAdminOrSelfAdmin { get; } = new List<Role> { GdsRole.DiscoveryAdmin, GdsRole.ApplicationSelfAdmin };
         internal static List<Role> AuthenticatedUserOrSelfAdmin { get; } = new List<Role> { Role.AuthenticatedUser, GdsRole.ApplicationSelfAdmin };
         internal static List<Role> CertificateAuthorityAdminOrSelfAdmin { get; } = new List<Role> { GdsRole.CertificateAuthorityAdmin, GdsRole.ApplicationSelfAdmin };
         internal static List<Role> CertificateAuthorityAdmin { get; } = new List<Role> { GdsRole.CertificateAuthorityAdmin };
