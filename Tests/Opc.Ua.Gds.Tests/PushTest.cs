@@ -601,6 +601,25 @@ namespace Opc.Ua.Gds.Tests
             Assert.NotNull(collection);
         }
 
+        [Test, Order(610)]
+        public void GetCertificates()
+        {
+            ConnectPushClient(true);
+
+            Assert.That(() => {
+                m_pushClient.PushClient.GetCertificates(null, out var _, out var _);
+            }, Throws.Exception);
+
+            m_pushClient.PushClient.GetCertificates(m_pushClient.PushClient.DefaultApplicationGroup, out NodeId[] certificateTypeIds, out byte[][] certificates);
+            
+            Assert.That(certificateTypeIds.Length == 1);
+            Assert.NotNull(certificates[0]);
+            using (var x509 = new X509Certificate2(certificates[0]))
+            {
+                Assert.NotNull(x509);
+            }
+        }
+
         [Test, Order(700)]
         public void ApplyChanges()
         {
@@ -614,6 +633,7 @@ namespace Opc.Ua.Gds.Tests
             ConnectPushClient(false);
             Assert.That(() => { m_pushClient.PushClient.ApplyChanges(); }, Throws.Exception);
             Assert.That(() => { m_pushClient.PushClient.GetRejectedList(); }, Throws.Exception);
+            Assert.That(() => { m_pushClient.PushClient.GetCertificates(null, out _, out _); }, Throws.Exception);
             Assert.That(() => { m_pushClient.PushClient.UpdateCertificate(null, null, m_selfSignedServerCert.RawData, null, null, null); }, Throws.Exception);
             Assert.That(() => { m_pushClient.PushClient.CreateSigningRequest(null, null, null, false, null); }, Throws.Exception);
             Assert.That(() => { m_pushClient.PushClient.ReadTrustList(); }, Throws.Exception);

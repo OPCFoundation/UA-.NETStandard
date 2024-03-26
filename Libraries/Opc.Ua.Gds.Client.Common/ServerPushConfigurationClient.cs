@@ -562,6 +562,53 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <summary>
+        /// returns the Certificates assigned to CertificateTypes associated with a CertificateGroup.
+        /// </summary>
+        /// <param name="certificateGroupId">The identifier for the CertificateGroup.</param>
+        /// <param name="certificateTypeIds">The CertificateTypes that currently have a Certificate assigned.
+        ///The length of this list is the same as the length as certificates list.
+        ///An empty list if the CertificateGroup does not have any CertificateTypes.</param>
+        /// <param name="certificates">A list of DER encoded Certificates assigned to CertificateGroup.
+        ///The certificateType for the Certificate is specified by the corresponding element in the certificateTypes parameter.</param>
+        public void GetCertificates(
+            NodeId certificateGroupId,
+            out NodeId[] certificateTypeIds,
+            out byte[][] certificates)
+        {
+            certificateTypeIds = Array.Empty<NodeId>();
+            certificates = Array.Empty<byte[]>();
+            if (!IsConnected)
+            {
+                Connect();
+            }
+
+            IUserIdentity oldUser = ElevatePermissions();
+            try
+            {
+
+                var outputArguments = m_session.Call(
+                    ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration, m_session.NamespaceUris),
+                    ExpandedNodeId.ToNodeId(new NodeId(32333), m_session.NamespaceUris),
+                    certificateGroupId
+                    );
+                    //Wrong Id, need to use the Method Id from ServerConfiguration_GetCertificates,32333,Method https://github.com/OPCFoundation/UA-Nodeset/blob/UA-1.05.03-2023-12-15/Schema/NodeIds.csv line 12359
+                    //https://github.com/OPCFoundation/UA-Nodeset/blob/7d389895a35fc5563b756e49b2369aa2263da77b/Schema/NodeIds.csv#L12359C1-L12359C49
+                    //ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfigurationType_GetCertificates, m_session.NamespaceUris);
+                    //This does not exist
+                    //ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_GetCertificates, m_session.NamespaceUris);
+                if (outputArguments.Count >= 2)
+                {
+                    certificateTypeIds = outputArguments[0] as NodeId[];
+                    certificates = outputArguments[1] as byte[][];
+                }
+            }
+            finally
+            {
+                RevertPermissions(oldUser);
+            }
+        }
+
+        /// <summary>
         /// Creates the CSR.
         /// </summary>
         /// <param name="certificateGroupId">The certificate group identifier.</param>
