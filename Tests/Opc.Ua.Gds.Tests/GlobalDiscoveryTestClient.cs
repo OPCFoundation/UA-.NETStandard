@@ -77,6 +77,11 @@ namespace Opc.Ua.Gds.Tests
                 AdminPassword = "demo"
             };
 
+            CertificateIdentifierCollection applicationCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                "CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost",
+                CertificateStoreType.Directory,
+                pkiRoot);
+
             // build the application configuration.
             Configuration = await m_application
                 .Build(
@@ -86,7 +91,7 @@ namespace Opc.Ua.Gds.Tests
                 .SetDefaultSessionTimeout(600000)
                 .SetMinSubscriptionLifetime(10000)
                 .AddSecurityConfiguration(
-                    "CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost",
+                    applicationCerts,
                     pkiRoot)
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)
@@ -98,7 +103,7 @@ namespace Opc.Ua.Gds.Tests
                 .Create().ConfigureAwait(false);
 #endif
             // check the application certificate.
-            bool haveAppCertificate = await m_application.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
+            bool haveAppCertificate = await m_application.CheckApplicationInstanceCertificates(true).ConfigureAwait(false);
             if (!haveAppCertificate)
             {
                 throw new Exception("Application instance certificate invalid!");

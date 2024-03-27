@@ -380,7 +380,9 @@ namespace Opc.Ua.Security.Certificates.Tests
             {
 #if !NETFRAMEWORK
                 PEMWriter.ExportPrivateKeyAsPEM(certificate, password);
+#if NETCOREAPP3_1 || NET5_0_OR_GREATER
                 PEMWriter.ExportECDsaPrivateKeyAsPEM(certificate);
+#endif
 #endif
             }
         }
@@ -391,4 +393,3 @@ namespace Opc.Ua.Security.Certificates.Tests
     }
 }
 #endif
-

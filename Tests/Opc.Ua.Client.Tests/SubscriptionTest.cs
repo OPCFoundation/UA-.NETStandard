@@ -474,7 +474,13 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         [Test, Combinatorial, Order(350)]
         public async Task ReconnectWithSavedSessionSecrets(
-            [Values(SecurityPolicies.None, SecurityPolicies.Basic256Sha256)] string securityPolicy,
+            [Values(SecurityPolicies.None,
+            SecurityPolicies.Basic256Sha256,
+            SecurityPolicies.ECC_brainpoolP256r1,
+            SecurityPolicies.ECC_brainpoolP384r1,
+            SecurityPolicies.ECC_brainpoolP256r1,
+            SecurityPolicies.ECC_nistP384
+            )] string securityPolicy,
             [Values(true, false)] bool anonymous,
             [Values(true, false)] bool sequentialPublishing,
             [Values(true, false)] bool sendInitialValues,
@@ -492,7 +498,9 @@ namespace Opc.Ua.Client.Tests
             ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
             Assert.NotNull(endpoint);
 
-            UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentity.TokenType, userIdentity.IssuedTokenType);
+            UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentity.TokenType,
+                userIdentity.IssuedTokenType,
+                endpoint.Description.SecurityPolicyUri);
             if (identityPolicy == null)
             {
                 Assert.Ignore($"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");

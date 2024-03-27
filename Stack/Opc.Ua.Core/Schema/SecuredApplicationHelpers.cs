@@ -395,11 +395,19 @@ namespace Opc.Ua.Security
                     case SecurityPolicies.Basic256Sha256:
                     case SecurityPolicies.Aes128_Sha256_RsaOaep:
                     case SecurityPolicies.Aes256_Sha256_RsaPss:
+                    case SecurityPolicies.ECC_nistP256:
+                    case SecurityPolicies.ECC_brainpoolP256r1:
+                    case SecurityPolicies.ECC_nistP384:
+                    case SecurityPolicies.ECC_brainpoolP384r1:
+                    case SecurityPolicies.ECC_curve25519:
+                    case SecurityPolicies.ECC_curve448:
                     {
                         policy.SecurityMode = MessageSecurityMode.SignAndEncrypt;
                         break;
                     }
 
+                    default:
+                        break;
                 }
             }
 
@@ -415,6 +423,15 @@ namespace Opc.Ua.Security
             policy.ProfileUri = profileUri;
             policy.Enabled = false;
             return policy;
+        }
+
+        /// <summary>
+        ///  TODO: Holds the application certificates but should be generated and the Opc.Ua.Security namespace automatically 
+        ///  TODO: Should replace ApplicationCertificateField in the generated Opc.Ua.Security.SecuredApplication class
+        /// </summary>
+        public CertificateList ApplicationCertificates
+        {
+            get; set;
         }
     }
 

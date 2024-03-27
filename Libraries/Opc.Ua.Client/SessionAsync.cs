@@ -125,6 +125,30 @@ namespace Opc.Ua.Client
                 sessionTimeout = (uint)m_configuration.ClientConfiguration.DefaultSessionTimeout;
             }
 
+//TODO: helper for user token selection?
+            // select the security policy for the user token.
+            var userTokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
+
+            if (String.IsNullOrEmpty(userTokenSecurityPolicyUri))
+            {
+                userTokenSecurityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
+            }
+            m_userTokenSecurityPolicyUri = userTokenSecurityPolicyUri;
+
+            RequestHeader requestHeader = new RequestHeader();
+
+            if (EccUtils.IsEccPolicy(userTokenSecurityPolicyUri))
+            {
+                AdditionalParametersType parameters = new AdditionalParametersType();
+
+                parameters.Parameters.Add(new KeyValuePair() {
+                    Key = "ECDHPolicyUri",
+                    Value = userTokenSecurityPolicyUri
+                });
+
+                requestHeader.AdditionalHeader = new ExtensionObject(parameters);
+            }
+
             bool successCreateSession = false;
             CreateSessionResponse response = null;
 
@@ -158,7 +182,7 @@ namespace Opc.Ua.Client
             if (!successCreateSession)
             {
                 response = await base.CreateSessionAsync(
-                        null,
+                        requestHeader,
                         clientDescription,
                         m_endpoint.Description.Server.ApplicationUri,
                         m_endpoint.EndpointUrl.ToString(),
@@ -204,6 +228,9 @@ namespace Opc.Ua.Client
 
                 HandleSignedSoftwareCertificates(serverSoftwareCertificates);
 
+                //  process additional header
+                ProcessResponseAdditionalHeader(response.ResponseHeader, serverCertificate);
+
                 // create the client signature.
                 byte[] dataToSign = Utils.Append(serverCertificate != null ? serverCertificate.RawData : null, serverNonce);
                 SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, securityPolicyUri, dataToSign);
@@ -231,7 +258,19 @@ namespace Opc.Ua.Client
                 SignatureData userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
 
                 // encrypt token.
+                //identityToken.Encrypt(serverCertificate, serverNonce, securityPolicyUri);
+#if ECC_SUPPORT 
+                identityToken.Encrypt(
+                    serverCertificate,
+                    serverNonce,
+                    userTokenSecurityPolicyUri,
+                    m_eccServerEphemeralKey,
+                    m_instanceCertificate,
+                    m_instanceCertificateChain,
+                    m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
+#else
                 identityToken.Encrypt(serverCertificate, serverNonce, securityPolicyUri);
+#endif
 
                 // send the software certificates assigned to the client.
                 SignedSoftwareCertificateCollection clientSoftwareCertificates = GetSoftwareCertificates();
@@ -251,6 +290,9 @@ namespace Opc.Ua.Client
                     new ExtensionObject(identityToken),
                     userTokenSignature,
                     ct).ConfigureAwait(false);
+
+                //  process additional header
+                ProcessResponseAdditionalHeader(activateResponse.ResponseHeader, serverCertificate);
 
                 serverNonce = activateResponse.ServerNonce;
                 StatusCodeCollection certificateResults = activateResponse.Results;
@@ -318,9 +360,9 @@ namespace Opc.Ua.Client
                 throw;
             }
         }
-        #endregion
+#endregion
 
-        #region Subscription Async Methods
+#region Subscription Async Methods
         /// <inheritdoc/>
         public async Task<bool> RemoveSubscriptionAsync(Subscription subscription, CancellationToken ct = default)
         {
@@ -547,9 +589,9 @@ namespace Opc.Ua.Client
 
             return failedSubscriptions == 0;
         }
-        #endregion
+#endregion
 
-        #region FetchNamespaceTables Async Methods
+#region FetchNamespaceTables Async Methods
         /// <inheritdoc/>
         public async Task FetchNamespaceTablesAsync(CancellationToken ct = default)
         {
@@ -572,9 +614,9 @@ namespace Opc.Ua.Client
 
             UpdateNamespaceTable(values, diagnosticInfos, responseHeader);
         }
-        #endregion
+#endregion
 
-        #region FetchTypeTree Async Methods
+#region FetchTypeTree Async Methods
         /// <inheritdoc/>
         public async Task FetchTypeTreeAsync(ExpandedNodeId typeId, CancellationToken ct = default)
         {
@@ -618,9 +660,9 @@ namespace Opc.Ua.Client
                 await FetchTypeTreeAsync(subTypes, ct).ConfigureAwait(false);
             }
         }
-        #endregion
+#endregion
 
-        #region FetchOperationLimits Async Methods
+#region FetchOperationLimits Async Methods
         /// <summary>
         /// Fetch the operation limits of the server.
         /// </summary>
@@ -673,9 +715,9 @@ namespace Opc.Ua.Client
                 }
             }
         }
-        #endregion
+#endregion
 
-        #region ReadNode Async Methods
+#region ReadNode Async Methods
         /// <inheritdoc/>
         public async Task<(IList<Node>, IList<ServiceResult>)> ReadNodesAsync(
             IList<NodeId> nodeIds,
@@ -926,9 +968,9 @@ namespace Opc.Ua.Client
 
             return (values, errors);
         }
-        #endregion
+#endregion
 
-        #region Browse Methods
+#region Browse Methods
         /// <inheritdoc/>
         public async Task<(
             ResponseHeader responseHeader,
@@ -997,9 +1039,9 @@ namespace Opc.Ua.Client
 
             return (browseResponse.ResponseHeader, continuationPoints, referencesList, errors);
         }
-        #endregion
+#endregion
 
-        #region BrowseNext Methods
+#region BrowseNext Methods
 
         /// <inheritdoc/>
         public async Task<(
@@ -1048,9 +1090,9 @@ namespace Opc.Ua.Client
 
             return (response.ResponseHeader, revisedContinuationPoints, referencesList, errors);
         }
-        #endregion
+#endregion
 
-        #region Call Methods
+#region Call Methods
         /// <inheritdoc/>
         public async Task<IList<object>> CallAsync(NodeId objectId, NodeId methodId, CancellationToken ct = default, params object[] args)
         {
@@ -1098,9 +1140,9 @@ namespace Opc.Ua.Client
 
             return outputArguments;
         }
-        #endregion
+#endregion
 
-        #region FetchReferences Async Methods
+#region FetchReferences Async Methods
         /// <inheritdoc/>
         public async Task<ReferenceDescriptionCollection> FetchReferencesAsync(
             NodeId nodeId,
@@ -1225,9 +1267,9 @@ namespace Opc.Ua.Client
 
             return (result, errors);
         }
-        #endregion
+#endregion
 
-        #region Recreate Async Methods
+#region Recreate Async Methods
         /// <summary>
         /// Recreates a session based on a specified template.
         /// </summary>
@@ -1362,9 +1404,9 @@ namespace Opc.Ua.Client
 
             return session;
         }
-        #endregion
+#endregion
 
-        #region Close Async Methods
+#region Close Async Methods
         /// <inheritdoc/>
         public override Task<StatusCode> CloseAsync(CancellationToken ct = default)
         {
@@ -1453,7 +1495,7 @@ namespace Opc.Ua.Client
 
             return result;
         }
-        #endregion
+#endregion
 
         #region Reconnect Async Methods
         /// <inheritdoc/>

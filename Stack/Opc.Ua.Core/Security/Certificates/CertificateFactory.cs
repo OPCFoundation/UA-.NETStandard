@@ -35,6 +35,15 @@ namespace Opc.Ua
         /// Supported values are 1024(deprecated), 2048, 3072 or 4096.
         /// </remarks>
         public static readonly ushort DefaultKeySize = 2048;
+
+        /// <summary>
+        /// The default key size for ECC certificates in bits.
+        /// </summary>
+        /// <remarks>
+        /// Supported values are 256, 384 or 521.
+        /// </remarks>
+        public static readonly ushort DefaultECCKeySize = 256;
+
         /// <summary>
         /// The default hash size for RSA certificates in bits.
         /// </summary>
@@ -89,7 +98,15 @@ namespace Opc.Ua
                 // check for existing cached certificate.
                 if (m_certificates.TryGetValue(certificate.Thumbprint, out cachedCertificate))
                 {
-                    return cachedCertificate;
+                    // cached certificate might be disposed, if so do not return but try to update value in the cache
+                    if (cachedCertificate.Handle != IntPtr.Zero)
+                    {
+                        return cachedCertificate;
+                    }
+                    else
+                    {
+                        m_certificates.Remove(certificate.Thumbprint);
+                    }
                 }
 
                 // nothing more to do if no private key or dont care about accessibility.
@@ -100,7 +117,7 @@ namespace Opc.Ua
 
                 if (ensurePrivateKeyAccessible)
                 {
-                    if (!X509Utils.VerifyRSAKeyPair(certificate, certificate))
+                    if (!X509Utils.VerifyKeyPair(certificate, certificate))
                     {
                         Utils.LogWarning("Trying to add certificate to cache with invalid private key.");
                         return null;
@@ -201,7 +218,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Revoke the certificate. 
+        /// Revoke the certificate.
         /// The CRL number is increased by one and the new CRL is returned.
         /// </summary>
         public static X509CRL RevokeCertificate(
@@ -287,6 +304,7 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] CreateSigningRequest(
             X509Certificate2 certificate,
+            // TODO: provide CertificateType to return CSR per certificate type
             IList<String> domainNames = null
             )
         {
@@ -334,7 +352,7 @@ namespace Opc.Ua
 
 
         /// <summary>
-        /// Create a X509Certificate2 with a private key by combining 
+        /// Create a X509Certificate2 with a private key by combining
         /// the new certificate with a private key from an existing certificate
         /// </summary>
         public static X509Certificate2 CreateCertificateWithPrivateKey(
@@ -346,12 +364,28 @@ namespace Opc.Ua
                 throw new NotSupportedException("Need a certificate with a private key.");
             }
 
-            if (!X509Utils.VerifyRSAKeyPair(certificate, certificateWithPrivateKey))
+            if (X509Utils.IsECDsaSignature(certificate))
             {
-                throw new NotSupportedException("The public and the private key pair doesn't match.");
+                if (!X509Utils.VerifyECDsaKeyPair(certificate, certificateWithPrivateKey))
+                {
+                    throw new NotSupportedException("The public and the private key pair doesn't match.");
+                }
+                using (ECDsa privateKey = certificateWithPrivateKey.GetECDsaPrivateKey())
+                {
+                    return certificate.CopyWithPrivateKey(privateKey);
+                }
             }
-
-            return certificate.CopyWithPrivateKey(certificateWithPrivateKey.GetRSAPrivateKey());
+            else
+            {
+                if (!X509Utils.VerifyRSAKeyPair(certificate, certificateWithPrivateKey))
+                {
+                    throw new NotSupportedException("The public and the private key pair doesn't match.");
+                }
+                using (RSA privateKey = certificateWithPrivateKey.GetRSAPrivateKey())
+                {
+                    return certificate.CopyWithPrivateKey(privateKey);
+                }
+            }
         }
 
         /// <summary>

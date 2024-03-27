@@ -113,6 +113,7 @@ namespace Opc.Ua.Client
         /// <param name="discoveryUrl">The discovery URL.</param>
         /// <param name="useSecurity">if set to <c>true</c> select an endpoint that uses security.</param>
         /// <returns>The best available endpoint.</returns>
+        [Obsolete("Use the SelectEndpoint with ApplicationConfiguration instead.")]
         public static EndpointDescription SelectEndpoint(string discoveryUrl, bool useSecurity)
         {
             return SelectEndpoint(discoveryUrl, useSecurity, DefaultDiscoverTimeout);
@@ -125,6 +126,7 @@ namespace Opc.Ua.Client
         /// <param name="useSecurity">if set to <c>true</c> select an endpoint that uses security.</param>
         /// <param name="discoverTimeout">Operation timeout in milliseconds.</param>
         /// <returns>The best available endpoint.</returns>
+        [Obsolete("Use the SelectEndpoint with ApplicationConfiguration instead.")]
         public static EndpointDescription SelectEndpoint(
             string discoveryUrl,
             bool useSecurity,
@@ -172,7 +174,7 @@ namespace Opc.Ua.Client
             {
                 var url = new Uri(client.Endpoint.EndpointUrl);
                 var endpoints = client.GetEndpoints(null);
-                return SelectEndpoint(url, endpoints, useSecurity);
+                return SelectEndpoint(application, url, endpoints, useSecurity);
             }
         }
 
@@ -215,7 +217,7 @@ namespace Opc.Ua.Client
                 // Connect to the server's discovery endpoint and find the available configuration.
                 Uri url = new Uri(client.Endpoint.EndpointUrl);
                 var endpoints = client.GetEndpoints(null);
-                var selectedEndpoint = SelectEndpoint(url, endpoints, useSecurity);
+                var selectedEndpoint = SelectEndpoint(application, url, endpoints, useSecurity);
 
                 Uri endpointUrl = Utils.ParseUri(selectedEndpoint.EndpointUrl);
                 if (endpointUrl != null && endpointUrl.Scheme == uri.Scheme)
@@ -234,10 +236,28 @@ namespace Opc.Ua.Client
         /// Select the best supported endpoint from an
         /// EndpointDescriptionCollection, with or without security.
         /// </summary>
+        /// <param name="url">The discovery Url of the server.</param>
+        /// <param name="endpoints"></param>
+        /// <param name="useSecurity"></param>
+        [Obsolete("Use the SelectEndpoint with ApplicationConfiguration instead.")]
+        public static EndpointDescription SelectEndpoint(
+            Uri url,
+            EndpointDescriptionCollection endpoints,
+            bool useSecurity)
+        {
+            return SelectEndpoint(null, url, endpoints, useSecurity);
+        }
+
+        /// <summary>
+        /// Select the best supported endpoint from an
+        /// EndpointDescriptionCollection, with or without security.
+        /// </summary>
+        /// <param name="configuration"></param>
         /// <param name="url"></param>
         /// <param name="endpoints"></param>
         /// <param name="useSecurity"></param>
         public static EndpointDescription SelectEndpoint(
+            ApplicationConfiguration configuration,
             Uri url,
             EndpointDescriptionCollection endpoints,
             bool useSecurity)
@@ -260,10 +280,22 @@ namespace Opc.Ua.Client
                             continue;
                         }
 
-                        // skip unsupported security policies
-                        if (SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri) == null)
+                        if (configuration != null)
                         {
-                            continue;
+                            // skip unsupported security policies
+                            if (!configuration.SecurityConfiguration.SupportedSecurityPolicies.Contains(endpoint.SecurityPolicyUri))
+                            {
+                                continue;
+                            }
+                        }
+                        else
+                        {
+                            // skip unsupported security policies, for backward compatibility only
+                            // may contain policies for which no certificate is available
+                            if (SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri) == null)
+                            {
+                                continue;
+                            }
                         }
                     }
                     else

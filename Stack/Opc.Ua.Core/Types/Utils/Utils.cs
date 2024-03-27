@@ -2915,7 +2915,7 @@ namespace Opc.Ua
         /// <summary>
         /// Generates a Pseudo random sequence of bits using the HMAC algorithm.
         /// </summary>
-        private static byte[] PSHA(HMAC hmac, string label, byte[] data, int offset, int length)
+        public static byte[] PSHA(HMAC hmac, string label, byte[] data, int offset, int length)
         {
             if (hmac == null) throw new ArgumentNullException(nameof(hmac));
             if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
@@ -2991,6 +2991,32 @@ namespace Opc.Ua
             return output;
         }
 
+
+        /// <summary>
+        /// Creates an HMAC.
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security",
+            "CA5350:Do Not Use Weak Cryptographic Algorithms", Justification = "<Pending>")]
+        public static HMAC CreateHMAC(HashAlgorithmName algorithmName, byte[] secret)
+        {
+            if (algorithmName == HashAlgorithmName.SHA256)
+            {
+                return new HMACSHA256(secret);
+            }
+
+            if (algorithmName == HashAlgorithmName.SHA384)
+            {
+                return new HMACSHA384(secret);
+            }
+
+            if (algorithmName == HashAlgorithmName.SHA1)
+            {
+                return new HMACSHA1(secret);
+            }
+
+            throw new NotImplementedException();
+        }
+
         /// <summary>
         /// Checks if the target is in the list. Comparisons ignore case.
         /// </summary>
@@ -3013,6 +3039,74 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns if the certificate type is supported on the platform OS.
+        /// </summary>
+        /// <param name="certificateType">The certificate type to check.</param>
+        public static bool IsSupportedCertificateType(NodeId certificateType)
+        {
+            if (certificateType.Identifier is uint identifier)
+            {
+                switch (identifier)
+                {
+#if ECC_SUPPORT
+                    case ObjectTypes.EccApplicationCertificateType:
+                        return true;
+                    case ObjectTypes.EccBrainpoolP256r1ApplicationCertificateType:
+                        return s_eccCurveSupportCache[ECCurve.NamedCurves.brainpoolP256r1.Oid.FriendlyName].Value;
+                    case ObjectTypes.EccBrainpoolP384r1ApplicationCertificateType:
+                        return s_eccCurveSupportCache[ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName].Value;
+                    case ObjectTypes.EccNistP256ApplicationCertificateType:
+                        return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP256.Oid.FriendlyName].Value;
+                    case ObjectTypes.EccNistP384ApplicationCertificateType:
+                        return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP384.Oid.FriendlyName].Value;
+                    //case ObjectTypes.EccCurve25519ApplicationCertificateType:
+                    //case ObjectTypes.EccCurve448ApplicationCertificateType:
+#endif
+                    case ObjectTypes.ApplicationCertificateType:
+                    case ObjectTypes.RsaMinApplicationCertificateType:
+                    case ObjectTypes.RsaSha256ApplicationCertificateType:
+                    case ObjectTypes.HttpsCertificateType:
+                        return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Check if known curve is supported by platform
+        /// </summary>
+        /// <param name="eCCurve"></param>
+        private static bool IsCurveSupported(ECCurve eCCurve)
+        {
+            try
+            {
+                // Create a ECDsa object and generate a new keypair on the given curve
+                using (ECDsa eCDsa = ECDsa.Create(eCCurve))
+                {
+                    ECParameters parameters = eCDsa.ExportParameters(false);
+                    return parameters.Q.X != null && parameters.Q.Y != null;
+                }
+            }
+            catch (Exception ex) when (
+                ex is PlatformNotSupportedException ||
+                ex is ArgumentException ||
+                ex is CryptographicException)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Lazy helper for checking ECC eliptic curve support for running OS
+        /// </summary>
+        private static readonly Dictionary<string, Lazy<bool>> s_eccCurveSupportCache = new Dictionary<string, Lazy<bool>>{
+            { ECCurve.NamedCurves.nistP256.Oid.FriendlyName, new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.nistP256)) },
+            { ECCurve.NamedCurves.nistP384.Oid.FriendlyName, new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.nistP384)) },
+            { ECCurve.NamedCurves.brainpoolP256r1.Oid.FriendlyName, new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.brainpoolP256r1)) },
+            { ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName, new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.brainpoolP384r1)) },
+        };
+
+        /// <summary>
         /// Lazy helper to allow runtime check for Mono.
         /// </summary>
         private static readonly Lazy<bool> s_isRunningOnMonoValue = new Lazy<bool>(() => {
@@ -3027,6 +3121,6 @@ namespace Opc.Ua
         {
             return s_isRunningOnMonoValue.Value;
         }
-        #endregion
+#endregion
     }
 }
