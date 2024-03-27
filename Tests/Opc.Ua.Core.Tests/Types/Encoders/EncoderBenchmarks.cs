@@ -178,8 +178,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     /// </summary>
     public class ArraySegmentStreamNoSpan : ArraySegmentStream
     {
-        public ArraySegmentStreamNoSpan(BufferManager bufferManager, int bufferSize, int offset, int count)
-            : base(bufferManager, bufferSize, offset, count)
+        public ArraySegmentStreamNoSpan(BufferManager bufferManager)
+            : base(bufferManager)
         {
         }
 

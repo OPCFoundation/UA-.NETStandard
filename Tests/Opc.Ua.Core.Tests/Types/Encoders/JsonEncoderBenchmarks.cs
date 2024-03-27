@@ -172,7 +172,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void JsonEncoderArraySegmentStream()
         {
-            using (var arraySegmentStream = new ArraySegmentStream(m_bufferManager, StreamBufferSize, 0, StreamBufferSize))
+            using (var arraySegmentStream = new ArraySegmentStream(m_bufferManager))
             {
                 JsonEncoder_StreamLeaveOpen(arraySegmentStream);
                 // get buffers and return them to buffer manager
@@ -192,9 +192,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void JsonEncoderArraySegmentStreamNoSpan()
         {
 #if NET6_0_OR_GREATER
-            using (var arraySegmentStream = new ArraySegmentStreamNoSpan(m_bufferManager, StreamBufferSize, 0, StreamBufferSize))
+            using (var arraySegmentStream = new ArraySegmentStreamNoSpan(m_bufferManager))
 #else
-            using (var arraySegmentStream = new ArraySegmentStream(m_bufferManager, StreamBufferSize, 0, StreamBufferSize))
+            using (var arraySegmentStream = new ArraySegmentStream(m_bufferManager))
 #endif
             {
                 JsonEncoder_StreamLeaveOpen(arraySegmentStream);

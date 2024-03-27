@@ -80,7 +80,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         public void BinaryEncoderArraySegmentStreamTest(bool toArray)
         {
-            using (var memoryStream = new ArraySegmentStream(m_bufferManager, StreamBufferSize, 0, StreamBufferSize))
+            using (var memoryStream = new ArraySegmentStream(m_bufferManager))
             {
                 TestStreamEncode(memoryStream, toArray);
             }
@@ -147,7 +147,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void BinaryEncoderArraySegmentStream()
         {
-            using (var arraySegmentStream = new ArraySegmentStream(m_bufferManager, StreamBufferSize, 0, StreamBufferSize))
+            using (var arraySegmentStream = new ArraySegmentStream(m_bufferManager))
             {
                 BinaryEncoder_StreamLeaveOpen(arraySegmentStream);
                 // get buffers and return them to buffer manager
@@ -168,9 +168,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void BinaryEncoderArraySegmentStreamNoSpan()
         {
 #if NET6_0_OR_GREATER
-            using (var arraySegmentStream = new ArraySegmentStreamNoSpan(m_bufferManager, StreamBufferSize, 0, StreamBufferSize))
+            using (var arraySegmentStream = new ArraySegmentStreamNoSpan(m_bufferManager))
 #else
-            using (var arraySegmentStream = new ArraySegmentStream(m_bufferManager, StreamBufferSize, 0, StreamBufferSize))
+            using (var arraySegmentStream = new ArraySegmentStream(m_bufferManager))
 #endif
             {
                 BinaryEncoder_StreamLeaveOpen(arraySegmentStream);
@@ -210,7 +210,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
         }
 
-        private void BinaryEncoder_StreamLeaveOpen(MemoryStream memoryStream, bool testResult = false)
+        private int BinaryEncoder_StreamLeaveOpen(MemoryStream memoryStream, bool testResult = false)
         {
             int length1;
             int length2;
@@ -231,6 +231,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Assert.NotNull(result);
                 Assert.AreEqual(length2, memoryStream.Position);
             }
+            return length1 + length2;
         }
         #endregion
 

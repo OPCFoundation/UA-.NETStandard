@@ -340,7 +340,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the max size of data in the buffers.
         /// </summary>
-        public int MaxBufferSize => m_maxBufferSize;
+        public int MaxBufferSize => m_maxBufferSize - kCookieLength;
         #endregion
 
         #region Private Fields
