@@ -2948,6 +2948,9 @@ namespace Opc.Ua.Server
                     Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSessionManager.");
                     SessionManager sessionManager = CreateSessionManager(m_serverInternal, configuration);
                     sessionManager.Startup();
+                    sessionManager.SessionCreated += SessionEvent;
+                    sessionManager.SessionClosing += SessionEvent;
+                    sessionManager.SessionActivated += SessionEvent;
 
                     // start the subscription manager.
                     Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
@@ -3086,6 +3089,9 @@ namespace Opc.Ua.Server
                 {
                     if (m_serverInternal != null)
                     {
+                        m_serverInternal.SessionManager.SessionClosing -= SessionEvent;
+                        m_serverInternal.SessionManager.SessionCreated -= SessionEvent;
+                        m_serverInternal.SessionManager.SessionActivated -= SessionEvent;
                         m_serverInternal.SubscriptionManager.Shutdown();
                         m_serverInternal.SessionManager.Shutdown();
                         m_serverInternal.NodeManager.Shutdown();
@@ -3335,6 +3341,36 @@ namespace Opc.Ua.Server
         public virtual void RemoveNodeManager(INodeManagerFactory nodeManagerFactory)
         {
             m_nodeManagerFactories.Remove(nodeManagerFactory);
+        }
+        #endregion
+
+        #region Private Methods
+        /// <summary>
+        /// Reacts to a session event
+        /// </summary>
+        private void SessionEvent(Session session, SessionEventReason reason)
+        {
+            if (reason == SessionEventReason.Closing)
+            {
+                TransportListeners.ForEach(tl => {
+                    if (tl is TcpTransportListener tc)
+                        tc.HandleSessionClose(session.SecureChannelId);
+                });
+            }
+            else if (reason == SessionEventReason.Created)
+            {
+                TransportListeners.ForEach(tl => {
+                    if (tl is TcpTransportListener tc)
+                        tc.HandleSessionCreate(session.SecureChannelId);
+                });
+            }
+            else if (reason == SessionEventReason.Activated)
+            {
+                TransportListeners.ForEach(tl => {
+                    if (tl is TcpTransportListener tc)
+                        tc.HandleSessionActivate(session.SecureChannelId);
+                });
+            }
         }
         #endregion
 

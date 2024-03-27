@@ -523,6 +523,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected virtual void HandleWriteComplete(BufferCollection buffers, object state, int bytesWritten, ServiceResult result)
         {
+            // Communication is active on the channel
+            UpdateLastCommTime();
+
             if (buffers != null)
             {
                 buffers.Release(BufferManager, "WriteOperation");
@@ -764,6 +767,12 @@ namespace Opc.Ua.Bindings
                 m_globalChannelId = Utils.Format("{0}-{1}", m_contextId, m_channelId);
             }
         }
+
+        /// <summary>
+        /// The last time that the channel received/send messages 
+        /// </summary>
+        protected int LastCommTime { get { return m_lastCommTime; } }
+
         #endregion
 
         #region WriteOperation Class
@@ -826,6 +835,14 @@ namespace Opc.Ua.Bindings
             }
             return 1;
         }
+
+        /// <summary>
+        /// Update the last time that communication has occured on the channel.
+        /// </summary>
+        protected void UpdateLastCommTime()
+        {
+            m_lastCommTime = HiResClock.TickCount;
+        }
         #endregion
 
         #region Private Fields
@@ -852,6 +869,8 @@ namespace Opc.Ua.Bindings
         private BufferCollection m_partialMessageChunks;
 
         private TcpChannelStateEventHandler m_StateChanged;
+
+        private int m_lastCommTime;
         #endregion
     }
 
@@ -888,7 +907,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The channel is in a error state.
         /// </summary>
-        Faulted
+        Faulted,
+
+        /// <summary>
+        /// The channel is marked as innactive
+        /// </summary>
+        Inactive
     }
 
     /// <summary>

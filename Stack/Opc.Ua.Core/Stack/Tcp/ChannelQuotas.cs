@@ -26,6 +26,7 @@ namespace Opc.Ua.Bindings
             m_messageContext = ServiceMessageContext.GlobalContext;
             m_maxMessageSize = TcpMessageLimits.DefaultMaxMessageSize;
             m_maxBufferSize = TcpMessageLimits.DefaultMaxBufferSize;
+            m_maxChannelCount = TcpMessageLimits.DefaultMaxChannelCount;
             m_channelLifetime = TcpMessageLimits.DefaultChannelLifetime;
             m_securityTokenLifetime = TcpMessageLimits.DefaultSecurityTokenLifeTime;
         }
@@ -39,18 +40,12 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                lock (m_lock)
-                {
-                    return m_messageContext;
-                }
+                return m_messageContext;
             }
 
             set
             {
-                lock (m_lock)
-                {
-                    m_messageContext = value;
-                }
+                m_messageContext = value;
             }
         }
 
@@ -61,18 +56,12 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                lock (m_lock)
-                {
-                    return m_certificateValidator;
-                }
+                return m_certificateValidator;
             }
 
             set
             {
-                lock (m_lock)
-                {
-                    m_certificateValidator = value;
-                }
+                m_certificateValidator = value;
             }
         }
 
@@ -83,18 +72,12 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                lock (m_lock)
-                {
-                    return m_maxMessageSize;
-                }
+                return m_maxMessageSize;
             }
 
             set
             {
-                lock (m_lock)
-                {
-                    m_maxMessageSize = value;
-                }
+                m_maxMessageSize = value;
             }
         }
 
@@ -105,18 +88,28 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                lock (m_lock)
-                {
-                    return m_maxBufferSize;
-                }
+                return m_maxBufferSize;
             }
 
             set
             {
-                lock (m_lock)
-                {
-                    m_maxBufferSize = value;
-                }
+                m_maxBufferSize = value;
+            }
+        }
+
+        /// <summary>
+        /// The maximum number of secure channels
+        /// </summary>
+        public int MaxChannelCount
+        {
+            get
+            {
+                return m_maxChannelCount;
+            }
+
+            set
+            {
+                m_maxChannelCount = value;
             }
         }
 
@@ -127,18 +120,12 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                lock (m_lock)
-                {
-                    return m_channelLifetime;
-                }
+                return m_channelLifetime;
             }
 
             set
             {
-                lock (m_lock)
-                {
-                    m_channelLifetime = value;
-                }
+                m_channelLifetime = value;
             }
         }
 
@@ -149,18 +136,12 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                lock (m_lock)
-                {
-                    return m_securityTokenLifetime;
-                }
+                return m_securityTokenLifetime;
             }
 
             set
             {
-                lock (m_lock)
-                {
-                    m_securityTokenLifetime = value;
-                }
+                m_securityTokenLifetime = value;
             }
         }
         #endregion
@@ -169,6 +150,7 @@ namespace Opc.Ua.Bindings
         private readonly object m_lock = new object();
         private int m_maxMessageSize;
         private int m_maxBufferSize;
+        private int m_maxChannelCount;
         private int m_channelLifetime;
         private int m_securityTokenLifetime;
         private IServiceMessageContext m_messageContext;

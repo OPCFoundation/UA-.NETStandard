@@ -114,11 +114,6 @@ namespace Opc.Ua.Bindings
                             SetResponseRequired(true);
                             ForceChannelFault(StatusCodes.BadTcpMessageTypeInvalid, "The reverse connection was rejected by the client.");
                         }
-                        else
-                        {
-                            // Socket is now owned by client, don't clean up
-                            CleanupTimer();
-                        }
                     }
                     catch (Exception)
                     {

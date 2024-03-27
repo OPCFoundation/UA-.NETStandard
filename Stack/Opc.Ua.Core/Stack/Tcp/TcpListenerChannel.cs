@@ -11,11 +11,8 @@
 */
 
 using System;
-using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
 {
@@ -62,15 +59,8 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_cleanupTimer")]
         protected override void Dispose(bool disposing)
         {
-            if (disposing)
-            {
-                Utils.SilentDispose(m_cleanupTimer);
-                m_cleanupTimer = null;
-            }
-
             base.Dispose(disposing);
         }
         #endregion
@@ -154,8 +144,46 @@ namespace Opc.Ua.Bindings
 
                 Socket.ReadNextMessage();
 
-                // automatically clean up the channel if no hello received.
-                StartCleanupTimer(StatusCodes.BadTimeout);
+            }
+        }
+
+        /// <summary>
+        /// Set the channel Inactive
+        /// </summary>
+        public void SetInactive()
+        {
+            lock (DataLock)
+            {
+                State = TcpChannelState.Inactive;
+            }
+        }
+
+        /// <summary>
+        /// Set the channel Open
+        /// </summary>
+        public void SetOpen()
+        {
+            lock (DataLock)
+            {
+                State = TcpChannelState.Open;
+            }
+        }
+
+        /// <summary>
+        /// Set the channel Inactive
+        /// </summary>
+        public void Cleanup()
+        {
+            TcpChannelState state = TcpChannelState.Faulted;
+
+            lock (DataLock)
+            {
+                state = State;
+            }
+
+            if (state == TcpChannelState.Inactive || state == TcpChannelState.Opening)
+            {
+                OnCleanup(StatusCodes.BadNoCommunication);
             }
         }
         #endregion
@@ -253,29 +281,8 @@ namespace Opc.Ua.Bindings
                 {
                     // notify any monitors.
                     NotifyMonitors(reason, false);
-
-                    // ensure the channel will be cleaned up if the client does not reconnect.
-                    StartCleanupTimer(reason);
                 }
             }
-        }
-
-        /// <summary>
-        /// Starts a timer that will clean up the channel if it is not opened/re-opened.
-        /// </summary>
-        protected void StartCleanupTimer(ServiceResult reason)
-        {
-            CleanupTimer();
-            m_cleanupTimer = new Timer(OnCleanup, reason, Quotas.ChannelLifetime, Timeout.Infinite);
-        }
-
-        /// <summary>
-        /// Cleans up a timer that will clean up the channel if it is not opened/re-opened.
-        /// </summary>
-        protected void CleanupTimer()
-        {
-            Utils.SilentDispose(m_cleanupTimer);
-            m_cleanupTimer = null;
         }
 
         /// <summary>
@@ -285,7 +292,6 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-                CleanupTimer();
 
                 // nothing to do if the channel is now open or closed.
                 if (State == TcpChannelState.Closed || State == TcpChannelState.Open)
@@ -332,8 +338,6 @@ namespace Opc.Ua.Bindings
 
                 // notify any monitors.
                 NotifyMonitors(new ServiceResult(StatusCodes.BadConnectionClosed), true);
-
-                CleanupTimer();
             }
         }
 
@@ -547,6 +551,13 @@ namespace Opc.Ua.Bindings
         protected ReportAuditCertificateEventHandler ReportAuditCertificateEvent => m_reportAuditCertificateEvent;
         #endregion
 
+        #region Public Properties
+        /// <summary>
+        /// The last ActiveTime of the channel
+        /// </summary>
+        public int LastActiveTime => LastCommTime;
+        #endregion
+
         #region Private Fields
         private ITcpChannelListener m_listener;
         private bool m_responseRequired;
@@ -555,7 +566,6 @@ namespace Opc.Ua.Bindings
         private ReportAuditCloseSecureChannelEventHandler m_reportAuditCloseSecureChannelEvent;
         private ReportAuditCertificateEventHandler m_reportAuditCertificateEvent;
         private long m_lastTokenId;
-        private Timer m_cleanupTimer;
         #endregion
     }
 

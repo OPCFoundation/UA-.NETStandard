@@ -318,6 +318,7 @@ namespace Opc.Ua
             m_maxMessageSize = 1048576;
             m_maxBufferSize = 65535;
             m_channelLifetime = 600000;
+            m_maxChannelCount = 1000;
             m_securityTokenLifetime = 3600000;
         }
 
@@ -397,10 +398,21 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The lifetime of a secure channel (in milliseconds).
+        /// The maximum number of supported secure channels.
         /// </summary>
         /// <value>The channel lifetime.</value>
         [DataMember(IsRequired = false, Order = 6)]
+        public int MaxChannelCount
+        {
+            get { return m_maxChannelCount; }
+            set { m_maxChannelCount = value; }
+        }
+
+        /// <summary>
+        /// The lifetime of a secure channel (in milliseconds).
+        /// </summary>
+        /// <value>The channel lifetime.</value>
+        [DataMember(IsRequired = false, Order = 7)]
         public int ChannelLifetime
         {
             get { return m_channelLifetime; }
@@ -411,7 +423,7 @@ namespace Opc.Ua
         /// The lifetime of a security token (in milliseconds).
         /// </summary>
         /// <value>The security token lifetime.</value>
-        [DataMember(IsRequired = false, Order = 7)]
+        [DataMember(IsRequired = false, Order = 8)]
         public int SecurityTokenLifetime
         {
             get { return m_securityTokenLifetime; }
@@ -426,6 +438,7 @@ namespace Opc.Ua
         private int m_maxArrayLength;
         private int m_maxMessageSize;
         private int m_maxBufferSize;
+        private int m_maxChannelCount;
         private int m_channelLifetime;
         private int m_securityTokenLifetime;
         #endregion

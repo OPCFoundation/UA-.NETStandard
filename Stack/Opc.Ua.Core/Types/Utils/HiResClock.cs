@@ -69,6 +69,12 @@ namespace Opc.Ua
         public static double TicksPerMillisecond => s_Default.m_ticksPerMillisecond;
 
         /// <summary>
+        /// The monotonic tick count.
+        /// </summary>
+        /// <remarks>It's resolution might not be the highest</remarks>
+        public static int TickCount => Environment.TickCount;
+
+        /// <summary>
         /// Disables the hires clock.
         /// </summary>
         public static bool Disabled

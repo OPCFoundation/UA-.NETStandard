@@ -11,10 +11,13 @@
 */
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
@@ -54,31 +57,49 @@ namespace Opc.Ua.Bindings
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_simulator")]
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (!m_disposed)
             {
-                lock (m_lock)
+                if (disposing)
                 {
-                    if (m_listeningSocket != null)
+                    m_lock.EnterWriteLock();
+                    try
                     {
-                        Utils.SilentDispose(m_listeningSocket);
-                        m_listeningSocket = null;
-                    }
-
-                    if (m_listeningSocketIPv6 != null)
-                    {
-                        Utils.SilentDispose(m_listeningSocketIPv6);
-                        m_listeningSocketIPv6 = null;
-                    }
-
-                    if (m_channels != null)
-                    {
-                        foreach (var channel in m_channels.Values)
+                        if (m_listeningSocket != null)
                         {
-                            Utils.SilentDispose(channel);
+                            Utils.SilentDispose(m_listeningSocket);
+                            m_listeningSocket = null;
                         }
-                        m_channels = null;
+
+                        if (m_listeningSocketIPv6 != null)
+                        {
+                            Utils.SilentDispose(m_listeningSocketIPv6);
+                            m_listeningSocketIPv6 = null;
+                        }
+
+                        if (m_channels != null)
+                        {
+                            foreach (var channel in m_channels.Values)
+                            {
+                                Utils.SilentDispose(channel);
+                            }
+                            m_channels = null;
+                        }
+
+                        if (m_inactivityDetectionTimer != null)
+                        {
+                            Utils.SilentDispose(m_inactivityDetectionTimer);
+                            m_inactivityDetectionTimer = null;
+                        }
                     }
+                    finally
+                    {
+                        m_lock.ExitWriteLock();
+                    }
+
+                    m_lock.Dispose();
                 }
+
+                m_disposed = true;
             }
         }
         #endregion
@@ -119,8 +140,9 @@ namespace Opc.Ua.Bindings
 
             if (configuration != null)
             {
-                m_quotas.MaxBufferSize = configuration.MaxBufferSize;
+                m_inactivityDetectPeriod = configuration.ChannelLifetime / 2; 
                 m_quotas.MaxMessageSize = configuration.MaxMessageSize;
+                m_quotas.MaxChannelCount = configuration.MaxChannelCount;
                 m_quotas.ChannelLifetime = configuration.ChannelLifetime;
                 m_quotas.SecurityTokenLifetime = configuration.SecurityTokenLifetime;
                 messageContext.MaxArrayLength = configuration.MaxArrayLength;
@@ -138,6 +160,7 @@ namespace Opc.Ua.Bindings
 
             m_bufferManager = new BufferManager("Server", m_quotas.MaxBufferSize);
             m_channels = new Dictionary<uint, TcpListenerChannel>();
+            m_sessionsPerChannel = new ConcurrentDictionary<string, uint>();
             m_reverseConnectListener = settings.ReverseConnectListener;
 
             // save the callback to the server.
@@ -154,6 +177,100 @@ namespace Opc.Ua.Bindings
         public void Close()
         {
             Stop();
+        }
+        
+        /// <summary>
+        /// Handle Session Close
+        /// </summary>
+        /// <param name="channelId"></param>
+        public void HandleSessionClose(string channelId)
+        {
+            if (m_sessionsPerChannel.TryGetValue(channelId, out uint actualValue))
+            {
+                uint decValue = --actualValue;
+                m_sessionsPerChannel[channelId] = decValue;
+
+                TcpListenerChannel foundChannel = null;
+
+                m_lock.EnterReadLock();
+                try
+                {
+                    foundChannel = m_channels.First(kv => kv.Value.GlobalChannelId == channelId).Value ?? null;
+                }
+                finally
+                {
+                    m_lock.ExitReadLock();
+                }
+
+                if (foundChannel != null && decValue == 0)
+                {
+                    foundChannel.SetInactive();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Handle Session Create
+        /// </summary>
+        /// <param name="channelId"></param>
+        public void HandleSessionCreate(string channelId)
+        {
+            if (m_sessionsPerChannel.TryGetValue(channelId, out uint actualValue))
+            {
+                m_sessionsPerChannel[channelId] = actualValue + 1;
+            }
+            else
+            {
+                m_sessionsPerChannel[channelId] = 1;
+
+                // Since the State of the channel might have been Inactive ensure the channel State is Open
+                TcpListenerChannel foundChannel = null;
+
+                m_lock.EnterReadLock();
+                try
+                {
+                    foundChannel = m_channels.First(kv => kv.Value.GlobalChannelId == channelId).Value ?? null;
+                }
+                finally
+                {
+                    m_lock.ExitReadLock();
+                }
+
+                if (foundChannel != null)
+                {
+                    foundChannel.SetOpen();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Handle Session Activate
+        /// </summary>
+        /// <param name="channelId"></param>
+        public void HandleSessionActivate(string channelId)
+        {
+            if (!m_sessionsPerChannel.TryGetValue(channelId, out uint actualValue))
+            {
+                m_sessionsPerChannel[channelId] = 1;
+
+                // Since the State of the channel might have been Inactive ensure the channel State is Open
+                TcpListenerChannel foundChannel = null;
+
+                m_lock.EnterReadLock();
+                try
+                {
+                    foundChannel = m_channels.First(kv => kv.Value.GlobalChannelId == channelId).Value ?? null;
+                }
+                finally
+                {
+                    m_lock.ExitReadLock();
+                }
+
+                if (foundChannel != null)
+                {
+                    foundChannel.SetOpen();
+                }
+            }
         }
         #endregion
 
@@ -178,12 +295,17 @@ namespace Opc.Ua.Bindings
         {
             TcpListenerChannel channel = null;
 
-            lock (m_lock)
+            m_lock.EnterReadLock();
+            try
             {
                 if (!m_channels.TryGetValue(channelId, out channel))
                 {
                     throw ServiceResultException.Create(StatusCodes.BadTcpSecureChannelUnknown, "Could not find secure channel referenced in the OpenSecureChannel request.");
                 }
+            }
+            finally
+            {
+                m_lock.ExitReadLock();
             }
 
             channel.Reconnect(socket, requestId, sequenceNumber, clientCertificate, token, request);
@@ -197,13 +319,19 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void ChannelClosed(uint channelId)
         {
-            lock (m_lock)
+            m_lock.EnterWriteLock();
+            try
             {
                 if (m_channels != null)
                 {
                     m_channels.Remove(channelId);
                 }
             }
+            finally
+            {
+                m_lock.ExitWriteLock();
+            }
+
 
             Utils.LogInfo("ChannelId {0}: closed", channelId);
         }
@@ -252,9 +380,14 @@ namespace Opc.Ua.Bindings
             {
                 channel.EndReverseConnect(result);
 
-                lock (m_lock)
+                m_lock.EnterWriteLock();
+                try
                 {
                     m_channels.Add(channel.Id, channel);
+                }
+                finally
+                {
+                    m_lock.ExitWriteLock();
                 }
 
                 if (m_callback != null)
@@ -278,7 +411,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void Start()
         {
-            lock (m_lock)
+            m_lock.EnterWriteLock();
+            try
             {
                 // ensure a valid port.
                 int port = m_uri.Port;
@@ -310,7 +444,13 @@ namespace Opc.Ua.Bindings
                     args.Completed += OnAccept;
                     args.UserToken = m_listeningSocket;
                     m_listeningSocket.Bind(endpoint);
-                    m_listeningSocket.Listen(Int32.MaxValue);
+                    m_listeningSocket.Listen(kSocketBacklog);
+
+                    m_inactivityDetectionTimer = new Timer(DetectInactiveChannels,
+                        null,
+                        m_inactivityDetectPeriod,
+                        m_inactivityDetectPeriod);
+
                     if (!m_listeningSocket.AcceptAsync(args))
                     {
                         OnAccept(null, args);
@@ -362,6 +502,36 @@ namespace Opc.Ua.Bindings
                         "Failed to establish tcp listener sockets for Ipv4 and IPv6.");
                 }
             }
+            finally
+            {
+                m_lock.ExitWriteLock();
+            }
+        }
+
+        /// <summary>
+        /// The callback timer which detects stale channels
+        /// </summary>
+        /// <param name="state"></param>
+        private void DetectInactiveChannels(object state = null)
+        {
+            int tickCount = HiResClock.TickCount;
+
+            // Cleanup can upgrade it in WriteLock
+            m_lock.EnterUpgradeableReadLock();
+            try
+            {
+                foreach (var chEntry in m_channels)
+                {
+                    if (tickCount - chEntry.Value.LastActiveTime > m_quotas.ChannelLifetime)
+                    {
+                        chEntry.Value.Cleanup();
+                    }
+                }
+            }
+            finally
+            {
+                m_lock.ExitUpgradeableReadLock();
+            }
         }
 
         /// <summary>
@@ -369,7 +539,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void Stop()
         {
-            lock (m_lock)
+            m_lock.EnterWriteLock();
+            try
             {
                 ConnectionWaiting = null;
                 ConnectionStatusChanged = null;
@@ -386,6 +557,10 @@ namespace Opc.Ua.Bindings
                     m_listeningSocketIPv6 = null;
                 }
             }
+            finally
+            {
+                m_lock.ExitWriteLock();
+            }
         }
 
         /// <summary>
@@ -399,12 +574,17 @@ namespace Opc.Ua.Bindings
         {
             bool accepted = false;
             TcpListenerChannel channel = null;
-            lock (m_lock)
+            m_lock.EnterReadLock();
+            try
             {
                 if (!m_channels.TryGetValue(channelId, out channel))
                 {
                     throw ServiceResultException.Create(StatusCodes.BadTcpSecureChannelUnknown, "Could not find secure channel request.");
                 }
+            }
+            finally
+            {
+                m_lock.ExitReadLock();
             }
 
             // notify the application.
@@ -417,10 +597,15 @@ namespace Opc.Ua.Bindings
 
             if (accepted)
             {
-                lock (m_lock)
+                m_lock.EnterWriteLock();
+                try
                 {
                     // remove it so it does not get cleaned up as an inactive connection.
                     m_channels.Remove(channelId);
+                }
+                finally
+                {
+                    m_lock.ExitWriteLock();
                 }
             }
 
@@ -472,8 +657,16 @@ namespace Opc.Ua.Bindings
             do
             {
                 repeatAccept = false;
-                lock (m_lock)
+
+                m_lock.EnterUpgradeableReadLock();
+                try
                 {
+                    if (m_quotas.MaxChannelCount < m_channels.Count)
+                    {
+                        Utils.LogError("OnAccept: Maximum number of channels {0} reached", m_channels.Count);
+                        e.Dispose();
+                        return;
+                    }
                     if (!(e.UserToken is Socket listeningSocket))
                     {
                         Utils.LogError("OnAccept: Listensocket was null.");
@@ -518,13 +711,21 @@ namespace Opc.Ua.Bindings
                             }
 
                             // get channel id
-                            uint channelId = GetNextChannelId();
+                            uint channelId = GetNextChannelId(false);
 
                             // start accepting messages on the channel.
                             channel.Attach(channelId, e.AcceptSocket);
 
                             // save the channel for shutdown and reconnects.
-                            m_channels.Add(channelId, channel);
+                            m_lock.EnterWriteLock();
+                            try
+                            {
+                                m_channels.Add(channelId, channel);
+                            }
+                            finally
+                            {
+                                m_lock.ExitWriteLock();
+                            }
                         }
                         catch (Exception ex)
                         {
@@ -552,6 +753,10 @@ namespace Opc.Ua.Bindings
                             Utils.LogError(ex, "Unexpected error listening for a new connection.");
                         }
                     }
+                }
+                finally
+                {
+                    m_lock.ExitUpgradeableReadLock();
                 }
             } while (repeatAccept);
         }
@@ -657,18 +862,39 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Get the next channel id. Handles overflow.
         /// </summary>
-        private uint GetNextChannelId()
+        private uint GetNextChannelId(bool useReadLock = true)
         {
-            lock (m_lock)
+            if (useReadLock)
+            {
+                m_lock.EnterUpgradeableReadLock();
+            }
+            try
             {
                 do
                 {
-                    uint nextChannelId = ++m_lastChannelId;
+                    uint nextChannelId = 0;
+                    m_lock.EnterWriteLock();
+                    try
+                    {
+                        nextChannelId = ++m_lastChannelId;
+                    }
+                    finally
+                    {
+                        m_lock.ExitWriteLock();
+                    }
+
                     if (!m_channels.ContainsKey(nextChannelId))
                     {
                         return nextChannelId;
                     }
                 } while (true);
+            }
+            finally
+            {
+                if (useReadLock)
+                {
+                    m_lock.ExitUpgradeableReadLock();
+                }
             }
         }
 
@@ -708,7 +934,8 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly ReaderWriterLockSlim m_lock = new ReaderWriterLockSlim();
+        private bool m_disposed = false;
         private string m_listenerId;
         private Uri m_uri;
         private EndpointDescriptionCollection m_descriptions;
@@ -722,6 +949,15 @@ namespace Opc.Ua.Bindings
         private Dictionary<uint, TcpListenerChannel> m_channels;
         private ITransportListenerCallback m_callback;
         private bool m_reverseConnectListener;
+        private int m_inactivityDetectPeriod;
+        private Timer m_inactivityDetectionTimer;
+        private ConcurrentDictionary<string, uint> m_sessionsPerChannel;
+        #endregion
+
+        #region Private Constants
+
+        int kSocketBacklog = 10;
+
         #endregion
     }
 
