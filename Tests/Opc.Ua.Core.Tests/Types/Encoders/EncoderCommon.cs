@@ -67,7 +67,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected const int kRandomStart = 4840;
         protected const int kRandomRepeats = 100;
         protected const int kMaxArrayLength = 1024 * 64;
-        protected const int kTestBufferSize = 0x1000 - 1;
+        protected const int kTestBlockSize = 0x1000 - 1;
         protected const string kApplicationUri = "uri:localhost:opcfoundation.org:EncoderCommon";
         protected RandomSource RandomSource { get; private set; }
         protected DataGenerator DataGenerator { get; private set; }
@@ -90,8 +90,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             NameSpaceUris.GetIndexOrAppend(kApplicationUri);
             NameSpaceUris.GetIndexOrAppend(Namespaces.OpcUaGds);
             ServerUris = new StringTable();
-            BufferManager = new BufferManager(nameof(EncoderCommon), kTestBufferSize);
-            RecyclableMemoryManager = new RecyclableMemoryStreamManager(new RecyclableMemoryStreamManager.Options { BlockSize = kTestBufferSize });
+            BufferManager = new BufferManager(nameof(EncoderCommon), kTestBlockSize);
+            RecyclableMemoryManager = new RecyclableMemoryStreamManager(new RecyclableMemoryStreamManager.Options { BlockSize = kTestBlockSize });
         }
 
         [OneTimeTearDown]
@@ -402,8 +402,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 using (var stringReader = new StringReader(json))
                 {
                     using (var jsonReader = new JsonTextReader(stringReader))
-                    using (var jsonWriter = new JsonTextWriter(stringWriter)
-                    {
+                    using (var jsonWriter = new JsonTextWriter(stringWriter) {
                         FloatFormatHandling = FloatFormatHandling.String,
                         Formatting = Newtonsoft.Json.Formatting.Indented,
                         Culture = System.Globalization.CultureInfo.InvariantCulture
@@ -435,7 +434,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             switch (memoryStreamType)
             {
                 case MemoryStreamType.MemoryStream:
-                    return new MemoryStream(kTestBufferSize);
+                    return new MemoryStream(kTestBlockSize);
                 case MemoryStreamType.ArraySegmentStream:
                     return new ArraySegmentStream(BufferManager);
                 case MemoryStreamType.RecyclableMemoryStream:
