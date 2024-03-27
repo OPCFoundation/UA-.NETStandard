@@ -57,6 +57,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("EncodeableTypes")]
         public void ActivateEncodeableType(
             EncodingType encoderType,
+            MemoryStreamType memoryStreamType,
             Type systemType
             )
         {
@@ -68,13 +69,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.AreNotEqual(testObject.TypeId, testObject.BinaryEncodingId);
             Assert.AreNotEqual(testObject.TypeId, testObject.XmlEncodingId);
             Assert.AreNotEqual(testObject.BinaryEncodingId, testObject.XmlEncodingId);
-            EncodeDecode(encoderType, BuiltInType.ExtensionObject, new ExtensionObject(testObject.TypeId, testObject));
+            EncodeDecode(encoderType, BuiltInType.ExtensionObject, memoryStreamType, new ExtensionObject(testObject.TypeId, testObject));
         }
 
         [Theory]
         [Category("EncodeableTypes")]
         public void ActivateEncodeableTypeArray(
             EncodingType encoderType,
+            MemoryStreamType memoryStreamType,
             Type systemType
             )
         {
@@ -95,7 +97,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             BuiltInType builtInType = BuiltInType.Variant;
 
             byte[] buffer;
-            using (var encoderStream = new MemoryStream())
+            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
                 using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, systemType))
                 {
@@ -140,6 +142,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("EncodeableTypes")]
         public void ActivateEncodeableTypeMatrix(
             EncodingType encoderType,
+            MemoryStreamType memoryStreamType,
             bool encodeAsMatrix,
             Type systemType
             )
@@ -167,7 +170,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Matrix matrix = new Matrix(array, builtInType, dimensions);
 
             byte[] buffer;
-            using (var encoderStream = new MemoryStream())
+            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
                 using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, systemType))
                 {
