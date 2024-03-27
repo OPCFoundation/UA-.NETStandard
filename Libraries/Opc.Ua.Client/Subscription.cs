@@ -34,6 +34,7 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Types.Utils;
 
 namespace Opc.Ua.Client
@@ -799,8 +800,7 @@ namespace Opc.Ua.Client
         {
             get
             {
-                TimeSpan timeSinceLastNotification = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - Interlocked.Read(ref m_lastNotificationTime));
-                if (timeSinceLastNotification.TotalMilliseconds > m_keepAliveInterval + kKeepAliveTimerMargin)
+                if ((HiResClock.CalculateMillisecondsTicksDifference(Interlocked.Read(ref m_lastNotificationTime))) > m_keepAliveInterval + kKeepAliveTimerMargin)
                 {
                     return true;
                 }
@@ -1428,7 +1428,7 @@ namespace Opc.Ua.Client
                     TraceState("PUBLISHING RECOVERED");
                 }
 
-                DateTime now = DateTime.UtcNow;
+                DateTime now = new DateTime(DateTime.UtcNow.Ticks - HiResClock.CalculateMillisecondsTickCountDifference(Interlocked.Read(ref m_lastNotificationTime)));
                 Interlocked.Exchange(ref m_lastNotificationTime, now.Ticks);
 
                 // save the string table that came with notification.
@@ -1840,7 +1840,7 @@ namespace Opc.Ua.Client
                 Utils.SilentDispose(m_publishTimer);
                 m_publishTimer = null;
 
-                Interlocked.Exchange(ref m_lastNotificationTime, DateTime.UtcNow.Ticks);
+                Interlocked.Exchange(ref m_lastNotificationTime, HiResClock.Ticks);
                 m_keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * (m_currentKeepAliveCount + 1), Int32.MaxValue));
                 if (m_keepAliveInterval < kMinKeepAliveTimerInterval)
                 {
