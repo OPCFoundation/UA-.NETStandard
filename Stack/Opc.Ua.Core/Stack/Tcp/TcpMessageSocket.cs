@@ -258,6 +258,7 @@ namespace Opc.Ua.Bindings
             m_receiveBufferSize = receiveBufferSize;
             m_incomingMessageSize = -1;
             m_readComplete = OnReadComplete;
+            m_innerReadComplete = OnInnerReadComplete;
             m_readState = ReadState.Ready;
         }
 
@@ -269,16 +270,10 @@ namespace Opc.Ua.Bindings
             Socket socket,
             BufferManager bufferManager,
             int receiveBufferSize)
+            : this(sink, bufferManager, receiveBufferSize)
         {
             if (socket == null) throw new ArgumentNullException(nameof(socket));
-            if (bufferManager == null) throw new ArgumentNullException(nameof(bufferManager));
-
-            m_sink = sink;
             m_socket = socket;
-            m_bufferManager = bufferManager;
-            m_receiveBufferSize = receiveBufferSize;
-            m_incomingMessageSize = -1;
-            m_readComplete = OnReadComplete;
         }
         #endregion
 
@@ -441,52 +436,64 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Handles a read complete event.
+        /// Handles a read complete event and takes the reader lock.
         /// </summary>
         private void OnReadComplete(object sender, SocketAsyncEventArgs e)
         {
             lock (m_readLock)
             {
-                ServiceResult error = null;
+                OnInnerReadComplete(e);
+            }
+        }
 
-                try
-                {
-                    bool innerCall = m_readState == ReadState.ReadComplete;
-                    error = DoReadComplete(e);
-                    // to avoid recursion, inner calls of OnReadComplete return
-                    // after processing the ReadComplete and let the outer call handle it
-                    if (!innerCall && !ServiceResult.IsBad(error))
-                    {
-                        while (ReadNext()) ;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Utils.LogError(ex, "Unexpected error during OnReadComplete,");
-                    error = ServiceResult.Create(ex, StatusCodes.BadTcpInternalError, ex.Message);
-                }
-                finally
-                {
-                    e?.Dispose();
-                }
+        /// <summary>
+        /// Handles a read complete event or the recursive callback in the reader loop.
+        /// </summary>
+        private bool OnInnerReadComplete(SocketAsyncEventArgs e)
+        {
+            ServiceResult error = null;
 
-                if (m_readState == ReadState.NotConnected &&
-                    ServiceResult.IsGood(error))
+            try
+            {
+                bool innerCall = m_readState == ReadState.ReadComplete;
+                error = DoReadComplete(e);
+                // to avoid recursion, inner calls of OnReadComplete return
+                // after processing the ReadComplete and let the outer call handle it
+                if (!innerCall && !ServiceResult.IsBad(error))
                 {
-                    error = ServiceResult.Create(StatusCodes.BadConnectionClosed, "Remote side closed connection.");
-                }
-
-                if (ServiceResult.IsBad(error))
-                {
-                    if (m_receiveBuffer != null)
-                    {
-                        m_bufferManager.ReturnBuffer(m_receiveBuffer, "OnReadComplete");
-                        m_receiveBuffer = null;
-                    }
-
-                    m_sink?.OnReceiveError(this, error);
+                    while (ReadNext()) ;
                 }
             }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex, "Unexpected error during OnReadComplete,");
+                error = ServiceResult.Create(ex, StatusCodes.BadTcpInternalError, ex.Message);
+            }
+            finally
+            {
+                e?.Dispose();
+            }
+
+            if (m_readState == ReadState.NotConnected &&
+                ServiceResult.IsGood(error))
+            {
+                error = ServiceResult.Create(StatusCodes.BadConnectionClosed, "Remote side closed connection.");
+            }
+
+            if (ServiceResult.IsBad(error))
+            {
+                if (m_receiveBuffer != null)
+                {
+                    m_bufferManager.ReturnBuffer(m_receiveBuffer, "OnReadComplete");
+                    m_receiveBuffer = null;
+                }
+
+                m_sink?.OnReceiveError(this, error);
+
+                return false;
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -630,7 +637,7 @@ namespace Opc.Ua.Bindings
                     }
                     // set state to inner complete
                     m_readState = ReadState.ReadComplete;
-                    m_readComplete(null, args);
+                    m_innerReadComplete(args);
                 }
             }
             catch (ServiceResultException)
@@ -643,7 +650,7 @@ namespace Opc.Ua.Bindings
             {
                 args?.Dispose();
                 BufferManager.UnlockBuffer(m_receiveBuffer);
-                throw ServiceResultException.Create(StatusCodes.BadTcpInternalError, ex, "BeginReceive failed.");
+                throw ServiceResultException.Create(StatusCodes.BadTcpInternalError, ex, "ReceiveAsync failed.");
             }
         }
 
@@ -793,6 +800,7 @@ namespace Opc.Ua.Bindings
         private BufferManager m_bufferManager;
         private readonly int m_receiveBufferSize;
         private readonly EventHandler<SocketAsyncEventArgs> m_readComplete;
+        private readonly Func<SocketAsyncEventArgs, bool> m_innerReadComplete;
 
         private readonly object m_socketLock = new object();
         private Socket m_socket;
