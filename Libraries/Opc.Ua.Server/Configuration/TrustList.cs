@@ -302,6 +302,8 @@ namespace Opc.Ua.Server
             uint fileHandle,
             ref bool restartRequired)
         {
+            object[] inputParameters = new object[] { fileHandle };
+            m_node.ReportTrustListUpdateRequestedAuditEvent(context, objectId, "Method/CloseAndUpdate", method.NodeId, inputParameters);
             HasSecureWriteAccess(context);
 
             ServiceResult result = StatusCodes.Good;
@@ -416,7 +418,6 @@ namespace Opc.Ua.Server
             restartRequired = false;
 
             // report the TrustListUpdatedAuditEvent
-            object[] inputParameters = new object[] { fileHandle };
             m_node.ReportTrustListUpdatedAuditEvent(context, objectId, "Method/CloseAndUpdate", method.NodeId, inputParameters, result.StatusCode);
 
             return result;
@@ -429,6 +430,8 @@ namespace Opc.Ua.Server
             byte[] certificate,
             bool isTrustedCertificate)
         {
+            object[] inputParameters = new object[] { certificate, isTrustedCertificate };
+            m_node.ReportTrustListUpdateRequestedAuditEvent(context, objectId, "Method/AddCertificate", method.NodeId, inputParameters);
             HasSecureWriteAccess(context);
 
             ServiceResult result = StatusCodes.Good;
@@ -471,7 +474,6 @@ namespace Opc.Ua.Server
             }
 
             // report the TrustListUpdatedAuditEvent
-            object[] inputParameters = new object[] { certificate, isTrustedCertificate };
             m_node.ReportTrustListUpdatedAuditEvent(context, objectId, "Method/AddCertificate", method.NodeId, inputParameters, result.StatusCode);
 
             return result;
@@ -485,6 +487,9 @@ namespace Opc.Ua.Server
             string thumbprint,
             bool isTrustedCertificate)
         {
+            object[] inputParameters = new object[] { thumbprint };
+            m_node.ReportTrustListUpdateRequestedAuditEvent(context, objectId, "Method/RemoveCertificate", method.NodeId, inputParameters);
+
             HasSecureWriteAccess(context);
             ServiceResult result = StatusCodes.Good;
             lock (m_lock)
@@ -548,7 +553,6 @@ namespace Opc.Ua.Server
             }
 
             // report the TrustListUpdatedAuditEvent
-            object[] inputParameters = new object[] { thumbprint };
             m_node.ReportTrustListUpdatedAuditEvent(context, objectId, "Method/RemoveCertificate", method.NodeId, inputParameters, result.StatusCode);
 
             return result;

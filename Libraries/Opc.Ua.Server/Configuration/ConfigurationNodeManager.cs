@@ -350,6 +350,7 @@ namespace Opc.Ua.Server
             object[] inputArguments = new object[] { certificateGroupId, certificateTypeId, certificate, issuerCertificates, privateKeyFormat, privateKey };
             X509Certificate2 newCert = null;
 
+            Server.ReportCertificateUpdateRequestedAuditEvent(context, objectId, method, inputArguments);
             try
             {
                 if (certificate == null)
