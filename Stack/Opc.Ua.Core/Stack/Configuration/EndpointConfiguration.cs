@@ -60,7 +60,7 @@ namespace Opc.Ua
             configuration.MaxMessageSize = applicationConfiguration.TransportQuotas.MaxMessageSize;
             configuration.MaxStringLength = applicationConfiguration.TransportQuotas.MaxStringLength;
             configuration.MaxBufferSize = applicationConfiguration.TransportQuotas.MaxBufferSize;
-            configuration.MaxChannelCount = applicationConfiguration.TransportQuotas.MaxChannelCount;
+            configuration.MaxChannelCount = applicationConfiguration.ServerConfiguration.MaxChannelCount;
             configuration.ChannelLifetime = applicationConfiguration.TransportQuotas.ChannelLifetime;
             configuration.SecurityTokenLifetime = applicationConfiguration.TransportQuotas.SecurityTokenLifetime;
 

@@ -108,11 +108,6 @@ namespace Opc.Ua.Configuration
         /// <param name="channelLifetime">The lifetime.</param>
         IApplicationConfigurationBuilderTransportQuotas SetChannelLifetime(int channelLifetime);
 
-        /// <inheritdoc cref="TransportQuotas.MaxChannelCount"/>
-        /// <remarks>applies to <see cref="TransportQuotas.MaxChannelCount"/></remarks>
-        /// <param name="maxChannelCount">The lifetime.</param>
-        IApplicationConfigurationBuilderTransportQuotas SetMaxChannelCount(int maxChannelCount);
-
         /// <inheritdoc cref="TransportQuotas.SecurityTokenLifetime"/>
         /// <remarks>applies to <see cref="TransportQuotas.SecurityTokenLifetime"/></remarks>
         /// <param name="securityTokenLifetime">The lifetime in milliseconds.</param>
@@ -160,6 +155,11 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc cref="ServerConfiguration.MaxSessionCount"/>
         IApplicationConfigurationBuilderServerOptions SetMaxSessionCount(int maxSessionCount);
+
+        /// <inheritdoc cref="ServerConfiguration.MaxChannelCount"/>
+        /// <remarks>applies to <see cref="ServerConfiguration.MaxChannelCount"/></remarks>
+        /// <param name="maxChannelCount">The lifetime.</param>
+        IApplicationConfigurationBuilderServerOptions SetMaxChannelCount(int maxChannelCount);
 
         /// <inheritdoc cref="ServerConfiguration.MinSessionTimeout"/>
         IApplicationConfigurationBuilderServerOptions SetMinSessionTimeout(int minSessionTimeout);

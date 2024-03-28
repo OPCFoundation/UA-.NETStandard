@@ -26,7 +26,6 @@ namespace Opc.Ua.Bindings
             m_messageContext = ServiceMessageContext.GlobalContext;
             m_maxMessageSize = TcpMessageLimits.DefaultMaxMessageSize;
             m_maxBufferSize = TcpMessageLimits.DefaultMaxBufferSize;
-            m_maxChannelCount = TcpMessageLimits.DefaultMaxChannelCount;
             m_channelLifetime = TcpMessageLimits.DefaultChannelLifetime;
             m_securityTokenLifetime = TcpMessageLimits.DefaultSecurityTokenLifeTime;
         }
@@ -97,21 +96,7 @@ namespace Opc.Ua.Bindings
             }
         }
 
-        /// <summary>
-        /// The maximum number of secure channels
-        /// </summary>
-        public int MaxChannelCount
-        {
-            get
-            {
-                return m_maxChannelCount;
-            }
 
-            set
-            {
-                m_maxChannelCount = value;
-            }
-        }
 
         /// <summary>
         /// The default lifetime for the channel in milliseconds.
@@ -147,10 +132,8 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Private Fields
-        private readonly object m_lock = new object();
         private int m_maxMessageSize;
         private int m_maxBufferSize;
-        private int m_maxChannelCount;
         private int m_channelLifetime;
         private int m_securityTokenLifetime;
         private IServiceMessageContext m_messageContext;

@@ -142,13 +142,13 @@ namespace Opc.Ua.Bindings
             {
                 m_inactivityDetectPeriod = configuration.ChannelLifetime / 2; 
                 m_quotas.MaxMessageSize = configuration.MaxMessageSize;
-                m_quotas.MaxChannelCount = configuration.MaxChannelCount;
                 m_quotas.ChannelLifetime = configuration.ChannelLifetime;
                 m_quotas.SecurityTokenLifetime = configuration.SecurityTokenLifetime;
                 messageContext.MaxArrayLength = configuration.MaxArrayLength;
                 messageContext.MaxByteStringLength = configuration.MaxByteStringLength;
                 messageContext.MaxMessageSize = configuration.MaxMessageSize;
                 messageContext.MaxStringLength = configuration.MaxStringLength;
+                MaxChannelCount = configuration.MaxChannelCount;
             }
             m_quotas.MessageContext = messageContext;
 
@@ -661,7 +661,7 @@ namespace Opc.Ua.Bindings
                 m_lock.EnterUpgradeableReadLock();
                 try
                 {
-                    if (m_quotas.MaxChannelCount < m_channels.Count)
+                    if (MaxChannelCount < m_channels.Count)
                     {
                         Utils.LogError("OnAccept: Maximum number of channels {0} reached", m_channels.Count);
                         e.Dispose();
@@ -759,6 +759,24 @@ namespace Opc.Ua.Bindings
                     m_lock.ExitUpgradeableReadLock();
                 }
             } while (repeatAccept);
+        }
+        #endregion
+
+        #region Public Fields
+        /// <summary>
+        /// The maximum number of secure channels
+        /// </summary>
+        public int MaxChannelCount
+        {
+            get
+            {
+                return m_maxChannelCount;
+            }
+
+            set
+            {
+                m_maxChannelCount = value;
+            }
         }
         #endregion
 
@@ -952,6 +970,7 @@ namespace Opc.Ua.Bindings
         private int m_inactivityDetectPeriod;
         private Timer m_inactivityDetectionTimer;
         private ConcurrentDictionary<string, uint> m_sessionsPerChannel;
+        private int m_maxChannelCount;
         #endregion
 
         #region Private Constants
