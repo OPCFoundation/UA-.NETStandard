@@ -74,6 +74,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         {
                             x509Store.Delete(cert.Thumbprint).Wait();
                         }
+                        if (X509Utils.CompareDistinguishedName(X509StoreSubject2, cert.Issuer))
+                        {
+                            x509Store.Delete(cert.Thumbprint).Wait();
+                        }
                     }
                     if (x509Store.SupportsCRLs)
                     {
@@ -81,6 +85,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         foreach (X509CRL crl in crls)
                         {
                             if (X509Utils.CompareDistinguishedName(X509StoreSubject, crl.Issuer))
+                            {
+                                x509Store.DeleteCRL(crl).Wait();
+                            }
+                            if (X509Utils.CompareDistinguishedName(X509StoreSubject2, crl.Issuer))
                             {
                                 x509Store.DeleteCRL(crl).Wait();
                             }
@@ -259,7 +267,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 //enumerate Crls
                 X509CRLCollection crls = await x509Store.EnumerateCRLs().ConfigureAwait(false);
 
-                Assert.True(crls.Count == 1);
+                Assert.AreEqual(1, crls.Count);
                 Assert.AreEqual(crl.RawData, crls[0].RawData);
                 Assert.AreEqual(GetTestCert().SerialNumber,
                     crls[0].RevokedCertificates.First().SerialNumber);
@@ -268,12 +276,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 var statusCode = await x509Store.IsRevoked(GetTestCert(), GetTestCert()).ConfigureAwait(false);
                 Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevoked, statusCode);
 
-                //await x509Store.Delete(GetTestCert().Thumbprint).ConfigureAwait(false);
-                //await x509Store.DeleteCRL(crl).ConfigureAwait(false);
 
-                //X509CRLCollection crls2 = await x509Store.EnumerateCRLs().ConfigureAwait(false);
-
-                //Assert.True(crls2.Count == 0);
             }
         }
 
@@ -290,6 +293,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             using (var x509Store = new X509CertificateStore())
             {
+                x509Store.Open(storePath);
                 //enumerate Crls
                 X509CRL crl = (await x509Store.EnumerateCRLs().ConfigureAwait(false)).First();
 
@@ -305,18 +309,81 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 X509CRLCollection crls = await x509Store.EnumerateCRLs().ConfigureAwait(false);
 
-                Assert.True(crls.Count == 1);
-                Assert.True(crls[0].RevokedCertificates.Count == 2);
+                Assert.AreEqual(1, crls.Count);
+
+                Assert.AreEqual(2, crls[0].RevokedCertificates.Count);
                 //Test Revocation after adding cert
                 var statusCode2 = await x509Store.IsRevoked(GetTestCert(), GetTestCert2()).ConfigureAwait(false);
                 Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevoked, statusCode2);
+            }
+        }
 
-                await x509Store.Delete(GetTestCert().Thumbprint).ConfigureAwait(false);
+        /// <summary>
+        /// Add a second crl to the X509 store
+        /// </summary>
+        /// <returns></returns>
+        [Theory, Order(70)]
+        public async Task AddSecondCrlToX509StoreOnWindows(string storePath)
+        {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                Assert.Ignore("Crls in an X509Store are only supported on Windows");
+            }
+            using (var x509Store = new X509CertificateStore())
+            {
+                x509Store.Open(storePath);
+                //add issuer to store
+                await x509Store.Add(GetTestCert2()).ConfigureAwait(false);
+                //add Crl
+                var crlBuilder = CrlBuilder.Create(GetTestCert2().SubjectName);
+                crlBuilder.AddRevokedCertificate(GetTestCert2());
+                var crl = new X509CRL(crlBuilder.CreateForRSA(GetTestCert2()));
+                await x509Store.AddCRL(crl).ConfigureAwait(false);
+
+                //enumerate Crls
+                X509CRLCollection crls = await x509Store.EnumerateCRLs().ConfigureAwait(false);
+
+                Assert.AreEqual(2, crls.Count);
+                Assert.NotNull(crls.SingleOrDefault(c => c.Issuer == crl.Issuer));
+            }
+        }
+
+        /// <summary>
+        /// Delete both crls from the X509 store
+        /// </summary>
+        /// <returns></returns>
+        [Theory, Order(80)]
+        public async Task DeleteCrlsFromX509StoreOnWindows(string storePath)
+        {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                Assert.Ignore("Crls in an X509Store are only supported on Windows");
+            }
+            using (var x509Store = new X509CertificateStore())
+            {
+                x509Store.Open(storePath);
+
+                //Delete first crl with revoked certificates
+                X509CRL crl = (await x509Store.EnumerateCRLs().ConfigureAwait(false)).Single(c => c.Issuer == X509StoreSubject);
                 await x509Store.DeleteCRL(crl).ConfigureAwait(false);
 
-                X509CRLCollection crls2 = await x509Store.EnumerateCRLs().ConfigureAwait(false);
+                X509CRLCollection crlsAfterFirstDelete = await x509Store.EnumerateCRLs().ConfigureAwait(false);
 
-                Assert.True(crls2.Count == 0);
+                //check the right crl was deleted
+                Assert.AreEqual(1, crlsAfterFirstDelete.Count);
+                Assert.Null(crlsAfterFirstDelete.FirstOrDefault(c => c == crl));
+
+                //make shure IsRevoked cant find crl anymore
+                var statusCode = await x509Store.IsRevoked(GetTestCert(), GetTestCert()).ConfigureAwait(false);
+                Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevocationUnknown, statusCode);
+
+                //Delete second (empty) crl from store
+                await x509Store.DeleteCRL(crlsAfterFirstDelete.First()).ConfigureAwait(false);
+
+                X509CRLCollection crlsAfterSecondDelete = await x509Store.EnumerateCRLs().ConfigureAwait(false);
+
+                //make shure no crls remain in store
+                Assert.AreEqual(0, crlsAfterSecondDelete.Count);
             }
         }
         #endregion
