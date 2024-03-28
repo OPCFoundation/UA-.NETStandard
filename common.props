@@ -21,7 +21,8 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>    
+    <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
     <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>
   </PropertyGroup>
   
