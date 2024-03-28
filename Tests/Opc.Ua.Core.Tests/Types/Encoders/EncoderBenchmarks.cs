@@ -38,7 +38,7 @@ using Opc.Ua.Bindings;
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
     /// <summary>
-    /// Common code for encoder benchmarks.
+    /// Common code for encoder/decoder benchmarks.
     /// </summary>
     public class EncoderBenchmarks
     {
@@ -63,7 +63,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
         }
 
-        [Params(/*1, 2, 8, */64, 1024)]
+        [Params(64, 1024)]
         public int PayLoadSize { get; set; } = 64;
 
         #region Private Methods
@@ -72,7 +72,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var now = DateTime.UtcNow;
             int payLoadSize = PayLoadSize;
             encoder.WriteInt32("PayloadSize", payLoadSize);
-            while (--payLoadSize > 0)
+            while (payLoadSize-- > 0)
             {
                 encoder.WriteBoolean("Boolean", true);
                 encoder.WriteByte("Byte", 123);
@@ -96,9 +96,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         protected void TestDecoding(IDecoder decoder)
         {
-            var now = DateTime.UtcNow;
             var payLoadSize = decoder.ReadInt32("PayloadSize");
-            while (--payLoadSize > 0)
+            while (payLoadSize-- > 0)
             {
                 _ = decoder.ReadBoolean("Boolean");
                 _ = decoder.ReadByte("Byte");
@@ -180,6 +179,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     {
         public ArraySegmentStreamNoSpan(BufferManager bufferManager)
             : base(bufferManager)
+        {
+        }
+
+        public ArraySegmentStreamNoSpan(BufferCollection buffers)
+            : base(buffers)
         {
         }
 

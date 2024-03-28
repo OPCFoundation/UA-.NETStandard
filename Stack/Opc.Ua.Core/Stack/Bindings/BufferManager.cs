@@ -353,7 +353,7 @@ namespace Opc.Ua.Bindings
         private const byte kCookieLocked = 0xa5;
         private const byte kCookieUnlocked = 0x5a;
 #if TRACK_MEMORY
-        const byte kCookieLength = 5;
+        private const byte kCookieLength = 5;
         class Allocation
         {
             public int Id;

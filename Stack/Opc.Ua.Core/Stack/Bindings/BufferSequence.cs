@@ -35,7 +35,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// A class to hold a sequence of buffers until disposed.
     /// </summary>
-    public class BufferSequence : IDisposable
+    public sealed class BufferSequence : IDisposable
     {
         /// <summary>
         /// The constructor to create the sequence of buffers.

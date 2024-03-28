@@ -35,7 +35,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Helper to build a ReadOnlySequence from a set of buffers.
     /// </summary>
-    public class BufferSegment : ReadOnlySequenceSegment<byte>
+    public sealed class BufferSegment : ReadOnlySequenceSegment<byte>
     {
         /// <summary>
         /// Returns the base array of the buffer.

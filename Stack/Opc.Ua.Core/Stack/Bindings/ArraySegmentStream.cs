@@ -85,16 +85,12 @@ namespace Opc.Ua.Bindings
         {
             if (disposing)
             {
-                if (m_buffers != null)
+                if (m_buffers != null && m_bufferManager != null)
                 {
-                    if (m_bufferManager != null)
+                    for (int ii = 0; ii < m_buffers.Count; ii++)
                     {
-                        for (int ii = 0; ii < m_buffers.Count; ii++)
-                        {
-                            m_bufferManager.ReturnBuffer(m_buffers[ii].Array, "ArraySegmentStream.Dispose");
-                        }
+                        m_bufferManager.ReturnBuffer(m_buffers[ii].Array, "ArraySegmentStream.Dispose");
                     }
-
                     m_buffers.Clear();
                     m_buffers = null;
                 }
