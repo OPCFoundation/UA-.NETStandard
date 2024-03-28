@@ -169,8 +169,9 @@ namespace Opc.Ua.Bindings
         {
             if (m_sessionsPerChannel.TryGetValue(channelId, out uint actualValue))
             {
-                uint decValue = --actualValue;
-                m_sessionsPerChannel[channelId] = decValue;
+                uint decValue = m_sessionsPerChannel.AddOrUpdate(channelId,
+                    _ => throw new InvalidOperationException("Attempted to decrement non existing channelId"),
+                    (key, value) => value > 0 ? value - 1 : 0);
 
                 TcpListenerChannel foundChannel = null;
                 lock (m_lock)
@@ -190,24 +191,17 @@ namespace Opc.Ua.Bindings
         /// <param name="channelId"></param>
         public void HandleSessionCreate(string channelId)
         {
-            if (m_sessionsPerChannel.TryGetValue(channelId, out uint actualValue))
-            {
-                m_sessionsPerChannel[channelId] = actualValue + 1;
-            }
-            else
-            {
-                m_sessionsPerChannel[channelId] = 1;
+            m_sessionsPerChannel.AddOrUpdate(channelId, 1, (key, actualValue) => actualValue + 1);
 
-                // Since the State of the channel might have been Inactive ensure the channel State is Open
-                TcpListenerChannel foundChannel = null;
-                lock (m_lock)
-                {
-                    foundChannel = m_channels.First(kv => kv.Value.GlobalChannelId == channelId).Value ?? null;
-                }
-                if (foundChannel != null)
-                {
-                    foundChannel.SetOpen();
-                }
+            // Since the State of the channel might have been Inactive ensure the channel State is Open
+            TcpListenerChannel foundChannel = null;
+            lock (m_lock)
+            {
+                foundChannel = m_channels.First(kv => kv.Value.GlobalChannelId == channelId).Value ?? null;
+            }
+            if (foundChannel != null)
+            {
+                foundChannel.SetOpen();
             }
         }
 
@@ -217,20 +211,17 @@ namespace Opc.Ua.Bindings
         /// <param name="channelId"></param>
         public void HandleSessionActivate(string channelId)
         {
-            if (!m_sessionsPerChannel.TryGetValue(channelId, out uint actualValue))
-            {
-                m_sessionsPerChannel[channelId] = 1;
+            m_sessionsPerChannel.AddOrUpdate(channelId, 1, (key, actualValue) => actualValue == 0 ? 1 : actualValue);
 
-                // Since the State of the channel might have been Inactive ensure the channel State is Open
-                TcpListenerChannel foundChannel = null;
-                lock (m_lock)
-                {
-                    foundChannel = m_channels.First(kv => kv.Value.GlobalChannelId == channelId).Value ?? null;
-                }
-                if (foundChannel != null)
-                {
-                    foundChannel.SetOpen();
-                }
+            // Since the State of the channel might have been Inactive ensure the channel State is Open
+            TcpListenerChannel foundChannel = null;
+            lock (m_lock)
+            {
+                foundChannel = m_channels.First(kv => kv.Value.GlobalChannelId == channelId).Value ?? null;
+            }
+            if (foundChannel != null)
+            {
+                foundChannel.SetOpen();
             }
         }
         #endregion
