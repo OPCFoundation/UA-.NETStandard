@@ -298,7 +298,7 @@ namespace Opc.Ua
             }
             finally
             {
-                m_writer.Dispose();
+                m_writer?.Dispose();
                 m_writer = null;
             }
         }
