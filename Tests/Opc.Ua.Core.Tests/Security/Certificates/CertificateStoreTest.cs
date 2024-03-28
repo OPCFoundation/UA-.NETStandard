@@ -44,6 +44,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     /// Tests for the CertificateFactory class.
     /// </summary>
     [TestFixture, Category("CertificateStore")]
+    [NonParallelizable]
     [SetCulture("en-us")]
     public class CertificateStoreTest
     {

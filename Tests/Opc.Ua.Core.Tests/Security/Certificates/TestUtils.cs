@@ -48,10 +48,13 @@ namespace Opc.Ua.Core.Tests
                 {
                     store.Delete(cert.Thumbprint);
                 }
-                var crls = store.EnumerateCRLs().GetAwaiter().GetResult();
-                foreach (var crl in crls)
+                if (store.SupportsCRLs)
                 {
-                    store.DeleteCRL(crl);
+                    var crls = store.EnumerateCRLs().GetAwaiter().GetResult();
+                    foreach (var crl in crls)
+                    {
+                        store.DeleteCRL(crl);
+                    }
                 }
                 if (dispose)
                 {

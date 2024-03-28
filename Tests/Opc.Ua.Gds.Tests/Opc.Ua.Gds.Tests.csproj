@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -26,7 +26,7 @@
   </ItemGroup>
   
   <ItemGroup>
-    <Compile Include="..\Common\Main.cs"/>
+    <Compile Include="..\Common\Main.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -41,6 +41,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Opc.Ua.GlobalDiscoveryTestServerX509Stores.Config.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Opc.Ua.GlobalDiscoveryTestClientX509Stores.Config.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="Opc.Ua.GlobalDiscoveryTestClient.Config.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
