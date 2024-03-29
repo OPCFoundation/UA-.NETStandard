@@ -125,6 +125,7 @@ namespace Opc.Ua.Bindings
                 ? ArrayPool<byte>.Shared
                 : ArrayPool<byte>.Create(maxBufferSize + kCookieLength, 4);
             m_maxBufferSize = maxBufferSize;
+            m_maxSuggestedBufferSize = DetermineSuggestedBufferSize(maxBufferSize);
         }
         #endregion
 
@@ -338,14 +339,52 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Returns the suggested max rent size for data in the buffers.
+        /// </summary>
+        /// <param name="maxBufferSize">The max buffer size configured.</param>
+        private int DetermineSuggestedBufferSize(int maxBufferSize)
+        {
+            int bufferArrayPoolSize = RoundUpToPowerOfTwo(maxBufferSize);
+            int maxDataRentSize = RoundUpToPowerOfTwo(maxBufferSize + kCookieLength);
+            if (bufferArrayPoolSize != maxDataRentSize)
+            {
+                Utils.LogWarning("BufferManager: Max buffer size {0} + cookie length {1} may waste memory because it allocates buffers in the next bucket!", maxBufferSize, kCookieLength);
+                return bufferArrayPoolSize - kCookieLength;
+            }
+            return maxBufferSize;
+        }
+
+        /// <summary>
+        /// Helper to round up to the next power of two.
+        /// </summary>
+        private int RoundUpToPowerOfTwo(int value)
+        {
+            int result = 1;
+
+            while (result < value && result != 0)
+            {
+                result <<= 1;
+            }
+
+            return result;
+        }
+
+        /// <summary>
         /// Returns the max size of data in the buffers.
         /// </summary>
-        public int MaxBufferSize => m_maxBufferSize - kCookieLength;
+        /// <remarks>
+        /// Due to the underlying implementation of the ArrayPool,
+        /// the actual buffer size may be larger than this value.
+        /// To avoid memory waste, use this value as a guideline
+        /// for the maximum buffer size when taking buffers.
+        /// </remarks>
+        public int MaxSuggestedBufferSize => m_maxSuggestedBufferSize;
         #endregion
 
         #region Private Fields
         private readonly string m_name;
         private readonly int m_maxBufferSize;
+        private readonly int m_maxSuggestedBufferSize;
 #if TRACE_MEMORY
         private int m_buffersTaken = 0;
 #endif

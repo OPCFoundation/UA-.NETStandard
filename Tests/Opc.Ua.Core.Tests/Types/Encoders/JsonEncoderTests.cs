@@ -400,7 +400,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void ConstructorRecyclableMemoryStream()
         {
             var recyclableMemoryStreamManager = new RecyclableMemoryStreamManager(new RecyclableMemoryStreamManager.Options {
-                BlockSize = BufferManager.MaxBufferSize,
+                BlockSize = BufferManager.MaxSuggestedBufferSize,
             });
             using (var memoryStream = new RecyclableMemoryStream(recyclableMemoryStreamManager))
             {

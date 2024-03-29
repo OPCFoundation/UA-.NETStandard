@@ -74,7 +74,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="bufferManager">The buffer manager.</param>
         public ArraySegmentStream(BufferManager bufferManager)
-            : this(bufferManager, bufferManager.MaxBufferSize, 0, bufferManager.MaxBufferSize)
+            : this(bufferManager, bufferManager.MaxSuggestedBufferSize, 0, bufferManager.MaxSuggestedBufferSize)
         {
         }
         #endregion

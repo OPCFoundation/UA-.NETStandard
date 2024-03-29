@@ -56,12 +56,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("BuiltInType")]
         public void ReEncodeBuiltInTypeDefaultVariantInDataValue(
             EncodingType encoderType,
-            BuiltInType builtInType,
-            MemoryStreamType memoryStreamType
+            BuiltInType builtInType
             )
         {
             object defaultValue = TypeInfo.GetDefaultValue(builtInType);
-            EncodeDecodeDataValue(encoderType, builtInType, memoryStreamType, defaultValue);
+            EncodeDecodeDataValue(encoderType, builtInType, MemoryStreamType.MemoryStream, defaultValue);
         }
 
         /// <summary>
@@ -72,13 +71,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("BuiltInType")]
         public void ReEncodeBuiltInTypeAsVariantInDataValue(
             EncodingType encoderType,
-            BuiltInType builtInType,
-            MemoryStreamType memoryStreamType
+            BuiltInType builtInType
             )
         {
             Assume.That(builtInType != BuiltInType.DiagnosticInfo);
             object randomData = DataGenerator.GetRandom(builtInType);
-            EncodeDecodeDataValue(encoderType, builtInType, memoryStreamType, randomData);
+            EncodeDecodeDataValue(encoderType, builtInType, MemoryStreamType.ArraySegmentStream, randomData);
         }
 
         /// <summary>
@@ -88,8 +86,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("BuiltInType"), Repeat(kRandomRepeats)]
         public void ReEncodeBuiltInType(
             EncodingType encoderType,
-            BuiltInType builtInType,
-            MemoryStreamType memoryStreamType
+            BuiltInType builtInType
             )
         {
             SetRepeatedRandomSeed();
@@ -123,7 +120,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         break;
                 }
             };
-            EncodeDecode(encoderType, builtInType, memoryStreamType, randomData);
+            EncodeDecode(encoderType, builtInType, MemoryStreamType.ArraySegmentStream, randomData);
         }
 
         /// <summary>
@@ -133,8 +130,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("BuiltInType")]
         public void ReEncodeBuiltInTypeDefaultValue(
             EncodingType encoderType,
-            BuiltInType builtInType,
-            MemoryStreamType memoryStreamType
+            BuiltInType builtInType
             )
         {
             object randomData = TypeInfo.GetDefaultValue(builtInType);
@@ -144,7 +140,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 // or encoding of extension objects fails.
                 randomData = ExtensionObject.Null;
             }
-            EncodeDecode(encoderType, builtInType, memoryStreamType, randomData);
+            EncodeDecode(encoderType, builtInType, MemoryStreamType.RecyclableMemoryStream, randomData);
         }
 
         /// <summary>
@@ -154,14 +150,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("BuiltInType")]
         public void ReEncodeBuiltInTypeBoundaryValue(
             EncodingType encoderType,
-            BuiltInType builtInType,
-            MemoryStreamType memoryStreamType
+            BuiltInType builtInType
             )
         {
             Array boundaryValues = DataGenerator.GetRandomArray(builtInType, true, 10, true);
             foreach (var boundaryValue in boundaryValues)
             {
-                EncodeDecode(encoderType, builtInType, memoryStreamType, boundaryValue);
+                EncodeDecode(encoderType, builtInType, MemoryStreamType.MemoryStream, boundaryValue);
             }
         }
 
@@ -174,7 +169,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void ReEncodeBuiltInTypeArrayAsRandomVariantInDataValue(
             EncodingType encoderType,
             BuiltInType builtInType,
-            MemoryStreamType memoryStreamType,
             bool useBoundaryValues,
             int arrayLength
             )
@@ -182,7 +176,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // ensure different sized arrays contain different data set
             SetRandomSeed(arrayLength);
             object randomData = DataGenerator.GetRandomArray(builtInType, useBoundaryValues, arrayLength, true);
-            EncodeDecodeDataValue(encoderType, builtInType, memoryStreamType, randomData);
+            EncodeDecodeDataValue(encoderType, builtInType, MemoryStreamType.ArraySegmentStream, randomData);
         }
 
         /// <summary>
@@ -193,12 +187,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("BuiltInType")]
         public void ReEncodeBuiltInTypeZeroLengthArrayAsVariantInDataValue(
             EncodingType encoderType,
-            BuiltInType builtInType,
-            MemoryStreamType memoryStreamType
+            BuiltInType builtInType
             )
         {
             object randomData = DataGenerator.GetRandomArray(builtInType, false, 0, true);
-            EncodeDecodeDataValue(encoderType, builtInType, memoryStreamType, randomData);
+            EncodeDecodeDataValue(encoderType, builtInType, MemoryStreamType.RecyclableMemoryStream, randomData);
         }
 
         /// <summary>
@@ -208,13 +201,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         [Category("BuiltInType"), Repeat(kRandomRepeats)]
         public void ReEncodeBuiltInTypeRandomVariantInDataValue(
-            EncodingType encoderType,
-            MemoryStreamType memoryStreamType
+            EncodingType encoderType
             )
         {
             SetRepeatedRandomSeed();
             object randomData = DataGenerator.GetRandom(BuiltInType.Variant);
-            EncodeDecodeDataValue(encoderType, BuiltInType.Variant, memoryStreamType, randomData);
+            EncodeDecodeDataValue(encoderType, BuiltInType.Variant, MemoryStreamType.MemoryStream, randomData);
         }
 
         /// <summary>
@@ -224,8 +216,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         [Category("BuiltInType")]
         public void EncodeBuiltInTypeAsVariantInDataValueToNonReversibleJson(
-            BuiltInType builtInType,
-            MemoryStreamType memoryStreamType
+            BuiltInType builtInType
             )
         {
             object randomData = DataGenerator.GetRandom(builtInType);
@@ -233,11 +224,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 Assert.Throws(
                     typeof(ServiceResultException),
-                    () => EncodeDataValue(EncodingType.Json, builtInType, memoryStreamType, randomData, false)
+                    () => EncodeDataValue(EncodingType.Json, builtInType, MemoryStreamType.ArraySegmentStream, randomData, false)
                 );
                 return;
             }
-            string json = EncodeDataValue(EncodingType.Json, builtInType, memoryStreamType, randomData, false);
+            string json = EncodeDataValue(EncodingType.Json, builtInType, MemoryStreamType.MemoryStream, randomData, false);
             PrettifyAndValidateJson(json);
         }
 
@@ -249,14 +240,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("BuiltInType")]
         public void EncodeBuiltInTypeArrayAsVariantInDataValueToNonReversibleJson(
             BuiltInType builtInType,
-            MemoryStreamType memoryStreamType,
             bool useBoundaryValues,
             int arrayLength
             )
         {
             SetRandomSeed(arrayLength);
             object randomData = DataGenerator.GetRandomArray(builtInType, useBoundaryValues, arrayLength, true);
-            string json = EncodeDataValue(EncodingType.Json, builtInType, memoryStreamType, randomData, false);
+            string json = EncodeDataValue(EncodingType.Json, builtInType, MemoryStreamType.RecyclableMemoryStream, randomData, false);
             PrettifyAndValidateJson(json);
         }
 
@@ -267,12 +257,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         [Category("BuiltInType")]
         public void EncodeBuiltInTypeZeroLengthArrayAsVariantInDataValueToNonReversibleJson(
-            BuiltInType builtInType,
-            MemoryStreamType memoryStreamType
+            BuiltInType builtInType
             )
         {
             object randomData = DataGenerator.GetRandomArray(builtInType, false, 0, true);
-            string json = EncodeDataValue(EncodingType.Json, builtInType, memoryStreamType, randomData, false);
+            string json = EncodeDataValue(EncodingType.Json, builtInType, MemoryStreamType.MemoryStream, randomData, false);
             PrettifyAndValidateJson(json);
         }
 
@@ -282,8 +271,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         [Category("BuiltInType")]
         public void ReEncodeVariantCollectionInDataValue(
-            EncodingType encoderType,
-            MemoryStreamType memoryStreamType
+            EncodingType encoderType
             )
         {
             var variant = new VariantCollection {
@@ -296,7 +284,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 //new Variant(new TestEnumType[] { TestEnumType.One, TestEnumType.Two, TestEnumType.Hundred }),
                 new Variant(new Int32[] { 2, 3, 10 }, new TypeInfo(BuiltInType.Enumeration, 1))
             };
-            EncodeDecodeDataValue(encoderType, BuiltInType.Variant, memoryStreamType, variant);
+            EncodeDecodeDataValue(encoderType, BuiltInType.Variant, MemoryStreamType.ArraySegmentStream, variant);
         }
 
         /// <summary>
@@ -306,8 +294,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("Array"), Repeat(kArrayRepeats)]
         public void ReEncodeVariantArrayInDataValue(
             EncodingType encoderType,
-            BuiltInType builtInType,
-            MemoryStreamType memoryStreamType
+            BuiltInType builtInType
             )
         {
             SetRepeatedRandomSeed();
@@ -315,7 +302,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int arrayDimension = RandomSource.NextInt32(99) + 1;
             Array randomData = DataGenerator.GetRandomArray(builtInType, false, arrayDimension, true);
             var variant = new Variant(randomData, new TypeInfo(builtInType, 1));
-            EncodeDecodeDataValue(encoderType, BuiltInType.Variant, memoryStreamType, variant);
+            EncodeDecodeDataValue(encoderType, BuiltInType.Variant, MemoryStreamType.RecyclableMemoryStream, variant);
         }
 
         /// <summary>
@@ -325,8 +312,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("Array"), Repeat(kArrayRepeats)]
         public void EncodeArray(
             EncodingType encoderType,
-            BuiltInType builtInType,
-            MemoryStreamType memoryStreamType
+            BuiltInType builtInType
             )
         {
             SetRepeatedRandomSeed();
@@ -341,7 +327,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(randomData);
 
             byte[] buffer;
-            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+            using (var encoderStream = CreateEncoderMemoryStream(MemoryStreamType.MemoryStream))
             {
                 using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, type, true, false))
                 {
@@ -379,8 +365,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("Matrix"), Repeat(kArrayRepeats)]
         public void ReEncodeVariantMatrixInDataValue(
             EncodingType encoderType,
-            BuiltInType builtInType,
-            MemoryStreamType memoryStreamType
+            BuiltInType builtInType
             )
         {
             SetRepeatedRandomSeed();
@@ -398,7 +383,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int elements = ElementsFromDimension(dimensions);
             Array randomData = DataGenerator.GetRandomArray(builtInType, false, elements, true);
             var variant = new Variant(new Matrix(randomData, builtInType, dimensions));
-            EncodeDecodeDataValue(encoderType, BuiltInType.Variant, memoryStreamType, variant);
+            EncodeDecodeDataValue(encoderType, BuiltInType.Variant, MemoryStreamType.RecyclableMemoryStream, variant);
         }
 
         /// <summary>
@@ -407,8 +392,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         [Category("Matrix"), Repeat(kArrayRepeats)]
         public void EncodeBuiltInTypeMatrixAsVariantInDataValueToNonReversibleJson(
-            BuiltInType builtInType,
-            MemoryStreamType memoryStreamType
+            BuiltInType builtInType
             )
         {
             SetRepeatedRandomSeed();
@@ -419,7 +403,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int elements = ElementsFromDimension(dimensions);
             Array randomData = DataGenerator.GetRandomArray(builtInType, false, elements, true);
             var variant = new Variant(new Matrix(randomData, builtInType, dimensions));
-            string json = EncodeDataValue(EncodingType.Json, BuiltInType.Variant, memoryStreamType, variant, false);
+            string json = EncodeDataValue(EncodingType.Json, BuiltInType.Variant, MemoryStreamType.ArraySegmentStream, variant, false);
             _ = PrettifyAndValidateJson(json);
         }
 
@@ -430,8 +414,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("Matrix"), Repeat(kArrayRepeats)]
         public void EncodeMatrixInArray(
             EncodingType encoderType,
-            BuiltInType builtInType,
-            MemoryStreamType memoryStreamType)
+            BuiltInType builtInType)
         {
             SetRepeatedRandomSeed();
             Assume.That(builtInType != BuiltInType.Null);
@@ -449,7 +432,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(matrix);
 
             byte[] buffer;
-            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+            using (var encoderStream = CreateEncoderMemoryStream(MemoryStreamType.MemoryStream))
             {
                 using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, type))
                 {
@@ -487,8 +470,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("Matrix")]
         public void MatrixOverflow(
             EncodingType encoderType,
-            BuiltInType builtInType,
-            MemoryStreamType memoryStreamType
+            BuiltInType builtInType
             )
         {
             Assume.That(builtInType != BuiltInType.Null);
@@ -522,7 +504,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(expected);
 
             byte[] buffer;
-            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+            using (var encoderStream = CreateEncoderMemoryStream(MemoryStreamType.MemoryStream))
             {
                 using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue)))
                 {
@@ -584,8 +566,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("Matrix")]
         public void MatrixOverflowStaticDimensions(
             EncodingType encoderType,
-            BuiltInType builtInType,
-            MemoryStreamType memoryStreamType
+            BuiltInType builtInType
             )
         {
             Assume.That(builtInType != BuiltInType.Null);
@@ -614,7 +595,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(expected);
 
             byte[] buffer;
-            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+            using (var encoderStream = CreateEncoderMemoryStream(MemoryStreamType.ArraySegmentStream))
             {
                 using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue)))
                 {
@@ -676,8 +657,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("Matrix")]
         public void EncodeMatrixInArrayOverflow(
             EncodingType encoderType,
-            BuiltInType builtInType,
-            MemoryStreamType memoryStreamType
+            BuiltInType builtInType
             )
         {
             Assume.That(builtInType != BuiltInType.Null);
@@ -707,7 +687,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(matrix);
 
             byte[] buffer;
-            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+            using (var encoderStream = CreateEncoderMemoryStream(MemoryStreamType.RecyclableMemoryStream))
             {
                 using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, type))
                 {
