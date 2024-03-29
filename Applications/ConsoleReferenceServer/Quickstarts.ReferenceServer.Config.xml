@@ -69,7 +69,6 @@
     <MaxArrayLength>65535</MaxArrayLength>
     <MaxMessageSize>4194304</MaxMessageSize>
     <MaxBufferSize>65535</MaxBufferSize>
-    <MaxChannelCount>1000</MaxChannelCount>
     <ChannelLifetime>30000</ChannelLifetime>
     <SecurityTokenLifetime>3600000</SecurityTokenLifetime>
   </TransportQuotas>
@@ -164,6 +163,7 @@
     <DiagnosticsEnabled>true</DiagnosticsEnabled>
     <!-- Settings for CTT testing -->
     <MaxSessionCount>75</MaxSessionCount>
+    <MaxChannelCount>1000</MaxChannelCount>
     <MinSessionTimeout>10000</MinSessionTimeout>
     <MaxSessionTimeout>3600000</MaxSessionTimeout>
     <MaxBrowseContinuationPoints>10</MaxBrowseContinuationPoints>

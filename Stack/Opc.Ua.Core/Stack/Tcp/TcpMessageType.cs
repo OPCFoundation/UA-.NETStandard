@@ -255,11 +255,6 @@ namespace Opc.Ua.Bindings
         public const int DefaultDiscoveryMaxMessageSize = DefaultMaxBufferSize;
 
         /// <summary>
-        /// How many number of secure channels can there be opened.
-        /// </summary>
-        public const int DefaultMaxChannelCount = 1000;
-
-        /// <summary>
         /// How long a connection will remain in the server after it goes into a faulted state.
         /// </summary>
         public const int DefaultChannelLifetime = 60000;
