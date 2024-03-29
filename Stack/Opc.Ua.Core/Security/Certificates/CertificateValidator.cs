@@ -20,6 +20,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -385,7 +386,7 @@ namespace Opc.Ua
                     if (m_minimumCertificateKeySize != value)
                     {
                         m_minimumCertificateKeySize = value;
-                        ResetValidatedCertificates();
+                        InternalResetValidatedCertificates();
                     }
                 }
                 finally
@@ -411,14 +412,13 @@ namespace Opc.Ua
                     if (m_useValidatedCertificates != value)
                     {
                         m_useValidatedCertificates = value;
-                        ResetValidatedCertificates();
+                        InternalResetValidatedCertificates();
                     }
                 }
                 finally
                 {
                     m_semaphore.Release();
                 }
-
             }
         }
 
@@ -1481,13 +1481,13 @@ namespace Opc.Ua
                 {
                     if (serverValidation)
                     {
-                        Utils.LogError(message, endpointUrl.DnsSafeHost);
+                        Utils.LogError(message, Redact.Create(endpointUrl));
                     }
                     else
                     {
                         // write the invalid certificate to rejected store if specified.
                         Utils.LogCertificate(LogLevel.Error, "Certificate rejected. Reason={0}.",
-                            serverCertificate, serviceResult != null ? serviceResult.ToString() : "Unknown Error");
+                            serverCertificate, Redact.Create(serviceResult));
                         SaveCertificate(serverCertificate);
                     }
 

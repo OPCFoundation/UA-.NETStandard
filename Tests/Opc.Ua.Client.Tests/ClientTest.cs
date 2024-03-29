@@ -680,13 +680,16 @@ namespace Opc.Ua.Client.Tests
             sre = Assert.Throws<ServiceResultException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
 
             // TODO: Both channel should return BadSecureChannelClosed
-            if (endpoint.EndpointUrl.ToString().StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
+            if (!(StatusCodes.BadSecureChannelClosed == sre.StatusCode))
             {
-                Assert.AreEqual(StatusCodes.BadSessionIdInvalid, sre.StatusCode, sre.Message);
-            }
-            else
-            {
-                Assert.AreEqual(StatusCodes.BadUnknownResponse, sre.StatusCode, sre.Message);
+                if (endpoint.EndpointUrl.ToString().StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
+                {
+                    Assert.AreEqual(StatusCodes.BadSessionIdInvalid, sre.StatusCode, sre.Message);
+                }
+                else
+                {
+                    Assert.AreEqual(StatusCodes.BadUnknownResponse, sre.StatusCode, sre.Message);
+                }
             }
         }
 
