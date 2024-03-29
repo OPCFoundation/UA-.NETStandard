@@ -22,14 +22,10 @@
 
   <PropertyGroup>
     <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
-    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>
   </PropertyGroup>
   
-  <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
-    <EnableNETAnalyzers>true</EnableNETAnalyzers>
-  </PropertyGroup>
-
   <PropertyGroup>
     <PackageIcon>images/logo.jpg</PackageIcon>
     <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>

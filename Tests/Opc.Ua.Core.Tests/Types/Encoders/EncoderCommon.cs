@@ -67,7 +67,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected const int kRandomStart = 4840;
         protected const int kRandomRepeats = 100;
         protected const int kMaxArrayLength = 1024 * 64;
-        protected const int kTestBlockSize = 0x1000 - 1;
+        protected const int kTestBlockSize = 0x1000;
         protected const string kApplicationUri = "uri:localhost:opcfoundation.org:EncoderCommon";
         protected RandomSource RandomSource { get; private set; }
         protected DataGenerator DataGenerator { get; private set; }
