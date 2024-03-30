@@ -398,7 +398,6 @@ namespace Opc.Ua
                 return true;
             }
 
-
             if (!(m_stack.Peek() is Dictionary<string, object> context) || !context.TryGetValue(fieldName, out token))
             {
                 return false;
@@ -1129,13 +1128,20 @@ namespace Opc.Ua
         public StatusCode ReadStatusCode(string fieldName)
         {
             object token;
+
             if (!ReadField(fieldName, out token))
             {
                 // the status code was not found
                 return StatusCodes.Good;
             }
 
+            if (token is long code)
+            {
+                return (StatusCode)code;
+            }
+
             bool wasPush = PushStructure(fieldName);
+
             try
             {
                 // try to read the non reversible Code
@@ -1549,7 +1555,29 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(enumType));
             }
 
-            return (Enum)Enum.ToObject(enumType, ReadInt32(fieldName));
+            object token;
+
+            if (!ReadField(fieldName, out token))
+            {
+                return (Enum)Enum.ToObject(enumType, 0);
+            }
+
+            if (token is long code)
+            {
+                return (Enum)Enum.ToObject(enumType, code);
+            }
+
+            if (token is string text)
+            {
+                int index = text.LastIndexOf('_');
+
+                if (index > 0 && long.TryParse(text.Substring(index + 1), out code))
+                {
+                    return (Enum)Enum.ToObject(enumType, code);
+                }
+            }
+
+            return (Enum)Enum.ToObject(enumType, 0);
         }
 
         /// <summary>

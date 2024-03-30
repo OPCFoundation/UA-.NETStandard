@@ -68270,6 +68270,98 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region TestEnumeration Enumeration
+    #if (!OPCUA_EXCLUDE_TestEnumeration)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public enum TestEnumeration
+    {
+        /// <remarks />
+        [EnumMember(Value = "Invalid_0")]
+        Invalid = 0,
+
+        /// <remarks />
+        [EnumMember(Value = "Red_2")]
+        Red = 2,
+
+        /// <remarks />
+        [EnumMember(Value = "Green_4")]
+        Green = 4,
+
+        /// <remarks />
+        [EnumMember(Value = "Blue_6")]
+        Blue = 6,
+    }
+
+    #region TestEnumerationCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfTestEnumeration", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TestEnumeration")]
+    public partial class TestEnumerationCollection : List<TestEnumeration>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public TestEnumerationCollection() {}
+
+        /// <remarks />
+        public TestEnumerationCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public TestEnumerationCollection(IEnumerable<TestEnumeration> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator TestEnumerationCollection(TestEnumeration[] values)
+        {
+            if (values != null)
+            {
+                return new TestEnumerationCollection(values);
+            }
+
+            return new TestEnumerationCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator TestEnumeration[](TestEnumerationCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (TestEnumerationCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TestEnumerationCollection clone = new TestEnumerationCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((TestEnumeration)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
     #region TestScalarStructure Class
     #if (!OPCUA_EXCLUDE_TestScalarStructure)
     /// <remarks />
@@ -68316,6 +68408,8 @@ namespace Opc.Ua
             m_u = null;
             m_v = Variant.Null;
             m_w = null;
+            m_x = new TestConcreteStructure();
+            m_y = TestEnumeration.Invalid;
         }
         #endregion
 
@@ -68503,6 +68597,34 @@ namespace Opc.Ua
             get { return m_w;  }
             set { m_w = value; }
         }
+
+        /// <remarks />
+        [DataMember(Name = "X", IsRequired = false, Order = 24)]
+        public TestConcreteStructure X
+        {
+            get
+            {
+                return m_x;
+            }
+
+            set
+            {
+                m_x = value;
+
+                if (value == null)
+                {
+                    m_x = new TestConcreteStructure();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Y", IsRequired = false, Order = 25)]
+        public TestEnumeration Y
+        {
+            get { return m_y;  }
+            set { m_y = value; }
+        }
         #endregion
 
         #region IEncodeable Members
@@ -68546,6 +68668,8 @@ namespace Opc.Ua
             encoder.WriteXmlElement("U", U);
             encoder.WriteVariant("V", V);
             encoder.WriteExtensionObject("W", W);
+            encoder.WriteEncodeable("X", X, typeof(TestConcreteStructure));
+            encoder.WriteEnumerated("Y", Y);
 
             encoder.PopNamespace();
         }
@@ -68578,6 +68702,8 @@ namespace Opc.Ua
             U = decoder.ReadXmlElement("U");
             V = decoder.ReadVariant("V");
             W = decoder.ReadExtensionObject("W");
+            X = (TestConcreteStructure)decoder.ReadEncodeable("X", typeof(TestConcreteStructure));
+            Y = (TestEnumeration)decoder.ReadEnumerated("Y", typeof(TestEnumeration));
 
             decoder.PopNamespace();
         }
@@ -68620,6 +68746,8 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_u, value.m_u)) return false;
             if (!Utils.IsEqual(m_v, value.m_v)) return false;
             if (!Utils.IsEqual(m_w, value.m_w)) return false;
+            if (!Utils.IsEqual(m_x, value.m_x)) return false;
+            if (!Utils.IsEqual(m_y, value.m_y)) return false;
 
             return true;
         }
@@ -68658,6 +68786,8 @@ namespace Opc.Ua
             clone.m_u = (XmlElement)Utils.Clone(this.m_u);
             clone.m_v = (Variant)Utils.Clone(this.m_v);
             clone.m_w = (ExtensionObject)Utils.Clone(this.m_w);
+            clone.m_x = (TestConcreteStructure)Utils.Clone(this.m_x);
+            clone.m_y = (TestEnumeration)Utils.Clone(this.m_y);
 
             return clone;
         }
@@ -68687,6 +68817,8 @@ namespace Opc.Ua
         private XmlElement m_u;
         private Variant m_v;
         private ExtensionObject m_w;
+        private TestConcreteStructure m_x;
+        private TestEnumeration m_y;
         #endregion
     }
 
@@ -68803,6 +68935,8 @@ namespace Opc.Ua
             m_u = new XmlElementCollection();
             m_v = new VariantCollection();
             m_w = new ExtensionObjectCollection();
+            m_x = new TestConcreteStructureCollection();
+            m_y = new TestEnumerationCollection();
         }
         #endregion
 
@@ -69254,6 +69388,46 @@ namespace Opc.Ua
             get { return m_w;  }
             set { m_w = value; }
         }
+
+        /// <remarks />
+        [DataMember(Name = "X", IsRequired = false, Order = 24)]
+        public TestConcreteStructureCollection X
+        {
+            get
+            {
+                return m_x;
+            }
+
+            set
+            {
+                m_x = value;
+
+                if (value == null)
+                {
+                    m_x = new TestConcreteStructureCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Y", IsRequired = false, Order = 25)]
+        public TestEnumerationCollection Y
+        {
+            get
+            {
+                return m_y;
+            }
+
+            set
+            {
+                m_y = value;
+
+                if (value == null)
+                {
+                    m_y = new TestEnumerationCollection();
+                }
+            }
+        }
         #endregion
 
         #region IEncodeable Members
@@ -69297,6 +69471,8 @@ namespace Opc.Ua
             encoder.WriteXmlElementArray("U", U);
             encoder.WriteVariantArray("V", V);
             encoder.WriteExtensionObjectArray("W", W);
+            encoder.WriteEncodeableArray("X", X.ToArray(), typeof(TestConcreteStructure));
+            encoder.WriteEnumeratedArray("Y", Y.ToArray(), typeof(TestEnumeration));
 
             encoder.PopNamespace();
         }
@@ -69329,6 +69505,8 @@ namespace Opc.Ua
             U = decoder.ReadXmlElementArray("U");
             V = decoder.ReadVariantArray("V");
             W = decoder.ReadExtensionObjectArray("W");
+            X = (TestConcreteStructureCollection)decoder.ReadEncodeableArray("X", typeof(TestConcreteStructure));
+            Y = (TestEnumerationCollection)decoder.ReadEnumeratedArray("Y", typeof(TestEnumeration));
 
             decoder.PopNamespace();
         }
@@ -69371,6 +69549,8 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_u, value.m_u)) return false;
             if (!Utils.IsEqual(m_v, value.m_v)) return false;
             if (!Utils.IsEqual(m_w, value.m_w)) return false;
+            if (!Utils.IsEqual(m_x, value.m_x)) return false;
+            if (!Utils.IsEqual(m_y, value.m_y)) return false;
 
             return true;
         }
@@ -69409,6 +69589,8 @@ namespace Opc.Ua
             clone.m_u = (XmlElementCollection)Utils.Clone(this.m_u);
             clone.m_v = (VariantCollection)Utils.Clone(this.m_v);
             clone.m_w = (ExtensionObjectCollection)Utils.Clone(this.m_w);
+            clone.m_x = (TestConcreteStructureCollection)Utils.Clone(this.m_x);
+            clone.m_y = (TestEnumerationCollection)Utils.Clone(this.m_y);
 
             return clone;
         }
@@ -69438,6 +69620,8 @@ namespace Opc.Ua
         private XmlElementCollection m_u;
         private VariantCollection m_v;
         private ExtensionObjectCollection m_w;
+        private TestConcreteStructureCollection m_x;
+        private TestEnumerationCollection m_y;
         #endregion
     }
 

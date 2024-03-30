@@ -3249,6 +3249,13 @@
     <opc:Field Name="F" TypeName="opc:String" />
   </opc:StructuredType>
 
+  <opc:EnumeratedType Name="TestEnumeration" LengthInBits="32">
+    <opc:EnumeratedValue Name="Invalid" Value="0" />
+    <opc:EnumeratedValue Name="Red" Value="2" />
+    <opc:EnumeratedValue Name="Green" Value="4" />
+    <opc:EnumeratedValue Name="Blue" Value="6" />
+  </opc:EnumeratedType>
+
   <opc:StructuredType Name="TestScalarStructure" BaseType="ua:ExtensionObject">
     <opc:Field Name="A" TypeName="opc:Boolean" />
     <opc:Field Name="B" TypeName="opc:SByte" />
@@ -3273,6 +3280,8 @@
     <opc:Field Name="U" TypeName="ua:XmlElement" />
     <opc:Field Name="V" TypeName="ua:Variant" />
     <opc:Field Name="W" TypeName="ua:ExtensionObject" />
+    <opc:Field Name="X" TypeName="tns:TestConcreteStructure" />
+    <opc:Field Name="Y" TypeName="tns:TestEnumeration" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="TestArrayStructure" BaseType="ua:ExtensionObject">
@@ -3322,6 +3331,10 @@
     <opc:Field Name="V" TypeName="ua:Variant" LengthField="NoOfV" />
     <opc:Field Name="NoOfW" TypeName="opc:Int32" />
     <opc:Field Name="W" TypeName="ua:ExtensionObject" LengthField="NoOfW" />
+    <opc:Field Name="NoOfX" TypeName="opc:Int32" />
+    <opc:Field Name="X" TypeName="tns:TestConcreteStructure" LengthField="NoOfX" />
+    <opc:Field Name="NoOfY" TypeName="opc:Int32" />
+    <opc:Field Name="Y" TypeName="tns:TestEnumeration" LengthField="NoOfY" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="TestStructure" BaseType="ua:ExtensionObject">

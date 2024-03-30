@@ -325,7 +325,7 @@ namespace Opc.Ua
         /// <summary>
         /// Binary Encoder always produces reversible encoding.
         /// </summary>
-        public bool UseReversibleEncoding => true;
+        public bool UseCompactEncoding => true;
 
         /// <summary>
         /// Pushes a namespace onto the namespace stack.

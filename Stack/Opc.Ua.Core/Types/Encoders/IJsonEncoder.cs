@@ -51,6 +51,6 @@ namespace Opc.Ua
         /// Call an IEncoder action where the reversible encoding is applied
         /// before the call to the Action and restored before return.
         /// </summary>
-        void UsingReversibleEncoding<T>(Action<string, T> action, string fieldName, T value, bool useReversibleEncoding);
+        void UsingCompactEncoding<T>(Action<string, T> action, string fieldName, T value, bool useCompactEncoding);
     }
 }

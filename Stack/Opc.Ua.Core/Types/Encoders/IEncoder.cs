@@ -29,7 +29,7 @@ namespace Opc.Ua
         /// <summary>
         /// Selects the reversible encoding type.
         /// </summary>
-        bool UseReversibleEncoding { get; }
+        bool UseCompactEncoding { get; }
 
         /// <summary>
         /// The message context associated with the encoder.

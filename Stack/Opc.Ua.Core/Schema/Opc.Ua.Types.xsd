@@ -5971,6 +5971,23 @@
   </xs:complexType>
   <xs:element name="ListOfTestConcreteStructure" type="tns:ListOfTestConcreteStructure" nillable="true"></xs:element>
 
+  <xs:simpleType  name="TestEnumeration">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Invalid_0" />
+      <xs:enumeration value="Red_2" />
+      <xs:enumeration value="Green_4" />
+      <xs:enumeration value="Blue_6" />
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="TestEnumeration" type="tns:TestEnumeration" />
+
+  <xs:complexType name="ListOfTestEnumeration">
+    <xs:sequence>
+      <xs:element name="TestEnumeration" type="tns:TestEnumeration" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfTestEnumeration" type="tns:ListOfTestEnumeration" nillable="true"></xs:element>
+
   <xs:complexType name="TestScalarStructure">
     <xs:sequence>
       <xs:element name="A" type="xs:boolean" minOccurs="0" />
@@ -6002,6 +6019,8 @@
       </xs:element>
       <xs:element name="V" type="ua:Variant" minOccurs="0" />
       <xs:element name="W" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
+      <xs:element name="X" type="tns:TestConcreteStructure" minOccurs="0" nillable="true" />
+      <xs:element name="Y" type="tns:TestEnumeration" minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
   <xs:element name="TestScalarStructure" type="tns:TestScalarStructure" />
@@ -6038,6 +6057,8 @@
       <xs:element name="U" type="ua:ListOfXmlElement" minOccurs="0" nillable="true" />
       <xs:element name="V" type="ua:ListOfVariant" minOccurs="0" nillable="true" />
       <xs:element name="W" type="ua:ListOfExtensionObject" minOccurs="0" nillable="true" />
+      <xs:element name="X" type="tns:ListOfTestConcreteStructure" minOccurs="0" nillable="true" />
+      <xs:element name="Y" type="tns:ListOfTestEnumeration" minOccurs="0" nillable="true" />
     </xs:sequence>
   </xs:complexType>
   <xs:element name="TestArrayStructure" type="tns:TestArrayStructure" />

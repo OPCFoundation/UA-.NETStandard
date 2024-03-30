@@ -67,11 +67,11 @@ namespace Opc.Ua
         /// 
         /// </summary>
         /// <param name="context"></param>
-        /// <param name="useReversibleEncoding"></param>
+        /// <param name="useCompactEncoding"></param>
         public JsonEncoder(
             IServiceMessageContext context,
-            bool useReversibleEncoding) :
-            this(context, useReversibleEncoding, false, null, false)
+            bool useCompactEncoding) :
+            this(context, useCompactEncoding, false, null, false)
         {
         }
 
@@ -80,7 +80,7 @@ namespace Opc.Ua
         /// </summary>
         public JsonEncoder(
             IServiceMessageContext context,
-            bool useReversibleEncoding,
+            bool useCompactEncoding,
             bool topLevelIsArray = false,
             Stream stream = null,
             bool leaveOpen = false,
@@ -92,7 +92,7 @@ namespace Opc.Ua
             m_context = context;
             m_stream = stream;
             m_leaveOpen = leaveOpen;
-            UseReversibleEncoding = useReversibleEncoding;
+            UseCompactEncoding = useCompactEncoding;
             m_topLevelIsArray = topLevelIsArray;
 
             if (m_stream == null)
@@ -114,15 +114,19 @@ namespace Opc.Ua
         /// </summary>
         public JsonEncoder(
             IServiceMessageContext context,
-            bool useReversibleEncoding,
+            bool useCompactEncoding,
             StreamWriter writer,
             bool topLevelIsArray = false)
         {
             Initialize();
 
+            ForceNamespaceUri = false;
+            IncludeDefaultValues = false;
+            IncludeDefaultNumberValues = true;
+
             m_context = context;
             m_writer = writer;
-            UseReversibleEncoding = useReversibleEncoding;
+            UseCompactEncoding = useCompactEncoding;
             m_topLevelIsArray = topLevelIsArray;
 
             if (m_writer == null)
@@ -440,17 +444,17 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void UsingReversibleEncoding<T>(Action<string, T> action, string fieldName, T value, bool useReversibleEncoding)
+        public void UsingCompactEncoding<T>(Action<string, T> action, string fieldName, T value, bool useCompactEncoding)
         {
-            bool currentValue = UseReversibleEncoding;
+            bool currentValue = UseCompactEncoding;
             try
             {
-                UseReversibleEncoding = useReversibleEncoding;
+                UseCompactEncoding = useCompactEncoding;
                 action(fieldName, value);
             }
             finally
             {
-                UseReversibleEncoding = currentValue;
+                UseCompactEncoding = currentValue;
             }
         }
         #endregion
@@ -469,7 +473,7 @@ namespace Opc.Ua
         /// <summary>
         /// The Json encoder reversible encoding option
         /// </summary>
-        public bool UseReversibleEncoding { get; private set; }
+        public bool UseCompactEncoding { get; private set; }
 
         /// <summary>
         /// The Json encoder uses string NodeIds.
@@ -1025,78 +1029,78 @@ namespace Opc.Ua
             WriteSimpleField(fieldName, Convert.ToBase64String(bytes), EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
         }
 
-        private void WriteNamespaceIndex(string fieldName, ushort namespaceIndex)
-        {
-            if (namespaceIndex == 0)
-            {
-                return;
-            }
+        //private void WriteNamespaceIndex(string fieldName, ushort namespaceIndex)
+        //{
+        //    if (namespaceIndex == 0)
+        //    {
+        //        return;
+        //    }
 
-            if ((!UseReversibleEncoding || ForceNamespaceUri) && namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
+        //    if ((!UseCompactEncoding || ForceNamespaceUri) && namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
 
-            {
-                var uri = m_context.NamespaceUris.GetString(namespaceIndex);
-                if (!string.IsNullOrEmpty(uri))
-                {
-                    WriteSimpleField(fieldName, uri, EscapeOptions.Quotes);
-                    return;
-                }
-            }
+        //    {
+        //        var uri = m_context.NamespaceUris.GetString(namespaceIndex);
+        //        if (!string.IsNullOrEmpty(uri))
+        //        {
+        //            WriteSimpleField(fieldName, uri, EscapeOptions.Quotes);
+        //            return;
+        //        }
+        //    }
 
-            if (m_namespaceMappings != null && m_namespaceMappings.Length > namespaceIndex)
-            {
-                namespaceIndex = m_namespaceMappings[namespaceIndex];
-            }
+        //    if (m_namespaceMappings != null && m_namespaceMappings.Length > namespaceIndex)
+        //    {
+        //        namespaceIndex = m_namespaceMappings[namespaceIndex];
+        //    }
 
-            if (namespaceIndex != 0)
-            {
-                WriteUInt16(fieldName, namespaceIndex);
-            }
-        }
+        //    if (namespaceIndex != 0)
+        //    {
+        //        WriteUInt16(fieldName, namespaceIndex);
+        //    }
+        //}
 
-        private void WriteNodeIdContents(NodeId value, string namespaceUri = null)
-        {
-            if (value.IdType > IdType.Numeric)
-            {
-                WriteInt32("IdType", (int)value.IdType);
-            }
+        //private void WriteNodeIdContents(NodeId value, string namespaceUri = null)
+        //{
+        //    if (value.IdType > IdType.Numeric)
+        //    {
+        //        WriteInt32("IdType", (int)value.IdType);
+        //    }
 
-            switch (value.IdType)
-            {
-                case IdType.Numeric:
-                {
-                    WriteUInt32("Id", (uint)value.Identifier);
-                    break;
-                }
+        //    switch (value.IdType)
+        //    {
+        //        case IdType.Numeric:
+        //        {
+        //            WriteUInt32("Id", (uint)value.Identifier);
+        //            break;
+        //        }
 
-                case IdType.String:
-                {
-                    WriteString("Id", (string)value.Identifier);
-                    break;
-                }
+        //        case IdType.String:
+        //        {
+        //            WriteString("Id", (string)value.Identifier);
+        //            break;
+        //        }
 
-                case IdType.Guid:
-                {
-                    WriteGuid("Id", (Guid)value.Identifier);
-                    break;
-                }
+        //        case IdType.Guid:
+        //        {
+        //            WriteGuid("Id", (Guid)value.Identifier);
+        //            break;
+        //        }
 
-                case IdType.Opaque:
-                {
-                    WriteByteString("Id", (byte[])value.Identifier);
-                    break;
-                }
-            }
+        //        case IdType.Opaque:
+        //        {
+        //            WriteByteString("Id", (byte[])value.Identifier);
+        //            break;
+        //        }
+        //    }
 
-            if (namespaceUri != null)
-            {
-                WriteString("Namespace", namespaceUri);
-            }
-            else
-            {
-                WriteNamespaceIndex("Namespace", value.NamespaceIndex);
-            }
-        }
+        //    if (namespaceUri != null)
+        //    {
+        //        WriteString("Namespace", namespaceUri);
+        //    }
+        //    else
+        //    {
+        //        WriteNamespaceIndex("Namespace", value.NamespaceIndex);
+        //    }
+        //}
 
 
         /// <summary>
@@ -1104,32 +1108,28 @@ namespace Opc.Ua
         /// </summary>
         public void WriteNodeId(string fieldName, NodeId value)
         {
-            if (value == null ||
-                (NodeId.IsNull(value) && (value.IdType == IdType.Numeric)))
+            if (value == null || (NodeId.IsNull(value) && (value.IdType == IdType.Numeric)))
             {
                 WriteSimpleFieldNull(fieldName);
                 return;
             }
 
-            if (UseStringNodeIds || !UseReversibleEncoding)
-            {
-                WriteSimpleField(fieldName, value.Format(m_context, ForceNamespaceUri), EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
-                return;
-            }
+            WriteSimpleField(fieldName, value.Format(m_context, UseStringNodeIds), EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
 
-            PushStructure(fieldName);
+            //PushStructure(fieldName);
 
-            ushort namespaceIndex = value.NamespaceIndex;
-            if (ForceNamespaceUri && namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
-            {
-                string namespaceUri = Context.NamespaceUris.GetString(namespaceIndex);
-                WriteNodeIdContents(value, namespaceUri);
-            }
-            else
-            {
-                WriteNodeIdContents(value);
-            }
-            PopStructure();
+            //ushort namespaceIndex = value.NamespaceIndex;
+            //if (ForceNamespaceUri && namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
+            //{
+            //    string namespaceUri = Context.NamespaceUris.GetString(namespaceIndex);
+            //    WriteNodeIdContents(value, namespaceUri);
+            //}
+            //else
+            //{
+            //    WriteNodeIdContents(value);
+            //}
+
+            //PopStructure();
         }
 
         /// <summary>
@@ -1137,54 +1137,56 @@ namespace Opc.Ua
         /// </summary>
         public void WriteExpandedNodeId(string fieldName, ExpandedNodeId value)
         {
-            if (value == null || value.InnerNodeId == null || (!UseReversibleEncoding && NodeId.IsNull(value)))
+            if (value == null || value.InnerNodeId == null || (!UseCompactEncoding && NodeId.IsNull(value)))
             {
                 WriteSimpleFieldNull(fieldName);
                 return;
             }
 
-            if (UseStringNodeIds || !UseReversibleEncoding)
-            {
-                WriteSimpleField(fieldName, value.Format(m_context, ForceNamespaceUri), EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
-                return;
-            }
+            WriteSimpleField(fieldName, value.Format(m_context, UseStringNodeIds), EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
 
-            PushStructure(fieldName);
+            //if (UseStringNodeIds || !UseCompactEncoding)
+            //{
+            //    WriteSimpleField(fieldName, value.Format(m_context, ForceNamespaceUri), EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
+            //    return;
+            //}
 
-            string namespaceUri = value.NamespaceUri;
-            ushort namespaceIndex = value.InnerNodeId.NamespaceIndex;
-            if (ForceNamespaceUri && namespaceUri == null && namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
-            {
-                namespaceUri = Context.NamespaceUris.GetString(namespaceIndex);
-            }
+            //PushStructure(fieldName);
 
-            WriteNodeIdContents(value.InnerNodeId, namespaceUri);
+            //string namespaceUri = value.NamespaceUri;
+            //ushort namespaceIndex = value.InnerNodeId.NamespaceIndex;
+            //if (ForceNamespaceUri && namespaceUri == null && namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
+            //{
+            //    namespaceUri = Context.NamespaceUris.GetString(namespaceIndex);
+            //}
 
-            uint serverIndex = value.ServerIndex;
+            //WriteNodeIdContents(value.InnerNodeId, namespaceUri);
 
-            if (serverIndex >= 1)
-            {
-                var uri = m_context.ServerUris.GetString(serverIndex);
+            //uint serverIndex = value.ServerIndex;
 
-                if (!string.IsNullOrEmpty(uri))
-                {
-                    WriteSimpleField("ServerUri", uri, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
-                    PopStructure();
-                    return;
-                }
+            //if (serverIndex >= 1)
+            //{
+            //    var uri = m_context.ServerUris.GetString(serverIndex);
 
-                if (m_serverMappings != null && m_serverMappings.Length > serverIndex)
-                {
-                    serverIndex = m_serverMappings[serverIndex];
-                }
+            //    if (!string.IsNullOrEmpty(uri))
+            //    {
+            //        WriteSimpleField("ServerUri", uri, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
+            //        PopStructure();
+            //        return;
+            //    }
 
-                if (serverIndex != 0)
-                {
-                    WriteUInt32("ServerUri", serverIndex);
-                }
-            }
+            //    if (m_serverMappings != null && m_serverMappings.Length > serverIndex)
+            //    {
+            //        serverIndex = m_serverMappings[serverIndex];
+            //    }
 
-            PopStructure();
+            //    if (serverIndex != 0)
+            //    {
+            //        WriteUInt32("ServerUri", serverIndex);
+            //    }
+            //}
+
+            //PopStructure();
         }
 
 
@@ -1199,7 +1201,7 @@ namespace Opc.Ua
                 return;
             }
 
-            if (UseReversibleEncoding)
+            if (UseCompactEncoding)
             {
                 WriteUInt32(fieldName, value.Code);
                 return;
@@ -1233,19 +1235,21 @@ namespace Opc.Ua
                 return;
             }
 
-            if (UseStringNodeIds || !UseReversibleEncoding)
-            {
-                WriteSimpleField(fieldName, value.Format(m_context, ForceNamespaceUri), EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
-                return;
-            }
+            WriteSimpleField(fieldName, value.Format(m_context, UseStringNodeIds), EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
+   
+            //if (UseStringNodeIds || !UseCompactEncoding)
+            //{
+            //    WriteSimpleField(fieldName, value.Format(m_context, ForceNamespaceUri), EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
+            //    return;
+            //}
 
-            PushStructure(fieldName);
+            //PushStructure(fieldName);
 
-            WriteString("Name", value.Name);
+            //WriteString("Name", value.Name);
 
-            WriteNamespaceIndex("Uri", value.NamespaceIndex);
+            //WriteNamespaceIndex("Uri", value.NamespaceIndex);
 
-            PopStructure();
+            //PopStructure();
         }
 
         /// <summary>
@@ -1259,8 +1263,8 @@ namespace Opc.Ua
                 return;
             }
 
-            if (UseReversibleEncoding)
-            {
+            //if (UseCompactEncoding)
+            //{
                 PushStructure(fieldName);
 
                 WriteSimpleField("Text", value.Text, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
@@ -1271,11 +1275,11 @@ namespace Opc.Ua
                 }
 
                 PopStructure();
-            }
-            else
-            {
-                WriteSimpleField(fieldName, value.Text, EscapeOptions.Quotes);
-            }
+            //}
+            //else
+            //{
+            //    WriteSimpleField(fieldName, value.Text, EscapeOptions.Quotes);
+            //}
         }
 
         /// <summary>
@@ -1296,7 +1300,7 @@ namespace Opc.Ua
 
                 bool isNull = (value.TypeInfo == null || value.TypeInfo.BuiltInType == BuiltInType.Null || value.Value == null);
 
-                if (UseReversibleEncoding && !isNull)
+                if (!isNull)
                 {
                     PushStructure(fieldName);
                     // encode enums as int32.
@@ -1324,7 +1328,7 @@ namespace Opc.Ua
 
                 WriteVariantContents(value.Value, value.TypeInfo);
 
-                if (UseReversibleEncoding && !isNull)
+                if (!isNull)
                 {
                     if (value.Value is Matrix matrix)
                     {
@@ -1402,21 +1406,21 @@ namespace Opc.Ua
 
             var encodeable = value.Body as IEncodeable;
 
-            if (!UseReversibleEncoding && encodeable != null)
-            {
-                // non reversible encoding, only the content of the Body field is encoded
-                if (value.Body is IStructureTypeInfo structureType &&
-                    structureType.StructureType == StructureType.Union)
-                {
-                    encodeable.Encode(this);
-                    return;
-                }
+            //if (encodeable != null)
+            //{
+            //    // non reversible encoding, only the content of the Body field is encoded
+            //    if (value.Body is IStructureTypeInfo structureType &&
+            //        structureType.StructureType == StructureType.Union)
+            //    {
+            //        encodeable.Encode(this);
+            //        return;
+            //    }
 
-                PushStructure(fieldName);
-                encodeable.Encode(this);
-                PopStructure();
-                return;
-            }
+            //    PushStructure(fieldName);
+            //    encodeable.Encode(this);
+            //    PopStructure();
+            //    return;
+            //}
 
             PushStructure(fieldName);
 
@@ -1433,15 +1437,16 @@ namespace Opc.Ua
             }
 
             var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
+            WriteNodeId("TypeId", localTypeId);
 
-            if (UseReversibleEncoding)
-            {
-                WriteNodeId("TypeId", localTypeId);
-            }
-            else
-            {
-                WriteExpandedNodeId("TypeId", typeId);
-            }
+            //if (UseCompactEncoding)
+            //{
+            //    WriteNodeId("TypeId", localTypeId);
+            //}
+            //else
+            //{
+            //    WriteExpandedNodeId("TypeId", typeId);
+            //}
 
             if (encodeable != null)
             {
@@ -1530,7 +1535,7 @@ namespace Opc.Ua
         {
             int numeric = Convert.ToInt32(value, CultureInfo.InvariantCulture);
             var numericString = numeric.ToString(CultureInfo.InvariantCulture);
-            if (UseReversibleEncoding)
+            if (UseCompactEncoding)
             {
                 WriteSimpleField(fieldName, numericString);
             }
@@ -1554,7 +1559,7 @@ namespace Opc.Ua
         public void WriteEnumerated(string fieldName, int numeric)
         {
             var numericString = numeric.ToString(CultureInfo.InvariantCulture);
-            WriteSimpleField(fieldName, numericString, !UseReversibleEncoding ? EscapeOptions.Quotes : EscapeOptions.None);
+            WriteSimpleField(fieldName, numericString, !UseCompactEncoding ? EscapeOptions.Quotes : EscapeOptions.None);
         }
 
         /// <summary>
@@ -2098,7 +2103,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                if (!UseReversibleEncoding &&
+                if (!UseCompactEncoding &&
                     values[ii] == StatusCodes.Good)
                 {
                     WriteSimpleFieldNull(null);
@@ -2390,7 +2395,7 @@ namespace Opc.Ua
         {
             try
             {
-                m_inVariantWithEncoding = UseReversibleEncoding;
+                m_inVariantWithEncoding = UseCompactEncoding;
 
                 // check for null.
                 if (value == null)
@@ -2436,7 +2441,7 @@ namespace Opc.Ua
                 else if (typeInfo.ValueRank >= ValueRanks.OneDimension)
                 {
                     int valueRank = typeInfo.ValueRank;
-                    if (UseReversibleEncoding && value is Matrix matrix)
+                    if (UseCompactEncoding && value is Matrix matrix)
                     {
                         // linearize the matrix
                         value = matrix.Elements;

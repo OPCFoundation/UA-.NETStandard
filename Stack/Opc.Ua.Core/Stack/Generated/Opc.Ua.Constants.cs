@@ -1387,6 +1387,9 @@ namespace Opc.Ua
         public const uint TestConcreteStructure = 15400;
 
         /// <remarks />
+        public const uint TestEnumeration = 15432;
+
+        /// <remarks />
         public const uint TestScalarStructure = 15015;
 
         /// <remarks />
@@ -23060,6 +23063,9 @@ namespace Opc.Ua
         public const uint ExceptionDeviationFormat_EnumStrings = 7614;
 
         /// <remarks />
+        public const uint TestEnumeration_EnumValues = 15433;
+
+        /// <remarks />
         public const uint OpcUa_BinarySchema = 7617;
 
         /// <remarks />
@@ -25588,6 +25594,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId TestConcreteStructure = new NodeId(Opc.Ua.DataTypes.TestConcreteStructure);
+
+        /// <remarks />
+        public static readonly NodeId TestEnumeration = new NodeId(Opc.Ua.DataTypes.TestEnumeration);
 
         /// <remarks />
         public static readonly NodeId TestScalarStructure = new NodeId(Opc.Ua.DataTypes.TestScalarStructure);
@@ -47263,6 +47272,9 @@ namespace Opc.Ua
         public static readonly NodeId ExceptionDeviationFormat_EnumStrings = new NodeId(Opc.Ua.Variables.ExceptionDeviationFormat_EnumStrings);
 
         /// <remarks />
+        public static readonly NodeId TestEnumeration_EnumValues = new NodeId(Opc.Ua.Variables.TestEnumeration_EnumValues);
+
+        /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema);
 
         /// <remarks />
@@ -53219,6 +53231,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string TestConcreteStructure = "TestConcreteStructure";
+
+        /// <remarks />
+        public const string TestEnumeration = "TestEnumeration";
 
         /// <remarks />
         public const string TestingConditionClassType = "TestingConditionClassType";
