@@ -86,6 +86,11 @@ namespace Opc.Ua
                 {
                     instanceCertificate = m_securityConfiguration.ApplicationCertificates.FirstOrDefault();
                 }
+                if (instanceCertificate == null &&
+                    certType == ObjectTypeIds.HttpsCertificateType)
+                {
+                    instanceCertificate = m_securityConfiguration.ApplicationCertificates.FirstOrDefault();
+                }
                 if (instanceCertificate != null)
                 {
                     return instanceCertificate.Certificate;

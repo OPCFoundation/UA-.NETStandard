@@ -313,10 +313,20 @@ namespace Opc.Ua
                 throw new NotSupportedException("Need a certificate with a private key.");
             }
 
-            RSA rsaPublicKey = certificate.GetRSAPublicKey();
-            var request = new CertificateRequest(certificate.SubjectName, rsaPublicKey,
-                Oids.GetHashAlgorithmName(certificate.SignatureAlgorithm.Value), RSASignaturePadding.Pkcs1);
+            CertificateRequest request = null;
+            bool isECDsaSignature = X509PfxUtils.IsECDsaSignature(certificate);
 
+            if (!isECDsaSignature)
+            {
+                RSA rsaPublicKey = certificate.GetRSAPublicKey();
+                request = new CertificateRequest(certificate.SubjectName, rsaPublicKey,
+                    Oids.GetHashAlgorithmName(certificate.SignatureAlgorithm.Value), RSASignaturePadding.Pkcs1);
+            }
+            else
+            {
+                var eCDsaPublicKey = certificate.GetECDsaPublicKey();
+                request = new CertificateRequest(certificate.SubjectName, eCDsaPublicKey, Oids.GetHashAlgorithmName(certificate.SignatureAlgorithm.Value));
+            }
             var alternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
             domainNames = domainNames ?? new List<String>();
             if (alternateName != null)
@@ -342,11 +352,21 @@ namespace Opc.Ua
             // Subject Alternative Name
             var subjectAltName = new X509SubjectAltNameExtension(applicationUri, domainNames);
             request.CertificateExtensions.Add(new X509Extension(subjectAltName, false));
-
-            using (RSA rsa = certificate.GetRSAPrivateKey())
+            if (!isECDsaSignature)
             {
-                var x509SignatureGenerator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
-                return request.CreateSigningRequest(x509SignatureGenerator);
+                using (RSA rsa = certificate.GetRSAPrivateKey())
+                {
+                    var x509SignatureGenerator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
+                    return request.CreateSigningRequest(x509SignatureGenerator);
+                }
+            }
+            else
+            {
+                using (ECDsa key = certificate.GetECDsaPrivateKey())
+                {
+                    var x509SignatureGenerator = X509SignatureGenerator.CreateForECDsa(key);
+                    return request.CreateSigningRequest(x509SignatureGenerator);
+                }
             }
         }
 
@@ -483,18 +503,18 @@ namespace Opc.Ua
         /// <returns>The certificate with a private key.</returns>
         [Obsolete("Use the new CreateCertificate methods with CertificateBuilder.")]
         internal static X509Certificate2 CreateCertificate(
-            string applicationUri,
-            string applicationName,
-            string subjectName,
-            IList<String> domainNames,
-            ushort keySize,
-            DateTime startTime,
-            ushort lifetimeInMonths,
-            ushort hashSizeInBits,
-            bool isCA = false,
-            X509Certificate2 issuerCAKeyCert = null,
-            byte[] publicKey = null,
-            int pathLengthConstraint = 0)
+        string applicationUri,
+        string applicationName,
+        string subjectName,
+        IList<String> domainNames,
+        ushort keySize,
+        DateTime startTime,
+        ushort lifetimeInMonths,
+        ushort hashSizeInBits,
+        bool isCA = false,
+        X509Certificate2 issuerCAKeyCert = null,
+        byte[] publicKey = null,
+        int pathLengthConstraint = 0)
         {
             ICertificateBuilder builder = null;
             if (isCA)
