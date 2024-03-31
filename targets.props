@@ -30,6 +30,7 @@
         <AppTargetFramework>net462</AppTargetFramework>
         <TestsTargetFrameworks>net462</TestsTargetFrameworks>
         <LibTargetFrameworks>net462</LibTargetFrameworks>
+        <LibCoreTargetFrameworks>net462</LibCoreTargetFrameworks>
         <LibxTargetFrameworks>net462</LibxTargetFrameworks>
         <HttpsTargetFrameworks>net462</HttpsTargetFrameworks>
       </PropertyGroup>
@@ -41,6 +42,7 @@
         <AppTargetFramework>net472</AppTargetFramework>
         <TestsTargetFrameworks>net472</TestsTargetFrameworks>
         <LibTargetFrameworks>net472</LibTargetFrameworks>
+        <LibCoreTargetFrameworks>net472</LibCoreTargetFrameworks>
         <LibxTargetFrameworks>net472</LibxTargetFrameworks>
         <HttpsTargetFrameworks>net472</HttpsTargetFrameworks>
       </PropertyGroup>
@@ -53,6 +55,7 @@
         <AppTargetFramework>net6.0</AppTargetFramework>
         <TestsTargetFrameworks>net6.0</TestsTargetFrameworks>
         <LibTargetFrameworks>netstandard2.0</LibTargetFrameworks>
+        <LibCoreTargetFrameworks>netstandard2.0</LibCoreTargetFrameworks>
         <LibxTargetFrameworks>netstandard2.1</LibxTargetFrameworks>
         <HttpsTargetFrameworks>netstandard2.0</HttpsTargetFrameworks>
       </PropertyGroup>
@@ -64,6 +67,7 @@
         <AppTargetFramework>net6.0</AppTargetFramework>
         <TestsTargetFrameworks>net6.0</TestsTargetFrameworks>
         <LibTargetFrameworks>netstandard2.1</LibTargetFrameworks>
+        <LibCoreTargetFrameworks>netstandard2.1</LibCoreTargetFrameworks>
         <LibxTargetFrameworks>netstandard2.1</LibxTargetFrameworks>
         <HttpsTargetFrameworks>netstandard2.1</HttpsTargetFrameworks>
       </PropertyGroup>
@@ -75,6 +79,7 @@
         <AppTargetFramework>net48</AppTargetFramework>
         <TestsTargetFrameworks>net48</TestsTargetFrameworks>
         <LibTargetFrameworks>net48</LibTargetFrameworks>
+        <LibCoreTargetFrameworks>net48</LibCoreTargetFrameworks>
         <LibxTargetFrameworks>net48</LibxTargetFrameworks>
         <HttpsTargetFrameworks>net48</HttpsTargetFrameworks>
       </PropertyGroup>
@@ -86,6 +91,7 @@
         <AppTargetFramework>net6.0</AppTargetFramework>
         <TestsTargetFrameworks>net6.0</TestsTargetFrameworks>
         <LibTargetFrameworks>net6.0</LibTargetFrameworks>
+        <LibCoreTargetFrameworks>net6.0</LibCoreTargetFrameworks>
         <LibxTargetFrameworks>net6.0</LibxTargetFrameworks>
         <HttpsTargetFrameworks>net6.0</HttpsTargetFrameworks>
       </PropertyGroup>
@@ -97,6 +103,7 @@
         <AppTargetFramework>net8.0</AppTargetFramework>
         <TestsTargetFrameworks>net8.0</TestsTargetFrameworks>
         <LibTargetFrameworks>net8.0</LibTargetFrameworks>
+        <LibCoreTargetFrameworks>net8.0</LibCoreTargetFrameworks>
         <LibxTargetFrameworks>net8.0</LibxTargetFrameworks>
         <HttpsTargetFrameworks>net8.0</HttpsTargetFrameworks>
       </PropertyGroup>
