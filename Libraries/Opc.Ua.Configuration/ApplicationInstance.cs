@@ -424,10 +424,10 @@ namespace Opc.Ua.Configuration
         /// Checks for a valid application instance certificate.
         /// </summary>
         /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
-        public Task<bool> CheckApplicationInstanceCertificates(
+        public async Task<bool> CheckApplicationInstanceCertificates(
             bool silent)
         {
-            return CheckApplicationInstanceCertificates(silent, CertificateFactory.DefaultLifeTime);
+            return await CheckApplicationInstanceCertificates(silent, CertificateFactory.DefaultLifeTime).ConfigureAwait(false);
         }
 
         /// <summary>

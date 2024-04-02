@@ -99,7 +99,7 @@ namespace Opc.Ua.Client
             :
                 base(channel)
         {
-            Initialize(channel, configuration, endpoint, clientCertificate);
+            InitializeAsync(channel, configuration, endpoint, clientCertificate);
             m_discoveryServerEndpoints = availableEndpoints;
             m_discoveryProfileUris = discoveryProfileUris;
         }
@@ -114,7 +114,7 @@ namespace Opc.Ua.Client
         :
             base(channel)
         {
-            Initialize(channel, template.m_configuration, template.ConfiguredEndpoint, template.m_instanceCertificate);
+            InitializeAsync(channel, template.m_configuration, template.ConfiguredEndpoint, template.m_instanceCertificate);
 
             m_sessionFactory = template.m_sessionFactory;
             m_defaultSubscription = template.m_defaultSubscription;
@@ -156,7 +156,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Initializes the channel.
         /// </summary>
-        private void Initialize(
+        private async void InitializeAsync(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
@@ -177,7 +177,7 @@ namespace Opc.Ua.Client
             {
                 if (clientCertificate == null)
                 {
-                    m_instanceCertificate = LoadCertificate(configuration, m_endpoint.Description.SecurityPolicyUri).GetAwaiter().GetResult();
+                    m_instanceCertificate = await LoadCertificateAsync(configuration, m_endpoint.Description.SecurityPolicyUri).ConfigureAwait(false);
                     if (m_instanceCertificate == null)
                     {
                         throw new ServiceResultException(
@@ -202,7 +202,7 @@ namespace Opc.Ua.Client
                 }
 
                 // load certificate chain.
-                m_instanceCertificateChain = LoadCertificateChain(configuration, m_instanceCertificate).GetAwaiter().GetResult();
+                m_instanceCertificateChain = await LoadCertificateChainAsync(configuration, m_instanceCertificate).ConfigureAwait(false);
             }
 
             // initialize the message context.
@@ -991,8 +991,8 @@ namespace Opc.Ua.Client
             X509Certificate2Collection clientCertificateChain = null;
             if (endpointDescription.SecurityPolicyUri != SecurityPolicies.None)
             {
-                clientCertificate = await LoadCertificate(configuration, endpointDescription.SecurityPolicyUri).ConfigureAwait(false);
-                clientCertificateChain = await LoadCertificateChain(configuration, clientCertificate).ConfigureAwait(false);
+                clientCertificate = await LoadCertificateAsync(configuration, endpointDescription.SecurityPolicyUri).ConfigureAwait(false);
+                clientCertificateChain = await LoadCertificateChainAsync(configuration, clientCertificate).ConfigureAwait(false);
             }
 
             // initialize the channel which will be created with the server.
@@ -6112,7 +6112,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Load certificate for connection.
         /// </summary>
-        private static async Task<X509Certificate2> LoadCertificate(ApplicationConfiguration configuration, string securityProfile)
+        private static async Task<X509Certificate2> LoadCertificateAsync(ApplicationConfiguration configuration, string securityProfile)
         {
             X509Certificate2 clientCertificate =
                 await configuration.SecurityConfiguration.FindApplicationCertificateAsync(securityProfile, true).ConfigureAwait(false);
@@ -6130,7 +6130,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Load certificate chain for connection.
         /// </summary>
-        private static async Task<X509Certificate2Collection> LoadCertificateChain(ApplicationConfiguration configuration, X509Certificate2 clientCertificate)
+        private static async Task<X509Certificate2Collection> LoadCertificateChainAsync(ApplicationConfiguration configuration, X509Certificate2 clientCertificate)
         {
             X509Certificate2Collection clientCertificateChain = null;
             // load certificate chain.
