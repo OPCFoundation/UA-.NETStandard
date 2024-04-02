@@ -63,7 +63,7 @@ namespace Opc.Ua.Server
             m_minNonceLength = configuration.SecurityConfiguration.NonceLength;
 
             m_sessions = new Dictionary<NodeId, Session>();
-            m_lastSessionId = BitConverter.ToInt64(Utils.Nonce.CreateNonce(sizeof(long)), 0);
+            m_lastSessionId = BitConverter.ToInt64(Nonce.CreateRandomNonceData(sizeof(long)), 0);
 
             // create a event to signal shutdown.
             m_shutdownEvent = new ManualResetEvent(true);
@@ -180,7 +180,7 @@ namespace Opc.Ua.Server
                 {
                     foreach (Session sessionIterator in m_sessions.Values)
                     {
-                        if (Utils.CompareNonce(sessionIterator.ClientNonce, clientNonce))
+                        if (Nonce.CompareNonce(sessionIterator.ClientNonce, clientNonce))
                         {
                             throw new ServiceResultException(StatusCodes.BadNonceInvalid);
                         }
@@ -200,7 +200,7 @@ namespace Opc.Ua.Server
                 // must assign a hard-to-guess id if not secured.
                 if (authenticationToken == null)
                 {
-                    byte[] token = Utils.Nonce.CreateNonce(32);
+                    byte[] token = Nonce.CreateRandomNonceData(32);
                     authenticationToken = new NodeId(token);
                 }
 
@@ -220,7 +220,7 @@ namespace Opc.Ua.Server
                 var serverNonceObject = Nonce.CreateNonce(context.ChannelContext.EndpointDescription.SecurityPolicyUri,
                     (uint)m_minNonceLength);
 #else
-                serverNonce = Utils.Nonce.CreateNonce((uint)m_minNonceLength);
+                serverNonce = Nonce.CreateRandomNonceData((uint)m_minNonceLength);
 #endif
 
                 // assign client name.

@@ -726,7 +726,7 @@ namespace Opc.Ua
         internal static string GeneratePasscode()
         {
             const int kLength = 18;
-            byte[] tokenBuffer = Utils.Nonce.CreateNonce(kLength);
+            byte[] tokenBuffer = Nonce.CreateRandomNonceData(kLength);
             return Convert.ToBase64String(tokenBuffer);
         }
 

@@ -12,12 +12,7 @@
 
 #if ECC_SUPPORT
 using System;
-using System.Text;
-using System.IO;
-using System.Collections.Generic;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Security.Certificates;
 using System.Runtime.Serialization;
 
 #if CURVE25519
@@ -35,32 +30,17 @@ using Org.BouncyCastle.Crypto.Digests;
 
 namespace Opc.Ua
 {
-
     /// <summary>
     /// Represents a cryptographic nonce used for secure communication.
     /// </summary>
-
     [Serializable]
     public class Nonce : IDisposable, ISerializable
     {
-        private ECDiffieHellman m_ecdh;
-        
+        #region Constructor
 
-#if CURVE25519
-        private AsymmetricCipherKeyPair m_bcKeyPair;
-#endif
-
-        enum Algorithm
-        {
-            Unknown,
-            RSA,
-            nistP256,
-            nistP384,
-            brainpoolP256r1,
-            brainpoolP384r1,
-            Ed25519
-        }
-
+        /// <summary>
+        /// Constructor
+        /// </summary>
         private Nonce()
         {
             m_ecdh = null;
@@ -68,49 +48,30 @@ namespace Opc.Ua
             m_bcKeyPair = null;
 #endif
         }
-
-        private HMAC returnHMACInstance(byte[] secret, HashAlgorithmName algorithm)
-        {
-            switch (algorithm.Name)
-            {
-                case "SHA256":
-                    return new HMACSHA256(secret);
-                case "SHA384":
-                    return new HMACSHA384(secret);
-                default:
-                    return new HMACSHA256(secret);
-            }
-        }
-
-        #region IDisposable Members
-        /// <summary>
-        /// Frees any unmanaged resources.
-        /// </summary>
-        public void Dispose()
-        {
-            Dispose(true);
-        }
-
-        /// <summary>
-        /// An overrideable version of the Dispose.
-        /// </summary>
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                if (m_ecdh != null)
-                {
-                    m_ecdh.Dispose();
-                    m_ecdh = null;
-                }
-            }
-        }
         #endregion
+
+        #region Public Properties
 
         /// <summary>
         /// Gets the nonce data.
         /// </summary>
-        public byte[] Data { get; private set; }
+        public byte[] Data
+        {
+            get
+            {
+                return m_data;
+            }
+            private set
+            {
+                m_data = value;
+            }
+        }
+
+        #endregion
+
+        #region Public Methods
+
+        #region Instance Methods
 
         /// <summary>
         /// Derives a key from the remote nonce, using the specified salt, hash algorithm, and length.
@@ -207,6 +168,9 @@ namespace Opc.Ua
             return Data;
         }
 
+        #endregion
+
+        #region Factory Methods
         /// <summary>
         /// Creates a nonce for the specified security policy URI and nonce length.
         /// </summary>
@@ -242,82 +206,12 @@ namespace Opc.Ua
                 default:
                 {
                     nonce = new Nonce() {
-                        Data = Utils.Nonce.CreateNonce(nonceLength)
+                        Data = CreateRandomNonceData(nonceLength)
                     };
 
                     return nonce;
                 }
             }
-        }
-#if CURVE25519
-        /// <summary>
-        /// Creates a new Nonce object to be used in Curve25519 cryptography.
-        /// </summary>
-        /// <returns>A new Nonce object.</returns>
-        private static Nonce CreateNonceForCurve25519()
-        {
-            SecureRandom random = new SecureRandom();
-            IAsymmetricCipherKeyPairGenerator generator = new X25519KeyPairGenerator();
-            generator.Init(new X25519KeyGenerationParameters(random));
-
-            var keyPair = generator.GenerateKeyPair();
-
-            byte[] senderNonce = new byte[X25519PublicKeyParameters.KeySize];
-            ((X25519PublicKeyParameters)(keyPair.Public)).Encode(senderNonce, 0);
-
-            var nonce = new Nonce() {
-                Data = senderNonce,
-                m_bcKeyPair = keyPair
-            };
-
-            return nonce;
-        }
-
-        /// <summary>
-        /// Creates a Nonce object using the X448 elliptic curve algorithm.
-        /// </summary>
-        /// <returns>A Nonce object containing the generated nonce data and key pair.</returns>
-        private static Nonce CreateNonceForCurve448()
-        {
-            SecureRandom random = new SecureRandom();
-            IAsymmetricCipherKeyPairGenerator generator = new X448KeyPairGenerator();
-            generator.Init(new X448KeyGenerationParameters(random));
-
-            var keyPair = generator.GenerateKeyPair();
-
-            byte[] senderNonce = new byte[X448PublicKeyParameters.KeySize];
-            ((X448PublicKeyParameters)(keyPair.Public)).Encode(senderNonce, 0);
-
-            var nonce = new Nonce() {
-                Data = senderNonce,
-                m_bcKeyPair = keyPair
-            };
-
-            return nonce;
-        }
-#endif
-
-        /// <summary>
-        /// Creates a new Nonce instance using the specified elliptic curve.
-        /// </summary>
-        /// <param name="curve">The elliptic curve to use for the ECDH key exchange.</param>
-        /// <returns>A new Nonce instance.</returns>
-        private static Nonce CreateNonce(ECCurve curve)
-        {
-            var ecdh = (ECDiffieHellman)ECDiffieHellman.Create(curve);
-            var ecdhParameters = ecdh.ExportParameters(false);
-            int xLen = ecdhParameters.Q.X.Length;
-            int yLen = ecdhParameters.Q.Y.Length;
-            byte[] senderNonce = new byte[xLen + yLen];
-            Array.Copy(ecdhParameters.Q.X, senderNonce, xLen);
-            Array.Copy(ecdhParameters.Q.Y, 0, senderNonce, xLen, yLen);
-
-            var nonce = new Nonce() {
-                Data = senderNonce,
-                m_ecdh = ecdh
-            };
-
-            return nonce;
         }
 
         /// <summary>
@@ -367,7 +261,128 @@ namespace Opc.Ua
 
             return nonce;
         }
+        #endregion
 
+        #region Utility Methods
+
+        /// <summary>
+        /// Generates a Nonce for cryptographic functions of a given length.
+        /// </summary>
+        /// <param name="length"></param>
+        /// <returns>The requested Nonce as a</returns>
+        public static byte[] CreateRandomNonceData(uint length)
+        {
+            byte[] randomBytes = new byte[length];
+            m_rng.GetBytes(randomBytes);
+            return randomBytes;
+        }
+
+        /// <summary>
+        /// Validates the nonce for a message security mode and security policy.
+        /// </summary>
+        public static bool ValidateNonce(byte[] nonce, MessageSecurityMode securityMode, string securityPolicyUri)
+        {
+            return ValidateNonce(nonce, securityMode, GetNonceLength(securityPolicyUri));
+        }
+
+        /// <summary>
+        /// Validates the nonce for a message security mode and a minimum length.
+        /// </summary>
+        public static bool ValidateNonce(byte[] nonce, MessageSecurityMode securityMode, uint minNonceLength)
+        {
+            // no nonce needed for no security.
+            if (securityMode == MessageSecurityMode.None)
+            {
+                return true;
+            }
+
+            // check the length.
+            if (nonce == null || nonce.Length < minNonceLength)
+            {
+                return false;
+            }
+
+            // try to catch programming errors by rejecting nonces with all zeros.
+            for (int ii = 0; ii < nonce.Length; ii++)
+            {
+                if (nonce[ii] != 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Returns the length of the symmetric encryption key for a security policy.
+        /// </summary>
+        public static uint GetNonceLength(string securityPolicyUri)
+        {
+            switch (securityPolicyUri)
+            {
+                case SecurityPolicies.Basic128Rsa15:
+                {
+                    return 16;
+                }
+
+                case SecurityPolicies.Basic256:
+                case SecurityPolicies.Basic256Sha256:
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
+                case SecurityPolicies.ECC_curve25519:
+                {
+                    return 32;
+                }
+
+                case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_brainpoolP256r1:
+                {
+                    // Q.X + Q.Y = 32 + 32 = 64
+                    return 64;
+                }
+
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_brainpoolP384r1:
+                {
+                    // Q.X + Q.Y = 48 + 48 = 96
+                    return 96;
+                }
+
+                case SecurityPolicies.ECC_curve448:
+                {
+                    // Q.X
+                    return 56;
+                }
+
+                default:
+                case SecurityPolicies.None:
+                {
+                    return 0;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Compare Nonce for equality.
+        /// </summary>
+        public static bool CompareNonce(byte[] a, byte[] b)
+        {
+            if (a == null || b == null) return false;
+            if (a.Length != b.Length) return false;
+
+            byte result = 0;
+            for (int i = 0; i < a.Length; i++)
+                result |= (byte)(a[i] ^ b[i]);
+
+            return result == 0;
+        }
+
+        #endregion
+
+        #endregion
+
+        #region Private Methods
 
         /// <summary>
         /// Creates a new Nonce object for use with Curve25519.
@@ -427,6 +442,102 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Creates a new Nonce instance using the specified elliptic curve.
+        /// </summary>
+        /// <param name="curve">The elliptic curve to use for the ECDH key exchange.</param>
+        /// <returns>A new Nonce instance.</returns>
+        private static Nonce CreateNonce(ECCurve curve)
+        {
+            var ecdh = (ECDiffieHellman)ECDiffieHellman.Create(curve);
+            var ecdhParameters = ecdh.ExportParameters(false);
+            int xLen = ecdhParameters.Q.X.Length;
+            int yLen = ecdhParameters.Q.Y.Length;
+            byte[] senderNonce = new byte[xLen + yLen];
+            Array.Copy(ecdhParameters.Q.X, senderNonce, xLen);
+            Array.Copy(ecdhParameters.Q.Y, 0, senderNonce, xLen, yLen);
+
+            var nonce = new Nonce() {
+                Data = senderNonce,
+                m_ecdh = ecdh
+            };
+
+            return nonce;
+        }
+
+
+
+        /// <summary>
+        /// Return the HMAC instance depending on secret and algortihm
+        /// </summary>
+        /// <param name="secret"></param>
+        /// <param name="algorithm"></param>
+        /// <returns></returns>
+        private HMAC returnHMACInstance(byte[] secret, HashAlgorithmName algorithm)
+        {
+            switch (algorithm.Name)
+            {
+                case "SHA256":
+                    return new HMACSHA256(secret);
+                case "SHA384":
+                    return new HMACSHA384(secret);
+                default:
+                    return new HMACSHA256(secret);
+            }
+        }
+
+#if CURVE25519
+        /// <summary>
+        /// Creates a new Nonce object to be used in Curve25519 cryptography.
+        /// </summary>
+        /// <returns>A new Nonce object.</returns>
+        private static Nonce CreateNonceForCurve25519()
+        {
+            SecureRandom random = new SecureRandom();
+            IAsymmetricCipherKeyPairGenerator generator = new X25519KeyPairGenerator();
+            generator.Init(new X25519KeyGenerationParameters(random));
+
+            var keyPair = generator.GenerateKeyPair();
+
+            byte[] senderNonce = new byte[X25519PublicKeyParameters.KeySize];
+            ((X25519PublicKeyParameters)(keyPair.Public)).Encode(senderNonce, 0);
+
+            var nonce = new Nonce() {
+                Data = senderNonce,
+                m_bcKeyPair = keyPair
+            };
+
+            return nonce;
+        }
+
+        /// <summary>
+        /// Creates a Nonce object using the X448 elliptic curve algorithm.
+        /// </summary>
+        /// <returns>A Nonce object containing the generated nonce data and key pair.</returns>
+        private static Nonce CreateNonceForCurve448()
+        {
+            SecureRandom random = new SecureRandom();
+            IAsymmetricCipherKeyPairGenerator generator = new X448KeyPairGenerator();
+            generator.Init(new X448KeyGenerationParameters(random));
+
+            var keyPair = generator.GenerateKeyPair();
+
+            byte[] senderNonce = new byte[X448PublicKeyParameters.KeySize];
+            ((X448PublicKeyParameters)(keyPair.Public)).Encode(senderNonce, 0);
+
+            var nonce = new Nonce() {
+                Data = senderNonce,
+                m_bcKeyPair = keyPair
+            };
+
+            return nonce;
+        }
+#endif
+
+
+        #endregion
+
+        #region Protected Methods
+        /// <summary>
         /// Custom deserialization
         /// </summary>
         /// <param name="info"></param>
@@ -443,11 +554,55 @@ namespace Opc.Ua
             };
             m_ecdh = ECDiffieHellman.Create(ecParams);
 
-            Data = (byte[])info.GetValue("Data", typeof (byte[]));
+            Data = (byte[])info.GetValue("Data", typeof(byte[]));
+        }
+        #endregion
+
+        #region Private Members
+
+        private ECDiffieHellman m_ecdh;
+
+        private byte[] m_data;
+
+#if CURVE25519
+        private AsymmetricCipherKeyPair m_bcKeyPair;
+#endif
+
+        #endregion
+
+        #region Private Static Members
+        private static readonly RandomNumberGenerator m_rng = RandomNumberGenerator.Create();
+        #endregion
+
+        #region IDisposable 
+        /// <summary>
+        /// Frees any unmanaged resources.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
         }
 
         /// <summary>
-        /// Custom serializarion
+        /// An overrideable version of the Dispose.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (m_ecdh != null)
+                {
+                    m_ecdh.Dispose();
+                    m_ecdh = null;
+                }
+            }
+        }
+        #endregion
+
+        #region ISerializable
+
+        /// <summary>
+        /// Custom serialization
         /// </summary>
         /// <param name="info"></param>
         /// <param name="context"></param>
@@ -465,6 +620,8 @@ namespace Opc.Ua
                 info.AddValue("Data", Data);
             }
         }
+
+        #endregion
     }
 }
 #endif

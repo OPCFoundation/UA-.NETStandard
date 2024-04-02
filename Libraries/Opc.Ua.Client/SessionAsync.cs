@@ -108,7 +108,7 @@ namespace Opc.Ua.Client
 
             // create a nonce.
             uint length = (uint)m_configuration.SecurityConfiguration.NonceLength;
-            byte[] clientNonce = Utils.Nonce.CreateNonce(length);
+            byte[] clientNonce = Nonce.CreateRandomNonceData(length);
 
             // send the application instance certificate for the client.
             BuildCertificateData(out byte[] clientCertificateData, out byte[] clientCertificateChainData);

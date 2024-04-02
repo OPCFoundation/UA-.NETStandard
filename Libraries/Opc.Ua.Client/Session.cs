@@ -334,7 +334,7 @@ namespace Opc.Ua.Client
             if (identity != null && identity.TokenType != UserTokenType.Anonymous)
             {
                 // the server nonce should be validated if the token includes a secret.
-                if (!Utils.Nonce.ValidateNonce(serverNonce, MessageSecurityMode.SignAndEncrypt, (uint)m_configuration.SecurityConfiguration.NonceLength))
+                if (!Nonce.ValidateNonce(serverNonce, MessageSecurityMode.SignAndEncrypt, (uint)m_configuration.SecurityConfiguration.NonceLength))
                 {
                     if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
                         m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
@@ -348,7 +348,7 @@ namespace Opc.Ua.Client
                 }
 
                 // check that new nonce is different from the previously returned server nonce.
-                if (previousServerNonce != null && Utils.CompareNonce(serverNonce, previousServerNonce))
+                if (previousServerNonce != null && Nonce.CompareNonce(serverNonce, previousServerNonce))
                 {
                     if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
                         m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
@@ -2339,7 +2339,7 @@ namespace Opc.Ua.Client
 
             // create a nonce.
             uint length = (uint)m_configuration.SecurityConfiguration.NonceLength;
-            byte[] clientNonce = Utils.Nonce.CreateNonce(length);
+            byte[] clientNonce = Nonce.CreateRandomNonceData(length);
             NodeId sessionId = null;
             NodeId sessionCookie = null;
             byte[] serverNonce = Array.Empty<byte>();

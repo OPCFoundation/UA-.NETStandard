@@ -29,6 +29,8 @@ using System.Collections.ObjectModel;
 using Opc.Ua.Security.Certificates;
 using System.Runtime.InteropServices;
 
+using NewNonceImplementation = Opc.Ua.Nonce;
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -2529,7 +2531,7 @@ namespace Opc.Ua
                 extensions.Add(document.DocumentElement);
             }
         }
-#endregion
+        #endregion
 
         #region Reflection Helper Functions
         /// <summary>
@@ -2792,98 +2794,52 @@ namespace Opc.Ua
         /// <summary>
         /// Compare Nonce for equality.
         /// </summary>
+        [Obsolete("Use equivalent methods from the Opc.Ua.Nonce class")]
         public static bool CompareNonce(byte[] a, byte[] b)
         {
-            if (a == null || b == null) return false;
-            if (a.Length != b.Length) return false;
-
-            byte result = 0;
-            for (int i = 0; i < a.Length; i++)
-                result |= (byte)(a[i] ^ b[i]);
-
-            return result == 0;
+            return NewNonceImplementation.CompareNonce(a, b);
         }
 
         /// <summary>
         /// Cryptographic Nonce helper functions.
         /// </summary>
+        [Obsolete("Use equivalent methods from the Opc.Ua.Nonce class")]
         public static class Nonce
         {
-            static readonly RandomNumberGenerator m_rng = RandomNumberGenerator.Create();
-
             /// <summary>
             /// Generates a Nonce for cryptographic functions.
             /// </summary>
+            [Obsolete("Use equivalent CreateRandomNonceData method from the Opc.Ua.Nonce class")]
             public static byte[] CreateNonce(uint length)
             {
-                byte[] randomBytes = new byte[length];
-                m_rng.GetBytes(randomBytes);
-                return randomBytes;
+                return NewNonceImplementation.CreateRandomNonceData(length);
             }
 
             /// <summary>
             /// Returns the length of the symmetric encryption key for a security policy.
             /// </summary>
+            [Obsolete("Use equivalent method from the Opc.Ua.Nonce class")]
             public static uint GetNonceLength(string securityPolicyUri)
             {
-                switch (securityPolicyUri)
-                {
-                    case SecurityPolicies.Basic128Rsa15:
-                    {
-                        return 16;
-                    }
-
-                    case SecurityPolicies.Basic256:
-                    case SecurityPolicies.Basic256Sha256:
-                    case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                    case SecurityPolicies.Aes256_Sha256_RsaPss:
-                    {
-                        return 32;
-                    }
-
-                    default:
-                    case SecurityPolicies.None:
-                    {
-                        return 0;
-                    }
-                }
+                return NewNonceImplementation.GetNonceLength(securityPolicyUri);
             }
 
             /// <summary>
             /// Validates the nonce for a message security mode and security policy.
             /// </summary>
+            [Obsolete("Use equivalent method from the Opc.Ua.Nonce class")]
             public static bool ValidateNonce(byte[] nonce, MessageSecurityMode securityMode, string securityPolicyUri)
             {
-                return ValidateNonce(nonce, securityMode, GetNonceLength(securityPolicyUri));
+                return NewNonceImplementation.ValidateNonce(nonce, securityMode, GetNonceLength(securityPolicyUri));
             }
 
             /// <summary>
             /// Validates the nonce for a message security mode and a minimum length.
             /// </summary>
+            [Obsolete("Use equivalent method from the Opc.Ua.Nonce class")]
             public static bool ValidateNonce(byte[] nonce, MessageSecurityMode securityMode, uint minNonceLength)
             {
-                // no nonce needed for no security.
-                if (securityMode == MessageSecurityMode.None)
-                {
-                    return true;
-                }
-
-                // check the length.
-                if (nonce == null || nonce.Length < minNonceLength)
-                {
-                    return false;
-                }
-
-                // try to catch programming errors by rejecting nonces with all zeros.
-                for (int ii = 0; ii < nonce.Length; ii++)
-                {
-                    if (nonce[ii] != 0)
-                    {
-                        return true;
-                    }
-                }
-
-                return false;
+                return NewNonceImplementation.ValidateNonce(nonce,securityMode, minNonceLength);
             }
         }
 
@@ -3121,6 +3077,6 @@ namespace Opc.Ua
         {
             return s_isRunningOnMonoValue.Value;
         }
-#endregion
+        #endregion
     }
 }

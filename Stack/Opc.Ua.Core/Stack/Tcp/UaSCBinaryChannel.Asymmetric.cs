@@ -244,7 +244,7 @@ namespace Opc.Ua.Bindings
 
                     if (length > 0)
                     {
-                        return Utils.Nonce.CreateNonce(length);
+                        return Nonce.CreateRandomNonceData(length);
                     }
 
                     break;
