@@ -171,7 +171,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         #endregion
     }
 
-#if NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER && ECC_SUPPORT
     /// <summary>
     /// Helper class to test ArraySegmentStream without Span support.
     /// </summary>
