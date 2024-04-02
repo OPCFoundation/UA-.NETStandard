@@ -90,7 +90,7 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <ZipTmp>$(BaseIntermediateOutputPath)/zipnodeset2</ZipTmp>
+    <ZipTmp>$(IntermediateOutputPath)/zipnodeset2</ZipTmp>
     <ZipNodeSet2XML>Schema/Opc.Ua.NodeSet2.xml</ZipNodeSet2XML>
   </PropertyGroup>
 
