@@ -14,31 +14,17 @@ The OPC UA .NET Standard stack enables you to build multi-platform OPC UA Applic
 
 The reference [Client](https://github.com/OPCFoundation/UA-.NETStandard/tree/master/Applications/ConsoleReferenceClient) & [Server](https://github.com/OPCFoundation/UA-.NETStandard/tree/master/Applications/ReferenceServer) projects provide a starting point in implementing your own application.
 
-Simple Client:
+<!---
+ Simple Client:
 ```C#
-// Define the UA Client application
-ApplicationInstance application = new ApplicationInstance();
-application.ApplicationName = "My OPC UA Client";
-application.ApplicationType = ApplicationType.Client;    
-
-// load the application configuration.
-await application.LoadApplicationConfiguration();
-
-// check the application certificate.
-await application.CheckApplicationInstanceCertificate(false, minimumKeySize: 0);
-
-using (UAClient uaClient = new UAClient(application.ApplicationConfiguration, reverseConnectManager, output, ClientBase.ValidateResponse) {
-                        AutoAccept = autoAccept,
-                        SessionLifeTime = 60_000,
-                    });
-
-await uaClient.ConnectAsync(serverUrl.ToString(), !noSecurity, quitCTS.Token).ConfigureAwait(false);
+ToDo
 ```
 
 Simple Server:
 ```C#
-
+ToDo
 ```
+-->
 
 
 ## Packages Overview
