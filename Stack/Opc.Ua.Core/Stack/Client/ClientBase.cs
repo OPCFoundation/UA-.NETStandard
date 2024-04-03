@@ -93,7 +93,7 @@ namespace Opc.Ua
                 {
                     if (m_disposed)
                     {
-                        throw new ObjectDisposedException("ClientBase has been disposed.");
+                        throw new ServiceResultException(StatusCodes.BadSecureChannelClosed, "Channel has been closed.");
                     }
                 }
 
@@ -110,17 +110,13 @@ namespace Opc.Ua
 
                 if (channel != null)
                 {
-                    if (m_disposed)
+                    if (!m_disposed)
                     {
-                        throw new ObjectDisposedException("ClientBase has been disposed.");
+                        return channel;
                     }
                 }
-                else
-                {
-                    throw new ServiceResultException(StatusCodes.BadSecureChannelClosed, "Channel has been closed.");
-                }
 
-                return channel;
+                throw new ServiceResultException(StatusCodes.BadSecureChannelClosed, "Channel has been closed.");
             }
 
             protected set
