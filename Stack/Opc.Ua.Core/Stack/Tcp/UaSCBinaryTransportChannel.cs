@@ -359,9 +359,11 @@ namespace Opc.Ua.Bindings
             if (channel == null)
             {
                 channel = CreateChannel();
-                if (Interlocked.CompareExchange(ref m_channel, channel, null) != null)
+                var currentChannel = Interlocked.CompareExchange(ref m_channel, channel, null);
+                if (currentChannel != null)
                 {
-                    channel = m_channel;
+                    Utils.SilentDispose(channel);
+                    channel = currentChannel;
                 }
             }
 

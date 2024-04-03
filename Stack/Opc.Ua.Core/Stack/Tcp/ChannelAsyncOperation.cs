@@ -311,6 +311,11 @@ namespace Opc.Ua.Bindings
                 }
             }
         }
+
+        /// <summary>
+        /// Return the result of the operation.
+        /// </summary>
+        public ServiceResult Error => m_error ?? ServiceResult.Good;
         #endregion
 
         #region IAsyncResult Members

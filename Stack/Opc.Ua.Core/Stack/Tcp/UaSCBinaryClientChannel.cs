@@ -219,25 +219,9 @@ namespace Opc.Ua.Bindings
             {
                 try
                 {
-                    _ = await operation.EndAsync(timeout, true, ct).ConfigureAwait(false);
-                }
-                catch (ServiceResultException e)
-                {
-                    switch (e.StatusCode)
-                    {
-                        case StatusCodes.BadRequestInterrupted:
-                        case StatusCodes.BadSecureChannelClosed:
-                        {
-                            break;
-                        }
-
-                        default:
-                        {
-                            Utils.LogWarning(e, "ChannelId {0}: Could not gracefully close the channel. Reason={1}", ChannelId, e.Result.StatusCode);
-                            break;
-                        }
+                    _ = await operation.EndAsync(timeout, false, ct).ConfigureAwait(false);
+                    ValidateChannelCloseError(operation.Error);
                     }
-                }
                 catch (Exception e)
                 {
                     Utils.LogError(e, "ChannelId {0}: Could not gracefully close the channel.", ChannelId);
@@ -261,23 +245,7 @@ namespace Opc.Ua.Bindings
                 try
                 {
                     operation.End(timeout, false);
-                }
-                catch (ServiceResultException e)
-                {
-                    switch (e.StatusCode)
-                    {
-                        case StatusCodes.BadRequestInterrupted:
-                        case StatusCodes.BadSecureChannelClosed:
-                        {
-                            break;
-                        }
-
-                        default:
-                        {
-                            Utils.LogWarning(e, "ChannelId {0}: Could not gracefully close the channel. Reason={1}", ChannelId, e.Result.StatusCode);
-                            break;
-                        }
-                    }
+                    ValidateChannelCloseError(operation.Error);
                 }
                 catch (Exception e)
                 {
@@ -323,9 +291,10 @@ namespace Opc.Ua.Bindings
                 if (m_queuedOperations != null)
                 {
                     operation = BeginOperation(timeout, callback, state);
-                    m_queuedOperations.Add(new QueuedOperation(operation, timeout, request));
 
-                    if (firstCall)
+                    bool validConnectOperation = QueueConnectOperation(operation, timeout, request);
+
+                    if (firstCall && validConnectOperation)
                     {
                         BeginConnect(m_url, timeout, OnConnectOnDemandComplete, null);
                     }
@@ -809,6 +778,55 @@ namespace Opc.Ua.Bindings
                 ForceReconnect(ServiceResult.Create(StatusCodes.BadTcpMessageTypeInvalid, "The client does not recognize the message type: {0:X8}.", messageType));
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Validates the result of a channel close operation.
+        /// </summary>
+        private void ValidateChannelCloseError(ServiceResult error)
+        {
+            if (ServiceResult.IsBad(error))
+            {
+                StatusCode statusCode = error.StatusCode;
+                switch ((uint)statusCode)
+                {
+                    case StatusCodes.BadRequestInterrupted:
+                    case StatusCodes.BadSecureChannelClosed:
+                    {
+                        break;
+                    }
+
+                    default:
+                    {
+                        Utils.LogWarning("ChannelId {0}: Could not gracefully close the channel. Reason={1}", ChannelId, error);
+                        break;
+                    }
+                }
+        }
+        }
+
+        /// <summary>
+        /// Queues an operation for sending after the channel is connected.
+        /// Inserts operations that create or activate a session or don't require a session first.
+        /// </summary>
+        /// <returns>true if a valid service call for BeginConnect is queued.</returns>
+        private bool QueueConnectOperation(WriteOperation operation, int timeout, IServiceRequest request)
+        {
+            var queuedOperation = new QueuedOperation(operation, timeout, request);
+
+            // operations that must be sent first and which allow for a connect.
+            if (request.TypeId == DataTypeIds.ActivateSessionRequest ||
+                request.TypeId == DataTypeIds.CreateSessionRequest ||
+                request.TypeId == DataTypeIds.GetEndpointsRequest ||
+                request.TypeId == DataTypeIds.FindServersOnNetworkRequest ||
+                request.TypeId == DataTypeIds.FindServersRequest)
+            {
+                m_queuedOperations.Insert(0, queuedOperation);
+                return true;
+            }
+
+            m_queuedOperations.Add(queuedOperation);
+            return false;
         }
 
         /// <summary>
