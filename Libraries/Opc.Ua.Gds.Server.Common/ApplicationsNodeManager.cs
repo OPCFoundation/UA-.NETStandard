@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -35,10 +35,8 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Gds.Server.Database;
-using Opc.Ua.Security.Certificates;
+using Opc.Ua.Gds.Server.Diagnostics;
 using Opc.Ua.Server;
-using Org.BouncyCastle.Crypto.Agreement;
-using Org.BouncyCastle.Tls;
 
 namespace Opc.Ua.Gds.Server
 {
@@ -513,6 +511,12 @@ namespace Opc.Ua.Gds.Server
 
             applicationId = m_database.RegisterApplication(application);
 
+            if (applicationId != null)
+            {
+                object[] inputArguments = new object[] { application, applicationId };
+                Server.ReportApplicationRegistrationChangedAuditEvent(context, objectId, method, inputArguments);
+            }
+
             return ServiceResult.Good;
         }
 
@@ -535,6 +539,9 @@ namespace Opc.Ua.Gds.Server
 
             m_database.RegisterApplication(application);
 
+            object[] inputArguments = new object[] { application };
+            Server.ReportApplicationRegistrationChangedAuditEvent(context, objectId, method, inputArguments);
+
             return ServiceResult.Good;
         }
 
@@ -544,7 +551,7 @@ namespace Opc.Ua.Gds.Server
             NodeId objectId,
             NodeId applicationId)
         {
-            AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.DiscoveryAdmin);
+            AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.DiscoveryAdminOrSelfAdmin);
 
             Utils.LogInfo("OnUnregisterApplication: {0}", applicationId.ToString());
 
@@ -568,6 +575,9 @@ namespace Opc.Ua.Gds.Server
             }
 
             m_database.UnregisterApplication(applicationId);
+
+            object[] inputArguments = new object[] { applicationId };
+            Server.ReportApplicationRegistrationChangedAuditEvent(context, objectId, method, inputArguments);
 
             return ServiceResult.Good;
         }
@@ -926,6 +936,9 @@ namespace Opc.Ua.Gds.Server
             string privateKeyPassword,
             ref NodeId requestId)
         {
+            object[] inputArguments = new object[] { applicationId, certificateGroupId, certificateTypeId, subjectName, domainNames, privateKeyFormat, privateKeyPassword };
+            Server.ReportCertificateRequestedAuditEvent(context, objectId, method, inputArguments, certificateGroupId, certificateTypeId);
+
             AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin, applicationId); ;
 
             var application = m_database.GetApplication(applicationId);
@@ -1283,6 +1296,9 @@ namespace Opc.Ua.Gds.Server
             m_database.SetApplicationTrustLists(applicationId, m_certTypeMap[certificateGroup.CertificateType], certificateGroup.Configuration.TrustedListPath);
 
             m_request.AcceptRequest(requestId, signedCertificate);
+
+            object[] inputArguments = new object[] { applicationId, requestId, signedCertificate, privateKey, issuerCertificates };
+            Server.ReportCertificateDeliveredAuditEvent(context, objectId, method, inputArguments);
 
             return ServiceResult.Good;
         }
