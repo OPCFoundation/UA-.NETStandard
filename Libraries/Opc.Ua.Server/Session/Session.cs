@@ -40,7 +40,6 @@ namespace Opc.Ua.Server
     {
         #region Constructors
 
-#if ECC_SUPPORT 
         /// <summary>
         /// Initializes a new instance of the <see cref="Session"/> class.
         /// </summary>
@@ -78,43 +77,6 @@ namespace Opc.Ua.Server
             double maxRequestAge,
             int maxBrowseContinuationPoints,
             int maxHistoryContinuationPoints)
-#else
-        /// <summary>
-        /// Initializes a new instance of the <see cref="Session"/> class.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="server">The Server object.</param>
-        /// <param name="serverCertificate">The server certificate.</param>
-        /// <param name="authenticationToken">The unique private identifier assigned to the Session.</param>
-        /// <param name="clientNonce">The client nonce.</param>
-        /// <param name="serverNonce">The server nonce.</param>
-        /// <param name="sessionName">The name assigned to the Session.</param>
-        /// <param name="clientDescription">Application description for the client application.</param>
-        /// <param name="endpointUrl">The endpoint URL.</param>
-        /// <param name="clientCertificate">The client certificate.</param>
-        /// <param name="sessionTimeout">The session timeout.</param>
-        /// <param name="maxResponseMessageSize">The maximum size of a response message</param>
-        /// <param name="maxRequestAge">The max request age.</param>
-        /// <param name="maxBrowseContinuationPoints">The maximum number of browse continuation points.</param>
-        /// <param name="maxHistoryContinuationPoints">The maximum number of history continuation points.</param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
-        public Session(
-            OperationContext context,
-            IServerInternal server,
-            X509Certificate2 serverCertificate,
-            NodeId authenticationToken,
-            byte[] clientNonce,
-            byte[] serverNonce,
-            string sessionName,
-            ApplicationDescription clientDescription,
-            string endpointUrl,
-            X509Certificate2 clientCertificate,
-            double sessionTimeout,
-            uint maxResponseMessageSize,
-            double maxRequestAge,
-            int maxBrowseContinuationPoints,
-            int maxHistoryContinuationPoints)
-#endif
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
             if (server == null) throw new ArgumentNullException(nameof(server));
@@ -133,9 +95,7 @@ namespace Opc.Ua.Server
             m_serverCertificate = serverCertificate;
             m_clientCertificate = clientCertificate;
 
-#if ECC_SUPPORT
             m_clientIssuerCertificates = clientCertificateChain;
-#endif
 
             m_secureChannelId = context.ChannelContext.SecureChannelId;
             m_maxResponseMessageSize = maxResponseMessageSize;
@@ -400,7 +360,6 @@ namespace Opc.Ua.Server
             }
         }
 
-#if ECC_SUPPORT
         public virtual void SetEccUserTokenSecurityPolicy(string securityPolicyUri)
         {
             lock (m_lock)
@@ -430,7 +389,6 @@ namespace Opc.Ua.Server
                 return key;
             }
         }
-#endif
 
         /// <summary>
         /// Returns the session's endpoint
@@ -591,11 +549,7 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(StatusCodes.BadApplicationSignatureInvalid);
                     }
 
-#if ECC_SUPPORT
                     byte[] dataToSign = Utils.Append(m_serverCertificate.RawData, m_serverNonce.Data);
-#else
-                    byte[] dataToSign = Utils.Append(m_serverCertificate.RawData, m_serverNonce);
-#endif
 
                     if (!SecurityPolicies.Verify(m_clientCertificate, m_endpoint.SecurityPolicyUri, dataToSign, clientSignature))
                     {
@@ -613,11 +567,8 @@ namespace Opc.Ua.Server
                             }
 
                             byte[] serverCertificateChainData = serverCertificateChainList.ToArray();
-#if ECC_SUPPORT
+
                             dataToSign = Utils.Append(serverCertificateChainData, m_serverNonce.Data);
-#else
-                            dataToSign = Utils.Append(serverCertificateChainData, m_serverNonce);
-#endif
 
                             if (!SecurityPolicies.Verify(m_clientCertificate, m_endpoint.SecurityPolicyUri, dataToSign, clientSignature))
                             {
@@ -658,7 +609,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Activates the session and binds it to the current secure channel.
         /// </summary>
-#if ECC_SUPPORT
         public bool Activate(
             OperationContext context,
             List<SoftwareCertificate> clientSoftwareCertificates,
@@ -667,16 +617,6 @@ namespace Opc.Ua.Server
             IUserIdentity effectiveIdentity,
             StringCollection localeIds,
             Nonce serverNonce)
-#else
-        public bool Activate(
-            OperationContext context,
-            List<SoftwareCertificate> clientSoftwareCertificates,
-            UserIdentityToken identityToken,
-            IUserIdentity identity,
-            IUserIdentity effectiveIdentity,
-            StringCollection localeIds,
-            byte[] serverNonce)
-#endif
         {
             lock (m_lock)
             {
@@ -1076,17 +1016,12 @@ namespace Opc.Ua.Server
 
                 try
                 {
-#if ECC_SUPPORT
                     token.Decrypt(m_serverCertificate,
                         m_serverNonce,
                         securityPolicyUri,
                         m_eccUserTokenNonce,
                         m_clientCertificate,
                         m_clientIssuerCertificates);
-#else
-
-                    token.Decrypt(m_serverCertificate, m_serverNonce, securityPolicyUri);
-#endif
                 }
                 catch (Exception e)
                 {
@@ -1101,11 +1036,8 @@ namespace Opc.Ua.Server
                 // verify the signature.
                 if (securityPolicyUri != SecurityPolicies.None)
                 {
-#if ECC_SUPPORT
+
                     byte[] dataToSign = Utils.Append(m_serverCertificate.RawData, m_serverNonce.Data);
-#else
-                    byte[] dataToSign = Utils.Append(m_serverCertificate.RawData, m_serverNonce);
-#endif
 
                     if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
                     {
@@ -1124,11 +1056,8 @@ namespace Opc.Ua.Server
 
                             byte[] serverCertificateChainData = serverCertificateChainList.ToArray();
 
-#if ECC_SUPPORT
                             dataToSign = Utils.Append(serverCertificateChainData, m_serverNonce.Data);
-#else
-                            dataToSign = Utils.Append(serverCertificateChainData, m_serverNonce);
-#endif
+
                             if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
                             {
                                 throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected, "Invalid user signature!");
@@ -1279,14 +1208,10 @@ namespace Opc.Ua.Server
         private X509Certificate2 m_serverCertificate;
         private byte[] m_serverCertificateChain;
 
-#if ECC_SUPPORT
         private Nonce m_serverNonce;
         private string m_eccUserTokenSecurityPolicyUri;
         private Nonce m_eccUserTokenNonce;
         private X509Certificate2Collection m_clientIssuerCertificates;
-#else
-        private byte[] m_serverNonce;
-#endif
 
         private string[] m_localeIds;
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]

@@ -215,11 +215,8 @@ namespace Opc.Ua.Server
                 }
 
                 // create server nonce.
-#if ECC_SUPPORT
                 var serverNonceObject = Nonce.CreateNonce(context.ChannelContext.EndpointDescription.SecurityPolicyUri);
-#else
-                serverNonce = Nonce.CreateRandomNonceData((uint)m_minNonceLength);
-#endif
+
 
                 // assign client name.
                 if (String.IsNullOrEmpty(sessionName))
@@ -228,7 +225,6 @@ namespace Opc.Ua.Server
                 }
 
                 // create instance of session.
-#if ECC_SUPPORT
                 session = CreateSession(
                     context,
                     m_server,
@@ -243,27 +239,10 @@ namespace Opc.Ua.Server
                     clientCertificateChain,
                     revisedSessionTimeout,
                     maxResponseMessageSize);
-#else
-                session = CreateSession(
-                    context,
-                    m_server,
-                    serverCertificate,
-                    authenticationToken,
-                    clientNonce,
-                    serverNonce,
-                    sessionName,
-                    clientDescription,
-                    endpointUrl,
-                    clientCertificate,
-                    revisedSessionTimeout,
-                    maxResponseMessageSize);
-#endif
 
                 // get the session id.
                 sessionId = session.Id;
-#if ECC_SUPPORT
                 serverNonce = serverNonceObject.Data;
-#endif
 
                 // save session.
                 m_sessions.Add(authenticationToken, session);
@@ -326,9 +305,8 @@ namespace Opc.Ua.Server
             out byte[] serverNonce)
         {
             serverNonce = null;
-#if ECC_SUPPORT
+
             Nonce serverNonceObject = null;
-#endif
 
             Session session = null;
             UserIdentityToken newIdentity = null;
@@ -354,11 +332,7 @@ namespace Opc.Ua.Server
                 }
 
                 // create new server nonce.
-#if ECC_SUPPORT
                 serverNonceObject = Nonce.CreateNonce(context.ChannelContext.EndpointDescription.SecurityPolicyUri);
-#else
-                serverNonce = Nonce.CreateNonce(context.ChannelContext.EndpointDescription.SecurityPolicyUri).Data;
-#endif
 
                 // validate before activation.
                 session.ValidateBeforeActivate(
@@ -369,9 +343,8 @@ namespace Opc.Ua.Server
                     userTokenSignature,
                     out newIdentity,
                     out userTokenPolicy);
-#if ECC_SUPPORT
+
                 serverNonce = serverNonceObject.Data;
-#endif
             }
 
             IUserIdentity identity = null;
@@ -433,7 +406,7 @@ namespace Opc.Ua.Server
             }
 
             // activate session.
-#if ECC_SUPPORT
+
             bool contextChanged = session.Activate(
                 context,
                 clientSoftwareCertificates,
@@ -442,16 +415,6 @@ namespace Opc.Ua.Server
                 effectiveIdentity,
                 localeIds,
                 serverNonceObject);
-#else
-            bool contextChanged = session.Activate(
-                context,
-                clientSoftwareCertificates,
-                newIdentity,
-                identity,
-                effectiveIdentity,
-                localeIds,
-                serverNonce);
-#endif
 
             // raise session related event.
             if (contextChanged)
@@ -580,7 +543,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a new instance of a session.
         /// </summary>
-#if ECC_SUPPORT
         protected virtual Session CreateSession(
             OperationContext context,
             IServerInternal server,
@@ -616,42 +578,6 @@ namespace Opc.Ua.Server
 
             return session;
         }
-#else
-        protected virtual Session CreateSession(
-            OperationContext context,
-            IServerInternal server,
-            X509Certificate2 serverCertificate,
-            NodeId sessionCookie,
-            byte[] clientNonce,
-            byte[] serverNonce,
-            string sessionName,
-            ApplicationDescription clientDescription,
-            string endpointUrl,
-            X509Certificate2 clientCertificate,
-            double sessionTimeout,
-            uint maxResponseMessageSize)
-
-        {
-            Session session = new Session(
-                context,
-                m_server,
-                serverCertificate,
-                sessionCookie,
-                clientNonce,
-                serverNonce,
-                sessionName,
-                clientDescription,
-                endpointUrl,
-                clientCertificate,
-                sessionTimeout,
-                maxResponseMessageSize,
-                m_maxRequestAge,
-                m_maxBrowseContinuationPoints,
-                m_maxHistoryContinuationPoints);
-
-            return session;
-        }
-#endif
 
         /// <summary>
         /// Raises an event related to a session.
