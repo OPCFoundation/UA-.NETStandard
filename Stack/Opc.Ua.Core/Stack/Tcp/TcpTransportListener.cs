@@ -123,6 +123,7 @@ namespace Opc.Ua.Bindings
             if (configuration != null)
             {
                 m_inactivityDetectPeriod = configuration.ChannelLifetime / 2; 
+                m_quotas.MaxBufferSize = configuration.MaxBufferSize;
                 m_quotas.MaxMessageSize = configuration.MaxMessageSize;
                 m_quotas.ChannelLifetime = configuration.ChannelLifetime;
                 m_quotas.SecurityTokenLifetime = configuration.SecurityTokenLifetime;
