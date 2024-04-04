@@ -198,13 +198,18 @@ namespace Opc.Ua.Server
             m_serverConfigurationNode.MaxTrustListSize.Value = (uint)configuration.ServerConfiguration.MaxTrustListSize;
             m_serverConfigurationNode.MulticastDnsEnabled.Value = configuration.ServerConfiguration.MultiCastDnsEnabled;
 
-            m_serverConfigurationNode.GetCertificates = new GetCertificatesMethodState(m_serverConfigurationNode);
+            //create GetCertificatesNode
+#pragma warning disable CA2000 // Dispose objects before losing scope //Not needed as it is added as a child
+            var getCertificates = new GetCertificatesMethodState(m_serverConfigurationNode);
+#pragma warning restore CA2000 // Dispose objects before losing scope
+            getCertificates.Create(systemContext, FindPredefinedNode(MethodIds.ServerConfigurationType_GetCertificates, null));
+            getCertificates.OnCall = new GetCertificatesMethodStateMethodCallHandler(GetCertificates);
+            m_serverConfigurationNode.ReplaceChild(systemContext, getCertificates);
 
             m_serverConfigurationNode.UpdateCertificate.OnCall = new UpdateCertificateMethodStateMethodCallHandler(UpdateCertificate);
             m_serverConfigurationNode.CreateSigningRequest.OnCall = new CreateSigningRequestMethodStateMethodCallHandler(CreateSigningRequest);
             m_serverConfigurationNode.ApplyChanges.OnCallMethod = new GenericMethodCalledEventHandler(ApplyChanges);
             m_serverConfigurationNode.GetRejectedList.OnCall = new GetRejectedListMethodStateMethodCallHandler(GetRejectedList);
-            m_serverConfigurationNode.GetCertificates.OnCall = new GetCertificatesMethodStateMethodCallHandler(GetCertificates);
             m_serverConfigurationNode.ClearChangeMasks(systemContext, true);
 
             // setup certificate group trust list handlers
