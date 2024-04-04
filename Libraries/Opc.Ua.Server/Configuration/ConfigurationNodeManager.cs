@@ -320,10 +320,9 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Secure Application Administrator access required.");
                 }
 
-                // allow access to system configuration only through special identity
-                IUserIdentity user = context.UserIdentity as RoleBasedIdentity;               
-                if (user == null || user.TokenType == UserTokenType.Anonymous ||
-                    !user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin))
+                // allow access to system configuration only with Role SecurityAdmin
+                if (context.UserIdentity == null || context.UserIdentity.TokenType == UserTokenType.Anonymous ||
+                    !context.UserIdentity.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin))
                 {
                     throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Security Admin Role required.");
                 }
