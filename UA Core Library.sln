@@ -47,7 +47,6 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "azurepipelines", "azurepipelines", "{1C25BE72-C337-42AE-9F7C-D6B45F7B7079}"
 	ProjectSection(SolutionItems) = preProject
 		.azurepipelines\ci.yml = .azurepipelines\ci.yml
-		.azurepipelines\customtest.yml = .azurepipelines\customtest.yml
 		.azurepipelines\get-matrix.ps1 = .azurepipelines\get-matrix.ps1
 		.azurepipelines\get-root.ps1 = .azurepipelines\get-root.ps1
 		.azurepipelines\get-version.ps1 = .azurepipelines\get-version.ps1

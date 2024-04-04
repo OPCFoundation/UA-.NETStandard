@@ -191,7 +191,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void JsonEncoderArraySegmentStreamNoSpan()
         {
-#if NET6_0_OR_GREATER
+            // ECC_SUPPORT is used to distinguish also from platforms which do not support Span
+#if NET6_0_OR_GREATER && ECC_SUPPORT
             using (var arraySegmentStream = new ArraySegmentStreamNoSpan(m_bufferManager))
 #else
             using (var arraySegmentStream = new ArraySegmentStream(m_bufferManager))
