@@ -419,7 +419,7 @@ namespace Opc.Ua.Server
                     return null;
                 }
 
-                m_eccUserTokenNonce = Nonce.CreateNonce(m_eccUserTokenSecurityPolicyUri, 0);
+                m_eccUserTokenNonce = Nonce.CreateNonce(m_eccUserTokenSecurityPolicyUri);
 
                 EphemeralKeyType key = new EphemeralKeyType() {
                     PublicKey = m_eccUserTokenNonce.Data

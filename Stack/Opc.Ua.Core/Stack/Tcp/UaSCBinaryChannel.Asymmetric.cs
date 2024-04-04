@@ -177,56 +177,7 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Asymmetric Cryptography Functions
-        /// <summary>
-        /// Returns the length of the symmetric encryption key.
-        /// </summary>
-        protected uint GetNonceLength()
-        {
-            switch (SecurityPolicyUri)
-            {
-                case SecurityPolicies.Basic128Rsa15:
-                {
-                    return 16;
-                }
-
-                case SecurityPolicies.Basic256:
-                case SecurityPolicies.Basic256Sha256:
-                case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
-                {
-                    return 32;
-                }
-
-                case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                {
-                    return 64;
-                }
-
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                {
-                    return 96;
-                }
-
-                case SecurityPolicies.ECC_curve25519:
-                {
-                    return 32;
-                }
-
-                case SecurityPolicies.ECC_curve448:
-                {
-                    return 56;
-                }
-
-                default:
-                case SecurityPolicies.None:
-                {
-                    return 0;
-                }
-            }
-        }
-
+        
         /// <summary>
         /// Validates the nonce.
         /// </summary>
@@ -240,7 +191,7 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
                 {
-                    uint length = GetNonceLength();
+                    uint length = Nonce.GetNonceLength(SecurityPolicyUri);
 
                     if (length > 0)
                     {
@@ -257,7 +208,7 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
                 {
-                    m_localNonce = Nonce.CreateNonce(SecurityPolicyUri, GetNonceLength());
+                    m_localNonce = Nonce.CreateNonce(SecurityPolicyUri);
                     return m_localNonce.Data;
                 }
 #endif
@@ -283,7 +234,7 @@ namespace Opc.Ua.Bindings
             }
 
             // check the length.
-            if (nonce == null || nonce.Length < GetNonceLength())
+            if (nonce == null || nonce.Length < Nonce.GetNonceLength(SecurityPolicyUri))
             {
                 return false;
             }

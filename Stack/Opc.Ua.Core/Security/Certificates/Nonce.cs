@@ -175,9 +175,8 @@ namespace Opc.Ua
         /// Creates a nonce for the specified security policy URI and nonce length.
         /// </summary>
         /// <param name="securityPolicyUri">The security policy URI.</param>
-        /// <param name="nonceLength">The length of the nonce.</param>
         /// <returns>A <see cref="Nonce"/> object containing the generated nonce.</returns>
-        public static Nonce CreateNonce(string securityPolicyUri, uint nonceLength)
+        public static Nonce CreateNonce(string securityPolicyUri)
         {
             if (securityPolicyUri == null)
             {
@@ -205,8 +204,9 @@ namespace Opc.Ua
 #endif
                 default:
                 {
+                    uint rsaNonceLength = GetNonceLength(securityPolicyUri);
                     nonce = new Nonce() {
-                        Data = CreateRandomNonceData(nonceLength)
+                        Data = CreateRandomNonceData(rsaNonceLength)
                     };
 
                     return nonce;
@@ -358,7 +358,8 @@ namespace Opc.Ua
                 default:
                 case SecurityPolicies.None:
                 {
-                    return 0;
+                    // Minimum nonce length by default
+                    return m_minNonceLength;
                 }
             }
         }
@@ -378,6 +379,14 @@ namespace Opc.Ua
             return result == 0;
         }
 
+        /// <summary>
+        /// Sets the minimum nonce value to be used as default
+        /// </summary>
+        /// <param name="nonceLength"></param>
+        public static void SetMinNonceValue(uint nonceLength)
+        {
+            m_minNonceLength = nonceLength;
+        }
         #endregion
 
         #endregion
@@ -572,6 +581,8 @@ namespace Opc.Ua
 
         #region Private Static Members
         private static readonly RandomNumberGenerator m_rng = RandomNumberGenerator.Create();
+
+        private static uint m_minNonceLength = 0;
         #endregion
 
         #region IDisposable 

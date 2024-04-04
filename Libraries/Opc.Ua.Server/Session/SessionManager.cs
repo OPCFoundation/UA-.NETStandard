@@ -60,7 +60,6 @@ namespace Opc.Ua.Server
             m_maxRequestAge = configuration.ServerConfiguration.MaxRequestAge;
             m_maxBrowseContinuationPoints = configuration.ServerConfiguration.MaxBrowseContinuationPoints;
             m_maxHistoryContinuationPoints = configuration.ServerConfiguration.MaxHistoryContinuationPoints;
-            m_minNonceLength = configuration.SecurityConfiguration.NonceLength;
 
             m_sessions = new Dictionary<NodeId, Session>();
             m_lastSessionId = BitConverter.ToInt64(Nonce.CreateRandomNonceData(sizeof(long)), 0);
@@ -217,8 +216,7 @@ namespace Opc.Ua.Server
 
                 // create server nonce.
 #if ECC_SUPPORT
-                var serverNonceObject = Nonce.CreateNonce(context.ChannelContext.EndpointDescription.SecurityPolicyUri,
-                    (uint)m_minNonceLength);
+                var serverNonceObject = Nonce.CreateNonce(context.ChannelContext.EndpointDescription.SecurityPolicyUri);
 #else
                 serverNonce = Nonce.CreateRandomNonceData((uint)m_minNonceLength);
 #endif
@@ -357,9 +355,9 @@ namespace Opc.Ua.Server
 
                 // create new server nonce.
 #if ECC_SUPPORT
-                serverNonceObject = Nonce.CreateNonce(context.ChannelContext.EndpointDescription.SecurityPolicyUri, (uint)m_minNonceLength);
+                serverNonceObject = Nonce.CreateNonce(context.ChannelContext.EndpointDescription.SecurityPolicyUri);
 #else
-                serverNonce = Utils.Nonce.CreateNonce((uint)m_minNonceLength);
+                serverNonce = Nonce.CreateNonce(context.ChannelContext.EndpointDescription.SecurityPolicyUri).Data;
 #endif
 
                 // validate before activation.
@@ -753,7 +751,6 @@ namespace Opc.Ua.Server
         private int m_maxRequestAge;
         private int m_maxBrowseContinuationPoints;
         private int m_maxHistoryContinuationPoints;
-        private int m_minNonceLength;
 
         private readonly object m_eventLock = new object();
         private event SessionEventHandler m_sessionCreated;

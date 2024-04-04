@@ -267,7 +267,7 @@ namespace Opc.Ua
                 }
 
                 secret.SenderIssuerCertificates = senderIssuerCertificates;
-                secret.SenderNonce = Nonce.CreateNonce(securityPolicyUri, 0);
+                secret.SenderNonce = Nonce.CreateNonce(securityPolicyUri);
 
                 var utf8 = new UTF8Encoding(false).GetBytes(m_decryptedPassword);
                 m_password = secret.Encrypt(utf8, receiverNonce);

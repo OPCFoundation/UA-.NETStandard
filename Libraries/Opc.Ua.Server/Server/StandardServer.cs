@@ -2986,6 +2986,9 @@ namespace Opc.Ua.Server
                 {
                     Utils.LogInfo(TraceMasks.StartStop, "Server - Start application {0}.", configuration.ApplicationName);
 
+                    // Setup the minimum nonce length
+                    Nonce.SetMinNonceValue((uint)configuration.SecurityConfiguration.NonceLength);
+
                     // create the datastore for the instance.
                     m_serverInternal = new ServerInternalData(
                         ServerProperties,
