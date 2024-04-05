@@ -336,6 +336,12 @@ dotnet_diagnostic.IDE1005.severity                                            = 
 # CA1305: Specify IFormatProvider
 dotnet_diagnostic.CA1305.severity                                             = warning
 
+# CA1819: Properties should not return arrays
+dotnet_diagnostic.CA1819.severity                                             = silent
+
+# CA1721: The property name is confusing given the existence of another method with the same name.
+dotnet_diagnostic.CA1721.severity                                             = silent
+
 # exclude generated code
 [**/Generated/*.cs]
 generated_code = true

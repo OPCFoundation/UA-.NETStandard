@@ -1,8 +1,8 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -27,32 +27,44 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.Server;
+using System;
+using System.Buffers;
 
-namespace Opc.Ua.Gds.Server
+namespace Opc.Ua.Bindings
 {
     /// <summary>
-    /// The supported roles in a GDS server.
+    /// Helper to build a ReadOnlySequence from a set of buffers.
     /// </summary>
-    public class GdsRole : Role
+    public sealed class BufferSegment : ReadOnlySequenceSegment<byte>
     {
         /// <summary>
-        /// The GDS application Administrator.
+        /// Returns the base array of the buffer.
         /// </summary>
-        public static Role ApplicationAdmin { get; } = new Role(NodeId.Null, "ApplicationAdmin");
+        public byte[] Array() => m_array;
 
         /// <summary>
-        /// This Role grants rights to register, update and unregister any OPC UA Application.
+        /// Constructor for a buffer segment.
         /// </summary>
-        public static Role DiscoveryAdmin { get; } = new Role( NodeId.Null, "DiscoveryAdmin");
+        public BufferSegment(byte[] array, int offset, int length)
+        {
+            Memory = new ReadOnlyMemory<byte>(array, offset, length);
+            m_array = array;
+        }
 
         /// <summary>
-        /// The GDS application user.
+        /// Appends a buffer to the sequence.
         /// </summary>
-        public static Role ApplicationUser { get; } = new Role(NodeId.Null, "ApplicationUser");
+        public BufferSegment Append(byte[] array, int offset, int length)
+        {
+            var segment = new BufferSegment(array, offset, length) {
+                RunningIndex = RunningIndex + Memory.Length
+            };
+            Next = segment;
+            return segment;
+        }
 
-        public GdsRole(NodeId roleId, string name):
-            base(roleId, name)
-        {}
+        #region Private Fields
+        private byte[] m_array;
+        #endregion
     }
 }

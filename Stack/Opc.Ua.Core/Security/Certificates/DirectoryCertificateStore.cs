@@ -19,6 +19,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua
 {
@@ -479,7 +480,7 @@ namespace Opc.Ua
                 // found a certificate, but some error occurred
                 if (certificateFound)
                 {
-                    Utils.LogError(Utils.TraceMasks.Security, "The private key for the certificate with subject {0} failed to import.", subjectName);
+                    Utils.LogError(Utils.TraceMasks.Security, "The private key for the certificate with subject {0} failed to import.", Redact.Create(subjectName));
                     if (importException != null)
                     {
                         Utils.LogError(importException, "Certificate import failed.");

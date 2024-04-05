@@ -12,9 +12,9 @@ if "%1"=="" (
 )
 
 REM Check if the provided TargetFramework is valid
-set "validFrameworks= default net462 netstandard2.0 netstandard2.1 net48 net6.0 net8.0"
+set "validFrameworks= default net462 net472 netstandard2.0 netstandard2.1 net48 net6.0 net8.0 "
 if "!validFrameworks: %1 =!"=="%validFrameworks%" (
-    echo Invalid TargetFramework specified. Allowed values are: default, net462, netstandard2.0, netstandard2.1, net48, net6.0, net8.0
+    echo Invalid TargetFramework specified. Allowed values are: default, net462, net472 netstandard2.0, netstandard2.1, net48, net6.0, net8.0
     goto :eof
 )
 

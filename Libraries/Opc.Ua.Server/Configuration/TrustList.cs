@@ -75,7 +75,8 @@ namespace Opc.Ua.Server
         /// Delegate to validate the access to the trust list.
         /// </summary>
         /// <param name="context"></param>
-        public delegate void SecureAccess(ISystemContext context);
+        /// <param name="trustedStorePath">the path to identify the trustList</param>
+        public delegate void SecureAccess(ISystemContext context, string trustedStorePath);
         #endregion
 
         #region Private Methods
@@ -301,6 +302,8 @@ namespace Opc.Ua.Server
             uint fileHandle,
             ref bool restartRequired)
         {
+            object[] inputParameters = new object[] { fileHandle };
+            m_node.ReportTrustListUpdateRequestedAuditEvent(context, objectId, "Method/CloseAndUpdate", method.NodeId, inputParameters);
             HasSecureWriteAccess(context);
 
             ServiceResult result = StatusCodes.Good;
@@ -415,7 +418,6 @@ namespace Opc.Ua.Server
             restartRequired = false;
 
             // report the TrustListUpdatedAuditEvent
-            object[] inputParameters = new object[] { fileHandle };
             m_node.ReportTrustListUpdatedAuditEvent(context, objectId, "Method/CloseAndUpdate", method.NodeId, inputParameters, result.StatusCode);
 
             return result;
@@ -428,6 +430,8 @@ namespace Opc.Ua.Server
             byte[] certificate,
             bool isTrustedCertificate)
         {
+            object[] inputParameters = new object[] { certificate, isTrustedCertificate };
+            m_node.ReportTrustListUpdateRequestedAuditEvent(context, objectId, "Method/AddCertificate", method.NodeId, inputParameters);
             HasSecureWriteAccess(context);
 
             ServiceResult result = StatusCodes.Good;
@@ -470,7 +474,6 @@ namespace Opc.Ua.Server
             }
 
             // report the TrustListUpdatedAuditEvent
-            object[] inputParameters = new object[] { certificate, isTrustedCertificate };
             m_node.ReportTrustListUpdatedAuditEvent(context, objectId, "Method/AddCertificate", method.NodeId, inputParameters, result.StatusCode);
 
             return result;
@@ -484,6 +487,9 @@ namespace Opc.Ua.Server
             string thumbprint,
             bool isTrustedCertificate)
         {
+            object[] inputParameters = new object[] { thumbprint };
+            m_node.ReportTrustListUpdateRequestedAuditEvent(context, objectId, "Method/RemoveCertificate", method.NodeId, inputParameters);
+
             HasSecureWriteAccess(context);
             ServiceResult result = StatusCodes.Good;
             lock (m_lock)
@@ -547,7 +553,6 @@ namespace Opc.Ua.Server
             }
 
             // report the TrustListUpdatedAuditEvent
-            object[] inputParameters = new object[] { thumbprint };
             m_node.ReportTrustListUpdatedAuditEvent(context, objectId, "Method/RemoveCertificate", method.NodeId, inputParameters, result.StatusCode);
 
             return result;
@@ -668,7 +673,7 @@ namespace Opc.Ua.Server
         {
             if (m_readAccess != null)
             {
-                m_readAccess.Invoke(context);
+                m_readAccess.Invoke(context, m_trustedStorePath);
             }
             else
             {
@@ -680,7 +685,7 @@ namespace Opc.Ua.Server
         {
             if (m_writeAccess != null)
             {
-                m_writeAccess.Invoke(context);
+                m_writeAccess.Invoke(context, m_trustedStorePath);
             }
             else
             {
