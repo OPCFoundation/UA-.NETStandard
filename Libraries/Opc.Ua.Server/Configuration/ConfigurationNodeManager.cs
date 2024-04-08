@@ -322,7 +322,7 @@ namespace Opc.Ua.Server
                 IUserIdentity identity = operationContext.UserIdentity;
                 // allow access to system configuration only with Role SecurityAdmin
                 if (identity == null || identity.TokenType == UserTokenType.Anonymous ||
-                    identity.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin))
+                    !identity.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin))
                 {
                     throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Security Admin Role required to access this item.");
                 }
