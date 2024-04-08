@@ -317,14 +317,14 @@ namespace Opc.Ua.Server
             {
                 if (operationContext.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt)
                 {
-                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Secure Application Administrator access required.");
+                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Access to this item is only allowed with MessageSecurityMode SignAndEncrypt.");
                 }
-
+                IUserIdentity identity = operationContext.UserIdentity;
                 // allow access to system configuration only with Role SecurityAdmin
-                if (context.UserIdentity == null || context.UserIdentity.TokenType == UserTokenType.Anonymous ||
-                    !context.UserIdentity.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin))
+                if (identity == null || identity.TokenType == UserTokenType.Anonymous ||
+                    identity.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin))
                 {
-                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Security Admin Role required.");
+                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Security Admin Role required to access this item.");
                 }
 
             }
