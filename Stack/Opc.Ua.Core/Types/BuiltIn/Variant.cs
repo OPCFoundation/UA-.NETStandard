@@ -747,7 +747,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Initializes the object with a object array value.
+        /// Initializes the object with an object array value.
         /// </summary>
         /// <remarks>
         /// Creates a new variant with a <see cref="object"/>-array value
@@ -1523,10 +1523,10 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts a object[] value to an Variant object.
+        /// Converts an object[] value to an Variant object.
         /// </summary>
         /// <remarks>
-        /// Converts a object[] value to an Variant object.
+        /// Converts an object[] value to an Variant object.
         /// </remarks>
         public static implicit operator Variant(object[] value)
         {
@@ -2240,10 +2240,10 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Initializes the object with a object array value.
+        /// Initializes the object with an object array value.
         /// </summary>
         /// <remarks>
-        /// Initializes the object with a <see cref="object"/>-array value.
+        /// Initializes the object with an <see cref="object"/>-array value.
         /// </remarks>
         /// <param name="value">The <see cref="object"/>-array value to set this Variant to</param>
         public void Set(object[] value)

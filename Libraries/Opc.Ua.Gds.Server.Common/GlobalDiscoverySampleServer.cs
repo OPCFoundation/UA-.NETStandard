@@ -346,7 +346,7 @@ namespace Opc.Ua.Gds.Server
             ApplicationRecordDataType[] application = m_database.FindApplications(applicationUri);
             if (application == null || application.Length != 1)
             {
-                Utils.LogInfo("Cannot login based on ApplicationInstanceCertificate, no uniqure result for Application with URI: {0}", applicationUri);
+                Utils.LogInfo("Cannot login based on ApplicationInstanceCertificate, no unique result for Application with URI: {0}", applicationUri);
                 return;
             }
             NodeId applicationId = application.FirstOrDefault().ApplicationId;

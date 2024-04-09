@@ -72,7 +72,7 @@ namespace Opc.Ua.PubSub.Transport
         public string DiscoveryNetworkInterfaceName { get; set; }
 
         /// <summary>
-        /// Get the coresponding <see cref="IServiceMessageContext"/>
+        /// Get the corresponding <see cref="IServiceMessageContext"/>
         /// </summary>
         public IServiceMessageContext MessageContext { get; private set; }
         #endregion

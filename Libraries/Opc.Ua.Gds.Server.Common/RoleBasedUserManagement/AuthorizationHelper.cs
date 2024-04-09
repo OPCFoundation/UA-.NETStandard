@@ -76,9 +76,9 @@ namespace Opc.Ua.Gds.Server
         /// Checks if the current session (context) is allowed to access the trust List (has roles CertificateAuthorityAdmin, SecurityAdmin or <see cref="GdsRole.ApplicationSelfAdmin"/>)
         /// </summary>
         /// <param name="context">the current <see cref="ISystemContext"/></param>
-        /// <param name="trustedStorePath">path of the trustList, needed to check for Application Self Admin priviledge</param>
-        /// <param name="certTypeMap">all supported cert types, needed to check for Application Self Admin priviledge </param>
-        /// <param name="applicationsDatabase">all registered applications  <see cref="IApplicationsDatabase"/> , needed to check for Application Self Admin priviledge </param>
+        /// <param name="trustedStorePath">path of the trustList, needed to check for Application Self Admin privilege</param>
+        /// <param name="certTypeMap">all supported cert types, needed to check for Application Self Admin privilege </param>
+        /// <param name="applicationsDatabase">all registered applications  <see cref="IApplicationsDatabase"/> , needed to check for Application Self Admin privilege </param>
         /// <exception cref="ServiceResultException"></exception>
         public static void HasTrustListAccess(ISystemContext context, string trustedStorePath, Dictionary<NodeId, string> certTypeMap, IApplicationsDatabase applicationsDatabase)
         {

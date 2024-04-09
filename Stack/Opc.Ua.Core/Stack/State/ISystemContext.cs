@@ -279,7 +279,7 @@ namespace Opc.Ua
         /// <summary>
         /// A factory that can be used to create node ids.
         /// </summary>
-        /// <value>The node idetifiers factory.</value>
+        /// <value>The node identifiers factory.</value>
         public INodeIdFactory NodeIdFactory
         {
             get { return m_nodeIdFactory; }

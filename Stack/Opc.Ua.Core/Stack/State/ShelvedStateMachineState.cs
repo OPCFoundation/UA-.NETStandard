@@ -31,7 +31,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        #region Overriden Members
+        #region Overridden Members
         /// <summary>
         /// The table of states belonging to the state machine.
         /// </summary>

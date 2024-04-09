@@ -27,8 +27,8 @@ namespace Opc.Ua
     /// <para>
     /// <b>Please refer to OPC Specifications</b>:
     /// <list type="bullet">
-    /// <item><b>Address Space Model</b> setion <b>7.2</b></item>
-    /// <item><b>Address Space Model</b> setion <b>5.2.2</b></item>
+    /// <item><b>Address Space Model</b> section <b>7.2</b></item>
+    /// <item><b>Address Space Model</b> section <b>5.2.2</b></item>
     /// </list>
     /// </para>
     /// <para>
@@ -317,7 +317,7 @@ namespace Opc.Ua
         /// Converts an integer to a numeric node identifier.
         /// </summary>
         /// <remarks>
-        /// Converts an integer to a numeric node identifier for comparissons.
+        /// Converts an integer to a numeric node identifier for comparisons.
         /// </remarks>
         /// <example>
         /// <code lang="C#">
@@ -329,7 +329,7 @@ namespace Opc.Ua
         /// //create our node
         /// node1 = new NodeId(id1);
         /// 
-        /// //now to compare the node to the ids using a simple comparisson and Equals:
+        /// //now to compare the node to the ids using a simple comparison and Equals:
         /// Utils.LogInfo("Comparing NodeId to uint");
         /// Utils.LogInfo("\tComparing 100 to 100 = [equals] {0}", node1.Equals(id1));
         /// Utils.LogInfo("\tComparing 100 to 100 = [ ==   ] {0}", node1 == id1);
