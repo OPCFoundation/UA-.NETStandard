@@ -33,6 +33,8 @@ using System.Linq;
 using System.Text;
 using System.Xml;
 using NUnit.Framework;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {

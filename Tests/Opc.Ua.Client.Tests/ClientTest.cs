@@ -43,6 +43,8 @@ using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server.Tests;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 
 namespace Opc.Ua.Client.Tests
 {
@@ -282,7 +284,7 @@ namespace Opc.Ua.Client.Tests
                 // client may report channel closed instead of security policy rejected
                 if (StatusCodes.BadSecureChannelClosed == sre.StatusCode)
                 {
-                    Assert.Inconclusive("Unexpected Status: {0}", sre);
+                    Assert.Inconclusive($"Unexpected Status: {sre}" );
                 }
                 Assert.AreEqual(StatusCodes.BadSecurityPolicyRejected, sre.StatusCode, "Unexpected Status: {0}", sre);
             }
@@ -311,7 +313,7 @@ namespace Opc.Ua.Client.Tests
                 // client may report channel closed instead of security policy rejected
                 if (StatusCodes.BadSecureChannelClosed == sre.StatusCode)
                 {
-                    Assert.Inconclusive("Unexpected Status: {0}", sre);
+                    Assert.Inconclusive($"Unexpected Status: {sre}" );
                 }
                 Assert.AreEqual(StatusCodes.BadSecurityPolicyRejected, sre.StatusCode, "Unexpected Status: {0}", sre);
             }
