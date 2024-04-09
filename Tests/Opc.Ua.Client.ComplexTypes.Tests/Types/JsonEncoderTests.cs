@@ -121,7 +121,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// </summary>
         [Theory]
         public void JsonEncodeStructureRev(
-            JsonValidationData jsonValidationData)
+            JsonValidationData jsonValidationData
+            )
         {
             ExpandedNodeId nodeId;
             Type complexType;
@@ -132,6 +133,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             ExtensionObject extensionObject = CreateExtensionObject(StructureType.Structure, nodeId, emittedType);
             EncodeJsonComplexTypeVerifyResult(
                 jsonValidationData.BuiltInType,
+                MemoryStreamType.MemoryStream,
                 extensionObject,
                 true,
                 jsonValidationData.ExpectedNonReversible ?? jsonValidationData.ExpectedReversible,
@@ -143,7 +145,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// </summary>
         [Theory]
         public void JsonEncodeStructureNonRev(
-            JsonValidationData jsonValidationData)
+            JsonValidationData jsonValidationData
+            )
         {
             ExpandedNodeId nodeId;
             Type complexType;
@@ -154,6 +157,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             ExtensionObject extensionObject = CreateExtensionObject(StructureType.Structure, nodeId, emittedType);
             EncodeJsonComplexTypeVerifyResult(
                 jsonValidationData.BuiltInType,
+                MemoryStreamType.ArraySegmentStream,
                 extensionObject,
                 false,
                 jsonValidationData.ExpectedNonReversible ?? jsonValidationData.ExpectedReversible,
@@ -166,7 +170,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// </summary>
         [Theory]
         public void JsonEncodeOptionalFieldsRev(
-            JsonValidationData jsonValidationData)
+            JsonValidationData jsonValidationData
+            )
         {
             ExpandedNodeId nodeId;
             Type complexType;
@@ -177,6 +182,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             ExtensionObject extensionObject = CreateExtensionObject(StructureType.StructureWithOptionalFields, nodeId, emittedType);
             EncodeJsonComplexTypeVerifyResult(
                 jsonValidationData.BuiltInType,
+                MemoryStreamType.ArraySegmentStream,
                 extensionObject,
                 true,
                 jsonValidationData.ExpectedNonReversible ?? jsonValidationData.ExpectedReversible,
@@ -200,6 +206,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             ExtensionObject extensionObject = CreateExtensionObject(StructureType.StructureWithOptionalFields, nodeId, emittedType);
             EncodeJsonComplexTypeVerifyResult(
                 jsonValidationData.BuiltInType,
+                MemoryStreamType.RecyclableMemoryStream,
                 extensionObject,
                 false,
                 jsonValidationData.ExpectedNonReversible ?? jsonValidationData.ExpectedReversible,
@@ -211,7 +218,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// </summary>
         [Theory]
         public void JsonEncodeUnionRev(
-            JsonValidationData jsonValidationData)
+            JsonValidationData jsonValidationData
+            )
         {
             ExpandedNodeId nodeId;
             Type complexType;
@@ -222,6 +230,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             ExtensionObject extensionObject = CreateExtensionObject(StructureType.Union, nodeId, emittedType);
             EncodeJsonComplexTypeVerifyResult(
                 jsonValidationData.BuiltInType,
+                MemoryStreamType.ArraySegmentStream,
                 extensionObject,
                 true,
                 jsonValidationData.ExpectedNonReversible ?? jsonValidationData.ExpectedReversible,
@@ -233,7 +242,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// </summary>
         [Theory]
         public void JsonEncodeUnionNonRev(
-            JsonValidationData jsonValidationData)
+            JsonValidationData jsonValidationData
+            )
         {
             ExpandedNodeId nodeId;
             Type complexType;
@@ -244,6 +254,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             ExtensionObject extensionObject = CreateExtensionObject(StructureType.Union, nodeId, emittedType);
             EncodeJsonComplexTypeVerifyResult(
                 jsonValidationData.BuiltInType,
+                MemoryStreamType.ArraySegmentStream,
                 extensionObject,
                 false,
                 jsonValidationData.ExpectedNonReversible ?? jsonValidationData.ExpectedReversible,
@@ -254,6 +265,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         #region Private Methods
         protected void EncodeJsonComplexTypeVerifyResult(
             BuiltInType builtInType,
+            MemoryStreamType memoryStreamType,
             ExtensionObject data,
             bool useReversibleEncoding,
             string expected,
@@ -270,7 +282,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             _ = PrettifyAndValidateJson(expected);
 
             byte[] buffer;
-            using (var encoderStream = new MemoryStream())
+            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
                 using (IEncoder encoder = CreateEncoder(
                     EncodingType.Json, EncoderContext, encoderStream,

@@ -36,6 +36,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Core.Tests.Types.Encoders;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
@@ -149,7 +150,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// Test the functionality to create a custom complex type.
         /// </summary>
         [Theory]
-        public async Task CreateMockTypeAsync(EncodingType encodingType)
+        public async Task CreateMockTypeAsync(EncodingType encodingType, MemoryStreamType memoryStreamType)
         {
             var mockResolver = new MockResolver();
 
@@ -256,7 +257,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             };
 
             byte[] buffer;
-            using (var encoderStream = new MemoryStream())
+            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
                 using (IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, carType))
                 {
@@ -268,7 +269,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             _ = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
 
             // test encoder/decoder
-            EncodeDecodeComplexType(encoderContext, encodingType, StructureType.Structure, nodeId, car);
+            EncodeDecodeComplexType(encoderContext, memoryStreamType, encodingType, StructureType.Structure, nodeId, car);
 
             // Test extracting type definition
 
@@ -282,7 +283,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// Test the functionality to create a custom complex type.
         /// </summary>
         [Theory]
-        public async Task CreateMockArrayTypeAsync(EncodingType encodingType)
+        public async Task CreateMockArrayTypeAsync(EncodingType encodingType, MemoryStreamType memoryStreamType)
         {
             var mockResolver = new MockResolver();
 
@@ -431,7 +432,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             };
 
             byte[] buffer;
-            using (var encoderStream = new MemoryStream())
+            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
                 using (IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes, false))
                 {
@@ -443,7 +444,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             _ = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
 
             // test encoder/decoder
-            EncodeDecodeComplexType(encoderContext, encodingType, StructureType.Structure, dataTypeNode.NodeId, arrays);
+            EncodeDecodeComplexType(encoderContext, memoryStreamType, encodingType, StructureType.Structure, dataTypeNode.NodeId, arrays);
 
             // Test extracting type definition
 
@@ -457,7 +458,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// Create a complex type with a single scalar or array type, with default and random values .
         /// </summary>
         [Theory]
-        public async Task CreateMockSingleTypeAsync(EncodingType encodingType, TestType typeDescription, bool randomValues, TestRanks testRank)
+        public async Task CreateMockSingleTypeAsync(EncodingType encodingType, MemoryStreamType memoryStreamType, TestType typeDescription, bool randomValues, TestRanks testRank)
         {
             SetRepeatedRandomSeed();
 
@@ -612,7 +613,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             };
 
             byte [] buffer;
-            using (var encoderStream = new MemoryStream())
+            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
                 using (IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes, false))
                 {
@@ -624,7 +625,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             _ = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
 
             // test encoder/decoder
-            EncodeDecodeComplexType(encoderContext, encodingType, StructureType.Structure, dataTypeNode.NodeId, testType);
+            EncodeDecodeComplexType(encoderContext, memoryStreamType, encodingType, StructureType.Structure, dataTypeNode.NodeId, testType);
 
             // Test extracting type definition
 

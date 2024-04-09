@@ -277,6 +277,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// </summary>
         protected void EncodeDecodeComplexType(
             IServiceMessageContext encoderContext,
+            MemoryStreamType memoryStreamType,
             EncodingType encoderType,
             StructureType structureType,
             ExpandedNodeId nodeId,
@@ -292,7 +293,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             TestContext.Out.WriteLine(expected);
 
             byte[] buffer;
-            using (var encoderStream = new MemoryStream())
+            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
                 using (IEncoder encoder = CreateEncoder(encoderType, encoderContext, encoderStream, typeof(DataValue)))
                 {
