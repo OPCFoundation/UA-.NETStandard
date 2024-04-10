@@ -204,9 +204,13 @@ namespace Opc.Ua.Bindings
         {
             if (m_StateChanged != null)
             {
-                Task.Run(() => {
-                    m_StateChanged?.Invoke(this, state, reason);
-                });
+                var stateChanged = m_StateChanged;
+                if (stateChanged != null)
+                {
+                    Task.Run(() => {
+                        stateChanged?.Invoke(this, state, reason);
+                    });
+                }
             }
         }
 
@@ -310,11 +314,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected int GetSavedChunksTotalSize()
         {
-            if (m_partialMessageChunks != null)
-            {
-                return m_partialMessageChunks.TotalSize;
-            }
-            return 0;
+            return m_partialMessageChunks?.TotalSize ?? 0;
         }
 
         /// <summary>
@@ -526,10 +526,7 @@ namespace Opc.Ua.Bindings
             // Communication is active on the channel
             UpdateLastCommTime();
 
-            if (buffers != null)
-            {
-                buffers.Release(BufferManager, "WriteOperation");
-            }
+            buffers?.Release(BufferManager, "WriteOperation");
             Interlocked.Decrement(ref m_activeWriteRequests);
         }
 
@@ -538,7 +535,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected static void WriteErrorMessageBody(BinaryEncoder encoder, ServiceResult error)
         {
-            string reason = (error.LocalizedText != null) ? error.LocalizedText.Text : null;
+            string reason = error.LocalizedText?.Text;
 
             // check that length is not exceeded.
             if (reason != null)
@@ -908,11 +905,6 @@ namespace Opc.Ua.Bindings
         /// The channel is in a error state.
         /// </summary>
         Faulted,
-
-        /// <summary>
-        /// The channel is marked as innactive
-        /// </summary>
-        Inactive
     }
 
     /// <summary>

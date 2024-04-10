@@ -897,10 +897,9 @@ namespace Opc.Ua.Bindings
 
             // Communication is active on the channel
             UpdateLastCommTime();
-            
+
             // validate the channel state.
-            // Inactive state is allowed pass-through since a new session might be opened/activated on the channel
-            if (State != TcpChannelState.Open && State != TcpChannelState.Inactive)
+            if (State != TcpChannelState.Open)
             {
                 ForceChannelFault(StatusCodes.BadTcpMessageTypeInvalid, "Client sent an unexpected request message.");
                 return false;

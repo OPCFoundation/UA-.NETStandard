@@ -150,38 +150,16 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Set the channel Inactive
         /// </summary>
-        public void SetInactive()
+        public void Cleanup(bool force = false)
         {
-            lock (DataLock)
-            {
-                State = TcpChannelState.Inactive;
-            }
-        }
-
-        /// <summary>
-        /// Set the channel Open
-        /// </summary>
-        public void SetOpen()
-        {
-            lock (DataLock)
-            {
-                State = TcpChannelState.Open;
-            }
-        }
-
-        /// <summary>
-        /// Set the channel Inactive
-        /// </summary>
-        public void Cleanup()
-        {
-            TcpChannelState state = TcpChannelState.Faulted;
+            TcpChannelState state;
 
             lock (DataLock)
             {
                 state = State;
             }
 
-            if (state == TcpChannelState.Inactive || state == TcpChannelState.Opening)
+            if (force || state == TcpChannelState.Opening)
             {
                 OnCleanup(StatusCodes.BadNoCommunication);
             }
