@@ -283,41 +283,31 @@ namespace Opc.Ua
         /// </summary>
         public string CloseAndReturnText()
         {
-            Close();
-            if (m_memoryStream == null)
+            try
             {
-                if (m_stream is MemoryStream memoryStream)
+                InternalClose(false);
+                if (m_memoryStream == null)
                 {
-                    return Encoding.UTF8.GetString(memoryStream.ToArray());
+                    if (m_stream is MemoryStream memoryStream)
+                    {
+                        return Encoding.UTF8.GetString(memoryStream.ToArray());
+                    }
+                    throw new NotSupportedException("Cannot get text from external stream. Use Close or MemoryStream instead.");
                 }
-                throw new NotSupportedException("Cannot get text from external stream. Use Close or MemoryStream instead.");
+                return Encoding.UTF8.GetString(m_memoryStream.ToArray());
             }
-            return Encoding.UTF8.GetString(m_memoryStream.ToArray());
+            finally
+            {
+                m_writer?.Dispose();
+                m_writer = null;
+            }
         }
 
         /// <summary>
         /// Completes writing and returns the text length.
+        /// The StreamWriter is disposed.
         /// </summary>
-        public int Close()
-        {
-            if (!m_dontWriteClosing)
-            {
-                if (m_topLevelIsArray)
-                {
-                    m_writer.Write(s_rightSquareBracket);
-                }
-                else
-                {
-                    m_writer.Write(s_rightCurlyBrace);
-                }
-            }
-
-            m_writer.Flush();
-            int length = (int)m_writer.BaseStream.Position;
-            m_writer.Dispose();
-            m_writer = null;
-            return length;
-        }
+        public int Close() => InternalClose(true);
         #endregion
 
         #region IDisposable Members
@@ -339,7 +329,7 @@ namespace Opc.Ua
             {
                 if (m_writer != null)
                 {
-                    Close();
+                    InternalClose(true);
                     m_writer = null;
                 }
 
@@ -2580,6 +2570,33 @@ namespace Opc.Ua
         #endregion
 
         #region Private Methods
+        /// <summary>
+        /// Completes writing and returns the text length.
+        /// </summary>
+        private int InternalClose(bool dispose)
+        {
+            if (!m_dontWriteClosing)
+            {
+                if (m_topLevelIsArray)
+                {
+                    m_writer.Write(s_rightSquareBracket);
+                }
+                else
+                {
+                    m_writer.Write(s_rightCurlyBrace);
+                }
+            }
+
+            m_writer.Flush();
+            int length = (int)m_writer.BaseStream.Position;
+            if (dispose)
+            {
+                m_writer.Dispose();
+                m_writer = null;
+            }
+            return length;
+        }
+
         /// <summary>
         /// Writes a DiagnosticInfo to the stream.
         /// Ignores InnerDiagnosticInfo field if the nesting level
