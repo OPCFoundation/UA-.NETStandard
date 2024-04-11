@@ -110,13 +110,11 @@ namespace Opc.Ua.Gds.Server
         }
         private static bool HasRole(IUserIdentity userIdentity, IEnumerable<Role> roles)
         {
-            RoleBasedIdentity identity = userIdentity as RoleBasedIdentity;
-
-            if (identity != null)
+            if (userIdentity != null && userIdentity.TokenType != UserTokenType.Anonymous)
             {
                 foreach (Role role in roles)
                 {
-                    if ((identity.Roles.Contains(role)))
+                    if (!NodeId.IsNull(role.RoleId) && userIdentity.GrantedRoleIds.Contains(role.RoleId))
                     {
                         return true;
                     }
