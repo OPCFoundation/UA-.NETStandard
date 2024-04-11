@@ -1220,7 +1220,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Creates a object to manage the state of an asynchronous operation. 
+        /// Creates an object to manage the state of an asynchronous operation. 
         /// </summary>
         private WriteOperation BeginOperation(int timeout, AsyncCallback callback, object state)
         {
@@ -1390,7 +1390,7 @@ namespace Opc.Ua.Bindings
         {
             Utils.LogTrace("ChannelId {0}: SendCloseSecureChannelRequest()", ChannelId);
 
-            // supress reconnects if an error occurs.
+            // suppress reconnects if an error occurs.
             m_waitBetweenReconnects = Timeout.Infinite;
 
             // check for valid token.

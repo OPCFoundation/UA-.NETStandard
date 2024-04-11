@@ -48,13 +48,13 @@ namespace Opc.Ua.Server.UserDatabase
         /// <param name="userName">the username</param>
         /// <param name="password">the password</param>
         /// <param name="roles">the role of the new user</param>
-        /// <returns>true if registered sucessfull</returns>
+        /// <returns>true if registered successfull</returns>
         bool CreateUser(string userName, string password, IEnumerable<Role> roles);
         /// <summary>
-        /// Delete existring user
+        /// Delete existing user
         /// </summary>
         /// <param name="userName">the user to delete</param>
-        /// <returns>true if deleted sucessfully</returns>
+        /// <returns>true if deleted successfully</returns>
         bool DeleteUser(string userName);
         /// <summary>
         /// checks if the provided credentials fit a user
@@ -76,7 +76,7 @@ namespace Opc.Ua.Server.UserDatabase
         /// <param name="userName"></param>
         /// <param name="oldPassword"></param>
         /// <param name="newPassword"></param>
-        /// <returns>true if change was sucessfull</returns>
+        /// <returns>true if change was successfull</returns>
         bool ChangePassword(string userName, string oldPassword, string newPassword);
     }
 }

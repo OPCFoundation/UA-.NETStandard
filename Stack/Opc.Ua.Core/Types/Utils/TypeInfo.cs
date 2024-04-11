@@ -1551,7 +1551,7 @@ namespace Opc.Ua
         /// <param name="source">The instance of a source value.</param>
         /// <param name="targetType">Type of the target.</param>
         /// <returns>Return casted value.<see cref="DBNull"/></returns>
-        /// <exception cref="InvalidCastException">if imposible to cast.</exception>
+        /// <exception cref="InvalidCastException">if impossible to cast.</exception>
         public static object Cast(object source, BuiltInType targetType)
         {
             return Cast(source, TypeInfo.Construct(source), targetType);
@@ -1564,7 +1564,7 @@ namespace Opc.Ua
         /// <param name="sourceType">Type of the source.</param>
         /// <param name="targetType">Type of the target.</param>
         /// <returns>Return casted value.</returns>
-        /// <exception cref="InvalidCastException">if imposible to cast.</exception>
+        /// <exception cref="InvalidCastException">if impossible to cast.</exception>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
         public static object Cast(object source, TypeInfo sourceType, BuiltInType targetType)
         {

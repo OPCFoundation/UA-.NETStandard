@@ -752,7 +752,7 @@ namespace Opc.Ua.Client.Tests
                 return userIdentity;
             };
 
-            // activate the session from saved sesson secrets on the new channel
+            // activate the session from saved session secrets on the new channel
             session2.Reconnect(channel2);
 
             Thread.Sleep(500);
