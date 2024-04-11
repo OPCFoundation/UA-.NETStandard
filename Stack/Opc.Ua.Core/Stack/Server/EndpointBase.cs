@@ -50,7 +50,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Initializes the when it is created directly.
+        /// Initializes the object when it is created directly.
         /// </summary>
         /// <param name="host">The host.</param>
         protected EndpointBase(IServiceHostBase host)

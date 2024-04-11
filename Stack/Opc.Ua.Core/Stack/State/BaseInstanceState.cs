@@ -23,7 +23,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         protected BaseInstanceState(NodeClass nodeClass, NodeState parent) : base(nodeClass)
         {

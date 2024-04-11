@@ -2647,7 +2647,7 @@ namespace Opc.Ua
         /// which, if any, or the alternate addresses to use instead of the primary addresses.
         /// 
         /// In the ideal world the server would provide these URLs during registration but this
-        /// table allows the administrator to provide the information to the disovery server 
+        /// table allows the administrator to provide the information to the discovery server 
         /// directly without requiring a patch to the server.
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
@@ -3155,7 +3155,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets the DER encoded certificate data or create emebeded in this instance certificate using the DER encoded certificate data.
+        /// Gets the DER encoded certificate data or create embedded in this instance certificate using the DER encoded certificate data.
         /// </summary>
         /// <value>A byte array containing the X.509 certificate data.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 6)]

@@ -2530,7 +2530,7 @@ namespace Opc.Ua.Client
                 // start keep alive thread.
                 StartKeepAliveTimer();
 
-                // raise event that session configuration chnaged.
+                // raise event that session configuration changed.
                 IndicateSessionConfigurationChanged();
 
                 // notify session created callback, which was already set in base class only.
@@ -2997,7 +2997,7 @@ namespace Opc.Ua.Client
             // stop the keep alive timer.
             StopKeepAliveTimer();
 
-            // check if currectly connected.
+            // check if correctly connected.
             bool connected = Connected;
 
             // halt all background threads.
@@ -3011,7 +3011,7 @@ namespace Opc.Ua.Client
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(e, "Session: Unexpected eror raising SessionClosing event.");
+                        Utils.LogError(e, "Session: Unexpected error raising SessionClosing event.");
                     }
                 }
 
@@ -3034,7 +3034,7 @@ namespace Opc.Ua.Client
                         // raised notification indicating the session is closed.
                         SessionCreated(null, null);
                     }
-                    // dont throw errors on disconnect, but return them
+                    // don't throw errors on disconnect, but return them
                     // so the caller can log the error.
                     catch (ServiceResultException sre)
                     {
@@ -3205,7 +3205,7 @@ namespace Opc.Ua.Client
             }
             else
             {
-                Utils.LogInfo("No subscriptions. Transfersubscription skipped.");
+                Utils.LogInfo("No subscriptions. TransferSubscription skipped.");
             }
 
             return failedSubscriptions == 0;
@@ -3282,7 +3282,7 @@ namespace Opc.Ua.Client
             }
             else
             {
-                Utils.LogInfo("No subscriptions. Transfersubscription skipped.");
+                Utils.LogInfo("No subscriptions. TransferSubscription skipped.");
             }
 
             return failedSubscriptions == 0;

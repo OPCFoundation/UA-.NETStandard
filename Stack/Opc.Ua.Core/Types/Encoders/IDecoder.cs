@@ -202,7 +202,7 @@ namespace Opc.Ua
         SByteCollection ReadSByteArray(string fieldName);
 
         /// <summary>
-        /// Reads a sbyte array from the stream.
+        /// Reads a byte array from the stream.
         /// </summary>
         ByteCollection ReadByteArray(string fieldName);
 
@@ -320,7 +320,7 @@ namespace Opc.Ua
         /// Reads an encodeable array from the stream.
         /// </summary>
         /// <param name="fieldName">The encodeable array field name</param>
-        /// <param name="systemType">The system type of the encopdeable objects to be read object</param>
+        /// <param name="systemType">The system type of the encodeable objects to be read object</param>
         /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instances that will be read.</param>
         /// <returns>An <see cref="IEncodeable"/> array that was read from the stream.</returns>
         Array ReadEncodeableArray(string fieldName, Type systemType, ExpandedNodeId encodeableTypeId = null);

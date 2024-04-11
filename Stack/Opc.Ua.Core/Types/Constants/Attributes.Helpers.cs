@@ -23,7 +23,7 @@ namespace Opc.Ua
     {
         #region Static Helper Functions
         /// <summary>
-        /// Returns true is the attribute id is valid.
+        /// Returns true if the attribute id is valid.
         /// </summary>
         public static bool IsValid(uint attributeId)
         {

@@ -38,12 +38,12 @@ namespace Opc.Ua.Server
 {
 
     /// <summary>
-    /// Priviledged identity which can access the system configuration.
+    /// Privileged identity which can access the system configuration.
     /// </summary>
     public class SystemConfigurationIdentity : RoleBasedIdentity
     {
         /// <summary>
-        /// Create a user identity with the priviledge
+        /// Create a user identity with the privilege
         /// to modify the system configuration.
         /// </summary>
         /// <param name="identity">The user identity.</param>
