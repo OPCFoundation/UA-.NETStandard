@@ -2319,6 +2319,7 @@ namespace Opc.Ua.Client
 
                 if (requireEncryption)
                 {
+                    ValidateServerCertificateApplicationUri(serverCertificate);
                     if (checkDomain)
                     {
                         m_configuration.CertificateValidator.Validate(serverCertificateChain, m_endpoint);
@@ -5262,6 +5263,28 @@ namespace Opc.Ua.Client
             {
                 requireEncryption = identityPolicy.SecurityPolicyUri != SecurityPolicies.None &&
                     !String.IsNullOrEmpty(identityPolicy.SecurityPolicyUri);
+            }
+        }
+        /// <summary>
+        /// validates the server Certificates Application Uri to match the specified ApplicationUri of the Endpoint for an open call (Spec Part 4 5.4.1)
+        /// </summary>
+        private void ValidateServerCertificateApplicationUri(
+            X509Certificate2 serverCertificate)
+        {
+            //check only neccessary if the Application Uri for the Endpoint is specified
+            var applicationUri = m_endpoint.Description.Server.ApplicationUri;
+            if (string.IsNullOrEmpty(applicationUri))
+            {
+                return;
+            }
+            {
+                string certificateApplicationUri = X509Utils.GetApplicationUriFromCertificate(serverCertificate);
+                if (certificateApplicationUri != applicationUri)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "Server did not return a Certificate matching the ApplicationUri specified in the EndpointDescription.");
+                }
             }
         }
 
