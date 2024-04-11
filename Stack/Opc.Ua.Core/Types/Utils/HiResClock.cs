@@ -54,14 +54,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Calculates the difference in milliseconds between the current Ticks and the provided reference tick count.
-        /// </summary>
-        public static long CalculateMillisecondsTicksDifference(long referenceTicks)
-        {
-            return (Ticks - referenceTicks);
-        }
-
-        /// <summary>
         /// Returns a monotonic increasing tick count based on the frequency of the underlying timer.
         /// </summary>
         public static long Ticks => s_Default.m_ticksDelegate();
