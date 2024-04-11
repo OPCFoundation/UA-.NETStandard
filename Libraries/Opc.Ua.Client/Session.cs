@@ -5266,25 +5266,23 @@ namespace Opc.Ua.Client
             }
         }
         /// <summary>
-        /// validates the server Certificates Application Uri to match the specified ApplicationUri of the Endpoint for an open call (Spec Part 4 5.4.1)
+        /// Validates the ServerCertificate ApplicationUri to match the ApplicationUri of the Endpoint for an open call (Spec Part 4 5.4.1)
         /// </summary>
         private void ValidateServerCertificateApplicationUri(
             X509Certificate2 serverCertificate)
         {
-            //check only neccessary if the Application Uri for the Endpoint is specified
             var applicationUri = m_endpoint.Description.Server.ApplicationUri;
+            //check is only neccessary if the ApplicatioUri is specified for the Endpoint
             if (string.IsNullOrEmpty(applicationUri))
             {
                 return;
             }
+            string certificateApplicationUri = X509Utils.GetApplicationUriFromCertificate(serverCertificate);
+            if (certificateApplicationUri != applicationUri)
             {
-                string certificateApplicationUri = X509Utils.GetApplicationUriFromCertificate(serverCertificate);
-                if (certificateApplicationUri != applicationUri)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadSecurityChecksFailed,
-                        "Server did not return a Certificate matching the ApplicationUri specified in the EndpointDescription.");
-                }
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "Server did not return a Certificate matching the ApplicationUri specified in the EndpointDescription.");
             }
         }
 
