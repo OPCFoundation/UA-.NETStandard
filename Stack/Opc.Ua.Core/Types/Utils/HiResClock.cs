@@ -54,14 +54,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Calculates the difference in milliseconds between the current TickCount and the provided reference tick count.
-        /// </summary>
-        public static long CalculateMillisecondsTickCountDifference(long referenceTickCount)
-        {
-            return (TickCount - referenceTickCount);
-        }
-
-        /// <summary>
         /// Calculates the difference in milliseconds between the current Ticks and the provided reference tick count.
         /// </summary>
         public static long CalculateMillisecondsTicksDifference(long referenceTicks)
