@@ -748,8 +748,10 @@ namespace Opc.Ua.Client
         {
             get
             {
+                TimeSpan delta = TimeSpan.FromTicks(HiResClock.TickCount - Interlocked.Read(ref m_lastKeepAliveTime));
+
                 // add a guard band to allow for network lag.
-                return (m_keepAliveInterval + kKeepAliveGuardBand) <= HiResClock.CalculateMillisecondsTickCountDifference(Interlocked.Read(ref m_lastKeepAliveTime));
+                return (m_keepAliveInterval + kKeepAliveGuardBand) <= delta.TotalMilliseconds;
             }
         }
 
@@ -760,11 +762,8 @@ namespace Opc.Ua.Client
         {
             get
             {
-                //var ticks = Interlocked.Read(ref m_lastKeepAliveTime);
-
-                // calcualte delta in miliseconds .use utc now and reduce delta
-
-                return new DateTime(DateTime.UtcNow.Ticks - HiResClock.CalculateMillisecondsTickCountDifference(Interlocked.Read(ref m_lastKeepAliveTime)), DateTimeKind.Utc);
+                var ticks = Interlocked.Read(ref m_lastKeepAliveTime);
+                return new DateTime(ticks, DateTimeKind.Utc);
             }
         }
 
@@ -2531,7 +2530,7 @@ namespace Opc.Ua.Client
                 // start keep alive thread.
                 StartKeepAliveTimer();
 
-                // raise event that session configuration chnaged.
+                // raise event that session configuration changed.
                 IndicateSessionConfigurationChanged();
 
                 // notify session created callback, which was already set in base class only.
@@ -2998,7 +2997,7 @@ namespace Opc.Ua.Client
             // stop the keep alive timer.
             StopKeepAliveTimer();
 
-            // check if currectly connected.
+            // check if correctly connected.
             bool connected = Connected;
 
             // halt all background threads.
@@ -3012,7 +3011,7 @@ namespace Opc.Ua.Client
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError(e, "Session: Unexpected eror raising SessionClosing event.");
+                        Utils.LogError(e, "Session: Unexpected error raising SessionClosing event.");
                     }
                 }
 
@@ -3035,7 +3034,7 @@ namespace Opc.Ua.Client
                         // raised notification indicating the session is closed.
                         SessionCreated(null, null);
                     }
-                    // dont throw errors on disconnect, but return them
+                    // don't throw errors on disconnect, but return them
                     // so the caller can log the error.
                     catch (ServiceResultException sre)
                     {
@@ -3206,7 +3205,7 @@ namespace Opc.Ua.Client
             }
             else
             {
-                Utils.LogInfo("No subscriptions. Transfersubscription skipped.");
+                Utils.LogInfo("No subscriptions. TransferSubscription skipped.");
             }
 
             return failedSubscriptions == 0;
@@ -3283,7 +3282,7 @@ namespace Opc.Ua.Client
             }
             else
             {
-                Utils.LogInfo("No subscriptions. Transfersubscription skipped.");
+                Utils.LogInfo("No subscriptions. TransferSubscription skipped.");
             }
 
             return failedSubscriptions == 0;
@@ -4003,7 +4002,7 @@ namespace Opc.Ua.Client
         /// </summary>
         protected virtual bool OnKeepAliveError(ServiceResult result)
         {
-            long delta = HiResClock.CalculateMillisecondsTickCountDifference(Interlocked.Read(ref m_lastKeepAliveTime));
+            long delta = HiResClock.TickCount - Interlocked.Read(ref m_lastKeepAliveTime);
 
             Utils.LogInfo(
                 "KEEP ALIVE LATE: {0}s, EndpointUrl={1}, RequestCount={2}/{3}",
@@ -4018,7 +4017,7 @@ namespace Opc.Ua.Client
             {
                 try
                 {
-                    KeepAliveEventArgs args = new KeepAliveEventArgs(result, ServerState.Unknown, new DateTime(DateTime.UtcNow.Ticks - HiResClock.CalculateMillisecondsTickCountDifference(Interlocked.Read(ref m_lastKeepAliveTime))));
+                    KeepAliveEventArgs args = new KeepAliveEventArgs(result, ServerState.Unknown, DateTime.UtcNow);
                     callback(this, args);
                     return !args.CancelKeepAlive;
                 }
