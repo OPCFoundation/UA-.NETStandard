@@ -592,7 +592,7 @@ namespace Opc.Ua.Client.Tests
                 return userIdentity;
             };
 
-            // activate the session from saved sesson secrets on the new channel
+            // activate the session from saved session secrets on the new channel
             if (asyncTest)
             {
                 await session2.ReconnectAsync(channel2).ConfigureAwait(false);

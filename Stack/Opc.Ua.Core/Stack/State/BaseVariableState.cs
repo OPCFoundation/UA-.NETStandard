@@ -28,7 +28,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         /// <param name="parent">The parent node.</param>
         public BaseVariableState(NodeState parent) : base(NodeClass.Variable, parent)
@@ -1298,7 +1298,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        #region Overrridden Methods
+        #region Overridden Methods
         /// <summary>
         /// Recusively sets the status code and timestamp for the node and all child variables.
         /// </summary>
@@ -1324,7 +1324,7 @@ namespace Opc.Ua
         /// Reads the value for any non-value attribute.
         /// </summary>
         /// <param name="context">The context.</param>
-        /// <param name="attributeId">The attribute idetifier <see cref="Attributes"/>.</param>
+        /// <param name="attributeId">The attribute identifier <see cref="Attributes"/>.</param>
         /// <param name="value">The returned value.</param>
         /// <returns>
         /// An instance of the <see cref="ServiceResult"/> containing the status code and diagnostic info for the operation.
@@ -1609,7 +1609,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Applys the index range and the data encoding to the value.
+        /// Applies the index range and the data encoding to the value.
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="indexRange">The index range.</param>
@@ -2082,7 +2082,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         public PropertyState(NodeState parent) : base(parent)
         {
@@ -2144,7 +2144,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         public PropertyState(NodeState parent) : base(parent)
         {
@@ -2202,7 +2202,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         public BaseDataVariableState(NodeState parent) : base(parent)
         {
@@ -2362,7 +2362,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         public BaseDataVariableState(NodeState parent) : base(parent)
         {

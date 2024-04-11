@@ -151,7 +151,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Returns true if the dictionary contains the data type description;
+        /// Returns true if the dictionary contains the data type description.
         /// </summary>
         public bool Contains(NodeId descriptionId)
         {

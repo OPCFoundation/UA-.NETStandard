@@ -18,7 +18,7 @@ using System.Runtime.Serialization;
 namespace Opc.Ua
 {
     /// <summary>
-    /// Stores a block of encypted data.
+    /// Stores a block of encrypted data.
     /// </summary>
     public class EncryptedData
     {
