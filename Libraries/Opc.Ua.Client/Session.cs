@@ -5271,14 +5271,16 @@ namespace Opc.Ua.Client
         private void ValidateServerCertificateApplicationUri(
             X509Certificate2 serverCertificate)
         {
-            var applicationUri = m_endpoint.Description.Server.ApplicationUri;
+            var applicationUri = m_endpoint?.Description?.Server?.ApplicationUri;
             //check is only neccessary if the ApplicatioUri is specified for the Endpoint
             if (string.IsNullOrEmpty(applicationUri))
             {
-                return;
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "No ApplicationUri is specified for the server in the EndpointDescription.");
             }
             string certificateApplicationUri = X509Utils.GetApplicationUriFromCertificate(serverCertificate);
-            if (certificateApplicationUri != applicationUri)
+            if (!string.Equals(certificateApplicationUri, applicationUri, StringComparison.Ordinal))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
