@@ -53,14 +53,6 @@ namespace Windows.Win32
     [global::System.CodeDom.Compiler.GeneratedCode("Microsoft.Windows.CsWin32", "0.3.49-beta+91f5c15987")]
     internal static partial class PInvokeHelper
     {
-        /// <inheritdoc cref="CertEnumCRLsInStore(winmdroot.Security.Cryptography.HCERTSTORE, winmdroot.Security.Cryptography.CRL_CONTEXT*)"/>
-        internal static unsafe winmdroot.Security.Cryptography.CRL_CONTEXT* CertEnumCRLsInStore(winmdroot.Security.Cryptography.HCERTSTORE hCertStore, winmdroot.Security.Cryptography.CRL_CONTEXT? pPrevCrlContext)
-        {
-            winmdroot.Security.Cryptography.CRL_CONTEXT pPrevCrlContextLocal = pPrevCrlContext ?? default(winmdroot.Security.Cryptography.CRL_CONTEXT);
-            winmdroot.Security.Cryptography.CRL_CONTEXT* __result = PInvokeHelper.CertEnumCRLsInStore(hCertStore, pPrevCrlContext.HasValue ? &pPrevCrlContextLocal : null);
-            return __result;
-        }
-
         /// <summary>The CertEnumCRLsInStore function retrieves the first or next certificate revocation list (CRL) context in a certificate store. Used in a loop, this function can retrieve in sequence all CRL contexts in a certificate store.</summary>
         /// <param name="hCertStore">Handle of a certificate store.</param>
         /// <param name="pPrevCrlContext">
@@ -78,76 +70,6 @@ namespace Windows.Win32
         [DllImport("CRYPT32.dll", ExactSpelling = true, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         internal static extern unsafe winmdroot.Security.Cryptography.CRL_CONTEXT* CertEnumCRLsInStore(winmdroot.Security.Cryptography.HCERTSTORE hCertStore, [Optional] winmdroot.Security.Cryptography.CRL_CONTEXT* pPrevCrlContext);
-
-        /// <inheritdoc cref="CertFreeCRLContext(winmdroot.Security.Cryptography.CRL_CONTEXT*)"/>
-        internal static unsafe winmdroot.Foundation.BOOL CertFreeCRLContext(winmdroot.Security.Cryptography.CRL_CONTEXT? pCrlContext)
-        {
-            winmdroot.Security.Cryptography.CRL_CONTEXT pCrlContextLocal = pCrlContext ?? default(winmdroot.Security.Cryptography.CRL_CONTEXT);
-            winmdroot.Foundation.BOOL __result = PInvokeHelper.CertFreeCRLContext(pCrlContext.HasValue ? &pCrlContextLocal : null);
-            return __result;
-        }
-
-        /// <summary>Frees a certificate revocation list (CRL) context by decrementing its reference count.</summary>
-        /// <param name="pCrlContext">
-        /// <para>A pointer to the <a href="https://docs.microsoft.com/windows/desktop/api/wincrypt/ns-wincrypt-crl_context">CRL_CONTEXT</a> to be freed.</para>
-        /// <para><see href="https://learn.microsoft.com/windows/win32/api/wincrypt/nf-wincrypt-certfreecrlcontext#parameters">Read more on docs.microsoft.com</see>.</para>
-        /// </param>
-        /// <returns>The function always returns <b>TRUE</b>.</returns>
-        /// <remarks>
-        /// <para><see href="https://learn.microsoft.com/windows/win32/api/wincrypt/nf-wincrypt-certfreecrlcontext">Learn more about this API from docs.microsoft.com</see>.</para>
-        /// </remarks>
-        [DllImport("CRYPT32.dll", ExactSpelling = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        internal static extern unsafe winmdroot.Foundation.BOOL CertFreeCRLContext([Optional] winmdroot.Security.Cryptography.CRL_CONTEXT* pCrlContext);
-
-        /// <inheritdoc cref="CertSerializeCRLStoreElement(winmdroot.Security.Cryptography.CRL_CONTEXT*, uint, byte*, uint*)"/>
-        internal static unsafe winmdroot.Foundation.BOOL CertSerializeCRLStoreElement(in winmdroot.Security.Cryptography.CRL_CONTEXT pCrlContext, uint dwFlags, byte* pbElement, ref uint pcbElement)
-        {
-            fixed (uint* pcbElementLocal = &pcbElement)
-            {
-                fixed (winmdroot.Security.Cryptography.CRL_CONTEXT* pCrlContextLocal = &pCrlContext)
-                {
-                    winmdroot.Foundation.BOOL __result = PInvokeHelper.CertSerializeCRLStoreElement(pCrlContextLocal, dwFlags, pbElement, pcbElementLocal);
-                    return __result;
-                }
-            }
-        }
-
-        /// <summary>The CertSerializeCRLStoreElement function serializes an encoded certificate revocation list (CRL) context and the encoded representation of its properties.</summary>
-        /// <param name="pCrlContext">
-        /// <para>A pointer to the <a href="https://docs.microsoft.com/windows/desktop/api/wincrypt/ns-wincrypt-crl_context">CRL_CONTEXT</a> structure being serialized.</para>
-        /// <para><see href="https://learn.microsoft.com/windows/win32/api/wincrypt/nf-wincrypt-certserializecrlstoreelement#parameters">Read more on docs.microsoft.com</see>.</para>
-        /// </param>
-        /// <param name="dwFlags">Reserved for future use and must be zero.</param>
-        /// <param name="pbElement">
-        /// <para>A pointer to a buffer to receive the serialized output, including the encoded CRL, and possibly its properties.</para>
-        /// <para>This parameter can be <b>NULL</b> to set the size of this information for memory allocation purposes. For more information, see <a href="https://docs.microsoft.com/windows/desktop/SecCrypto/retrieving-data-of-unknown-length">Retrieving Data of Unknown Length</a>.</para>
-        /// <para><see href="https://learn.microsoft.com/windows/win32/api/wincrypt/nf-wincrypt-certserializecrlstoreelement#parameters">Read more on docs.microsoft.com</see>.</para>
-        /// </param>
-        /// <param name="pcbElement">
-        /// <para>A pointer to a <b>DWORD</b> value specifying the size, in bytes, of the buffer pointed to by the <i>pbElement</i> parameter. When the function returns, the <b>DWORD</b> value contains the number of bytes stored in the buffer.</para>
-        /// <para><div class="alert"><b>Note</b>  When processing the data returned in the buffer, applications must use the actual size of the data returned. The actual size can be slightly smaller than the size of the buffer specified on input. (On input, buffer sizes are usually specified large enough to ensure that the largest possible output data fits in the buffer.) On output, the variable pointed to by this parameter is updated to reflect the actual size of the data copied to the buffer.</div> <div> </div></para>
-        /// <para><see href="https://learn.microsoft.com/windows/win32/api/wincrypt/nf-wincrypt-certserializecrlstoreelement#parameters">Read more on docs.microsoft.com</see>.</para>
-        /// </param>
-        /// <returns>
-        /// <para>If the function succeeds, the return value is <b>TRUE</b>. If the function fails, the return value is <b>FALSE</b>. For extended error information, call <a href="https://docs.microsoft.com/windows/desktop/api/errhandlingapi/nf-errhandlingapi-getlasterror">GetLastError</a>.</para>
-        /// </returns>
-        /// <remarks>
-        /// <para><see href="https://learn.microsoft.com/windows/win32/api/wincrypt/nf-wincrypt-certserializecrlstoreelement">Learn more about this API from docs.microsoft.com</see>.</para>
-        /// </remarks>
-        [DllImport("CRYPT32.dll", ExactSpelling = true, SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        internal static extern unsafe winmdroot.Foundation.BOOL CertSerializeCRLStoreElement(winmdroot.Security.Cryptography.CRL_CONTEXT* pCrlContext, uint dwFlags, [Optional] byte* pbElement, uint* pcbElement);
-
-        /// <inheritdoc cref="CertAddEncodedCRLToStore(winmdroot.Security.Cryptography.HCERTSTORE, winmdroot.Security.Cryptography.CERT_QUERY_ENCODING_TYPE, byte*, uint, uint, winmdroot.Security.Cryptography.CRL_CONTEXT**)"/>
-        internal static unsafe winmdroot.Foundation.BOOL CertAddEncodedCRLToStore(winmdroot.Security.Cryptography.HCERTSTORE hCertStore, winmdroot.Security.Cryptography.CERT_QUERY_ENCODING_TYPE dwCertEncodingType, ReadOnlySpan<byte> pbCrlEncoded, uint dwAddDisposition, winmdroot.Security.Cryptography.CRL_CONTEXT** ppCrlContext)
-        {
-            fixed (byte* pbCrlEncodedLocal = pbCrlEncoded)
-            {
-                winmdroot.Foundation.BOOL __result = PInvokeHelper.CertAddEncodedCRLToStore(hCertStore, dwCertEncodingType, pbCrlEncodedLocal, (uint)pbCrlEncoded.Length, dwAddDisposition, ppCrlContext);
-                return __result;
-            }
-        }
 
         /// <summary>Creates a certificate revocation list (CRL) context from an encoded CRL and adds it to the certificate store.</summary>
         /// <param name="hCertStore">Handle of a certificate store.</param>
@@ -176,17 +98,7 @@ namespace Windows.Win32
         /// </remarks>
         [DllImport("CRYPT32.dll", ExactSpelling = true, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        internal static extern unsafe winmdroot.Foundation.BOOL CertAddEncodedCRLToStore(winmdroot.Security.Cryptography.HCERTSTORE hCertStore, winmdroot.Security.Cryptography.CERT_QUERY_ENCODING_TYPE dwCertEncodingType, byte* pbCrlEncoded, uint cbCrlEncoded, uint dwAddDisposition, [Optional] winmdroot.Security.Cryptography.CRL_CONTEXT** ppCrlContext);
-
-        /// <inheritdoc cref="CertDeleteCRLFromStore(winmdroot.Security.Cryptography.CRL_CONTEXT*)"/>
-        internal static unsafe winmdroot.Foundation.BOOL CertDeleteCRLFromStore(in winmdroot.Security.Cryptography.CRL_CONTEXT pCrlContext)
-        {
-            fixed (winmdroot.Security.Cryptography.CRL_CONTEXT* pCrlContextLocal = &pCrlContext)
-            {
-                winmdroot.Foundation.BOOL __result = PInvokeHelper.CertDeleteCRLFromStore(pCrlContextLocal);
-                return __result;
-            }
-        }
+        internal static extern unsafe winmdroot.Foundation.BOOL CertAddEncodedCRLToStore(winmdroot.Security.Cryptography.HCERTSTORE hCertStore, winmdroot.Security.Cryptography.CERT_QUERY_ENCODING_TYPE dwCertEncodingType, byte* pbCrlEncoded, uint cbCrlEncoded, uint dwAddDisposition, [Optional] winmdroot.Security.Cryptography.CRL_CONTEXT** ppCrlContext)
 
         /// <summary>The CertDeleteCRLFromStore function deletes the specified certificate revocation list (CRL) context from the certificate store.</summary>
         /// <param name="pCrlContext">
