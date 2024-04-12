@@ -98,7 +98,7 @@ namespace Windows.Win32
         /// </remarks>
         [DllImport("CRYPT32.dll", ExactSpelling = true, SetLastError = true)]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        internal static extern unsafe winmdroot.Foundation.BOOL CertAddEncodedCRLToStore(winmdroot.Security.Cryptography.HCERTSTORE hCertStore, winmdroot.Security.Cryptography.CERT_QUERY_ENCODING_TYPE dwCertEncodingType, byte* pbCrlEncoded, uint cbCrlEncoded, uint dwAddDisposition, [Optional] winmdroot.Security.Cryptography.CRL_CONTEXT** ppCrlContext)
+        internal static extern unsafe winmdroot.Foundation.BOOL CertAddEncodedCRLToStore(winmdroot.Security.Cryptography.HCERTSTORE hCertStore, winmdroot.Security.Cryptography.CERT_QUERY_ENCODING_TYPE dwCertEncodingType, byte* pbCrlEncoded, uint cbCrlEncoded, uint dwAddDisposition, [Optional] winmdroot.Security.Cryptography.CRL_CONTEXT** ppCrlContext);
 
         /// <summary>The CertDeleteCRLFromStore function deletes the specified certificate revocation list (CRL) context from the certificate store.</summary>
         /// <param name="pCrlContext">
