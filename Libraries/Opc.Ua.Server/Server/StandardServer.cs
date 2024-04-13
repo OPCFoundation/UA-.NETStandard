@@ -30,6 +30,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
@@ -2949,10 +2950,9 @@ namespace Opc.Ua.Server
                     Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSessionManager.");
                     SessionManager sessionManager = CreateSessionManager(m_serverInternal, configuration);
                     sessionManager.Startup();
-                    sessionManager.SessionCreated += SessionEvent;
-                    sessionManager.SessionClosing += SessionEvent;
-                    sessionManager.SessionActivated += SessionEvent;
-                    sessionManager.SessionKeepAlive += SessionEvent;
+
+                    // use event to trigger channel that should not be closed.
+                    sessionManager.SessionKeepAlive += SessionKeepAliveEvent;
 
                     // start the subscription manager.
                     Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
@@ -3091,9 +3091,7 @@ namespace Opc.Ua.Server
                 {
                     if (m_serverInternal != null)
                     {
-                        m_serverInternal.SessionManager.SessionClosing -= SessionEvent;
-                        m_serverInternal.SessionManager.SessionCreated -= SessionEvent;
-                        m_serverInternal.SessionManager.SessionActivated -= SessionEvent;
+                        m_serverInternal.SessionManager.SessionKeepAlive -= SessionKeepAliveEvent;
                         m_serverInternal.SubscriptionManager.Shutdown();
                         m_serverInternal.SessionManager.Shutdown();
                         m_serverInternal.NodeManager.Shutdown();
@@ -3350,44 +3348,23 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Reacts to a session event
         /// </summary>
-        private void SessionEvent(Session session, SessionEventReason reason)
+        private void SessionKeepAliveEvent(Session session, SessionEventReason reason)
         {
-            if (reason == SessionEventReason.KeepAlive)
+            Debug.Assert(reason == SessionEventReason.KeepAlive);
+
+            var secureChannelId = session.SecureChannelId;
+            if (!string.IsNullOrEmpty(secureChannelId))
             {
-                var secureChannelId = session.SecureChannelId;
-                if (!string.IsNullOrEmpty(secureChannelId))
-                {
-                    var listenerId = session.SecureChannelId.Substring(0, 36);
-                    TransportListeners.ForEach(tl => {
-                        if (listenerId.Equals(tl.ListenerId, StringComparison.Ordinal))
+                // TODO: create helpers to extract listenerId from secureChannelId
+                var listenerId = session.SecureChannelId.Substring(0, 36);
+                TransportListeners.ForEach(tl => {
+                    if (listenerId.Equals(tl.ListenerId, StringComparison.Ordinal))
+                    {
+                        if (tl is TcpTransportListener tc)
                         {
-                            if (tl is TcpTransportListener tc)
-                            {
-                                tc.HandleSessionKeepAlive(session.SecureChannelId);
-                            }
+                            tc.HandleSessionKeepAlive(session.SecureChannelId);
                         }
-                    });
-                }
-            }
-            else if (reason == SessionEventReason.Closing)
-            {
-                TransportListeners.ForEach(tl => {
-                    if (tl is TcpTransportListener tc)
-                        tc.HandleSessionClose(session.SecureChannelId);
-                });
-            }
-            else if (reason == SessionEventReason.Created)
-            {
-                TransportListeners.ForEach(tl => {
-                    if (tl is TcpTransportListener tc)
-                        tc.HandleSessionCreate(session.SecureChannelId);
-                });
-            }
-            else if (reason == SessionEventReason.Activated)
-            {
-                TransportListeners.ForEach(tl => {
-                    if (tl is TcpTransportListener tc)
-                        tc.HandleSessionActivate(session.SecureChannelId);
+                    }
                 });
             }
         }

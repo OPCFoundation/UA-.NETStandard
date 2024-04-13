@@ -153,7 +153,6 @@ namespace Opc.Ua.Bindings
 
             m_bufferManager = new BufferManager("Server", m_quotas.MaxBufferSize);
             m_channels = new Dictionary<uint, TcpListenerChannel>();
-            m_sessionsPerChannel = new ConcurrentDictionary<string, uint>();
             m_reverseConnectListener = settings.ReverseConnectListener;
             m_maxChannelCount = settings.MaxChannelCount;
 
@@ -176,48 +175,14 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handle Session KeepAlive.
         /// </summary>
-        /// <param name="channelId"></param>
-        public void HandleSessionKeepAlive(string channelId)
+        /// <param name="globalChannelId"></param>
+        public void HandleSessionKeepAlive(string globalChannelId)
         {
-            if (m_channels.TryGetValue(Convert.ToUInt32(channelId.Split('-').Last()), out TcpListenerChannel channel))
+            // TODO: Use helpers to extract channel id from string
+            if (m_channels.TryGetValue(Convert.ToUInt32(globalChannelId.Split('-').Last()), out TcpListenerChannel channel))
             {
                 channel?.UpdateLastCommTime();
             }
-        }
-
-        /// <summary>
-        /// Handle Session Close
-        /// </summary>
-        /// <param name="channelId"></param>
-        public void HandleSessionClose(string channelId)
-        {
-            if (m_sessionsPerChannel.TryGetValue(channelId, out uint actualValue))
-            {
-                uint newValue = m_sessionsPerChannel.AddOrUpdate(channelId,
-                    _ => throw new InvalidOperationException("Attempted to decrement non existing channelId"),
-                    (key, value) => value > 0 ? value - 1 : 0);
-                Utils.LogInfo("#### HandleSessionClose({0})={1} Count={2}", channelId, newValue, m_sessionsPerChannel.Count);
-            }
-        }
-
-        /// <summary>
-        /// Handle Session Create
-        /// </summary>
-        /// <param name="channelId"></param>
-        public void HandleSessionCreate(string channelId)
-        {
-            uint newValue = m_sessionsPerChannel.AddOrUpdate(channelId, 1, (key, actualValue) => actualValue + 1);
-            Utils.LogInfo("#### HandleSessionCreate({0})={1} Count={2}", channelId, newValue, m_sessionsPerChannel.Count);
-        }
-
-        /// <summary>
-        /// Handle Session Activate
-        /// </summary>
-        /// <param name="channelId"></param>
-        public void HandleSessionActivate(string channelId)
-        {
-            uint newValue = m_sessionsPerChannel.AddOrUpdate(channelId, 1, (key, actualValue) => actualValue == 0 ? 1 : actualValue);
-            Utils.LogInfo("#### HandleSessionActivate({0})={1} Count={2}", channelId, newValue, m_sessionsPerChannel.Count);
         }
         #endregion
 
@@ -825,7 +790,6 @@ namespace Opc.Ua.Bindings
         private bool m_reverseConnectListener;
         private int m_inactivityDetectPeriod;
         private Timer m_inactivityDetectionTimer;
-        private ConcurrentDictionary<string, uint> m_sessionsPerChannel;
         private int m_maxChannelCount;
         #endregion
 
