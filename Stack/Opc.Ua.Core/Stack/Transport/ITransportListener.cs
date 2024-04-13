@@ -28,6 +28,11 @@ namespace Opc.Ua
     public interface ITransportListener : IDisposable
     {
         /// <summary>
+        /// The Id of the transport listener.
+        /// </summary>
+        string ListenerId { get; }
+
+        /// <summary>
         /// The protocol supported by the listener.
         /// </summary>
         string UriScheme { get; }
@@ -74,7 +79,6 @@ namespace Opc.Ua
         /// Creates a reverse connection to a client. 
         /// </summary>
         void CreateReverseConnection(Uri url, int timeout);
-
 
     }
 

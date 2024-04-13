@@ -13,6 +13,7 @@
 using System;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Bindings
 {
@@ -140,7 +141,7 @@ namespace Opc.Ua.Bindings
 
                 Socket = new TcpMessageSocket(this, socket, BufferManager, Quotas.MaxBufferSize);
 
-                Utils.LogTrace("{0} SOCKET ATTACHED: {1:X8}, ChannelId={2}", ChannelName, Socket.Handle, ChannelId);
+                Utils.LogInfo("{0} SOCKET ATTACHED: {1:X8}, ChannelId={2}", ChannelName, Socket.Handle, ChannelId);
 
                 Socket.ReadNextMessage();
 
@@ -157,11 +158,15 @@ namespace Opc.Ua.Bindings
             lock (DataLock)
             {
                 state = State;
+                if (state == TcpChannelState.Open && force)
+                {
+                    State = TcpChannelState.Closing;
+                }
             }
 
             if (force || state == TcpChannelState.Opening)
             {
-                OnCleanup(StatusCodes.BadNoCommunication);
+                OnCleanup(new ServiceResult(StatusCodes.BadNoCommunication, "Channel closed due to inactivity."));
             }
         }
         #endregion
@@ -224,7 +229,8 @@ namespace Opc.Ua.Bindings
                 bool close = false;
                 if (State != TcpChannelState.Connecting)
                 {
-                    Utils.LogError(
+                    Utils.Log(
+                        State != TcpChannelState.Closed ? LogLevel.Error : LogLevel.Information,
                         "{0} ForceChannelFault Socket={1:X8}, ChannelId={2}, TokenId={3}, Reason={4}",
                         ChannelName,
                         (Socket != null) ? Socket.Handle : 0,
@@ -284,7 +290,7 @@ namespace Opc.Ua.Bindings
                     reason = new ServiceResult(StatusCodes.BadTimeout);
                 }
 
-                Utils.LogTrace(
+                Utils.LogInfo(
                     "{0} Cleanup Socket={1:X8}, ChannelId={2}, TokenId={3}, Reason={4}",
                     ChannelName,
                     (Socket != null) ? Socket.Handle : 0,

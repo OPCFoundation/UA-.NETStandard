@@ -836,7 +836,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Update the last time that communication has occured on the channel.
         /// </summary>
-        protected void UpdateLastCommTime()
+        public void UpdateLastCommTime()
         {
             m_lastCommTime = HiResClock.TickCount;
         }

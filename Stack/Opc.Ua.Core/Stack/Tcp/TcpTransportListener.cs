@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
@@ -98,6 +99,11 @@ namespace Opc.Ua.Bindings
         public string UriScheme => Utils.UriSchemeOpcTcp;
 
         /// <summary>
+        /// The Id of the transport listener.
+        /// </summary>
+        public string ListenerId => m_listenerId;
+
+        /// <summary>
         /// Opens the listener and starts accepting connection.
         /// </summary>
         /// <param name="baseAddress">The base address.</param>
@@ -168,6 +174,18 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Handle Session KeepAlive.
+        /// </summary>
+        /// <param name="channelId"></param>
+        public void HandleSessionKeepAlive(string channelId)
+        {
+            if (m_channels.TryGetValue(Convert.ToUInt32(channelId.Split('-').Last()), out TcpListenerChannel channel))
+            {
+                channel?.UpdateLastCommTime();
+            }
+        }
+
+        /// <summary>
         /// Handle Session Close
         /// </summary>
         /// <param name="channelId"></param>
@@ -175,9 +193,10 @@ namespace Opc.Ua.Bindings
         {
             if (m_sessionsPerChannel.TryGetValue(channelId, out uint actualValue))
             {
-                uint decValue = m_sessionsPerChannel.AddOrUpdate(channelId,
+                uint newValue = m_sessionsPerChannel.AddOrUpdate(channelId,
                     _ => throw new InvalidOperationException("Attempted to decrement non existing channelId"),
                     (key, value) => value > 0 ? value - 1 : 0);
+                Utils.LogInfo("#### HandleSessionClose({0})={1} Count={2}", channelId, newValue, m_sessionsPerChannel.Count);
             }
         }
 
@@ -187,7 +206,8 @@ namespace Opc.Ua.Bindings
         /// <param name="channelId"></param>
         public void HandleSessionCreate(string channelId)
         {
-            m_sessionsPerChannel.AddOrUpdate(channelId, 1, (key, actualValue) => actualValue + 1);
+            uint newValue = m_sessionsPerChannel.AddOrUpdate(channelId, 1, (key, actualValue) => actualValue + 1);
+            Utils.LogInfo("#### HandleSessionCreate({0})={1} Count={2}", channelId, newValue, m_sessionsPerChannel.Count);
         }
 
         /// <summary>
@@ -196,7 +216,8 @@ namespace Opc.Ua.Bindings
         /// <param name="channelId"></param>
         public void HandleSessionActivate(string channelId)
         {
-            m_sessionsPerChannel.AddOrUpdate(channelId, 1, (key, actualValue) => actualValue == 0 ? 1 : actualValue);
+            uint newValue = m_sessionsPerChannel.AddOrUpdate(channelId, 1, (key, actualValue) => actualValue == 0 ? 1 : actualValue);
+            Utils.LogInfo("#### HandleSessionActivate({0})={1} Count={2}", channelId, newValue, m_sessionsPerChannel.Count);
         }
         #endregion
 
@@ -421,7 +442,7 @@ namespace Opc.Ua.Bindings
             {
                 foreach (var chEntry in m_channels)
                 {
-                    if (tickCount - chEntry.Value.LastActiveTime > m_quotas.ChannelLifetime)
+                    if ((tickCount - chEntry.Value.LastActiveTime) > m_quotas.ChannelLifetime)
                     {
                         chEntry.Value.Cleanup(force: true);
                     }

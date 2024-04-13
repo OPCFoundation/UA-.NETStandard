@@ -505,6 +505,7 @@ namespace Opc.Ua.Server
                 }
 
                 Utils.LogInfo("Server - SESSION CREATED. SessionId={0}", sessionId);
+
                 // report audit for successful create session
                 ServerInternal.ReportAuditCreateSessionEvent(context?.AuditEntryId, session, revisedSessionTimeout);
 
@@ -2951,6 +2952,7 @@ namespace Opc.Ua.Server
                     sessionManager.SessionCreated += SessionEvent;
                     sessionManager.SessionClosing += SessionEvent;
                     sessionManager.SessionActivated += SessionEvent;
+                    sessionManager.SessionKeepAlive += SessionEvent;
 
                     // start the subscription manager.
                     Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
@@ -3350,7 +3352,24 @@ namespace Opc.Ua.Server
         /// </summary>
         private void SessionEvent(Session session, SessionEventReason reason)
         {
-            if (reason == SessionEventReason.Closing)
+            if (reason == SessionEventReason.KeepAlive)
+            {
+                var secureChannelId = session.SecureChannelId;
+                if (!string.IsNullOrEmpty(secureChannelId))
+                {
+                    var listenerId = session.SecureChannelId.Substring(0, 36);
+                    TransportListeners.ForEach(tl => {
+                        if (listenerId.Equals(tl.ListenerId, StringComparison.Ordinal))
+                        {
+                            if (tl is TcpTransportListener tc)
+                            {
+                                tc.HandleSessionKeepAlive(session.SecureChannelId);
+                            }
+                        }
+                    });
+                }
+            }
+            else if (reason == SessionEventReason.Closing)
             {
                 TransportListeners.ForEach(tl => {
                     if (tl is TcpTransportListener tc)

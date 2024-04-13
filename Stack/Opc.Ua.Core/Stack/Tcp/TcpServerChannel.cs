@@ -335,7 +335,7 @@ namespace Opc.Ua.Bindings
             const UInt32 kProtocolVersion = 0;
             const int kResponseBufferSize = 127;
 
-            // Communication is active on the chanell
+            // Communication is active on the channel
             UpdateLastCommTime();
 
             // validate the channel state.

@@ -146,10 +146,11 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region ITransportListener Members
-        /// <summary>
-        /// The URI scheme handled by the listener.
-        /// </summary>
+        /// <inheritdoc/>
         public string UriScheme => m_uriScheme;
+
+        /// <inheritdoc/>
+        public string ListenerId => m_listenerId;
 
         /// <summary>
         /// Opens the listener and starts accepting connection.
