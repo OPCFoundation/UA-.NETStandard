@@ -69,8 +69,7 @@ namespace Opc.Ua
                     Factory = null,
                     ServerCertificate = null,
                     ServerCertificateChain = null,
-                    ReverseConnectListener = true,
-                    MaxChannelCount = 0,
+                    ReverseConnectListener = true
                 };
 
                 Utils.LogInfo("Open reverse connect listener for {0}.", Url);

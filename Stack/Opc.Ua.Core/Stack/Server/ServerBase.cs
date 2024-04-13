@@ -830,20 +830,14 @@ namespace Opc.Ua
             // create the stack listener.
             try
             {
-                TransportListenerSettings settings = new TransportListenerSettings {
-                    Descriptions = endpoints,
-                    Configuration = endpointConfiguration,
-                    ServerCertificate = InstanceCertificate,
-                    CertificateValidator = certificateValidator,
-                    NamespaceUris = MessageContext.NamespaceUris,
-                    Factory = MessageContext.Factory,
-                    MaxChannelCount = 0,
-                };
+                TransportListenerSettings settings = new TransportListenerSettings();
 
-                if (m_configuration is ApplicationConfiguration applicationConfiguration)
-                {
-                    settings.MaxChannelCount = applicationConfiguration.ServerConfiguration.MaxChannelCount;
-                }
+                settings.Descriptions = endpoints;
+                settings.Configuration = endpointConfiguration;
+                settings.ServerCertificate = InstanceCertificate;
+                settings.CertificateValidator = certificateValidator;
+                settings.NamespaceUris = MessageContext.NamespaceUris;
+                settings.Factory = MessageContext.Factory;
 
                 listener.Open(
                    endpointUri,
