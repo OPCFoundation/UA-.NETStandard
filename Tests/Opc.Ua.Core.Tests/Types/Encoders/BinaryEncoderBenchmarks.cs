@@ -167,7 +167,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void BinaryEncoderArraySegmentStreamNoSpan()
         {
-#if NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER && ECC_SUPPORT
             using (var arraySegmentStream = new ArraySegmentStreamNoSpan(m_bufferManager))
 #else
             using (var arraySegmentStream = new ArraySegmentStream(m_bufferManager))

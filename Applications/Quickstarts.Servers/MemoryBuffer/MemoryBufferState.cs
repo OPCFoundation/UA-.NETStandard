@@ -190,7 +190,7 @@ namespace MemoryBuffer
         }
 
         /// <summary>
-        /// Creates an object which can browser the tags in the buffer.
+        /// Creates an object which can browse the tags in the buffer.
         /// </summary>
         public override INodeBrowser CreateBrowser(
             ISystemContext context,

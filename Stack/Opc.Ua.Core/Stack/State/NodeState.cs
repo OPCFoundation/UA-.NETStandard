@@ -3448,7 +3448,7 @@ namespace Opc.Ua
         /// Reads the value for any non-value attribute.
         /// </summary>
         /// <param name="context">The context.</param>
-        /// <param name="attributeId">The attribute idetifier <see cref="Attributes"/>.</param>
+        /// <param name="attributeId">The attribute identifier <see cref="Attributes"/>.</param>
         /// <param name="value">The returned value.</param>
         /// <returns>
         /// An instance of the <see cref="ServiceResult"/> containing the status code and diagnostic info for the operation.
@@ -4122,7 +4122,7 @@ namespace Opc.Ua
         /// <param name="symbolicPath">The symbolic path.</param>
         /// <returns>The matching child. Null if the no child was found.</returns>
         /// <remarks>
-        /// This method assumes the symbolicPath consists of symbolic names seperated by a slash ('/').
+        /// This method assumes the symbolicPath consists of symbolic names separated by a slash ('/').
         /// Leading and trailing slashes are ignored.
         /// </remarks>
         public virtual BaseInstanceState FindChildBySymbolicName(
