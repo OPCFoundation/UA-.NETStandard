@@ -37,6 +37,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.X509StoreExtensions;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
@@ -221,7 +222,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     "System\\UA_MachineDefault"));
         }
 
-        //Verify X509 Store supports no Crls on Linux or MacOs
+        /// <summary>
+        /// Verify X509 Store supports no Crls on Linux or MacOs
+        /// </summary>
+        /// <param name="storePath"></param>
         [Theory, Order(40)]
         public void VerifyNoCrlSupportOnLinuxOrMacOsX509Store(string storePath)
         {
@@ -387,6 +391,30 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.AreEqual(0, crlsAfterSecondDelete.Count);
             }
         }
+
+
+        /// <summary>
+        /// Verify X509 Store Extension methods throw on Linux or MacOs
+        /// </summary>
+        /// <param name="storePath"></param>
+        [Theory, Order(90)]
+        public void X509StoreExtensionsThrowException(string storePath)
+        {
+            using (var x509Store = new X509Store(storePath))
+            {
+                if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    Assert.Throws<PlatformNotSupportedException>(() => x509Store.AddCrl(new byte[0]));
+                    Assert.Throws<PlatformNotSupportedException>(() => x509Store.EnumerateCrls());
+                    Assert.Throws<PlatformNotSupportedException>(() => x509Store.DeleteCrl(new byte[0]));
+                }
+                else
+                {
+                    Assert.Ignore("Test only relevant on MacOS/Linux");
+                }
+            }
+        }
+
         #endregion
 
         #region Private Methods
