@@ -3346,7 +3346,8 @@ namespace Opc.Ua.Server
 
         #region Private Methods
         /// <summary>
-        /// Reacts to a session event
+        /// Reacts to a session keep alive event to signal
+        /// a listener channels that a session is still active.
         /// </summary>
         private void SessionKeepAliveEvent(Session session, SessionEventReason reason)
         {
@@ -3355,17 +3356,8 @@ namespace Opc.Ua.Server
             var secureChannelId = session.SecureChannelId;
             if (!string.IsNullOrEmpty(secureChannelId))
             {
-                // TODO: create helpers to extract listenerId from secureChannelId
-                var listenerId = session.SecureChannelId.Substring(0, 36);
-                TransportListeners.ForEach(tl => {
-                    if (listenerId.Equals(tl.ListenerId, StringComparison.Ordinal))
-                    {
-                        if (tl is TcpTransportListener tc)
-                        {
-                            tc.HandleSessionKeepAlive(session.SecureChannelId);
-                        }
-                    }
-                });
+                var transportListener = TransportListeners.FirstOrDefault(tl => secureChannelId.StartsWith(tl.ListenerId, StringComparison.Ordinal));
+                transportListener?.UpdateChannelLastActiveTime(session.SecureChannelId);
             }
         }
         #endregion

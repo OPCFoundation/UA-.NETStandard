@@ -42,6 +42,9 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class TcpTransportListener : ITransportListener, ITcpChannelListener
     {
+        // The limit of queued connections for the listener socket..
+        const int kSocketBacklog = 10;
+
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
@@ -172,16 +175,23 @@ namespace Opc.Ua.Bindings
             Stop();
         }
 
-        /// <summary>
-        /// Handle Session KeepAlive.
-        /// </summary>
-        /// <param name="globalChannelId"></param>
-        public void HandleSessionKeepAlive(string globalChannelId)
+        /// <inheritdoc/>
+        public void UpdateChannelLastActiveTime(string globalChannelId)
         {
-            // TODO: Use helpers to extract channel id from string
-            if (m_channels.TryGetValue(Convert.ToUInt32(globalChannelId.Split('-').Last()), out TcpListenerChannel channel))
+            try
             {
-                channel?.UpdateLastCommTime();
+                var channelIdString = globalChannelId.Substring(ListenerId.Length + 1);
+                var channelId = Convert.ToUInt32(channelIdString);
+
+                if (channelId > 0 &&
+                    m_channels.TryGetValue(channelId, out TcpListenerChannel channel))
+                {
+                    channel?.UpdateLastActiveTime();
+                }
+            }
+            catch
+            {
+                // ignore errors for calls with invalid channel id
             }
         }
         #endregion
@@ -397,25 +407,6 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// The callback timer which detects stale channels
-        /// </summary>
-        /// <param name="state"></param>
-        private void DetectInactiveChannels(object state = null)
-        {
-            int tickCount = HiResClock.TickCount;
-            lock (m_lock)
-            {
-                foreach (var chEntry in m_channels)
-                {
-                    if ((tickCount - chEntry.Value.LastActiveTime) > m_quotas.ChannelLifetime)
-                    {
-                        chEntry.Value.Cleanup(force: true);
-                    }
-                }
-            }
-        }
-
-        /// <summary>
         /// Stops listening.
         /// </summary>
         public void Stop()
@@ -613,6 +604,39 @@ namespace Opc.Ua.Bindings
                 }
             } while (repeatAccept);
         }
+
+        /// <summary>
+        /// The inactive timer callback which detects stale channels.
+        /// </summary>
+        /// <param name="state"></param>
+        private void DetectInactiveChannels(object state = null)
+        {
+            List<TcpListenerChannel> channels;
+
+            lock (m_lock)
+            {
+                channels = new List<TcpListenerChannel>();
+                foreach (var chEntry in m_channels)
+                {
+                    if (chEntry.Value.ElapsedSinceLastActiveTime > m_quotas.ChannelLifetime)
+                    {
+                        channels.Add(chEntry.Value);
+                    }
+                }
+            }
+
+            if (channels.Count > 0)
+            {
+                Utils.LogInfo("TCPLISTENER: {0} channels scheduled for IdleCleanup.", channels.Count);
+                foreach (var channel in channels)
+                {
+                    lock (m_lock)
+                    {
+                        channel.IdleCleanup();
+                    }
+                }
+            }
+        }
         #endregion
 
         #region Public Fields
@@ -791,10 +815,6 @@ namespace Opc.Ua.Bindings
         private int m_inactivityDetectPeriod;
         private Timer m_inactivityDetectionTimer;
         private int m_maxChannelCount;
-        #endregion
-
-        #region Private Constants
-        int kSocketBacklog = 10;
         #endregion
     }
 

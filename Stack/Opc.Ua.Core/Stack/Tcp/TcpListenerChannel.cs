@@ -149,26 +149,32 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Set the channel Inactive
+        /// Clean up an Opening or Open channel that has been idle for too long.
         /// </summary>
-        public void Cleanup(bool force = false)
+        public void IdleCleanup()
         {
             TcpChannelState state;
 
             lock (DataLock)
             {
                 state = State;
-                if (state == TcpChannelState.Open && force)
+                if (state == TcpChannelState.Open)
                 {
-                    State = TcpChannelState.Closing;
+                    state = State = TcpChannelState.Closing;
                 }
             }
 
-            if (force || state == TcpChannelState.Opening)
+            if (state == TcpChannelState.Closing || state == TcpChannelState.Opening)
             {
                 OnCleanup(new ServiceResult(StatusCodes.BadNoCommunication, "Channel closed due to inactivity."));
             }
         }
+
+        /// <summary>
+        /// The time in milliseconds elapsed since the channel received or sent messages
+        /// or received a keep alive.
+        /// </summary>
+        public int ElapsedSinceLastActiveTime => (HiResClock.TickCount - LastActiveTickCount);
         #endregion
 
         #region Socket Event Handlers
@@ -533,13 +539,6 @@ namespace Opc.Ua.Bindings
         /// The report certificate audit event handler.
         /// </summary>
         protected ReportAuditCertificateEventHandler ReportAuditCertificateEvent => m_reportAuditCertificateEvent;
-        #endregion
-
-        #region Public Properties
-        /// <summary>
-        /// The last ActiveTime of the channel
-        /// </summary>
-        public int LastActiveTime => LastCommTime;
         #endregion
 
         #region Private Fields

@@ -194,6 +194,11 @@ namespace Opc.Ua.Bindings
                 m_StateChanged = callback;
             }
         }
+
+        /// <summary>
+        /// The time in milliseconds elapsed since the channel received/sent messages.
+        /// </summary>
+        protected int LastActiveTickCount => m_lastActiveTickCount;
         #endregion
 
         #region Channel State Functions
@@ -524,7 +529,7 @@ namespace Opc.Ua.Bindings
         protected virtual void HandleWriteComplete(BufferCollection buffers, object state, int bytesWritten, ServiceResult result)
         {
             // Communication is active on the channel
-            UpdateLastCommTime();
+            UpdateLastActiveTime();
 
             buffers?.Release(BufferManager, "WriteOperation");
             Interlocked.Decrement(ref m_activeWriteRequests);
@@ -764,12 +769,6 @@ namespace Opc.Ua.Bindings
                 m_globalChannelId = Utils.Format("{0}-{1}", m_contextId, m_channelId);
             }
         }
-
-        /// <summary>
-        /// The last time that the channel received/send messages 
-        /// </summary>
-        protected int LastCommTime { get { return m_lastCommTime; } }
-
         #endregion
 
         #region WriteOperation Class
@@ -836,9 +835,9 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Update the last time that communication has occured on the channel.
         /// </summary>
-        public void UpdateLastCommTime()
+        public void UpdateLastActiveTime()
         {
-            m_lastCommTime = HiResClock.TickCount;
+            m_lastActiveTickCount = HiResClock.TickCount;
         }
         #endregion
 
@@ -867,7 +866,7 @@ namespace Opc.Ua.Bindings
 
         private TcpChannelStateEventHandler m_StateChanged;
 
-        private int m_lastCommTime;
+        private int m_lastActiveTickCount;
         #endregion
     }
 

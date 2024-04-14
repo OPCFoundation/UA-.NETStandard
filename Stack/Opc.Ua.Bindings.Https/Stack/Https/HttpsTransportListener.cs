@@ -234,6 +234,12 @@ namespace Opc.Ua.Bindings
             ConnectionStatusChanged?.Invoke(null, null);
             throw new NotImplementedException();
         }
+
+        /// <inheritdoc/>
+        public void UpdateChannelLastActiveTime(string globalChannelId)
+        {
+            // intentionally not implemented
+        }
         #endregion
 
         #region Public Methods
@@ -308,7 +314,7 @@ namespace Opc.Ua.Bindings
         {
             Dispose();
         }
-#endregion
+        #endregion
 
         #region Private Methods
         /// <summary>
