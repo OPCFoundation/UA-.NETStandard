@@ -634,14 +634,20 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Certificate group invalid.");
             }
 
-            certificateTypeIds = certificateGroup.CertificateTypes;
+            NodeId certificateTypeId = certificateGroup.CertificateTypes.FirstOrDefault();
 
-            if (certificateTypeIds.Length >= 1)
+            //TODO support multiple Application Instance Certificates
+            if (certificateTypeId != null)
             {
-                certificates = new byte[certificateTypeIds.Length][];
+                certificateTypeIds = new NodeId[1] {certificateTypeId };
+                certificates = new byte[1][];
                 certificates[0] = certificateGroup.ApplicationCertificate.Certificate.GetRawCertData();
             }
-            //TODO support multiple Application Instance Certificates
+            else
+            {
+                certificateTypeIds = new NodeId[0];
+                certificates = new byte[0][];
+            }
 
             return ServiceResult.Good;
         }

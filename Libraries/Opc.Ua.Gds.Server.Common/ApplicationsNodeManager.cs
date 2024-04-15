@@ -31,12 +31,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Gds.Server.Diagnostics;
 using Opc.Ua.Server;
+using Org.BouncyCastle.Tls;
 
 namespace Opc.Ua.Gds.Server
 {
@@ -661,39 +663,33 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthenticatedSecureChannel(context);
 
-            //TODO return validityTime of Certificate once CertificateValidator supports it
+            //TODO return When the result expires and should be rechecked.
             validityTime = DateTime.MinValue;
 
             try
             {
-                ValidateCertificate(certificate);
+                //create chain to validate Certificate against it
+                var chain = new X509Chain();
+                chain.ChainPolicy.RevocationMode = X509RevocationMode.Online;
+
+                using (var x509 = new X509Certificate2(certificate))
+                {
+                    if (chain.Build(x509))
+                    {
+                        return ServiceResult.Good;
+                    }
+                    else
+                    {
+                        certificateStatus = StatusCodes.Bad;
+                    }
+                }
             }
-            catch (ServiceResultException se)
+            catch (CryptographicException)
             {
-                certificateStatus = se.StatusCode;
+                certificateStatus = StatusCodes.Bad;
             }
 
             return ServiceResult.Good;
-        }
-
-        /// <summary>
-        /// creates a CertificateValidator initialized with GDS CAs and validates the provided certificates
-        /// </summary>
-        /// <param name="certificate"></param>
-        /// <exception cref="ServiceResultException">When a validation Error occurs</exception>
-        private void ValidateCertificate(byte[] certificate)
-        {
-            var certificateValidator = new CertificateValidator();
-            var authorities = new CertificateTrustList() {
-                StorePath = m_globalDiscoveryServerConfiguration.AuthoritiesStorePath,
-                StoreType = CertificateStoreIdentifier.DetermineStoreType(m_globalDiscoveryServerConfiguration.AuthoritiesStorePath)
-            };
-            certificateValidator.Update(null, authorities, null);
-
-            using (var x509 = new X509Certificate2(certificate))
-            {
-                certificateValidator.Validate(x509);
-            }
         }
 
         private ServiceResult OnGetCertificates(
@@ -720,13 +716,10 @@ namespace Opc.Ua.Gds.Server
             {
                 foreach (KeyValuePair<NodeId, string> certType in m_certTypeMap)
                 {
-                    byte[] certificate = GetCertificateIfValid(applicationId, certType.Value);
-
-                    if (certificate != null)
+                    if (m_database.GetApplicationCertificate(applicationId, certType.Value, out byte[] certificate) && certificate != null)
                     {
                         certificateTypeIdsList.Add(certType.Key);
                         certificatesList.Add(certificate);
-
                     }
                 }
             }
@@ -738,14 +731,10 @@ namespace Opc.Ua.Gds.Server
                 {
                     return new ServiceResult(StatusCodes.BadInvalidArgument, "The CertificateGroupId is not recognized or not valid for the Application.");
                 }
-
-                byte[] certificate = GetCertificateIfValid(applicationId, certificateTypeId);
-
-                if (certificate != null)
+                if (m_database.GetApplicationCertificate(applicationId, certificateTypeId, out byte[] certificate) && certificate != null)
                 {
                     certificateTypeIdsList.Add(certificateGroup.CertificateType);
                     certificatesList.Add(certificate);
-
                 }
             }
 
@@ -753,33 +742,6 @@ namespace Opc.Ua.Gds.Server
             certificateTypeIds = certificateTypeIdsList.ToArray();
 
             return ServiceResult.Good;
-        }
-        /// <summary>
-        /// Gets the Certificate of an Application and checks its validity, if valid returns the certificate else null
-        /// </summary>
-        /// <param name="applicationId"></param>
-        /// <param name="certType"></param>
-        /// <returns>if valid returns the certificate else null</returns>
-        private byte[] GetCertificateIfValid(
-            NodeId applicationId,
-            string certType)
-        {
-            if (!m_database.GetApplicationCertificate(applicationId, certType, out byte[] certificate)
-                || certificate == null)
-            {
-                //No certificate found
-                return null;
-            }
-            try
-            {
-                ValidateCertificate(certificate);
-            }
-            catch (ServiceResultException)
-            {
-                //Validation exception occured, don't return invalid certificate
-                return null;
-            }
-            return certificate;
         }
        
         private ServiceResult CheckHttpsDomain(ApplicationRecordDataType application, string commonName)
