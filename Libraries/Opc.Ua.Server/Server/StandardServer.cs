@@ -2952,7 +2952,7 @@ namespace Opc.Ua.Server
                     sessionManager.Startup();
 
                     // use event to trigger channel that should not be closed.
-                    sessionManager.SessionKeepAlive += SessionKeepAliveEvent;
+                    sessionManager.SessionChannelKeepAlive += SessionChannelKeepAliveEvent;
 
                     // start the subscription manager.
                     Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
@@ -3091,7 +3091,7 @@ namespace Opc.Ua.Server
                 {
                     if (m_serverInternal != null)
                     {
-                        m_serverInternal.SessionManager.SessionKeepAlive -= SessionKeepAliveEvent;
+                        m_serverInternal.SessionManager.SessionChannelKeepAlive -= SessionChannelKeepAliveEvent;
                         m_serverInternal.SubscriptionManager.Shutdown();
                         m_serverInternal.SessionManager.Shutdown();
                         m_serverInternal.NodeManager.Shutdown();
@@ -3346,12 +3346,12 @@ namespace Opc.Ua.Server
 
         #region Private Methods
         /// <summary>
-        /// Reacts to a session keep alive event to signal
-        /// a listener channels that a session is still active.
+        /// Reacts to a session channel keep alive event to signal
+        /// a listener channel that a session is still active.
         /// </summary>
-        private void SessionKeepAliveEvent(Session session, SessionEventReason reason)
+        private void SessionChannelKeepAliveEvent(Session session, SessionEventReason reason)
         {
-            Debug.Assert(reason == SessionEventReason.KeepAlive);
+            Debug.Assert(reason == SessionEventReason.ChannelKeepAlive);
 
             string secureChannelId = session?.SecureChannelId;
             if (!string.IsNullOrEmpty(secureChannelId))

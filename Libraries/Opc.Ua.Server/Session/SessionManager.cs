@@ -552,7 +552,7 @@ namespace Opc.Ua.Server
                     case SessionEventReason.Created: { handler = m_sessionCreated; break; }
                     case SessionEventReason.Activated: { handler = m_sessionActivated; break; }
                     case SessionEventReason.Closing: { handler = m_sessionClosing; break; }
-                    case SessionEventReason.KeepAlive: { handler = m_sessionKeepAlive; break; }
+                    case SessionEventReason.ChannelKeepAlive: { handler = m_sessionChannelKeepAlive; break; }
                 }
 
                 if (handler != null)
@@ -612,7 +612,7 @@ namespace Opc.Ua.Server
                         else if (session.ClientLastContactTime.AddMilliseconds(m_minSessionTimeout) < DateTime.UtcNow)
                         {
                             // signal the channel that the session is still active.
-                            RaiseSessionEvent(sessions[ii], SessionEventReason.KeepAlive);
+                            RaiseSessionEvent(session, SessionEventReason.ChannelKeepAlive);
                         }
                     }
 
@@ -650,7 +650,7 @@ namespace Opc.Ua.Server
         private event SessionEventHandler m_sessionCreated;
         private event SessionEventHandler m_sessionActivated;
         private event SessionEventHandler m_sessionClosing;
-        private event SessionEventHandler m_sessionKeepAlive;
+        private event SessionEventHandler m_sessionChannelKeepAlive;
         private event ImpersonateEventHandler m_impersonateUser;
         private event EventHandler<ValidateSessionLessRequestEventArgs> m_validateSessionLessRequest;
         #endregion
@@ -717,13 +717,13 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public event SessionEventHandler SessionKeepAlive
+        public event SessionEventHandler SessionChannelKeepAlive
         {
             add
             {
                 lock (m_eventLock)
                 {
-                    m_sessionKeepAlive += value;
+                    m_sessionChannelKeepAlive += value;
                 }
             }
 
@@ -731,7 +731,7 @@ namespace Opc.Ua.Server
             {
                 lock (m_eventLock)
                 {
-                    m_sessionKeepAlive -= value;
+                    m_sessionChannelKeepAlive -= value;
                 }
             }
         }
@@ -825,9 +825,9 @@ namespace Opc.Ua.Server
         event SessionEventHandler SessionClosing;
 
         /// <summary>
-        /// Raised before a session is closed.
+        /// Raised to signal a channel that the session is still alive.
         /// </summary>
-        event SessionEventHandler SessionKeepAlive;
+        event SessionEventHandler SessionChannelKeepAlive;
 
         /// <summary>
         /// Raised before the user identity for a session is changed.
@@ -878,10 +878,10 @@ namespace Opc.Ua.Server
         Closing,
 
         /// <summary>
-        /// A keep alive that the session is still active.
+        /// A keep alive to signal a channel that the session is still active.
         /// Triggered by the session manager based on <see cref="ServerConfiguration.MinSessionTimeout"/>.
         /// </summary>
-        KeepAlive
+        ChannelKeepAlive
     }
 
     /// <summary>
