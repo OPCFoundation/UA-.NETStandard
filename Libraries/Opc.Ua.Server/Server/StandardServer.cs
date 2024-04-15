@@ -30,6 +30,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
@@ -505,6 +506,7 @@ namespace Opc.Ua.Server
                 }
 
                 Utils.LogInfo("Server - SESSION CREATED. SessionId={0}", sessionId);
+
                 // report audit for successful create session
                 ServerInternal.ReportAuditCreateSessionEvent(context?.AuditEntryId, session, revisedSessionTimeout);
 
@@ -2948,9 +2950,9 @@ namespace Opc.Ua.Server
                     Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSessionManager.");
                     SessionManager sessionManager = CreateSessionManager(m_serverInternal, configuration);
                     sessionManager.Startup();
-                    sessionManager.SessionCreated += SessionEvent;
-                    sessionManager.SessionClosing += SessionEvent;
-                    sessionManager.SessionActivated += SessionEvent;
+
+                    // use event to trigger channel that should not be closed.
+                    sessionManager.SessionKeepAlive += SessionKeepAliveEvent;
 
                     // start the subscription manager.
                     Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
@@ -3089,9 +3091,7 @@ namespace Opc.Ua.Server
                 {
                     if (m_serverInternal != null)
                     {
-                        m_serverInternal.SessionManager.SessionClosing -= SessionEvent;
-                        m_serverInternal.SessionManager.SessionCreated -= SessionEvent;
-                        m_serverInternal.SessionManager.SessionActivated -= SessionEvent;
+                        m_serverInternal.SessionManager.SessionKeepAlive -= SessionKeepAliveEvent;
                         m_serverInternal.SubscriptionManager.Shutdown();
                         m_serverInternal.SessionManager.Shutdown();
                         m_serverInternal.NodeManager.Shutdown();
@@ -3346,30 +3346,18 @@ namespace Opc.Ua.Server
 
         #region Private Methods
         /// <summary>
-        /// Reacts to a session event
+        /// Reacts to a session keep alive event to signal
+        /// a listener channels that a session is still active.
         /// </summary>
-        private void SessionEvent(Session session, SessionEventReason reason)
+        private void SessionKeepAliveEvent(Session session, SessionEventReason reason)
         {
-            if (reason == SessionEventReason.Closing)
+            Debug.Assert(reason == SessionEventReason.KeepAlive);
+
+            string secureChannelId = session?.SecureChannelId;
+            if (!string.IsNullOrEmpty(secureChannelId))
             {
-                TransportListeners.ForEach(tl => {
-                    if (tl is TcpTransportListener tc)
-                        tc.HandleSessionClose(session.SecureChannelId);
-                });
-            }
-            else if (reason == SessionEventReason.Created)
-            {
-                TransportListeners.ForEach(tl => {
-                    if (tl is TcpTransportListener tc)
-                        tc.HandleSessionCreate(session.SecureChannelId);
-                });
-            }
-            else if (reason == SessionEventReason.Activated)
-            {
-                TransportListeners.ForEach(tl => {
-                    if (tl is TcpTransportListener tc)
-                        tc.HandleSessionActivate(session.SecureChannelId);
-                });
+                var transportListener = TransportListeners.FirstOrDefault(tl => secureChannelId.StartsWith(tl.ListenerId, StringComparison.Ordinal));
+                transportListener?.UpdateChannelLastActiveTime(secureChannelId);
             }
         }
         #endregion

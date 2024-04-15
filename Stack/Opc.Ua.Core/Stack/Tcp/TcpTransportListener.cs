@@ -42,6 +42,9 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class TcpTransportListener : ITransportListener, ITcpChannelListener
     {
+        // The limit of queued connections for the listener socket..
+        const int kSocketBacklog = 10;
+
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
@@ -61,6 +64,12 @@ namespace Opc.Ua.Bindings
             {
                 lock (m_lock)
                 {
+                    if (m_inactivityDetectionTimer != null)
+                    {
+                        Utils.SilentDispose(m_inactivityDetectionTimer);
+                        m_inactivityDetectionTimer = null;
+                    }
+
                     if (m_listeningSocket != null)
                     {
                         Utils.SilentDispose(m_listeningSocket);
@@ -93,6 +102,11 @@ namespace Opc.Ua.Bindings
         public string UriScheme => Utils.UriSchemeOpcTcp;
 
         /// <summary>
+        /// The Id of the transport listener.
+        /// </summary>
+        public string ListenerId => m_listenerId;
+
+        /// <summary>
         /// Opens the listener and starts accepting connection.
         /// </summary>
         /// <param name="baseAddress">The base address.</param>
@@ -122,7 +136,7 @@ namespace Opc.Ua.Bindings
 
             if (configuration != null)
             {
-                m_inactivityDetectPeriod = configuration.ChannelLifetime / 2; 
+                m_inactivityDetectPeriod = configuration.ChannelLifetime / 2;
                 m_quotas.MaxBufferSize = configuration.MaxBufferSize;
                 m_quotas.MaxMessageSize = configuration.MaxMessageSize;
                 m_quotas.ChannelLifetime = configuration.ChannelLifetime;
@@ -131,7 +145,6 @@ namespace Opc.Ua.Bindings
                 messageContext.MaxByteStringLength = configuration.MaxByteStringLength;
                 messageContext.MaxMessageSize = configuration.MaxMessageSize;
                 messageContext.MaxStringLength = configuration.MaxStringLength;
-                MaxChannelCount = configuration.MaxChannelCount;
             }
             m_quotas.MessageContext = messageContext;
 
@@ -143,8 +156,8 @@ namespace Opc.Ua.Bindings
 
             m_bufferManager = new BufferManager("Server", m_quotas.MaxBufferSize);
             m_channels = new Dictionary<uint, TcpListenerChannel>();
-            m_sessionsPerChannel = new ConcurrentDictionary<string, uint>();
             m_reverseConnectListener = settings.ReverseConnectListener;
+            m_maxChannelCount = settings.MaxChannelCount;
 
             // save the callback to the server.
             m_callback = callback;
@@ -161,68 +174,24 @@ namespace Opc.Ua.Bindings
         {
             Stop();
         }
-        
-        /// <summary>
-        /// Handle Session Close
-        /// </summary>
-        /// <param name="channelId"></param>
-        public void HandleSessionClose(string channelId)
-        {
-            if (m_sessionsPerChannel.TryGetValue(channelId, out uint actualValue))
-            {
-                uint decValue = m_sessionsPerChannel.AddOrUpdate(channelId,
-                    _ => throw new InvalidOperationException("Attempted to decrement non existing channelId"),
-                    (key, value) => value > 0 ? value - 1 : 0);
 
-                TcpListenerChannel foundChannel = null;
-                lock (m_lock)
+        /// <inheritdoc/>
+        public void UpdateChannelLastActiveTime(string globalChannelId)
+        {
+            try
+            {
+                var channelIdString = globalChannelId.Substring(ListenerId.Length + 1);
+                var channelId = Convert.ToUInt32(channelIdString);
+
+                if (channelId > 0 &&
+                    m_channels.TryGetValue(channelId, out TcpListenerChannel channel))
                 {
-                    foundChannel = m_channels.First(kv => kv.Value.GlobalChannelId == channelId).Value ?? null;
-                }
-                if (foundChannel != null && decValue == 0)
-                {
-                    foundChannel.SetInactive();
+                    channel?.UpdateLastActiveTime();
                 }
             }
-        }
-
-        /// <summary>
-        /// Handle Session Create
-        /// </summary>
-        /// <param name="channelId"></param>
-        public void HandleSessionCreate(string channelId)
-        {
-            m_sessionsPerChannel.AddOrUpdate(channelId, 1, (key, actualValue) => actualValue + 1);
-
-            // Since the State of the channel might have been Inactive ensure the channel State is Open
-            TcpListenerChannel foundChannel = null;
-            lock (m_lock)
+            catch
             {
-                foundChannel = m_channels.First(kv => kv.Value.GlobalChannelId == channelId).Value ?? null;
-            }
-            if (foundChannel != null)
-            {
-                foundChannel.SetOpen();
-            }
-        }
-
-        /// <summary>
-        /// Handle Session Activate
-        /// </summary>
-        /// <param name="channelId"></param>
-        public void HandleSessionActivate(string channelId)
-        {
-            m_sessionsPerChannel.AddOrUpdate(channelId, 1, (key, actualValue) => actualValue == 0 ? 1 : actualValue);
-
-            // Since the State of the channel might have been Inactive ensure the channel State is Open
-            TcpListenerChannel foundChannel = null;
-            lock (m_lock)
-            {
-                foundChannel = m_channels.First(kv => kv.Value.GlobalChannelId == channelId).Value ?? null;
-            }
-            if (foundChannel != null)
-            {
-                foundChannel.SetOpen();
+                // ignore errors for calls with invalid channel id
             }
         }
         #endregion
@@ -269,10 +238,7 @@ namespace Opc.Ua.Bindings
         {
             lock (m_lock)
             {
-                if (m_channels != null)
-                {
-                    m_channels.Remove(channelId);
-                }
+                m_channels?.Remove(channelId);
             }
 
             Utils.LogInfo("ChannelId {0}: closed", channelId);
@@ -441,25 +407,6 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// The callback timer which detects stale channels
-        /// </summary>
-        /// <param name="state"></param>
-        private void DetectInactiveChannels(object state = null)
-        {
-            int tickCount = HiResClock.TickCount;
-            lock(m_lock)
-            {
-                foreach (var chEntry in m_channels)
-                {
-                    if (tickCount - chEntry.Value.LastActiveTime > m_quotas.ChannelLifetime)
-                    {
-                        chEntry.Value.Cleanup();
-                    }
-                }
-            }
-        }
-
-        /// <summary>
         /// Stops listening.
         /// </summary>
         public void Stop()
@@ -569,12 +516,13 @@ namespace Opc.Ua.Bindings
                 repeatAccept = false;
                 lock (m_lock)
                 {
-                    if (MaxChannelCount < m_channels.Count)
+                    if (m_maxChannelCount > 0 && m_maxChannelCount < m_channels.Count)
                     {
                         Utils.LogError("OnAccept: Maximum number of channels {0} reached", m_channels.Count);
                         e.Dispose();
                         return;
                     }
+
                     if (!(e.UserToken is Socket listeningSocket))
                     {
                         Utils.LogError("OnAccept: Listensocket was null.");
@@ -656,24 +604,46 @@ namespace Opc.Ua.Bindings
                 }
             } while (repeatAccept);
         }
+
+        /// <summary>
+        /// The inactive timer callback which detects stale channels.
+        /// </summary>
+        /// <param name="state"></param>
+        private void DetectInactiveChannels(object state = null)
+        {
+            List<TcpListenerChannel> channels;
+
+            lock (m_lock)
+            {
+                channels = new List<TcpListenerChannel>();
+                foreach (var chEntry in m_channels)
+                {
+                    if (chEntry.Value.ElapsedSinceLastActiveTime > m_quotas.ChannelLifetime)
+                    {
+                        channels.Add(chEntry.Value);
+                    }
+                }
+            }
+
+            if (channels.Count > 0)
+            {
+                Utils.LogInfo("TCPLISTENER: {0} channels scheduled for IdleCleanup.", channels.Count);
+                foreach (var channel in channels)
+                {
+                    lock (m_lock)
+                    {
+                        channel.IdleCleanup();
+                    }
+                }
+            }
+        }
         #endregion
 
         #region Public Fields
         /// <summary>
         /// The maximum number of secure channels
         /// </summary>
-        public int MaxChannelCount
-        {
-            get
-            {
-                return m_maxChannelCount;
-            }
-
-            set
-            {
-                m_maxChannelCount = value;
-            }
-        }
+        public int MaxChannelCount => m_maxChannelCount;
         #endregion
 
         #region Private Methods
@@ -783,7 +753,7 @@ namespace Opc.Ua.Bindings
                 do
                 {
                     uint nextChannelId = ++m_lastChannelId;
-                    if (!m_channels.ContainsKey(nextChannelId))
+                    if (nextChannelId != 0 && !m_channels.ContainsKey(nextChannelId))
                     {
                         return nextChannelId;
                     }
@@ -844,14 +814,7 @@ namespace Opc.Ua.Bindings
         private bool m_reverseConnectListener;
         private int m_inactivityDetectPeriod;
         private Timer m_inactivityDetectionTimer;
-        private ConcurrentDictionary<string, uint> m_sessionsPerChannel;
         private int m_maxChannelCount;
-        #endregion
-
-        #region Private Constants
-
-        int kSocketBacklog = 10;
-
         #endregion
     }
 

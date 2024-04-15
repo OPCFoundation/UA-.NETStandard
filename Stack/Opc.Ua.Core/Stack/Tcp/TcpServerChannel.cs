@@ -335,8 +335,8 @@ namespace Opc.Ua.Bindings
             const UInt32 kProtocolVersion = 0;
             const int kResponseBufferSize = 127;
 
-            // Communication is active on the chanell
-            UpdateLastCommTime();
+            // Communication is active on the channel
+            UpdateLastActiveTime();
 
             // validate the channel state.
             if (State != TcpChannelState.Connecting)
@@ -478,7 +478,7 @@ namespace Opc.Ua.Bindings
         private bool ProcessOpenSecureChannelRequest(uint messageType, ArraySegment<byte> messageChunk)
         {
             // Communication is active on the channel
-            UpdateLastCommTime();
+            UpdateLastActiveTime();
 
             // validate the channel state.
             if (State != TcpChannelState.Opening && State != TcpChannelState.Open)
@@ -805,7 +805,7 @@ namespace Opc.Ua.Bindings
         private bool ProcessCloseSecureChannelRequest(uint messageType, ArraySegment<byte> messageChunk)
         {
             // Communication is active on the channel
-            UpdateLastCommTime();
+            UpdateLastActiveTime();
 
             // validate security on the message.
             ChannelToken token = null;
@@ -896,11 +896,10 @@ namespace Opc.Ua.Bindings
         {
 
             // Communication is active on the channel
-            UpdateLastCommTime();
-            
+            UpdateLastActiveTime();
+
             // validate the channel state.
-            // Inactive state is allowed pass-through since a new session might be opened/activated on the channel
-            if (State != TcpChannelState.Open && State != TcpChannelState.Inactive)
+            if (State != TcpChannelState.Open)
             {
                 ForceChannelFault(StatusCodes.BadTcpMessageTypeInvalid, "Client sent an unexpected request message.");
                 return false;

@@ -13,6 +13,7 @@
 using System;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Bindings
 {
@@ -140,7 +141,7 @@ namespace Opc.Ua.Bindings
 
                 Socket = new TcpMessageSocket(this, socket, BufferManager, Quotas.MaxBufferSize);
 
-                Utils.LogTrace("{0} SOCKET ATTACHED: {1:X8}, ChannelId={2}", ChannelName, Socket.Handle, ChannelId);
+                Utils.LogInfo("{0} SOCKET ATTACHED: {1:X8}, ChannelId={2}", ChannelName, Socket.Handle, ChannelId);
 
                 Socket.ReadNextMessage();
 
@@ -148,44 +149,32 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Set the channel Inactive
+        /// Clean up an Opening or Open channel that has been idle for too long.
         /// </summary>
-        public void SetInactive()
+        public void IdleCleanup()
         {
-            lock (DataLock)
-            {
-                State = TcpChannelState.Inactive;
-            }
-        }
-
-        /// <summary>
-        /// Set the channel Open
-        /// </summary>
-        public void SetOpen()
-        {
-            lock (DataLock)
-            {
-                State = TcpChannelState.Open;
-            }
-        }
-
-        /// <summary>
-        /// Set the channel Inactive
-        /// </summary>
-        public void Cleanup()
-        {
-            TcpChannelState state = TcpChannelState.Faulted;
+            TcpChannelState state;
 
             lock (DataLock)
             {
                 state = State;
+                if (state == TcpChannelState.Open)
+                {
+                    state = State = TcpChannelState.Closing;
+                }
             }
 
-            if (state == TcpChannelState.Inactive || state == TcpChannelState.Opening)
+            if (state == TcpChannelState.Closing || state == TcpChannelState.Opening)
             {
-                OnCleanup(StatusCodes.BadNoCommunication);
+                OnCleanup(new ServiceResult(StatusCodes.BadNoCommunication, "Channel closed due to inactivity."));
             }
         }
+
+        /// <summary>
+        /// The time in milliseconds elapsed since the channel received or sent messages
+        /// or received a keep alive.
+        /// </summary>
+        public int ElapsedSinceLastActiveTime => (HiResClock.TickCount - LastActiveTickCount);
         #endregion
 
         #region Socket Event Handlers
@@ -246,13 +235,17 @@ namespace Opc.Ua.Bindings
                 bool close = false;
                 if (State != TcpChannelState.Connecting)
                 {
-                    Utils.LogError(
-                        "{0} ForceChannelFault Socket={1:X8}, ChannelId={2}, TokenId={3}, Reason={4}",
-                        ChannelName,
-                        (Socket != null) ? Socket.Handle : 0,
-                        (CurrentToken != null) ? CurrentToken.ChannelId : 0,
-                        (CurrentToken != null) ? CurrentToken.TokenId : 0,
-                        reason);
+                    int socketHandle = (Socket != null) ? Socket.Handle : 0;
+                    if (socketHandle != -1)
+                    {
+                        Utils.LogError(
+                            "{0} ForceChannelFault Socket={1:X8}, ChannelId={2}, TokenId={3}, Reason={4}",
+                            ChannelName,
+                            socketHandle,
+                            (CurrentToken != null) ? CurrentToken.ChannelId : 0,
+                            (CurrentToken != null) ? CurrentToken.TokenId : 0,
+                            reason);
+                    }
                 }
                 else
                 {
@@ -306,7 +299,7 @@ namespace Opc.Ua.Bindings
                     reason = new ServiceResult(StatusCodes.BadTimeout);
                 }
 
-                Utils.LogTrace(
+                Utils.LogInfo(
                     "{0} Cleanup Socket={1:X8}, ChannelId={2}, TokenId={3}, Reason={4}",
                     ChannelName,
                     (Socket != null) ? Socket.Handle : 0,
@@ -549,13 +542,6 @@ namespace Opc.Ua.Bindings
         /// The report certificate audit event handler.
         /// </summary>
         protected ReportAuditCertificateEventHandler ReportAuditCertificateEvent => m_reportAuditCertificateEvent;
-        #endregion
-
-        #region Public Properties
-        /// <summary>
-        /// The last ActiveTime of the channel
-        /// </summary>
-        public int LastActiveTime => LastCommTime;
         #endregion
 
         #region Private Fields
