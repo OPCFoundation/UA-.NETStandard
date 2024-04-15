@@ -220,13 +220,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         /// <remarks>CRLs are only supported on Windows Platform.</remarks>
-        public bool SupportsCRLs
-        {
-            get
-            {
-                return PlatformHelper.IsWindowsWithCrlSupport();
-            }
-        }
+        public bool SupportsCRLs => PlatformHelper.IsWindowsWithCrlSupport();
 
         /// <inheritdoc/>
         /// <remarks>CRLs are only supported on Windows Platform.</remarks>
@@ -249,39 +243,38 @@ namespace Opc.Ua
 
             X509CRLCollection crls = await EnumerateCRLs().ConfigureAwait(false);
             // check for CRL.
-            
-                bool crlExpired = true;
 
-                foreach (X509CRL crl in crls)
+            bool crlExpired = true;
+
+            foreach (X509CRL crl in crls)
+            {
+
+                if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
                 {
-
-                    if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
-                    {
-                        continue;
-                    }
-
-                    if (!crl.VerifySignature(issuer, false))
-                    {
-                        continue;
-                    }
-
-                    if (crl.IsRevoked(certificate))
-                    {
-                        return (StatusCode)StatusCodes.BadCertificateRevoked;
-                    }
-
-                    if (crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
-                    {
-                        crlExpired = false;
-                    }
+                    continue;
                 }
 
-                // certificate is fine.
-                if (!crlExpired)
+                if (!crl.VerifySignature(issuer, false))
                 {
-                    return (StatusCode)StatusCodes.Good;
+                    continue;
                 }
-            
+
+                if (crl.IsRevoked(certificate))
+                {
+                    return (StatusCode)StatusCodes.BadCertificateRevoked;
+                }
+
+                if (crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
+                {
+                    crlExpired = false;
+                }
+            }
+
+            // certificate is fine.
+            if (!crlExpired)
+            {
+                return (StatusCode)StatusCodes.Good;
+            }
 
             // can't find a valid CRL.
             return (StatusCode)StatusCodes.BadCertificateRevocationUnknown;
@@ -304,7 +297,6 @@ namespace Opc.Ua
                 foreach (byte[] rawCrl in rawCrls)
                 {
                     var crl = new X509CRL(rawCrl);
-                    var test = crl.Issuer;
                     crls.Add(crl);
                 }
             }

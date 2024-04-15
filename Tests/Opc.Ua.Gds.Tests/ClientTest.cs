@@ -1346,7 +1346,7 @@ namespace Opc.Ua.Gds.Tests
                 }, Throws.Exception);
             }
         }
-     
+
         [Test, Order(900)]
         public void UnregisterGoodApplications()
         {

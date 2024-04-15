@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading.Tasks;
+
 namespace Opc.Ua.Core.Tests
 {
     /// <summary>
@@ -39,21 +41,21 @@ namespace Opc.Ua.Core.Tests
         /// </summary>
         /// <param name="store"></param>
         /// <param name="dispose"></param>
-        public static void CleanupTrustList(ICertificateStore store, bool dispose = true)
+        public static async Task CleanupTrustListAsync(ICertificateStore store, bool dispose = true)
         {
             if (store != null)
             {
-                var certs = store.Enumerate().GetAwaiter().GetResult();
+                var certs = await store.Enumerate();
                 foreach (var cert in certs)
                 {
-                    store.Delete(cert.Thumbprint);
+                    await store.Delete(cert.Thumbprint);
                 }
                 if (store.SupportsCRLs)
                 {
-                    var crls = store.EnumerateCRLs().GetAwaiter().GetResult();
+                    var crls = await store.EnumerateCRLs();
                     foreach (var crl in crls)
                     {
-                        store.DeleteCRL(crl);
+                        await store.DeleteCRL(crl);
                     }
                 }
                 if (dispose)

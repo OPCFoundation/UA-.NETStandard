@@ -52,7 +52,9 @@ namespace Opc.Ua.X509StoreExtensions
                 throw new PlatformNotSupportedException();
             }
             if (store == null)
+            {
                 throw new ArgumentNullException(nameof(store));
+            }
 
             IntPtr handle = store.StoreHandle;
 
@@ -74,15 +76,13 @@ namespace Opc.Ua.X509StoreExtensions
             }
 
             if (store == null)
+            {
                 throw new ArgumentNullException(nameof(store));
+            }
             if (crl == null || crl.Length == 0)
             {
                 throw new ArgumentNullException(nameof(crl));
             }
-            store.Open(OpenFlags.ReadWrite);
-            Console.WriteLine("Store " + store.Name + " on " + store.Location + " opened with " +
-           store.Certificates.Count + " Certificates" + "\n");
-
 
             IntPtr handle = store.StoreHandle;
 
@@ -105,7 +105,6 @@ namespace Opc.Ua.X509StoreExtensions
             {
                 throw new ArgumentNullException(nameof(store));
             }
-            store.Open(OpenFlags.ReadWrite);
 
             IntPtr handle = store.StoreHandle;
 

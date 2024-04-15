@@ -75,9 +75,9 @@ namespace Opc.Ua.Gds.Tests
                 ApplicationType = ApplicationType.Client,
                 ConfigSectionName = configSectionName
             };
-           
 
-#if !USE_FILE_CONFIG
+
+#if USE_FILE_CONFIG
             // load the application configuration.
             Configuration = await m_application.LoadApplicationConfiguration(false).ConfigureAwait(false);
 #else

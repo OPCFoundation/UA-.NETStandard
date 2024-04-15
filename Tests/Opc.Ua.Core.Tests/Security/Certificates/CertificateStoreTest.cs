@@ -290,7 +290,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// </summary>
         /// <returns></returns>
         [Theory, Order(60)]
-        public async Task UpdateExistringCrlInX509StoreOnWindows(string storePath)
+        public async Task UpdateExistingCrlInX509StoreOnWindows(string storePath)
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
