@@ -400,7 +400,7 @@ namespace Opc.Ua
         /// The lifetime of a secure channel (in milliseconds).
         /// </summary>
         /// <value>The channel lifetime.</value>
-        [DataMember(IsRequired = false, Order = 7)]
+        [DataMember(IsRequired = false, Order = 6)]
         public int ChannelLifetime
         {
             get { return m_channelLifetime; }
@@ -411,7 +411,7 @@ namespace Opc.Ua
         /// The lifetime of a security token (in milliseconds).
         /// </summary>
         /// <value>The security token lifetime.</value>
-        [DataMember(IsRequired = false, Order = 8)]
+        [DataMember(IsRequired = false, Order = 7)]
         public int SecurityTokenLifetime
         {
             get { return m_securityTokenLifetime; }

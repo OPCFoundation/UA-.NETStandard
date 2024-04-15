@@ -141,7 +141,7 @@ namespace Opc.Ua.Bindings
 
                 Socket = new TcpMessageSocket(this, socket, BufferManager, Quotas.MaxBufferSize);
 
-                Utils.LogInfo("{0} SOCKET ATTACHED: {1:X8}, ChannelId={2}", ChannelName, Socket.Handle, ChannelId);
+                Utils.LogTrace("{0} SOCKET ATTACHED: {1:X8}, ChannelId={2}", ChannelName, Socket.Handle, ChannelId);
 
                 Socket.ReadNextMessage();
 
