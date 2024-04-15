@@ -3353,11 +3353,11 @@ namespace Opc.Ua.Server
         {
             Debug.Assert(reason == SessionEventReason.KeepAlive);
 
-            var secureChannelId = session.SecureChannelId;
+            string secureChannelId = session?.SecureChannelId;
             if (!string.IsNullOrEmpty(secureChannelId))
             {
                 var transportListener = TransportListeners.FirstOrDefault(tl => secureChannelId.StartsWith(tl.ListenerId, StringComparison.Ordinal));
-                transportListener?.UpdateChannelLastActiveTime(session.SecureChannelId);
+                transportListener?.UpdateChannelLastActiveTime(secureChannelId);
             }
         }
         #endregion

@@ -196,7 +196,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// The time in milliseconds elapsed since the channel received/sent messages.
+        /// The tickcount in milliseconds when the channel received/sent the last message.
         /// </summary>
         protected int LastActiveTickCount => m_lastActiveTickCount;
         #endregion

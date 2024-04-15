@@ -235,14 +235,17 @@ namespace Opc.Ua.Bindings
                 bool close = false;
                 if (State != TcpChannelState.Connecting)
                 {
-                    Utils.Log(
-                        State != TcpChannelState.Closed ? LogLevel.Error : LogLevel.Information,
-                        "{0} ForceChannelFault Socket={1:X8}, ChannelId={2}, TokenId={3}, Reason={4}",
-                        ChannelName,
-                        (Socket != null) ? Socket.Handle : 0,
-                        (CurrentToken != null) ? CurrentToken.ChannelId : 0,
-                        (CurrentToken != null) ? CurrentToken.TokenId : 0,
-                        reason);
+                    int socketHandle = (Socket != null) ? Socket.Handle : 0;
+                    if (socketHandle != -1)
+                    {
+                        Utils.LogError(
+                            "{0} ForceChannelFault Socket={1:X8}, ChannelId={2}, TokenId={3}, Reason={4}",
+                            ChannelName,
+                            socketHandle,
+                            (CurrentToken != null) ? CurrentToken.ChannelId : 0,
+                            (CurrentToken != null) ? CurrentToken.TokenId : 0,
+                            reason);
+                    }
                 }
                 else
                 {
