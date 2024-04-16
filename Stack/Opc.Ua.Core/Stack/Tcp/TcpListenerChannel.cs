@@ -164,7 +164,7 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            if (state == TcpChannelState.Closing || state == TcpChannelState.Opening)
+            if (state == TcpChannelState.Closing || state == TcpChannelState.Opening || state == TcpChannelState.Faulted)
             {
                 OnCleanup(new ServiceResult(StatusCodes.BadNoCommunication, "Channel closed due to inactivity."));
             }
