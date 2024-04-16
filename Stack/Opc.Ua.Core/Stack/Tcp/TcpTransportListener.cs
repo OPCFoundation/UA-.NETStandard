@@ -516,13 +516,6 @@ namespace Opc.Ua.Bindings
                 repeatAccept = false;
                 lock (m_lock)
                 {
-                    if (m_maxChannelCount > 0 && m_maxChannelCount < m_channels.Count)
-                    {
-                        Utils.LogError("OnAccept: Maximum number of channels {0} reached", m_channels.Count);
-                        e.Dispose();
-                        return;
-                    }
-
                     if (!(e.UserToken is Socket listeningSocket))
                     {
                         Utils.LogError("OnAccept: Listensocket was null.");
@@ -530,8 +523,15 @@ namespace Opc.Ua.Bindings
                         return;
                     }
 
+                    bool serveChannel = !(m_maxChannelCount > 0 && m_maxChannelCount < m_channels.Count);
+                    if (!serveChannel)
+                    {
+                        Utils.LogError("OnAccept: Maximum number of channels {0} reached, serving channels is stopped until number is lower or equal than {1} ",
+                            m_channels.Count, m_maxChannelCount);
+                    }
+
                     // check if the accept socket has been created.
-                    if (e.AcceptSocket != null && e.SocketError == SocketError.Success)
+                    if (serveChannel && e.AcceptSocket != null && e.SocketError == SocketError.Success)
                     {
                         try
                         {
