@@ -62,23 +62,23 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Clean up the test cert store folder.
         /// </summary>
         [OneTimeTearDown]
-        protected void OneTimeTearDown()
+        protected async Task OneTimeTearDown()
         {
             foreach (var certStore in CertStores)
             {
                 using (var x509Store = new X509CertificateStore())
                 {
                     x509Store.Open(certStore);
-                    var collection = x509Store.Enumerate().Result;
+                    var collection = await x509Store.Enumerate().ConfigureAwait(false);
                     foreach (var cert in collection)
                     {
                         if (X509Utils.CompareDistinguishedName(X509StoreSubject, cert.Subject))
                         {
-                            x509Store.Delete(cert.Thumbprint).Wait();
+                            await x509Store.Delete(cert.Thumbprint).ConfigureAwait(false);
                         }
                         if (X509Utils.CompareDistinguishedName(X509StoreSubject2, cert.Issuer))
                         {
-                            x509Store.Delete(cert.Thumbprint).Wait();
+                            await x509Store.Delete(cert.Thumbprint).ConfigureAwait(false);
                         }
                     }
                     if (x509Store.SupportsCRLs)
@@ -88,11 +88,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         {
                             if (X509Utils.CompareDistinguishedName(X509StoreSubject, crl.Issuer))
                             {
-                                x509Store.DeleteCRL(crl).Wait();
+                                await x509Store.DeleteCRL(crl).ConfigureAwait(false);
                             }
                             if (X509Utils.CompareDistinguishedName(X509StoreSubject2, crl.Issuer))
                             {
-                                x509Store.DeleteCRL(crl).Wait();
+                                await x509Store.DeleteCRL(crl).ConfigureAwait(false);
                             }
                         }
                     }

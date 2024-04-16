@@ -45,17 +45,17 @@ namespace Opc.Ua.Core.Tests
         {
             if (store != null)
             {
-                var certs = await store.Enumerate();
+                var certs = await store.Enumerate().ConfigureAwait(false);
                 foreach (var cert in certs)
                 {
-                    await store.Delete(cert.Thumbprint);
+                    await store.Delete(cert.Thumbprint).ConfigureAwait(false);
                 }
                 if (store.SupportsCRLs)
                 {
-                    var crls = await store.EnumerateCRLs();
+                    var crls = await store.EnumerateCRLs().ConfigureAwait(false);
                     foreach (var crl in crls)
                     {
-                        await store.DeleteCRL(crl);
+                        await store.DeleteCRL(crl).ConfigureAwait(false);
                     }
                 }
                 if (dispose)

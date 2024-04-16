@@ -90,13 +90,6 @@ namespace Opc.Ua.X509StoreExtensions.Internal
                 {
                     Utils.LogError(ex, "Exception while enumerating Crls from X509Store");
                 }
-                finally
-                {
-                    if ((IntPtr)crlContext != IntPtr.Zero)
-                    {
-                        Marshal.FreeHGlobal((IntPtr)crlContext);
-                    }
-                }
             }
             return crls.ToArray();
         }
@@ -151,12 +144,10 @@ namespace Opc.Ua.X509StoreExtensions.Internal
                         null))
                     {
                         //success
-                        Marshal.FreeHGlobal(crlPointer);
                         return;
                     }
                     else
                     {
-                        Marshal.FreeHGlobal(crlPointer);
                         int error = Marshal.GetLastWin32Error();
                         if (error == -2147024809)
                         {
@@ -226,6 +217,8 @@ namespace Opc.Ua.X509StoreExtensions.Internal
                                 }
                                 else
                                 {
+                                    //was freed by CertDeleteCRLFromStore
+                                    crlContext = (CRL_CONTEXT*)IntPtr.Zero;
                                     return true;
                                 }
                                 break;
@@ -249,13 +242,6 @@ namespace Opc.Ua.X509StoreExtensions.Internal
                 catch (Exception ex)
                 {
                     Utils.LogError(ex, "Exception while deleting Crl from X509Store");
-                }
-                finally
-                {
-                    if ((IntPtr)crlContext != IntPtr.Zero)
-                    {
-                        Marshal.FreeHGlobal((IntPtr)crlContext);
-                    }
                 }
             }
             return false;
