@@ -413,6 +413,20 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Assert.Ignore("Test only relevant on MacOS/Linux");
                 }
             }
+            using (var x509Store = new X509CertificateStore())
+            {
+                x509Store.Open(storePath);
+                if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    Assert.ThrowsAsync<ServiceResultException>(() => x509Store.AddCRL(new X509CRL()));
+                    Assert.ThrowsAsync<ServiceResultException>(() => x509Store.EnumerateCRLs());
+                    Assert.ThrowsAsync<ServiceResultException>(() => x509Store.DeleteCRL(new X509CRL()));
+                }
+                else
+                {
+                    Assert.Ignore("Test only relevant on MacOS/Linux");
+                }
+            }
         }
 
         #endregion

@@ -155,7 +155,6 @@ namespace Windows.Win32
         [DebuggerDisplay("{Value}")]
         [global::System.CodeDom.Compiler.GeneratedCode("Microsoft.Windows.CsWin32", "0.3.49-beta+91f5c15987")]
         internal unsafe readonly partial struct HCERTSTORE
-            : IEquatable<HCERTSTORE>
         {
             internal readonly void* Value;
 
@@ -165,17 +164,6 @@ namespace Windows.Win32
 
             public static explicit operator HCERTSTORE(void* value) => new HCERTSTORE(value);
 
-            public static bool operator ==(HCERTSTORE left, HCERTSTORE right) => left.Value == right.Value;
-
-            public static bool operator !=(HCERTSTORE left, HCERTSTORE right) => !(left == right);
-
-            public bool Equals(HCERTSTORE other) => this.Value == other.Value;
-
-            public override bool Equals(object obj) => obj is HCERTSTORE other && this.Equals(other);
-
-            public override int GetHashCode() => unchecked((int)this.Value);
-
-            public override string ToString() => $"0x{(int)this.Value:x}";
         }
 
         [Flags]
@@ -192,7 +180,6 @@ namespace Windows.Win32
         [DebuggerDisplay("{Value}")]
         [global::System.CodeDom.Compiler.GeneratedCode("Microsoft.Windows.CsWin32", "0.3.49-beta+91f5c15987")]
         internal readonly partial struct BOOL
-            : IEquatable<BOOL>
         {
             internal readonly int Value;
 
@@ -201,19 +188,6 @@ namespace Windows.Win32
             public static implicit operator int(BOOL value) => value.Value;
 
             public static explicit operator BOOL(int value) => new BOOL(value);
-
-            public static bool operator ==(BOOL left, BOOL right) => left.Value == right.Value;
-
-            public static bool operator !=(BOOL left, BOOL right) => !(left == right);
-
-            public bool Equals(BOOL other) => this.Value == other.Value;
-
-            public override bool Equals(object obj) => obj is BOOL other && this.Equals(other);
-
-            public override int GetHashCode() => this.Value.GetHashCode();
-
-            public override string ToString() => $"0x{this.Value:x}";
-
             internal BOOL(bool value) => this.Value = value ? 1 : 0;
 
             public static implicit operator bool(BOOL value) => value.Value != 0;
