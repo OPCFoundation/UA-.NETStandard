@@ -433,7 +433,8 @@ namespace Opc.Ua.Client.Tests
                 var channel = session.TransportChannel;
                 session.DetachChannel();
 
-                int waitTime = ServerFixture.Application.ApplicationConfiguration.TransportQuotas.ChannelLifetime + 5_000;
+                int waitTime = ServerFixture.Application.ApplicationConfiguration.TransportQuotas.ChannelLifetime +
+                    (ServerFixture.Application.ApplicationConfiguration.TransportQuotas.ChannelLifetime / 2) + 5_000;
                 await Task.Delay(waitTime).ConfigureAwait(false);
 
                 // Channel handling checked for TcpTransportChannel only
