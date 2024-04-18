@@ -819,7 +819,7 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// The possible reasons for a session related eventg. 
+    /// The possible reasons for a session related event. 
     /// </summary>
     public enum SessionEventReason
     {

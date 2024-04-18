@@ -24,7 +24,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Creates a node from a reference desciption.
+        /// Creates a node from a reference description.
         /// </summary>
         /// <param name="reference">The reference.</param>
         public Node(ReferenceDescription reference)
@@ -96,7 +96,7 @@ namespace Opc.Ua
 
         #region Public Properties
         /// <summary>
-        /// An opaque handle that can be assoociated with the node.
+        /// An opaque handle that can be associated with the node.
         /// </summary>
         /// <value>The handle.</value>
         public object Handle

@@ -29,7 +29,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the type with its defalt attribute values.
+        /// Initializes the type with its default attribute values.
         /// </summary>
         protected BaseTypeState(NodeClass nodeClass) : base(nodeClass)
         {

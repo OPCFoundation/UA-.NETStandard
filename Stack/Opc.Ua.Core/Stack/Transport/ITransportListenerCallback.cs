@@ -15,7 +15,7 @@ using System;
 namespace Opc.Ua
 {
     /// <summary>
-    /// This is an interface to a object that receives notifications
+    /// This is an interface to an object that receives notifications
     /// from the listener when a message arrives.
     /// </summary>
     public interface ITransportListenerCallback : IAuditEventCallback

@@ -38,12 +38,12 @@ namespace Opc.Ua.Server
 {
 
     /// <summary>
-    /// Priviledged identity which can access the system configuration.
+    /// Privileged identity which can access the system configuration.
     /// </summary>
     public class SystemConfigurationIdentity : RoleBasedIdentity
     {
         /// <summary>
-        /// Create a user identity with the priviledge
+        /// Create a user identity with the privilege
         /// to modify the system configuration.
         /// </summary>
         /// <param name="identity">The user identity.</param>
@@ -317,15 +317,14 @@ namespace Opc.Ua.Server
             {
                 if (operationContext.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt)
                 {
-                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Secure Application Administrator access required.");
+                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Access to this item is only allowed with MessageSecurityMode SignAndEncrypt.");
                 }
-
-                // allow access to system configuration only through special identity
-                IUserIdentity user = context.UserIdentity as RoleBasedIdentity;               
-                if (user == null || user.TokenType == UserTokenType.Anonymous ||
-                    !user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin))
+                IUserIdentity identity = operationContext.UserIdentity;
+                // allow access to system configuration only with Role SecurityAdmin
+                if (identity == null || identity.TokenType == UserTokenType.Anonymous ||
+                    !identity.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin))
                 {
-                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Security Admin Role required.");
+                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Security Admin Role required to access this item.");
                 }
 
             }

@@ -407,7 +407,7 @@ namespace Opc.Ua.Server
         }
         
         /// <summary>
-        /// Returns true is the target meets the filter criteria.
+        /// Returns true if the target meets the filter criteria.
         /// </summary>
         private bool ApplyBrowseFilters(
             IReference      reference,

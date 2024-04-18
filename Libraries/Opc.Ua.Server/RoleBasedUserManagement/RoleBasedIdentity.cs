@@ -184,7 +184,6 @@ namespace Opc.Ua.Server
         public NodeIdCollection GrantedRoleIds
         {
             get { return m_identity.GrantedRoleIds; }
-            set { m_identity.GrantedRoleIds = value; }
         }
 
         /// <summary>
