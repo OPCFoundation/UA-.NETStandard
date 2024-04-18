@@ -213,7 +213,7 @@ namespace Opc.Ua
         /// </summary>
         public IEncodeable DecodeMessage(System.Type expectedType)
         {
-            long start = m_istrm.Position;
+            long start = m_istrm.CanSeek ? m_istrm.Position : 0;
 
             // read the node id.
             NodeId typeId = ReadNodeId(null);
@@ -233,13 +233,14 @@ namespace Opc.Ua
             IEncodeable message = ReadEncodeable(null, actualType, absoluteId);
 
             // check that the max message size was not exceeded.
-            if (m_context.MaxMessageSize > 0 && m_context.MaxMessageSize < (int)(m_istrm.Position - start))
+            int messageLength = m_istrm.CanSeek ? (int)(m_istrm.Position - start) : 0;
+            if (m_context.MaxMessageSize > 0 && m_context.MaxMessageSize < messageLength)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "MaxMessageSize {0} < {1}",
                     m_context.MaxMessageSize,
-                    (int)(m_istrm.Position - start));
+                    messageLength);
             }
 
             // return the message.

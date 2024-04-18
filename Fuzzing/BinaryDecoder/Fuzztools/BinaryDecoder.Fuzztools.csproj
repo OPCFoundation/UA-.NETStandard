@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>BinaryDecoder.Fuzztools</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Fuzz\FuzzTarget.cs" Link="FuzzTarget.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SharpFuzz" Version="2.1.1" />
+    <PackageReference Include="Mono.Options" Version="6.12.0.148" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\..\Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="TestData\" />
+  </ItemGroup>
+
+</Project>
