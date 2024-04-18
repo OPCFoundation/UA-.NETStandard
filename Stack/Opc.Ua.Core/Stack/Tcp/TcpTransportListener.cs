@@ -528,6 +528,7 @@ namespace Opc.Ua.Bindings
                     {
                         Utils.LogError("OnAccept: Maximum number of channels {0} reached, serving channels is stopped until number is lower or equal than {1} ",
                             m_channels.Count, m_maxChannelCount);
+                        Utils.SilentDispose(e.AcceptSocket);
                     }
 
                     // check if the accept socket has been created.
