@@ -476,7 +476,7 @@ namespace Opc.Ua.PubSub.Transport
 
         #region Private methods
         /// <summary>
-        /// Initialize Conection properties from connection configuration object
+        /// Initialize Connection properties from connection configuration object
         /// </summary>
         private void Initialize()
         {

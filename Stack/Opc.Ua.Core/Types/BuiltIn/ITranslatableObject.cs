@@ -16,7 +16,7 @@ using System.Collections.Generic;
 namespace Opc.Ua
 {
     /// <summary>
-    /// An interface to a object that can translate itself.
+    /// An interface to an object that can translate itself.
     /// </summary>
     public interface ITranslatableObject
     {
@@ -34,7 +34,7 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// An interface to a object that provides translations.
+    /// An interface to an object that provides translations.
     /// </summary>
     public interface ITranslationManager
     {

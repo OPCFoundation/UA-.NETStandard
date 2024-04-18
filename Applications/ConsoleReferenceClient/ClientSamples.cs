@@ -571,7 +571,7 @@ namespace Quickstarts
                         ClientBase.ValidateResponse(browseResultCollection, browseCollection);
                         ClientBase.ValidateDiagnosticInfos(diagnosticsInfoCollection, browseCollection);
 
-                        // seperate unprocessed nodes for later
+                        // separate unprocessed nodes for later
                         int ii = 0;
                         foreach (BrowseResult browseResult in browseResultCollection)
                         {

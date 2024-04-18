@@ -23,7 +23,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         protected BaseVariableTypeState() : base(NodeClass.VariableType)
         {
@@ -742,7 +742,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the type with its defalt attribute values.
+        /// Initializes the type with its default attribute values.
         /// </summary>
         public BaseDataVariableTypeState()
         {
@@ -788,7 +788,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the type with its defalt attribute values.
+        /// Initializes the type with its default attribute values.
         /// </summary>
         public BaseDataVariableTypeState()
         {
@@ -843,7 +843,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the type with its defalt attribute values.
+        /// Initializes the type with its default attribute values.
         /// </summary>
         public PropertyTypeState()
         {
@@ -889,7 +889,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the type with its defalt attribute values.
+        /// Initializes the type with its default attribute values.
         /// </summary>
         public PropertyTypeState()
         {

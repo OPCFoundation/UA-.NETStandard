@@ -35,7 +35,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object by specifying each property.
+        /// Constructs an object by specifying each property.
         /// </summary>
         public ServiceResult(
             StatusCode code,
@@ -67,7 +67,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object by specifying each property.
+        /// Constructs an object by specifying each property.
         /// </summary>
         public ServiceResult(
             StatusCode code,
@@ -78,7 +78,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object by specifying each property.
+        /// Constructs an object by specifying each property.
         /// </summary>
         public ServiceResult(
             StatusCode code,
@@ -92,7 +92,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object by specifying each property.
+        /// Constructs an object by specifying each property.
         /// </summary>
         public ServiceResult(
             StatusCode code,
@@ -105,7 +105,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object by specifying each property.
+        /// Constructs an object by specifying each property.
         /// </summary>
         public ServiceResult(
             StatusCode code,
@@ -117,7 +117,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object by specifying each property.
+        /// Constructs an object by specifying each property.
         /// </summary>
         public ServiceResult(
             StatusCode code,
@@ -129,7 +129,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object by specifying each property.
+        /// Constructs an object by specifying each property.
         /// </summary>
         public ServiceResult(
             StatusCode code,
@@ -140,7 +140,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object from a StatusCode.
+        /// Constructs an object from a StatusCode.
         /// </summary>
         public ServiceResult(StatusCode status)
         {
@@ -148,7 +148,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object from a StatusCode.
+        /// Constructs an object from a StatusCode.
         /// </summary>
         public ServiceResult(uint code)
         {
@@ -156,7 +156,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object by specifying each property.
+        /// Constructs an object by specifying each property.
         /// </summary>
         /// <remarks>
         /// The innerException is used to construct the inner result.
@@ -195,7 +195,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object by specifying each property.
+        /// Constructs an object by specifying each property.
         /// </summary>
         /// <remarks>
         /// The innerException is used to construct the innerResult.
@@ -212,7 +212,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object by specifying each property.
+        /// Constructs an object by specifying each property.
         /// </summary>
         /// <remarks>
         /// The innerException is used to construct the innerResult.
@@ -228,7 +228,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object by specifying each property.
+        /// Constructs an object by specifying each property.
         /// </summary>
         /// <remarks>
         /// The innerException is used to construct the innerResult.
@@ -243,7 +243,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object by specifying each property.
+        /// Constructs an object by specifying each property.
         /// </summary>
         /// <remarks>
         /// The innerException is used to construct the innerResult.
@@ -255,7 +255,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object from an exception.
+        /// Constructs an object from an exception.
         /// </summary>
         /// <remarks>
         /// The code, symbolicId, namespaceUri and localizedText parameters are ignored for ServiceResultExceptions.
@@ -292,7 +292,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object from an exception.
+        /// Constructs an object from an exception.
         /// </summary>
         /// <remarks>
         /// The defaultCode and defaultLocalizedText parameters are ignored for ServiceResultExceptions.
@@ -307,7 +307,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object from an exception.
+        /// Constructs an object from an exception.
         /// </summary>
         /// <remarks>
         /// The code, symbolicId and namespaceUri parameters are ignored for ServiceResultExceptions.
@@ -323,7 +323,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object from an exception.
+        /// Constructs an object from an exception.
         /// </summary>
         /// <remarks>
         /// The code parameter is ignored for ServiceResultExceptions.
@@ -337,7 +337,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object from an exception.
+        /// Constructs an object from an exception.
         /// </summary>
         public ServiceResult(Exception exception)
         :

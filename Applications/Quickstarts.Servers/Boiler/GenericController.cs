@@ -34,7 +34,7 @@ using Range = Opc.Ua.Range;
 namespace Boiler
 {
     /// <summary>
-    /// A object representing a generic controller.
+    /// An object representing a generic controller.
     /// </summary>
     public partial class GenericControllerState
     {

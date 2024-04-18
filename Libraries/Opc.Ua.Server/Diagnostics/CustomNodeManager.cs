@@ -506,7 +506,7 @@ namespace Opc.Ua.Server
 
         #region CreateAddressSpace Support Functions
         /// <summary>
-        /// Loads a node set from a file or resource and addes them to the set of predefined nodes.
+        /// Loads a node set from a file or resource and adds them to the set of predefined nodes.
         /// </summary>
         public virtual void LoadPredefinedNodes(
             ISystemContext context,
@@ -534,7 +534,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Loads a node set from a file or resource and addes them to the set of predefined nodes.
+        /// Loads a node set from a file or resource and adds them to the set of predefined nodes.
         /// </summary>
         protected virtual NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
@@ -542,7 +542,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Loads a node set from a file or resource and addes them to the set of predefined nodes.
+        /// Loads a node set from a file or resource and adds them to the set of predefined nodes.
         /// </summary>
         protected virtual void LoadPredefinedNodes(
             ISystemContext context,
@@ -2176,7 +2176,7 @@ namespace Opc.Ua.Server
                     {
                         errors[ii] = StatusCodes.BadNodeIdUnknown;
 
-                        // must validate node in a seperate operation
+                        // must validate node in a separate operation
                         handle.Index = ii;
                         nodesToProcess.Add(handle);
 
@@ -2580,7 +2580,7 @@ namespace Opc.Ua.Server
                     {
                         errors[ii] = StatusCodes.BadNodeIdUnknown;
 
-                        // must validate node in a seperate operation
+                        // must validate node in a separate operation
                         handle.Index = ii;
                         nodesToProcess.Add(handle);
                         continue;
@@ -3497,7 +3497,7 @@ namespace Opc.Ua.Server
                     // owned by this node manager.
                     itemToCreate.Processed = true;
 
-                    // must validate node in a seperate operation.
+                    // must validate node in a separate operation.
                     errors[ii] = StatusCodes.BadNodeIdUnknown;
 
                     handle.Index = ii;

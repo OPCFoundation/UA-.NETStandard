@@ -36,7 +36,7 @@ using System.Threading;
 namespace Opc.Ua.Server 
 {
     /// <summary>
-    /// Stores the state of an asynchrounous publish operation.
+    /// Stores the state of an asynchronous publish operation.
     /// </summary>  
     public class AsyncPublishOperation
     {

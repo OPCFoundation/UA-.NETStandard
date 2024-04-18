@@ -155,7 +155,6 @@ namespace Opc.Ua
         public NodeIdCollection GrantedRoleIds
         {
             get { return m_grantedRoleIds; }
-            set { m_grantedRoleIds = value; }
         }
 
         /// <summary cref="IUserIdentity.GetIdentityToken" />

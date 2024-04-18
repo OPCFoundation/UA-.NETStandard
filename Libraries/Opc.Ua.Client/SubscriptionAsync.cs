@@ -119,7 +119,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            // supress exception if silent flag is set. 
+            // suppress exception if silent flag is set. 
             catch (Exception e)
             {
                 if (!silent)
@@ -304,7 +304,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Modies all items that have been changed.
+        /// Modifies all items that have been changed.
         /// </summary>
         public async Task<IList<MonitoredItem>> ModifyItemsAsync(CancellationToken ct = default)
         {
