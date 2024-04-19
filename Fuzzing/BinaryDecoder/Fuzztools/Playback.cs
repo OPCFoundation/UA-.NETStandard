@@ -20,6 +20,7 @@ namespace BinaryDecoder.Fuzztools
                     catch (Exception ex)
                     {
                         Console.WriteLine("{0}:{1}", ex.GetType().Name, ex.Message);
+                        Console.WriteLine(ex.StackTrace);
                     }
                 }
             };

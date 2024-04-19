@@ -19,9 +19,12 @@ sudo apt-get update
 # Install clang and llvm
 sudo apt-get install -y build-essential cmake git
 
-# Install .NET 8.0 SDK
-sudo apt-get install -y dotnet-sdk-8.0
+# Install .NET 8.0 SDK on Ubuntu
+sudo apt-get install -y dotnet-sdk-8.0 powershell
 ```
+
+The supplied scripts require powershell on Linux to be installed. 
+See https://learn.microsoft.com/en-us/powershell/scripting/install/install-ubuntu?view=powershell-7.4
 
 To compile and install afl-fuzz and to install sharpfuzz, run the following commands:
 
