@@ -99,7 +99,8 @@ namespace Opc.Ua.Client
             :
                 base(channel)
         {
-            InitializeAsync(channel, configuration, endpoint, clientCertificate);
+            Initialize(channel, configuration, endpoint);
+            LoadInstanceCertificateAsync(clientCertificate).GetAwaiter().GetResult();
             m_discoveryServerEndpoints = availableEndpoints;
             m_discoveryProfileUris = discoveryProfileUris;
         }
@@ -114,8 +115,8 @@ namespace Opc.Ua.Client
         :
             base(channel)
         {
-            InitializeAsync(channel, template.m_configuration, template.ConfiguredEndpoint, template.m_instanceCertificate);
-
+            Initialize(channel, template.m_configuration, template.ConfiguredEndpoint);
+            LoadInstanceCertificateAsync(template.m_instanceCertificate).GetAwaiter().GetResult();
             m_sessionFactory = template.m_sessionFactory;
             m_defaultSubscription = template.m_defaultSubscription;
             m_deleteSubscriptionsOnClose = template.m_deleteSubscriptionsOnClose;
@@ -156,11 +157,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Initializes the channel.
         /// </summary>
-        private async void InitializeAsync(
+        private void Initialize(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint,
-            X509Certificate2 clientCertificate)
+            ConfiguredEndpoint endpoint)
         {
             Initialize();
 
@@ -172,38 +172,6 @@ namespace Opc.Ua.Client
 
             // update the default subscription.
             m_defaultSubscription.MinLifetimeInterval = (uint)configuration.ClientConfiguration.MinSubscriptionLifetime;
-
-            if (m_endpoint.Description.SecurityPolicyUri != SecurityPolicies.None)
-            {
-                if (clientCertificate == null)
-                {
-                    m_instanceCertificate = await LoadCertificateAsync(configuration, m_endpoint.Description.SecurityPolicyUri).ConfigureAwait(false);
-                    if (m_instanceCertificate == null)
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadConfigurationError,
-                            "The client configuration does not specify an application instance certificate.");
-                    }
-                }
-                else
-                {
-                    // update client certificate.
-                    m_instanceCertificate = clientCertificate;
-                }
-
-                // check for private key.
-                if (!m_instanceCertificate.HasPrivateKey)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadConfigurationError,
-                        "No private key for the application instance certificate. Subject={0}, Thumbprint={1}.",
-                        m_instanceCertificate.Subject,
-                        m_instanceCertificate.Thumbprint);
-                }
-
-                // load certificate chain.
-                m_instanceCertificateChain = await LoadCertificateChainAsync(configuration, m_instanceCertificate).ConfigureAwait(false);
-            }
 
             // initialize the message context.
             IServiceMessageContext messageContext = channel.MessageContext;
@@ -6106,6 +6074,46 @@ namespace Opc.Ua.Client
             catch (Exception e)
             {
                 Utils.LogError(e, "Session: Unexpected error while deleting subscription for SubscriptionId={0}.", subscriptionId);
+            }
+        }
+
+        /// <summary>
+        /// Asynchronously load instance certificate
+        /// </summary>
+        /// <param name="clientCertificate"></param>
+        /// <returns></returns>
+        private async Task LoadInstanceCertificateAsync(X509Certificate2 clientCertificate)
+        {
+            if (m_endpoint.Description.SecurityPolicyUri != SecurityPolicies.None)
+            {
+                if (clientCertificate == null)
+                {
+                    m_instanceCertificate = await LoadCertificateAsync(m_configuration, m_endpoint.Description.SecurityPolicyUri).ConfigureAwait(false);
+                    if (m_instanceCertificate == null)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadConfigurationError,
+                            "The client configuration does not specify an application instance certificate.");
+                    }
+                }
+                else
+                {
+                    // update client certificate.
+                    m_instanceCertificate = clientCertificate;
+                }
+
+                // check for private key.
+                if (!m_instanceCertificate.HasPrivateKey)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "No private key for the application instance certificate. Subject={0}, Thumbprint={1}.",
+                        m_instanceCertificate.Subject,
+                        m_instanceCertificate.Thumbprint);
+                }
+
+                // load certificate chain.
+                m_instanceCertificateChain = await LoadCertificateChainAsync(m_configuration, m_instanceCertificate).ConfigureAwait(false);
             }
         }
 
