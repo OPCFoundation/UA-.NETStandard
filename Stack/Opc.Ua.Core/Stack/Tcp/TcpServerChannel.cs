@@ -348,17 +348,23 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                using (MemoryStream istrm = new MemoryStream(messageChunk.Array, messageChunk.Offset, messageChunk.Count, false))
+                // read requested buffer sizes.
+                uint protocolVersion;
+                uint receiveBufferSize;
+                uint sendBufferSize;
+                uint maxMessageSize;
+                uint maxChunkCount;
+
+                using (var decoder = new BinaryDecoder(messageChunk, Quotas.MessageContext))
                 {
-                    BinaryDecoder decoder = new BinaryDecoder(istrm, Quotas.MessageContext);
-                    istrm.Seek(TcpMessageLimits.MessageTypeAndSize, SeekOrigin.Current);
+                    ReadAndVerifyMessageTypeAndSize(decoder, TcpMessageType.Hello, messageChunk.Count);
 
                     // read requested buffer sizes.
-                    uint protocolVersion = decoder.ReadUInt32(null);
-                    uint receiveBufferSize = decoder.ReadUInt32(null);
-                    uint sendBufferSize = decoder.ReadUInt32(null);
-                    uint maxMessageSize = decoder.ReadUInt32(null);
-                    uint maxChunkCount = decoder.ReadUInt32(null);
+                    protocolVersion = decoder.ReadUInt32(null);
+                    receiveBufferSize = decoder.ReadUInt32(null);
+                    sendBufferSize = decoder.ReadUInt32(null);
+                    maxMessageSize = decoder.ReadUInt32(null);
+                    maxChunkCount = decoder.ReadUInt32(null);
 
                     // read the endpoint url.
                     int length = decoder.ReadInt32(null);
@@ -386,50 +392,50 @@ namespace Opc.Ua.Bindings
                     }
 
                     decoder.Close();
-
-                    // update receive buffer size.
-                    if (receiveBufferSize < ReceiveBufferSize)
-                    {
-                        ReceiveBufferSize = (int)receiveBufferSize;
-                    }
-
-                    if (ReceiveBufferSize < TcpMessageLimits.MinBufferSize)
-                    {
-                        ReceiveBufferSize = TcpMessageLimits.MinBufferSize;
-                    }
-
-                    // update send buffer size.
-                    if (sendBufferSize < SendBufferSize)
-                    {
-                        SendBufferSize = (int)sendBufferSize;
-                    }
-
-                    if (SendBufferSize < TcpMessageLimits.MinBufferSize)
-                    {
-                        SendBufferSize = TcpMessageLimits.MinBufferSize;
-                    }
-
-                    // update the max message size.
-                    if (maxMessageSize > 0 && maxMessageSize < MaxResponseMessageSize)
-                    {
-                        MaxResponseMessageSize = (int)maxMessageSize;
-                    }
-
-                    if (MaxResponseMessageSize < SendBufferSize)
-                    {
-                        MaxResponseMessageSize = SendBufferSize;
-                    }
-
-                    // update the max chunk count.
-                    MaxResponseChunkCount = CalculateChunkCount(MaxResponseMessageSize, SendBufferSize);
-
-                    if (maxChunkCount > 0 && maxChunkCount < MaxResponseChunkCount)
-                    {
-                        MaxResponseChunkCount = (int)maxChunkCount;
-                    }
-
-                    MaxRequestChunkCount = CalculateChunkCount(MaxRequestMessageSize, ReceiveBufferSize);
                 }
+
+                // update receive buffer size.
+                if (receiveBufferSize < ReceiveBufferSize)
+                {
+                    ReceiveBufferSize = (int)receiveBufferSize;
+                }
+
+                if (ReceiveBufferSize < TcpMessageLimits.MinBufferSize)
+                {
+                    ReceiveBufferSize = TcpMessageLimits.MinBufferSize;
+                }
+
+                // update send buffer size.
+                if (sendBufferSize < SendBufferSize)
+                {
+                    SendBufferSize = (int)sendBufferSize;
+                }
+
+                if (SendBufferSize < TcpMessageLimits.MinBufferSize)
+                {
+                    SendBufferSize = TcpMessageLimits.MinBufferSize;
+                }
+
+                // update the max message size.
+                if (maxMessageSize > 0 && maxMessageSize < MaxResponseMessageSize)
+                {
+                    MaxResponseMessageSize = (int)maxMessageSize;
+                }
+
+                if (MaxResponseMessageSize < SendBufferSize)
+                {
+                    MaxResponseMessageSize = SendBufferSize;
+                }
+
+                // update the max chunk count.
+                MaxResponseChunkCount = CalculateChunkCount(MaxResponseMessageSize, SendBufferSize);
+
+                if (maxChunkCount > 0 && maxChunkCount < MaxResponseChunkCount)
+                {
+                    MaxResponseChunkCount = (int)maxChunkCount;
+                }
+
+                MaxRequestChunkCount = CalculateChunkCount(MaxRequestMessageSize, ReceiveBufferSize);
 
                 // send acknowledge.
                 byte[] buffer = BufferManager.TakeBuffer(kResponseBufferSize, nameof(ProcessHelloMessage));

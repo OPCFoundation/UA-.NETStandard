@@ -265,7 +265,7 @@ namespace Opc.Ua
             messageContext.ServerUris = context.ServerUris;
             messageContext.Factory = context.EncodeableFactory;
 
-            using (BinaryDecoder decoder = new BinaryDecoder(istrm, messageContext))
+            using (var decoder = new BinaryDecoder(istrm, messageContext))
             {
                 // check if a namespace table was provided.
                 NamespaceTable namespaceUris = new NamespaceTable();

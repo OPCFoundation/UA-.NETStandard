@@ -120,7 +120,7 @@ namespace Opc.Ua
         {
             if (initializationString.StartsWith("<", StringComparison.Ordinal))
             {
-                using (System.IO.StringReader reader = new System.IO.StringReader(initializationString))
+                using (var reader = new StringReader(initializationString))
                 {
                     LoadFromXml(context, reader);
                 }
@@ -129,7 +129,7 @@ namespace Opc.Ua
             {
                 byte[] bytes = Convert.FromBase64String(initializationString);
 
-                using (System.IO.MemoryStream istrm = new MemoryStream(bytes))
+                using (var istrm = new MemoryStream(bytes))
                 {
                     LoadAsBinary(context, istrm);
                 }
@@ -650,37 +650,38 @@ namespace Opc.Ua
             messageContext.ServerUris = context.ServerUris;
             messageContext.Factory = context.EncodeableFactory;
 
-            BinaryDecoder decoder = new BinaryDecoder(istrm, messageContext);
-
-            // check if a namespace table was provided.
-            NamespaceTable namespaceUris = new NamespaceTable();
-
-            if (!decoder.LoadStringTable(namespaceUris))
+            using (var decoder = new BinaryDecoder(istrm, messageContext, true))
             {
-                namespaceUris = null;
+                // check if a namespace table was provided.
+                NamespaceTable namespaceUris = new NamespaceTable();
+
+                if (!decoder.LoadStringTable(namespaceUris))
+                {
+                    namespaceUris = null;
+                }
+
+                // check if a server uri table was provided.
+                StringTable serverUris = new StringTable();
+
+                if (namespaceUris != null && namespaceUris.Count > 1)
+                {
+                    serverUris.Append(namespaceUris.GetString(1));
+                }
+
+                if (!decoder.LoadStringTable(serverUris))
+                {
+                    serverUris = null;
+                }
+
+                // setup the mappings to use during decoding.
+                decoder.SetMappingTables(namespaceUris, serverUris);
+
+                // update the node and children.
+                AttributesToSave attributesToLoad = (AttributesToSave)decoder.ReadUInt32(null);
+                Update(context, decoder, attributesToLoad);
+                UpdateReferences(context, decoder);
+                UpdateChildren(context, decoder);
             }
-
-            // check if a server uri table was provided.
-            StringTable serverUris = new StringTable();
-
-            if (namespaceUris != null && namespaceUris.Count > 1)
-            {
-                serverUris.Append(namespaceUris.GetString(1));
-            }
-
-            if (!decoder.LoadStringTable(serverUris))
-            {
-                serverUris = null;
-            }
-
-            // setup the mappings to use during decoding.
-            decoder.SetMappingTables(namespaceUris, serverUris);
-
-            // update the node and children.
-            AttributesToSave attributesToLoad = (AttributesToSave)decoder.ReadUInt32(null);
-            Update(context, decoder, attributesToLoad);
-            UpdateReferences(context, decoder);
-            UpdateChildren(context, decoder);
         }
 
         #region AttributesToSave Enumeration
@@ -1248,7 +1249,7 @@ namespace Opc.Ua
         /// <param name="input">The stream to read.</param>
         public void LoadFromXml(ISystemContext context, TextReader input)
         {
-            using (XmlReader reader = XmlReader.Create(input, Utils.DefaultXmlReaderSettings()))
+            using (var reader = XmlReader.Create(input, Utils.DefaultXmlReaderSettings()))
             {
                 LoadFromXml(context, reader);
             }
