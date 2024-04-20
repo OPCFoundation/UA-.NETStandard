@@ -61,9 +61,6 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Stack", "Stack", "{2DC9F7F3-6698-4875-88A3-50678170A810}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BinaryDecoder", "BinaryDecoder", "{128EE105-0A7A-4AB3-81E6-A77AE638B33F}"
-	ProjectSection(SolutionItems) = preProject
-		Fuzzing\Fuzzing.md = Fuzzing\Fuzzing.md
-	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BinaryDecoder.Fuzz", "Fuzzing\BinaryDecoder\Fuzz\BinaryDecoder.Fuzz.csproj", "{92CC62D7-B7B6-4FBD-B9AC-181BD0D11EC0}"
 EndProject
@@ -78,6 +75,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scripts", "scripts", "{612E
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Fuzzing", "Fuzzing", "{E9435CCE-1591-4AC0-87C4-341236E27C50}"
+	ProjectSection(SolutionItems) = preProject
+		Fuzzing\Fuzzing.md = Fuzzing\Fuzzing.md
+	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BinaryDecoder.Fuzz.Tools", "Fuzzing\BinaryDecoder\Fuzz.Tools\BinaryDecoder.Fuzz.Tools.csproj", "{A2F6528F-2DB0-4E37-ACBC-3A9EB9126D05}"
 EndProject

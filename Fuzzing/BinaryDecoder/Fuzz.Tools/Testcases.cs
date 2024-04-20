@@ -3,52 +3,58 @@ using System;
 using System.IO;
 using Opc.Ua;
 
-public static class Testcases
+public partial class Testcases
 {
-    private static ServiceMessageContext s_messageContext = new ServiceMessageContext();
+    public delegate void MessageEncoder(IEncoder encoder);
 
-    private static byte[] CreateReadRequest()
+    public static ServiceMessageContext MessageContext = new ServiceMessageContext();
+
+    public static MessageEncoder[] MessageEncoders = new MessageEncoder[] {
+        ReadRequest,
+        ReadResponse,
+    };
+
+    public static void ReadRequest(IEncoder encoder)
     {
-        using (var encoder = new BinaryEncoder(s_messageContext))
-        {
-            var nodeId = new NodeId(1000);
-            var readRequest = new ReadRequest {
-                NodesToRead = new ReadValueIdCollection {
-                    new ReadValueId {
-                        NodeId = nodeId,
-                        AttributeId = Attributes.Description,
-                    },
-                    new ReadValueId {
-                        NodeId = nodeId,
-                        AttributeId = Attributes.Value,
-                    },
-                    new ReadValueId {
-                        NodeId = nodeId,
-                        AttributeId = Attributes.DisplayName,
-                    },
-                    new ReadValueId {
-                        NodeId = nodeId,
-                        AttributeId = Attributes.AccessLevel,
-                    },
-                    new ReadValueId {
-                        NodeId = nodeId,
-                        AttributeId = Attributes.RolePermissions,
-                    },
+        var nodeId = new NodeId(1000);
+        var readRequest = new ReadRequest {
+            RequestHeader = new RequestHeader {
+                Timestamp = DateTime.UtcNow,
+                RequestHandle = 42,
+                AdditionalHeader = new ExtensionObject(),
+            },
+            NodesToRead = new ReadValueIdCollection {
+                new ReadValueId {
+                    NodeId = nodeId,
+                    AttributeId = Attributes.Description,
                 },
-            };
-            encoder.EncodeMessage(readRequest);
-            return encoder.CloseAndReturnBuffer();
-        }
+                new ReadValueId {
+                    NodeId = nodeId,
+                    AttributeId = Attributes.Value,
+                },
+                new ReadValueId {
+                    NodeId = nodeId,
+                    AttributeId = Attributes.DisplayName,
+                },
+                new ReadValueId {
+                    NodeId = nodeId,
+                    AttributeId = Attributes.AccessLevel,
+                },
+                new ReadValueId {
+                    NodeId = nodeId,
+                    AttributeId = Attributes.RolePermissions,
+                },
+            },
+        };
+        encoder.EncodeMessage(readRequest);
     }
 
-    private static byte[] CreateReadResponse()
+    public static void ReadResponse(IEncoder encoder)
     {
         var now = DateTime.UtcNow;
-        using (var encoder = new BinaryEncoder(s_messageContext))
-        {
-            var nodeId = new NodeId(1000);
-            var readRequest = new ReadResponse {
-                Results = new DataValueCollection {
+        var nodeId = new NodeId(1000);
+        var readRequest = new ReadResponse {
+            Results = new DataValueCollection {
                     new DataValue {
                         Value = new Variant("Hello World"),
                         ServerTimestamp = now,
@@ -73,7 +79,7 @@ public static class Testcases
                         Value = new Variant((byte)42),
                     },
                 },
-                DiagnosticInfos = new DiagnosticInfoCollection {
+            DiagnosticInfos = new DiagnosticInfoCollection {
                         new DiagnosticInfo {
                             AdditionalInfo = "Hello World",
                             InnerStatusCode = StatusCodes.BadCertificateHostNameInvalid,
@@ -83,41 +89,29 @@ public static class Testcases
                             },
                         },
                     },
-                ResponseHeader = new ResponseHeader {
-                    Timestamp = DateTime.UtcNow,
-                    RequestHandle = 42,
-                    ServiceResult = StatusCodes.Good,
-                    ServiceDiagnostics = new DiagnosticInfo {
-                        AdditionalInfo = "NodeId not found",
-                        InnerStatusCode = StatusCodes.BadNodeIdExists,
+            ResponseHeader = new ResponseHeader {
+                Timestamp = DateTime.UtcNow,
+                RequestHandle = 42,
+                ServiceResult = StatusCodes.Good,
+                ServiceDiagnostics = new DiagnosticInfo {
+                    AdditionalInfo = "NodeId not found",
+                    InnerStatusCode = StatusCodes.BadNodeIdExists,
+                    InnerDiagnosticInfo = new DiagnosticInfo {
+                        AdditionalInfo = "Hello World",
+                        InnerStatusCode = StatusCodes.BadNodeIdUnknown,
                         InnerDiagnosticInfo = new DiagnosticInfo {
                             AdditionalInfo = "Hello World",
                             InnerStatusCode = StatusCodes.BadNodeIdUnknown,
                             InnerDiagnosticInfo = new DiagnosticInfo {
                                 AdditionalInfo = "Hello World",
                                 InnerStatusCode = StatusCodes.BadNodeIdUnknown,
-                                InnerDiagnosticInfo = new DiagnosticInfo {
-                                    AdditionalInfo = "Hello World",
-                                    InnerStatusCode = StatusCodes.BadNodeIdUnknown,
-                                },
                             },
                         },
                     },
                 },
-            };
-            encoder.EncodeMessage(readRequest);
-            return encoder.CloseAndReturnBuffer();
-        }
-    }
-
-    public static void Run(string directoryPath)
-    {
-        var readRequest = CreateReadRequest();
-        FuzzTestcase(readRequest);
-        File.WriteAllBytes(Path.Combine(directoryPath, "readrequest.bin"), readRequest);
-        var readResponse = CreateReadResponse();
-        FuzzTestcase(readResponse);
-        File.WriteAllBytes(Path.Combine(directoryPath, "readresponse.bin"), readResponse);
+            },
+        };
+        encoder.EncodeMessage(readRequest);
     }
 
     public static void FuzzTestcase(byte[] message)
