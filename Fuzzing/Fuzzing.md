@@ -1,13 +1,29 @@
 # Fuzz testing for UA.NET Standard
 
-This project provides integration of Sharpfuzz with the encoders used by the UA .NET Standard library. 
+This project provides integration of Sharpfuzz with the UA.NET Standard library encoders with support for both afl-fuzz and libfuzzer.
 
-## Installation
+Fuzzers for the following decoders are located in the `Fuzzing` directory:
+- BinaryDecoder
+- JsonDecoder (planned)
+- XmlDecoder (planned)
+- CRL and Certificate decoder functions using the .NET ASN.1 decoder (planned)
 
-The fuzzing project executes on a linux subsystem. The following steps are required to set up the environment:
+Most of the supporting code is shared between all projects, only the project names and the fuzzable support functions differ.
 
-- Install a Windows Subsystem for Linux (WSL) by following the instructions at https://docs.microsoft.com/en-us/windows/wsl/install or by installing e.g. the Ubuntu app from the Microsoft store.
-- The full instructions for setting up sharpfuzz can be found at https://github.com/Metalnem/sharpfuzz/blob/master/README.md.
+A Tools application for each fuzzer supports recreation of the `Testcases` and to replay the test cases that caused the fuzzer to crash or to hang. The application is located in the `*.Fuzz.Tools` folders.
+
+## Installation for afl-fuzz and libfuzzer on Linux
+
+Both fuzzers are supported on Linux. afl-fuzz can be compiled on any Linux system, while for libfuzzer prebuilt binaries are available for Debian and Ubuntu. The instructions were tested on a WSL subsystem on Windows with a Ubuntu installation.
+
+### Extra step to run the fuzzers on Windows on a linux subsystem (WSL)
+
+- Install the Windows Subsystem for Linux (WSL) by following the instructions at https://docs.microsoft.com/en-us/windows/wsl/install or by installing e.g. the Ubuntu app from the Microsoft store.
+
+### Installation of required tools
+
+The full instructions for setting up sharpfuzz can be found at https://github.com/Metalnem/sharpfuzz/blob/master/README.md.
+The following steps are required to set up the environment: 
 
 - Open a terminal and run the following commands to install the required packages to compile afl-fuzz:
 
@@ -55,13 +71,20 @@ afl-fuzz --help
 sharpfuzz
 ```
 
-## Usage
+## Installation for libfuzzer on Windows
 
-To run the fuzzing project, execute the following commands, e.g. for the BinaryDecoder fuzzer:
+Install the latest dotnet SDK and runtime from https://dotnet.microsoft.com/download/dotnet/
+
+```commandline
+# Install SharpFuzz.CommandLine global .NET tool
+dotnet tool install --global SharpFuzz.CommandLine
+```
+
+## Usage of afl-fuzz on Linux
+
+To run the afl-fuzz fuzzing project, execute the following commands, e.g. for the BinaryDecoder fuzzer:
 
 ```bash
-#/bin/sh
-
 cd BinaryDecoder
 ./fuzz.sh
 ```
