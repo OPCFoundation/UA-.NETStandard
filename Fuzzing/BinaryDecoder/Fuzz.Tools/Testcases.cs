@@ -127,5 +127,4 @@ public static class Testcases
             FuzzableCode.FuzzTarget(stream);
         }
     }
-
 }
