@@ -2,8 +2,13 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>$(AppTargetFramework)</TargetFramework>
     <AssemblyName>BinaryDecoder.Fuzz</AssemblyName>
+    <RootNamespace>BinaryDecoder.Fuzz</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(LibFuzzer)' == 'true'">
+    <DefineConstants>$(DefineConstants);LIBFUZZER</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

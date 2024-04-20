@@ -21,7 +21,7 @@ if (Test-Path $findingsDir) {
     Remove-Item -Recurse -Force $findingsDir 
 }
 
-dotnet publish $project -c release -o $outputDir
+dotnet publish $project --force -c release -o $outputDir
 
 $projectName = (Get-Item $project).BaseName
 $projectDll = "$projectName.dll"

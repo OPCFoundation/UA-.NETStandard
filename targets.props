@@ -116,7 +116,7 @@
       <PropertyGroup>
         <AnalysisLevel>preview-all</AnalysisLevel>
         <AppTargetFrameworks>net6.0;net48</AppTargetFrameworks>
-        <AppTargetFramework>net6.0</AppTargetFramework>
+        <AppTargetFramework>net8.0</AppTargetFramework>
         <TestsTargetFrameworks>net48;net6.0</TestsTargetFrameworks>
         <LibTargetFrameworks>net48;netstandard2.1;net6.0;net8.0</LibTargetFrameworks>
         <LibCoreTargetFrameworks>net48;netstandard2.0;netstandard2.1;net6.0;net8.0</LibCoreTargetFrameworks>

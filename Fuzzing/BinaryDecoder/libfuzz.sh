@@ -1,0 +1,1 @@
+pwsh ../scripts/fuzz-libfuzzer.ps1 -libFuzzer "./libfuzzer-dotnet-ubuntu" -project ./Fuzz/BinaryDecoder.Fuzz.csproj -corpus ./Fuzz/Testcases/

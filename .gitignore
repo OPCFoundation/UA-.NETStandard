@@ -265,3 +265,5 @@ OPC\ Foundation/
 
 # UA Fuzzing findings folders
 /Fuzzing/**/findings/
+/Fuzzing/**/Testcases/
+!/Fuzzing/**/Testcases/*.bin

@@ -2,8 +2,9 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
-    <AssemblyName>BinaryDecoder.Fuzztools</AssemblyName>
+    <TargetFramework>$(AppTargetFramework)</TargetFramework>
+    <AssemblyName>BinaryDecoder.Fuzz.Tools</AssemblyName>
+    <RootNamespace>BinaryDecoder.Fuzz.Tools</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

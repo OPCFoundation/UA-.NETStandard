@@ -2,15 +2,18 @@
 
 using SharpFuzz;
 
-namespace BinaryDecoder.Fuzz
+public static class Program
 {
-    public static class Program
+    public static void Main(string[] args)
     {
-        public static void Main(string[] args)
-        {
-            Fuzzer.Run(stream => {
-                FuzzableCode.FuzzTarget(stream);
-            });
-        }
+#if LIBFUZZER
+        Fuzzer.LibFuzzer.Run(input => {
+            FuzzableCode.FuzzTargetLibfuzzer(input);
+        });
+#else
+        Fuzzer.Run(stream => {
+            FuzzableCode.FuzzTarget(stream);
+        });
+#endif
     }
 }

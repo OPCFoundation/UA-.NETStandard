@@ -18,7 +18,7 @@ if (Test-Path $outputDir) {
     Remove-Item -Recurse -Force $outputDir
 }
 
-dotnet publish $project -c release -o $outputDir
+dotnet.exe publish $project -p:LibFuzzer=true -c release --force -o $outputDir
 
 $projectName = (Get-Item $project).BaseName
 $projectDll = "$projectName.dll"
@@ -50,6 +50,7 @@ foreach ($fuzzingTarget in $fuzzingTargets) {
     }
 }
 
+Write-Output "Start $libFuzzer"
 if ($dict) {
     & $libFuzzer -timeout="$timeout" -dict="$dict" --target_path=dotnet --target_arg=$project $corpus
 }

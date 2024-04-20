@@ -67,7 +67,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BinaryDecoder", "BinaryDeco
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BinaryDecoder.Fuzz", "Fuzzing\BinaryDecoder\Fuzz\BinaryDecoder.Fuzz.csproj", "{92CC62D7-B7B6-4FBD-B9AC-181BD0D11EC0}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BinaryDecoder.Fuzztools", "Fuzzing\BinaryDecoder\Fuzztools\BinaryDecoder.Fuzztools.csproj", "{352C998B-D884-4C25-BCE3-8AFBF371C380}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BinaryDecoder.Fuzz.Tools", "Fuzzing\BinaryDecoder\Fuzztools\BinaryDecoder.Fuzz.Tools.csproj", "{352C998B-D884-4C25-BCE3-8AFBF371C380}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scripts", "scripts", "{612E66DA-731B-4E7C-969D-88079601ED30}"
 	ProjectSection(SolutionItems) = preProject
@@ -78,6 +78,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scripts", "scripts", "{612E
 		Fuzzing\scripts\test-libfuzzer.ps1 = Fuzzing\scripts\test-libfuzzer.ps1
 		Fuzzing\scripts\test.ps1 = Fuzzing\scripts\test.ps1
 	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Fuzzing", "Fuzzing", "{E9435CCE-1591-4AC0-87C4-341236E27C50}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -212,9 +214,10 @@ Global
 		{FE9EEB39-0698-4A19-B770-E66836CE0002} = {ACBF012E-08A7-4939-88CF-D6B610E35AC5}
 		{92D98D3D-2A7D-4F4B-8C72-1A98908D0221} = {2DC9F7F3-6698-4875-88A3-50678170A810}
 		{4B72937F-5A57-4CEA-B9FE-B4C45CF7B284} = {ACBF012E-08A7-4939-88CF-D6B610E35AC5}
+		{128EE105-0A7A-4AB3-81E6-A77AE638B33F} = {E9435CCE-1591-4AC0-87C4-341236E27C50}
 		{92CC62D7-B7B6-4FBD-B9AC-181BD0D11EC0} = {128EE105-0A7A-4AB3-81E6-A77AE638B33F}
 		{352C998B-D884-4C25-BCE3-8AFBF371C380} = {128EE105-0A7A-4AB3-81E6-A77AE638B33F}
-		{612E66DA-731B-4E7C-969D-88079601ED30} = {128EE105-0A7A-4AB3-81E6-A77AE638B33F}
+		{612E66DA-731B-4E7C-969D-88079601ED30} = {E9435CCE-1591-4AC0-87C4-341236E27C50}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {33FA5BCB-C827-4D44-AECF-F51342DFE64A}
