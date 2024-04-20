@@ -437,8 +437,8 @@ namespace Opc.Ua
                     {
                         buffer.Append(value);
                     }
-
-                    fields.Add(buffer.ToString());
+                    var filtered = buffer.Replace("\"/\"", "/").Replace("\"=\"", "=").ToString();
+                    fields.Add(filtered);
                     buffer.Length = 0;
                 }
 
