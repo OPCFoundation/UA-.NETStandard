@@ -69,6 +69,16 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BinaryDecoder.Fuzz", "Fuzzi
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BinaryDecoder.Fuzztools", "Fuzzing\BinaryDecoder\Fuzztools\BinaryDecoder.Fuzztools.csproj", "{352C998B-D884-4C25-BCE3-8AFBF371C380}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scripts", "scripts", "{612E66DA-731B-4E7C-969D-88079601ED30}"
+	ProjectSection(SolutionItems) = preProject
+		Fuzzing\scripts\fuzz-libfuzzer.ps1 = Fuzzing\scripts\fuzz-libfuzzer.ps1
+		Fuzzing\scripts\fuzz.ps1 = Fuzzing\scripts\fuzz.ps1
+		Fuzzing\scripts\install.sh = Fuzzing\scripts\install.sh
+		Fuzzing\scripts\readme.txt = Fuzzing\scripts\readme.txt
+		Fuzzing\scripts\test-libfuzzer.ps1 = Fuzzing\scripts\test-libfuzzer.ps1
+		Fuzzing\scripts\test.ps1 = Fuzzing\scripts\test.ps1
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -204,6 +214,7 @@ Global
 		{4B72937F-5A57-4CEA-B9FE-B4C45CF7B284} = {ACBF012E-08A7-4939-88CF-D6B610E35AC5}
 		{92CC62D7-B7B6-4FBD-B9AC-181BD0D11EC0} = {128EE105-0A7A-4AB3-81E6-A77AE638B33F}
 		{352C998B-D884-4C25-BCE3-8AFBF371C380} = {128EE105-0A7A-4AB3-81E6-A77AE638B33F}
+		{612E66DA-731B-4E7C-969D-88079601ED30} = {128EE105-0A7A-4AB3-81E6-A77AE638B33F}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {33FA5BCB-C827-4D44-AECF-F51342DFE64A}

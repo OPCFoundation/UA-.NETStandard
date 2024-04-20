@@ -262,3 +262,6 @@ OPC\ Foundation/
 /SampleApplications/Samples/OPCOutput
 !**/Assets/*.*
 *.Nodeset2.xml.zip
+
+# UA Fuzzing findings folders
+/Fuzzing/**/findings/

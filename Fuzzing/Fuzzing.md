@@ -20,7 +20,7 @@ sudo apt-get update
 sudo apt-get install -y build-essential cmake git
 
 # Install .NET 8.0 SDK on Ubuntu
-sudo apt-get install -y dotnet-sdk-8.0 powershell
+sudo apt-get install -y dotnet-sdk-8.0
 ```
 
 The supplied scripts require powershell on Linux to be installed. 
