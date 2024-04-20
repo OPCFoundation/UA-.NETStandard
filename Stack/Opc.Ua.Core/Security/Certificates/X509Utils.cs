@@ -437,7 +437,8 @@ namespace Opc.Ua
                     {
                         buffer.Append(value);
                     }
-                    var filtered = buffer.Replace("\"/\"", "/").Replace("\"=\"", "=").ToString();
+                    //remove subject name escaping character " (used for escaping = and / ) from result as per spec Part 12 7.9.4
+                    string filtered = buffer.Replace("\"/\"", "/").Replace("\"=\"", "=").ToString();
                     fields.Add(filtered);
                     buffer.Length = 0;
                 }
