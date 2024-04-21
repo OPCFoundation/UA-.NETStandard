@@ -16,26 +16,27 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [SetCulture("en-us")]
     public class X509UtilsTest
     {
-        [Test]
-        public void ParseDistinguishedNameHandlesEscapingOfSlashChar()
+        [TestCase("CN=UA Yellow Green Server,DC=dogblueberry,O=OPC\"=\"Foundation")]
+        [TestCase("CN=UA Yellow Green Server,DC=dogblueberry,O=\"OPC=Foundation\"")]
+        public void ParseDistinguishedNameHandlesEscapingOfEqualsChar(string input)
         {
-            string input = "CN=UA Yellow Green Server,DC=dogblueberry,O=OPC\"=\"Foundation";
-
             List<string> result = X509Utils.ParseDistinguishedName(input);
 
+            Assert.True(result.Count == 3);
             Assert.Contains("CN=UA Yellow Green Server", result);
             Assert.Contains("DC=dogblueberry", result);
             Assert.Contains("O=\"OPC=Foundation\"", result);
         }
 
 
-        [Test]
-        public void ParseDistinguishedNameHandlesEscapingOfEqualsChar()
-        {
-            string input = "CN=UA Yellow Blue Server,DC=dogredberry,O=OPC\"/\"Foundation";
 
+        [TestCase("CN = UA Yellow Blue Server, DC = dogredberry, O =\"OPC/Foundation\"")]
+        [TestCase("CN = UA Yellow Blue Server, DC = dogredberry, O =OPC\"/\"Foundation")]
+        public void ParseDistinguishedNameHandlesEscapingOfSlashChar(string input)
+        {
             List<string> result = X509Utils.ParseDistinguishedName(input);
 
+            Assert.True(result.Count == 3);
             Assert.Contains("CN=UA Yellow Blue Server", result);
             Assert.Contains("DC=dogredberry", result);
             Assert.Contains("O=\"OPC/Foundation\"", result);
