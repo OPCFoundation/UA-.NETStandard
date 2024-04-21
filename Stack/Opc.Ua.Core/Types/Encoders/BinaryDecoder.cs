@@ -2014,7 +2014,7 @@ namespace Opc.Ua
             if (!NodeId.IsNull(typeId) && NodeId.IsNull(extension.TypeId))
             {
                 Utils.LogWarning(
-                    "Cannot de-serialized extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}",
+                    "Cannot deserialize extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}",
                     typeId);
             }
 
@@ -2052,7 +2052,7 @@ namespace Opc.Ua
                         }
                         catch (Exception e)
                         {
-                            Utils.LogError("Could not decode known type {0}. Error={1}, Value={2}", systemType.FullName, e.Message, element.OuterXml);
+                            Utils.LogError("Could not decode known type {0} encoded as Xml. Error={1}, Value={2}", systemType.FullName, e.Message, element.OuterXml);
                         }
                     }
                 }
@@ -2060,10 +2060,15 @@ namespace Opc.Ua
                 return extension;
             }
 
+            // get the length.
+            int length = ReadInt32(null);
+
+            // save the current position.
+            int start = Position;
+
             // create instance of type.
             IEncodeable encodeable = null;
-
-            if (systemType != null)
+            if (systemType != null && length >= 0)
             {
                 encodeable = Activator.CreateInstance(systemType) as IEncodeable;
 
@@ -2074,15 +2079,12 @@ namespace Opc.Ua
                 }
             }
 
-            // get the length.
-            int length = ReadInt32(null);
-
-            // save the current position.
-            int start = Position;
-
             // process known type.
             if (encodeable != null)
             {
+                bool resetStream = true;
+                string errorMessage = string.Empty;
+                Exception exception = null;
                 uint nestingLevel = m_nestingLevel;
 
                 CheckAndIncrementNestingLevel();
@@ -2096,30 +2098,39 @@ namespace Opc.Ua
                     int used = Position - start;
                     if (length != used)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                            "The encodeable.Decoder operation did not match the length of the extension object. {0} != {1}", used, length);
+                        errorMessage = "Length mismatch";
+                    }
+                    else
+                    {
+                        // success!
+                        resetStream = false;
                     }
                 }
                 catch (EndOfStreamException eofStream)
                 {
-                    // type was known but decoding failed, reset stream!
-                    m_reader.BaseStream.Position = start;
-                    encodeable = null;
-                    Utils.LogWarning(eofStream, "End of stream, failed to decode encodeable type '{0}', NodeId='{1}'. BinaryDecoder recovered.",
-                        systemType.Name, extension.TypeId);
+                    errorMessage = "End of stream";
+                    exception = eofStream;
                 }
                 catch (ServiceResultException sre) when
                     ((sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded) || (sre.StatusCode == StatusCodes.BadDecodingError))
                 {
-                    // type was known but decoding failed, reset stream!
-                    m_reader.BaseStream.Position = start;
-                    encodeable = null;
-                    Utils.LogWarning(sre, "{0}, failed to decode encodeable type '{1}', NodeId='{2}'. BinaryDecoder recovered.",
-                        sre.Message, systemType.Name, extension.TypeId);
+                    errorMessage = sre.Message;
+                    exception = sre;
                 }
                 finally
                 {
                     m_nestingLevel = nestingLevel;
+                }
+
+                if (resetStream)
+                {
+                    // type was known but decoding failed, reset stream!
+                    m_reader.BaseStream.Position = start;
+                    encodeable = null;
+
+                    // log the error.
+                    Utils.LogWarning(exception, "{0}, failed to decode encodeable type '{1}', NodeId='{2}'. BinaryDecoder recovered.",
+                        errorMessage, systemType.Name, extension.TypeId);
                 }
             }
 

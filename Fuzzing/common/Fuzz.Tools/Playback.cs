@@ -7,7 +7,9 @@ public static class Playback
 {
     public static void Run(string directoryPath, bool stackTrace)
     {
-        foreach (var crashFile in Directory.EnumerateFiles(directoryPath))
+        var path = Path.GetDirectoryName(directoryPath);
+        var searchPattern = Path.GetFileName(directoryPath);
+        foreach (var crashFile in Directory.EnumerateFiles(path, searchPattern))
         {
 #if TEXTFUZZER
             var crashData = Encoding.UTF8.GetString(File.ReadAllBytes(crashFile));

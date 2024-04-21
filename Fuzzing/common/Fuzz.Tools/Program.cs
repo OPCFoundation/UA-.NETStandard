@@ -3,12 +3,13 @@ using System.IO;
 using System;
 using Mono.Options;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 public static class Program
 {
     public static readonly string DefaultTestcasesFolder = "../../../../Fuzz/Testcases";
-    public static readonly string DefaultFindingsCrashFolder = "../../../../findings/crashes";
-    public static readonly string DefaultFindingsHangFolder = "../../../../findings/crashes";
+    public static readonly string DefaultFindingsCrashFolder = "../../../../findings/crashes/";
+    public static readonly string DefaultFindingsHangsFolder = "../../../../findings/hangs/";
     public static readonly string DefaultLibFuzzerCrashes = "../../../crash-*";
     public static readonly string DefaultLibFuzzerHangs = "../../../timeout-*";
 
@@ -28,10 +29,12 @@ public static class Program
         OptionSet options = new OptionSet {
                 usage,
                 { "h|help", "show this message and exit", h => showHelp = h != null },
-                { "p|playback", "playback crashes found by afl-fuzz or libfuzzer", p => playback = p != null },
+                { "p|playback", "playback crashes found by afl-fuzz and libfuzzer", p => playback = p != null },
                 { "t|testcases", "create test cases for fuzzing", t => testcases = t != null },
                 { "s|stacktrace", "show stacktrace with playback", s => stacktrace = s != null },
             };
+
+        Logging.Configure(applicationName, string.Empty, true, LogLevel.Trace);
 
         IList<string> extraArgs = null;
         try
@@ -51,6 +54,9 @@ public static class Program
         else if (playback)
         {
             Playback.Run(DefaultFindingsCrashFolder, stacktrace);
+            Playback.Run(DefaultFindingsHangsFolder, stacktrace);
+            Playback.Run(DefaultLibFuzzerCrashes, stacktrace);
+            Playback.Run(DefaultLibFuzzerHangs, stacktrace);
         }
         else
         {
