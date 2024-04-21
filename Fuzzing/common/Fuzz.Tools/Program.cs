@@ -6,7 +6,6 @@ using System.Collections.Generic;
 
 public static class Program
 {
-    public static readonly string ApplicationName = "BinaryDecoder.Fuzztools";
     public static readonly string DefaultTestcasesFolder = "../../../../Fuzz/Testcases";
     public static readonly string DefaultFindingsCrashFolder = "../../../../findings/crashes";
     public static readonly string DefaultFindingsHangFolder = "../../../../findings/crashes";
@@ -15,7 +14,7 @@ public static class Program
 
     public static void Main(string[] args)
     {
-        var applicationName = "BinaryDecoder.Fuzztools";
+        var applicationName = typeof(Program).Assembly.GetName().Name;
         TextWriter output = Console.Out;
 
         output.WriteLine($"OPC UA {applicationName}");

@@ -9,6 +9,9 @@
 
   <ItemGroup>
     <Compile Include="..\Fuzz\FuzzTarget.cs" Link="FuzzTarget.cs" />
+    <Compile Include="..\..\common\Fuzz.Tools\Program.cs" Link="Program.cs" />
+    <Compile Include="..\..\common\Fuzz.Tools\Playback.cs" Link="Playback.cs" />
+    <Compile Include="..\..\common\Fuzz.Tools\Testcases.cs" Link="Testcases.cs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -11,8 +11,8 @@ public static class Program
             FuzzableCode.FuzzTargetLibfuzzer(input);
         });
 #else
-        Fuzzer.Run(stream => {
-            FuzzableCode.FuzzTarget(stream);
+        Fuzzer.Run(input => {
+            FuzzableCode.FuzzTarget(input);
         });
 #endif
     }

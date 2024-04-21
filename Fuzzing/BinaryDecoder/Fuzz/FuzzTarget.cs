@@ -56,7 +56,7 @@ public static class FuzzableCode
 
         try
         {
-            using (var decoder = new Opc.Ua.BinaryDecoder(stream, messageContext))
+            using (var decoder = new BinaryDecoder(stream, messageContext))
             {
                 _ = decoder.DecodeMessage(null);
             }

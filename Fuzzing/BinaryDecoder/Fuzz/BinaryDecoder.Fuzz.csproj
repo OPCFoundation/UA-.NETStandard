@@ -10,6 +10,10 @@
   <PropertyGroup Condition="'$(LibFuzzer)' == 'true'">
     <DefineConstants>$(DefineConstants);LIBFUZZER</DefineConstants>
   </PropertyGroup>
+  
+  <ItemGroup>
+    <Compile Include="..\..\common\Fuzz\Program.cs" Link="Program.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="SharpFuzz" Version="2.1.1" />

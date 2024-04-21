@@ -114,11 +114,13 @@ public partial class Testcases
         encoder.EncodeMessage(readRequest);
     }
 
-    public static void FuzzTestcase(byte[] message)
+#if !TEXTFUZZER
+    public static void FuzzTestcase(byte[] input)
     {
-        using (var stream = new MemoryStream(message))
+        using (var stream = new MemoryStream(input))
         {
             FuzzableCode.FuzzTarget(stream);
         }
     }
+#endif
 }

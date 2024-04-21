@@ -1,6 +1,7 @@
 
 using System.IO;
 using System;
+using System.Text;
 
 public static class Playback
 {
@@ -8,12 +9,21 @@ public static class Playback
     {
         foreach (var crashFile in Directory.EnumerateFiles(directoryPath))
         {
-            using (var stream = new MemoryStream(File.ReadAllBytes(crashFile)))
+#if TEXTFUZZER
+            var crashData = Encoding.UTF8.GetString(File.ReadAllBytes(crashFile));
             {
                 try
                 {
-                    FuzzableCode.FuzzTarget(stream);
+                    FuzzableCode.FuzzTarget(crashData);
                 }
+#else
+            using (var crashStream = new FileStream(crashFile, FileMode.Open, FileAccess.Read))
+            {
+                try
+                {
+                    FuzzableCode.FuzzTarget(crashStream);
+                }
+#endif
                 catch (Exception ex)
                 {
                     Console.WriteLine("{0}:{1}", ex.GetType().Name, ex.Message);
@@ -23,6 +33,6 @@ public static class Playback
                     }
                 }
             }
-        };
+        }
     }
 }

@@ -297,6 +297,23 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Encodes a message with its header.
+        /// </summary>
+        public void EncodeMessage(IEncodeable message)
+        {
+            if (message == null) throw new ArgumentNullException(nameof(message));
+
+            // convert the namespace uri to an index.
+            NodeId typeId = ExpandedNodeId.ToNodeId(message.TypeId, m_context.NamespaceUris);
+
+            // write the type id.
+            WriteNodeId("TypeId", typeId);
+
+            // write the message.
+            WriteEncodeable("Body", message, message.GetType());
+        }
+
+        /// <summary>
         /// Writes a boolean to the stream.
         /// </summary>
         public void WriteBoolean(string fieldName, bool value)
