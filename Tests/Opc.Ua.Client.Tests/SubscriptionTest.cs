@@ -37,6 +37,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 
 namespace Opc.Ua.Client.Tests
 {
@@ -303,7 +305,7 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(200)]
         public async Task LoadSubscriptionAsync()
         {
-            if (!File.Exists(m_subscriptionTestXml)) Assert.Ignore("Save file {0} does not exist yet", m_subscriptionTestXml);
+            if (!File.Exists(m_subscriptionTestXml)) Assert.Ignore($"Save file {m_subscriptionTestXml} does not exist yet");
 
             // load
             var subscriptions = Session.Load(m_subscriptionTestXml, false, new[] { typeof(TestableSubscription) });
@@ -343,7 +345,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory, Order(300)]
-        [Timeout(30_000)]
+        [CancelAfter(30_000)]
         /// <remarks>
         /// This test doesn't deterministically prove sequential publishing,
         /// but rather relies on a subscription not being able to handle the message load.
@@ -694,7 +696,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(400)]
-        [Timeout(30_000)]
+        [CancelAfter(30_000)]
         public async Task PublishRequestCount()
         {
             var subscriptionList = new List<Subscription>();
