@@ -1330,7 +1330,8 @@ namespace Opc.Ua.Gds.Tests
             foreach (var application in m_goodApplicationTestSet)
             {
                 m_gdsClient.GDSClient.CheckRevocationStatus(application.Certificate, out StatusCode certificateStatus, out DateTime validityTime);
-                Assert.AreEqual(StatusCodes.Bad, certificateStatus.Code);
+                //Status code needs to be Bad as the method builds a custom chain that does not know about the custom cert stores.
+                Assert.True(StatusCode.IsBad(certificateStatus.Code));
                 Assert.NotNull(validityTime);
             }
         }
@@ -1372,7 +1373,7 @@ namespace Opc.Ua.Gds.Tests
             foreach (var application in m_goodApplicationTestSet)
             {
                 m_gdsClient.GDSClient.CheckRevocationStatus(application.Certificate, out StatusCode certificateStatus, out DateTime validityTime);
-                Assert.AreEqual(StatusCodes.Bad, certificateStatus.Code);
+                Assert.True(StatusCode.IsBad(certificateStatus.Code));
                 Assert.NotNull(validityTime);
             }
         }
