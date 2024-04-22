@@ -39,18 +39,12 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                lock (m_lock)
-                {
-                    return m_messageContext;
-                }
+                return m_messageContext;
             }
 
             set
             {
-                lock (m_lock)
-                {
-                    m_messageContext = value;
-                }
+                m_messageContext = value;
             }
         }
 
@@ -61,18 +55,12 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                lock (m_lock)
-                {
-                    return m_certificateValidator;
-                }
+                return m_certificateValidator;
             }
 
             set
             {
-                lock (m_lock)
-                {
-                    m_certificateValidator = value;
-                }
+                m_certificateValidator = value;
             }
         }
 
@@ -83,18 +71,12 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                lock (m_lock)
-                {
-                    return m_maxMessageSize;
-                }
+                return m_maxMessageSize;
             }
 
             set
             {
-                lock (m_lock)
-                {
-                    m_maxMessageSize = value;
-                }
+                m_maxMessageSize = value;
             }
         }
 
@@ -105,20 +87,16 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                lock (m_lock)
-                {
-                    return m_maxBufferSize;
-                }
+                return m_maxBufferSize;
             }
 
             set
             {
-                lock (m_lock)
-                {
-                    m_maxBufferSize = value;
-                }
+                m_maxBufferSize = value;
             }
         }
+
+
 
         /// <summary>
         /// The default lifetime for the channel in milliseconds.
@@ -127,18 +105,12 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                lock (m_lock)
-                {
-                    return m_channelLifetime;
-                }
+                return m_channelLifetime;
             }
 
             set
             {
-                lock (m_lock)
-                {
-                    m_channelLifetime = value;
-                }
+                m_channelLifetime = value;
             }
         }
 
@@ -149,24 +121,17 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                lock (m_lock)
-                {
-                    return m_securityTokenLifetime;
-                }
+                return m_securityTokenLifetime;
             }
 
             set
             {
-                lock (m_lock)
-                {
-                    m_securityTokenLifetime = value;
-                }
+                m_securityTokenLifetime = value;
             }
         }
         #endregion
 
         #region Private Fields
-        private readonly object m_lock = new object();
         private int m_maxMessageSize;
         private int m_maxBufferSize;
         private int m_channelLifetime;

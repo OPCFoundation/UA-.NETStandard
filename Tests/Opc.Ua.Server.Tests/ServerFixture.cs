@@ -86,6 +86,7 @@ namespace Opc.Ua.Server.Tests
                 "uri:opcfoundation.org:" + typeof(T).Name)
                 .SetMaxByteStringLength(4 * 1024 * 1024)
                 .SetMaxArrayLength(1024 * 1024)
+                .SetChannelLifetime(30000)
                 .AsServer(
                     new string[] {
                     endpointUrl
@@ -131,6 +132,7 @@ namespace Opc.Ua.Server.Tests
             serverConfig.SetMaxMessageQueueSize(20);
             serverConfig.SetDiagnosticsEnabled(true);
             serverConfig.SetAuditingEnabled(true);
+            serverConfig.SetMaxChannelCount(10);
 
             if (ReverseConnectTimeout != 0)
             {
