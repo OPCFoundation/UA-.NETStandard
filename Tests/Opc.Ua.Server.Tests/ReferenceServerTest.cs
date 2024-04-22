@@ -35,6 +35,7 @@ using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Opc.Ua.Test;
 using Quickstarts.ReferenceServer;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Server.Tests
 {

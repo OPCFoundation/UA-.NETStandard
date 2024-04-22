@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using Opc.Ua.Server;
 using Opc.Ua.Server.UserDatabase;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Server.Tests
 {

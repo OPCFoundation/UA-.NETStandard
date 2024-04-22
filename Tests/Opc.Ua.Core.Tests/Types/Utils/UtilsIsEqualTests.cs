@@ -36,6 +36,8 @@ using System.Runtime.Versioning;
 using System.Xml;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {

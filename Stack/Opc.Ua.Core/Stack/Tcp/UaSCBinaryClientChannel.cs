@@ -582,10 +582,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                if (chunksToSend != null)
-                {
-                    chunksToSend.Release(BufferManager, "SendOpenSecureChannelRequest");
-                }
+                chunksToSend?.Release(BufferManager, "SendOpenSecureChannelRequest");
             }
         }
 
@@ -714,10 +711,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                if (chunksToProcess != null)
-                {
-                    chunksToProcess.Release(BufferManager, "ProcessOpenSecureChannelResponse");
-                }
+                chunksToProcess?.Release(BufferManager, "ProcessOpenSecureChannelResponse");
             }
 
             return false;
@@ -1021,10 +1015,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                if (buffers != null)
-                {
-                    buffers.Release(BufferManager, "SendRequest");
-                }
+                buffers?.Release(BufferManager, "SendRequest");
 
                 if (!success)
                 {
@@ -1162,7 +1153,7 @@ namespace Opc.Ua.Bindings
                 // halt any scheduled tasks.
                 if (m_handshakeTimer != null)
                 {
-                    m_handshakeTimer.Dispose();
+                    Utils.SilentDispose(m_handshakeTimer);
                     m_handshakeTimer = null;
                 }
 
@@ -1209,7 +1200,7 @@ namespace Opc.Ua.Bindings
             // cancel any outstanding renew operations.
             if (m_handshakeTimer != null)
             {
-                m_handshakeTimer.Dispose();
+                Utils.SilentDispose(m_handshakeTimer);
                 m_handshakeTimer = null;
             }
 
@@ -1433,10 +1424,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                if (buffers != null)
-                {
-                    buffers.Release(BufferManager, "SendCloseSecureChannelRequest");
-                }
+                buffers?.Release(BufferManager, "SendCloseSecureChannelRequest");
             }
         }
 
@@ -1531,10 +1519,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                if (chunksToProcess != null)
-                {
-                    chunksToProcess.Release(BufferManager, "ProcessResponseMessage");
-                }
+                chunksToProcess?.Release(BufferManager, "ProcessResponseMessage");
             }
         }
         #endregion

@@ -35,6 +35,7 @@ using System.Text;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using Opc.Ua.Core.Tests.Types.Encoders;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {
