@@ -169,7 +169,7 @@ namespace Opc.Ua.Client.Tests
 
             subscription.ConditionRefresh();
             var sre = Assert.Throws<ServiceResultException>(() => subscription.Republish(subscription.SequenceNumber + 100));
-            Assert.AreEqual(StatusCodes.BadMessageNotAvailable, sre.StatusCode);
+            Assert.AreEqual((StatusCode)StatusCodes.BadMessageNotAvailable, (StatusCode)sre.StatusCode);
 
             // verify that reconnect created subclassed version of subscription and monitored item
             foreach (var s in Session.Subscriptions)
@@ -281,7 +281,7 @@ namespace Opc.Ua.Client.Tests
 
             await subscription.ConditionRefreshAsync().ConfigureAwait(false);
             var sre = Assert.ThrowsAsync<ServiceResultException>(async () => await subscription.RepublishAsync(subscription.SequenceNumber + 100).ConfigureAwait(false));
-            Assert.AreEqual(StatusCodes.BadMessageNotAvailable, sre.StatusCode, $"Expected BadMessageNotAvailable, but received {sre.Message}");
+            Assert.AreEqual((StatusCode)StatusCodes.BadMessageNotAvailable, (StatusCode)sre.StatusCode, $"Expected BadMessageNotAvailable, but received {sre.Message}");
 
             // verify that reconnect created subclassed version of subscription and monitored item
             foreach (var s in Session.Subscriptions)
@@ -668,7 +668,7 @@ namespace Opc.Ua.Client.Tests
             if (endpoint.EndpointUrl.ToString().StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
             {
                 sre = Assert.Throws<ServiceResultException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
-                Assert.AreEqual(StatusCodes.BadSecureChannelIdInvalid, sre.StatusCode, sre.Message);
+                Assert.AreEqual((StatusCode)StatusCodes.BadSecureChannelIdInvalid, (StatusCode)sre.StatusCode, sre.Message);
             }
             else
             {
@@ -1186,7 +1186,7 @@ namespace Opc.Ua.Client.Tests
             Assert.True(conditionRefresh);
 
             var sre = Assert.Throws<ServiceResultException>(() => subscription.Republish(subscription.SequenceNumber + 100));
-            Assert.AreEqual(StatusCodes.BadMessageNotAvailable, sre.StatusCode);
+            Assert.AreEqual((StatusCode)StatusCodes.BadMessageNotAvailable, (StatusCode)sre.StatusCode);
 
             subscription.RemoveItems(list);
             subscription.ApplyChanges();
