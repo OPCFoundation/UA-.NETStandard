@@ -18,7 +18,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
     {
         [Test]
         [CancelAfter(10000)]
-        public void NodeStateReferencesCollectionConcurrencyTest()
+        public void NodeStateReferencesCollectionConcurrencyTest(CancellationToken cancellationToken)
         {
             var testNodeState = new AnalogUnitRangeState(null);
             var serviceMessageContext = new ServiceMessageContext();
@@ -57,13 +57,13 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             });
 
-            foreach (var target in referenceTargets.GetConsumingEnumerable())
+            foreach (var target in referenceTargets.GetConsumingEnumerable(cancellationToken))
             {
                 var removeReferenceSuccess = testNodeState.RemoveReference(ReferenceTypeIds.HasComponent, false, target);
                 Assert.IsTrue(removeReferenceSuccess);
             }
 
-            task.Wait();
+            task.Wait(cancellationToken);
 
             references.Clear();
             testNodeState.GetReferences(systemContext, references);
@@ -74,7 +74,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
         [Test]
         [CancelAfter(10000)]
-        public void NodeStateNotifiersCollectionConcurrencyTest()
+        public void NodeStateNotifiersCollectionConcurrencyTest(CancellationToken cancellationToken)
         {
             var serviceMessageContext = new ServiceMessageContext();
             var systemContext = new SystemContext() { NamespaceUris = serviceMessageContext.NamespaceUris };
@@ -122,12 +122,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             });
 
-            foreach(var target in notifierTargets.GetConsumingEnumerable())
+            foreach(var target in notifierTargets.GetConsumingEnumerable(cancellationToken))
             {
                 testNodeState.RemoveNotifier(systemContext, target, false);
             }
 
-            task.Wait();
+            task.Wait(cancellationToken);
 
             notifiers.Clear();
             testNodeState.GetNotifiers(systemContext, notifiers);
@@ -138,7 +138,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
         [Test]
         [CancelAfter(10000)]
-        public void NodeStateChildrenCollectionConcurrencyTest()
+        public void NodeStateChildrenCollectionConcurrencyTest(CancellationToken cancellationToken)
         {
             var serviceMessageContext = new ServiceMessageContext();
             var systemContext = new SystemContext() { NamespaceUris = serviceMessageContext.NamespaceUris };
@@ -186,12 +186,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             });
 
-            foreach (var child in childrenCollection.GetConsumingEnumerable())
+            foreach (var child in childrenCollection.GetConsumingEnumerable(cancellationToken))
             {
                 testNodeState.RemoveChild(child);
             }
 
-            task.Wait();
+            task.Wait(cancellationToken);
 
             children.Clear();
             testNodeState.GetChildren(systemContext, children);
