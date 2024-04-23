@@ -133,6 +133,7 @@
           <xs:element name="UserTokenPolicies" type="ua:ListOfUserTokenPolicy" minOccurs="0" />
           <xs:element name="DiagnosticsEnabled" type="xs:boolean" minOccurs="0" />
           <xs:element name="MaxSessionCount" type="xs:int" minOccurs="0" />
+          <xs:element name="MaxChannelCount" type="xs:int" minOccurs="0" />
           <xs:element name="MinSessionTimeout" type="xs:int" minOccurs="0" />
           <xs:element name="MaxSessionTimeout" type="xs:int" minOccurs="0" />
           <xs:element name="MaxBrowseContinuationPoints" type="xs:int" minOccurs="0" />

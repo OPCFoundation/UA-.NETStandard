@@ -1247,7 +1247,7 @@ namespace Opc.Ua.Client
     }
 
     /// <summary>
-    /// Saves the events received from the srever.
+    /// Saves the events received from the server.
     /// </summary>
     public class MonitoredItemEventCache
     {

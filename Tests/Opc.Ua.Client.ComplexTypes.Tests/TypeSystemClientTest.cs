@@ -40,6 +40,8 @@ using Opc.Ua.Client.Tests;
 using Opc.Ua.Server.Tests;
 using Quickstarts;
 using Quickstarts.ReferenceServer;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 
 namespace Opc.Ua.Client.ComplexTypes.Tests
 {
@@ -124,7 +126,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             }
             catch (Exception e)
             {
-                Assert.Ignore("OneTimeSetup failed to create session, tests skipped. Error: {0}", e.Message);
+                Assert.Ignore($"OneTimeSetup failed to create session, tests skipped. Error: {e.Message}");
             }
         }
 

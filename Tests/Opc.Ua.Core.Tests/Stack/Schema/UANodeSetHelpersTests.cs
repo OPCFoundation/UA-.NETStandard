@@ -34,6 +34,8 @@ using System.Text;
 using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Tests;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 
 namespace Opc.Ua.Core.Tests.Stack.Schema
 {

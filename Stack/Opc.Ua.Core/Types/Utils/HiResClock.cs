@@ -69,9 +69,16 @@ namespace Opc.Ua
         public static double TicksPerMillisecond => s_Default.m_ticksPerMillisecond;
 
         /// <summary>
-        /// The monotonic tick count.
+        /// A monotonic tick count in milliseconds as a 32 bit signed number.
+        /// It starts at 0 when the system starts.
+        /// After 24.9 days it wraps around to negative numbers.
+        /// It wraps around completely every 49.7 days.
         /// </summary>
-        /// <remarks>It's resolution might not be the highest</remarks>
+        /// <remarks>
+        /// It's resolution might not be the highest, typically it is based on a system timer @16ms.
+        /// Use for relative time measurements which do not require a high resolution and
+        /// which should be independent of the system time, which can be changed by a user.
+        /// </remarks>
         public static int TickCount => Environment.TickCount;
 
         /// <summary>

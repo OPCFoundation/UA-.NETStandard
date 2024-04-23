@@ -1451,6 +1451,7 @@ namespace Opc.Ua
             m_userTokenPolicies = new UserTokenPolicyCollection();
             m_diagnosticsEnabled = false;
             m_maxSessionCount = 100;
+            m_maxChannelCount = 1000;
             m_maxSessionTimeout = 3600000;
             m_minSessionTimeout = 10000;
             m_maxBrowseContinuationPoints = 10;
@@ -1537,11 +1538,22 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// The maximum number of supported secure channels.
+        /// </summary>
+        /// <value>The channel lifetime.</value>
+        [DataMember(IsRequired = false, Order = 6)]
+        public int MaxChannelCount
+        {
+            get { return m_maxChannelCount; }
+            set { m_maxChannelCount = value; }
+        }
+
+        /// <summary>
         /// That minimum period of that a session is allowed to remain
         /// open without communication from the client (in milliseconds).
         /// </summary>
         /// <value>The minimum session timeout.</value>
-        [DataMember(IsRequired = false, Order = 6)]
+        [DataMember(IsRequired = false, Order = 7)]
         public int MinSessionTimeout
         {
             get { return m_minSessionTimeout; }
@@ -1553,7 +1565,7 @@ namespace Opc.Ua
         /// open without communication from the client (in milliseconds).
         /// </summary>
         /// <value>The maximum session timeout.</value>
-        [DataMember(IsRequired = false, Order = 7)]
+        [DataMember(IsRequired = false, Order = 8)]
         public int MaxSessionTimeout
         {
             get { return m_maxSessionTimeout; }
@@ -1565,7 +1577,7 @@ namespace Opc.Ua
         /// Browse/BrowseNext operations.
         /// </summary>
         /// <value>The maximum number of continuation points used for Browse/BrowseNext operations</value>
-        [DataMember(IsRequired = false, Order = 8)]
+        [DataMember(IsRequired = false, Order = 9)]
         public int MaxBrowseContinuationPoints
         {
             get { return m_maxBrowseContinuationPoints; }
@@ -1577,7 +1589,7 @@ namespace Opc.Ua
         /// Query/QueryNext operations.
         /// </summary>
         /// <value>The maximum number of query continuation points.</value>
-        [DataMember(IsRequired = false, Order = 9)]
+        [DataMember(IsRequired = false, Order = 10)]
         public int MaxQueryContinuationPoints
         {
             get { return m_maxQueryContinuationPoints; }
@@ -1588,7 +1600,7 @@ namespace Opc.Ua
         /// The maximum number of continuation points used for HistoryRead operations.
         /// </summary>
         /// <value>The maximum number of  history continuation points.</value>
-        [DataMember(IsRequired = false, Order = 10)]
+        [DataMember(IsRequired = false, Order = 11)]
         public int MaxHistoryContinuationPoints
         {
             get { return m_maxHistoryContinuationPoints; }
@@ -1599,7 +1611,7 @@ namespace Opc.Ua
         /// The maximum age of an incoming request (old requests are rejected) (in milliseconds).
         /// </summary>
         /// <value>The maximum age of an incoming request.</value>
-        [DataMember(IsRequired = false, Order = 11)]
+        [DataMember(IsRequired = false, Order = 12)]
         public int MaxRequestAge
         {
             get { return m_maxRequestAge; }
@@ -1610,7 +1622,7 @@ namespace Opc.Ua
         /// The minimum publishing interval supported by the server (in milliseconds).
         /// </summary>
         /// <value>The minimum publishing interval.</value>
-        [DataMember(IsRequired = false, Order = 12)]
+        [DataMember(IsRequired = false, Order = 13)]
         public int MinPublishingInterval
         {
             get { return m_minPublishingInterval; }
@@ -1621,7 +1633,7 @@ namespace Opc.Ua
         /// The maximum publishing interval supported by the server (in milliseconds).
         /// </summary>
         /// <value>The maximum publishing interval.</value>
-        [DataMember(IsRequired = false, Order = 13)]
+        [DataMember(IsRequired = false, Order = 14)]
         public int MaxPublishingInterval
         {
             get { return m_maxPublishingInterval; }
@@ -1632,7 +1644,7 @@ namespace Opc.Ua
         /// The minimum difference between supported publishing interval (in milliseconds).
         /// </summary>
         /// <value>The publishing resolution.</value>
-        [DataMember(IsRequired = false, Order = 14)]
+        [DataMember(IsRequired = false, Order = 15)]
         public int PublishingResolution
         {
             get { return m_publishingResolution; }
@@ -1643,7 +1655,7 @@ namespace Opc.Ua
         /// How long the subscriptions will remain open without a publish from the client.
         /// </summary>
         /// <value>The maximum subscription lifetime.</value>
-        [DataMember(IsRequired = false, Order = 15)]
+        [DataMember(IsRequired = false, Order = 16)]
         public int MaxSubscriptionLifetime
         {
             get { return m_maxSubscriptionLifetime; }
@@ -1654,7 +1666,7 @@ namespace Opc.Ua
         /// The maximum number of messages saved in the queue for each subscription.
         /// </summary>
         /// <value>The maximum size of the  message queue.</value>
-        [DataMember(IsRequired = false, Order = 16)]
+        [DataMember(IsRequired = false, Order = 17)]
         public int MaxMessageQueueSize
         {
             get { return m_maxMessageQueueSize; }
@@ -1665,7 +1677,7 @@ namespace Opc.Ua
         /// The maximum number of notificates saved in the queue for each monitored item.
         /// </summary>
         /// <value>The maximum size of the notification queue.</value>
-        [DataMember(IsRequired = false, Order = 17)]
+        [DataMember(IsRequired = false, Order = 18)]
         public int MaxNotificationQueueSize
         {
             get { return m_maxNotificationQueueSize; }
@@ -1676,7 +1688,7 @@ namespace Opc.Ua
         /// The maximum number of notifications per publish.
         /// </summary>
         /// <value>The maximum number of notifications per publish.</value>
-        [DataMember(IsRequired = false, Order = 18)]
+        [DataMember(IsRequired = false, Order = 19)]
         public int MaxNotificationsPerPublish
         {
             get { return m_maxNotificationsPerPublish; }
@@ -1687,7 +1699,7 @@ namespace Opc.Ua
         /// The minimum sampling interval for metadata.
         /// </summary>
         /// <value>The minimum sampling interval for metadata.</value>
-        [DataMember(IsRequired = false, Order = 19)]
+        [DataMember(IsRequired = false, Order = 20)]
         public int MinMetadataSamplingInterval
         {
             get { return m_minMetadataSamplingInterval; }
@@ -1698,7 +1710,7 @@ namespace Opc.Ua
         /// The available sampling rates.
         /// </summary>
         /// <value>The available sampling rates.</value>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 20)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 21)]
         public SamplingRateGroupCollection AvailableSamplingRates
         {
             get { return m_availableSamplingRates; }
@@ -1709,7 +1721,7 @@ namespace Opc.Ua
         /// The endpoint description for the registration endpoint.
         /// </summary>
         /// <value>The registration endpoint.</value>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 21)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 22)]
         public EndpointDescription RegistrationEndpoint
         {
             get { return m_registrationEndpoint; }
@@ -1720,7 +1732,7 @@ namespace Opc.Ua
         /// The maximum time between registration attempts (in milliseconds).
         /// </summary>
         /// <value>The maximum time between registration attempts (in milliseconds).</value>
-        [DataMember(IsRequired = false, Order = 22)]
+        [DataMember(IsRequired = false, Order = 23)]
         public int MaxRegistrationInterval
         {
             get { return m_maxRegistrationInterval; }
@@ -1731,7 +1743,7 @@ namespace Opc.Ua
         /// The path to the file containing nodes persisted by the core node manager.
         /// </summary>
         /// <value>The path to the file containing nodes persisted by the core node manager.</value>
-        [DataMember(IsRequired = false, Order = 23)]
+        [DataMember(IsRequired = false, Order = 24)]
         public string NodeManagerSaveFile
         {
             get { return m_nodeManagerSaveFile; }
@@ -1742,7 +1754,7 @@ namespace Opc.Ua
         /// The minimum lifetime for a subscription (in milliseconds).
         /// </summary>
         /// <value>The minimum lifetime for a subscription.</value>
-        [DataMember(IsRequired = false, Order = 24)]
+        [DataMember(IsRequired = false, Order = 25)]
         public int MinSubscriptionLifetime
         {
             get { return m_minSubscriptionLifetime; }
@@ -1753,7 +1765,7 @@ namespace Opc.Ua
         /// The max publish request count.
         /// </summary>
         /// <value>The max publish request count.</value>
-        [DataMember(IsRequired = false, Order = 25)]
+        [DataMember(IsRequired = false, Order = 26)]
         public int MaxPublishRequestCount
         {
             get { return m_maxPublishRequestCount; }
@@ -1764,7 +1776,7 @@ namespace Opc.Ua
         /// The max subscription count.
         /// </summary>
         /// <value>The max subscription count.</value>
-        [DataMember(IsRequired = false, Order = 26)]
+        [DataMember(IsRequired = false, Order = 27)]
         public int MaxSubscriptionCount
         {
             get { return m_maxSubscriptionCount; }
@@ -1775,7 +1787,7 @@ namespace Opc.Ua
         /// The max size of the event queue.
         /// </summary>
         /// <value>The max size of the event queue.</value>
-        [DataMember(IsRequired = false, Order = 27)]
+        [DataMember(IsRequired = false, Order = 28)]
         public int MaxEventQueueSize
         {
             get { return m_maxEventQueueSize; }
@@ -1786,7 +1798,7 @@ namespace Opc.Ua
         /// The server profile array.
         /// </summary>
         /// <value>The array of server profiles.</value>
-        [DataMember(IsRequired = false, Order = 28)]
+        [DataMember(IsRequired = false, Order = 29)]
         public StringCollection ServerProfileArray
         {
             get { return m_serverProfileArray; }
@@ -1804,7 +1816,7 @@ namespace Opc.Ua
         /// The server shutdown delay.
         /// </summary>
         /// <value>The number of seconds to delay the shutdown if a client is connected.</value>
-        [DataMember(IsRequired = false, Order = 29)]
+        [DataMember(IsRequired = false, Order = 30)]
         public int ShutdownDelay
         {
             get { return m_shutdownDelay; }
@@ -1820,7 +1832,7 @@ namespace Opc.Ua
         /// <see href="http://www.opcfoundation.org/UA/schemas/1.05/ServerCapabilities.csv">here.</see>
         /// </summary>
         /// <value>The array of server capabilites.</value>
-        [DataMember(IsRequired = false, Order = 30)]
+        [DataMember(IsRequired = false, Order = 31)]
         public StringCollection ServerCapabilities
         {
             get { return m_serverCapabilities; }
@@ -1838,7 +1850,7 @@ namespace Opc.Ua
         /// Gets or sets the supported private key format.
         /// </summary>
         /// <value>The array of server profiles.</value>
-        [DataMember(IsRequired = false, Order = 31)]
+        [DataMember(IsRequired = false, Order = 32)]
         public StringCollection SupportedPrivateKeyFormats
         {
             get { return m_supportedPrivateKeyFormats; }
@@ -1855,7 +1867,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the max size of the trust list.
         /// </summary>
-        [DataMember(IsRequired = false, Order = 32)]
+        [DataMember(IsRequired = false, Order = 33)]
         public int MaxTrustListSize
         {
             get { return m_maxTrustListSize; }
@@ -1865,7 +1877,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets if multicast DNS is enabled.
         /// </summary>
-        [DataMember(IsRequired = false, Order = 33)]
+        [DataMember(IsRequired = false, Order = 34)]
         public bool MultiCastDnsEnabled
         {
             get { return m_multicastDnsEnabled; }
@@ -1875,7 +1887,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets reverse connect server configuration.
         /// </summary>
-        [DataMember(IsRequired = false, Order = 34)]
+        [DataMember(IsRequired = false, Order = 35)]
         public ReverseConnectServerConfiguration ReverseConnect
         {
             get { return m_reverseConnect; }
@@ -1885,7 +1897,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the operation limits of the OPC UA Server.
         /// </summary>
-        [DataMember(IsRequired = false, Order = 35)]
+        [DataMember(IsRequired = false, Order = 36)]
         public OperationLimits OperationLimits
         {
             get { return m_operationLimits; }
@@ -1896,7 +1908,7 @@ namespace Opc.Ua
         /// Whether auditing is enabled.
         /// </summary>
         /// <value><c>true</c> if auditing is enabled; otherwise, <c>false</c>.</value>
-        [DataMember(IsRequired = false, Order = 36)]
+        [DataMember(IsRequired = false, Order = 37)]
         public bool AuditingEnabled
         {
             get { return m_auditingEnabled; }
@@ -1908,6 +1920,7 @@ namespace Opc.Ua
         private UserTokenPolicyCollection m_userTokenPolicies;
         private bool m_diagnosticsEnabled;
         private int m_maxSessionCount;
+        private int m_maxChannelCount;
         private int m_minSessionTimeout;
         private int m_maxSessionTimeout;
         private int m_maxBrowseContinuationPoints;
@@ -2647,7 +2660,7 @@ namespace Opc.Ua
         /// which, if any, or the alternate addresses to use instead of the primary addresses.
         /// 
         /// In the ideal world the server would provide these URLs during registration but this
-        /// table allows the administrator to provide the information to the disovery server 
+        /// table allows the administrator to provide the information to the discovery server 
         /// directly without requiring a patch to the server.
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 2)]
@@ -3155,7 +3168,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets the DER encoded certificate data or create emebeded in this instance certificate using the DER encoded certificate data.
+        /// Gets the DER encoded certificate data or create embedded in this instance certificate using the DER encoded certificate data.
         /// </summary>
         /// <value>A byte array containing the X.509 certificate data.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 6)]

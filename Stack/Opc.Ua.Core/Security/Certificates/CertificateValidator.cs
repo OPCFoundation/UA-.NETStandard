@@ -635,10 +635,10 @@ namespace Opc.Ua
         /// <summary>
         /// Recursively checks whether any of the service results or inner service results
         /// of the input sr must not be suppressed.
-        /// The list of supressible status codes is - for backwards compatibiliyt - longer
+        /// The list of suppressible status codes is - for backwards compatibility - longer
         /// than the spec would imply.
         /// (BadCertificateUntrusted and BadCertificateChainIncomplete
-        /// must not be supressed according to (e.g.) version 1.04 of the spec)
+        /// must not be suppressed according to (e.g.) version 1.04 of the spec)
         /// </summary>
         /// <param name="sr"></param>
         private static bool ContainsUnsuppressibleSC(ServiceResult sr)

@@ -369,7 +369,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        #region Overriden Members
+        #region Overridden Members
         /// <summary>
         /// Formats the relative path as a string.
         /// </summary>
@@ -578,7 +578,7 @@ namespace Opc.Ua
             }
             #endregion
 
-            #region Overriden Members
+            #region Overridden Members
             /// <summary>
             /// Formats the relative path element as a string.
             /// </summary>

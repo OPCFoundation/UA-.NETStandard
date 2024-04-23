@@ -1003,7 +1003,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Writes a sbyte array to the stream.
+        /// Writes a byte array to the stream.
         /// </summary>
         public void WriteByteArray(string fieldName, IList<byte> values)
         {

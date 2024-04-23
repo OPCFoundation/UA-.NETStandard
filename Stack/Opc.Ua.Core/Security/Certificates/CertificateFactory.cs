@@ -92,7 +92,7 @@ namespace Opc.Ua
                     return cachedCertificate;
                 }
 
-                // nothing more to do if no private key or dont care about accessibility.
+                // nothing more to do if no private key or don't care about accessibility.
                 if (!certificate.HasPrivateKey || !ensurePrivateKeyAccessible)
                 {
                     return certificate;

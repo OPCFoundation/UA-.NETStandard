@@ -36,6 +36,7 @@ using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Transport;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Transport
 {

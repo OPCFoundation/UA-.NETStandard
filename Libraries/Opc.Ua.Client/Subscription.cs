@@ -665,7 +665,7 @@ namespace Opc.Ua.Client
         public byte CurrentPriority => m_currentPriority;
 
         /// <summary>
-        /// The when that the last notification received was published.
+        /// The time that the last notification received was published.
         /// </summary>
         public DateTime PublishTime
         {
@@ -684,7 +684,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// The when that the last notification was received.
+        /// The time that the last notification was received.
         /// </summary>
         public DateTime LastNotificationTime
         {
@@ -1045,7 +1045,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            // supress exception if silent flag is set.
+            // suppress exception if silent flag is set.
             catch (Exception e)
             {
                 if (!silent)
@@ -1249,7 +1249,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Modies all items that have been changed.
+        /// Modifies all items that have been changed.
         /// </summary>
         public IList<MonitoredItem> ModifyItems()
         {

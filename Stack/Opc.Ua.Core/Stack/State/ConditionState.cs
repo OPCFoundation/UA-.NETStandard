@@ -672,7 +672,7 @@ namespace Opc.Ua
         /// Does any processing before a condition is enabled or disabled.
         /// </summary>
         /// <param name="context">The system context.</param>
-        /// <param name="enabling">True is the condition is being enabled.</param>
+        /// <param name="enabling">True if the condition is being enabled.</param>
         protected virtual ServiceResult ProcessBeforeEnableDisable(ISystemContext context, bool enabling)
         {
             if (enabling && this.EnabledState.Id.Value)

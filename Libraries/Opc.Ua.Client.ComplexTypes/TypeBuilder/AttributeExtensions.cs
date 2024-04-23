@@ -157,7 +157,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     structureField.IsOptional,
             };
 
-            // only unambigious built in types get the info,
+            // only unambiguous built in types get the info,
             // IEncodeable types are handled by type property as BuiltInType.Null 
             Int32 builtInType = (Int32)GetBuiltInType(structureField.DataType);
             if (builtInType > (Int32)BuiltInType.Null)

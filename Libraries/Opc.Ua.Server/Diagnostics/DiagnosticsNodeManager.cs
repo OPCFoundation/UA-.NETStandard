@@ -385,7 +385,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Loads a node set from a file or resource and addes them to the set of predefined nodes.
+        /// Loads a node set from a file or resource and adds them to the set of predefined nodes.
         /// </summary>
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
@@ -637,7 +637,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// True is diagnostics are currently enabled.
+        /// True if diagnostics are currently enabled.
         /// </summary>
         public bool DiagnosticsEnabled => m_diagnosticsEnabled;
 
@@ -1377,7 +1377,7 @@ namespace Opc.Ua.Server
 
 
         /// <summary>
-        /// Filter out the members which corespond to users that are not allowed to see their contents
+        /// Filter out the members which correspond to users that are not allowed to see their contents
         /// Current user is allowed to read its data, together with users which have permissions
         /// </summary>
         /// <typeparam name="T"></typeparam>
