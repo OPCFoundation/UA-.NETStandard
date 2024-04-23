@@ -24,6 +24,10 @@ namespace Opc.Ua
     /// </summary>
     public class BinaryDecoder : IDecoder
     {
+        // The number of times the encodeable decoder can recover from
+        // an error before throwing an exception.
+        const int kMaxDecoderRecoveries = 32;
+
         #region Constructor
         /// <summary>
         /// Creates a decoder that reads from a memory buffer.
@@ -48,8 +52,7 @@ namespace Opc.Ua
         {
             var stream = new MemoryStream(buffer, start, count, false);
             m_reader = new BinaryReader(stream);
-            m_context = context;
-            m_nestingLevel = 0;
+            Initialize(context);
         }
 
         /// <summary>
@@ -57,11 +60,20 @@ namespace Opc.Ua
         /// </summary>
         public BinaryDecoder(Stream stream, IServiceMessageContext context, bool leaveOpen = false)
         {
-            if (stream == null) throw new ArgumentNullException(nameof(stream));
-
+            ValidateStreamRequirements(stream);
             m_reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen);
+            Initialize(context);
+
+        }
+
+        /// <summary>
+        /// Initializes the object.
+        /// </summary>
+        private void Initialize(IServiceMessageContext context)
+        {
             m_context = context;
             m_nestingLevel = 0;
+            m_encodeablesRecovered = 0;
         }
         #endregion
 
@@ -122,12 +134,28 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the current position in the stream.
         /// </summary>
-        public int Position => (int)m_reader.BaseStream.Position;
+        public int Position
+        {
+            get
+            {
+                var stream = BaseStream;
+                if (stream?.CanSeek != true)
+                {
+                    throw new ServiceResultException(StatusCodes.BadDecodingError, "Stream does not support seeking.");
+                }
+                long position = (stream?.Position ?? 0);
+                if (position > int.MaxValue || position < int.MinValue)
+                {
+                    throw new ServiceResultException(StatusCodes.BadDecodingError, "Stream Position exceeds int.MaxValue or int.MinValue.");
+                }
+                return (int)position;
+            }
+        }
 
         /// <summary>
         /// Gets the stream that the decoder is reading from.
         /// </summary>
-        public Stream BaseStream => m_reader.BaseStream;
+        public Stream BaseStream => m_reader?.BaseStream;
 
         /// <summary>
         /// Decodes a message from a stream.
@@ -198,7 +226,7 @@ namespace Opc.Ua
         /// </summary>
         public IEncodeable DecodeMessage(System.Type expectedType)
         {
-            long start = m_reader.BaseStream.CanSeek ? m_reader.BaseStream.Position : 0;
+            int start = Position;
 
             // read the node id.
             NodeId typeId = ReadNodeId(null);
@@ -219,7 +247,7 @@ namespace Opc.Ua
             IEncodeable message = ReadEncodeable(null, actualType, absoluteId);
 
             // check that the max message size was not exceeded.
-            int messageLength = m_reader.BaseStream.CanSeek ? (int)(m_reader.BaseStream.Position - start) : 0;
+            int messageLength = Position - start;
             if (m_context.MaxMessageSize > 0 && m_context.MaxMessageSize < messageLength)
             {
                 throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
@@ -2099,6 +2127,7 @@ namespace Opc.Ua
                     if (length != used)
                     {
                         errorMessage = "Length mismatch";
+                        exception = ServiceResultException.Create(StatusCodes.BadDecodingError, errorMessage);
                     }
                     else
                     {
@@ -2127,10 +2156,18 @@ namespace Opc.Ua
                     // type was known but decoding failed, reset stream!
                     m_reader.BaseStream.Position = start;
                     encodeable = null;
+                    m_encodeablesRecovered++;
 
-                    // log the error.
-                    Utils.LogWarning(exception, "{0}, failed to decode encodeable type '{1}', NodeId='{2}'. BinaryDecoder recovered.",
-                        errorMessage, systemType.Name, extension.TypeId);
+                    if (m_encodeablesRecovered == 1)
+                    {
+                        // log the error only once to avoid flooding the log.
+                        Utils.LogWarning(exception, "{0}, failed to decode encodeable type '{1}', NodeId='{2}'. BinaryDecoder recovered.",
+                            errorMessage, systemType.Name, extension.TypeId);
+                    }
+                    else if (m_encodeablesRecovered >= kMaxDecoderRecoveries)
+                    {
+                        throw exception;
+                    }
                 }
             }
 
@@ -2158,11 +2195,16 @@ namespace Opc.Ua
             }
 
             // skip any unread data.
-            int unused = length - (Position - start);
+            long unused = length - (Position - start);
 
             if (unused > 0)
             {
-                SafeReadBytes(unused);
+                if (unused > int.MaxValue)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                        "Cannot skip {0} bytes of unknown extension object body with type '{1}'.", unused, extension.TypeId);
+                }
+                SafeReadBytes((int)unused);
             }
 
             if (encodeable != null)
@@ -2633,6 +2675,19 @@ namespace Opc.Ua
             }
             m_nestingLevel++;
         }
+
+        /// <summary>
+        /// Validate the stream requirements.
+        /// </summary>
+        /// <param name="stream">The stream used for decoding.</param>
+        private void ValidateStreamRequirements(Stream stream)
+        {
+            if (stream == null) throw new ArgumentNullException(nameof(stream));
+            if (stream?.CanSeek != true || stream?.CanRead != true)
+            {
+                throw new ArgumentException("Stream must be seekable and readable.");
+            }
+        }
         #endregion
 
         #region Private Fields
@@ -2641,6 +2696,7 @@ namespace Opc.Ua
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
+        private uint m_encodeablesRecovered;
         #endregion
     }
 }
