@@ -17,6 +17,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
     public class NodeStateCollectionConcurrencyTests
     {
         [Test]
+        [CancelAfter(10000)]
         public void NodeStateReferencesCollectionConcurrencyTest()
         {
             var testNodeState = new AnalogUnitRangeState(null);
@@ -56,7 +57,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             });
 
-            while (referenceTargets.TryTake(out ExpandedNodeId target, TimeSpan.FromSeconds(1)))
+            foreach (var target in referenceTargets.GetConsumingEnumerable())
             {
                 var removeReferenceSuccess = testNodeState.RemoveReference(ReferenceTypeIds.HasComponent, false, target);
                 Assert.IsTrue(removeReferenceSuccess);
@@ -72,6 +73,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         }
 
         [Test]
+        [CancelAfter(10000)]
         public void NodeStateNotifiersCollectionConcurrencyTest()
         {
             var serviceMessageContext = new ServiceMessageContext();
@@ -120,7 +122,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             });
 
-            while (notifierTargets.TryTake(out NodeState target, TimeSpan.FromSeconds(1)))
+            foreach(var target in notifierTargets.GetConsumingEnumerable())
             {
                 testNodeState.RemoveNotifier(systemContext, target, false);
             }
@@ -135,6 +137,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         }
 
         [Test]
+        [CancelAfter(10000)]
         public void NodeStateChildrenCollectionConcurrencyTest()
         {
             var serviceMessageContext = new ServiceMessageContext();
@@ -183,7 +186,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             });
 
-            while (childrenCollection.TryTake(out BaseInstanceState child, TimeSpan.FromSeconds(1)))
+            foreach (var child in childrenCollection.GetConsumingEnumerable())
             {
                 testNodeState.RemoveChild(child);
             }
