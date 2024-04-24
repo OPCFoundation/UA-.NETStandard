@@ -827,7 +827,7 @@ namespace Opc.Ua.Server
                     message = new TranslationInfo(
                      "AuditActivateSessionEvent",
                     "en-US",
-                    $"Session with Id:{session.Id} was activated.");
+                    $"Session with Id:{session?.Id} was activated.");
                 }
                 else
                 {

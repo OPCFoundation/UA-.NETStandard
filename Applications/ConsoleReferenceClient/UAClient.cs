@@ -230,7 +230,8 @@ namespace Quickstarts
         /// <summary>
         /// Disconnects the session.
         /// </summary>
-        public void Disconnect()
+        /// <param name="leaveChannelOpen">Leaves the channel open.</param>
+        public void Disconnect(bool leaveChannelOpen = false)
         {
             try
             {
@@ -245,7 +246,12 @@ namespace Quickstarts
                         m_reconnectHandler = null;
                     }
 
-                    m_session.Close();
+                    m_session.Close(!leaveChannelOpen);
+                    if (leaveChannelOpen)
+                    {
+                        // detach the channel, so it doesn't get closed when the session is disposed.
+                        m_session.DetachChannel();
+                    }
                     m_session.Dispose();
                     m_session = null;
 

@@ -194,6 +194,11 @@ namespace Opc.Ua.Bindings
                 m_StateChanged = callback;
             }
         }
+
+        /// <summary>
+        /// The tickcount in milliseconds when the channel received/sent the last message.
+        /// </summary>
+        protected int LastActiveTickCount => m_lastActiveTickCount;
         #endregion
 
         #region Channel State Functions
@@ -204,9 +209,13 @@ namespace Opc.Ua.Bindings
         {
             if (m_StateChanged != null)
             {
-                Task.Run(() => {
-                    m_StateChanged?.Invoke(this, state, reason);
-                });
+                var stateChanged = m_StateChanged;
+                if (stateChanged != null)
+                {
+                    Task.Run(() => {
+                        stateChanged?.Invoke(this, state, reason);
+                    });
+                }
             }
         }
 
@@ -310,11 +319,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected int GetSavedChunksTotalSize()
         {
-            if (m_partialMessageChunks != null)
-            {
-                return m_partialMessageChunks.TotalSize;
-            }
-            return 0;
+            return m_partialMessageChunks?.TotalSize ?? 0;
         }
 
         /// <summary>
@@ -523,10 +528,10 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected virtual void HandleWriteComplete(BufferCollection buffers, object state, int bytesWritten, ServiceResult result)
         {
-            if (buffers != null)
-            {
-                buffers.Release(BufferManager, "WriteOperation");
-            }
+            // Communication is active on the channel
+            UpdateLastActiveTime();
+
+            buffers?.Release(BufferManager, "WriteOperation");
             Interlocked.Decrement(ref m_activeWriteRequests);
         }
 
@@ -535,7 +540,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected static void WriteErrorMessageBody(BinaryEncoder encoder, ServiceResult error)
         {
-            string reason = (error.LocalizedText != null) ? error.LocalizedText.Text : null;
+            string reason = error.LocalizedText?.Text;
 
             // check that length is not exceeded.
             if (reason != null)
@@ -848,6 +853,14 @@ namespace Opc.Ua.Bindings
                     "Messages size {0} is larger than buffer size {1}.", messageSize, count);
             }
         }
+
+        /// <summary>
+        /// Update the last time that communication has occured on the channel.
+        /// </summary>
+        public void UpdateLastActiveTime()
+        {
+            m_lastActiveTickCount = HiResClock.TickCount;
+        }
         #endregion
 
         #region Private Fields
@@ -874,6 +887,8 @@ namespace Opc.Ua.Bindings
         private BufferCollection m_partialMessageChunks;
 
         private TcpChannelStateEventHandler m_StateChanged;
+
+        private int m_lastActiveTickCount;
         #endregion
     }
 
@@ -910,7 +925,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The channel is in a error state.
         /// </summary>
-        Faulted
+        Faulted,
     }
 
     /// <summary>
