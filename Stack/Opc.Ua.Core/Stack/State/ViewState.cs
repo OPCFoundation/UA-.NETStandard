@@ -22,7 +22,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         public ViewState() : base(NodeClass.View)
         {
@@ -305,9 +305,11 @@ namespace Opc.Ua
                 {
                     byte eventNotifier = m_eventNotifier;
 
-                    if (OnReadEventNotifier != null)
+                    NodeAttributeEventHandler<byte> onReadEventNotifier = OnReadEventNotifier;
+
+                    if (onReadEventNotifier != null)
                     {
-                        result = OnReadEventNotifier(context, this, ref eventNotifier);
+                        result = onReadEventNotifier(context, this, ref eventNotifier);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -322,9 +324,11 @@ namespace Opc.Ua
                 {
                     bool containsNoLoops = m_containsNoLoops;
 
-                    if (OnReadContainsNoLoops != null)
+                    NodeAttributeEventHandler<bool> onReadContainsNoLoops = OnReadContainsNoLoops;
+
+                    if (onReadContainsNoLoops != null)
                     {
-                        result = OnReadContainsNoLoops(context, this, ref containsNoLoops);
+                        result = onReadContainsNoLoops(context, this, ref containsNoLoops);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -369,9 +373,11 @@ namespace Opc.Ua
 
                     byte eventNotifier = eventNotifierRef.Value;
 
-                    if (OnWriteEventNotifier != null)
+                    NodeAttributeEventHandler<byte> onWriteEventNotifier = OnWriteEventNotifier;
+
+                    if (onWriteEventNotifier != null)
                     {
-                        result = OnWriteEventNotifier(context, this, ref eventNotifier);
+                        result = onWriteEventNotifier(context, this, ref eventNotifier);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -398,9 +404,11 @@ namespace Opc.Ua
 
                     bool containsNoLoops = containsNoLoopsRef.Value;
 
-                    if (OnWriteContainsNoLoops != null)
+                    NodeAttributeEventHandler<bool> onWriteContainsNoLoops = OnWriteContainsNoLoops;
+
+                    if (onWriteContainsNoLoops != null)
                     {
-                        result = OnWriteContainsNoLoops(context, this, ref containsNoLoops);
+                        result = onWriteContainsNoLoops(context, this, ref containsNoLoops);
                     }
 
                     if (ServiceResult.IsGood(result))

@@ -20,6 +20,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -385,7 +386,7 @@ namespace Opc.Ua
                     if (m_minimumCertificateKeySize != value)
                     {
                         m_minimumCertificateKeySize = value;
-                        ResetValidatedCertificates();
+                        InternalResetValidatedCertificates();
                     }
                 }
                 finally
@@ -411,14 +412,13 @@ namespace Opc.Ua
                     if (m_useValidatedCertificates != value)
                     {
                         m_useValidatedCertificates = value;
-                        ResetValidatedCertificates();
+                        InternalResetValidatedCertificates();
                     }
                 }
                 finally
                 {
                     m_semaphore.Release();
                 }
-
             }
         }
 
@@ -635,10 +635,10 @@ namespace Opc.Ua
         /// <summary>
         /// Recursively checks whether any of the service results or inner service results
         /// of the input sr must not be suppressed.
-        /// The list of supressible status codes is - for backwards compatibiliyt - longer
+        /// The list of suppressible status codes is - for backwards compatibility - longer
         /// than the spec would imply.
         /// (BadCertificateUntrusted and BadCertificateChainIncomplete
-        /// must not be supressed according to (e.g.) version 1.04 of the spec)
+        /// must not be suppressed according to (e.g.) version 1.04 of the spec)
         /// </summary>
         /// <param name="sr"></param>
         private static bool ContainsUnsuppressibleSC(ServiceResult sr)
@@ -1481,13 +1481,13 @@ namespace Opc.Ua
                 {
                     if (serverValidation)
                     {
-                        Utils.LogError(message, endpointUrl.DnsSafeHost);
+                        Utils.LogError(message, Redact.Create(endpointUrl));
                     }
                     else
                     {
                         // write the invalid certificate to rejected store if specified.
                         Utils.LogCertificate(LogLevel.Error, "Certificate rejected. Reason={0}.",
-                            serverCertificate, serviceResult != null ? serviceResult.ToString() : "Unknown Error");
+                            serverCertificate, Redact.Create(serviceResult));
                         SaveCertificate(serverCertificate);
                     }
 

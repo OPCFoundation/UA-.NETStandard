@@ -229,7 +229,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors);
 
         /// <summary>
-        /// Calls a method defined on a object.
+        /// Calls a method defined on an object.
         /// </summary>
         void Call(
             OperationContext context,

@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
+using Opc.Ua.Core.Tests.Types.Encoders;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {
@@ -86,6 +87,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Theory]
         [Category("ComplexTypes")]
         public void ReEncodeComplexType(
+            MemoryStreamType memoryStreamType,
             EncodingType encoderType,
             StructureType structureType
             )
@@ -96,7 +98,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             object emittedType = Activator.CreateInstance(complexType);
             var baseType = emittedType as BaseComplexType;
             FillStructWithValues(baseType, true);
-            EncodeDecodeComplexType(EncoderContext, encoderType, structureType, nodeId, emittedType);
+            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, structureType, nodeId, emittedType);
         }
 
         /// <summary>
@@ -106,6 +108,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Theory]
         [Category("ComplexTypes")]
         public void ReEncodeStructureWithOptionalFieldsComplexType(
+            MemoryStreamType memoryStreamType,
             EncodingType encoderType,
             StructureFieldParameter structureFieldParameter
             )
@@ -118,17 +121,17 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var builtInType = structureFieldParameter.BuiltInType;
             TestContext.Out.WriteLine($"Optional Field: {structureFieldParameter.BuiltInType} is the only value.");
             baseType[structureFieldParameter.Name] = DataGenerator.GetRandom(builtInType);
-            EncodeDecodeComplexType(EncoderContext, encoderType, StructureType.StructureWithOptionalFields, nodeId, emittedType);
+            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, StructureType.StructureWithOptionalFields, nodeId, emittedType);
             TestContext.Out.WriteLine($"Optional Field: {structureFieldParameter.BuiltInType} is null.");
             baseType[structureFieldParameter.Name] = null;
-            EncodeDecodeComplexType(EncoderContext, encoderType, StructureType.StructureWithOptionalFields, nodeId, emittedType);
+            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, StructureType.StructureWithOptionalFields, nodeId, emittedType);
             TestContext.Out.WriteLine($"Optional Field: {structureFieldParameter.BuiltInType} is null, all other fields have random values.");
             FillStructWithValues(baseType, true);
             baseType[structureFieldParameter.Name] = null;
-            EncodeDecodeComplexType(EncoderContext, encoderType, StructureType.StructureWithOptionalFields, nodeId, emittedType);
+            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, StructureType.StructureWithOptionalFields, nodeId, emittedType);
             TestContext.Out.WriteLine($"Optional Field: {structureFieldParameter.BuiltInType} has random value.");
             baseType[structureFieldParameter.Name] = DataGenerator.GetRandom(builtInType);
-            EncodeDecodeComplexType(EncoderContext, encoderType, StructureType.StructureWithOptionalFields, nodeId, emittedType);
+            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, StructureType.StructureWithOptionalFields, nodeId, emittedType);
         }
 
         /// <summary>
@@ -138,6 +141,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Theory]
         [Category("ComplexTypes")]
         public void ReEncodeUnionComplexType(
+            MemoryStreamType memoryStreamType,
             EncodingType encoderType,
             StructureFieldParameter structureFieldParameter
             )
@@ -150,10 +154,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var builtInType = structureFieldParameter.BuiltInType;
             TestContext.Out.WriteLine($"Union Field: {structureFieldParameter.BuiltInType} is random.");
             baseType[structureFieldParameter.Name] = DataGenerator.GetRandom(builtInType);
-            EncodeDecodeComplexType(EncoderContext, encoderType, StructureType.Union, nodeId, emittedType);
+            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, StructureType.Union, nodeId, emittedType);
             TestContext.Out.WriteLine($"Union Field: {structureFieldParameter.BuiltInType} is null.");
             baseType[structureFieldParameter.Name] = null;
-            EncodeDecodeComplexType(EncoderContext, encoderType, StructureType.Union, nodeId, emittedType);
+            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, StructureType.Union, nodeId, emittedType);
         }
         #endregion Test Methods
     }

@@ -29,7 +29,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the type with its defalt attribute values.
+        /// Initializes the type with its default attribute values.
         /// </summary>
         protected BaseTypeState(NodeClass nodeClass) : base(nodeClass)
         {
@@ -302,9 +302,11 @@ namespace Opc.Ua
                 {
                     bool isAbstract = m_isAbstract;
 
-                    if (OnReadIsAbstract != null)
+                    NodeAttributeEventHandler<bool> onReadIsAbstract = OnReadIsAbstract;
+
+                    if (onReadIsAbstract != null)
                     {
-                        result = OnReadIsAbstract(context, this, ref isAbstract);
+                        result = onReadIsAbstract(context, this, ref isAbstract);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -349,9 +351,11 @@ namespace Opc.Ua
 
                     bool isAbstract = isAbstractRef.Value;
 
-                    if (OnWriteIsAbstract != null)
+                    NodeAttributeEventHandler<bool> onWriteIsAbstract = OnWriteIsAbstract;
+
+                    if (onWriteIsAbstract != null)
                     {
-                        result = OnWriteIsAbstract(context, this, ref isAbstract);
+                        result = onWriteIsAbstract(context, this, ref isAbstract);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -377,20 +381,24 @@ namespace Opc.Ua
         {
             base.PopulateBrowser(context, browser);
 
-            if (!NodeId.IsNull(m_superTypeId))
+            NodeId superTypeId = m_superTypeId;
+
+            if (!NodeId.IsNull(superTypeId))
             {
                 if (browser.IsRequired(ReferenceTypeIds.HasSubtype, true))
                 {
-                    browser.Add(ReferenceTypeIds.HasSubtype, true, m_superTypeId);
+                    browser.Add(ReferenceTypeIds.HasSubtype, true, superTypeId);
                 }
             }
 
+            NodeId nodeId = this.NodeId;
+
             // use the type table to find the subtypes.
-            if (context.TypeTable != null && this.NodeId != null)
+            if (context.TypeTable != null && nodeId != null)
             {
                 if (browser.IsRequired(ReferenceTypeIds.HasSubtype, false))
                 {
-                    IList<NodeId> subtypeIds = context.TypeTable.FindSubTypes(this.NodeId);
+                    IList<NodeId> subtypeIds = context.TypeTable.FindSubTypes(nodeId);
 
                     for (int ii = 0; ii < subtypeIds.Count; ii++)
                     {

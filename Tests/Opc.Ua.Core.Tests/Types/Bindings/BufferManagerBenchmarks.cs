@@ -43,7 +43,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
     public class BufferManagerBenchmarks
     {
         //[Params(8192, 65535, 1024 * 1024 - 1)]
-        public int BufferSize { get; set; } = 65535;
+        public int BufferSize { get; set; } = TcpMessageLimits.DefaultMaxBufferSize;
 
         //[Params( /*8,*/ 64, 256, 1024)]
         public int Allocations { get; set; } = 256;

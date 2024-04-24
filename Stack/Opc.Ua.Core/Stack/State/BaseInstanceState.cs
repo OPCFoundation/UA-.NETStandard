@@ -23,7 +23,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         protected BaseInstanceState(NodeClass nodeClass, NodeState parent) : base(nodeClass)
         {
@@ -121,7 +121,9 @@ namespace Opc.Ua
         {
             string name = GetNonNullText(this);
 
-            if (m_parent == null)
+            NodeState stateParent = m_parent;
+
+            if (stateParent == null)
             {
                 return name;
             }
@@ -130,7 +132,7 @@ namespace Opc.Ua
 
             if (maxLength > 2)
             {
-                NodeState parent = m_parent;
+                NodeState parent = stateParent;
                 List<string> names = new List<string>();
 
                 while (parent != null)
@@ -158,7 +160,7 @@ namespace Opc.Ua
                 }
             }
 
-            buffer.Append(GetNonNullText(m_parent));
+            buffer.Append(GetNonNullText(stateParent));
             buffer.Append(seperator);
             buffer.Append(name);
 
@@ -272,10 +274,8 @@ namespace Opc.Ua
             base.ReportEvent(context, e);
 
             // recusively notify the parent.
-            if (m_parent != null)
-            {
-                m_parent.ReportEvent(context, e);
-            }
+            m_parent?.ReportEvent(context, e);
+            
         }
 
         /// <summary>
@@ -691,29 +691,37 @@ namespace Opc.Ua
         {
             base.PopulateBrowser(context, browser);
 
-            if (!NodeId.IsNull(m_typeDefinitionId) && IsObjectOrVariable)
+            NodeId typeDefinitionId = m_typeDefinitionId;
+
+            if (!NodeId.IsNull(typeDefinitionId) && IsObjectOrVariable)
             {
                 if (browser.IsRequired(ReferenceTypeIds.HasTypeDefinition, false))
                 {
-                    browser.Add(ReferenceTypeIds.HasTypeDefinition, false, m_typeDefinitionId);
+                    browser.Add(ReferenceTypeIds.HasTypeDefinition, false, typeDefinitionId);
                 }
             }
 
-            if (!NodeId.IsNull(m_modellingRuleId))
+            NodeId modellingRuleId = m_modellingRuleId;
+
+            if (!NodeId.IsNull(modellingRuleId))
             {
                 if (browser.IsRequired(ReferenceTypeIds.HasModellingRule, false))
                 {
-                    browser.Add(ReferenceTypeIds.HasModellingRule, false, m_modellingRuleId);
+                    browser.Add(ReferenceTypeIds.HasModellingRule, false, modellingRuleId);
                 }
             }
 
-            if (m_parent != null)
+            NodeState parent = m_parent;
+
+            if (parent != null)
             {
-                if (!NodeId.IsNull(m_referenceTypeId))
+                NodeId referenceTypeId = this.m_referenceTypeId;
+
+                if (!NodeId.IsNull(referenceTypeId))
                 {
-                    if (browser.IsRequired(m_referenceTypeId, true))
+                    if (browser.IsRequired(referenceTypeId, true))
                     {
-                        browser.Add(m_referenceTypeId, true, m_parent);
+                        browser.Add(referenceTypeId, true, parent);
                     }
                 }
             }

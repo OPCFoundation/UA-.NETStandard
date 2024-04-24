@@ -146,6 +146,14 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public static bool operator !=(Role lhs, Role rhs) => !(lhs == rhs);
         #endregion
+        /// <summary>
+        /// returns the name of the role
+        /// </summary>
+        /// <returns>the name of the role</returns>
+        public override string ToString()
+        {
+            return Name;
+        }
     }
 
     /// <summary>
@@ -176,7 +184,6 @@ namespace Opc.Ua.Server
         public NodeIdCollection GrantedRoleIds
         {
             get { return m_identity.GrantedRoleIds; }
-            set { m_identity.GrantedRoleIds = value; }
         }
 
         /// <summary>

@@ -214,7 +214,7 @@ namespace Opc.Ua
         void WriteSByteArray(string fieldName, IList<sbyte> values);
 
         /// <summary>
-        /// Writes a sbyte array to the stream.
+        /// Writes a byte array to the stream.
         /// </summary>
         void WriteByteArray(string fieldName, IList<byte> values);
 

@@ -22,7 +22,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         public DataTypeState() : base(NodeClass.DataType)
         {
@@ -204,9 +204,11 @@ namespace Opc.Ua
                 {
                     ExtensionObject dataTypeDefinition = m_dataTypeDefinition;
 
-                    if (OnReadDataTypeDefinition != null)
+                    NodeAttributeEventHandler<ExtensionObject> onReadDataTypeDefinition = OnReadDataTypeDefinition;
+
+                    if (onReadDataTypeDefinition != null)
                     {
-                        result = OnReadDataTypeDefinition(context, this, ref dataTypeDefinition);
+                        result = onReadDataTypeDefinition(context, this, ref dataTypeDefinition);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -256,9 +258,11 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    if (OnWriteDataTypeDefinition != null)
+                    NodeAttributeEventHandler<ExtensionObject> onWriteDataTypeDefinition = OnWriteDataTypeDefinition;
+
+                    if (onWriteDataTypeDefinition != null)
                     {
-                        result = OnWriteDataTypeDefinition(context, this, ref dataTypeDefinition);
+                        result = onWriteDataTypeDefinition(context, this, ref dataTypeDefinition);
                     }
 
                     if (ServiceResult.IsGood(result))

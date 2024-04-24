@@ -29,7 +29,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         public BaseObjectState(NodeState parent) : base(NodeClass.Object, parent)
         {
@@ -269,9 +269,11 @@ namespace Opc.Ua
                 {
                     byte eventNotifier = m_eventNotifier;
 
-                    if (OnReadEventNotifier != null)
+                    NodeAttributeEventHandler<byte> readEventNotifier = OnReadEventNotifier;
+
+                    if (readEventNotifier != null)
                     {
-                        result = OnReadEventNotifier(context, this, ref eventNotifier);
+                        result = readEventNotifier(context, this, ref eventNotifier);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -316,9 +318,11 @@ namespace Opc.Ua
 
                     byte eventNotifier = eventNotifierRef.Value;
 
-                    if (OnWriteEventNotifier != null)
+                    NodeAttributeEventHandler<byte> writeEventNotifier = OnWriteEventNotifier;
+
+                    if (writeEventNotifier != null)
                     {
-                        result = OnWriteEventNotifier(context, this, ref eventNotifier);
+                        result = writeEventNotifier(context, this, ref eventNotifier);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -346,7 +350,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         public FolderState(NodeState parent) : base(parent)
         {

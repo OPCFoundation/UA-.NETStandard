@@ -29,7 +29,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         public MethodState(NodeState parent) : base(NodeClass.Method, parent)
         {
@@ -335,9 +335,11 @@ namespace Opc.Ua
                 {
                     bool executable = m_executable;
 
-                    if (OnReadExecutable != null)
+                    NodeAttributeEventHandler<bool> onReadExecutable = OnReadExecutable;
+
+                    if (onReadExecutable != null)
                     {
-                        result = OnReadExecutable(context, this, ref executable);
+                        result = onReadExecutable(context, this, ref executable);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -352,9 +354,11 @@ namespace Opc.Ua
                 {
                     bool userExecutable = m_userExecutable;
 
-                    if (OnReadUserExecutable != null)
+                    NodeAttributeEventHandler<bool> onReadUserExecutable = OnReadUserExecutable;
+
+                    if (onReadUserExecutable != null)
                     {
-                        result = OnReadUserExecutable(context, this, ref userExecutable);
+                        result = onReadUserExecutable(context, this, ref userExecutable);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -399,9 +403,11 @@ namespace Opc.Ua
 
                     bool executable = executableRef.Value;
 
-                    if (OnWriteExecutable != null)
+                    NodeAttributeEventHandler<bool> onWriteExecutable = OnWriteExecutable;
+
+                    if (onWriteExecutable != null)
                     {
-                        result = OnWriteExecutable(context, this, ref executable);
+                        result = onWriteExecutable(context, this, ref executable);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -428,9 +434,11 @@ namespace Opc.Ua
 
                     bool userExecutable = userExecutableRef.Value;
 
-                    if (OnWriteUserExecutable != null)
+                    NodeAttributeEventHandler<bool> onWriteUserExecutable = OnWriteUserExecutable;
+
+                    if (onWriteUserExecutable != null)
                     {
-                        result = OnWriteUserExecutable(context, this, ref userExecutable);
+                        result = onWriteUserExecutable(context, this, ref userExecutable);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -500,14 +508,18 @@ namespace Opc.Ua
             ISystemContext context,
             IList<BaseInstanceState> children)
         {
-            if (m_inputArguments != null)
+            PropertyState<Argument[]> inputArguments = m_inputArguments;
+
+            if (inputArguments != null)
             {
-                children.Add(m_inputArguments);
+                children.Add(inputArguments);
             }
 
-            if (m_outputArguments != null)
+            PropertyState<Argument[]> outputArguments = m_outputArguments;
+
+            if (outputArguments != null)
             {
-                children.Add(m_outputArguments);
+                children.Add(outputArguments);
             }
 
             base.GetChildren(context, children);
@@ -624,9 +636,11 @@ namespace Opc.Ua
             // check for too few or too many arguments.
             int expectedCount = 0;
 
-            if (InputArguments != null && InputArguments.Value != null)
+            PropertyState<Argument[]> expectedInputArguments = InputArguments;
+
+            if (expectedInputArguments != null && expectedInputArguments.Value != null)
             {
-                expectedCount = InputArguments.Value.Length;
+                expectedCount = expectedInputArguments.Value.Length;
             }
 
             if (expectedCount > inputArguments.Count)
@@ -664,9 +678,11 @@ namespace Opc.Ua
             // set output arguments to default values.
             List<object> outputs = new List<object>();
 
-            if (OutputArguments != null)
+            PropertyState<Argument[]> expectedOutputArguments = OutputArguments;
+
+            if (expectedOutputArguments != null)
             {
-                IList<Argument> arguments = OutputArguments.Value;
+                IList<Argument> arguments = expectedOutputArguments.Value;
 
                 if (arguments != null && arguments.Count > 0)
                 {
@@ -726,14 +742,18 @@ namespace Opc.Ua
             IList<object> inputArguments,
             IList<object> outputArguments)
         {
-            if (OnCallMethod2 != null)
+            GenericMethodCalledEventHandler2 onCallMethod2 = OnCallMethod2;
+
+            if (onCallMethod2 != null)
             {
-                return OnCallMethod2(context, this, objectId, inputArguments, outputArguments);
+                return onCallMethod2(context, this, objectId, inputArguments, outputArguments);
             }
 
-            if (OnCallMethod != null)
+            GenericMethodCalledEventHandler onCallMethod = this.OnCallMethod;
+
+            if (onCallMethod != null)
             {
-                return OnCallMethod(context, this, inputArguments, outputArguments);
+                return onCallMethod(context, this, inputArguments, outputArguments);
             }
 
             if (Executable && UserExecutable)
@@ -756,12 +776,14 @@ namespace Opc.Ua
             Variant inputArgument,
             int index)
         {
-            if (InputArguments == null)
+            PropertyState<Argument[]> inputArguments = InputArguments;
+
+            if (inputArguments == null)
             {
                 return StatusCodes.BadInvalidArgument;
             }
 
-            IList<Argument> arguments = InputArguments.Value;
+            IList<Argument> arguments = inputArguments.Value;
 
             if (arguments == null || index < 0 || index >= arguments.Count)
             {

@@ -445,7 +445,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Clears all waiting reverse connectino handlers.
+        /// Clears all waiting reverse connection handlers.
         /// </summary>
         public void ClearWaitingConnections()
         {

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
@@ -42,6 +41,8 @@ using Opc.Ua.Gds.Server;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Test;
 using OpcUa = Opc.Ua;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -408,6 +409,9 @@ namespace Opc.Ua.Gds.Tests
             byte[] privateKey = null;
             byte[] certificate = null;
             byte[][] issuerCertificates = null;
+
+            Thread.Sleep(1000);
+
             DateTime now = DateTime.UtcNow;
             do
             {
@@ -473,7 +477,7 @@ namespace Opc.Ua.Gds.Tests
             var keyFormats = m_pushClient.PushClient.GetSupportedKeyFormats();
             if (!keyFormats.Contains(keyFormat))
             {
-                Assert.Ignore("Push server doesn't support {0} key update", keyFormat);
+                Assert.Ignore($"Push server doesn't support {keyFormat} key update");
             }
 
             X509Certificate2 newCert = CertificateFactory.CreateCertificate(
@@ -495,7 +499,7 @@ namespace Opc.Ua.Gds.Tests
             }
             else
             {
-                Assert.Fail("Testing unsupported key format {0}.", keyFormat);
+                Assert.Fail($"Testing unsupported key format {keyFormat}.");
             }
 
             var success = m_pushClient.PushClient.UpdateCertificate(
@@ -531,7 +535,7 @@ namespace Opc.Ua.Gds.Tests
             var keyFormats = m_pushClient.PushClient.GetSupportedKeyFormats();
             if (!keyFormats.Contains(keyFormat))
             {
-                Assert.Ignore("Push server doesn't support {0} key update", keyFormat);
+                Assert.Ignore($"Push server doesn't support {keyFormat} key update");
             }
 
             NodeId requestId = m_gdsClient.GDSClient.StartNewKeyPairRequest(
@@ -869,11 +873,11 @@ namespace Opc.Ua.Gds.Tests
             Assert.IsTrue(EraseStore(tempStorePath));
 
             string subjectName = "CN=CA Test Cert, O=OPC Foundation";
-            X509Certificate2 newCACert = CertificateFactory.CreateCertificate(
+            X509Certificate2 newCACert = await CertificateFactory.CreateCertificate(
                 null, null, subjectName, null)
                 .SetCAConstraint()
                 .CreateForRSA()
-                .AddToStore(CertificateStoreType.Directory, tempStorePath);
+                .AddToStoreAsync(CertificateStoreType.Directory, tempStorePath).ConfigureAwait(false);
 
             m_caCert = newCACert;
 

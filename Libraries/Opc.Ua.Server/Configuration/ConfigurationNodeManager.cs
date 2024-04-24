@@ -38,12 +38,12 @@ namespace Opc.Ua.Server
 {
 
     /// <summary>
-    /// Priviledged identity which can access the system configuration.
+    /// Privileged identity which can access the system configuration.
     /// </summary>
     public class SystemConfigurationIdentity : RoleBasedIdentity
     {
         /// <summary>
-        /// Create a user identity with the priviledge
+        /// Create a user identity with the privilege
         /// to modify the system configuration.
         /// </summary>
         /// <param name="identity">The user identity.</param>
@@ -299,20 +299,32 @@ namespace Opc.Ua.Server
         /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
         public void HasApplicationSecureAdminAccess(ISystemContext context)
         {
+            HasApplicationSecureAdminAccess(context, "");
+        }
+
+
+        /// <summary>
+        /// Determine if the impersonated user has admin access.
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="_"></param>
+        /// <exception cref="ServiceResultException"/>
+        /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
+        public void HasApplicationSecureAdminAccess(ISystemContext context, string _)
+        {
             OperationContext operationContext = (context as SystemContext)?.OperationContext as OperationContext;
             if (operationContext != null)
             {
                 if (operationContext.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt)
                 {
-                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Secure Application Administrator access required.");
+                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Access to this item is only allowed with MessageSecurityMode SignAndEncrypt.");
                 }
-
-                // allow access to system configuration only through special identity
-                IUserIdentity user = context.UserIdentity as RoleBasedIdentity;               
-                if (user == null || user.TokenType == UserTokenType.Anonymous ||
-                    !user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin))
+                IUserIdentity identity = operationContext.UserIdentity;
+                // allow access to system configuration only with Role SecurityAdmin
+                if (identity == null || identity.TokenType == UserTokenType.Anonymous ||
+                    !identity.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin))
                 {
-                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Security Admin Role required.");
+                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Security Admin Role required to access this item.");
                 }
 
             }
@@ -337,6 +349,7 @@ namespace Opc.Ua.Server
             object[] inputArguments = new object[] { certificateGroupId, certificateTypeId, certificate, issuerCertificates, privateKeyFormat, privateKey };
             X509Certificate2 newCert = null;
 
+            Server.ReportCertificateUpdateRequestedAuditEvent(context, objectId, method, inputArguments);
             try
             {
                 if (certificate == null)

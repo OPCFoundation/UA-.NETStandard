@@ -156,6 +156,11 @@ namespace Opc.Ua.Configuration
         /// <inheritdoc cref="ServerConfiguration.MaxSessionCount"/>
         IApplicationConfigurationBuilderServerOptions SetMaxSessionCount(int maxSessionCount);
 
+        /// <inheritdoc cref="ServerConfiguration.MaxChannelCount"/>
+        /// <remarks>applies to <see cref="ServerConfiguration.MaxChannelCount"/></remarks>
+        /// <param name="maxChannelCount">The lifetime.</param>
+        IApplicationConfigurationBuilderServerOptions SetMaxChannelCount(int maxChannelCount);
+
         /// <inheritdoc cref="ServerConfiguration.MinSessionTimeout"/>
         IApplicationConfigurationBuilderServerOptions SetMinSessionTimeout(int minSessionTimeout);
 

@@ -158,7 +158,7 @@ namespace Opc.Ua.Server
         /// <param name="endTime">When to stop processing.</param>
         /// <param name="processingInterval">The processing interval.</param>
         /// <param name="stepped">Whether stepped interpolation should be used.</param>
-        /// <param name="configuration">The configuaration to use.</param>
+        /// <param name="configuration">The configuration to use.</param>
         /// <returns></returns>
         public IAggregateCalculator CreateCalculator(
             NodeId aggregateId,

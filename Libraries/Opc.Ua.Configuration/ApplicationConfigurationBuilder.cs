@@ -535,6 +535,13 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMaxChannelCount(int maxChannelCount)
+        {
+            ApplicationConfiguration.ServerConfiguration.MaxChannelCount = maxChannelCount;
+            return this;
+        }
+
+        /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions SetMinSessionTimeout(int minSessionTimeout)
         {
             ApplicationConfiguration.ServerConfiguration.MinSessionTimeout = minSessionTimeout;

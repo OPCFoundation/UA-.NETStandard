@@ -37,13 +37,27 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Threading;
 using System.Xml;
+using Microsoft.IO;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
+using Opc.Ua.Bindings;
 using Opc.Ua.Test;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
+    /// <summary>
+    /// Supported memory stream types.
+    /// </summary>
+    public enum MemoryStreamType
+    {
+        MemoryStream,
+        ArraySegmentStream,
+        RecyclableMemoryStream
+    }
+
     /// <summary>
     /// Base class for the encoder tests.
     /// </summary>
@@ -55,12 +69,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected const int kRandomStart = 4840;
         protected const int kRandomRepeats = 100;
         protected const int kMaxArrayLength = 1024 * 64;
+        protected const int kTestBlockSize = 0x1000;
         protected const string kApplicationUri = "uri:localhost:opcfoundation.org:EncoderCommon";
         protected RandomSource RandomSource { get; private set; }
         protected DataGenerator DataGenerator { get; private set; }
         protected IServiceMessageContext Context { get; private set; }
         protected NamespaceTable NameSpaceUris { get; private set; }
         protected StringTable ServerUris { get; private set; }
+        protected BufferManager BufferManager { get; private set; }
+        protected RecyclableMemoryStreamManager RecyclableMemoryManager { get; private set; }
+
 
         #region Test Setup
         [OneTimeSetUp]
@@ -74,6 +92,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             NameSpaceUris.GetIndexOrAppend(kApplicationUri);
             NameSpaceUris.GetIndexOrAppend(Namespaces.OpcUaGds);
             ServerUris = new StringTable();
+            BufferManager = new BufferManager(nameof(EncoderCommon), kTestBlockSize);
+            RecyclableMemoryManager = new RecyclableMemoryStreamManager(new RecyclableMemoryStreamManager.Options { BlockSize = kTestBlockSize });
         }
 
         [OneTimeTearDown]
@@ -135,6 +155,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected string EncodeDataValue(
             EncodingType encoderType,
             BuiltInType builtInType,
+            MemoryStreamType memoryStreamType,
             object data,
             bool useReversibleEncoding = true
             )
@@ -146,7 +167,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Expected:");
             TestContext.Out.WriteLine(expected);
             Assert.IsNotNull(expected, "Expected DataValue is Null, " + encodeInfo);
-            using (var encoderStream = new MemoryStream())
+            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
                 using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), useReversibleEncoding))
                 {
@@ -164,6 +185,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected void EncodeDecodeDataValue(
             EncodingType encoderType,
             BuiltInType builtInType,
+            MemoryStreamType memoryStreamType,
             object data
             )
         {
@@ -176,7 +198,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(expected);
 
             byte[] buffer;
-            using (var encoderStream = new MemoryStream())
+            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
                 using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue)))
                 {
@@ -217,6 +239,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected void EncodeDecode(
             EncodingType encoderType,
             BuiltInType builtInType,
+            MemoryStreamType memoryStreamType,
             object expected
             )
         {
@@ -227,7 +250,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(expected);
 
             byte[] buffer;
-            using (var encoderStream = new MemoryStream())
+            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
                 using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, type))
                 {
@@ -272,6 +295,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         protected void EncodeJsonVerifyResult(
             BuiltInType builtInType,
+            MemoryStreamType memoryStreamType,
             object data,
             bool useReversibleEncoding,
             string expected,
@@ -300,7 +324,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             bool includeDefaultNumbers = isNumber ? includeDefaults : true;
 
             byte[] buffer;
-            using (var encoderStream = new MemoryStream())
+            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
                 using (IEncoder encoder = CreateEncoder(EncodingType.Json, Context, encoderStream, typeof(DataValue),
                     useReversibleEncoding, topLevelIsArray, includeDefaultValues, includeDefaultNumbers))
@@ -379,16 +403,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 using (var stringWriter = new StringWriter())
                 using (var stringReader = new StringReader(json))
                 {
-                    var jsonReader = new JsonTextReader(stringReader);
-                    var jsonWriter = new JsonTextWriter(stringWriter) {
+                    using (var jsonReader = new JsonTextReader(stringReader))
+                    using (var jsonWriter = new JsonTextWriter(stringWriter) {
                         FloatFormatHandling = FloatFormatHandling.String,
                         Formatting = Newtonsoft.Json.Formatting.Indented,
                         Culture = System.Globalization.CultureInfo.InvariantCulture
-                    };
-                    jsonWriter.WriteToken(jsonReader);
-                    string formattedJson = stringWriter.ToString();
-                    TestContext.Out.WriteLine(formattedJson);
-                    return formattedJson;
+                    })
+                    {
+                        jsonWriter.WriteToken(jsonReader);
+                        string formattedJson = stringWriter.ToString();
+                        TestContext.Out.WriteLine(formattedJson);
+                        return formattedJson;
+                    }
                 }
             }
             catch (Exception ex)
@@ -397,6 +423,27 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Assert.Fail("Invalid json data: " + ex.Message);
             }
             return json;
+        }
+
+        /// <summary>
+        /// Returns various implementations of a memory stream.
+        /// </summary>
+        /// <param name="memoryStreamType"></param>
+        /// <returns>A MemoryStream</returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        protected MemoryStream CreateEncoderMemoryStream(MemoryStreamType memoryStreamType)
+        {
+            switch (memoryStreamType)
+            {
+                case MemoryStreamType.MemoryStream:
+                    return new MemoryStream(kTestBlockSize);
+                case MemoryStreamType.ArraySegmentStream:
+                    return new ArraySegmentStream(BufferManager);
+                case MemoryStreamType.RecyclableMemoryStream:
+                    return new RecyclableMemoryStream(RecyclableMemoryManager);
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(memoryStreamType), memoryStreamType, "Invalid MemoryStreamType specified.");
+            }
         }
 
         /// <summary>
@@ -418,13 +465,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 case EncodingType.Binary:
                     Assume.That(useReversibleEncoding, "Binary encoding only supports reversible option.");
-                    return new BinaryEncoder(stream, context, false);
+                    return new BinaryEncoder(stream, context, true);
                 case EncodingType.Xml:
                     Assume.That(useReversibleEncoding, "Xml encoding only supports reversible option.");
                     var xmlWriter = XmlWriter.Create(stream);
                     return new XmlEncoder(systemType, xmlWriter, context);
                 case EncodingType.Json:
-                    return new JsonEncoder(context, useReversibleEncoding, topLevelIsArray, stream) {
+                    return new JsonEncoder(context, useReversibleEncoding, topLevelIsArray, stream, true) {
                         IncludeDefaultValues = includeDefaultValues,
                         IncludeDefaultNumberValues = includeDefaultNumbers
                     };
