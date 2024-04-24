@@ -384,10 +384,6 @@ namespace Opc.Ua
                     {
                         decoder = new XmlDecoder(extension.Body as XmlElement, messageContext);
                     }
-                    else if (extension.Encoding == ExtensionObjectEncoding.Json)
-                    {
-                        decoder = new JsonDecoder(extension.Body as string, messageContext);
-                    }
 
                     if (decoder != null)
                     {

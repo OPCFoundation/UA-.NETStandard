@@ -24,10 +24,6 @@ namespace Opc.Ua
     /// </summary>
     public class BinaryDecoder : IDecoder
     {
-        // The number of times the encodeable decoder can recover from
-        // an error before throwing an exception.
-        const int kMaxDecoderRecoveries = 32;
-
         #region Constructor
         /// <summary>
         /// Creates a decoder that reads from a memory buffer.
@@ -403,7 +399,8 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Reads a string from the stream (throws an exception if its length exceeds the limit specified).
+        /// Reads a string from the stream (throws an exception if
+        /// its length is invalid or exceeds the limit specified).
         /// </summary>
         public string ReadString(string fieldName, int maxStringLength)
         {
@@ -426,6 +423,8 @@ namespace Opc.Ua
             }
 
             byte[] bytes = SafeReadBytes(length);
+
+            // length is always >= 1 here
 
             // If 0 terminated, decrease length by one before converting to string
             var utf8StringLength = bytes[bytes.Length - 1] == 0 ? bytes.Length - 1 : bytes.Length;
@@ -2127,7 +2126,7 @@ namespace Opc.Ua
                     if (length != used)
                     {
                         errorMessage = "Length mismatch";
-                        exception = ServiceResultException.Create(StatusCodes.BadDecodingError, errorMessage);
+                        exception = null;
                     }
                     else
                     {
@@ -2153,21 +2152,29 @@ namespace Opc.Ua
 
                 if (resetStream)
                 {
-                    // type was known but decoding failed, reset stream!
-                    m_reader.BaseStream.Position = start;
-                    encodeable = null;
-                    m_encodeablesRecovered++;
-
-                    if (m_encodeablesRecovered == 1)
+                    // type was known but decoding failed,
+                    // reset stream to return ExtensionObject if configured to do so!
+                    // decoding failure of a known type in ns=0 is always a decoding error.
+                    if (typeId.NamespaceIndex == 0 ||
+                        m_encodeablesRecovered >= m_context.MaxDecoderRecoveries)
+                    {
+                        throw exception ??
+                            ServiceResultException.Create(StatusCodes.BadDecodingError, "{0}, failed to decode encodeable type '{1}', NodeId='{2}'.",
+                                errorMessage, systemType.Name, extension.TypeId);
+                    }
+                    else if (m_encodeablesRecovered == 0)
                     {
                         // log the error only once to avoid flooding the log.
                         Utils.LogWarning(exception, "{0}, failed to decode encodeable type '{1}', NodeId='{2}'. BinaryDecoder recovered.",
                             errorMessage, systemType.Name, extension.TypeId);
                     }
-                    else if (m_encodeablesRecovered >= kMaxDecoderRecoveries)
-                    {
-                        throw exception;
-                    }
+
+                    // reset the stream to the begin of the ExtensionObject body.
+                    m_reader.BaseStream.Position = start;
+                    encodeable = null;
+
+                    // count number of recoveries
+                    m_encodeablesRecovered++;
                 }
             }
 
@@ -2194,17 +2201,12 @@ namespace Opc.Ua
                 return extension;
             }
 
-            // skip any unread data.
+            // any unread data indicates a decoding error.
             long unused = length - (Position - start);
-
             if (unused > 0)
             {
-                if (unused > int.MaxValue)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                        "Cannot skip {0} bytes of unknown extension object body with type '{1}'.", unused, extension.TypeId);
-                }
-                SafeReadBytes((int)unused);
+                throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                    "Cannot skip {0} bytes of unknown extension object body with type '{1}'.", unused, extension.TypeId);
             }
 
             if (encodeable != null)
@@ -2455,6 +2457,11 @@ namespace Opc.Ua
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private byte[] SafeReadBytes(int length, [CallerMemberName] string functionName = null)
         {
+            if (length == 0)
+            {
+                return Array.Empty<byte>();
+            }
+
             byte[] bytes = m_reader.ReadBytes(length);
             if (bytes.Length != length)
             {

@@ -46,6 +46,12 @@ namespace Opc.Ua
         uint MaxEncodingNestingLevels { get; }
 
         /// <summary>
+        /// The number of times the decoder can recover from an error 
+        /// caused by a custom complex type before throwing an exception.
+        /// </summary>
+        uint MaxDecoderRecoveries { get; }
+
+        /// <summary>
         /// The table of namespaces used by the server.
         /// </summary>
         NamespaceTable NamespaceUris { get; }

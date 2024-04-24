@@ -7,11 +7,12 @@ using Microsoft.Extensions.Logging;
 
 public static class Program
 {
-    public static readonly string DefaultTestcasesFolder = "../../../../Fuzz/Testcases";
-    public static readonly string DefaultFindingsCrashFolder = "../../../../findings/crashes/";
-    public static readonly string DefaultFindingsHangsFolder = "../../../../findings/hangs/";
-    public static readonly string DefaultLibFuzzerCrashes = "../../../crash-*";
-    public static readonly string DefaultLibFuzzerHangs = "../../../timeout-*";
+    public static readonly string RootFolder = "../../../../";
+    public static readonly string DefaultTestcasesFolder = RootFolder + "Fuzz/Testcases/";
+    public static readonly string DefaultFindingsCrashFolder = RootFolder + "findings/crashes/";
+    public static readonly string DefaultFindingsHangsFolder = RootFolder + "findings/hangs/";
+    public static readonly string DefaultLibFuzzerCrashes = RootFolder + "crash-*";
+    public static readonly string DefaultLibFuzzerHangs = RootFolder + "timeout-*";
 
     public static void Main(string[] args)
     {
@@ -53,6 +54,7 @@ public static class Program
         }
         else if (playback)
         {
+            Playback.Run(DefaultTestcasesFolder, stacktrace);
             Playback.Run(DefaultFindingsCrashFolder, stacktrace);
             Playback.Run(DefaultFindingsHangsFolder, stacktrace);
             Playback.Run(DefaultLibFuzzerCrashes, stacktrace);
