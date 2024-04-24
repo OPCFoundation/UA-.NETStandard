@@ -106,21 +106,22 @@ namespace Opc.Ua.Bindings
 
                     State = TcpChannelState.Connecting;
 
-                Task t = Task.Run(async () => {
-                    try
-                    {
-                        if (false == await Listener.TransferListenerChannel(Id, serverUri, endpointUri).ConfigureAwait(false))
+                    Task t = Task.Run(async () => {
+                        try
+                        {
+                            if (false == await Listener.TransferListenerChannel(Id, serverUri, endpointUri).ConfigureAwait(false))
+                            {
+                                SetResponseRequired(true);
+                                ForceChannelFault(StatusCodes.BadTcpMessageTypeInvalid, "The reverse connection was rejected by the client.");
+                            }
+                        }
+                        catch (Exception)
                         {
                             SetResponseRequired(true);
-                            ForceChannelFault(StatusCodes.BadTcpMessageTypeInvalid, "The reverse connection was rejected by the client.");
+                            ForceChannelFault(StatusCodes.BadInternalError, "Internal error approving the reverse connection.");
                         }
-                    }
-                    catch (Exception)
-                    {
-                        SetResponseRequired(true);
-                        ForceChannelFault(StatusCodes.BadInternalError, "Internal error approving the reverse connection.");
-                    }
-                });
+                    });
+                }
             }
             catch (Exception e)
             {
