@@ -7,6 +7,7 @@ param (
     [string]$corpus,
     [Parameter(Mandatory = $true)]
     [string]$fuzztarget,
+    [string]$temp = ".\libfuzz\Testcases",
     [string]$dict = $null,
     [int]$timeout = 10,
     [string]$command = "sharpfuzz"
@@ -52,12 +53,15 @@ foreach ($fuzzingTarget in $fuzzingTargets) {
     }
 }
 
+mkdir $temp
+copy $corpus\*.* $temp
+
 Write-Output "Start $libFuzzer"
 if ($dict) {
-    Write-Output $libFuzzer -timeout="$timeout" -dict="$dict" --target_path=dotnet --target_arg="$project $fuzztarget" $corpus
-    & $libFuzzer -timeout="$timeout" -dict="$dict" --target_path=dotnet --target_arg="$project $fuzztarget" $corpus
+    Write-Output "$libFuzzer -timeout="$timeout" -dict="$dict" --target_path=dotnet --target_arg=$project $fuzztarget $temp"
+    & $libFuzzer -timeout="$timeout" -dict="$dict" --target_path=dotnet --target_arg="$project $fuzztarget" $temp
 }
 else {
-    Write-Output $libFuzzer -timeout="$timeout" --target_path=dotnet --target_arg="$project $fuzztarget" $corpus
-    & $libFuzzer -timeout="$timeout" --target_path=dotnet --target_arg="$project $fuzztarget" $corpus
+    Write-Output "$libFuzzer -timeout="$timeout" --target_path=dotnet --target_arg=$project $fuzztarget $temp"
+    & $libFuzzer -timeout="$timeout" --target_path=dotnet --target_arg="$project $fuzztarget" $temp
 }

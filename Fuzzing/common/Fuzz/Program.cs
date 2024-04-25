@@ -17,6 +17,7 @@ public static class Program
         string fuzzingFunction = string.Empty;
 
         FuzzableCode.FuzzInfo();
+        Console.WriteLine();
 
         if (args.Length == 1)
         {
@@ -56,6 +57,10 @@ public static class Program
 
                 Console.Error.WriteLine("The fuzzing function {0} does not have the correct signature {1}.", fuzzingFunction, parameters[0].ParameterType);
             }
+            else
+            {
+                Console.Error.WriteLine("The fuzzing function {0} was not found.", fuzzingFunction);
+            }
         }
 
         Usage(fuzzingFunction);
@@ -65,7 +70,6 @@ public static class Program
     {
         Type type = typeof(FuzzableCode);
         string applicationName = typeof(Program).Assembly.GetName().Name;
-        Console.Error.WriteLine("The fuzzing function {0} was not found.", fuzzingFunction);
         Console.Error.WriteLine("Usage: {0} [fuzzingFunction]", applicationName);
         Console.Error.WriteLine();
         Console.Error.WriteLine("Available fuzzing functions:");
