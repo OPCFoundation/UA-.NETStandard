@@ -444,7 +444,7 @@ namespace Opc.Ua.Configuration.Tests
                 {
                     var sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false));
-                    Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
+                    Assert.AreEqual((StatusCode)StatusCodes.BadConfigurationError, (StatusCode)sre.StatusCode);
                 }
             }
         }
@@ -531,7 +531,7 @@ namespace Opc.Ua.Configuration.Tests
                 {
                     var sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false));
-                    Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
+                    Assert.AreEqual((StatusCode)StatusCodes.BadConfigurationError, (StatusCode)sre.StatusCode);
                 }
             }
         }
@@ -612,7 +612,7 @@ namespace Opc.Ua.Configuration.Tests
             {
                 var sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false));
-                Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
+                Assert.AreEqual((StatusCode)StatusCodes.BadConfigurationError, (StatusCode)sre.StatusCode);
             }
             else
             {
