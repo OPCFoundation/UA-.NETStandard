@@ -8,16 +8,96 @@ using Opc.Ua.Bindings;
 public static class FuzzableCode
 {
     const int SegmentSize = 0x40;
-    private static ServiceMessageContext messageContext = null;
+    private static ServiceMessageContext messageContext = ServiceMessageContext.GlobalContext;
 
     /// <summary>
-    /// The fuzz target for afl-fuzz.
+    /// Print information about the fuzzer target.
+    /// </summary>
+    public static void FuzzInfo()
+    {
+        Console.WriteLine("OPC UA Core Encoder Fuzzer for afl-fuzz and libfuzzer.");
+        Console.WriteLine("Fuzzing targets for various aspects of the Binary, Json and Xml encoders.");
+    }
+
+    /// <summary>
+    /// The binary decoder fuzz target for afl-fuzz.
     /// </summary>
     /// <param name="stream">The stdin stream from the afl-fuzz process.</param>
-    public static void FuzzTarget(Stream stream)
+    public static void AflfuzzBinaryDecoder(Stream stream)
     {
-        // fuzzer uses a non seekable stream, causing false positives
-        // use ArraySegmentStream in combination with fuzzed decoder...
+        using (var memoryStream = PrepareArraySegmentStream(stream))
+        {
+            FuzzBinaryDecoderCore(memoryStream);
+        }
+    }
+
+    /// <summary>
+    /// The binary encoder fuzz target for afl-fuzz.
+    /// </summary>
+    /// <param name="stream">The stdin stream from the afl-fuzz process.</param>
+    public static void AflfuzzBinaryEncoder(Stream stream)
+    {
+        IEncodeable encodeable = null;
+        using (var memoryStream = PrepareArraySegmentStream(stream))
+        {
+            try
+            {
+                encodeable = FuzzBinaryDecoderCore(memoryStream);
+            }
+            catch
+            {
+                return;
+            }
+        }
+
+        // encode the fuzzed object and see if it crashes
+        if (encodeable != null)
+        {
+            _ = BinaryEncoder.EncodeMessage(encodeable, messageContext);
+        }
+    }
+
+    /// <summary>
+    /// The fuzz target for libfuzzer.
+    /// </summary>
+    public static void LibfuzzBinaryDecoder(ReadOnlySpan<byte> input)
+    {
+        using (var memoryStream = new MemoryStream(input.ToArray()))
+        {
+            _ = FuzzBinaryDecoderCore(memoryStream);
+        }
+    }
+
+    /// <summary>
+    /// The binary encoder fuzz target for afl-fuzz.
+    /// </summary>
+    /// <param name="stream">The stdin stream from the afl-fuzz process.</param>
+    public static void LibfuzzBinaryEncoder(ReadOnlySpan<byte> input)
+    {
+        IEncodeable encodeable = null;
+        using (var memoryStream = new MemoryStream(input.ToArray()))
+        {
+            try
+            {
+                encodeable = FuzzBinaryDecoderCore(memoryStream);
+            }
+            catch
+            {
+                return;
+            }
+        }
+
+        // encode the fuzzed object and see if it crashes
+        if (encodeable != null)
+        {
+            _ = BinaryEncoder.EncodeMessage(encodeable, messageContext);
+        }
+    }
+
+    private static MemoryStream PrepareArraySegmentStream(Stream stream)
+    {
+        // afl-fuzz uses a non seekable stream, causing false positives
+        // use ArraySegmentStream in combination with fuzz target...
         MemoryStream memoryStream;
         using (var binaryStream = new BinaryReader(stream))
         {
@@ -31,46 +111,29 @@ public static class FuzzableCode
             memoryStream = new ArraySegmentStream(bufferCollection);
         }
 
-        FuzzTargetCore(memoryStream);
-    }
-
-    /// <summary>
-    /// The fuzz target for libfuzzer.
-    /// </summary>
-    public static void FuzzTargetLibfuzzer(ReadOnlySpan<byte> input)
-    {
-        var memoryStream = new MemoryStream(input.ToArray());
-        FuzzTargetCore(memoryStream);
+        return memoryStream;
     }
 
     /// <summary>
     /// The fuzz target for the BinaryDecoder.
     /// </summary>
     /// <param name="stream">A memory stream with fuzz content.</param>
-    private static void FuzzTargetCore(MemoryStream stream)
+    private static IEncodeable FuzzBinaryDecoderCore(MemoryStream stream)
     {
-        if (messageContext == null)
-        {
-            messageContext = new ServiceMessageContext();
-        }
-
         try
         {
             using (var decoder = new BinaryDecoder(stream, messageContext))
             {
-                _ = decoder.DecodeMessage(null);
+                return decoder.DecodeMessage(null);
             }
         }
-        catch (Exception ex)
+        catch (ServiceResultException sre)
         {
-            if (ex is ServiceResultException sre)
+            switch (sre.StatusCode)
             {
-                switch (sre.StatusCode)
-                {
-                    case StatusCodes.BadEncodingLimitsExceeded:
-                    case StatusCodes.BadDecodingError:
-                        return;
-                }
+                case StatusCodes.BadEncodingLimitsExceeded:
+                case StatusCodes.BadDecodingError:
+                    return null;
             }
 
             throw;
