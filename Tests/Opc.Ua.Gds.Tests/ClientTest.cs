@@ -35,6 +35,9 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
+
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -963,7 +966,7 @@ namespace Opc.Ua.Gds.Tests
                 {
                     var sre = Assert.Throws<ServiceResultException>(() => m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId));
                     Assert.NotNull(sre);
-                    Assert.AreEqual(StatusCodes.BadUserAccessDenied, sre.StatusCode, sre.Result.ToString());
+                    Assert.AreEqual((StatusCode)StatusCodes.BadUserAccessDenied, (StatusCode)sre.StatusCode, sre.Result.ToString());
 
                 }
             }
@@ -1001,7 +1004,7 @@ namespace Opc.Ua.Gds.Tests
                         m_gdsClient.GDSClient.GetCertificateGroups(testApplication.ApplicationRecord.ApplicationId)
                         );
                     Assert.NotNull(sre);
-                    Assert.AreEqual(StatusCodes.BadUserAccessDenied, sre.StatusCode, sre.Result.ToString());
+                    Assert.AreEqual((StatusCode)StatusCodes.BadUserAccessDenied, (StatusCode)sre.StatusCode, sre.Result.ToString());
                 }
             }
 
@@ -1060,7 +1063,7 @@ namespace Opc.Ua.Gds.Tests
                             certificateRequest)
                         );
                     Assert.NotNull(sre);
-                    Assert.AreEqual(StatusCodes.BadUserAccessDenied, sre.StatusCode, sre.Result.ToString());
+                    Assert.AreEqual((StatusCode)StatusCodes.BadUserAccessDenied, (StatusCode)sre.StatusCode, sre.Result.ToString());
                 }
             }
 
@@ -1163,7 +1166,7 @@ namespace Opc.Ua.Gds.Tests
                             testApplication.PrivateKeyPassword)
                         );
                     Assert.NotNull(sre);
-                    Assert.AreEqual(StatusCodes.BadUserAccessDenied, sre.StatusCode, sre.Result.ToString());
+                    Assert.AreEqual((StatusCode)StatusCodes.BadUserAccessDenied, (StatusCode)sre.StatusCode, sre.Result.ToString());
                 }
             }
 
@@ -1269,7 +1272,7 @@ namespace Opc.Ua.Gds.Tests
                 m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId)
                 );
             Assert.NotNull(sre);
-            Assert.AreEqual(StatusCodes.BadUserAccessDenied, sre.StatusCode, sre.Result.ToString());
+            Assert.AreEqual((StatusCode)StatusCodes.BadUserAccessDenied, (StatusCode)sre.StatusCode, sre.Result.ToString());
         }
 
         [Test, Order(690)]
@@ -1305,7 +1308,7 @@ namespace Opc.Ua.Gds.Tests
             foreach (var application in m_goodApplicationTestSet)
             {
                 m_gdsClient.GDSClient.CheckRevocationStatus(application.Certificate, out StatusCode certificateStatus, out DateTime validityTime);
-                Assert.AreEqual(StatusCodes.Good, certificateStatus.Code);
+                Assert.AreEqual((StatusCode)StatusCodes.Good, (StatusCode)certificateStatus.Code);
                 Assert.NotNull(validityTime);
             }
         }
@@ -1347,7 +1350,7 @@ namespace Opc.Ua.Gds.Tests
             foreach (var application in m_goodApplicationTestSet)
             {
                 m_gdsClient.GDSClient.CheckRevocationStatus(application.Certificate, out StatusCode certificateStatus, out DateTime validityTime);
-                Assert.AreEqual(StatusCodes.BadCertificateRevoked, certificateStatus.Code);
+                Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevoked, (StatusCode)certificateStatus.Code);
                 Assert.NotNull(validityTime);
             }
         }

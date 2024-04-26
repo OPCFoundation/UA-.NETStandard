@@ -39,6 +39,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 #if NETCOREAPP2_1 || !ECC_SUPPORT
 using X509SignatureGenerator = Opc.Ua.Security.Certificates.X509SignatureGenerator;
 #endif
@@ -223,7 +225,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 foreach (var cert in m_appSelfSignedCerts)
                 {
                     var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(cert)));
-                    Assert.AreEqual(StatusCodes.BadCertificateUntrusted, serviceResultException.StatusCode, serviceResultException.Message);
+                    Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
                 }
                 Assert.AreEqual(m_appSelfSignedCerts.Count, validator.RejectedStore.Enumerate().GetAwaiter().GetResult().Count);
 
@@ -269,7 +271,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 foreach (var cert in m_appSelfSignedCerts)
                 {
                     var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(cert)));
-                    Assert.AreEqual(StatusCodes.BadCertificateUntrusted, serviceResultException.StatusCode, serviceResultException.Message);
+                    Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
                 }
             }
         }
@@ -294,7 +296,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     foreach (var cert in m_appSelfSignedCerts)
                     {
                         var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(cert)));
-                        Assert.AreEqual(StatusCodes.BadCertificateUntrusted, serviceResultException.StatusCode, serviceResultException.Message);
+                        Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
                     }
                     Assert.AreEqual(m_appSelfSignedCerts.Count, validator.RejectedStore.Enumerate().Result.Count);
                 }
@@ -429,7 +431,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     foreach (var app in m_goodApplicationTestSet)
                     {
                         var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
-                        Assert.AreEqual(StatusCodes.BadCertificateChainIncomplete, serviceResultException.StatusCode, serviceResultException.Message);
+                        Assert.AreEqual((StatusCode)StatusCodes.BadCertificateChainIncomplete, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
                     }
                 }
             }
@@ -463,7 +465,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     foreach (var app in m_goodApplicationTestSet)
                     {
                         var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
-                        Assert.AreEqual(StatusCodes.BadCertificateChainIncomplete, serviceResultException.StatusCode, serviceResultException.Message);
+                        Assert.AreEqual((StatusCode)StatusCodes.BadCertificateChainIncomplete, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
                     }
                 }
             }
@@ -734,7 +736,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     foreach (var app in m_goodApplicationTestSet)
                     {
                         var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
-                        Assert.AreEqual(StatusCodes.BadCertificateChainIncomplete, serviceResultException.StatusCode, serviceResultException.Message);
+                        Assert.AreEqual((StatusCode)StatusCodes.BadCertificateChainIncomplete, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
                     }
                 }
             }
@@ -847,17 +849,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(cert));
             if (!trusted)
             {
-                Assert.AreEqual(StatusCodes.BadCertificateUntrusted, serviceResultException.StatusCode, serviceResultException.Message);
+                Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
                 // check the chained service result
                 ServiceResult innerResult = serviceResultException.InnerResult.InnerResult;
                 Assert.NotNull(innerResult);
-                Assert.AreEqual(StatusCodes.BadCertificateTimeInvalid,
-                    innerResult.StatusCode.Code,
+                Assert.AreEqual((StatusCode)StatusCodes.BadCertificateTimeInvalid,
+                    innerResult.StatusCode,
                     innerResult.LocalizedText.Text);
             }
             else
             {
-                Assert.AreEqual(StatusCodes.BadCertificateTimeInvalid, serviceResultException.StatusCode, serviceResultException.Message);
+                Assert.AreEqual((StatusCode)StatusCodes.BadCertificateTimeInvalid, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
             }
         }
 
@@ -891,11 +893,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(cert));
             if (!trusted)
             {
-                Assert.AreEqual(StatusCodes.BadCertificateUntrusted, serviceResultException.StatusCode, serviceResultException.Message);
+                Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
             }
             else
             {
-                Assert.AreEqual(StatusCodes.BadCertificateTimeInvalid, serviceResultException.StatusCode, serviceResultException.Message);
+                Assert.AreEqual((StatusCode)StatusCodes.BadCertificateTimeInvalid, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
             }
         }
 
@@ -928,14 +930,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             var certValidator = validator.Update();
             var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(cert));
-            Assert.AreEqual(StatusCodes.BadCertificateChainIncomplete, serviceResultException.StatusCode, serviceResultException.Message);
+            Assert.AreEqual((StatusCode)StatusCodes.BadCertificateChainIncomplete, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
             // approver tries to suppress error which is not suppressable
             var approver = new CertValidationApprover(new StatusCode[] {
                 StatusCodes.BadCertificateTimeInvalid,
                 StatusCodes.BadCertificateChainIncomplete
             });
             certValidator.CertificateValidation += approver.OnCertificateValidation;
-            Assert.AreEqual(StatusCodes.BadCertificateChainIncomplete, serviceResultException.StatusCode, serviceResultException.Message);
+            Assert.AreEqual((StatusCode)StatusCodes.BadCertificateChainIncomplete, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
             certValidator.CertificateValidation -= approver.OnCertificateValidation;
         }
 
@@ -987,14 +989,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             if (rejectSHA1)
             {
                 var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(cert));
-                Assert.AreEqual(StatusCodes.BadCertificatePolicyCheckFailed, serviceResultException.StatusCode, serviceResultException.Message);
+                Assert.AreEqual((StatusCode)StatusCodes.BadCertificatePolicyCheckFailed, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
                 Assert.NotNull(serviceResultException.InnerResult);
                 ServiceResult innerResult = serviceResultException.InnerResult.InnerResult;
                 if (!trusted)
                 {
                     Assert.NotNull(innerResult);
-                    Assert.AreEqual(StatusCodes.BadCertificateUntrusted,
-                        innerResult.StatusCode.Code,
+                    Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted,
+                        innerResult.StatusCode,
                         innerResult.LocalizedText.Text);
                 }
                 else
@@ -1011,7 +1013,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 else
                 {
                     var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(cert));
-                    Assert.AreEqual(StatusCodes.BadCertificateUntrusted, serviceResultException.StatusCode, serviceResultException.Message);
+                    Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
                     Assert.NotNull(serviceResultException.InnerResult);
                 }
             }
@@ -1037,7 +1039,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             var certValidator = validator.Update();
             var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(cert));
-            Assert.AreEqual(StatusCodes.BadCertificateUseNotAllowed, serviceResultException.StatusCode, serviceResultException.Message);
+            Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUseNotAllowed, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
             Assert.NotNull(serviceResultException.InnerResult);
             var innerResult = serviceResultException.InnerResult.InnerResult;
             if (trusted)
@@ -1047,7 +1049,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             else
             {
                 Assert.NotNull(innerResult);
-                Assert.AreEqual(StatusCodes.BadCertificateUntrusted, innerResult.StatusCode.Code, innerResult.LocalizedText.Text);
+                Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)innerResult.StatusCode.Code, innerResult.LocalizedText.Text);
             }
         }
 
@@ -1087,7 +1089,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             if (ca)
             {
                 // The CA version fails for the key usage flags
-                Assert.AreEqual(StatusCodes.BadCertificateUseNotAllowed, serviceResultException.StatusCode, serviceResultException.Message);
+                Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUseNotAllowed, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
                 Assert.NotNull(serviceResultException.InnerResult);
                 innerResult = serviceResultException.InnerResult.InnerResult;
             }
@@ -1099,15 +1101,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 // for the untrusted case, the untrusted error is also reported.
                 Assert.NotNull(innerResult);
-                Assert.AreEqual(StatusCodes.BadCertificateUntrusted,
-                    innerResult.StatusCode.Code,
+                Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted,
+                    innerResult.StatusCode,
                     innerResult.LocalizedText.Text);
                 innerResult = innerResult.InnerResult;
             }
             // However, all cert versions got an invalid signature, must fail...
             Assert.NotNull(innerResult);
-            Assert.AreEqual(StatusCodes.BadCertificateInvalid,
-                innerResult.StatusCode.Code,
+            Assert.AreEqual((StatusCode)StatusCodes.BadCertificateInvalid,
+                innerResult.StatusCode,
                 innerResult.LocalizedText.Text);
             Assert.AreEqual(0, approver.Count);
         }
@@ -1129,14 +1131,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             var certValidator = validator.Update();
             var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(cert));
-            Assert.AreEqual(StatusCodes.BadCertificatePolicyCheckFailed, serviceResultException.StatusCode, serviceResultException.Message);
+            Assert.AreEqual((StatusCode)StatusCodes.BadCertificatePolicyCheckFailed, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
             Assert.NotNull(serviceResultException.InnerResult);
             ServiceResult innerResult = serviceResultException.InnerResult.InnerResult;
             if (!trusted)
             {
                 Assert.NotNull(innerResult);
-                Assert.AreEqual(StatusCodes.BadCertificateUntrusted,
-                    innerResult.StatusCode.Code,
+                Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted,
+                    innerResult.StatusCode,
                     innerResult.LocalizedText.Text);
             }
             else
@@ -1156,7 +1158,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             else
             {
                 serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(cert));
-                Assert.AreEqual(StatusCodes.BadCertificateUntrusted, serviceResultException.StatusCode, serviceResultException.Message);
+                Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
             }
             certValidator.CertificateValidation -= approver.OnCertificateValidation;
         }
@@ -1184,7 +1186,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             else
             {
                 var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(cert));
-                Assert.AreEqual(StatusCodes.BadCertificateUntrusted, serviceResultException.StatusCode, serviceResultException.Message);
+                Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
                 Assert.NotNull(serviceResultException.InnerResult);
                 ServiceResult innerResult = serviceResultException.InnerResult.InnerResult;
                 Assert.Null(innerResult);
@@ -1213,7 +1215,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             else
             {
                 ServiceResultException serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(cert));
-                Assert.AreEqual(StatusCodes.BadCertificateUntrusted, serviceResultException.StatusCode, serviceResultException.Message);
+                Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
             }
             certValidator.CertificateValidation -= approver.OnCertificateValidation;
         }
@@ -1417,7 +1419,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     foreach (var app in m_goodApplicationTestSet)
                     {
                         var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
-                        Assert.AreEqual(StatusCodes.BadCertificateChainIncomplete, serviceResultException.StatusCode, serviceResultException.Message);
+                        Assert.AreEqual((StatusCode)StatusCodes.BadCertificateChainIncomplete, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
                         // no need to check for inner exceptions, since an incomplete chain error cannot be suppressed.
                     }
                 }
@@ -1457,7 +1459,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     foreach (var app in m_notYetValidCertsApplicationTestSet)
                     {
                         var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
-                        Assert.AreEqual(StatusCodes.BadCertificateTimeInvalid, serviceResultException.StatusCode, serviceResultException.Message);
+                        Assert.AreEqual((StatusCode)StatusCodes.BadCertificateTimeInvalid, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
                     }
                 }
             }
@@ -1496,7 +1498,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     foreach (var app in m_notYetValidCertsApplicationTestSet)
                     {
                         var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
-                        Assert.AreEqual(StatusCodes.BadCertificateTimeInvalid, serviceResultException.StatusCode, serviceResultException.Message);
+                        Assert.AreEqual((StatusCode)StatusCodes.BadCertificateTimeInvalid, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
 
                         // BadCertificateTimeInvalid can be suppressed. Ensure the other issues are caught, as well:
                         int isPresentCertificateIssuerRevocationUnknown = 0;
@@ -1557,7 +1559,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     foreach (var app in m_goodApplicationTestSet)
                     {
                         var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
-                        Assert.AreEqual(StatusCodes.BadCertificateUntrusted, serviceResultException.StatusCode, serviceResultException.Message);
+                        Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
                     }
                 }
             }

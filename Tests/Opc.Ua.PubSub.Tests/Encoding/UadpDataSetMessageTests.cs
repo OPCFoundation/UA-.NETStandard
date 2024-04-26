@@ -33,6 +33,7 @@ using System;
 using System.Linq;
 using System.IO;
 using Opc.Ua.PubSub.Encoding;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
 {

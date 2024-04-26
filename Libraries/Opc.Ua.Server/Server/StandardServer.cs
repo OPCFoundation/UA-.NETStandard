@@ -30,6 +30,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
@@ -505,6 +506,7 @@ namespace Opc.Ua.Server
                 }
 
                 Utils.LogInfo("Server - SESSION CREATED. SessionId={0}", sessionId);
+
                 // report audit for successful create session
                 ServerInternal.ReportAuditCreateSessionEvent(context?.AuditEntryId, session, revisedSessionTimeout);
 
@@ -2949,6 +2951,9 @@ namespace Opc.Ua.Server
                     SessionManager sessionManager = CreateSessionManager(m_serverInternal, configuration);
                     sessionManager.Startup();
 
+                    // use event to trigger channel that should not be closed.
+                    sessionManager.SessionChannelKeepAlive += SessionChannelKeepAliveEvent;
+
                     // start the subscription manager.
                     Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
                     SubscriptionManager subscriptionManager = CreateSubscriptionManager(m_serverInternal, configuration);
@@ -3086,6 +3091,7 @@ namespace Opc.Ua.Server
                 {
                     if (m_serverInternal != null)
                     {
+                        m_serverInternal.SessionManager.SessionChannelKeepAlive -= SessionChannelKeepAliveEvent;
                         m_serverInternal.SubscriptionManager.Shutdown();
                         m_serverInternal.SessionManager.Shutdown();
                         m_serverInternal.NodeManager.Shutdown();
@@ -3335,6 +3341,24 @@ namespace Opc.Ua.Server
         public virtual void RemoveNodeManager(INodeManagerFactory nodeManagerFactory)
         {
             m_nodeManagerFactories.Remove(nodeManagerFactory);
+        }
+        #endregion
+
+        #region Private Methods
+        /// <summary>
+        /// Reacts to a session channel keep alive event to signal
+        /// a listener channel that a session is still active.
+        /// </summary>
+        private void SessionChannelKeepAliveEvent(Session session, SessionEventReason reason)
+        {
+            Debug.Assert(reason == SessionEventReason.ChannelKeepAlive);
+
+            string secureChannelId = session?.SecureChannelId;
+            if (!string.IsNullOrEmpty(secureChannelId))
+            {
+                var transportListener = TransportListeners.FirstOrDefault(tl => secureChannelId.StartsWith(tl.ListenerId, StringComparison.Ordinal));
+                transportListener?.UpdateChannelLastActiveTime(secureChannelId);
+            }
         }
         #endregion
 
