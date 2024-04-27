@@ -1,24 +1,10 @@
 
-
 using System;
 using System.IO;
 using Opc.Ua;
-using Opc.Ua.Bindings;
 
-public static class FuzzableCode
+public static partial class FuzzableCode
 {
-    const int SegmentSize = 0x40;
-    private static ServiceMessageContext messageContext = ServiceMessageContext.GlobalContext;
-
-    /// <summary>
-    /// Print information about the fuzzer target.
-    /// </summary>
-    public static void FuzzInfo()
-    {
-        Console.WriteLine("OPC UA Core Encoder Fuzzer for afl-fuzz and libfuzzer.");
-        Console.WriteLine("Fuzzing targets for various aspects of the Binary, Json and Xml encoders.");
-    }
-
     /// <summary>
     /// The binary decoder fuzz target for afl-fuzz.
     /// </summary>
@@ -58,7 +44,7 @@ public static class FuzzableCode
     }
 
     /// <summary>
-    /// The fuzz target for libfuzzer.
+    /// The binary decoder fuzz target for libfuzzer.
     /// </summary>
     public static void LibfuzzBinaryDecoder(ReadOnlySpan<byte> input)
     {
@@ -71,7 +57,6 @@ public static class FuzzableCode
     /// <summary>
     /// The binary encoder fuzz target for afl-fuzz.
     /// </summary>
-    /// <param name="stream">The stdin stream from the afl-fuzz process.</param>
     public static void LibfuzzBinaryEncoder(ReadOnlySpan<byte> input)
     {
         IEncodeable encodeable = null;
@@ -92,26 +77,6 @@ public static class FuzzableCode
         {
             _ = BinaryEncoder.EncodeMessage(encodeable, messageContext);
         }
-    }
-
-    private static MemoryStream PrepareArraySegmentStream(Stream stream)
-    {
-        // afl-fuzz uses a non seekable stream, causing false positives
-        // use ArraySegmentStream in combination with fuzz target...
-        MemoryStream memoryStream;
-        using (var binaryStream = new BinaryReader(stream))
-        {
-            var bufferCollection = new BufferCollection();
-            byte[] buffer;
-            do
-            {
-                buffer = binaryStream.ReadBytes(SegmentSize);
-                bufferCollection.Add(buffer);
-            } while (buffer.Length == SegmentSize);
-            memoryStream = new ArraySegmentStream(bufferCollection);
-        }
-
-        return memoryStream;
     }
 
     /// <summary>

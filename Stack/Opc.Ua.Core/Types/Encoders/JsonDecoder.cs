@@ -736,8 +736,15 @@ namespace Opc.Ua
 
             if (token is string text)
             {
-                var result = XmlConvert.ToDateTime(text, XmlDateTimeSerializationMode.Utc);
-                return result >= m_dateTimeMaxJsonValue ? DateTime.MaxValue : result;
+                try
+                {
+                    var result = XmlConvert.ToDateTime(text, XmlDateTimeSerializationMode.Utc);
+                    return result >= m_dateTimeMaxJsonValue ? DateTime.MaxValue : result;
+                }
+                catch (FormatException fe)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Failed to decode DateTime: {0}", fe.Message);
+                }
             }
 
             return DateTime.MinValue;
@@ -755,13 +762,19 @@ namespace Opc.Ua
                 return Uuid.Empty;
             }
 
-
             if (!(token is string value))
             {
                 return Uuid.Empty;
             }
 
-            return new Uuid(value);
+            try
+            {
+                return new Uuid(value);
+            }
+            catch (FormatException fe)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Failed to create Guid: {0}", fe.Message);
+            }
         }
 
         /// <summary>
@@ -786,7 +799,7 @@ namespace Opc.Ua
                 return Array.Empty<byte>();
             }
 
-            var bytes = Convert.FromBase64String(value);
+            var bytes = SafeConvertFromBase64String(value);
 
             if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < bytes.Length)
             {
@@ -814,19 +827,26 @@ namespace Opc.Ua
                 return null;
             }
 
-            var bytes = Convert.FromBase64String(value);
+            var bytes = SafeConvertFromBase64String(value);
 
             if (bytes != null && bytes.Length > 0)
             {
-                XmlDocument document = new XmlDocument();
-                string xmlString = Encoding.UTF8.GetString(bytes, 0, bytes.Length);
-
-                using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), Utils.DefaultXmlReaderSettings()))
+                try
                 {
-                    document.Load(reader);
-                }
+                    XmlDocument document = new XmlDocument();
+                    string xmlString = Encoding.UTF8.GetString(bytes, 0, bytes.Length);
 
-                return document.DocumentElement;
+                    using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), Utils.DefaultXmlReaderSettings()))
+                    {
+                        document.Load(reader);
+                    }
+
+                    return document.DocumentElement;
+                }
+                catch (XmlException xe)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Unable to decode Xml: {0}", xe.Message);
+                }
             }
 
             return null;
@@ -1496,7 +1516,7 @@ namespace Opc.Ua
             string value = ReadString(fieldName);
             if (value != null)
             {
-                return Convert.FromBase64String(value);
+                return SafeConvertFromBase64String(value);
             }
 
             if (!ReadArrayField(fieldName, out token))
@@ -2819,61 +2839,67 @@ namespace Opc.Ua
         {
             Dictionary<string, object> fields = new Dictionary<string, object>();
 
-            while (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject)
+            try
             {
-                if (m_reader.TokenType == JsonToken.StartArray)
+                while (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject)
                 {
-                    fields[RootArrayName] = ReadArray();
-                }
-                else if (m_reader.TokenType == JsonToken.PropertyName)
-                {
-                    string name = (string)m_reader.Value;
-
-                    if (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject)
+                    if (m_reader.TokenType == JsonToken.StartArray)
                     {
-                        switch (m_reader.TokenType)
+                        fields[RootArrayName] = ReadArray();
+                    }
+                    else if (m_reader.TokenType == JsonToken.PropertyName)
+                    {
+                        string name = (string)m_reader.Value;
+
+                        if (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject)
                         {
-                            case JsonToken.Comment:
+                            switch (m_reader.TokenType)
                             {
-                                break;
-                            }
+                                case JsonToken.Comment:
+                                {
+                                    break;
+                                }
 
-                            case JsonToken.Null:
-                            {
-                                fields[name] = JTokenNullObject.Object;
-                                break;
-                            }
+                                case JsonToken.Null:
+                                {
+                                    fields[name] = JTokenNullObject.Object;
+                                    break;
+                                }
 
-                            case JsonToken.Date:
-                            case JsonToken.Bytes:
-                            case JsonToken.Boolean:
-                            case JsonToken.Integer:
-                            case JsonToken.Float:
-                            case JsonToken.String:
-                            {
-                                fields[name] = m_reader.Value;
-                                break;
-                            }
+                                case JsonToken.Date:
+                                case JsonToken.Bytes:
+                                case JsonToken.Boolean:
+                                case JsonToken.Integer:
+                                case JsonToken.Float:
+                                case JsonToken.String:
+                                {
+                                    fields[name] = m_reader.Value;
+                                    break;
+                                }
 
-                            case JsonToken.StartArray:
-                            {
-                                fields[name] = ReadArray();
-                                break;
-                            }
+                                case JsonToken.StartArray:
+                                {
+                                    fields[name] = ReadArray();
+                                    break;
+                                }
 
-                            case JsonToken.StartObject:
-                            {
-                                fields[name] = ReadObject();
-                                break;
-                            }
+                                case JsonToken.StartObject:
+                                {
+                                    fields[name] = ReadObject();
+                                    break;
+                                }
 
-                            default:
-                                break;
+                                default:
+                                    break;
+                            }
                         }
                     }
                 }
             }
-
+            catch (JsonReaderException jre)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Error reading JSON object: {0}", jre.Message);
+            }
             return fields;
         }
 
@@ -3032,6 +3058,21 @@ namespace Opc.Ua
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Safe Convert function which throws a BadDecodingError if unsuccessful.
+        /// </summary>
+        private byte[] SafeConvertFromBase64String(string s)
+        {
+            try
+            {
+                return Convert.FromBase64String(s);
+            }
+            catch (FormatException fe)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Error decoding base64 string: {0}", fe.Message);
+            }
         }
 
         /// <summary>
