@@ -101,7 +101,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the tables used to map namespace and server uris during decoding.
         /// </summary>
-        /// <param name="namespaceUris">The namespaces URIs referenced by the data being decoded.</param>
+        /// <param name="namespaceUris">The namespace URIs referenced by the data being decoded.</param>
         /// <param name="serverUris">The server URIs referenced by the data being decoded.</param>
         public void SetMappingTables(NamespaceTable namespaceUris, StringTable serverUris)
         {
@@ -814,34 +814,7 @@ namespace Opc.Ua
 
                 if (!String.IsNullOrEmpty(xml))
                 {
-                    float value = 0;
-
-                    if (xml.Length == 3)
-                    {
-                        if (xml == "NaN")
-                        {
-                            value = Single.NaN;
-                        }
-
-                        if (xml == "INF")
-                        {
-                            value = Single.PositiveInfinity;
-                        }
-                    }
-
-                    if (xml.Length == 4)
-                    {
-                        if (xml == "-INF")
-                        {
-                            value = Single.NegativeInfinity;
-                        }
-                    }
-
-                    if (value == 0)
-                    {
-                        value = XmlConvert.ToSingle(xml);
-                    }
-
+                    float value = XmlConvert.ToSingle(xml);
                     EndField(fieldName);
                     return value;
                 }
@@ -861,34 +834,7 @@ namespace Opc.Ua
 
                 if (!String.IsNullOrEmpty(xml))
                 {
-                    double value = 0;
-
-                    if (xml.Length == 3)
-                    {
-                        if (xml == "NaN")
-                        {
-                            value = Single.NaN;
-                        }
-
-                        if (xml == "INF")
-                        {
-                            value = Single.PositiveInfinity;
-                        }
-                    }
-
-                    if (xml.Length == 4)
-                    {
-                        if (xml == "-INF")
-                        {
-                            value = Single.NegativeInfinity;
-                        }
-                    }
-
-                    if (value == 0)
-                    {
-                        value = XmlConvert.ToDouble(xml);
-                    }
-
+                    double value = XmlConvert.ToDouble(xml);
                     EndField(fieldName);
                     return value;
                 }
@@ -1011,7 +957,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Exracts the XML from the reader.
+        /// Extracts the XML from the reader.
         /// </summary>
         private void ExtractXml(StringBuilder builder)
         {
@@ -1366,7 +1312,7 @@ namespace Opc.Ua
             if (!NodeId.IsNull(typeId) && NodeId.IsNull(absoluteId))
             {
                 Utils.LogWarning(
-                    "Cannot de-serialized extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}",
+                    "Cannot de-serialize extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}",
                     typeId);
             }
 
@@ -2956,7 +2902,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Reads the start of filed where the presences of the xsi:nil attribute is not significant.
+        /// Reads the start of field where the presences of the xsi:nil attribute is not significant.
         /// </summary>
         private bool BeginField(string fieldName, bool isOptional)
         {
