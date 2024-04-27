@@ -386,7 +386,7 @@ namespace Opc.Ua.Server.Tests
                         m_requestHeader.Timestamp = DateTime.UtcNow;
                         CommonTestWorkers.VerifySubscriptionTransferred(serverTestServices, m_requestHeader, subscriptionIds, true);
                     });
-                    Assert.AreEqual(StatusCodes.BadNoSubscription, sre.StatusCode);
+                    Assert.AreEqual((StatusCode)StatusCodes.BadNoSubscription, (StatusCode)sre.StatusCode);
                 }
             }
             finally
@@ -482,7 +482,7 @@ namespace Opc.Ua.Server.Tests
                     out bool moreNotifications, out NotificationMessage notificationMessage,
                     out StatusCodeCollection _, out DiagnosticInfoCollection diagnosticInfos);
 
-                Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
+                Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
                 ServerFixtureUtils.ValidateResponse(response);
                 ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
                 Assert.AreEqual(subscriptionIds[0], publishedId);
@@ -498,7 +498,7 @@ namespace Opc.Ua.Server.Tests
                         out moreNotifications, out notificationMessage,
                         out StatusCodeCollection _, out diagnosticInfos);
 
-                    Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
+                    Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
                     ServerFixtureUtils.ValidateResponse(response);
                     ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
                     Assert.AreEqual(subscriptionIds[0], publishedId);
@@ -517,7 +517,7 @@ namespace Opc.Ua.Server.Tests
 
                 SecureChannelContext.Current = securityContext;
 
-                Assert.AreEqual(StatusCodes.BadUserAccessDenied, results[0].StatusCode.Code);
+                Assert.AreEqual((StatusCode)StatusCodes.BadUserAccessDenied, results[0].StatusCode);
                 ServerFixtureUtils.ValidateResponse(response, results, nodesToCall);
                 ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, nodesToCall, response.StringTable);
 
@@ -528,7 +528,7 @@ namespace Opc.Ua.Server.Tests
                     out moreNotifications, out notificationMessage,
                     out StatusCodeCollection _, out diagnosticInfos);
 
-                Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
+                Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
                 ServerFixtureUtils.ValidateResponse(response);
                 ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
                 Assert.AreEqual(subscriptionIds[0], publishedId);
@@ -555,7 +555,7 @@ namespace Opc.Ua.Server.Tests
                     out moreNotifications, out notificationMessage,
                     out StatusCodeCollection _, out diagnosticInfos);
 
-                Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
+                Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
                 ServerFixtureUtils.ValidateResponse(response);
                 ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
                 Assert.AreEqual(subscriptionIds[0], publishedId);
@@ -576,7 +576,7 @@ namespace Opc.Ua.Server.Tests
                         out moreNotifications, out notificationMessage,
                         out StatusCodeCollection _, out diagnosticInfos);
 
-                    Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
+                    Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
                     ServerFixtureUtils.ValidateResponse(response);
                     ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
                     Assert.AreEqual(subscriptionIds[0], publishedId);
@@ -597,7 +597,7 @@ namespace Opc.Ua.Server.Tests
                     out moreNotifications, out notificationMessage,
                     out StatusCodeCollection _, out diagnosticInfos);
 
-                Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
+                Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
                 ServerFixtureUtils.ValidateResponse(response);
                 ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
                 Assert.AreEqual(subscriptionIds[0], publishedId);

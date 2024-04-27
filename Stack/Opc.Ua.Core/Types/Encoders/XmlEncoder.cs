@@ -133,7 +133,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the tables used to map namespace and server uris during encoding.
         /// </summary>
-        /// <param name="namespaceUris">The namespaces URIs referenced by the data being encoded.</param>
+        /// <param name="namespaceUris">The namespace URIs referenced by the data being encoded.</param>
         /// <param name="serverUris">The server URIs referenced by the data being encoded.</param>
         public void SetMappingTables(NamespaceTable namespaceUris, StringTable serverUris)
         {
@@ -428,23 +428,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, false, false))
             {
-                if (Single.IsNaN(value))
-                {
-                    m_writer.WriteValue("NaN");
-                }
-                else if (Single.IsPositiveInfinity(value))
-                {
-                    m_writer.WriteValue("INF");
-                }
-                else if (Single.IsNegativeInfinity(value))
-                {
-                    m_writer.WriteValue("-INF");
-                }
-                else
-                {
-                    m_writer.WriteValue(value);
-                }
-
+                m_writer.WriteValue(value);
                 EndField(fieldName);
             }
         }
