@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -31,7 +31,6 @@ using System;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Xml;
-using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
@@ -43,8 +42,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     [TestFixture, Category("XmlEncoder")]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [Parallelizable]
-    [MemoryDiagnoser]
-    [DisassemblyDiagnoser]
     public class XmlEncoderTests
     {
         static Regex REValue = new Regex("Value>([^<]*)<");
