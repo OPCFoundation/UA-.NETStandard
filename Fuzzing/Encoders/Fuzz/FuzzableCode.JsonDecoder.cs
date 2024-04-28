@@ -20,7 +20,7 @@ public static partial class FuzzableCode
     /// <summary>
     /// The Json encoder fuzz target for afl-fuzz.
     /// </summary>
-    public static void AflfuzzBinaryEncoder(string input)
+    public static void AflfuzzJsonEncoder(string input)
     {
         IEncodeable encodeable = null;
         try

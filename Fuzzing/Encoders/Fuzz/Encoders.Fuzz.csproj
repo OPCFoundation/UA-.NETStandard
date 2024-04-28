@@ -13,6 +13,7 @@
   
   <ItemGroup>
     <Compile Include="..\..\common\Fuzz\Program.cs" Link="Program.cs" />
+    <Compile Include="..\..\common\Fuzz\FuzzMethods.cs" Link="FuzzMethods.cs" />
   </ItemGroup>
 
   <ItemGroup>

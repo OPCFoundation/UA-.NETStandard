@@ -19,47 +19,17 @@ public static class Program
         FuzzableCode.FuzzInfo();
         Console.WriteLine();
 
-        if (args.Length == 1)
+        if (args.Length >= 1)
         {
-            // find the function to fuzz based on the first argument using reflection
-            Type type = typeof(FuzzableCode);
-            fuzzingFunction = args[0];
-            MethodInfo method = type.GetMethod(args[0], BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
-            if (method != null)
-            {
-                Console.WriteLine($"Found the fuzzing function: {args[0]}");
+            var fuzzingMethod = FuzzMethods.FindFuzzMethod(Console.Error, args[0]);
 
-                // call the fuzzer target if there is a matching signature
-                ParameterInfo[] parameters = method.GetParameters();
-                if (parameters.Length == 1)
-                {
-                    // afl-fuzz targets
-                    if (parameters[0].ParameterType == typeof(Stream))
-                    {
-                        var fuzzMethod = (AflFuzzStream)method.CreateDelegate(typeof(AflFuzzStream));
-                        Fuzzer.Run(stream => fuzzMethod(stream));
-                        return;
-                    }
-                    else if (parameters[0].ParameterType == typeof(string))
-                    {
-                        var fuzzMethod = (AflFuzzString)method.CreateDelegate(typeof(AflFuzzString));
-                        Fuzzer.Run(text => fuzzMethod(text));
-                        return;
-                    }
-                    // libfuzzer span target
-                    else if (parameters[0].ParameterType == typeof(ReadOnlySpan<byte>))
-                    {
-                        var fuzzMethod = (LibFuzzSpan)method.CreateDelegate(typeof(LibFuzzSpan));
-                        Fuzzer.LibFuzzer.Run(bytes => fuzzMethod(bytes));
-                        return;
-                    }
-                }
-
-                Console.Error.WriteLine("The fuzzing function {0} does not have the correct signature {1}.", fuzzingFunction, parameters[0].ParameterType);
-            }
-            else
+            if (fuzzingMethod != null)
             {
-                Console.Error.WriteLine("The fuzzing function {0} was not found.", fuzzingFunction);
+                Console.WriteLine($"Run the fuzzing function: {args[0]}");
+
+                FuzzMethods.RunFuzzMethod(fuzzingMethod);
+
+                return;
             }
         }
 
@@ -74,35 +44,32 @@ public static class Program
         Console.Error.WriteLine();
         Console.Error.WriteLine("Available fuzzing functions:");
 
-        foreach (var parameterType in new Type[] { typeof(Stream), typeof(string), typeof(ReadOnlySpan<byte>) })
+        foreach (Type parameterType in FuzzMethods.Delegates)
         {
             bool writeHeader = true;
-            foreach (var m in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static))
+            foreach (var method in FuzzMethods.FindFuzzMethods(Console.Error, parameterType))
             {
-                ParameterInfo[] parameters = m.GetParameters();
-                if (parameters.Length == 1 && parameters[0].ParameterType == parameterType)
+                if (writeHeader)
                 {
-                    if (writeHeader)
+                    Console.Error.WriteLine();
+                    if (parameterType.Name == nameof(AflFuzzStream))
                     {
-                        Console.Error.WriteLine();
-                        if (parameterType == typeof(Stream))
-                        {
-                            Console.Error.WriteLine("afl-fuzz Stream signature:");
-                        }
-                        else if (parameterType == typeof(string))
-                        {
-                            Console.Error.WriteLine("afl-fuzz string signature:");
-                        }
-                        else if (parameterType == typeof(ReadOnlySpan<byte>))
-                        {
-                            Console.Error.WriteLine("libfuzzer: ReadOnlySpan<byte> signature:");
-                        }
-                        writeHeader = false;
+                        Console.Error.WriteLine("afl-fuzz Stream signature:");
                     }
-
-                    Console.Error.WriteLine("-- {0}", m.Name);
+                    else if (parameterType.Name == nameof(AflFuzzString))
+                    {
+                        Console.Error.WriteLine("afl-fuzz string signature:");
+                    }
+                    else if (parameterType.Name == nameof(LibFuzzSpan))
+                    {
+                        Console.Error.WriteLine("libfuzzer ReadOnlySpan<byte> signature:");
+                    }
+                    writeHeader = false;
                 }
+
+                Console.Error.WriteLine("-- {0}", method.Method.Name);
             }
         }
     }
 }
+
