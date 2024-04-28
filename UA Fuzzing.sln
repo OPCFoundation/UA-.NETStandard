@@ -60,14 +60,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Libraries", "Libraries", "{
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Stack", "Stack", "{2DC9F7F3-6698-4875-88A3-50678170A810}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BinaryDecoder", "BinaryDecoder", "{128EE105-0A7A-4AB3-81E6-A77AE638B33F}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BinaryDecoder.Fuzz", "Fuzzing\BinaryDecoder\Fuzz\BinaryDecoder.Fuzz.csproj", "{92CC62D7-B7B6-4FBD-B9AC-181BD0D11EC0}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Encoders", "Encoders", "{128EE105-0A7A-4AB3-81E6-A77AE638B33F}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scripts", "scripts", "{612E66DA-731B-4E7C-969D-88079601ED30}"
 	ProjectSection(SolutionItems) = preProject
+		Fuzzing\scripts\fuzz-afl.ps1 = Fuzzing\scripts\fuzz-afl.ps1
 		Fuzzing\scripts\fuzz-libfuzzer.ps1 = Fuzzing\scripts\fuzz-libfuzzer.ps1
-		Fuzzing\scripts\fuzz.ps1 = Fuzzing\scripts\fuzz.ps1
 		Fuzzing\scripts\install.sh = Fuzzing\scripts\install.sh
 		Fuzzing\scripts\readme.txt = Fuzzing\scripts\readme.txt
 		Fuzzing\scripts\test-libfuzzer.ps1 = Fuzzing\scripts\test-libfuzzer.ps1
@@ -79,7 +77,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Fuzzing", "Fuzzing", "{E943
 		Fuzzing\Fuzzing.md = Fuzzing\Fuzzing.md
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BinaryDecoder.Fuzz.Tools", "Fuzzing\BinaryDecoder\Fuzz.Tools\BinaryDecoder.Fuzz.Tools.csproj", "{A2F6528F-2DB0-4E37-ACBC-3A9EB9126D05}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "dictionaries", "dictionaries", "{3D63FE3C-08CD-470A-9048-757C029C5EBF}"
+	ProjectSection(SolutionItems) = preProject
+		Fuzzing\dictionaries\json.dict = Fuzzing\dictionaries\json.dict
+		Fuzzing\dictionaries\xml.dict = Fuzzing\dictionaries\xml.dict
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{6F57459E-6B63-4FB5-8311-7FC1DDC84650}"
 EndProject
@@ -94,6 +96,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Fuzz.Tools", "Fuzz.Tools", 
 		Fuzzing\common\Fuzz.Tools\Program.cs = Fuzzing\common\Fuzz.Tools\Program.cs
 		Fuzzing\common\Fuzz.Tools\Testcases.cs = Fuzzing\common\Fuzz.Tools\Testcases.cs
 	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Encoders.Fuzz", "Fuzzing\Encoders\Fuzz\Encoders.Fuzz.csproj", "{2CA57432-9B51-40A5-804B-D927897E7DAF}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Encoders.Fuzz.Tools", "Fuzzing\Encoders\Fuzz.Tools\Encoders.Fuzz.Tools.csproj", "{BAB22A60-473E-4AE3-82E3-6C78CC8F1E6B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -190,30 +196,30 @@ Global
 		{4B72937F-5A57-4CEA-B9FE-B4C45CF7B284}.Release|x64.Build.0 = Release|Any CPU
 		{4B72937F-5A57-4CEA-B9FE-B4C45CF7B284}.Release|x86.ActiveCfg = Release|Any CPU
 		{4B72937F-5A57-4CEA-B9FE-B4C45CF7B284}.Release|x86.Build.0 = Release|Any CPU
-		{92CC62D7-B7B6-4FBD-B9AC-181BD0D11EC0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{92CC62D7-B7B6-4FBD-B9AC-181BD0D11EC0}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{92CC62D7-B7B6-4FBD-B9AC-181BD0D11EC0}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{92CC62D7-B7B6-4FBD-B9AC-181BD0D11EC0}.Debug|x64.Build.0 = Debug|Any CPU
-		{92CC62D7-B7B6-4FBD-B9AC-181BD0D11EC0}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{92CC62D7-B7B6-4FBD-B9AC-181BD0D11EC0}.Debug|x86.Build.0 = Debug|Any CPU
-		{92CC62D7-B7B6-4FBD-B9AC-181BD0D11EC0}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{92CC62D7-B7B6-4FBD-B9AC-181BD0D11EC0}.Release|Any CPU.Build.0 = Release|Any CPU
-		{92CC62D7-B7B6-4FBD-B9AC-181BD0D11EC0}.Release|x64.ActiveCfg = Release|Any CPU
-		{92CC62D7-B7B6-4FBD-B9AC-181BD0D11EC0}.Release|x64.Build.0 = Release|Any CPU
-		{92CC62D7-B7B6-4FBD-B9AC-181BD0D11EC0}.Release|x86.ActiveCfg = Release|Any CPU
-		{92CC62D7-B7B6-4FBD-B9AC-181BD0D11EC0}.Release|x86.Build.0 = Release|Any CPU
-		{A2F6528F-2DB0-4E37-ACBC-3A9EB9126D05}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A2F6528F-2DB0-4E37-ACBC-3A9EB9126D05}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A2F6528F-2DB0-4E37-ACBC-3A9EB9126D05}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{A2F6528F-2DB0-4E37-ACBC-3A9EB9126D05}.Debug|x64.Build.0 = Debug|Any CPU
-		{A2F6528F-2DB0-4E37-ACBC-3A9EB9126D05}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{A2F6528F-2DB0-4E37-ACBC-3A9EB9126D05}.Debug|x86.Build.0 = Debug|Any CPU
-		{A2F6528F-2DB0-4E37-ACBC-3A9EB9126D05}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{A2F6528F-2DB0-4E37-ACBC-3A9EB9126D05}.Release|Any CPU.Build.0 = Release|Any CPU
-		{A2F6528F-2DB0-4E37-ACBC-3A9EB9126D05}.Release|x64.ActiveCfg = Release|Any CPU
-		{A2F6528F-2DB0-4E37-ACBC-3A9EB9126D05}.Release|x64.Build.0 = Release|Any CPU
-		{A2F6528F-2DB0-4E37-ACBC-3A9EB9126D05}.Release|x86.ActiveCfg = Release|Any CPU
-		{A2F6528F-2DB0-4E37-ACBC-3A9EB9126D05}.Release|x86.Build.0 = Release|Any CPU
+		{2CA57432-9B51-40A5-804B-D927897E7DAF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2CA57432-9B51-40A5-804B-D927897E7DAF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2CA57432-9B51-40A5-804B-D927897E7DAF}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2CA57432-9B51-40A5-804B-D927897E7DAF}.Debug|x64.Build.0 = Debug|Any CPU
+		{2CA57432-9B51-40A5-804B-D927897E7DAF}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2CA57432-9B51-40A5-804B-D927897E7DAF}.Debug|x86.Build.0 = Debug|Any CPU
+		{2CA57432-9B51-40A5-804B-D927897E7DAF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2CA57432-9B51-40A5-804B-D927897E7DAF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2CA57432-9B51-40A5-804B-D927897E7DAF}.Release|x64.ActiveCfg = Release|Any CPU
+		{2CA57432-9B51-40A5-804B-D927897E7DAF}.Release|x64.Build.0 = Release|Any CPU
+		{2CA57432-9B51-40A5-804B-D927897E7DAF}.Release|x86.ActiveCfg = Release|Any CPU
+		{2CA57432-9B51-40A5-804B-D927897E7DAF}.Release|x86.Build.0 = Release|Any CPU
+		{BAB22A60-473E-4AE3-82E3-6C78CC8F1E6B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BAB22A60-473E-4AE3-82E3-6C78CC8F1E6B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BAB22A60-473E-4AE3-82E3-6C78CC8F1E6B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{BAB22A60-473E-4AE3-82E3-6C78CC8F1E6B}.Debug|x64.Build.0 = Debug|Any CPU
+		{BAB22A60-473E-4AE3-82E3-6C78CC8F1E6B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{BAB22A60-473E-4AE3-82E3-6C78CC8F1E6B}.Debug|x86.Build.0 = Debug|Any CPU
+		{BAB22A60-473E-4AE3-82E3-6C78CC8F1E6B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BAB22A60-473E-4AE3-82E3-6C78CC8F1E6B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BAB22A60-473E-4AE3-82E3-6C78CC8F1E6B}.Release|x64.ActiveCfg = Release|Any CPU
+		{BAB22A60-473E-4AE3-82E3-6C78CC8F1E6B}.Release|x64.Build.0 = Release|Any CPU
+		{BAB22A60-473E-4AE3-82E3-6C78CC8F1E6B}.Release|x86.ActiveCfg = Release|Any CPU
+		{BAB22A60-473E-4AE3-82E3-6C78CC8F1E6B}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -229,12 +235,13 @@ Global
 		{92D98D3D-2A7D-4F4B-8C72-1A98908D0221} = {2DC9F7F3-6698-4875-88A3-50678170A810}
 		{4B72937F-5A57-4CEA-B9FE-B4C45CF7B284} = {ACBF012E-08A7-4939-88CF-D6B610E35AC5}
 		{128EE105-0A7A-4AB3-81E6-A77AE638B33F} = {E9435CCE-1591-4AC0-87C4-341236E27C50}
-		{92CC62D7-B7B6-4FBD-B9AC-181BD0D11EC0} = {128EE105-0A7A-4AB3-81E6-A77AE638B33F}
 		{612E66DA-731B-4E7C-969D-88079601ED30} = {E9435CCE-1591-4AC0-87C4-341236E27C50}
-		{A2F6528F-2DB0-4E37-ACBC-3A9EB9126D05} = {128EE105-0A7A-4AB3-81E6-A77AE638B33F}
+		{3D63FE3C-08CD-470A-9048-757C029C5EBF} = {E9435CCE-1591-4AC0-87C4-341236E27C50}
 		{6F57459E-6B63-4FB5-8311-7FC1DDC84650} = {E9435CCE-1591-4AC0-87C4-341236E27C50}
 		{C9E285F1-D853-4CD9-9ECF-493E09395548} = {6F57459E-6B63-4FB5-8311-7FC1DDC84650}
 		{6A642C2C-0B5D-4C2D-BAD0-A6F760175465} = {6F57459E-6B63-4FB5-8311-7FC1DDC84650}
+		{2CA57432-9B51-40A5-804B-D927897E7DAF} = {128EE105-0A7A-4AB3-81E6-A77AE638B33F}
+		{BAB22A60-473E-4AE3-82E3-6C78CC8F1E6B} = {128EE105-0A7A-4AB3-81E6-A77AE638B33F}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {33FA5BCB-C827-4D44-AECF-F51342DFE64A}

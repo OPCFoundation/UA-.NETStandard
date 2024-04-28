@@ -75,14 +75,35 @@ sharpfuzz
 
 ### Installation for libfuzzer on Windows
 
-Install the latest dotnet SDK and runtime from https://dotnet.microsoft.com/download/dotnet/
+Install the latest dotnet SDK and runtime from https://dotnet.microsoft.com/download/dotnet/.
 
 ```commandline
 # Install SharpFuzz.CommandLine global .NET tool
 dotnet tool install --global SharpFuzz.CommandLine
 ```
 
-## Usage of afl-fuzz on Linux
+### Usage of libfuzzer on Windows and Linux
+
+To run a fuzz target with libfuzzer on Windows, execute the following commands:
+
+```cmd
+cd BinaryDecoder
+./libfuzz.bat
+```
+
+On Linux, execute the following commands in a bash window:
+
+```bash
+cd BinaryDecoder
+./libfuzz.sh
+```
+
+A menu will show up to allow the selection of a fuzzer target function to execute.
+
+Now the fuzzer is started and runs until it hits a crash or timeout or until it is stopped manually by hitting Ctrl-C. Libfuzz writes findings in the current directory with the prefix crash- or timeout.
+
+To replay the test cases that caused the fuzzer to crash, execute the following command:
+
 ## Afl-fuzz
 
 ### Usage of afl-fuzz on Linux
@@ -94,6 +115,8 @@ cd BinaryDecoder
 ./aflfuzz.sh
 ```
 
-A menu will show up and allow the selection of a fuzzer target function to execute.
+A menu will show up to allow the selection of a fuzzer target function to execute.
 
-Now the fuzzer is started and will run until it is stopped manually by hitting Ctrl-C. The fuzzer will create a directory `findings` in the fuzzer directory, which contains the test cases that caused the fuzzer to crash. 
+Now the fuzzer is started and runs until it is stopped manually by hitting Ctrl-C. The fuzzer will create a directory `findings` in the fuzzer directory, which contains the test cases that caused the fuzzer to crash. 
+
+To replay the test cases that caused the fuzzer to crash, execute the following command:

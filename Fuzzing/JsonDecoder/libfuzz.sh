@@ -1,0 +1,1 @@
+pwsh ../scripts/fuzz-libfuzzer.ps1 -libFuzzer "./libfuzzer-dotnet-ubuntu" -project ./Fuzz/JsonDecoder.Fuzz.csproj -fuzztarget LibfuzzJsonDecoder -corpus ./Fuzz/Testcases/
