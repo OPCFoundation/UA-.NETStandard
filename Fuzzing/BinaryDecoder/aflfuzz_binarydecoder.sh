@@ -1,1 +1,0 @@
-pwsh ../scripts/fuzz.ps1 ./Fuzz/BinaryDecoder.Fuzz.csproj -i ./Fuzz/Testcases -fuzztarget AflfuzzBinaryDecoder

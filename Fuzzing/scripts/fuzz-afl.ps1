@@ -58,10 +58,10 @@ foreach ($fuzzingTarget in $fuzzingTargets) {
 $env:AFL_SKIP_BIN_CHECK = 1
 
 if ($x) {
-    Write-Output afl-fuzz -i $i -o $findingsDir -t $t -m none -x $x dotnet $project $fuzztarget
+    Write-Output "afl-fuzz -i $i -o $findingsDir -t $t -m none -x $x dotnet $project $fuzztarget"
     afl-fuzz -i $i -o $findingsDir -t $t -m none -x $x dotnet $project $fuzztarget
 }
 else {
-    Write-Output afl-fuzz -i $i -o $findingsDir -t $t -m none dotnet $project $fuzztarget
+    Write-Output "afl-fuzz -i $i -o $findingsDir -t $t -m none dotnet $project $fuzztarget"
     afl-fuzz -i $i -o $findingsDir -t $t -m none dotnet $project $fuzztarget
 }

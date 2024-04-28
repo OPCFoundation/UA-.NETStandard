@@ -2,7 +2,7 @@
 
 # Function to display the menu
 display_menu() {
-    echo "Select a OPA UA encoder fuzzing function:"
+    echo "Select an OPA UA encoder fuzzing function:"
     echo "1. Opc.Ua.BinaryDecoder"
     echo "2. Opc.Ua.BinaryEncoder"
     echo "3. Opc.Ua.JsonDecoder"
@@ -10,7 +10,7 @@ display_menu() {
     echo "5. Exit"
 }
 
-# Function to execute PowerShell script based on user choice
+# Function to execute fuzz-afl PowerShell script based on user choice
 execute_powershell_script() {
     case $1 in
         1)
@@ -35,24 +35,22 @@ execute_powershell_script() {
     esac
 }
 
-# Main script
-while true; do
-    display_menu
+# Main 
+display_menu
 
-    read -p "Enter your choice (1-5): " choice
+read -p "Enter your choice (1-5): " choice
 
-    case $choice in
-        1|2|3|4)
-            execute_powershell_script $choice
-            ;;
-        5)
-            echo "Exiting."
-            break
-            ;;
-        *)
-            echo "Invalid input. Please enter a number between 1 and 5."
-            ;;
-    esac
+case $choice in
+    1|2|3|4)
+        execute_powershell_script $choice
+        ;;
+    5)
+        echo "Exiting."
+        break
+        ;;
+    *)
+        echo "Invalid input. Please enter a number between 1 and 5."
+        ;;
+esac
 
-    echo
-done
+echo 

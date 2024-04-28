@@ -4,7 +4,7 @@ This project provides integration of Sharpfuzz with the UA.NET Standard library 
 
 Fuzzers for the following decoders are located in the `Fuzzing` directory:
 - BinaryDecoder
-- JsonDecoder (planned)
+- JsonDecoder
 - XmlDecoder (planned)
 - CRL and Certificate decoder functions using the .NET ASN.1 decoder (planned)
 
@@ -22,7 +22,7 @@ Both fuzzers are supported on Linux. afl-fuzz can be compiled on any Linux syste
 
 ### Installation of required tools
 
-The full instructions for setting up sharpfuzz can be found at https://github.com/Metalnem/sharpfuzz/blob/master/README.md.
+The full instructions for setting up sharpfuzz can be found at this [README](https://github.com/Metalnem/sharpfuzz/blob/master/README.md).
 The following steps are required to set up the environment: 
 
 - Open a terminal and run the following commands to install the required packages to compile afl-fuzz:
@@ -40,7 +40,7 @@ sudo apt-get install -y dotnet-sdk-8.0
 ```
 
 The supplied scripts require powershell on Linux to be installed. 
-See https://learn.microsoft.com/en-us/powershell/scripting/install/install-ubuntu?view=powershell-7.4
+See [Powershell install on Linux](https://learn.microsoft.com/en-us/powershell/scripting/install/install-ubuntu?view=powershell-7.4).
 
 To compile and install afl-fuzz and to install sharpfuzz, run the following commands:
 
@@ -71,7 +71,9 @@ afl-fuzz --help
 sharpfuzz
 ```
 
-## Installation for libfuzzer on Windows
+## Libfuzzer
+
+### Installation for libfuzzer on Windows
 
 Install the latest dotnet SDK and runtime from https://dotnet.microsoft.com/download/dotnet/
 
@@ -81,12 +83,17 @@ dotnet tool install --global SharpFuzz.CommandLine
 ```
 
 ## Usage of afl-fuzz on Linux
+## Afl-fuzz
 
-To run the afl-fuzz fuzzing project, execute the following commands, e.g. for the BinaryDecoder fuzzer:
+### Usage of afl-fuzz on Linux
+
+To run the afl-fuzz fuzzing project, execute the following commands:
 
 ```bash
 cd BinaryDecoder
-./fuzz.sh
+./aflfuzz.sh
 ```
+
+A menu will show up and allow the selection of a fuzzer target function to execute.
 
 Now the fuzzer is started and will run until it is stopped manually by hitting Ctrl-C. The fuzzer will create a directory `findings` in the fuzzer directory, which contains the test cases that caused the fuzzer to crash. 
