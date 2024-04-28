@@ -83,7 +83,7 @@ public static partial class FuzzableCode
     /// The fuzz target for the JsonDecoder.
     /// </summary>
     /// <param name="json">A string with fuzz content.</param>
-    private static IEncodeable FuzzJsonDecoderCore(string json)
+    internal static IEncodeable FuzzJsonDecoderCore(string json, bool throwAll = false)
     {
         try
         {
@@ -98,7 +98,11 @@ public static partial class FuzzableCode
             {
                 case StatusCodes.BadEncodingLimitsExceeded:
                 case StatusCodes.BadDecodingError:
-                    return null;
+                    if (!throwAll)
+                    {
+                        return null;
+                    }
+                    break;
             }
 
             throw;

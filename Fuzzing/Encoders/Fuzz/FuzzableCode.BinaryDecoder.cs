@@ -86,7 +86,7 @@ public static partial class FuzzableCode
     /// The fuzz target for the BinaryDecoder.
     /// </summary>
     /// <param name="stream">A memory stream with fuzz content.</param>
-    private static IEncodeable FuzzBinaryDecoderCore(MemoryStream stream)
+    internal static IEncodeable FuzzBinaryDecoderCore(MemoryStream stream, bool throwAll = false)
     {
         try
         {
@@ -101,7 +101,11 @@ public static partial class FuzzableCode
             {
                 case StatusCodes.BadEncodingLimitsExceeded:
                 case StatusCodes.BadDecodingError:
-                    return null;
+                    if (!throwAll)
+                    {
+                        return null;
+                    }
+                    break;
             }
 
             throw;

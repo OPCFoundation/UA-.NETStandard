@@ -9,6 +9,8 @@
 
   <ItemGroup>
     <Compile Include="..\Fuzz\FuzzableCode.cs" Link="FuzzableCode.cs" />
+    <Compile Include="..\Fuzz\FuzzableCode.BinaryDecoder.cs" Link="FuzzableCode.BinaryDecoder.cs" />
+    <Compile Include="..\Fuzz\FuzzableCode.JsonDecoder.cs" Link="FuzzableCode.JsonDecoder.cs" />
     <Compile Include="..\..\common\Fuzz.Tools\Program.cs" Link="Program.cs" />
     <Compile Include="..\..\common\Fuzz.Tools\Playback.cs" Link="Playback.cs" />
     <Compile Include="..\..\common\Fuzz.Tools\Testcases.cs" Link="Testcases.cs" />

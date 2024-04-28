@@ -306,11 +306,15 @@ namespace Opc.Ua
             // convert the namespace uri to an index.
             NodeId typeId = ExpandedNodeId.ToNodeId(message.TypeId, m_context.NamespaceUris);
 
+            PushNamespace(Namespaces.OpcUaXsd);
+
             // write the type id.
             WriteNodeId("TypeId", typeId);
 
             // write the message.
             WriteEncodeable("Body", message, message.GetType());
+
+            PopNamespace();
         }
 
         /// <summary>
