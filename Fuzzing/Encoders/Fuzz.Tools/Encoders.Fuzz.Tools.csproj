@@ -3,8 +3,8 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>$(AppTargetFramework)</TargetFramework>
-    <AssemblyName>BinaryDecoder.Fuzz.Tools</AssemblyName>
-    <RootNamespace>BinaryDecoder.Fuzz.Tools</RootNamespace>
+    <AssemblyName>Encoders.Fuzz.Tools</AssemblyName>
+    <RootNamespace>Encoders.Fuzz.Tools</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

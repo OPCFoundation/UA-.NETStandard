@@ -3,6 +3,9 @@ using System;
 using System.IO;
 using Opc.Ua;
 
+/// <summary>
+/// Fuzzing code for the binary decoder and encoder.
+/// </summary>
 public static partial class FuzzableCode
 {
     /// <summary>

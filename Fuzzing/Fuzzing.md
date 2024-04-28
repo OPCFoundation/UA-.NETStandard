@@ -10,7 +10,7 @@ Fuzzers for the following decoders are located in the `Fuzzing` directory:
 
 Most of the supporting code is shared between all projects, only the project names and the fuzzable support functions differ.
 
-A Tools application for each fuzzer supports recreation of the `Testcases` and to replay the test cases that caused the fuzzer to crash or to hang. The application is located in the `*.Fuzz.Tools` folders.
+A Tools application supports recreation of the `Testcases` and to replay the test cases that caused the fuzzer to crash or to hang. The application is located in the `*.Fuzz.Tools` folders.
 
 ## Installation for afl-fuzz and libfuzzer on Linux
 

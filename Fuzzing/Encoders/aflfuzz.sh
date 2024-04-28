@@ -2,7 +2,7 @@
 
 # Function to display the menu
 display_menu() {
-    echo "Select an OPA UA encoder fuzzing function:"
+    echo "Select a OPA UA Encoder fuzzing function:"
     echo "1. Opc.Ua.BinaryDecoder"
     echo "2. Opc.Ua.BinaryEncoder"
     echo "3. Opc.Ua.JsonDecoder"
@@ -15,19 +15,19 @@ execute_powershell_script() {
     case $1 in
         1)
             echo "Running afl-fuzz with Opc.Ua.BinaryDecoder"
-            pwsh ../scripts/fuzz-afl.ps1 ./Fuzz/BinaryDecoder.Fuzz.csproj -i ./Fuzz/TestcasesBinary -fuzztarget AflfuzzBinaryDecoder
+            pwsh ../scripts/fuzz-afl.ps1 ./Fuzz/Encoders.Fuzz.csproj -i ./Fuzz/Testcases.Binary -fuzztarget AflfuzzBinaryDecoder
             ;;
         2)
             echo "Running afl-fuzz with Opc.Ua.BinaryEncoder"
-            pwsh ../scripts/fuzz-afl.ps1 ./Fuzz/BinaryDecoder.Fuzz.csproj -i ./Fuzz/TestcasesBinary -fuzztarget AflfuzzBinaryEncoder
+            pwsh ../scripts/fuzz-afl.ps1 ./Fuzz/Encoders.Fuzz.csproj -i ./Fuzz/Testcases.Binary -fuzztarget AflfuzzBinaryEncoder
             ;;
         3)
             echo "Running afl-fuzz with Opc.Ua.JsonDecoder"
-            pwsh ../scripts/fuzz-afl.ps1 ./Fuzz/BinaryDecoder.Fuzz.csproj -i ./Fuzz/TestcasesJson -x ../dictionaries/json.dict -fuzztarget AflfuzzJsonDecoder
+            pwsh ../scripts/fuzz-afl.ps1 ./Fuzz/Encoders.Fuzz.csproj -i ./Fuzz/Testcases.Json -x ../dictionaries/json.dict -fuzztarget AflfuzzJsonDecoder
             ;;
         4)
             echo "Running afl-fuzz with Opc.Ua.JsonEncoder"
-            pwsh ../scripts/fuzz-afl.ps1 ./Fuzz/BinaryDecoder.Fuzz.csproj -i ./Fuzz/TestcasesJson -x ../dictionaries/json.dict -fuzztarget AflfuzzJsonEncoder
+            pwsh ../scripts/fuzz-afl.ps1 ./Fuzz/Encoders.Fuzz.csproj -i ./Fuzz/Testcases.Json -x ../dictionaries/json.dict -fuzztarget AflfuzzJsonEncoder
             ;;
         *)
             echo "Invalid option. Exiting."

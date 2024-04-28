@@ -4,6 +4,9 @@ using System;
 using System.Text;
 using Opc.Ua;
 
+/// <summary>
+/// Fuzzing code for the JSON decoder and encoder.
+/// </summary>
 public static partial class FuzzableCode
 {
     /// <summary>
