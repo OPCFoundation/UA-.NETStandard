@@ -84,25 +84,23 @@ dotnet tool install --global SharpFuzz.CommandLine
 
 ### Usage of libfuzzer on Windows and Linux
 
-To run a fuzz target with libfuzzer on Windows, execute the following commands:
+To run a fuzz target with libfuzzer on Windows, from your github cloned project root, execute the following commands:
 
 ```cmd
-cd BinaryDecoder
+cd Fuzzing/Encoders
 ./libfuzz.bat
 ```
 
 On Linux, execute the following commands in a bash window:
 
 ```bash
-cd BinaryDecoder
+cd Fuzzing/Encoders
 ./libfuzz.sh
 ```
 
 A menu will show up to allow the selection of a fuzzer target function to execute.
 
-Now the fuzzer is started and runs until it hits a crash or timeout or until it is stopped manually by hitting Ctrl-C. Libfuzz writes findings in the current directory with the prefix crash- or timeout.
-
-To replay the test cases that caused the fuzzer to crash, execute the following command:
+Now the fuzzer is started and runs until it hits a crash or timeout or until it is stopped manually by hitting Ctrl-C. Libfuzz writes findings in the current directory with the prefix crash- or timeout-.
 
 ## Afl-fuzz
 
@@ -111,7 +109,7 @@ To replay the test cases that caused the fuzzer to crash, execute the following 
 To run the afl-fuzz fuzzing project, execute the following commands:
 
 ```bash
-cd BinaryDecoder
+cd Fuzzing/Encoders
 ./aflfuzz.sh
 ```
 
@@ -119,4 +117,12 @@ A menu will show up to allow the selection of a fuzzer target function to execut
 
 Now the fuzzer is started and runs until it is stopped manually by hitting Ctrl-C. The fuzzer will create a directory `findings` in the fuzzer directory, which contains the test cases that caused the fuzzer to crash. 
 
-To replay the test cases that caused the fuzzer to crash, execute the following command:
+## Replay of crashes and timeouts with Visual Studio
+
+To replay the test cases that cause the fuzzer to crash or timeout, execute the Encoders.Fuzz.Tools project from Visual Studio with the -p -s option (playback and stacktrace).
+
+The playback tool tries to find all crashes and timeouts in the default folders and plays back on all libfuzzer fuzz targets. Playing back on the afl-fuzz targets are skipped because they were duplicates.
+
+## Recreate or improve Testcases with Visual Studio
+
+To recreate or improve the Testcases, execute the Encoders.Fuzz.Tools project from Visual Studio with the -t option, then all Fuzz/Testcases.* folder content is recreated with latest code.
