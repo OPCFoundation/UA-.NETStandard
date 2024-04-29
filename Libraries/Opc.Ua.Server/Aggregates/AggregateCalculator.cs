@@ -121,7 +121,7 @@ namespace Opc.Ua.Server
         /// Queues a raw value for processing.
         /// </summary>
         /// <param name="value">The data value to process.</param>
-        /// <returns>True if successful, false if the timestamp has been superceeded by values already in the stream.</returns>
+        /// <returns>True if successful, false if the timestamp has been superseded by values already in the stream.</returns>
         public bool QueueRawValue(DataValue value)
         {
             // ignore bad data.
@@ -240,7 +240,7 @@ namespace Opc.Ua.Server
                 value.WrappedValue = Variant.Null;
             }
             
-            // delete uneeded data.
+            // delete unneeded data.
             if (TimeFlowsBackward)
             {
                 if (CurrentSlice.LateBound != null)

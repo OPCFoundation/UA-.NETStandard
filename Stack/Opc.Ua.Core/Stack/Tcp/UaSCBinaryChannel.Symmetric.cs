@@ -446,10 +446,7 @@ namespace Opc.Ua.Bindings
             {
                 if (!success)
                 {
-                    if (chunksToProcess != null)
-                    {
-                        chunksToProcess.Release(BufferManager, "WriteSymmetricMessage");
-                    }
+                    chunksToProcess?.Release(BufferManager, "WriteSymmetricMessage");
                 }
             }
         }

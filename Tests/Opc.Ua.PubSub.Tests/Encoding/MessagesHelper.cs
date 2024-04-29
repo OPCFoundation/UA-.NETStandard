@@ -28,11 +28,13 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
+using System.Collections.Generic;
 using System.Xml;
 using Opc.Ua.PubSub.Encoding;
+using System.ComponentModel;
+using System.Threading;
+using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
 {
@@ -179,7 +181,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             UInt32 dataSetMessageContentMask,
             DataSetFieldContentMask dataSetFieldContentMask,
             DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData,
-            double metaDataUpdateTime = 0)
+            double metaDataUpdateTime = 0, uint keyFrameCount = 1)
         {
 
             // Define a PubSub connection with PublisherId
@@ -242,7 +244,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 dataSetWriter.Enabled = true;
                 dataSetWriter.DataSetFieldContentMask = (uint)dataSetFieldContentMask;
                 dataSetWriter.DataSetName = dataSetMetaData.Name;
-                dataSetWriter.KeyFrameCount = 1;
+                dataSetWriter.KeyFrameCount = keyFrameCount;
 
                 DataSetWriterMessageDataType dataSetWriterMessage = null;
                 switch (transportProfileUri)
@@ -341,7 +343,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             JsonDataSetMessageContentMask jsonDataSetMessageContentMask,
             DataSetFieldContentMask dataSetFieldContentMask,
             DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData,
-            double metaDataUpdateTime = 0)
+            double metaDataUpdateTime = 0, uint keyFrameCount = 1)
         {
             return CreatePublisherConfiguration(
                 transportProfileUri, addressUrl,
@@ -349,7 +351,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 (UInt32)jsonNetworkMessageContentMask,
                 (UInt32)jsonDataSetMessageContentMask,
                 dataSetFieldContentMask,
-                dataSetMetaDataArray, nameSpaceIndexForData, metaDataUpdateTime);
+                dataSetMetaDataArray, nameSpaceIndexForData, metaDataUpdateTime, keyFrameCount);
         }
 
         /// <summary>
@@ -375,7 +377,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask,
             UadpDataSetMessageContentMask uadpDataSetMessageContentMask,
             DataSetFieldContentMask dataSetFieldContentMask,
-            DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData)
+            DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData, uint keyFrameCount = 1)
         {
             PubSubConfigurationDataType udpPublisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
                 udpTransportProfileUri,
@@ -383,7 +385,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
                 uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
-                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: nameSpaceIndexForData);
+                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: nameSpaceIndexForData, keyFrameCount: keyFrameCount);
 
             PubSubConfigurationDataType mqttPublisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
                 mqttTransportProfileUri,
@@ -391,13 +393,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
                 uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
-                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: nameSpaceIndexForData);
+                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: nameSpaceIndexForData, keyFrameCount: keyFrameCount);
 
             // add the udp connection too
             if (udpPublisherConfiguration.Connections != null &&
                 udpPublisherConfiguration.Connections.Count > 0)
             {
-                mqttPublisherConfiguration.Connections.Add(udpPublisherConfiguration.Connections[0]);
+                mqttPublisherConfiguration.Connections.Add(udpPublisherConfiguration.Connections.First());
             }
 
             return mqttPublisherConfiguration;
@@ -436,7 +438,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             {
                 foreach (var writerGroup in pubSubConnection.WriterGroups)
                 {
-                    if (ExtensionObject.ToEncodeable(writerGroup.TransportSettings) is BrokerWriterGroupTransportDataType brokerTransportSettings)
+                    BrokerWriterGroupTransportDataType brokerTransportSettings = ExtensionObject.ToEncodeable(writerGroup.TransportSettings)
+                        as BrokerWriterGroupTransportDataType;
+                    if (brokerTransportSettings != null)
                     {
                         brokerTransportSettings.QueueName = topic;
                     }
@@ -466,7 +470,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             UadpDataSetMessageContentMask uadpDataSetMessageContentMask,
             DataSetFieldContentMask dataSetFieldContentMask,
             DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData,
-            double metaDataUpdateTime = 0)
+            double metaDataUpdateTime = 0, uint keyFrameCount = 1)
         {
             return CreatePublisherConfiguration(
                 transportProfileUri, addressUrl,
@@ -474,7 +478,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 (UInt32)uadpNetworkMessageContentMask,
                 (UInt32)uadpDataSetMessageContentMask,
                 dataSetFieldContentMask,
-                dataSetMetaDataArray, nameSpaceIndexForData, metaDataUpdateTime);
+                dataSetMetaDataArray, nameSpaceIndexForData, metaDataUpdateTime, keyFrameCount);
         }
 
         /// <summary>
@@ -496,7 +500,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetFieldContentMask dataSetFieldContentMask,
             DataSetMetaDataType[] dataSetMetaDataArray,
             ushort nameSpaceIndexForData,
-            double metaDataUpdateTime = 0)
+            double metaDataUpdateTime = 0, uint keyFrameCount = 1)
         {
             string writerGroupName = $"WriterGroup {writerGroupId}";
             string brokerMetaData = "$Metadata";
@@ -548,7 +552,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 dataSetWriter.Enabled = true;
                 dataSetWriter.DataSetFieldContentMask = (uint)dataSetFieldContentMask;
                 dataSetWriter.DataSetName = dataSetMetaData.Name;
-                dataSetWriter.KeyFrameCount = 1;
+                dataSetWriter.KeyFrameCount = keyFrameCount;
 
                 DataSetWriterMessageDataType dataSetWriterMessage = null;
                 switch (transportProfileUri)
@@ -694,7 +698,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public static DataSetWriterDataType CreateDataSetWriter(ushort dataSetWriterId,
             string dataSetName,
             DataSetFieldContentMask dataSetFieldContentMask,
-            DataSetWriterMessageDataType messageSettings)
+            DataSetWriterMessageDataType messageSettings, uint keyFrameCount = 1)
         {
             // Define DataSetWriter 'dataSetName'
             DataSetWriterDataType dataSetWriter = new DataSetWriterDataType();
@@ -703,7 +707,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             dataSetWriter.Enabled = true;
             dataSetWriter.DataSetFieldContentMask = (uint)dataSetFieldContentMask;
             dataSetWriter.DataSetName = dataSetName;
-            dataSetWriter.KeyFrameCount = 1;
+            dataSetWriter.KeyFrameCount = keyFrameCount;
 
             dataSetWriter.MessageSettings = new ExtensionObject(messageSettings);
 
@@ -733,7 +737,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             foreach (var field in publishedDataSet.DataSetMetaData.Fields)
             {
                 publishedDataSetSimpleSource.PublishedData.Add(
-                    new PublishedVariableDataType() {
+                    new PublishedVariableDataType()
+                    {
                         PublishedVariable = new NodeId(field.Name, namespaceIndex),
                         AttributeId = Attributes.Value,
                     });
@@ -798,19 +803,18 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetMetaDataType dataSetMetaData,
             DataSetFieldContentMask dataSetFieldContentMask,
             DataSetReaderMessageDataType messageSettings,
-            DataSetReaderTransportDataType transportSettings)
+            DataSetReaderTransportDataType transportSettings, uint keyFrameCount = 1)
         {
             // Define DataSetReader 'dataSetName'
             DataSetReaderDataType dataSetReader = new DataSetReaderDataType();
             dataSetReader.Name = $"Reader {writerGroupId}{dataSetWriterId}";
             dataSetReader.PublisherId = publisherId;
             dataSetReader.WriterGroupId = writerGroupId;
-            //dataSetReader.DataSetWriterId = 0;
             dataSetReader.DataSetWriterId = dataSetWriterId;
             dataSetReader.Enabled = true;
             dataSetReader.DataSetFieldContentMask = (uint)dataSetFieldContentMask;
             //dataSetReader.DataSetName = dataSetName;
-            dataSetReader.KeyFrameCount = 1;
+            dataSetReader.KeyFrameCount = keyFrameCount;
             dataSetReader.DataSetMetaData = dataSetMetaData;
 
             dataSetReader.MessageSettings = new ExtensionObject(messageSettings);
@@ -839,7 +843,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             JsonNetworkMessageContentMask jsonNetworkMessageContentMask,
             JsonDataSetMessageContentMask jsonDataSetMessageContentMask,
             DataSetFieldContentMask dataSetFieldContentMask,
-            DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData)
+            DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData, uint keyFrameCount = 1)
         {
             return CreateSubscriberConfiguration(
                 transportProfileUri, addressUrl,
@@ -847,7 +851,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 (UInt32)jsonNetworkMessageContentMask,
                 (UInt32)jsonDataSetMessageContentMask,
                 dataSetFieldContentMask,
-                dataSetMetaDataArray, nameSpaceIndexForData);
+                dataSetMetaDataArray, nameSpaceIndexForData, keyFrameCount);
         }
 
         /// <summary>
@@ -870,7 +874,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             UInt32 networkMessageContentMask,
             UInt32 dataSetMessageContentMask,
             DataSetFieldContentMask dataSetFieldContentMask,
-            DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData)
+            DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData, uint keyFrameCount = 1)
         {
             // Define a PubSub connection with PublisherId
             PubSubConnectionDataType pubSubConnection1 = CreatePubSubConnection(transportProfileUri, addressUrl, publisherId, PubSubType.Subscriber);
@@ -904,7 +908,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }
                 dataSetReader.Enabled = true;
                 dataSetReader.DataSetFieldContentMask = (uint)dataSetFieldContentMask;
-                dataSetReader.KeyFrameCount = 1;
+                dataSetReader.KeyFrameCount = keyFrameCount;
                 dataSetReader.DataSetMetaData = dataSetMetaData;
 
                 DataSetReaderMessageDataType dataSetReaderMessageSettings = null;
@@ -925,6 +929,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         };
                         dataSetReaderTransportSettings = new BrokerDataSetReaderTransportDataType() {
                             QueueName = brokerQueueName,
+                            MetaDataQueueName = $"{brokerQueueName}/{brokerMetaData}",
                         };
                         break;
                     case Profiles.PubSubMqttJsonTransport:
@@ -993,7 +998,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask,
             UadpDataSetMessageContentMask uadpDataSetMessageContentMask,
             DataSetFieldContentMask dataSetFieldContentMask,
-            DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData)
+            DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData, uint keyFrameCount = 1)
         {
             return CreateSubscriberConfiguration(
                 transportProfileUri, addressUrl,
@@ -1001,7 +1006,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 (UInt32)uadpNetworkMessageContentMask,
                 (UInt32)uadpDataSetMessageContentMask,
                 dataSetFieldContentMask,
-                dataSetMetaDataArray, nameSpaceIndexForData);
+                dataSetMetaDataArray, nameSpaceIndexForData, keyFrameCount);
         }
 
         /// <summary>
@@ -1094,7 +1099,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 {
                     foreach (var dataSetReader in readerGroup.DataSetReaders)
                     {
-                        if (ExtensionObject.ToEncodeable(dataSetReader.TransportSettings) is BrokerDataSetReaderTransportDataType brokerTransportSettings)
+                        BrokerDataSetReaderTransportDataType brokerTransportSettings = ExtensionObject.ToEncodeable(dataSetReader.TransportSettings)
+                        as BrokerDataSetReaderTransportDataType;
+                        if (brokerTransportSettings != null)
                         {
                             brokerTransportSettings.QueueName = topic;
                         }
@@ -1120,7 +1127,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             metaData.DataSetClassId = Uuid.Empty;
             metaData.Name = dataSetName;
             metaData.Fields = fieldMetaDatas;
-            metaData.ConfigurationVersion = new ConfigurationVersionDataType() {
+            metaData.ConfigurationVersion = new ConfigurationVersionDataType()
+            {
                 MajorVersion = majorVersion,
                 MinorVersion = minorVersion,
             };
@@ -1134,6 +1142,25 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         #region Get UaDataNetwork type messages
 
         /// <summary>
+        /// Get Uadp | Json type entry
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="networkMessages"></param>
+        /// <returns></returns>
+        public static List<T> GetUaDataNetworkMessages<T>(IList<T> networkMessages) where T : UaNetworkMessage
+        {
+            if(typeof(T) == typeof(UadpNetworkMessage))
+            {
+                return GetUadpUaDataNetworkMessages(networkMessages.Cast<UadpNetworkMessage>().ToList()) as List<T>;
+            }
+            if (typeof(T) == typeof(JsonNetworkMessage))
+            {
+                return GetJsonUaDataNetworkMessages(networkMessages.Cast<JsonNetworkMessage>().ToList()) as List<T>;
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Get Json ua-data entry
         /// </summary>
         /// <param name="networkMessages"></param>
@@ -1143,6 +1170,20 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             if (networkMessages != null)
             {
                 return networkMessages.Where(x => x.MessageType == UaDataMessageType).ToList();
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Get Uadp DatasetMessage type entry
+        /// </summary>
+        /// <param name="networkMessages"></param>
+        /// <returns></returns>
+        public static List<UadpNetworkMessage> GetUadpUaDataNetworkMessages(IList<UadpNetworkMessage> networkMessages)
+        {
+            if (networkMessages != null)
+            {
+                return networkMessages.Where(x => x.UADPNetworkMessageType == UADPNetworkMessageType.DataSetMessage).ToList();
             }
             return null;
         }
@@ -1191,185 +1232,186 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             dataSetMetaData.DataSetClassId = new Uuid(Guid.NewGuid());
             dataSetMetaData.Name = dataSetName;
             dataSetMetaData.Fields = new FieldMetaDataCollection()
+            {
+               new FieldMetaData()
                 {
-                   new FieldMetaData()
-                    {
-                        Name = "BoolToggleMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.Boolean,
-                        DataType = DataTypeIds.Boolean,
-                        ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "SByteMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.SByte,
-                        DataType = DataTypeIds.SByte,
-                        ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "ByteMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.Byte,
-                        DataType = DataTypeIds.Byte,
-                        ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "Int16Matrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.Int16,
-                        DataType = DataTypeIds.Int16,
-                        ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "UInt16Matrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.UInt16,
-                        DataType = DataTypeIds.UInt16,
-                        ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "Int32Matrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.Int32,
-                        DataType = DataTypeIds.Int32,
-                        ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "UInt32Matrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                         BuiltInType = (byte)BuiltInType.UInt32,
-                        DataType = DataTypeIds.UInt32,
-                        ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "Int64Matrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.Int64,
-                        DataType = DataTypeIds.UInt64,
-                        ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "UInt64Matrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                         BuiltInType = (byte)BuiltInType.UInt64,
-                        DataType = DataTypeIds.UInt64,
-                        ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "FloatMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.Float,
-                        DataType = DataTypeIds.Float,
-                        ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "DoubleMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.Double,
-                        DataType = DataTypeIds.Double,
-                        ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "StringMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.String,
-                        DataType = DataTypeIds.String,
-                        ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "DateTimeMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.DateTime,
-                        DataType = DataTypeIds.DateTime,
-                        ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "GuidMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.Guid,
-                        DataType = DataTypeIds.Guid,
-                        ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "ByteStringMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.ByteString,
-                        DataType = DataTypeIds.ByteString,
-                        ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "XmlElementMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.XmlElement,
-                        DataType = DataTypeIds.XmlElement,
-                        ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "NodeIdMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.NodeId,
-                        DataType = DataTypeIds.NodeId,
-                        ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "ExpandedNodeIdMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.ExpandedNodeId,
-                        DataType = DataTypeIds.ExpandedNodeId,
-                        ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "StatusCodeMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.StatusCode,
-                        DataType = DataTypeIds.StatusCode,
-                        ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "QualifiedNameMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.QualifiedName,
-                        DataType = DataTypeIds.QualifiedName,
-                        ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "LocalizedTextMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.LocalizedText,
-                        DataType = DataTypeIds.LocalizedText,
-                        ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "DiagnosticInfoMatrix",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.DiagnosticInfo,
-                        DataType = DataTypeIds.DiagnosticInfo,
-                        ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
-                    },
-                };
-            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
+                    Name = "BoolToggleMatrix",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.Boolean,
+                    DataType = DataTypeIds.Boolean,
+                    ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "SByteMatrix",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.SByte,
+                    DataType = DataTypeIds.SByte,
+                    ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "ByteMatrix",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.Byte,
+                    DataType = DataTypeIds.Byte,
+                    ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "Int16Matrix",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.Int16,
+                    DataType = DataTypeIds.Int16,
+                    ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "UInt16Matrix",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.UInt16,
+                    DataType = DataTypeIds.UInt16,
+                    ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "Int32Matrix",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.Int32,
+                    DataType = DataTypeIds.Int32,
+                    ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "UInt32Matrix",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                     BuiltInType = (byte)BuiltInType.UInt32,
+                    DataType = DataTypeIds.UInt32,
+                    ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "Int64Matrix",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.Int64,
+                    DataType = DataTypeIds.UInt64,
+                    ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "UInt64Matrix",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                     BuiltInType = (byte)BuiltInType.UInt64,
+                    DataType = DataTypeIds.UInt64,
+                    ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "FloatMatrix",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.Float,
+                    DataType = DataTypeIds.Float,
+                    ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "DoubleMatrix",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.Double,
+                    DataType = DataTypeIds.Double,
+                    ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "StringMatrix",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.String,
+                    DataType = DataTypeIds.String,
+                    ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "DateTimeMatrix",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.DateTime,
+                    DataType = DataTypeIds.DateTime,
+                    ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "GuidMatrix",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.Guid,
+                    DataType = DataTypeIds.Guid,
+                    ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "ByteStringMatrix",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.ByteString,
+                    DataType = DataTypeIds.ByteString,
+                    ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "XmlElementMatrix",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.XmlElement,
+                    DataType = DataTypeIds.XmlElement,
+                    ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "NodeIdMatrix",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.NodeId,
+                    DataType = DataTypeIds.NodeId,
+                    ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "ExpandedNodeIdMatrix",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.ExpandedNodeId,
+                    DataType = DataTypeIds.ExpandedNodeId,
+                    ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "StatusCodeMatrix",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.StatusCode,
+                    DataType = DataTypeIds.StatusCode,
+                    ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "QualifiedNameMatrix",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.QualifiedName,
+                    DataType = DataTypeIds.QualifiedName,
+                    ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "LocalizedTextMatrix",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.LocalizedText,
+                    DataType = DataTypeIds.LocalizedText,
+                    ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "DiagnosticInfoMatrix",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.DiagnosticInfo,
+                    DataType = DataTypeIds.DiagnosticInfo,
+                    ValueRank = ValueRanks.TwoDimensions, Description = LocalizedText.Null
+                },
+            };
+            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType()
+            {
                 MinorVersion = 1,
                 MajorVersion = 1
             };
@@ -1389,185 +1431,186 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             dataSetMetaData.DataSetClassId = new Uuid(Guid.NewGuid());
             dataSetMetaData.Name = dataSetName;
             dataSetMetaData.Fields = new FieldMetaDataCollection()
+            {
+               new FieldMetaData()
                 {
-                   new FieldMetaData()
-                    {
-                        Name = "BoolToggleArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.Boolean,
-                        DataType = DataTypeIds.Boolean,
-                        ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "SByteArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.SByte,
-                        DataType = DataTypeIds.SByte,
-                        ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "ByteArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.Byte,
-                        DataType = DataTypeIds.Byte,
-                        ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "Int16Array",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.Int16,
-                        DataType = DataTypeIds.Int16,
-                        ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "UInt16Array",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.UInt16,
-                        DataType = DataTypeIds.UInt16,
-                        ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "Int32Array",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.Int32,
-                        DataType = DataTypeIds.Int32,
-                        ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "UInt32Array",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                         BuiltInType = (byte)BuiltInType.UInt32,
-                        DataType = DataTypeIds.UInt32,
-                        ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "Int64Array",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.Int64,
-                        DataType = DataTypeIds.UInt64,
-                        ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "UInt64Array",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                         BuiltInType = (byte)BuiltInType.UInt64,
-                        DataType = DataTypeIds.UInt64,
-                        ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "FloatArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.Float,
-                        DataType = DataTypeIds.Float,
-                        ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "DoubleArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.Double,
-                        DataType = DataTypeIds.Double,
-                        ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "StringArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.String,
-                        DataType = DataTypeIds.String,
-                        ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "DateTimeArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.DateTime,
-                        DataType = DataTypeIds.DateTime,
-                        ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "GuidArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.Guid,
-                        DataType = DataTypeIds.Guid,
-                        ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "ByteStringArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.ByteString,
-                        DataType = DataTypeIds.ByteString,
-                        ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "XmlElementArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.XmlElement,
-                        DataType = DataTypeIds.XmlElement,
-                        ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "NodeIdArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.NodeId,
-                        DataType = DataTypeIds.NodeId,
-                        ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "ExpandedNodeIdArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.ExpandedNodeId,
-                        DataType = DataTypeIds.ExpandedNodeId,
-                        ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "StatusCodeArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.StatusCode,
-                        DataType = DataTypeIds.StatusCode,
-                        ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "QualifiedNameArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.QualifiedName,
-                        DataType = DataTypeIds.QualifiedName,
-                        ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "LocalizedTextArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.LocalizedText,
-                        DataType = DataTypeIds.LocalizedText,
-                        ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "DiagnosticInfoArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.DiagnosticInfo,
-                        DataType = DataTypeIds.DiagnosticInfo,
-                        ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
-                    },
-                };
-            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
+                    Name = "BoolToggleArray",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.Boolean,
+                    DataType = DataTypeIds.Boolean,
+                    ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "SByteArray",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.SByte,
+                    DataType = DataTypeIds.SByte,
+                    ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "ByteArray",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.Byte,
+                    DataType = DataTypeIds.Byte,
+                    ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "Int16Array",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.Int16,
+                    DataType = DataTypeIds.Int16,
+                    ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "UInt16Array",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.UInt16,
+                    DataType = DataTypeIds.UInt16,
+                    ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "Int32Array",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.Int32,
+                    DataType = DataTypeIds.Int32,
+                    ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "UInt32Array",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                     BuiltInType = (byte)BuiltInType.UInt32,
+                    DataType = DataTypeIds.UInt32,
+                    ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "Int64Array",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.Int64,
+                    DataType = DataTypeIds.UInt64,
+                    ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "UInt64Array",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                     BuiltInType = (byte)BuiltInType.UInt64,
+                    DataType = DataTypeIds.UInt64,
+                    ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "FloatArray",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.Float,
+                    DataType = DataTypeIds.Float,
+                    ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "DoubleArray",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.Double,
+                    DataType = DataTypeIds.Double,
+                    ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "StringArray",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.String,
+                    DataType = DataTypeIds.String,
+                    ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "DateTimeArray",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.DateTime,
+                    DataType = DataTypeIds.DateTime,
+                    ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "GuidArray",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.Guid,
+                    DataType = DataTypeIds.Guid,
+                    ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "ByteStringArray",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.ByteString,
+                    DataType = DataTypeIds.ByteString,
+                    ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "XmlElementArray",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.XmlElement,
+                    DataType = DataTypeIds.XmlElement,
+                    ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "NodeIdArray",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.NodeId,
+                    DataType = DataTypeIds.NodeId,
+                    ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "ExpandedNodeIdArray",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.ExpandedNodeId,
+                    DataType = DataTypeIds.ExpandedNodeId,
+                    ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "StatusCodeArray",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.StatusCode,
+                    DataType = DataTypeIds.StatusCode,
+                    ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "QualifiedNameArray",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.QualifiedName,
+                    DataType = DataTypeIds.QualifiedName,
+                    ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "LocalizedTextArray",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.LocalizedText,
+                    DataType = DataTypeIds.LocalizedText,
+                    ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "DiagnosticInfoArray",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.DiagnosticInfo,
+                    DataType = DataTypeIds.DiagnosticInfo,
+                    ValueRank = ValueRanks.OneDimension, Description = LocalizedText.Null
+                },
+            };
+            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType()
+            {
                 MinorVersion = 1,
                 MajorVersion = 1
             };
@@ -1587,36 +1630,37 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             dataSetMetaData.DataSetClassId = new Uuid(Guid.NewGuid());
             dataSetMetaData.Name = dataSetName;
             dataSetMetaData.Fields = new FieldMetaDataCollection()
+            {
+                new FieldMetaData()
                 {
-                    new FieldMetaData()
-                    {
-                        Name = "BoolToggle",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.Boolean,
-                        DataType = DataTypeIds.Boolean,
-                        ValueRank = ValueRanks.Scalar,
-                        Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "Byte",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.Byte,
-                        DataType = DataTypeIds.Byte,
-                        ValueRank = ValueRanks.Scalar,
-                        Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "SByte",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.SByte,
-                        DataType = DataTypeIds.SByte,
-                        ValueRank = ValueRanks.Scalar,
-                        Description = LocalizedText.Null
-                    },
-                };
-            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
+                    Name = "BoolToggle",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.Boolean,
+                    DataType = DataTypeIds.Boolean,
+                    ValueRank = ValueRanks.Scalar,
+                    Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "Byte",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.Byte,
+                    DataType = DataTypeIds.Byte,
+                    ValueRank = ValueRanks.Scalar,
+                    Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "SByte",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.SByte,
+                    DataType = DataTypeIds.SByte,
+                    ValueRank = ValueRanks.Scalar,
+                    Description = LocalizedText.Null
+                },
+            };
+            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType()
+            {
                 MinorVersion = 1,
                 MajorVersion = 1
             };
@@ -1636,36 +1680,37 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             dataSetMetaData.DataSetClassId = new Uuid(Guid.NewGuid());
             dataSetMetaData.Name = dataSetName;
             dataSetMetaData.Fields = new FieldMetaDataCollection()
+            {
+                new FieldMetaData()
                 {
-                    new FieldMetaData()
-                    {
-                        Name = "UInt16",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.UInt16,
-                        DataType = DataTypeIds.UInt16,
-                        ValueRank = ValueRanks.Scalar,
-                        Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "UInt32",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.UInt32,
-                        DataType = DataTypeIds.UInt32,
-                        ValueRank = ValueRanks.Scalar,
-                        Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "UInt64",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.UInt64,
-                        DataType = DataTypeIds.UInt64,
-                        ValueRank = ValueRanks.Scalar,
-                        Description = LocalizedText.Null
-                    }
-                };
-            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
+                    Name = "UInt16",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.UInt16,
+                    DataType = DataTypeIds.UInt16,
+                    ValueRank = ValueRanks.Scalar,
+                    Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "UInt32",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.UInt32,
+                    DataType = DataTypeIds.UInt32,
+                    ValueRank = ValueRanks.Scalar,
+                    Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "UInt64",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.UInt64,
+                    DataType = DataTypeIds.UInt64,
+                    ValueRank = ValueRanks.Scalar,
+                    Description = LocalizedText.Null
+                }
+            };
+            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType()
+            {
                 MinorVersion = 1,
                 MajorVersion = 1
             };
@@ -1685,36 +1730,37 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             dataSetMetaData.DataSetClassId = new Uuid(Guid.NewGuid());
             dataSetMetaData.Name = dataSetName;
             dataSetMetaData.Fields = new FieldMetaDataCollection()
+            {
+                new FieldMetaData()
                 {
-                    new FieldMetaData()
-                    {
-                        Name = "Int16",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.Int16,
-                        DataType = DataTypeIds.Int16,
-                        ValueRank = ValueRanks.Scalar,
-                        Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "Int32",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.Int32,
-                        DataType = DataTypeIds.Int32,
-                        ValueRank = ValueRanks.Scalar,
-                        Description = LocalizedText.Null
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "Int64",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.Int64,
-                        DataType = DataTypeIds.Int64,
-                        ValueRank = ValueRanks.Scalar,
-                        Description = LocalizedText.Null
-                    }
-                };
-            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
+                    Name = "Int16",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.Int16,
+                    DataType = DataTypeIds.Int16,
+                    ValueRank = ValueRanks.Scalar,
+                    Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "Int32",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.Int32,
+                    DataType = DataTypeIds.Int32,
+                    ValueRank = ValueRanks.Scalar,
+                    Description = LocalizedText.Null
+                },
+                new FieldMetaData()
+                {
+                    Name = "Int64",
+                    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    BuiltInType = (byte)BuiltInType.Int64,
+                    DataType = DataTypeIds.Int64,
+                    ValueRank = ValueRanks.Scalar,
+                    Description = LocalizedText.Null
+                }
+            };
+            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType()
+            {
                 MinorVersion = 1,
                 MajorVersion = 1
             };
@@ -2487,7 +2533,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 },
 
             };
-            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
+            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType()
+            {
                 MinorVersion = 1,
                 MajorVersion = 1
             };
@@ -2498,13 +2545,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         #endregion Create datasets metadata
 
         /// <summary>
-        /// Load publishing data
+        /// Load initial publishing data
         /// </summary>
         /// <param name="pubSubApplication"></param>
         public static void LoadData(UaPubSubApplication pubSubApplication, UInt16 namespaceIndexAllTypes)
         {
-            #region DataSet AllTypes
-            // DataSet 'AllTypes' fill with primitive data
+            #region DataSet data
+            // DataSet fill with primitive data
             DataValue boolToggle = new DataValue(new Variant(false));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggle", namespaceIndexAllTypes), Attributes.Value, boolToggle);
             DataValue byteValue = new DataValue(new Variant((byte)10));
@@ -2710,6 +2757,146 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             { new DiagnosticInfo(1, 1, 1, 1, "Diagnostic_info1"), new DiagnosticInfo(2, 2, 2, 2, "Diagnostic_info2"),
               new DiagnosticInfo(3, 3, 3, 3, "Diagnostic_info3"), new DiagnosticInfo(4, 4, 4, 4, "Diagnostic_info4") }, BuiltInType.DiagnosticInfo, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DiagnosticInfoMatrix", namespaceIndexAllTypes), Attributes.Value, diagnosticInfoValueMatrix);
+            #endregion
+        }
+
+        /// <summary>
+        /// Get datastore data for specified datasets
+        /// </summary>
+        /// <param name="pubSubApplication"></param>
+        /// <param name="uaDataNetworkMessage"></param>
+        /// <param name="namespaceIndexAllTypes"></param>
+        /// <returns></returns>
+        public static Dictionary<NodeId, DataValue> GetDataStoreData(UaPubSubApplication pubSubApplication, UaNetworkMessage uaDataNetworkMessage, UInt16 namespaceIndexAllTypes)
+        {
+            Dictionary<NodeId, DataValue> dataSetsData = new Dictionary<NodeId, DataValue>();
+
+            foreach (UaDataSetMessage datasetMessage in uaDataNetworkMessage.DataSetMessages)
+            {
+                foreach (Field field in datasetMessage.DataSet.Fields)
+                {
+                    NodeId fieldNodeId = new NodeId(field.FieldMetaData.Name, namespaceIndexAllTypes);
+                    DataValue fieldDataValue = pubSubApplication.DataStore.ReadPublishedDataItem(fieldNodeId, Attributes.Value);
+                    if (fieldDataValue != null)
+                    {
+                        if (!dataSetsData.ContainsKey(fieldNodeId))
+                        {
+                            dataSetsData.Add(fieldNodeId, fieldDataValue);
+                        }
+                    }
+                }
+            }
+
+            return dataSetsData;
+        }
+
+        /// <summary>
+        /// Get snapshot data
+        /// </summary>
+        /// <param name="pubSubApplication"></param>
+        /// <param name="namespaceIndexAllTypes"></param>
+        /// <returns></returns>
+        public static Dictionary<NodeId, DataValue> GetSnapshotData(UaPubSubApplication pubSubApplication, UInt16 namespaceIndexAllTypes)
+        {
+            Dictionary<NodeId,DataValue> snapshotData = new Dictionary<NodeId, DataValue>();
+
+            NodeId boolNodeId = new NodeId("BoolToggle", namespaceIndexAllTypes);
+            DataValue boolToggle = pubSubApplication.DataStore.ReadPublishedDataItem(boolNodeId, Attributes.Value);
+            snapshotData.Add(boolNodeId, (DataValue)boolToggle.MemberwiseClone());
+            NodeId byteNodeId = new NodeId("Byte", namespaceIndexAllTypes);
+            DataValue byteValue = pubSubApplication.DataStore.ReadPublishedDataItem(byteNodeId, Attributes.Value);
+            snapshotData.Add(byteNodeId, (DataValue)byteValue.MemberwiseClone());
+            NodeId int16NodeId = new NodeId("Int16", namespaceIndexAllTypes);
+            DataValue int16Value = pubSubApplication.DataStore.ReadPublishedDataItem(int16NodeId, Attributes.Value);
+            snapshotData.Add(int16NodeId,(DataValue)int16Value.MemberwiseClone());
+            NodeId int32NodeId = new NodeId("Int32", namespaceIndexAllTypes);
+            DataValue int32Value = pubSubApplication.DataStore.ReadPublishedDataItem(int32NodeId, Attributes.Value);
+            snapshotData.Add(int32NodeId, (DataValue)int32Value.MemberwiseClone());
+            NodeId uint16NodeId = new NodeId("UInt16", namespaceIndexAllTypes);
+            DataValue uInt16Value = pubSubApplication.DataStore.ReadPublishedDataItem(uint16NodeId, Attributes.Value);
+            snapshotData.Add(uint16NodeId, (DataValue)uInt16Value.MemberwiseClone());
+            NodeId uint32NodeId = new NodeId("UInt32", namespaceIndexAllTypes);
+            DataValue uInt32Value = pubSubApplication.DataStore.ReadPublishedDataItem(uint32NodeId, Attributes.Value);
+            snapshotData.Add(uint32NodeId, (DataValue)uInt32Value.MemberwiseClone());
+            NodeId doubleNodeId = new NodeId("Double", namespaceIndexAllTypes);
+            DataValue doubleValue = pubSubApplication.DataStore.ReadPublishedDataItem(doubleNodeId, Attributes.Value);
+            snapshotData.Add(doubleNodeId, (DataValue)doubleValue.MemberwiseClone());
+            NodeId dateTimeNodeId = new NodeId("DateTime", namespaceIndexAllTypes);
+            DataValue dateTimeValue = pubSubApplication.DataStore.ReadPublishedDataItem(dateTimeNodeId, Attributes.Value);
+            snapshotData.Add(dateTimeNodeId,(DataValue)dateTimeValue.MemberwiseClone());
+
+            return snapshotData;
+        }
+
+        /// <summary>
+        /// Update snapshot publishing data
+        /// </summary>
+        /// <param name="pubSubApplication"></param>
+        /// <param name="namespaceIndexAllTypes"></param>
+        public static void UpdateSnapshotData(UaPubSubApplication pubSubApplication, UInt16 namespaceIndexAllTypes)
+        {
+            #region Update DataSet values
+            // DataSet update with primitive data
+            DataValue boolToggle = pubSubApplication.DataStore.ReadPublishedDataItem(new NodeId("BoolToggle", namespaceIndexAllTypes), Attributes.Value);
+            if (boolToggle.Value is bool)
+            {
+                bool boolVal = Convert.ToBoolean(boolToggle.Value);
+                boolToggle.Value = !boolVal;
+                pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggle", namespaceIndexAllTypes), Attributes.Value, boolToggle);
+            }
+            DataValue byteValue = pubSubApplication.DataStore.ReadPublishedDataItem(new NodeId("Byte", namespaceIndexAllTypes), Attributes.Value);
+            if (byteValue.Value is byte)
+            {
+                byte byteVal = Convert.ToByte(byteValue.Value);
+                byteValue.Value = ++byteVal;
+                pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Byte", namespaceIndexAllTypes), Attributes.Value, byteValue);
+            }
+            DataValue int16Value = pubSubApplication.DataStore.ReadPublishedDataItem(new NodeId("Int16", namespaceIndexAllTypes), Attributes.Value);
+            if (int16Value.Value is Int16)
+            {
+                Int16 int16Val = Convert.ToInt16(int16Value.Value);
+                int intIdentifier = int16Val;
+                Interlocked.CompareExchange(ref intIdentifier, 0, Int16.MaxValue);
+                int16Value.Value = (Int16)Interlocked.Increment(ref intIdentifier);
+                pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int16", namespaceIndexAllTypes), Attributes.Value, int16Value);
+            }
+            DataValue int32Value = pubSubApplication.DataStore.ReadPublishedDataItem(new NodeId("Int32", namespaceIndexAllTypes), Attributes.Value);
+            if (int32Value.Value is Int32)
+            {
+                Int32 int32Val = Convert.ToInt32(int16Value.Value);
+                int intIdentifier = int32Val;
+                Interlocked.CompareExchange(ref intIdentifier, 0, Int32.MaxValue);
+                int32Value.Value = (Int32)Interlocked.Increment(ref intIdentifier);
+                pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int32", namespaceIndexAllTypes), Attributes.Value, int32Value);
+            }
+            DataValue uInt16Value = pubSubApplication.DataStore.ReadPublishedDataItem(new NodeId("UInt16", namespaceIndexAllTypes), Attributes.Value);
+            if (uInt16Value.Value is UInt16)
+            {
+                UInt16 uInt16Val = Convert.ToUInt16(uInt16Value.Value);
+                int intIdentifier = uInt16Val;
+                Interlocked.CompareExchange(ref intIdentifier, 0, UInt16.MaxValue);
+                uInt16Value.Value = (UInt16)Interlocked.Increment(ref intIdentifier);
+                pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt16", namespaceIndexAllTypes), Attributes.Value, uInt16Value);
+            }
+            DataValue uInt32Value = pubSubApplication.DataStore.ReadPublishedDataItem(new NodeId("UInt32", namespaceIndexAllTypes), Attributes.Value);
+            if (uInt32Value.Value is UInt32)
+            {
+                UInt32 uInt32Val = Convert.ToUInt32(uInt32Value.Value);
+                long longIdentifier = uInt32Val;
+                Interlocked.CompareExchange(ref longIdentifier, 0, UInt32.MaxValue);
+                uInt32Value.Value = (UInt32)Interlocked.Increment(ref longIdentifier);
+                pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt32", namespaceIndexAllTypes), Attributes.Value, uInt32Value);
+            }
+            DataValue doubleValue = pubSubApplication.DataStore.ReadPublishedDataItem(new NodeId("Double", namespaceIndexAllTypes), Attributes.Value);
+            if (doubleValue.Value is double)
+            {
+                double doubleVal = Convert.ToDouble(doubleValue.Value);
+                Interlocked.CompareExchange(ref doubleVal, 0, double.MaxValue);
+                doubleValue.Value = ++doubleVal;
+                pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Double", namespaceIndexAllTypes), Attributes.Value, doubleValue);
+            }
+            DataValue dateTimeValue = new DataValue(new Variant(DateTime.UtcNow));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DateTime", namespaceIndexAllTypes), Attributes.Value, dateTimeValue);
             #endregion
         }
 

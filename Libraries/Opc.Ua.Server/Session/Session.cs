@@ -29,9 +29,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Security.Cryptography.X509Certificates;
-using System.Reflection;
 
 namespace Opc.Ua.Server
 {
@@ -342,6 +340,20 @@ namespace Opc.Ua.Server
                     }
 
                     return false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// The last time the session was contacted by the client.
+        /// </summary>
+        public DateTime ClientLastContactTime
+        {
+            get
+            {
+                lock (DiagnosticsLock)
+                {
+                    return m_diagnostics.ClientLastContactTime;
                 }
             }
         }
@@ -945,7 +957,7 @@ namespace Opc.Ua.Server
             {
                 if (policy.IssuedTokenType == Profiles.JwtUserToken)
                 {
-                    issuedToken.IssuedTokenType = IssuedTokenType.JWT; 
+                    issuedToken.IssuedTokenType = IssuedTokenType.JWT;
                 }
             }
 

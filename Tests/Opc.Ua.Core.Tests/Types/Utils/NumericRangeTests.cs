@@ -31,6 +31,8 @@ using System;
 using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.Test;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 
 namespace Opc.Ua.Core.Tests.Types.NumericRange
 {

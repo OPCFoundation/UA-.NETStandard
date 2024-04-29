@@ -33,6 +33,7 @@ using System.Threading;
 using Moq;
 using NUnit.Framework;
 using System.Linq;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
 {
