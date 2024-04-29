@@ -105,6 +105,7 @@ namespace Opc.Ua.Server
                         case ObjectTypes.ServerConfigurationType:
                         {
                             ServerConfigurationState activeNode = new ServerConfigurationState(passiveNode.Parent);
+                            activeNode.ConfigurationFile = new ApplicationConfigurationFileState(activeNode);
                             activeNode.Create(context, passiveNode);
 
                             m_serverConfigurationNode = activeNode;
@@ -119,6 +120,7 @@ namespace Opc.Ua.Server
                                 var serverNode = FindNodeInAddressSpace(ObjectIds.Server);
                                 serverNode?.ReplaceChild(context, activeNode);
                             }
+
                             // remove the reference to server node because it is set as parent
                             activeNode.RemoveReference(ReferenceTypeIds.HasComponent, true, ObjectIds.Server);
 
@@ -203,6 +205,39 @@ namespace Opc.Ua.Server
             m_serverConfigurationNode.ApplyChanges.OnCallMethod = new GenericMethodCalledEventHandler(ApplyChanges);
             m_serverConfigurationNode.GetRejectedList.OnCall = new GetRejectedListMethodStateMethodCallHandler(GetRejectedList);
             m_serverConfigurationNode.ClearChangeMasks(systemContext, true);
+
+            m_serverConfigurationNode.ConfigurationFile.AvailableNetworks.Value = new string[0];
+            m_serverConfigurationNode.ConfigurationFile.AvailablePorts.Value = "40000:60000";
+
+            var policies = this.m_configuration?.ServerConfiguration?.SecurityPolicies;
+
+            if (policies != null)
+            {
+                m_serverConfigurationNode.ConfigurationFile.SecurityPolicyUris.Value = policies.Select(p => p.SecurityPolicyUri).ToArray();
+            }
+
+            var userTokenPolicies = this.m_configuration?.ServerConfiguration?.UserTokenPolicies;
+
+            if (userTokenPolicies != null)
+            {
+                m_serverConfigurationNode.ConfigurationFile.UserTokenTypes.Value = userTokenPolicies.ToArray();
+            }
+
+            m_serverConfigurationNode.ConfigurationFile.CertificateTypes.Value = new NodeId[]
+            {
+                ObjectTypeIds.RsaSha256ApplicationCertificateType
+            };
+
+            m_serverConfigurationNode.ConfigurationFile.LastUpdateTime.Value = DateTime.UtcNow;
+            m_serverConfigurationNode.ConfigurationFile.CurrentVersion.Value = Utils.GetVersionTime();
+            m_serverConfigurationNode.ConfigurationFile.SupportedDataType.Value = DataTypeIds.ApplicationConfigurationDataType;
+            m_serverConfigurationNode.ConfigurationFile.ActivityTimeout.Value = 120000;
+
+            m_serverConfigurationNode.ConfigurationFile.Handle = new ConfigurationFile(
+                m_serverConfigurationNode.ConfigurationFile,
+                new ConfigurationFile.SecureAccess(HasApplicationSecureAdminAccess),
+                new ConfigurationFile.SecureAccess(HasApplicationSecureAdminAccess));
+            m_serverConfigurationNode.ConfigurationFile.ClearChangeMasks(systemContext, true);
 
             // setup certificate group trust list handlers
             foreach (var certGroup in m_certificateGroups)

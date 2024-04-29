@@ -2628,6 +2628,18 @@ namespace Opc.Ua
             return 0;
         }
 
+        private static readonly DateTime kBaseDateTime = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        /// <summary>
+        /// Return the current time in milliseconds since 1/1/2000.
+        /// </summary>
+        /// <returns>The current time in milliseconds since 1/1/2000.</returns>
+        public static uint GetVersionTime()
+        {
+            var ticks = (DateTime.UtcNow - kBaseDateTime).TotalMilliseconds;
+            return (uint)ticks;
+        }
+
         /// <summary>
         /// Returns the linker timestamp for an assembly.
         /// </summary>
