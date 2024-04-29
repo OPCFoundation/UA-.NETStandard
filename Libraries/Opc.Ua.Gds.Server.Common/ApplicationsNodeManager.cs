@@ -672,7 +672,6 @@ namespace Opc.Ua.Gds.Server
                 var chain = new X509Chain();
                 chain.ChainPolicy.RevocationMode = X509RevocationMode.Online;
                 chain.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain;
-#endif
                 using (var x509 = new X509Certificate2(certificate))
                 {
                     if (chain.Build(x509))
