@@ -671,16 +671,7 @@ namespace Opc.Ua.Gds.Server
                 //create chain to validate Certificate against it
                 var chain = new X509Chain();
                 chain.ChainPolicy.RevocationMode = X509RevocationMode.Online;
-                chain.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain; using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(m_configuration.SecurityConfiguration.TrustedIssuerCertificates.StorePath))
-                {
-                    chain.ChainPolicy.ExtraStore.AddRange(store.Enumerate().GetAwaiter().GetResult());
-                }
-#if NET6_0_OR_GREATER
-                using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(m_configuration.SecurityConfiguration.TrustedPeerCertificates.StorePath))
-                {
-                    chain.ChainPolicy.CustomTrustStore.AddRange(store.Enumerate().GetAwaiter().GetResult());
-                    chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-                }
+                chain.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain;
 #endif
                 using (var x509 = new X509Certificate2(certificate))
                 {
