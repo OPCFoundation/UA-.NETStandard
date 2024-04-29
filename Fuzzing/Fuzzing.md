@@ -84,6 +84,8 @@ dotnet tool install --global SharpFuzz.CommandLine
 
 ### Usage of libfuzzer on Windows and Linux
 
+First download the latest libfuzzer-dotnet release for Ubuntu, Debian or Windows from the [project website](https://github.com/Metalnem/libfuzzer-dotnet/releases) and store it in the same folder where the libfuzz command and shell scripts are started.
+
 To run a fuzz target with libfuzzer on Windows, from your github cloned project root, execute the following commands:
 
 ```cmd
