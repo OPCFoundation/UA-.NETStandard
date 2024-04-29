@@ -88,7 +88,8 @@ First download the latest libfuzzer-dotnet release for Ubuntu, Debian or Windows
 
 To run a fuzz target with libfuzzer on Windows, from your github cloned project root, execute the following commands:
 
-```cmd
+On Windows, execute the following commands in a Powershell window:
+```powershell
 cd Fuzzing/Encoders
 ./libfuzz.bat
 ```
