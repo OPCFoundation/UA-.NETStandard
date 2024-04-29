@@ -1557,6 +1557,72 @@
   </xs:complexType>
   <xs:element name="ListOfPublishedDataSetCustomSourceDataType" type="tns:ListOfPublishedDataSetCustomSourceDataType" nillable="true"></xs:element>
 
+  <xs:complexType name="ActionTargetDataType">
+    <xs:sequence>
+      <xs:element name="ActionTargetId" type="xs:unsignedShort" minOccurs="0" />
+      <xs:element name="Name" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="Description" type="ua:LocalizedText" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ActionTargetDataType" type="tns:ActionTargetDataType" />
+
+  <xs:complexType name="ListOfActionTargetDataType">
+    <xs:sequence>
+      <xs:element name="ActionTargetDataType" type="tns:ActionTargetDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfActionTargetDataType" type="tns:ListOfActionTargetDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="PublishedActionDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:PublishedDataSetSourceDataType">
+        <xs:sequence>
+          <xs:element name="RequestDataSetMetaData" type="tns:DataSetMetaDataType" minOccurs="0" nillable="true" />
+          <xs:element name="ActionTargets" type="tns:ListOfActionTargetDataType" minOccurs="0" nillable="true" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="PublishedActionDataType" type="tns:PublishedActionDataType" />
+
+  <xs:complexType name="ListOfPublishedActionDataType">
+    <xs:sequence>
+      <xs:element name="PublishedActionDataType" type="tns:PublishedActionDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfPublishedActionDataType" type="tns:ListOfPublishedActionDataType" nillable="true"></xs:element>
+
+  <xs:simpleType  name="ActionState">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Idle_0" />
+      <xs:enumeration value="Executing_1" />
+      <xs:enumeration value="Done_2" />
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="ActionState" type="tns:ActionState" />
+
+  <xs:complexType name="ListOfActionState">
+    <xs:sequence>
+      <xs:element name="ActionState" type="tns:ActionState" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfActionState" type="tns:ListOfActionState" nillable="true"></xs:element>
+
+  <xs:complexType name="ActionMethodDataType">
+    <xs:sequence>
+      <xs:element name="ObjectId" type="ua:NodeId" minOccurs="0" nillable="true" />
+      <xs:element name="MethodId" type="ua:NodeId" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ActionMethodDataType" type="tns:ActionMethodDataType" />
+
+  <xs:complexType name="ListOfActionMethodDataType">
+    <xs:sequence>
+      <xs:element name="ActionMethodDataType" type="tns:ActionMethodDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfActionMethodDataType" type="tns:ListOfActionMethodDataType" nillable="true"></xs:element>
+
   <xs:simpleType  name="DataSetFieldContentMask">
     <xs:restriction base="xs:unsignedInt">
     </xs:restriction>

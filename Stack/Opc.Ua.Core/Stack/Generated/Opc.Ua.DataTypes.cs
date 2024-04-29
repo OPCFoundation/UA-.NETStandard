@@ -11852,6 +11852,716 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region ActionTargetDataType Class
+    #if (!OPCUA_EXCLUDE_ActionTargetDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class ActionTargetDataType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public ActionTargetDataType()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_actionTargetId = (ushort)0;
+            m_name = null;
+            m_description = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "ActionTargetId", IsRequired = false, Order = 1)]
+        public ushort ActionTargetId
+        {
+            get { return m_actionTargetId;  }
+            set { m_actionTargetId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Name", IsRequired = false, Order = 2)]
+        public string Name
+        {
+            get { return m_name;  }
+            set { m_name = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Description", IsRequired = false, Order = 3)]
+        public LocalizedText Description
+        {
+            get { return m_description;  }
+            set { m_description = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ActionTargetDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ActionTargetDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ActionTargetDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ActionTargetDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteUInt16("ActionTargetId", ActionTargetId);
+            encoder.WriteString("Name", Name);
+            encoder.WriteLocalizedText("Description", Description);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            ActionTargetId = decoder.ReadUInt16("ActionTargetId");
+            Name = decoder.ReadString("Name");
+            Description = decoder.ReadLocalizedText("Description");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            ActionTargetDataType value = encodeable as ActionTargetDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_actionTargetId, value.m_actionTargetId)) return false;
+            if (!Utils.IsEqual(m_name, value.m_name)) return false;
+            if (!Utils.IsEqual(m_description, value.m_description)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (ActionTargetDataType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ActionTargetDataType clone = (ActionTargetDataType)base.MemberwiseClone();
+
+            clone.m_actionTargetId = (ushort)Utils.Clone(this.m_actionTargetId);
+            clone.m_name = (string)Utils.Clone(this.m_name);
+            clone.m_description = (LocalizedText)Utils.Clone(this.m_description);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private ushort m_actionTargetId;
+        private string m_name;
+        private LocalizedText m_description;
+        #endregion
+    }
+
+    #region ActionTargetDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfActionTargetDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ActionTargetDataType")]
+    public partial class ActionTargetDataTypeCollection : List<ActionTargetDataType>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public ActionTargetDataTypeCollection() {}
+
+        /// <remarks />
+        public ActionTargetDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public ActionTargetDataTypeCollection(IEnumerable<ActionTargetDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator ActionTargetDataTypeCollection(ActionTargetDataType[] values)
+        {
+            if (values != null)
+            {
+                return new ActionTargetDataTypeCollection(values);
+            }
+
+            return new ActionTargetDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator ActionTargetDataType[](ActionTargetDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (ActionTargetDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ActionTargetDataTypeCollection clone = new ActionTargetDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((ActionTargetDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region PublishedActionDataType Class
+    #if (!OPCUA_EXCLUDE_PublishedActionDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class PublishedActionDataType : Opc.Ua.PublishedDataSetSourceDataType
+    {
+        #region Constructors
+        /// <remarks />
+        public PublishedActionDataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_requestDataSetMetaData = new DataSetMetaDataType();
+            m_actionTargets = new ActionTargetDataTypeCollection();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "RequestDataSetMetaData", IsRequired = false, Order = 1)]
+        public DataSetMetaDataType RequestDataSetMetaData
+        {
+            get
+            {
+                return m_requestDataSetMetaData;
+            }
+
+            set
+            {
+                m_requestDataSetMetaData = value;
+
+                if (value == null)
+                {
+                    m_requestDataSetMetaData = new DataSetMetaDataType();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ActionTargets", IsRequired = false, Order = 2)]
+        public ActionTargetDataTypeCollection ActionTargets
+        {
+            get
+            {
+                return m_actionTargets;
+            }
+
+            set
+            {
+                m_actionTargets = value;
+
+                if (value == null)
+                {
+                    m_actionTargets = new ActionTargetDataTypeCollection();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.PublishedActionDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.PublishedActionDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.PublishedActionDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.PublishedActionDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteEncodeable("RequestDataSetMetaData", RequestDataSetMetaData, typeof(DataSetMetaDataType));
+            encoder.WriteEncodeableArray("ActionTargets", ActionTargets.ToArray(), typeof(ActionTargetDataType));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            RequestDataSetMetaData = (DataSetMetaDataType)decoder.ReadEncodeable("RequestDataSetMetaData", typeof(DataSetMetaDataType));
+            ActionTargets = (ActionTargetDataTypeCollection)decoder.ReadEncodeableArray("ActionTargets", typeof(ActionTargetDataType));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            PublishedActionDataType value = encodeable as PublishedActionDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!base.IsEqual(encodeable)) return false;
+            if (!Utils.IsEqual(m_requestDataSetMetaData, value.m_requestDataSetMetaData)) return false;
+            if (!Utils.IsEqual(m_actionTargets, value.m_actionTargets)) return false;
+
+            return base.IsEqual(encodeable);
+        }    
+
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (PublishedActionDataType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PublishedActionDataType clone = (PublishedActionDataType)base.MemberwiseClone();
+
+            clone.m_requestDataSetMetaData = (DataSetMetaDataType)Utils.Clone(this.m_requestDataSetMetaData);
+            clone.m_actionTargets = (ActionTargetDataTypeCollection)Utils.Clone(this.m_actionTargets);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private DataSetMetaDataType m_requestDataSetMetaData;
+        private ActionTargetDataTypeCollection m_actionTargets;
+        #endregion
+    }
+
+    #region PublishedActionDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfPublishedActionDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedActionDataType")]
+    public partial class PublishedActionDataTypeCollection : List<PublishedActionDataType>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public PublishedActionDataTypeCollection() {}
+
+        /// <remarks />
+        public PublishedActionDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public PublishedActionDataTypeCollection(IEnumerable<PublishedActionDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator PublishedActionDataTypeCollection(PublishedActionDataType[] values)
+        {
+            if (values != null)
+            {
+                return new PublishedActionDataTypeCollection(values);
+            }
+
+            return new PublishedActionDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator PublishedActionDataType[](PublishedActionDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (PublishedActionDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PublishedActionDataTypeCollection clone = new PublishedActionDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((PublishedActionDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region ActionState Enumeration
+    #if (!OPCUA_EXCLUDE_ActionState)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public enum ActionState
+    {
+        /// <remarks />
+        [EnumMember(Value = "Idle_0")]
+        Idle = 0,
+
+        /// <remarks />
+        [EnumMember(Value = "Executing_1")]
+        Executing = 1,
+
+        /// <remarks />
+        [EnumMember(Value = "Done_2")]
+        Done = 2,
+    }
+
+    #region ActionStateCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfActionState", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ActionState")]
+    public partial class ActionStateCollection : List<ActionState>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public ActionStateCollection() {}
+
+        /// <remarks />
+        public ActionStateCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public ActionStateCollection(IEnumerable<ActionState> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator ActionStateCollection(ActionState[] values)
+        {
+            if (values != null)
+            {
+                return new ActionStateCollection(values);
+            }
+
+            return new ActionStateCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator ActionState[](ActionStateCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (ActionStateCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ActionStateCollection clone = new ActionStateCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((ActionState)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region ActionMethodDataType Class
+    #if (!OPCUA_EXCLUDE_ActionMethodDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class ActionMethodDataType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public ActionMethodDataType()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_objectId = null;
+            m_methodId = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "ObjectId", IsRequired = false, Order = 1)]
+        public NodeId ObjectId
+        {
+            get { return m_objectId;  }
+            set { m_objectId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "MethodId", IsRequired = false, Order = 2)]
+        public NodeId MethodId
+        {
+            get { return m_methodId;  }
+            set { m_methodId = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.ActionMethodDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ActionMethodDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ActionMethodDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ActionMethodDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteNodeId("ObjectId", ObjectId);
+            encoder.WriteNodeId("MethodId", MethodId);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            ObjectId = decoder.ReadNodeId("ObjectId");
+            MethodId = decoder.ReadNodeId("MethodId");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            ActionMethodDataType value = encodeable as ActionMethodDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_objectId, value.m_objectId)) return false;
+            if (!Utils.IsEqual(m_methodId, value.m_methodId)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (ActionMethodDataType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ActionMethodDataType clone = (ActionMethodDataType)base.MemberwiseClone();
+
+            clone.m_objectId = (NodeId)Utils.Clone(this.m_objectId);
+            clone.m_methodId = (NodeId)Utils.Clone(this.m_methodId);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private NodeId m_objectId;
+        private NodeId m_methodId;
+        #endregion
+    }
+
+    #region ActionMethodDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfActionMethodDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ActionMethodDataType")]
+    public partial class ActionMethodDataTypeCollection : List<ActionMethodDataType>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public ActionMethodDataTypeCollection() {}
+
+        /// <remarks />
+        public ActionMethodDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public ActionMethodDataTypeCollection(IEnumerable<ActionMethodDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator ActionMethodDataTypeCollection(ActionMethodDataType[] values)
+        {
+            if (values != null)
+            {
+                return new ActionMethodDataTypeCollection(values);
+            }
+
+            return new ActionMethodDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator ActionMethodDataType[](ActionMethodDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (ActionMethodDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ActionMethodDataTypeCollection clone = new ActionMethodDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((ActionMethodDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
     #region DataSetFieldContentMask Enumeration
     #if (!OPCUA_EXCLUDE_DataSetFieldContentMask)
     /// <remarks />

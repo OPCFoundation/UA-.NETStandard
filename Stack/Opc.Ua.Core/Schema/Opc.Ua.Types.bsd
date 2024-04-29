@@ -706,6 +706,29 @@
     <opc:Field Name="CyclicDataSet" TypeName="opc:Boolean" />
   </opc:StructuredType>
 
+  <opc:StructuredType Name="ActionTargetDataType" BaseType="ua:ExtensionObject">
+    <opc:Field Name="ActionTargetId" TypeName="opc:UInt16" />
+    <opc:Field Name="Name" TypeName="opc:String" />
+    <opc:Field Name="Description" TypeName="ua:LocalizedText" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="PublishedActionDataType" BaseType="tns:PublishedDataSetSourceDataType">
+    <opc:Field Name="RequestDataSetMetaData" TypeName="tns:DataSetMetaDataType" />
+    <opc:Field Name="NoOfActionTargets" TypeName="opc:Int32" />
+    <opc:Field Name="ActionTargets" TypeName="tns:ActionTargetDataType" LengthField="NoOfActionTargets" />
+  </opc:StructuredType>
+
+  <opc:EnumeratedType Name="ActionState" LengthInBits="32">
+    <opc:EnumeratedValue Name="Idle" Value="0" />
+    <opc:EnumeratedValue Name="Executing" Value="1" />
+    <opc:EnumeratedValue Name="Done" Value="2" />
+  </opc:EnumeratedType>
+
+  <opc:StructuredType Name="ActionMethodDataType" BaseType="ua:ExtensionObject">
+    <opc:Field Name="ObjectId" TypeName="ua:NodeId" />
+    <opc:Field Name="MethodId" TypeName="ua:NodeId" />
+  </opc:StructuredType>
+
   <opc:EnumeratedType Name="DataSetFieldContentMask" LengthInBits="32" IsOptionSet="true">
     <opc:EnumeratedValue Name="None" Value="0" />
     <opc:EnumeratedValue Name="StatusCode" Value="1" />

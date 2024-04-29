@@ -352,6 +352,18 @@ namespace Opc.Ua
         public const uint PublishedDataSetCustomSourceDataType = 25269;
 
         /// <remarks />
+        public const uint ActionTargetDataType = 18593;
+
+        /// <remarks />
+        public const uint PublishedActionDataType = 18594;
+
+        /// <remarks />
+        public const uint ActionState = 18595;
+
+        /// <remarks />
+        public const uint ActionMethodDataType = 18597;
+
+        /// <remarks />
         public const uint DataSetFieldContentMask = 15583;
 
         /// <remarks />
@@ -4988,6 +5000,15 @@ namespace Opc.Ua
         public const uint PublishedDataSetCustomSourceDataType_Encoding_DefaultBinary = 25529;
 
         /// <remarks />
+        public const uint ActionTargetDataType_Encoding_DefaultBinary = 18598;
+
+        /// <remarks />
+        public const uint PublishedActionDataType_Encoding_DefaultBinary = 18599;
+
+        /// <remarks />
+        public const uint ActionMethodDataType_Encoding_DefaultBinary = 18600;
+
+        /// <remarks />
         public const uint DataSetWriterDataType_Encoding_DefaultBinary = 15682;
 
         /// <remarks />
@@ -6014,6 +6035,15 @@ namespace Opc.Ua
         public const uint PublishedDataSetCustomSourceDataType_Encoding_DefaultXml = 25545;
 
         /// <remarks />
+        public const uint ActionTargetDataType_Encoding_DefaultXml = 18610;
+
+        /// <remarks />
+        public const uint PublishedActionDataType_Encoding_DefaultXml = 18611;
+
+        /// <remarks />
+        public const uint ActionMethodDataType_Encoding_DefaultXml = 18612;
+
+        /// <remarks />
         public const uint DataSetWriterDataType_Encoding_DefaultXml = 15955;
 
         /// <remarks />
@@ -7038,6 +7068,15 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint PublishedDataSetCustomSourceDataType_Encoding_DefaultJson = 25561;
+
+        /// <remarks />
+        public const uint ActionTargetDataType_Encoding_DefaultJson = 18622;
+
+        /// <remarks />
+        public const uint PublishedActionDataType_Encoding_DefaultJson = 18623;
+
+        /// <remarks />
+        public const uint ActionMethodDataType_Encoding_DefaultJson = 18624;
 
         /// <remarks />
         public const uint DataSetWriterDataType_Encoding_DefaultJson = 16156;
@@ -19628,6 +19667,9 @@ namespace Opc.Ua
         public const uint DataSetFieldFlags_OptionSetValues = 15577;
 
         /// <remarks />
+        public const uint ActionState_EnumStrings = 18596;
+
+        /// <remarks />
         public const uint DataSetFieldContentMask_OptionSetValues = 15584;
 
         /// <remarks />
@@ -25343,6 +25385,15 @@ namespace Opc.Ua
         public const uint OpcUa_BinarySchema_PublishedDataSetCustomSourceDataType = 25533;
 
         /// <remarks />
+        public const uint OpcUa_BinarySchema_ActionTargetDataType = 18601;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_PublishedActionDataType = 18604;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_ActionMethodDataType = 18607;
+
+        /// <remarks />
         public const uint OpcUa_BinarySchema_DataSetWriterDataType = 15778;
 
         /// <remarks />
@@ -25863,6 +25914,15 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint OpcUa_XmlSchema_PublishedDataSetCustomSourceDataType = 25549;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_ActionTargetDataType = 18613;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_PublishedActionDataType = 18616;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_ActionMethodDataType = 18619;
 
         /// <remarks />
         public const uint OpcUa_XmlSchema_DataSetWriterDataType = 16047;
@@ -26737,6 +26797,18 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId PublishedDataSetCustomSourceDataType = new NodeId(Opc.Ua.DataTypes.PublishedDataSetCustomSourceDataType);
+
+        /// <remarks />
+        public static readonly NodeId ActionTargetDataType = new NodeId(Opc.Ua.DataTypes.ActionTargetDataType);
+
+        /// <remarks />
+        public static readonly NodeId PublishedActionDataType = new NodeId(Opc.Ua.DataTypes.PublishedActionDataType);
+
+        /// <remarks />
+        public static readonly NodeId ActionState = new NodeId(Opc.Ua.DataTypes.ActionState);
+
+        /// <remarks />
+        public static readonly NodeId ActionMethodDataType = new NodeId(Opc.Ua.DataTypes.ActionMethodDataType);
 
         /// <remarks />
         public static readonly NodeId DataSetFieldContentMask = new NodeId(Opc.Ua.DataTypes.DataSetFieldContentMask);
@@ -31375,6 +31447,15 @@ namespace Opc.Ua
         public static readonly NodeId PublishedDataSetCustomSourceDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.PublishedDataSetCustomSourceDataType_Encoding_DefaultBinary);
 
         /// <remarks />
+        public static readonly NodeId ActionTargetDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ActionTargetDataType_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId PublishedActionDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.PublishedActionDataType_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId ActionMethodDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ActionMethodDataType_Encoding_DefaultBinary);
+
+        /// <remarks />
         public static readonly NodeId DataSetWriterDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.DataSetWriterDataType_Encoding_DefaultBinary);
 
         /// <remarks />
@@ -32401,6 +32482,15 @@ namespace Opc.Ua
         public static readonly NodeId PublishedDataSetCustomSourceDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.PublishedDataSetCustomSourceDataType_Encoding_DefaultXml);
 
         /// <remarks />
+        public static readonly NodeId ActionTargetDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ActionTargetDataType_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId PublishedActionDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.PublishedActionDataType_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId ActionMethodDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ActionMethodDataType_Encoding_DefaultXml);
+
+        /// <remarks />
         public static readonly NodeId DataSetWriterDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.DataSetWriterDataType_Encoding_DefaultXml);
 
         /// <remarks />
@@ -33425,6 +33515,15 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId PublishedDataSetCustomSourceDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PublishedDataSetCustomSourceDataType_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId ActionTargetDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ActionTargetDataType_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId PublishedActionDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PublishedActionDataType_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId ActionMethodDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ActionMethodDataType_Encoding_DefaultJson);
 
         /// <remarks />
         public static readonly NodeId DataSetWriterDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DataSetWriterDataType_Encoding_DefaultJson);
@@ -46015,6 +46114,9 @@ namespace Opc.Ua
         public static readonly NodeId DataSetFieldFlags_OptionSetValues = new NodeId(Opc.Ua.Variables.DataSetFieldFlags_OptionSetValues);
 
         /// <remarks />
+        public static readonly NodeId ActionState_EnumStrings = new NodeId(Opc.Ua.Variables.ActionState_EnumStrings);
+
+        /// <remarks />
         public static readonly NodeId DataSetFieldContentMask_OptionSetValues = new NodeId(Opc.Ua.Variables.DataSetFieldContentMask_OptionSetValues);
 
         /// <remarks />
@@ -51730,6 +51832,15 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_BinarySchema_PublishedDataSetCustomSourceDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_PublishedDataSetCustomSourceDataType);
 
         /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_ActionTargetDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ActionTargetDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_PublishedActionDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_PublishedActionDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_ActionMethodDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ActionMethodDataType);
+
+        /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_DataSetWriterDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_DataSetWriterDataType);
 
         /// <remarks />
@@ -52250,6 +52361,15 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_PublishedDataSetCustomSourceDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_PublishedDataSetCustomSourceDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_ActionTargetDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ActionTargetDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_PublishedActionDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_PublishedActionDataType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_ActionMethodDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ActionMethodDataType);
 
         /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_DataSetWriterDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_DataSetWriterDataType);
@@ -52844,6 +52964,15 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string AcknowledgeableConditionType = "AcknowledgeableConditionType";
+
+        /// <remarks />
+        public const string ActionMethodDataType = "ActionMethodDataType";
+
+        /// <remarks />
+        public const string ActionState = "ActionState";
+
+        /// <remarks />
+        public const string ActionTargetDataType = "ActionTargetDataType";
 
         /// <remarks />
         public const string ActionTimeStamp = "ActionTimeStamp";
@@ -56354,6 +56483,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string PublishCount = "PublishCount";
+
+        /// <remarks />
+        public const string PublishedActionDataType = "PublishedActionDataType";
 
         /// <remarks />
         public const string PublishedData = "PublishedData";
