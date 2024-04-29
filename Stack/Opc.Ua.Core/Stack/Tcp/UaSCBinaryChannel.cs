@@ -207,15 +207,12 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void ChannelStateChanged(TcpChannelState state, ServiceResult reason)
         {
-            if (m_StateChanged != null)
+            var stateChanged = m_StateChanged;
+            if (stateChanged != null)
             {
-                var stateChanged = m_StateChanged;
-                if (stateChanged != null)
-                {
-                    Task.Run(() => {
-                        stateChanged?.Invoke(this, state, reason);
-                    });
-                }
+                Task.Run(() => {
+                    stateChanged?.Invoke(this, state, reason);
+                });
             }
         }
 

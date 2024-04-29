@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 public static class Program
 {
     public static readonly string RootFolder = "../../../../";
-    public static readonly string DefaultTestcasesFolder = RootFolder + "Fuzz/Testcases/";
+    public static readonly string DefaultTestcasesFolder = RootFolder + "Fuzz/Testcases";
     public static readonly string DefaultFindingsCrashFolder = RootFolder + "findings/crashes/";
     public static readonly string DefaultFindingsHangsFolder = RootFolder + "findings/hangs/";
     public static readonly string DefaultLibFuzzerCrashes = RootFolder + "crash-*";
@@ -54,10 +54,18 @@ public static class Program
         }
         else if (playback)
         {
-            Playback.Run(DefaultTestcasesFolder, stacktrace);
+            foreach (var encoderType in Testcases.TestcaseEncoderSuffixes)
+            {
+                Console.WriteLine("--- Fuzzer testcases for {0} ---", encoderType.Substring(1));
+                Playback.Run(DefaultTestcasesFolder + encoderType + Path.DirectorySeparatorChar, stacktrace);
+            }
+            Console.WriteLine("--- afl-fuzz crash findings ---");
             Playback.Run(DefaultFindingsCrashFolder, stacktrace);
+            Console.WriteLine("--- afl-fuzz timeout findings ---");
             Playback.Run(DefaultFindingsHangsFolder, stacktrace);
+            Console.WriteLine("--- libfuzzer crashes ---");
             Playback.Run(DefaultLibFuzzerCrashes, stacktrace);
+            Console.WriteLine("--- libfuzzer timeouts ---");
             Playback.Run(DefaultLibFuzzerHangs, stacktrace);
         }
         else

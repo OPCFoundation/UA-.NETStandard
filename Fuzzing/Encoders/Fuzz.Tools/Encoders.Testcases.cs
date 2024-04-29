@@ -5,13 +5,23 @@ using Opc.Ua;
 
 public static partial class Testcases
 {
+
+    public enum TestCaseEncoders : int
+    {
+        Binary=0,
+        Json=1,
+        Xml=2
+    };
+
+    public static string[] TestcaseEncoderSuffixes = new string[] { ".Binary", ".Json", ".Xml" };
+
     public static void Run(string directoryPath)
     {
         string workPath = Path.TrimEndingDirectorySeparator(directoryPath);
 
         // Create the Testcases for the binary decoder.
-        string pathSuffix = ".Binary";
-        string pathTarget = workPath + pathSuffix;
+        string pathSuffix = TestcaseEncoderSuffixes[(int)TestCaseEncoders.Binary];
+        string pathTarget = workPath + pathSuffix + Path.DirectorySeparatorChar;
         foreach (var messageEncoder in MessageEncoders)
         {
             byte[] message;
@@ -42,8 +52,8 @@ public static partial class Testcases
         }
 
         // Create the Testcases for the json decoder.
-        pathSuffix = ".Json";
-        pathTarget = workPath + pathSuffix;
+        pathSuffix = TestcaseEncoderSuffixes[(int)TestCaseEncoders.Json];
+        pathTarget = workPath + pathSuffix + Path.DirectorySeparatorChar;
         foreach (var messageEncoder in MessageEncoders)
         {
             byte[] message;
@@ -66,6 +76,25 @@ public static partial class Testcases
 
             string fileName = Path.Combine(pathTarget, $"{messageEncoder.Method.Name}.json".ToLowerInvariant());
             File.WriteAllBytes(fileName, message);
+        }
+
+        // Create the Testcases for the xml decoder.
+        pathSuffix = TestcaseEncoderSuffixes[(int)TestCaseEncoders.Xml];
+        pathTarget = workPath + pathSuffix + Path.DirectorySeparatorChar;
+        foreach (var messageEncoder in MessageEncoders)
+        {
+            string message;
+            using (var encoder = new XmlEncoder(MessageContext))
+            {
+                encoder.SetMappingTables(MessageContext.NamespaceUris, MessageContext.ServerUris);
+                messageEncoder(encoder);
+                message = encoder.CloseAndReturnText();
+            }
+
+            // Test the fuzz targets with the message.
+
+            string fileName = Path.Combine(pathTarget, $"{messageEncoder.Method.Name}.xml".ToLowerInvariant());
+            File.WriteAllBytes(fileName, Encoding.UTF8.GetBytes(message));
         }
     }
 }

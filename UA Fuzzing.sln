@@ -68,8 +68,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scripts", "scripts", "{612E
 		Fuzzing\scripts\fuzz-libfuzzer.ps1 = Fuzzing\scripts\fuzz-libfuzzer.ps1
 		Fuzzing\scripts\install.sh = Fuzzing\scripts\install.sh
 		Fuzzing\scripts\readme.txt = Fuzzing\scripts\readme.txt
-		Fuzzing\scripts\test-libfuzzer.ps1 = Fuzzing\scripts\test-libfuzzer.ps1
-		Fuzzing\scripts\test.ps1 = Fuzzing\scripts\test.ps1
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Fuzzing", "Fuzzing", "{E9435CCE-1591-4AC0-87C4-341236E27C50}"
@@ -87,6 +85,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{6F5745
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Fuzz", "Fuzz", "{C9E285F1-D853-4CD9-9ECF-493E09395548}"
 	ProjectSection(SolutionItems) = preProject
+		Fuzzing\common\Fuzz\FuzzMethods.cs = Fuzzing\common\Fuzz\FuzzMethods.cs
 		Fuzzing\common\Fuzz\Program.cs = Fuzzing\common\Fuzz\Program.cs
 	EndProjectSection
 EndProject

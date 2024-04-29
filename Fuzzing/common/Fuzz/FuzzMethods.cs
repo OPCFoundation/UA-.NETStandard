@@ -25,7 +25,7 @@ public static class FuzzMethods
     /// <summary>
     /// Finds all fuzzing methods for specified delegate.
     /// </summary>
-    public static List<Delegate> FindFuzzMethods(TextWriter errorOutput, Type delegateType)
+    public static List<Delegate> FindFuzzMethods(Type delegateType)
     {
         List<Delegate> fuzzMethods = new List<Delegate>();
         Type delegateParameterType;

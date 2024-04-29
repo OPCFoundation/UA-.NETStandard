@@ -2999,27 +2999,34 @@ namespace Opc.Ua
 
         private void EncodeAsJson(JsonTextWriter writer, object value)
         {
-            if (value is Dictionary<string, object> map)
+            try
             {
-                EncodeAsJson(writer, map);
-                return;
-            }
-
-
-            if (value is List<object> list)
-            {
-                writer.WriteStartArray();
-
-                foreach (var element in list)
+                if (value is Dictionary<string, object> map)
                 {
-                    EncodeAsJson(writer, element);
+                    EncodeAsJson(writer, map);
+                    return;
                 }
 
-                writer.WriteStartArray();
-                return;
-            }
 
-            writer.WriteValue(value);
+                if (value is List<object> list)
+                {
+                    writer.WriteStartArray();
+
+                    foreach (var element in list)
+                    {
+                        EncodeAsJson(writer, element);
+                    }
+
+                    writer.WriteStartArray();
+                    return;
+                }
+
+                writer.WriteValue(value);
+            }
+            catch (JsonWriterException jwe)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Unable to encode ExtensionObject Body as Json: {0}", jwe.Message);
+            }
         }
 
         private void EncodeAsJson(JsonTextWriter writer, Dictionary<string, object> value)

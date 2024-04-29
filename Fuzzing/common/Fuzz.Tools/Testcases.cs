@@ -7,7 +7,7 @@ public partial class Testcases
 {
     public delegate void MessageEncoder(IEncoder encoder);
 
-    public static ServiceMessageContext MessageContext = new ServiceMessageContext();
+    public static ServiceMessageContext MessageContext = ServiceMessageContext.GlobalContext;
 
     public static MessageEncoder[] MessageEncoders = new MessageEncoder[] {
         ReadRequest,
@@ -70,13 +70,14 @@ public partial class Testcases
                         StatusCode = StatusCodes.BadDataLost,
                     },
                     new DataValue {
-                        Value = new Variant(new byte[] { 0,1,2,3,4,5,6}),
+                        Value = new Variant(new byte[] { 0,1,2,3,4,5,6 }),
                         ServerTimestamp = now,
                         SourceTimestamp = now.AddMinutes(1),
                         StatusCode = StatusCodes.Good,
                     },
                     new DataValue {
                         Value = new Variant((byte)42),
+                        SourceTimestamp = now,
                     },
                 },
             DiagnosticInfos = new DiagnosticInfoCollection {
@@ -113,14 +114,4 @@ public partial class Testcases
         };
         encoder.EncodeMessage(readRequest);
     }
-
-#if !TEXTFUZZER
-    public static void FuzzTestcase(byte[] input)
-    {
-        using (var stream = new MemoryStream(input))
-        {
-            FuzzableCode.FuzzTarget(stream);
-        }
-    }
-#endif
 }

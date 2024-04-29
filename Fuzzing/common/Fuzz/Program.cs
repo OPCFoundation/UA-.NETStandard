@@ -47,7 +47,7 @@ public static class Program
         foreach (Type parameterType in FuzzMethods.Delegates)
         {
             bool writeHeader = true;
-            foreach (var method in FuzzMethods.FindFuzzMethods(Console.Error, parameterType))
+            foreach (var method in FuzzMethods.FindFuzzMethods(parameterType))
             {
                 if (writeHeader)
                 {
