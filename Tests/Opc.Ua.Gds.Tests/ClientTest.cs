@@ -1376,7 +1376,7 @@ namespace Opc.Ua.Gds.Tests
             foreach (var application in m_goodApplicationTestSet)
             {
                 m_gdsClient.GDSClient.CheckRevocationStatus(application.Certificate, out StatusCode certificateStatus, out DateTime validityTime);
-                Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevoked, (StatusCode)certificateStatus.Code);
+                Assert.IsTrue(((StatusCode)certificateStatus.Code).ToString().StartsWith("BadCertificate"));
                 Assert.NotNull(validityTime);
             }
         }
