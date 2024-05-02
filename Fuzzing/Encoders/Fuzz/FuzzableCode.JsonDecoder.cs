@@ -75,7 +75,11 @@ public static partial class FuzzableCode
     /// </summary>
     public static void LibfuzzJsonDecoder(ReadOnlySpan<byte> input)
     {
+#if NETFRAMEWORK
+        string json = Encoding.UTF8.GetString(input.ToArray());
+#else
         string json = Encoding.UTF8.GetString(input);
+#endif
         _ = FuzzJsonDecoderCore(json);
     }
 
@@ -85,7 +89,11 @@ public static partial class FuzzableCode
     public static void LibfuzzJsonEncoder(ReadOnlySpan<byte> input)
     {
         IEncodeable encodeable = null;
+#if NETFRAMEWORK
+        string json = Encoding.UTF8.GetString(input.ToArray());
+#else
         string json = Encoding.UTF8.GetString(input);
+#endif
         try
         {
             encodeable = FuzzJsonDecoderCore(json);

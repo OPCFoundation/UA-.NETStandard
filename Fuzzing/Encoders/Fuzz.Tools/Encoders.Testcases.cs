@@ -43,10 +43,8 @@ public static partial class Testcases
 
     public static string[] TestcaseEncoderSuffixes = new string[] { ".Binary", ".Json", ".Xml" };
 
-    public static void Run(string directoryPath)
+    public static void Run(string workPath)
     {
-        string workPath = Path.TrimEndingDirectorySeparator(directoryPath);
-
         // Create the Testcases for the binary decoder.
         string pathSuffix = TestcaseEncoderSuffixes[(int)TestCaseEncoders.Binary];
         string pathTarget = workPath + pathSuffix + Path.DirectorySeparatorChar;

@@ -62,7 +62,7 @@ public static partial class FuzzableCode
             do
             {
                 buffer = binaryStream.ReadBytes(segmentSize);
-                bufferCollection.Add(buffer);
+                bufferCollection.Add(new ArraySegment<byte>(buffer));
             } while (buffer.Length == segmentSize);
             memoryStream = new ArraySegmentStream(bufferCollection);
         }
