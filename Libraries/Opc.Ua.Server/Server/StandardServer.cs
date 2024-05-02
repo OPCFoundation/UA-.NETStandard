@@ -3007,6 +3007,7 @@ namespace Opc.Ua.Server
 
                         m_registrationEndpoints.Add(endpoint);
 
+                        m_registeredWithDiscoveryServer = false;
                         m_minRegistrationInterval = 1000;
                         m_lastRegistrationInterval = m_minRegistrationInterval;
 
@@ -3354,7 +3355,7 @@ namespace Opc.Ua.Server
         private int m_minRegistrationInterval;
         private int m_maxRegistrationInterval;
         private int m_lastRegistrationInterval;
-        private bool m_registeredWithDiscoveryServer = false;
+        private bool m_registeredWithDiscoveryServer;
         private int m_minNonceLength;
         private bool m_useRegisterServer2;
         private List<INodeManagerFactory> m_nodeManagerFactories;
