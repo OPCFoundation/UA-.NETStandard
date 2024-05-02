@@ -10,7 +10,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
+using System.Runtime.Serialization;
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua
@@ -78,11 +78,12 @@ namespace Opc.Ua
         /// <summary>
         /// The maximum nesting level accepted while encoding or decoding objects.
         /// </summary>
+        [DataMember(Name = "MaxEncodingNestingLevels", IsRequired = false, Order = 20)]
         public int MaxEncodingNestingLevels
         {
             get
             {
-                return m_maxEncodingNestingLevels;
+                return m_maxEncodingNestingLevels <= 0 ? DefaultEncodingLimits.MaxEncodingNestingLevels : m_maxEncodingNestingLevels;
             }
 
             set
@@ -95,6 +96,7 @@ namespace Opc.Ua
         /// The number of times the decoder can recover from an error 
         /// caused by an encoded ExtensionObject before throwing a decoder error.
         /// </summary>
+        [DataMember(Name = "MaxDecoderRecoveries", IsRequired = false, Order = 21)]
         public int MaxDecoderRecoveries
         {
             get

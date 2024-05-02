@@ -59,7 +59,6 @@ namespace Opc.Ua
             ValidateStreamRequirements(stream);
             m_reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen);
             Initialize(context);
-
         }
 
         /// <summary>
