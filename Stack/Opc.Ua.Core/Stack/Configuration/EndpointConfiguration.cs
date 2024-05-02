@@ -78,7 +78,6 @@ namespace Opc.Ua
         /// <summary>
         /// The maximum nesting level accepted while encoding or decoding objects.
         /// </summary>
-        [DataMember(Name = "MaxEncodingNestingLevels", IsRequired = false, Order = 20)]
         public int MaxEncodingNestingLevels
         {
             get
@@ -96,7 +95,6 @@ namespace Opc.Ua
         /// The number of times the decoder can recover from an error 
         /// caused by an encoded ExtensionObject before throwing a decoder error.
         /// </summary>
-        [DataMember(Name = "MaxDecoderRecoveries", IsRequired = false, Order = 21)]
         public int MaxDecoderRecoveries
         {
             get
