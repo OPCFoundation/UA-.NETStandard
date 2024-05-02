@@ -83,6 +83,8 @@
       <xs:element name="MaxArrayLength" type="xs:int" minOccurs="0" />
       <xs:element name="MaxMessageSize" type="xs:int" minOccurs="0" />
       <xs:element name="MaxBufferSize" type="xs:int" minOccurs="0" />
+      <xs:element name="MaxEncodingNestingLevels" type="xs:int" minOccurs="0" />
+      <xs:element name="MaxDecoderRecoveries" type="xs:int" minOccurs="0" />
       <xs:element name="ChannelLifetime" type="xs:int" minOccurs="0" />
       <xs:element name="SecurityTokenLifetime" type="xs:int" minOccurs="0" />
     </xs:sequence>

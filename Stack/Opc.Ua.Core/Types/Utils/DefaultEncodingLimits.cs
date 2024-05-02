@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2024 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
@@ -15,56 +15,40 @@ using System;
 namespace Opc.Ua
 {
     /// <summary>
-	/// Stores context information for message encoding and decoding.
-	/// </summary>
-	public interface IServiceMessageContext
+    /// Defaults for encoders while encoding and decoding messages.
+    /// Passed to encoders in <see cref="IServiceMessageContext"/>.
+    /// </summary>
+    public static class DefaultEncodingLimits
     {
-        #region Public Properties
         /// <summary>
         /// The maximum length for any string, byte string or xml element.
         /// </summary>
-        int MaxStringLength { get; }
+        public static readonly int MaxStringLength = UInt16.MaxValue;
 
         /// <summary>
         /// The maximum length for any array.
         /// </summary>
-        int MaxArrayLength { get; }
+        public static readonly int MaxArrayLength = UInt16.MaxValue;
 
         /// <summary>
         /// The maximum length for any ByteString.
         /// </summary>
-        int MaxByteStringLength { get; }
+        public static readonly int MaxByteStringLength = UInt16.MaxValue * 16;
 
         /// <summary>
         /// The maximum length for any Message.
         /// </summary>
-        int MaxMessageSize { get; }
+        public static readonly int MaxMessageSize = UInt16.MaxValue * 32;
 
         /// <summary>
         /// The maximum nesting level accepted while encoding or decoding objects.
         /// </summary>
-        int MaxEncodingNestingLevels { get; }
+        public static readonly int MaxEncodingNestingLevels = 200;
 
         /// <summary>
         /// The number of times the decoder can recover from an error 
         /// caused by an encoded ExtensionObject before throwing a decoder error.
         /// </summary>
-        int MaxDecoderRecoveries { get; }
-
-        /// <summary>
-        /// The table of namespaces used by the server.
-        /// </summary>
-        NamespaceTable NamespaceUris { get; }
-
-        /// <summary>
-        /// The table of servers used by the server.
-        /// </summary>
-        StringTable ServerUris { get; }
-
-        /// <summary>
-        /// The factory used to create encodeable objects.
-        /// </summary>
-        IEncodeableFactory Factory { get; }
-        #endregion
+        public static readonly int MaxDecoderRecoveries = 0;
     }
 }

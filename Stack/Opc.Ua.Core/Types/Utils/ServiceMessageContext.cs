@@ -10,12 +10,10 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-
 namespace Opc.Ua
 {
     /// <summary>
-	/// Stores context information associated with a UA server that is used during message processing.
+	/// Stores context information associated with a session is used during message processing.
 	/// </summary>
 	public class ServiceMessageContext : IServiceMessageContext
     {
@@ -35,15 +33,15 @@ namespace Opc.Ua
 
         private void Initialize(bool shared)
         {
-            m_maxStringLength = UInt16.MaxValue;
-            m_maxByteStringLength = UInt16.MaxValue * 16;
-            m_maxArrayLength = UInt16.MaxValue;
-            m_maxMessageSize = UInt16.MaxValue * 32;
+            m_maxStringLength = DefaultEncodingLimits.MaxStringLength;
+            m_maxByteStringLength = DefaultEncodingLimits.MaxByteStringLength;
+            m_maxArrayLength = DefaultEncodingLimits.MaxArrayLength;
+            m_maxMessageSize = DefaultEncodingLimits.MaxMessageSize;
+            m_maxEncodingNestingLevels = DefaultEncodingLimits.MaxEncodingNestingLevels;
+            m_maxDecoderRecoveries = DefaultEncodingLimits.MaxDecoderRecoveries;
             m_namespaceUris = new NamespaceTable(shared);
             m_serverUris = new StringTable(shared);
             m_factory = EncodeableFactory.GlobalFactory;
-            m_maxEncodingNestingLevels = 200;
-            m_maxDecoderRecoveries = 0;
         }
         #endregion
 
@@ -97,14 +95,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public uint MaxEncodingNestingLevels
+        public int MaxEncodingNestingLevels
         {
             get => m_maxEncodingNestingLevels;
             set { m_maxEncodingNestingLevels = value; }
         }
 
         /// <inheritdoc/>
-        public uint MaxDecoderRecoveries
+        public int MaxDecoderRecoveries
         {
             get => m_maxDecoderRecoveries;
             set { m_maxDecoderRecoveries = value; }
@@ -166,8 +164,8 @@ namespace Opc.Ua
         private int m_maxByteStringLength;
         private int m_maxArrayLength;
         private int m_maxMessageSize;
-        private uint m_maxEncodingNestingLevels;
-        private uint m_maxDecoderRecoveries;
+        private int m_maxEncodingNestingLevels;
+        private int m_maxDecoderRecoveries;
         private NamespaceTable m_namespaceUris;
         private StringTable m_serverUris;
         private IEncodeableFactory m_factory;
