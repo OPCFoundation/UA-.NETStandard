@@ -1227,11 +1227,23 @@ namespace Opc.Ua
                 {
                     return ReadVariantBody("Body", type);
                 }
-                var dimensions = ReadInt32Array("Dimensions");
-                if (array.Value is Array && dimensions != null && dimensions.Count > 1)
+                Int32Collection dimensions = ReadInt32Array("Dimensions");
+
+                if (array.Value is Array arrayValue && dimensions != null && dimensions.Count > 1)
                 {
-                    array = new Variant(new Matrix((Array)array.Value, type, dimensions.ToArray()));
+                    int length = arrayValue.Length;
+                    var dimensionsArray = dimensions.ToArray();
+                    (bool valid, int matrixLength) = Matrix.ValidateDimensions(dimensionsArray, length, Context.MaxArrayLength);
+
+                    if (!valid || (matrixLength != length))
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                            "ArrayDimensions length does not match with the ArrayLength in Variant object.");
+                    }
+
+                    array = new Variant(new Matrix(arrayValue, type, dimensionsArray));
                 }
+
                 return array;
             }
             finally
