@@ -2325,7 +2325,8 @@ namespace Opc.Ua.Server
                                 {
                                     client.RegisterServer(requestHeader, m_registrationInfo);
                                 }
-                                m_registeredWithDiscoveryServer = true;
+                                
+                                m_registeredWithDiscoveryServer = m_registrationInfo.IsOnline;
                                 return true;
                             }
                             catch (Exception e)
