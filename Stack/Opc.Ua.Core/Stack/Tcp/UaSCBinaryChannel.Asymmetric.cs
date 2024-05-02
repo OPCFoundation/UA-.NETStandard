@@ -865,91 +865,93 @@ namespace Opc.Ua.Bindings
             out uint requestId,
             out uint sequenceNumber)
         {
-            BinaryDecoder decoder = new BinaryDecoder(buffer.Array, buffer.Offset, buffer.Count, Quotas.MessageContext);
-
-            string securityPolicyUri = null;
-            X509Certificate2Collection senderCertificateChain;
-
-            // parse the security header.
-            ReadAsymmetricMessageHeader(
-                decoder,
-                receiverCertificate,
-                out channelId,
-                out senderCertificateChain,
-                out securityPolicyUri);
-
-            if (senderCertificateChain != null && senderCertificateChain.Count > 0)
+            int headerSize;
+            using (var decoder = new BinaryDecoder(buffer, Quotas.MessageContext))
             {
-                senderCertificate = senderCertificateChain[0];
-            }
-            else
-            {
-                senderCertificate = null;
-            }
+                string securityPolicyUri = null;
+                X509Certificate2Collection senderCertificateChain;
 
-            // validate the sender certificate.
-            if (senderCertificate != null && Quotas.CertificateValidator != null && securityPolicyUri != SecurityPolicies.None)
-            {
-                if (Quotas.CertificateValidator is CertificateValidator certificateValidator)
+                // parse the security header.
+                ReadAsymmetricMessageHeader(
+                    decoder,
+                    receiverCertificate,
+                    out channelId,
+                    out senderCertificateChain,
+                    out securityPolicyUri);
+
+                if (senderCertificateChain != null && senderCertificateChain.Count > 0)
                 {
-                    certificateValidator.Validate(senderCertificateChain);
+                    senderCertificate = senderCertificateChain[0];
                 }
                 else
                 {
-                    Quotas.CertificateValidator.Validate(senderCertificate);
+                    senderCertificate = null;
                 }
-            }
 
-            // check if this is the first open secure channel request.
-            if (!m_uninitialized)
-            {
-                if (securityPolicyUri != m_securityPolicyUri)
+                // validate the sender certificate.
+                if (senderCertificate != null && Quotas.CertificateValidator != null && securityPolicyUri != SecurityPolicies.None)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadSecurityPolicyRejected, "Cannot change the security policy after creating the channnel.");
-                }
-            }
-            else
-            {
-                // find a matching endpoint description.
-                if (m_endpoints != null)
-                {
-                    foreach (EndpointDescription endpoint in m_endpoints)
+                    if (Quotas.CertificateValidator is CertificateValidator certificateValidator)
                     {
-                        // There may be multiple endpoints with the same securityPolicyUri.
-                        // Just choose the first one that matches. This choice will be re-examined
-                        // When the OpenSecureChannel request body is processed.
-                        if (endpoint.SecurityPolicyUri == securityPolicyUri || (securityPolicyUri == SecurityPolicies.None && endpoint.SecurityMode == MessageSecurityMode.None))
-                        {
-                            m_securityMode = endpoint.SecurityMode;
-                            m_securityPolicyUri = securityPolicyUri;
-                            m_discoveryOnly = false;
-                            m_uninitialized = false;
-                            m_selectedEndpoint = endpoint;
+                        certificateValidator.Validate(senderCertificateChain);
+                    }
+                    else
+                    {
+                        Quotas.CertificateValidator.Validate(senderCertificate);
+                    }
+                }
 
-                            // recalculate the key sizes.
-                            CalculateSymmetricKeySizes();
-                            break;
+                // check if this is the first open secure channel request.
+                if (!m_uninitialized)
+                {
+                    if (securityPolicyUri != m_securityPolicyUri)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadSecurityPolicyRejected, "Cannot change the security policy after creating the channnel.");
+                    }
+                }
+                else
+                {
+                    // find a matching endpoint description.
+                    if (m_endpoints != null)
+                    {
+                        foreach (EndpointDescription endpoint in m_endpoints)
+                        {
+                            // There may be multiple endpoints with the same securityPolicyUri.
+                            // Just choose the first one that matches. This choice will be re-examined
+                            // When the OpenSecureChannel request body is processed.
+                            if (endpoint.SecurityPolicyUri == securityPolicyUri || (securityPolicyUri == SecurityPolicies.None && endpoint.SecurityMode == MessageSecurityMode.None))
+                            {
+                                m_securityMode = endpoint.SecurityMode;
+                                m_securityPolicyUri = securityPolicyUri;
+                                m_discoveryOnly = false;
+                                m_uninitialized = false;
+                                m_selectedEndpoint = endpoint;
+
+                                // recalculate the key sizes.
+                                CalculateSymmetricKeySizes();
+                                break;
+                            }
                         }
                     }
-                }
 
-                // allow a discovery only channel with no security if policy not suppported
-                if (m_uninitialized)
-                {
-                    if (securityPolicyUri != SecurityPolicies.None)
+                    // allow a discovery only channel with no security if policy not suppported
+                    if (m_uninitialized)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadSecurityPolicyRejected, "The security policy is not supported.");
+                        if (securityPolicyUri != SecurityPolicies.None)
+                        {
+                            throw ServiceResultException.Create(StatusCodes.BadSecurityPolicyRejected, "The security policy is not supported.");
+                        }
+
+                        m_securityMode = MessageSecurityMode.None;
+                        m_securityPolicyUri = SecurityPolicies.None;
+                        m_discoveryOnly = true;
+                        m_uninitialized = false;
+                        m_selectedEndpoint = null;
                     }
-
-                    m_securityMode = MessageSecurityMode.None;
-                    m_securityPolicyUri = SecurityPolicies.None;
-                    m_discoveryOnly = true;
-                    m_uninitialized = false;
-                    m_selectedEndpoint = null;
                 }
-            }
 
-            int headerSize = decoder.Position;
+                headerSize = decoder.Position;
+            }
 
             // decrypt the body.
             ArraySegment<byte> plainText = Decrypt(
@@ -1014,17 +1016,17 @@ namespace Opc.Ua.Bindings
             }
 
             // decode message.
-            decoder = new BinaryDecoder(
+            using (var decoder = new BinaryDecoder(
                 plainText.Array,
                 plainText.Offset + headerSize,
                 plainText.Count - headerSize,
-                Quotas.MessageContext);
-
-            sequenceNumber = decoder.ReadUInt32(null);
-            requestId = decoder.ReadUInt32(null);
-
-            headerSize += decoder.Position;
-            decoder.Close();
+                Quotas.MessageContext))
+            {
+                sequenceNumber = decoder.ReadUInt32(null);
+                requestId = decoder.ReadUInt32(null);
+                headerSize += decoder.Position;
+                decoder.Close();
+            }
 
             Utils.LogInfo("Security Policy: {0}", SecurityPolicyUri);
             Utils.LogCertificate("Sender Certificate:", senderCertificate);

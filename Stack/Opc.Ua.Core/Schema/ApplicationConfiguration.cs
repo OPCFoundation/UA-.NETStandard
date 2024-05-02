@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Bindings;
 
 namespace Opc.Ua
 {
@@ -311,14 +312,19 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_operationTimeout = 120000;
-            m_maxStringLength = 65535;
-            m_maxByteStringLength = 65535;
-            m_maxArrayLength = 65535;
-            m_maxMessageSize = 1048576;
-            m_maxBufferSize = 65535;
-            m_channelLifetime = 600000;
-            m_securityTokenLifetime = 3600000;
+            // encoding limits
+            m_maxMessageSize = DefaultEncodingLimits.MaxMessageSize;
+            m_maxStringLength = DefaultEncodingLimits.MaxStringLength;
+            m_maxByteStringLength = DefaultEncodingLimits.MaxByteStringLength;
+            m_maxArrayLength = DefaultEncodingLimits.MaxArrayLength;
+            m_maxEncodingNestingLevels = DefaultEncodingLimits.MaxEncodingNestingLevels;
+            m_maxDecoderRecoveries = DefaultEncodingLimits.MaxDecoderRecoveries;
+
+            // message limits
+            m_maxBufferSize = TcpMessageLimits.DefaultMaxBufferSize;
+            m_operationTimeout = TcpMessageLimits.DefaultOperationTimeout;
+            m_channelLifetime = TcpMessageLimits.DefaultChannelLifetime;
+            m_securityTokenLifetime = TcpMessageLimits.DefaultSecurityTokenLifeTime;
         }
 
         /// <summary>
@@ -396,11 +402,33 @@ namespace Opc.Ua
             set { m_maxBufferSize = value; }
         }
 
+
+        /// <summary>
+        /// The maximum nesting level accepted while encoding or decoding objects.
+        /// </summary>
+        [DataMember(IsRequired = false, Order = 6)]
+        public int MaxEncodingNestingLevels
+        {
+            get { return m_maxEncodingNestingLevels; }
+            set { m_maxEncodingNestingLevels = value; }
+        }
+
+        /// <summary>
+        /// The number of times the decoder can recover from a decoder error 
+        /// of an IEncodeable before throwing a decoder error.
+        /// </summary>
+        [DataMember(IsRequired = false, Order = 7)]
+        public int MaxDecoderRecoveries
+        {
+            get { return m_maxDecoderRecoveries; }
+            set { m_maxDecoderRecoveries = value; }
+        }
+
         /// <summary>
         /// The lifetime of a secure channel (in milliseconds).
         /// </summary>
         /// <value>The channel lifetime.</value>
-        [DataMember(IsRequired = false, Order = 6)]
+        [DataMember(IsRequired = false, Order = 8)]
         public int ChannelLifetime
         {
             get { return m_channelLifetime; }
@@ -411,7 +439,7 @@ namespace Opc.Ua
         /// The lifetime of a security token (in milliseconds).
         /// </summary>
         /// <value>The security token lifetime.</value>
-        [DataMember(IsRequired = false, Order = 7)]
+        [DataMember(IsRequired = false, Order = 9)]
         public int SecurityTokenLifetime
         {
             get { return m_securityTokenLifetime; }
@@ -428,6 +456,8 @@ namespace Opc.Ua
         private int m_maxBufferSize;
         private int m_channelLifetime;
         private int m_securityTokenLifetime;
+        private int m_maxEncodingNestingLevels;
+        private int m_maxDecoderRecoveries;
         #endregion
     }
     #endregion
