@@ -169,12 +169,12 @@ namespace Opc.Ua.Security.Certificates
         /// return the byte array which contains the X509 blob.
         /// </summary>
         /// <param name="blob">The encoded CRL or certificate sequence.</param>
-        public static ReadOnlyMemory<byte> ParseX509Blob(ReadOnlyMemory<byte> blob)
+        public static byte[] ParseX509Blob(byte[] blob)
         {
             try
             {
                 var x509Reader = new AsnReader(blob, AsnEncodingRules.DER);
-                ReadOnlyMemory<byte> peekBlob = blob.Slice(0, x509Reader.PeekContentBytes().Length + 4);
+                byte[] peekBlob = blob.AsSpan(0, x509Reader.PeekContentBytes().Length + 4).ToArray();
                 AsnReader seqReader = x509Reader.ReadSequence(Asn1Tag.Sequence);
                 if (seqReader != null)
                 {
