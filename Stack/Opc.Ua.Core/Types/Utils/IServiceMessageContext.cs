@@ -43,7 +43,13 @@ namespace Opc.Ua
         /// <summary>
         /// The maximum nesting level accepted while encoding or decoding objects.
         /// </summary>
-        uint MaxEncodingNestingLevels { get; }
+        int MaxEncodingNestingLevels { get; }
+
+        /// <summary>
+        /// The number of times the decoder can recover from an error 
+        /// caused by an encoded ExtensionObject before throwing a decoder error.
+        /// </summary>
+        int MaxDecoderRecoveries { get; }
 
         /// <summary>
         /// The table of namespaces used by the server.

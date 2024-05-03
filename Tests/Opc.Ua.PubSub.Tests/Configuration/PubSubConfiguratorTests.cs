@@ -31,6 +31,7 @@ using NUnit.Framework;
 using System;
 using Opc.Ua.PubSub.Configuration;
 using System.IO;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
 {

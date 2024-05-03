@@ -73,7 +73,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <summary>
-        /// Create new instance of <see cref="JsonNetworkMessage"/> as a DataSetMetadata message
+        /// Create new instance of <see cref="JsonNetworkMessage"/> as a DataSetMetaData message
         /// </summary>
         public JsonNetworkMessage(WriterGroupDataType writerGroupConfiguration, DataSetMetaDataType metadata)
             : base(writerGroupConfiguration, metadata)
@@ -553,7 +553,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 if (messagesList != null)
                 {
-                    // atempt decoding for each data set reader
+                    // attempt decoding for each data set reader
                     foreach (DataSetReaderDataType dataSetReader in dataSetReaders)
                     {
                         if (!(ExtensionObject.ToEncodeable(dataSetReader.MessageSettings) is JsonDataSetReaderMessageDataType jsonMessageSettings))

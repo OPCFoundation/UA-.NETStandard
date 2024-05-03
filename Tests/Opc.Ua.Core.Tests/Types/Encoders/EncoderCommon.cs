@@ -43,6 +43,8 @@ using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Test;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {

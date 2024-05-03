@@ -392,15 +392,14 @@ namespace Opc.Ua
             }
             catch (OverflowException)
             {
-                throw new ArgumentException("The dimensions of the matrix are invalid and overflow when used to calculate the size.");
+                throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
+                    "The dimensions of the matrix are invalid and overflow when used to calculate the size.");
             }
             if ((maxArrayLength > 0) && (flatLength > maxArrayLength))
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
+                throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
                     "Maximum array length of {0} was exceeded while summing up to {1} from the array dimensions",
-                    maxArrayLength,
-                    flatLength
+                    maxArrayLength, flatLength
                     );
             }
 

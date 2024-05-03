@@ -31,6 +31,7 @@ using System;
 using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Stack.State
 {

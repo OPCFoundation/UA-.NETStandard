@@ -446,10 +446,7 @@ namespace Opc.Ua.Bindings
             {
                 if (!success)
                 {
-                    if (chunksToProcess != null)
-                    {
-                        chunksToProcess.Release(BufferManager, "WriteSymmetricMessage");
-                    }
+                    chunksToProcess?.Release(BufferManager, "WriteSymmetricMessage");
                 }
             }
         }
@@ -465,127 +462,128 @@ namespace Opc.Ua.Bindings
             out uint requestId,
             out uint sequenceNumber)
         {
-            BinaryDecoder decoder = new BinaryDecoder(buffer.Array, buffer.Offset, buffer.Count, Quotas.MessageContext);
-
-            uint messageType = decoder.ReadUInt32(null);
-            uint messageSize = decoder.ReadUInt32(null);
-            uint channelId = decoder.ReadUInt32(null);
-            uint tokenId = decoder.ReadUInt32(null);
-
-            // ensure the channel is valid.
-            if (channelId != ChannelId)
+            using (var decoder = new BinaryDecoder(buffer, Quotas.MessageContext))
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadTcpSecureChannelUnknown,
-                    "SecureChannelId is not known. ChanneId={0}, CurrentChannelId={1}",
-                    channelId,
-                    ChannelId);
-            }
+                uint messageType = decoder.ReadUInt32(null);
+                uint messageSize = decoder.ReadUInt32(null);
+                uint channelId = decoder.ReadUInt32(null);
+                uint tokenId = decoder.ReadUInt32(null);
 
-            // check for a message secured with the new token.
-            if (RenewedToken != null && RenewedToken.TokenId == tokenId)
-            {
-                ActivateToken(RenewedToken);
-            }
-
-            // check if activation of the new token should be forced.
-            if (RenewedToken != null && CurrentToken.ActivationRequired)
-            {
-                ActivateToken(RenewedToken);
-
-                Utils.LogInfo("ChannelId {0}: Token #{1} activated forced.", Id, CurrentToken.TokenId);
-            }
-
-            // check for valid token.
-            ChannelToken currentToken = CurrentToken;
-
-            if (currentToken == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadSecureChannelClosed);
-            }
-
-            // find the token.
-            if (currentToken.TokenId != tokenId && PreviousToken != null && PreviousToken.TokenId != tokenId)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadTcpSecureChannelUnknown,
-                    "Channel{0}: TokenId is not known. ChanneId={1}, TokenId={2}, CurrentTokenId={3}, PreviousTokenId={4}",
-                    Id, channelId,
-                    tokenId, currentToken.TokenId,
-                    (PreviousToken != null) ? (int)PreviousToken.TokenId : -1);
-            }
-
-            token = currentToken;
-
-            // check for a message secured with the token before it expired.
-            if (PreviousToken != null && PreviousToken.TokenId == tokenId)
-            {
-                token = PreviousToken;
-            }
-
-            // check if token has expired.
-            if (token.Expired)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadTcpSecureChannelUnknown,
-                    "Channel{0}: Token #{1} has expired. Lifetime={2:HH:mm:ss.fff}",
-                    Id, token.TokenId, token.CreatedAt);
-            }
-
-            int headerSize = decoder.Position;
-
-            if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
-            {
-                // decrypt the message.
-                Decrypt(token, new ArraySegment<byte>(buffer.Array, buffer.Offset + headerSize, buffer.Count - headerSize), isRequest);
-            }
-
-            if (SecurityMode != MessageSecurityMode.None)
-            {
-                // extract signature.
-                byte[] signature = new byte[SymmetricSignatureSize];
-
-                for (int ii = 0; ii < SymmetricSignatureSize; ii++)
+                // ensure the channel is valid.
+                if (channelId != ChannelId)
                 {
-                    signature[ii] = buffer.Array[buffer.Offset + buffer.Count - SymmetricSignatureSize + ii];
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadTcpSecureChannelUnknown,
+                        "SecureChannelId is not known. ChanneId={0}, CurrentChannelId={1}",
+                        channelId,
+                        ChannelId);
                 }
 
-                // verify the signature.
-                if (!Verify(token, signature, new ArraySegment<byte>(buffer.Array, buffer.Offset, buffer.Count - SymmetricSignatureSize), isRequest))
+                // check for a message secured with the new token.
+                if (RenewedToken != null && RenewedToken.TokenId == tokenId)
                 {
-                    Utils.LogError("ChannelId {0}: Could not verify signature on message.", Id);
-                    throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Could not verify the signature on the message.");
+                    ActivateToken(RenewedToken);
                 }
-            }
 
-            int paddingCount = 0;
-
-            if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
-            {
-                // verify padding.
-                int paddingStart = buffer.Offset + buffer.Count - SymmetricSignatureSize - 1;
-                paddingCount = buffer.Array[paddingStart];
-
-                for (int ii = paddingStart - paddingCount; ii < paddingStart; ii++)
+                // check if activation of the new token should be forced.
+                if (RenewedToken != null && CurrentToken.ActivationRequired)
                 {
-                    if (buffer.Array[ii] != paddingCount)
+                    ActivateToken(RenewedToken);
+
+                    Utils.LogInfo("ChannelId {0}: Token #{1} activated forced.", Id, CurrentToken.TokenId);
+                }
+
+                // check for valid token.
+                ChannelToken currentToken = CurrentToken;
+
+                if (currentToken == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadSecureChannelClosed);
+                }
+
+                // find the token.
+                if (currentToken.TokenId != tokenId && PreviousToken != null && PreviousToken.TokenId != tokenId)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadTcpSecureChannelUnknown,
+                        "Channel{0}: TokenId is not known. ChanneId={1}, TokenId={2}, CurrentTokenId={3}, PreviousTokenId={4}",
+                        Id, channelId,
+                        tokenId, currentToken.TokenId,
+                        (PreviousToken != null) ? (int)PreviousToken.TokenId : -1);
+                }
+
+                token = currentToken;
+
+                // check for a message secured with the token before it expired.
+                if (PreviousToken != null && PreviousToken.TokenId == tokenId)
+                {
+                    token = PreviousToken;
+                }
+
+                // check if token has expired.
+                if (token.Expired)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadTcpSecureChannelUnknown,
+                        "Channel{0}: Token #{1} has expired. Lifetime={2:HH:mm:ss.fff}",
+                        Id, token.TokenId, token.CreatedAt);
+                }
+
+                int headerSize = decoder.Position;
+
+                if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
+                {
+                    // decrypt the message.
+                    Decrypt(token, new ArraySegment<byte>(buffer.Array, buffer.Offset + headerSize, buffer.Count - headerSize), isRequest);
+                }
+
+                if (SecurityMode != MessageSecurityMode.None)
+                {
+                    // extract signature.
+                    byte[] signature = new byte[SymmetricSignatureSize];
+
+                    for (int ii = 0; ii < SymmetricSignatureSize; ii++)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Could not verify the padding in the message.");
+                        signature[ii] = buffer.Array[buffer.Offset + buffer.Count - SymmetricSignatureSize + ii];
+                    }
+
+                    // verify the signature.
+                    if (!Verify(token, signature, new ArraySegment<byte>(buffer.Array, buffer.Offset, buffer.Count - SymmetricSignatureSize), isRequest))
+                    {
+                        Utils.LogError("ChannelId {0}: Could not verify signature on message.", Id);
+                        throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Could not verify the signature on the message.");
                     }
                 }
 
-                // add byte for size.
-                paddingCount++;
+                int paddingCount = 0;
+
+                if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
+                {
+                    // verify padding.
+                    int paddingStart = buffer.Offset + buffer.Count - SymmetricSignatureSize - 1;
+                    paddingCount = buffer.Array[paddingStart];
+
+                    for (int ii = paddingStart - paddingCount; ii < paddingStart; ii++)
+                    {
+                        if (buffer.Array[ii] != paddingCount)
+                        {
+                            throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Could not verify the padding in the message.");
+                        }
+                    }
+
+                    // add byte for size.
+                    paddingCount++;
+                }
+
+                // extract request id and sequence number.
+                sequenceNumber = decoder.ReadUInt32(null);
+                requestId = decoder.ReadUInt32(null);
+
+                // return an the data contained in the message.
+                int startOfBody = buffer.Offset + TcpMessageLimits.SymmetricHeaderSize + TcpMessageLimits.SequenceHeaderSize;
+                int sizeOfBody = buffer.Count - TcpMessageLimits.SymmetricHeaderSize - TcpMessageLimits.SequenceHeaderSize - paddingCount - SymmetricSignatureSize;
+
+                return new ArraySegment<byte>(buffer.Array, startOfBody, sizeOfBody);
             }
-
-            // extract request id and sequence number.
-            sequenceNumber = decoder.ReadUInt32(null);
-            requestId = decoder.ReadUInt32(null);
-
-            // return an the data contained in the message.
-            int startOfBody = buffer.Offset + TcpMessageLimits.SymmetricHeaderSize + TcpMessageLimits.SequenceHeaderSize;
-            int sizeOfBody = buffer.Count - TcpMessageLimits.SymmetricHeaderSize - TcpMessageLimits.SequenceHeaderSize - paddingCount - SymmetricSignatureSize;
-
-            return new ArraySegment<byte>(buffer.Array, startOfBody, sizeOfBody);
         }
 
         /// <summary>

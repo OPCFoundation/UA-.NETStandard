@@ -352,7 +352,7 @@ namespace Opc.Ua.Bindings
 
             int position = (int)offset;
 
-            if (position >= GetAbsolutePosition())
+            if (position > GetAbsolutePosition())
             {
                 CheckEndOfStream();
             }

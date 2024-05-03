@@ -103,6 +103,16 @@ namespace Opc.Ua.Configuration
         /// <param name="maxBufferSize">The max buffer size.</param>
         IApplicationConfigurationBuilderTransportQuotas SetMaxBufferSize(int maxBufferSize);
 
+        /// <inheritdoc cref="TransportQuotas.MaxEncodingNestingLevels"/>
+        /// <remarks>applies to <see cref="TransportQuotas.MaxEncodingNestingLevels"/></remarks>
+        /// <param name="maxEncodingNestingLevels"></param>
+        IApplicationConfigurationBuilderTransportQuotas SetMaxEncodingNestingLevels(int maxEncodingNestingLevels);
+
+        /// <inheritdoc cref="TransportQuotas.MaxDecoderRecoveries"/>
+        /// <remarks>applies to <see cref="TransportQuotas.MaxDecoderRecoveries"/></remarks>
+        /// <param name="maxDecoderRecoveries"></param>
+        IApplicationConfigurationBuilderTransportQuotas SetMaxDecoderRecoveries(int maxDecoderRecoveries);
+
         /// <inheritdoc cref="TransportQuotas.ChannelLifetime"/>
         /// <remarks>applies to <see cref="TransportQuotas.ChannelLifetime"/></remarks>
         /// <param name="channelLifetime">The lifetime.</param>
@@ -155,6 +165,11 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc cref="ServerConfiguration.MaxSessionCount"/>
         IApplicationConfigurationBuilderServerOptions SetMaxSessionCount(int maxSessionCount);
+
+        /// <inheritdoc cref="ServerConfiguration.MaxChannelCount"/>
+        /// <remarks>applies to <see cref="ServerConfiguration.MaxChannelCount"/></remarks>
+        /// <param name="maxChannelCount">The lifetime.</param>
+        IApplicationConfigurationBuilderServerOptions SetMaxChannelCount(int maxChannelCount);
 
         /// <inheritdoc cref="ServerConfiguration.MinSessionTimeout"/>
         IApplicationConfigurationBuilderServerOptions SetMinSessionTimeout(int minSessionTimeout);

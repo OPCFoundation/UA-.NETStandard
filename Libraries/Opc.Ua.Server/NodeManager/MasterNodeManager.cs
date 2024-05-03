@@ -2067,7 +2067,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Calls a method defined on a object.
+        /// Calls a method defined on an object.
         /// </summary>
         public virtual void Call(
             OperationContext context,
@@ -3393,7 +3393,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// True is the reference is an inverse reference.
+        /// True if the reference is an inverse reference.
         /// </summary>
         public bool IsInverse
         {

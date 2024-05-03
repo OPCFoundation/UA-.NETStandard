@@ -830,7 +830,7 @@ namespace TestData
         }
 
         /// <summary>
-        /// Return random vector;
+        /// Return random vector.
         /// </summary>
         public Vector GetRandomVector()
         {

@@ -37,6 +37,7 @@ using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Core.Tests.Types.Encoders;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {
@@ -681,7 +682,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             }
             else
             {
-                Assert.Fail("Unexpected ValueType {0}", valueType);
+                Assert.Fail($"Unexpected ValueType {valueType}");
             }
             return null;
         }

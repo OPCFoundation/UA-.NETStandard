@@ -232,7 +232,7 @@ namespace Opc.Ua.Gds.Client
         public const string LocalDiscoveryServer = "LDS";
 
         /// <summary>
-        /// The server supports the data integration (DI) information model.
+        /// The server supports the device integration (DI) information model.
         /// </summary>
         public const string DI = "DI";
         #endregion

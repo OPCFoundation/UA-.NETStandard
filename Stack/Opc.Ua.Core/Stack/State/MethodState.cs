@@ -29,7 +29,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         public MethodState(NodeState parent) : base(NodeClass.Method, parent)
         {

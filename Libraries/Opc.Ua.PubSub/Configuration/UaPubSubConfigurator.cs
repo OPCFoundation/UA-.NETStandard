@@ -506,7 +506,7 @@ namespace Opc.Ua.PubSub.Configuration
         }
 
         /// <summary>
-        /// Add Extension field to the specified publishedDataset
+        /// Add Extension field to the specified publishedDataSet
         /// </summary>
         /// <param name="publishedDataSetConfigId"></param>
         /// <param name="extensionField"></param>

@@ -28,6 +28,11 @@ namespace Opc.Ua
     public interface ITransportListener : IDisposable
     {
         /// <summary>
+        /// The Id of the transport listener.
+        /// </summary>
+        string ListenerId { get; }
+
+        /// <summary>
         /// The protocol supported by the listener.
         /// </summary>
         string UriScheme { get; }
@@ -75,6 +80,12 @@ namespace Opc.Ua
         /// </summary>
         void CreateReverseConnection(Uri url, int timeout);
 
+        /// <summary>
+        /// Updates the last active time of a global channel to defer
+        /// clean up based on channel timeout.
+        /// </summary>
+        /// <param name="globalChannelId">The global channel id</param>
+        void UpdateChannelLastActiveTime(string globalChannelId);
     }
 
     /// <summary>

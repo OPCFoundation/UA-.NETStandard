@@ -237,16 +237,19 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The default buffer size to use for communication.
         /// </summary>
-        public const int DefaultMaxBufferSize = 65535;
+        public const int DefaultMaxBufferSize = UInt16.MaxValue;
 
         /// <summary>
         /// The default maximum chunk count for Request and Response messages.
         /// </summary>
-        public const int DefaultMaxChunkCount = 16;
+        public const int DefaultMaxChunkCount = 32;
 
         /// <summary>
         /// The default maximum message size.
         /// </summary>
+        /// <remarks>
+        /// This default is for the Tcp transport. <see cref="DefaultEncodingLimits.MaxMessageSize"/> for the generic default.
+        /// </remarks>
         public const int DefaultMaxMessageSize = DefaultMaxChunkCount * DefaultMaxBufferSize;
 
         /// <summary>
@@ -255,9 +258,14 @@ namespace Opc.Ua.Bindings
         public const int DefaultDiscoveryMaxMessageSize = DefaultMaxBufferSize;
 
         /// <summary>
-        /// How long a connection will remain in the server after it goes into a faulted state.
+        /// How long processing of a service call can take before it goes into a faulted state.
         /// </summary>
-        public const int DefaultChannelLifetime = 60000;
+        public const int DefaultOperationTimeout = 120000;
+
+        /// <summary>
+        /// How long a secure channel will remain in the server after it goes into a faulted state.
+        /// </summary>
+        public const int DefaultChannelLifetime = 30000;
 
         /// <summary>
         /// How long a security token lasts before it needs to be renewed.
