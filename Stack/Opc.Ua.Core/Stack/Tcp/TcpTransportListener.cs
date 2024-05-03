@@ -145,6 +145,8 @@ namespace Opc.Ua.Bindings
                 messageContext.MaxByteStringLength = configuration.MaxByteStringLength;
                 messageContext.MaxMessageSize = configuration.MaxMessageSize;
                 messageContext.MaxStringLength = configuration.MaxStringLength;
+                messageContext.MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels;
+                messageContext.MaxDecoderRecoveries = configuration.MaxDecoderRecoveries;
             }
             m_quotas.MessageContext = messageContext;
 

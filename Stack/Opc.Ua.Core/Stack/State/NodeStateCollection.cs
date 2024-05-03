@@ -259,13 +259,13 @@ namespace Opc.Ua
         /// </summary>
         public void LoadFromBinary(ISystemContext context, Stream istrm, bool updateTables)
         {
-            ServiceMessageContext messageContext = new ServiceMessageContext();
+            ServiceMessageContext messageContext = new ServiceMessageContext {
+                NamespaceUris = context.NamespaceUris,
+                ServerUris = context.ServerUris,
+                Factory = context.EncodeableFactory
+            };
 
-            messageContext.NamespaceUris = context.NamespaceUris;
-            messageContext.ServerUris = context.ServerUris;
-            messageContext.Factory = context.EncodeableFactory;
-
-            using (BinaryDecoder decoder = new BinaryDecoder(istrm, messageContext))
+            using (var decoder = new BinaryDecoder(istrm, messageContext))
             {
                 // check if a namespace table was provided.
                 NamespaceTable namespaceUris = new NamespaceTable();

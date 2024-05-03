@@ -207,15 +207,12 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void ChannelStateChanged(TcpChannelState state, ServiceResult reason)
         {
-            if (m_StateChanged != null)
+            var stateChanged = m_StateChanged;
+            if (stateChanged != null)
             {
-                var stateChanged = m_StateChanged;
-                if (stateChanged != null)
-                {
-                    Task.Run(() => {
-                        stateChanged?.Invoke(this, state, reason);
-                    });
-                }
+                Task.Run(() => {
+                    stateChanged?.Invoke(this, state, reason);
+                });
             }
         }
 
@@ -830,6 +827,28 @@ namespace Opc.Ua.Bindings
                 return chunkCount;
             }
             return 1;
+        }
+
+        /// <summary>
+        /// Check the MessageType and size against the content and size of the stream.
+        /// </summary>
+        /// <param name="decoder">The decoder of the stream.</param>
+        /// <param name="expectedMessageType">The message type to be checked.</param>
+        /// <param name="count">The length of the message.</param>
+        protected static void ReadAndVerifyMessageTypeAndSize(IDecoder decoder, uint expectedMessageType, int count)
+        {
+            uint messageType = decoder.ReadUInt32(null);
+            if (messageType != expectedMessageType)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadTcpMessageTypeInvalid,
+                    "Expected message type {0:X8} instead of {0:X8}.", expectedMessageType, messageType);
+            }
+            int messageSize = decoder.ReadInt32(null);
+            if (messageSize > count)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadTcpMessageTooLarge,
+                    "Messages size {0} is larger than buffer size {1}.", messageSize, count);
+            }
         }
 
         /// <summary>

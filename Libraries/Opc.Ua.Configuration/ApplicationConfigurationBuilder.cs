@@ -500,6 +500,20 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        public IApplicationConfigurationBuilderTransportQuotas SetMaxEncodingNestingLevels(int maxEncodingNestingLevels)
+        {
+            ApplicationConfiguration.TransportQuotas.MaxEncodingNestingLevels = maxEncodingNestingLevels;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderTransportQuotas SetMaxDecoderRecoveries(int maxDecoderRecoveries)
+        {
+            ApplicationConfiguration.TransportQuotas.MaxDecoderRecoveries = maxDecoderRecoveries;
+            return this;
+        }
+
+        /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions SetMinRequestThreadCount(int minRequestThreadCount)
         {
             ApplicationConfiguration.ServerConfiguration.MinRequestThreadCount = minRequestThreadCount;

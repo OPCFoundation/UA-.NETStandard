@@ -1237,10 +1237,10 @@ namespace Opc.Ua
                             object contents = ReadVariantContents(out typeInfo);
                             value = new Variant(contents, typeInfo);
                         }
-                        catch (Exception ex)
+                        catch (Exception ex) when (!(ex is ServiceResultException))
                         {
-                            Utils.LogError(ex, "XmlDecoder: Error reading variant.");
-                            value = new Variant(StatusCodes.BadDecodingError);
+                            Utils.LogError(ex, "XmlDecoder: Error reading variant. {0}", ex.Message);
+                            value = new Variant((StatusCode)StatusCodes.BadDecodingError);
                         }
                         EndField("Value");
                     }
@@ -2619,7 +2619,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Reads an Matrix from the stream.
+        /// Reads a Matrix from the stream.
         /// </summary>
         private Matrix ReadMatrix(string fieldName)
         {
@@ -2656,7 +2656,17 @@ namespace Opc.Ua
 
                 if (dimensions != null && dimensions.Count > 0)
                 {
-                    return new Matrix(elements, typeInfo.BuiltInType, dimensions.ToArray());
+                    int length = elements.Length;
+                    var dimensionsArray = dimensions.ToArray();
+                    (bool valid, int matrixLength) = Matrix.ValidateDimensions(dimensionsArray, length, Context.MaxArrayLength);
+
+                    if (!valid || (matrixLength != length))
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                            "ArrayDimensions length does not match with the ArrayLength in Variant object.");
+                    }
+
+                    return new Matrix(elements, typeInfo.BuiltInType, dimensionsArray);
                 }
 
                 return new Matrix(elements, typeInfo.BuiltInType);

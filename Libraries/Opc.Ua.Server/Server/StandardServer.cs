@@ -2327,7 +2327,8 @@ namespace Opc.Ua.Server
                                 {
                                     client.RegisterServer(requestHeader, m_registrationInfo);
                                 }
-
+                                
+                                m_registeredWithDiscoveryServer = m_registrationInfo.IsOnline;
                                 return true;
                             }
                             catch (Exception e)
@@ -2364,7 +2365,7 @@ namespace Opc.Ua.Server
                     configuration.CertificateValidator.CertificateValidation -= registrationCertificateValidator;
                 }
             }
-
+            m_registeredWithDiscoveryServer = false;
             return false;
         }
 
@@ -3012,6 +3013,7 @@ namespace Opc.Ua.Server
 
                         m_registrationEndpoints.Add(endpoint);
 
+                        m_registeredWithDiscoveryServer = false;
                         m_minRegistrationInterval = 1000;
                         m_lastRegistrationInterval = m_minRegistrationInterval;
 
@@ -3080,9 +3082,10 @@ namespace Opc.Ua.Server
             // attempt graceful shutdown the server.
             try
             {
-                if (m_maxRegistrationInterval > 0)
+                
+                if (m_maxRegistrationInterval > 0 && m_registeredWithDiscoveryServer)
                 {
-                    // unregister from Discovery Server
+                    // unregister from Discovery Server if registered before
                     m_registrationInfo.IsOnline = false;
                     RegisterWithDiscoveryServer();
                 }
@@ -3377,6 +3380,7 @@ namespace Opc.Ua.Server
         private int m_minRegistrationInterval;
         private int m_maxRegistrationInterval;
         private int m_lastRegistrationInterval;
+        private bool m_registeredWithDiscoveryServer;
         private int m_minNonceLength;
         private bool m_useRegisterServer2;
         private List<INodeManagerFactory> m_nodeManagerFactories;
