@@ -2075,6 +2075,8 @@ namespace Opc.Ua
 
                             // update body.
                             extension.Body = body;
+
+                            xmlDecoder.Close();
                         }
                         catch (Exception e)
                         {

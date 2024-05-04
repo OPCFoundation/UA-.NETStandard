@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Xml;
 
@@ -28,12 +29,13 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        public XmlDecoder(IServiceMessageContext context)
+        public XmlDecoder(XmlReader reader, IServiceMessageContext context)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
             Initialize();
             m_context = context;
             m_nestingLevel = 0;
+            m_reader = reader;
         }
 
         /// <summary>
@@ -51,7 +53,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a XML reader.
         /// </summary>
-        public XmlDecoder(System.Type systemType, XmlReader reader, IServiceMessageContext context)
+        public XmlDecoder(Type systemType, XmlReader reader, IServiceMessageContext context)
         {
             Initialize();
 
@@ -99,28 +101,6 @@ namespace Opc.Ua
 
         #region Public Methods
         /// <summary>
-        /// Initializes the tables used to map namespace and server uris during decoding.
-        /// </summary>
-        /// <param name="namespaceUris">The namespace URIs referenced by the data being decoded.</param>
-        /// <param name="serverUris">The server URIs referenced by the data being decoded.</param>
-        public void SetMappingTables(NamespaceTable namespaceUris, StringTable serverUris)
-        {
-            m_namespaceMappings = null;
-
-            if (namespaceUris != null && m_context.NamespaceUris != null)
-            {
-                m_namespaceMappings = m_context.NamespaceUris.CreateMapping(namespaceUris, false);
-            }
-
-            m_serverMappings = null;
-
-            if (serverUris != null && m_context.ServerUris != null)
-            {
-                m_serverMappings = m_context.ServerUris.CreateMapping(serverUris, false);
-            }
-        }
-
-        /// <summary>
         /// Initializes a string table from an XML stream.
         /// </summary>
         /// <param name="tableName">Name of the table.</param>
@@ -160,7 +140,7 @@ namespace Opc.Ua
         /// </summary>
         public void Close()
         {
-            m_reader.Dispose();
+            m_reader.Close();
         }
 
         /// <summary>
@@ -173,7 +153,7 @@ namespace Opc.Ua
                 m_reader.ReadEndElement();
             }
 
-            m_reader.Dispose();
+            m_reader.Close();
         }
 
         /// <summary>
@@ -236,29 +216,37 @@ namespace Opc.Ua
         /// <param name="qname">The qualified name of the element to skip.</param>
         public void Skip(XmlQualifiedName qname)
         {
-            m_reader.MoveToContent();
-
-            int depth = 1;
-
-            while (depth > 0)
+            try
             {
-                if (m_reader.NodeType == XmlNodeType.EndElement)
-                {
-                    if (m_reader.LocalName == qname.Name && m_reader.NamespaceURI == qname.Namespace)
-                    {
-                        depth--;
-                    }
-                }
-                else if (m_reader.NodeType == XmlNodeType.Element)
-                {
-                    if (m_reader.LocalName == qname.Name && m_reader.NamespaceURI == qname.Namespace)
-                    {
-                        depth++;
-                    }
-                }
-
-                m_reader.Skip();
                 m_reader.MoveToContent();
+
+                int depth = 1;
+
+                while (depth > 0)
+                {
+                    if (m_reader.NodeType == XmlNodeType.EndElement)
+                    {
+                        if (m_reader.LocalName == qname.Name && m_reader.NamespaceURI == qname.Namespace)
+                        {
+                            depth--;
+                        }
+                    }
+                    else if (m_reader.NodeType == XmlNodeType.Element)
+                    {
+                        if (m_reader.LocalName == qname.Name && m_reader.NamespaceURI == qname.Namespace)
+                        {
+                            depth++;
+                        }
+                    }
+
+                    m_reader.Skip();
+                    m_reader.MoveToContent();
+                }
+            }
+            catch (XmlException xe)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                    "Skip {0} failed: {1}", qname.Name, xe.Message);
             }
         }
 
@@ -515,9 +503,8 @@ namespace Opc.Ua
                     }
                 }
 
-                throw new ServiceResultException(
-                    StatusCodes.BadDecodingError,
-                    Utils.Format("Element '{1}:{0}' is not allowed in an Variant.", m_reader.LocalName, m_reader.NamespaceURI));
+                throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                    "Element '{1}:{0}' is not allowed in a Variant.", m_reader.LocalName, m_reader.NamespaceURI);
             }
             finally
             {
@@ -588,10 +575,8 @@ namespace Opc.Ua
         {
             if (disposing)
             {
-                if (m_reader != null)
-                {
-                    m_reader.Dispose();
-                }
+                Utils.SilentDispose(m_reader);
+                m_reader = null;
             }
         }
         #endregion
@@ -624,17 +609,67 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Initializes the tables used to map namespace and server uris during decoding.
+        /// </summary>
+        /// <param name="namespaceUris">The namespace URIs referenced by the data being decoded.</param>
+        /// <param name="serverUris">The server URIs referenced by the data being decoded.</param>
+        public void SetMappingTables(NamespaceTable namespaceUris, StringTable serverUris)
+        {
+            m_namespaceMappings = null;
+
+            if (namespaceUris != null && m_context.NamespaceUris != null)
+            {
+                m_namespaceMappings = m_context.NamespaceUris.CreateMapping(namespaceUris, false);
+            }
+
+            m_serverMappings = null;
+
+            if (serverUris != null && m_context.ServerUris != null)
+            {
+                m_serverMappings = m_context.ServerUris.CreateMapping(serverUris, false);
+            }
+        }
+
+        /// <summary>
+        /// Decodes an object from a buffer.
+        /// </summary>
+        public IEncodeable DecodeMessage(Type expectedType)
+        {
+            if (expectedType == null) throw new ArgumentNullException(nameof(expectedType));
+
+            XmlQualifiedName typeName = EncodeableFactory.GetXmlName(expectedType);
+            string ns = typeName.Namespace;
+            string name = typeName.Name;
+
+            int index = name.IndexOf(':');
+
+            if (index != -1)
+            {
+                name = name.Substring(index + 1);
+            }
+
+            PushNamespace(ns);
+
+            // read the message.
+            var encodeable = ReadEncodeable(name, expectedType);
+
+            PopNamespace();
+
+            return encodeable;
+        }
+
+        /// <summary>
         /// Reads a boolean from the stream.
         /// </summary>
         public bool ReadBoolean(string fieldName)
         {
             if (BeginField(fieldName, true))
             {
-                string xml = ReadString();
+                string xml = SafeReadString();
 
-                if (!String.IsNullOrEmpty(xml))
+                if (!string.IsNullOrEmpty(xml))
                 {
-                    bool value = XmlConvert.ToBoolean(xml.ToLowerInvariant());
+                    bool value = SafeXmlConvert(fieldName, XmlConvert.ToBoolean, xml.ToLowerInvariant());
                     EndField(fieldName);
                     return value;
                 }
@@ -650,11 +685,11 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true))
             {
-                string xml = ReadString();
+                string xml = SafeReadString();
 
-                if (!String.IsNullOrEmpty(xml))
+                if (!string.IsNullOrEmpty(xml))
                 {
-                    sbyte value = XmlConvert.ToSByte(xml);
+                    sbyte value = SafeXmlConvert(fieldName, XmlConvert.ToSByte, xml);
                     EndField(fieldName);
                     return value;
                 }
@@ -670,11 +705,11 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true))
             {
-                string xml = ReadString();
+                string xml = SafeReadString();
 
-                if (!String.IsNullOrEmpty(xml))
+                if (!string.IsNullOrEmpty(xml))
                 {
-                    byte value = XmlConvert.ToByte(xml);
+                    byte value = SafeXmlConvert(fieldName, XmlConvert.ToByte, xml);
                     EndField(fieldName);
                     return value;
                 }
@@ -690,11 +725,11 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true))
             {
-                string xml = ReadString();
+                string xml = SafeReadString();
 
-                if (!String.IsNullOrEmpty(xml))
+                if (!string.IsNullOrEmpty(xml))
                 {
-                    short value = XmlConvert.ToInt16(xml);
+                    short value = SafeXmlConvert(fieldName, XmlConvert.ToInt16, xml);
                     EndField(fieldName);
                     return value;
                 }
@@ -710,11 +745,11 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true))
             {
-                string xml = ReadString();
+                string xml = SafeReadString();
 
-                if (!String.IsNullOrEmpty(xml))
+                if (!string.IsNullOrEmpty(xml))
                 {
-                    ushort value = XmlConvert.ToUInt16(xml);
+                    ushort value = SafeXmlConvert(fieldName, XmlConvert.ToUInt16, xml);
                     EndField(fieldName);
                     return value;
                 }
@@ -730,11 +765,11 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true))
             {
-                string xml = ReadString();
+                string xml = SafeReadString();
 
-                if (!String.IsNullOrEmpty(xml))
+                if (!string.IsNullOrEmpty(xml))
                 {
-                    int value = XmlConvert.ToInt32(xml);
+                    int value = SafeXmlConvert(fieldName, XmlConvert.ToInt32, xml);
                     EndField(fieldName);
                     return value;
                 }
@@ -750,11 +785,11 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true))
             {
-                string xml = ReadString();
+                string xml = SafeReadString();
 
-                if (!String.IsNullOrEmpty(xml))
+                if (!string.IsNullOrEmpty(xml))
                 {
-                    uint value = XmlConvert.ToUInt32(xml);
+                    uint value = SafeXmlConvert(fieldName, XmlConvert.ToUInt32, xml);
                     EndField(fieldName);
                     return value;
                 }
@@ -770,11 +805,11 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true))
             {
-                string xml = ReadString();
+                string xml = SafeReadString();
 
-                if (!String.IsNullOrEmpty(xml))
+                if (!string.IsNullOrEmpty(xml))
                 {
-                    long value = XmlConvert.ToInt64(xml);
+                    long value = SafeXmlConvert(fieldName, XmlConvert.ToInt64, xml);
                     EndField(fieldName);
                     return value;
                 }
@@ -790,11 +825,11 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true))
             {
-                string xml = ReadString();
+                string xml = SafeReadString();
 
-                if (!String.IsNullOrEmpty(xml))
+                if (!string.IsNullOrEmpty(xml))
                 {
-                    ulong value = XmlConvert.ToUInt64(xml);
+                    ulong value = SafeXmlConvert(fieldName, XmlConvert.ToUInt64, xml);
                     EndField(fieldName);
                     return value;
                 }
@@ -810,11 +845,11 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true))
             {
-                string xml = ReadString();
+                string xml = SafeReadString();
 
-                if (!String.IsNullOrEmpty(xml))
+                if (!string.IsNullOrEmpty(xml))
                 {
-                    float value = XmlConvert.ToSingle(xml);
+                    float value = SafeXmlConvert(fieldName, XmlConvert.ToSingle, xml);
                     EndField(fieldName);
                     return value;
                 }
@@ -830,11 +865,11 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true))
             {
-                string xml = ReadString();
+                string xml = SafeReadString();
 
-                if (!String.IsNullOrEmpty(xml))
+                if (!string.IsNullOrEmpty(xml))
                 {
-                    double value = XmlConvert.ToDouble(xml);
+                    double value = SafeXmlConvert(fieldName, XmlConvert.ToDouble, xml);
                     EndField(fieldName);
                     return value;
                 }
@@ -852,7 +887,7 @@ namespace Opc.Ua
 
             if (BeginField(fieldName, true, out isNil))
             {
-                string value = ReadString();
+                string value = SafeReadString();
 
                 if (value != null)
                 {
@@ -865,7 +900,7 @@ namespace Opc.Ua
 
             if (!isNil)
             {
-                return String.Empty;
+                return string.Empty;
             }
 
             return null;
@@ -878,7 +913,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true))
             {
-                string xml = ReadString();
+                string xml = SafeReadString();
 
                 // check the length.
                 if (m_context.MaxStringLength > 0 && m_context.MaxStringLength < xml.Length)
@@ -886,11 +921,18 @@ namespace Opc.Ua
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
-                if (!String.IsNullOrEmpty(xml))
+                if (!string.IsNullOrEmpty(xml))
                 {
-                    DateTime value = XmlConvert.ToDateTime(xml, XmlDateTimeSerializationMode.Utc);
-                    EndField(fieldName);
-                    return value;
+                    try
+                    {
+                        DateTime value = XmlConvert.ToDateTime(xml, XmlDateTimeSerializationMode.Utc);
+                        EndField(fieldName);
+                        return value;
+                    }
+                    catch (FormatException fe)
+                    {
+                        throw CreateBadDecodingError(fieldName, fe);
+                    }
                 }
             }
 
@@ -907,8 +949,17 @@ namespace Opc.Ua
             if (BeginField(fieldName, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-                value.GuidString = ReadString("String");
+                var guidString = ReadString("String");
                 PopNamespace();
+
+                try
+                {
+                    value.GuidString = guidString;
+                }
+                catch (FormatException fe)
+                {
+                    throw CreateBadDecodingError(fieldName, fe);
+                }
 
                 EndField(fieldName);
             }
@@ -921,21 +972,30 @@ namespace Opc.Ua
         /// </summary>
         public byte[] ReadByteString(string fieldName)
         {
-            bool isNil = false;
-
-            if (BeginField(fieldName, true, out isNil))
+            if (BeginField(fieldName, true, out bool isNil))
             {
                 byte[] value = null;
 
-                string xml = m_reader.ReadContentAsString();
+                try
+                {
+                    string xml = m_reader.ReadContentAsString();
 
-                if (!String.IsNullOrEmpty(xml))
-                {
-                    value = Convert.FromBase64String(xml);
+                    if (!string.IsNullOrEmpty(xml))
+                    {
+                        value = Convert.FromBase64String(xml);
+                    }
+                    else
+                    {
+                        value = Array.Empty<byte>();
+                    }
                 }
-                else
+                catch (XmlException xe)
                 {
-                    value = Array.Empty<byte>();
+                    throw CreateBadDecodingError(fieldName, xe);
+                }
+                catch (InvalidOperationException ioe)
+                {
+                    throw CreateBadDecodingError(fieldName, ioe);
                 }
 
                 // check the length.
@@ -1044,8 +1104,21 @@ namespace Opc.Ua
             if (BeginField(fieldName, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-                value.IdentifierText = ReadString("Identifier");
+                string identifierText = ReadString("Identifier");
                 PopNamespace();
+
+                try
+                {
+                    value.IdentifierText = identifierText;
+                }
+                catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadNodeIdInvalid)
+                {
+                    throw CreateBadDecodingError(fieldName, sre);
+                }
+                catch (ArgumentException ae)
+                {
+                    throw CreateBadDecodingError(fieldName, ae);
+                }
 
                 EndField(fieldName);
             }
@@ -1068,8 +1141,21 @@ namespace Opc.Ua
             if (BeginField(fieldName, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-                value.IdentifierText = ReadString("Identifier");
+                string identifierText = ReadString("Identifier");
                 PopNamespace();
+
+                try
+                {
+                    value.IdentifierText = identifierText;
+                }
+                catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadNodeIdInvalid)
+                {
+                    throw CreateBadDecodingError(fieldName, sre);
+                }
+                catch (ArgumentException ae)
+                {
+                    throw CreateBadDecodingError(fieldName, ae);
+                }
 
                 EndField(fieldName);
             }
@@ -1153,7 +1239,7 @@ namespace Opc.Ua
                 }
                 else if (!isNil)
                 {
-                    name = String.Empty;
+                    name = string.Empty;
                 }
 
                 PopNamespace();
@@ -1190,7 +1276,7 @@ namespace Opc.Ua
                 }
                 else if (!isNil)
                 {
-                    locale = String.Empty;
+                    locale = string.Empty;
                 }
 
                 if (BeginField("Text", true, out isNil))
@@ -1200,7 +1286,7 @@ namespace Opc.Ua
                 }
                 else if (!isNil)
                 {
-                    text = String.Empty;
+                    text = string.Empty;
                 }
 
                 LocalizedText value = new LocalizedText(locale, text);
@@ -1352,16 +1438,14 @@ namespace Opc.Ua
         /// <param name="systemType">The system type of the encodeable object to be read</param>
         /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instance that will be read.</param>
         /// <returns>An <see cref="IEncodeable"/> object that was read from the stream.</returns>
-        public IEncodeable ReadEncodeable(string fieldName, System.Type systemType, ExpandedNodeId encodeableTypeId = null)
+        public IEncodeable ReadEncodeable(string fieldName, Type systemType, ExpandedNodeId encodeableTypeId = null)
         {
             if (systemType == null) throw new ArgumentNullException(nameof(systemType));
 
-
             if (!(Activator.CreateInstance(systemType) is IEncodeable value))
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadDecodingError,
-                    Utils.Format("Type does not support IEncodeable interface: '{0}'", systemType.FullName));
+                throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                    "Type does not support IEncodeable interface: '{0}'", systemType.FullName);
             }
 
             if (encodeableTypeId != null)
@@ -1393,9 +1477,8 @@ namespace Opc.Ua
                     {
                         if (m_reader.NodeType == XmlNodeType.None)
                         {
-                            throw new ServiceResultException(
-                                StatusCodes.BadDecodingError,
-                                Utils.Format("Unexpected end of stream decoding field '{0}' for type '{1}'.", fieldName, systemType.FullName));
+                            throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                                "Unexpected end of stream decoding field '{0}' for type '{1}'.", fieldName, systemType.FullName);
                         }
 
                         m_reader.Skip();
@@ -1404,6 +1487,11 @@ namespace Opc.Ua
 
                     EndField(fieldName);
                 }
+            }
+            catch (XmlException xe)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                    "Error decoding field '{0}' for type '{1}': {2}", fieldName, systemType.Name, xe.Message);
             }
             finally
             {
@@ -1416,26 +1504,37 @@ namespace Opc.Ua
         /// <summary>
         ///  Reads an enumerated value from the stream.
         /// </summary>
-        public Enum ReadEnumerated(string fieldName, System.Type enumType)
+        public Enum ReadEnumerated(string fieldName, Type enumType)
         {
             Enum value = (Enum)Enum.GetValues(enumType).GetValue(0);
 
             if (BeginField(fieldName, true))
             {
-                string xml = ReadString();
+                string xml = SafeReadString();
 
-                if (!String.IsNullOrEmpty(xml))
+                if (!string.IsNullOrEmpty(xml))
                 {
                     int index = xml.LastIndexOf('_');
 
-                    if (index != -1)
+                    try
                     {
-                        int numericValue = Convert.ToInt32(xml.Substring(index + 1), CultureInfo.InvariantCulture);
-                        value = (Enum)Enum.ToObject(enumType, numericValue);
+                        if (index != -1)
+                        {
+                            int numericValue = Convert.ToInt32(xml.Substring(index + 1), CultureInfo.InvariantCulture);
+                            value = (Enum)Enum.ToObject(enumType, numericValue);
+                        }
+                        else
+                        {
+                            value = (Enum)Enum.Parse(enumType, xml, false);
+                        }
                     }
-                    else
+                    catch (ArgumentException ae)
                     {
-                        value = (Enum)Enum.Parse(enumType, xml, false);
+                        throw CreateBadDecodingError(fieldName, ae);
+                    }
+                    catch (FormatException fe)
+                    {
+                        throw CreateBadDecodingError(fieldName, fe);
                     }
                 }
 
@@ -2402,7 +2501,7 @@ namespace Opc.Ua
         /// <param name="systemType">The system type of the encodeable objects to be read object</param>
         /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instances that will be read.</param>
         /// <returns>An <see cref="IEncodeable"/> array that was read from the stream.</returns>
-        public Array ReadEncodeableArray(string fieldName, System.Type systemType, ExpandedNodeId encodeableTypeId = null)
+        public Array ReadEncodeableArray(string fieldName, Type systemType, ExpandedNodeId encodeableTypeId = null)
         {
             if (systemType == null) throw new ArgumentNullException(nameof(systemType));
 
@@ -2452,7 +2551,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an enumerated value array from the stream.
         /// </summary>
-        public Array ReadEnumeratedArray(string fieldName, System.Type enumType)
+        public Array ReadEnumeratedArray(string fieldName, Type enumType)
         {
             if (enumType == null) throw new ArgumentNullException(nameof(enumType));
 
@@ -2895,20 +2994,35 @@ namespace Opc.Ua
         /// <summary>
         /// Reads a string from the stream.
         /// </summary>
-        private string ReadString()
+        private string SafeReadString([CallerMemberName] string functionName = null)
         {
-            string value = m_reader.ReadContentAsString();
-
-            // check the length.
-            if (value != null)
+            string message;
+            try
             {
-                if (m_context.MaxStringLength > 0 && m_context.MaxStringLength < value.Length)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
-            }
+                string value = m_reader.ReadContentAsString();
 
-            return value;
+                // check the length.
+                if (value != null)
+                {
+                    if (m_context.MaxStringLength > 0 && m_context.MaxStringLength < value.Length)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
+                            "ReadString in {0} exceeds MaxStringLength: {1} > {2}", functionName, value.Length, m_context.MaxStringLength);
+                    }
+                }
+
+                return value;
+            }
+            catch (XmlException xe)
+            {
+                message = xe.Message;
+            }
+            catch (InvalidOperationException ioe)
+            {
+                message = ioe.Message;
+            }
+            throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                "Unable to read string of {0}: {1}", functionName, message);
         }
 
         /// <summary>
@@ -2916,8 +3030,7 @@ namespace Opc.Ua
         /// </summary>
         private bool BeginField(string fieldName, bool isOptional)
         {
-            bool isNil = false;
-            return BeginField(fieldName, isOptional, out isNil);
+            return BeginField(fieldName, isOptional, out _);
         }
 
         /// <summary>
@@ -2925,68 +3038,76 @@ namespace Opc.Ua
         /// </summary>
         private bool BeginField(string fieldName, bool isOptional, out bool isNil)
         {
-            isNil = false;
-
-            // move to the next node.
-            m_reader.MoveToContent();
-
-            // allow caller to skip reading element tag if field name is not specified.
-            if (String.IsNullOrEmpty(fieldName))
+            try
             {
-                return true;
-            }
+                isNil = false;
 
-            // check if requested element is present.
-            if (!m_reader.IsStartElement(fieldName, m_namespaces.Peek()))
-            {
-                if (!isOptional)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadDecodingError,
-                        Utils.Format("Encountered element: '{1}:{0}' when expecting element: '{2}:{3}'.", m_reader.LocalName, m_reader.NamespaceURI, fieldName, m_namespaces.Peek()));
-                }
-
-                isNil = true;
-
-                // nothing more to read.
-                return false;
-            }
-
-            // check for empty or nil element.
-            if (m_reader.HasAttributes)
-            {
-                string nilValue = m_reader.GetAttribute("nil", Namespaces.XmlSchemaInstance);
-
-                if (!String.IsNullOrEmpty(nilValue))
-                {
-                    if (XmlConvert.ToBoolean(nilValue))
-                    {
-                        isNil = true;
-                    }
-                }
-            }
-
-            bool isEmpty = m_reader.IsEmptyElement;
-
-            m_reader.ReadStartElement();
-
-            if (!isEmpty)
-            {
+                // move to the next node.
                 m_reader.MoveToContent();
 
-                // check for an element with no children but not empty (due to whitespace).
-                if (m_reader.NodeType == XmlNodeType.EndElement)
+                // allow caller to skip reading element tag if field name is not specified.
+                if (string.IsNullOrEmpty(fieldName))
                 {
-                    if (m_reader.LocalName == fieldName && m_reader.NamespaceURI == m_namespaces.Peek())
+                    return true;
+                }
+
+                // check if requested element is present.
+                if (!m_reader.IsStartElement(fieldName, m_namespaces.Peek()))
+                {
+                    if (!isOptional)
                     {
-                        m_reader.ReadEndElement();
-                        return false;
+                        throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                            "Encountered element: '{1}:{0}' when expecting element: '{2}:{3}'.", m_reader.LocalName, m_reader.NamespaceURI, fieldName, m_namespaces.Peek());
+                    }
+
+                    isNil = true;
+
+                    // nothing more to read.
+                    return false;
+                }
+
+                // check for empty or nil element.
+                if (m_reader.HasAttributes)
+                {
+                    string nilValue = m_reader.GetAttribute("nil", Namespaces.XmlSchemaInstance);
+
+                    if (!string.IsNullOrEmpty(nilValue))
+                    {
+
+                        if (SafeXmlConvert(fieldName, XmlConvert.ToBoolean, nilValue))
+                        {
+                            isNil = true;
+                        }
                     }
                 }
-            }
 
-            // caller must read contents of element.
-            return !isNil && !isEmpty;
+                bool isEmpty = m_reader.IsEmptyElement;
+
+                m_reader.ReadStartElement();
+
+                if (!isEmpty)
+                {
+                    m_reader.MoveToContent();
+
+                    // check for an element with no children but not empty (due to whitespace).
+                    if (m_reader.NodeType == XmlNodeType.EndElement)
+                    {
+                        if (m_reader.LocalName == fieldName && m_reader.NamespaceURI == m_namespaces.Peek())
+                        {
+                            m_reader.ReadEndElement();
+                            return false;
+                        }
+                    }
+                }
+
+                // caller must read contents of element.
+                return !isNil && !isEmpty;
+            }
+            catch (XmlException xe)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                    "Unable to read field {0}: {1}", fieldName, xe.Message);
+            }
         }
 
         /// <summary>
@@ -2994,18 +3115,25 @@ namespace Opc.Ua
         /// </summary>
         private void EndField(string fieldName)
         {
-            if (!String.IsNullOrEmpty(fieldName))
+            if (!string.IsNullOrEmpty(fieldName))
             {
-                m_reader.MoveToContent();
-
-                if (m_reader.NodeType != XmlNodeType.EndElement || m_reader.LocalName != fieldName || m_reader.NamespaceURI != m_namespaces.Peek())
+                try
                 {
-                    throw new ServiceResultException(
-                        StatusCodes.BadDecodingError,
-                        Utils.Format("Encountered end element: '{1}:{0}' when expecting element: '{3}:{2}'.", m_reader.LocalName, m_reader.NamespaceURI, fieldName, m_namespaces.Peek()));
-                }
+                    m_reader.MoveToContent();
 
-                m_reader.ReadEndElement();
+                    if (m_reader.NodeType != XmlNodeType.EndElement || m_reader.LocalName != fieldName || m_reader.NamespaceURI != m_namespaces.Peek())
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                            "Encountered end element: '{1}:{0}' when expecting element: '{3}:{2}'.", m_reader.LocalName, m_reader.NamespaceURI, fieldName, m_namespaces.Peek());
+                    }
+
+                    m_reader.ReadEndElement();
+                }
+                catch (XmlException xe)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                        "Unable to read end field: {0}: {1}", fieldName, xe.Message);
+                }
             }
         }
 
@@ -3024,7 +3152,7 @@ namespace Opc.Ua
                 m_reader.Read();
             }
 
-            if (String.IsNullOrEmpty(elementName))
+            if (string.IsNullOrEmpty(elementName))
             {
                 return true;
             }
@@ -3050,16 +3178,45 @@ namespace Opc.Ua
         /// <summary>
         /// Test and increment the nesting level.
         /// </summary>
-        private void CheckAndIncrementNestingLevel()
+        private void CheckAndIncrementNestingLevel([CallerMemberName] string functionName = null)
         {
             if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded",
-                    m_context.MaxEncodingNestingLevels);
+                throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} in function {1} was exceeded", m_context.MaxEncodingNestingLevels, functionName);
             }
             m_nestingLevel++;
+        }
+
+        /// <summary>
+        /// Helper to create a BadDecodingError exception.
+        /// </summary>
+        private ServiceResultException CreateBadDecodingError(string fieldName, Exception ex, [CallerMemberName] string functionName = null)
+        {
+            return ServiceResultException.Create(StatusCodes.BadDecodingError,
+                "Unable to read field {0} in function {1}: {2}", fieldName, functionName, ex.Message);
+        }
+
+        /// <summary>
+        /// Wrapper for XmlConvert calls which catches the
+        /// <see cref="FormatException"/> or <see cref="OverflowException"/>"
+        /// and throws instead a <see cref="ServiceResultException"/> with
+        /// StatusCode <see cref="StatusCodes.BadDecodingError"/>.
+        /// </summary>
+        private T SafeXmlConvert<T>(string fieldName, Func<string, T> converter, string xml, [CallerMemberName] string functionName = null)
+        {
+            try
+            {
+                return converter(xml);
+            }
+            catch (OverflowException ove)
+            {
+                throw CreateBadDecodingError(fieldName, ove, functionName);
+            }
+            catch (FormatException fe)
+            {
+                throw CreateBadDecodingError(fieldName, fe, functionName);
+            }
         }
         #endregion
 
