@@ -378,7 +378,7 @@ namespace Opc.Ua.Security
         /// </summary>
         public static byte CalculateSecurityLevel(MessageSecurityMode mode, string policyUri)
         {
-            if ((mode == MessageSecurityMode.Invalid) || (mode == MessageSecurityMode.None))
+            if ((mode != MessageSecurityMode.Sign) && (mode == MessageSecurityMode.SignAndEncrypt))
             {
                 return 0;
             }
@@ -392,7 +392,9 @@ namespace Opc.Ua.Security
                 case SecurityPolicies.Aes128_Sha256_RsaOaep: result = 8; break;
                 case SecurityPolicies.Aes256_Sha256_RsaPss: result = 10; break;
                 case SecurityPolicies.None:
-                default: return 0;
+                default:
+                    Utils.LogWarning("Security level requested for unknown Security Policy {policy}. Returning security level 0", policyUri);
+                    return 0;
             }
 
             if (mode == MessageSecurityMode.SignAndEncrypt)
