@@ -284,7 +284,7 @@ namespace Opc.Ua.Client
 
                     //Select endpoint if it has a higher calculated security level, than the previously selected one
                     if (SecuredApplication.CalculateSecurityLevel(endpoint.SecurityMode, endpoint.SecurityPolicyUri)
-                        > SecuredApplication.CalculateSecurityLevel(selectedEndpoint.SecurityMode, endpoint.SecurityPolicyUri))
+                        > SecuredApplication.CalculateSecurityLevel(selectedEndpoint.SecurityMode, selectedEndpoint.SecurityPolicyUri))
                     {
                         selectedEndpoint = endpoint;
                     }
