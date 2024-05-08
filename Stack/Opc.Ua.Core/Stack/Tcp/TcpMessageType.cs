@@ -242,7 +242,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The default maximum chunk count for Request and Response messages.
         /// </summary>
-        public const int DefaultMaxChunkCount = 32;
+        public const int DefaultMaxChunkCount = DefaultMaxMessageSize / MinBufferSize;
 
         /// <summary>
         /// The default maximum message size.
@@ -250,7 +250,7 @@ namespace Opc.Ua.Bindings
         /// <remarks>
         /// This default is for the Tcp transport. <see cref="DefaultEncodingLimits.MaxMessageSize"/> for the generic default.
         /// </remarks>
-        public const int DefaultMaxMessageSize = DefaultMaxChunkCount * DefaultMaxBufferSize;
+        public const int DefaultMaxMessageSize = 0x10000 * 16;
 
         /// <summary>
         /// The default maximum message size for the discovery channel.

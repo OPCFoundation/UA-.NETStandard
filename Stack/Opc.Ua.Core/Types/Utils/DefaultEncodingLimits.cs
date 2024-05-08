@@ -38,7 +38,7 @@ namespace Opc.Ua
         /// <summary>
         /// The maximum length for any Message.
         /// </summary>
-        public static readonly int MaxMessageSize = UInt16.MaxValue * 32;
+        public static readonly int MaxMessageSize = 0x10000 * 16;
 
         /// <summary>
         /// The maximum nesting level accepted while encoding or decoding objects.
