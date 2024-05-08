@@ -301,5 +301,14 @@ namespace Opc.Ua.Bindings
         /// The certificates that have the key size larger than KeySizeExtraPadding need an extra padding byte in the transport message
         /// </summary>
         public const int KeySizeExtraPadding = 2048;
+
+        /// <summary>
+        /// Aligns the max message size to the nearest min buffer size.
+        /// </summary>
+        public static int AlignRoundMaxMessageSize(int value)
+        {
+            int alignmentMask = MinBufferSize - 1;
+            return (value + alignmentMask) & ~alignmentMask;
+        }
     }
 }
