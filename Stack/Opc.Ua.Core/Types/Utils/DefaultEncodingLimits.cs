@@ -11,6 +11,7 @@
 */
 
 using System;
+using Opc.Ua.Bindings;
 
 namespace Opc.Ua
 {
@@ -21,32 +22,35 @@ namespace Opc.Ua
     public static class DefaultEncodingLimits
     {
         /// <summary>
-        /// The maximum length for any string, byte string or xml element.
+        /// The default maximum length for any string, byte string or xml element.
         /// </summary>
         public static readonly int MaxStringLength = UInt16.MaxValue;
 
         /// <summary>
-        /// The maximum length for any array.
+        /// The default maximum length for any array.
         /// </summary>
         public static readonly int MaxArrayLength = UInt16.MaxValue;
 
         /// <summary>
-        /// The maximum length for any ByteString.
+        /// The default maximum length for any ByteString.
         /// </summary>
         public static readonly int MaxByteStringLength = UInt16.MaxValue * 16;
 
         /// <summary>
-        /// The maximum length for any Message.
+        /// The default maximum length for any Message.
         /// </summary>
-        public static readonly int MaxMessageSize = 0x10000 * 16;
+        /// <remarks>
+        /// Default is 2MB. Set to multiple of MinBufferSize to avoid rounding errors in other UA implementations.
+        /// </remarks>
+        public static readonly int MaxMessageSize = TcpMessageLimits.MinBufferSize * 256;
 
         /// <summary>
-        /// The maximum nesting level accepted while encoding or decoding objects.
+        /// The default maximum nesting level accepted while encoding or decoding objects.
         /// </summary>
         public static readonly int MaxEncodingNestingLevels = 200;
 
         /// <summary>
-        /// The number of times the decoder can recover from an error 
+        /// The default number of times the decoder can recover from an error 
         /// caused by an encoded ExtensionObject before throwing a decoder error.
         /// </summary>
         public static readonly int MaxDecoderRecoveries = 0;

@@ -248,9 +248,10 @@ namespace Opc.Ua.Bindings
         /// The default maximum message size.
         /// </summary>
         /// <remarks>
+        /// The default is 2MB. Ensure to set this to a value aligned to <see cref="MinBufferSize"/>.
         /// This default is for the Tcp transport. <see cref="DefaultEncodingLimits.MaxMessageSize"/> for the generic default.
         /// </remarks>
-        public const int DefaultMaxMessageSize = 0x10000 * 16;
+        public const int DefaultMaxMessageSize = MinBufferSize * 256;
 
         /// <summary>
         /// The default maximum message size for the discovery channel.
@@ -305,6 +306,9 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Aligns the max message size to the nearest min buffer size.
         /// </summary>
+        /// <remarks>
+        /// Align user configured maximum message size to avoid rounding errors in other UA implementations.
+        /// </remarks>
         public static int AlignRoundMaxMessageSize(int value)
         {
             int alignmentMask = MinBufferSize - 1;
