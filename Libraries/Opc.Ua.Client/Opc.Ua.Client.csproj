@@ -31,7 +31,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="C:\Users\roman\source\repos\romanett\UA-.NETStandard\/nuget/logo.jpg" Link="Interfaces\logo.jpg" />
+    <None Update="C:\Users\roman\source\repos\romanett\UA-.NETStandard\/nuget/logo.jpg" Link="logo.jpg" />
   </ItemGroup>
 
   <Target Name="GetPackagingOutputs" />
