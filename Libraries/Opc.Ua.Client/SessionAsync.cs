@@ -1510,10 +1510,15 @@ namespace Opc.Ua.Client
                 {
                     _ = await operation.EndAsync(kReconnectTimeout / 2, true, ct).ConfigureAwait(false);
                 }
-                catch (ServiceResultException)
+                catch (ServiceResultException sre)
                 {
-                    Utils.LogWarning("WARNING: ACTIVATE SESSION ASYNC {0} timed out. {1}/{2}", SessionId, GoodPublishRequestCount, OutstandingRequestCount);
-                    throw;
+                    if (sre.StatusCode == StatusCodes.BadRequestInterrupted)
+                    {
+                        var error = ServiceResult.Create(StatusCodes.BadRequestTimeout, "ACTIVATE SESSION timed out. {0}/{1}",
+                            GoodPublishRequestCount, OutstandingRequestCount);
+                        Utils.LogWarning("WARNING: {0}", error.ToString());
+                        operation.Fault(false, error);
+                    }
                 }
 
                 // reactivate session.

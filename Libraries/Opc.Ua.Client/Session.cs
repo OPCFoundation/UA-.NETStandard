@@ -44,6 +44,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Client
 {
@@ -745,17 +746,25 @@ namespace Opc.Ua.Client
         /// Returns true if the session is not receiving keep alives.
         /// </summary>
         /// <remarks>
-        /// Set to true if the server does not respond for 2 times the KeepAliveInterval.
-        /// Set to false is communication recovers.
+        /// Set to true if the server does not respond for 2 times the KeepAliveInterval
+        /// or if another error was reported.
+        /// Set to false is communication is ok or recovered.
         /// </remarks>
         public bool KeepAliveStopped
         {
             get
             {
-                TimeSpan delta = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - Interlocked.Read(ref m_lastKeepAliveTime));
+                StatusCode lastKeepAliveErrorStatusCode = m_lastKeepAliveErrorStatusCode;
+                if (StatusCode.IsGood(lastKeepAliveErrorStatusCode) || lastKeepAliveErrorStatusCode == StatusCodes.BadNoCommunication)
+                {
+                    TimeSpan delta = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - Interlocked.Read(ref m_lastKeepAliveTime));
 
-                // add a guard band to allow for network lag.
-                return (m_keepAliveInterval + kKeepAliveGuardBand) <= delta.TotalMilliseconds;
+                    // add a guard band to allow for network lag.
+                    return (m_keepAliveInterval + kKeepAliveGuardBand) <= delta.TotalMilliseconds;
+                }
+
+                // another error was reported which caused keep alive to stop.
+                return true;
             }
         }
 
@@ -1431,9 +1440,13 @@ namespace Opc.Ua.Client
                     connection,
                     transportChannel);
 
+                if (!(result is ChannelAsyncOperation<int> operation)) throw new ArgumentNullException(nameof(result));
+
                 if (!result.AsyncWaitHandle.WaitOne(kReconnectTimeout / 2))
                 {
-                    Utils.LogWarning("WARNING: ACTIVATE SESSION timed out. {0}/{1}", GoodPublishRequestCount, OutstandingRequestCount);
+                    var error = ServiceResult.Create(StatusCodes.BadRequestTimeout, "ACTIVATE SESSION timed out. {0}/{1}", GoodPublishRequestCount, OutstandingRequestCount);
+                    Utils.LogWarning("WARNING: {0}", error.ToString());
+                    operation.Fault(false, error);
                 }
 
                 // reactivate session.
@@ -3694,6 +3707,7 @@ namespace Opc.Ua.Client
         {
             int keepAliveInterval = m_keepAliveInterval;
 
+            m_lastKeepAliveErrorStatusCode = StatusCodes.Good;
             Interlocked.Exchange(ref m_lastKeepAliveTime, DateTime.UtcNow.Ticks);
 
             m_serverState = ServerState.Unknown;
@@ -3969,6 +3983,7 @@ namespace Opc.Ua.Client
                     return;
                 }
 
+                m_lastKeepAliveErrorStatusCode = StatusCodes.Good;
                 Interlocked.Exchange(ref m_lastKeepAliveTime, DateTime.UtcNow.Ticks);
 
                 lock (m_outstandingRequests)
@@ -3986,6 +4001,7 @@ namespace Opc.Ua.Client
             }
             else
             {
+                m_lastKeepAliveErrorStatusCode = StatusCodes.Good;
                 Interlocked.Exchange(ref m_lastKeepAliveTime, DateTime.UtcNow.Ticks);
             }
 
@@ -4013,22 +4029,18 @@ namespace Opc.Ua.Client
         protected virtual bool OnKeepAliveError(ServiceResult result)
         {
             long ticks = DateTime.UtcNow.Ticks;
+
+            m_lastKeepAliveErrorStatusCode = result.StatusCode;
             if (result.StatusCode == StatusCodes.BadNoCommunication)
             {
                 // keep alive read timed out
                 long delta = ticks - Interlocked.Read(ref m_lastKeepAliveTime);
-            Utils.LogInfo(
-                "KEEP ALIVE LATE: {0}s, EndpointUrl={1}, RequestCount={2}/{3}",
-                ((double)delta) / TimeSpan.TicksPerSecond,
-                this.Endpoint?.EndpointUrl,
-                this.GoodPublishRequestCount,
-                this.OutstandingRequestCount);
-                }
-            else
-            {
-                // another error triggered the error, ensure that KeepAliveStopped is true
-                Interlocked.Exchange(ref m_lastKeepAliveTime,
-                    ticks - ((m_keepAliveInterval + kKeepAliveGuardBand) * TimeSpan.TicksPerMillisecond));
+                Utils.LogInfo(
+                    "KEEP ALIVE LATE: {0}s, EndpointUrl={1}, RequestCount={2}/{3}",
+                    ((double)delta) / TimeSpan.TicksPerSecond,
+                    this.Endpoint?.EndpointUrl,
+                    this.GoodPublishRequestCount,
+                    this.OutstandingRequestCount);
             }
 
             KeepAliveEventHandler callback = m_KeepAlive;
@@ -6349,6 +6361,7 @@ namespace Opc.Ua.Client
         private long m_publishCounter;
         private int m_tooManyPublishRequests;
         private long m_lastKeepAliveTime;
+        private StatusCode m_lastKeepAliveErrorStatusCode;
         private ServerState m_serverState;
         private int m_keepAliveInterval;
 #if PERIODIC_TIMER
