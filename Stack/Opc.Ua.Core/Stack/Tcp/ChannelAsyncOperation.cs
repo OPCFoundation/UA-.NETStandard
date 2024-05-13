@@ -426,19 +426,20 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            if (m_callback != null)
+            AsyncCallback callback = m_callback;
+            if (callback != null)
             {
                 if (doNotBlock)
                 {
                     Task.Run(() => {
-                        m_callback(this);
+                        callback(this);
                     });
                 }
                 else
                 {
                     try
                     {
-                        m_callback(this);
+                        callback(this);
                     }
                     catch (Exception e)
                     {
