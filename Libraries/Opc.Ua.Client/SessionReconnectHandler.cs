@@ -315,8 +315,8 @@ namespace Opc.Ua.Client
                     keepaliveRecovered = true;
                     // breaking change, the callback must only assign the new
                     // session if the property is != null
-                    m_session = null;
                     Utils.LogInfo("Reconnect {0} aborted, KeepAlive recovered.", m_session?.SessionId);
+                    m_session = null;
                 }
                 else
                 {

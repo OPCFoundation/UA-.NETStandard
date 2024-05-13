@@ -144,6 +144,10 @@ namespace Opc.Ua.Bindings
                 m_handshakeOperation = operation;
 
                 State = TcpChannelState.Connecting;
+
+                // set the state.
+                ChannelStateChanged(TcpChannelState.Connecting, ServiceResult.Good);
+
                 if (ReverseSocket)
                 {
                     if (Socket != null)
@@ -221,7 +225,7 @@ namespace Opc.Ua.Bindings
                 {
                     _ = await operation.EndAsync(timeout, false, ct).ConfigureAwait(false);
                     ValidateChannelCloseError(operation.Error);
-                    }
+                }
                 catch (Exception e)
                 {
                     Utils.LogError(e, "ChannelId {0}: Could not gracefully close the channel.", ChannelId);
@@ -485,6 +489,9 @@ namespace Opc.Ua.Bindings
             // ready to open the channel.
             State = TcpChannelState.Opening;
 
+            // set the state.
+            ChannelStateChanged(TcpChannelState.Opening, ServiceResult.Good);
+
             try
             {
                 // check if reconnecting after a socket failure.
@@ -668,6 +675,9 @@ namespace Opc.Ua.Bindings
 
                 // connect finally complete.
                 m_handshakeOperation.Complete(0);
+
+                // set the state.
+                ChannelStateChanged(TcpChannelState.Open, ServiceResult.Good);
             }
             catch (Exception e)
             {
@@ -791,7 +801,7 @@ namespace Opc.Ua.Bindings
                         break;
                     }
                 }
-        }
+            }
         }
 
         /// <summary>
@@ -814,7 +824,17 @@ namespace Opc.Ua.Bindings
                 return true;
             }
 
-            m_queuedOperations.Add(queuedOperation);
+            // fail until a valid service call for BeginConnect is queued.
+            if (m_queuedOperations.Count == 0)
+            {
+                operation.Fault(StatusCodes.BadSecureChannelClosed);
+                throw new ServiceResultException(StatusCodes.BadNotConnected);
+            }
+            else
+            {
+                m_queuedOperations.Add(queuedOperation);
+            }
+
             return false;
         }
 
@@ -825,8 +845,7 @@ namespace Opc.Ua.Bindings
         {
             WriteOperation operation = (WriteOperation)e.UserToken;
 
-            // dual stack ConnectAsync may call in with null UserToken if 
-            // one connection attempt timed out but the other succeeded
+            // ConnectAsync may call in with a null UserToken, ignore
             if (operation == null)
             {
                 return;
@@ -924,6 +943,9 @@ namespace Opc.Ua.Bindings
                         Socket = null;
                     }
 
+                    // set the state.
+                    ChannelStateChanged(TcpChannelState.Closed, ServiceResult.Good);
+
                     if (!ReverseSocket)
                     {
                         // create an operation.
@@ -931,6 +953,10 @@ namespace Opc.Ua.Bindings
 
                         State = TcpChannelState.Connecting;
                         Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
+
+                        // set the state.
+                        ChannelStateChanged(TcpChannelState.Connecting, ServiceResult.Good);
+
                         Socket.BeginConnect(m_via, m_ConnectCallback, m_handshakeOperation);
                     }
                 }
@@ -1080,7 +1106,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // halt any existing handshake.
-                if (m_handshakeOperation != null && !m_handshakeOperation.IsCompleted)
+                if (m_handshakeOperation?.IsCompleted == false)
                 {
                     m_handshakeOperation.Fault(reason);
                 }
@@ -1305,14 +1331,15 @@ namespace Opc.Ua.Bindings
                         }
                         catch (Exception e)
                         {
-                            request.Operation.Fault(e, StatusCodes.BadNoCommunication, "Error establishing a connection: " + e.Message);
-                            break;
+                            request.Operation.Fault(StatusCodes.BadNoCommunication, "Error establishing a connection: " + e.Message);
+                            continue;
                         }
                     }
 
                     if (this.CurrentToken == null)
                     {
                         request.Operation.Fault(StatusCodes.BadConnectionClosed, "Could not send request because connection is closed.");
+                        continue;
                     }
 
                     try
@@ -1354,6 +1381,9 @@ namespace Opc.Ua.Bindings
                     State = TcpChannelState.Closing;
                     operation = BeginOperation(timeout, null, null);
                     SendCloseSecureChannelRequest(operation);
+
+                    // set the state.
+                    ChannelStateChanged(TcpChannelState.Closing, ServiceResult.Good);
                 }
             }
 

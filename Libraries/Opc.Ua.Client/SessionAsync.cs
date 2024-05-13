@@ -1332,6 +1332,11 @@ namespace Opc.Ua.Client
         /// <returns>The new session object.</returns>
         public static async Task<Session> RecreateAsync(Session sessionTemplate, ITransportChannel transportChannel, CancellationToken ct = default)
         {
+            if (transportChannel == null)
+            {
+                return await Session.RecreateAsync(sessionTemplate, ct).ConfigureAwait(false);
+            }
+
             ServiceMessageContext messageContext = sessionTemplate.m_configuration.CreateMessageContext();
             messageContext.Factory = sessionTemplate.Factory;
 
@@ -1507,7 +1512,8 @@ namespace Opc.Ua.Client
                 }
                 catch (ServiceResultException)
                 {
-                    Utils.LogWarning("WARNING: ACTIVATE SESSION {0} timed out. {1}/{2}", SessionId, GoodPublishRequestCount, OutstandingRequestCount);
+                    Utils.LogWarning("WARNING: ACTIVATE SESSION ASYNC {0} timed out. {1}/{2}", SessionId, GoodPublishRequestCount, OutstandingRequestCount);
+                    throw;
                 }
 
                 // reactivate session.

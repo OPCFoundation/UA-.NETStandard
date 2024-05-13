@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#if NET6_0_OR_GREATER
+#define PERIODIC_TIMER
+#endif
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -3709,7 +3713,7 @@ namespace Opc.Ua.Client
             {
                 StopKeepAliveTimer();
 
-#if NET6_0_OR_GREATER
+#if PERIODIC_TIMER
                 // start periodic timer loop
                 var keepAliveTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(keepAliveInterval));
                 _ = Task.Run(() => OnKeepAliveAsync(keepAliveTimer, nodesToRead));
@@ -3821,7 +3825,7 @@ namespace Opc.Ua.Client
             }
         }
 
-#if NET6_0_OR_GREATER
+#if PERIODIC_TIMER
         /// <summary>
         /// Sends a keep alive by reading from the server.
         /// </summary>
@@ -3893,6 +3897,11 @@ namespace Opc.Ua.Client
 
                 AsyncRequestStarted(result, requestHeader.RequestHandle, DataTypes.ReadRequest);
             }
+            catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadNotConnected)
+            {
+                // recover from error condition when secure channel is still alive
+                OnKeepAliveError(sre.Result);
+            }
             catch (Exception e)
             {
                 Utils.LogError("Could not send keep alive request: {0} {1}", e.GetType().FullName, e.Message);
@@ -3935,10 +3944,10 @@ namespace Opc.Ua.Client
 
                 return;
             }
-            catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadSessionIdInvalid)
+            catch (ServiceResultException sre)
             {
                 // recover from error condition when secure channel is still alive
-                OnKeepAliveError(ServiceResult.Create(StatusCodes.BadSessionIdInvalid, "Session unavailable for keep alive requests."));
+                OnKeepAliveError(sre.Result);
             }
             catch (Exception e)
             {
@@ -4003,14 +4012,24 @@ namespace Opc.Ua.Client
         /// </summary>
         protected virtual bool OnKeepAliveError(ServiceResult result)
         {
-            long delta = DateTime.UtcNow.Ticks - Interlocked.Read(ref m_lastKeepAliveTime);
-
+            long ticks = DateTime.UtcNow.Ticks;
+            if (result.StatusCode == StatusCodes.BadNoCommunication)
+            {
+                // keep alive read timed out
+                long delta = ticks - Interlocked.Read(ref m_lastKeepAliveTime);
             Utils.LogInfo(
                 "KEEP ALIVE LATE: {0}s, EndpointUrl={1}, RequestCount={2}/{3}",
                 ((double)delta) / TimeSpan.TicksPerSecond,
                 this.Endpoint?.EndpointUrl,
                 this.GoodPublishRequestCount,
                 this.OutstandingRequestCount);
+                }
+            else
+            {
+                // another error triggered the error, ensure that KeepAliveStopped is true
+                Interlocked.Exchange(ref m_lastKeepAliveTime,
+                    ticks - ((m_keepAliveInterval + kKeepAliveGuardBand) * TimeSpan.TicksPerMillisecond));
+            }
 
             KeepAliveEventHandler callback = m_KeepAlive;
 
@@ -5074,12 +5093,16 @@ namespace Opc.Ua.Client
 
                     case StatusCodes.BadNoSubscription:
                     case StatusCodes.BadSessionClosed:
-                    case StatusCodes.BadSessionIdInvalid:
-                    case StatusCodes.BadSecureChannelIdInvalid:
-                    case StatusCodes.BadSecureChannelClosed:
                     case StatusCodes.BadSecurityChecksFailed:
                     case StatusCodes.BadCertificateInvalid:
                     case StatusCodes.BadServerHalted:
+                        return;
+
+                    // may require a reconnect or activate to recover
+                    case StatusCodes.BadSessionIdInvalid:
+                    case StatusCodes.BadSecureChannelIdInvalid:
+                    case StatusCodes.BadSecureChannelClosed:
+                        OnKeepAliveError(error);
                         return;
 
                     // Servers may return this error when overloaded
@@ -5089,9 +5112,12 @@ namespace Opc.Ua.Client
                         // throttle the next publish to reduce server load
                         _ = Task.Run(async () => {
                             await Task.Delay(100).ConfigureAwait(false);
-                            BeginPublish(OperationTimeout);
+                            QueueBeginPublish();
                         });
                         return;
+
+                    case StatusCodes.BadTimeout:
+                        break;
 
                     default:
                         Utils.LogError(e, "PUBLISH #{0} - Unhandled error {1} during Publish.", requestHeader.RequestHandle, error.StatusCode);
@@ -5100,17 +5126,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            int requestCount = GoodPublishRequestCount;
-            int minPublishRequestCount = GetMinPublishRequestCount(false);
-
-            if (requestCount < minPublishRequestCount)
-            {
-                BeginPublish(OperationTimeout);
-            }
-            else
-            {
-                Utils.LogInfo("PUBLISH - Did not send another publish request. GoodPublishRequestCount={0}, MinPublishRequestCount={1}", requestCount, minPublishRequestCount);
-            }
+            QueueBeginPublish();
         }
 
         /// <inheritdoc/>
@@ -5201,6 +5217,24 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Private Methods
+        /// <summary>
+        /// Queues a publish request if there are not enough outstanding requests.
+        /// </summary>
+        private void QueueBeginPublish()
+        {
+            int requestCount = GoodPublishRequestCount;
+            int minPublishRequestCount = GetMinPublishRequestCount(false);
+
+            if (requestCount < minPublishRequestCount)
+            {
+                BeginPublish(OperationTimeout);
+            }
+            else
+            {
+                Utils.LogInfo("PUBLISH - Did not send another publish request. GoodPublishRequestCount={0}, MinPublishRequestCount={1}", requestCount, minPublishRequestCount);
+            }
+        }
+
         /// <summary>
         /// Validates  the identity for an open call.
         /// </summary>
@@ -6317,7 +6351,7 @@ namespace Opc.Ua.Client
         private long m_lastKeepAliveTime;
         private ServerState m_serverState;
         private int m_keepAliveInterval;
-#if NET6_0_OR_GREATER
+#if PERIODIC_TIMER
         private PeriodicTimer m_keepAliveTimer;
 #else
         private Timer m_keepAliveTimer;
