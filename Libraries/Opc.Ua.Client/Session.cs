@@ -1440,13 +1440,12 @@ namespace Opc.Ua.Client
                     connection,
                     transportChannel);
 
-                if (!(result is ChannelAsyncOperation<int> operation)) throw new ArgumentNullException(nameof(result));
-
                 if (!result.AsyncWaitHandle.WaitOne(kReconnectTimeout / 2))
                 {
                     var error = ServiceResult.Create(StatusCodes.BadRequestTimeout, "ACTIVATE SESSION timed out. {0}/{1}", GoodPublishRequestCount, OutstandingRequestCount);
                     Utils.LogWarning("WARNING: {0}", error.ToString());
-                    operation.Fault(false, error);
+                    var operation = result as ChannelAsyncOperation<int>;
+                    operation?.Fault(false, error);
                 }
 
                 // reactivate session.

@@ -1504,21 +1504,27 @@ namespace Opc.Ua.Client
                     connection,
                     transportChannel);
 
-                if (!(result is ChannelAsyncOperation<int> operation)) throw new ArgumentNullException(nameof(result));
-
-                try
+                const string timeoutMessage = "ACTIVATE SESSION ASYNC timed out. {0}/{1}";
+                if (result is ChannelAsyncOperation<int> operation)
                 {
-                    _ = await operation.EndAsync(kReconnectTimeout / 2, true, ct).ConfigureAwait(false);
-                }
-                catch (ServiceResultException sre)
-                {
-                    if (sre.StatusCode == StatusCodes.BadRequestInterrupted)
+                    try
                     {
-                        var error = ServiceResult.Create(StatusCodes.BadRequestTimeout, "ACTIVATE SESSION timed out. {0}/{1}",
-                            GoodPublishRequestCount, OutstandingRequestCount);
-                        Utils.LogWarning("WARNING: {0}", error.ToString());
-                        operation.Fault(false, error);
+                        _ = await operation.EndAsync(kReconnectTimeout / 2, true, ct).ConfigureAwait(false);
                     }
+                    catch (ServiceResultException sre)
+                    {
+                        if (sre.StatusCode == StatusCodes.BadRequestInterrupted)
+                        {
+                            var error = ServiceResult.Create(StatusCodes.BadRequestTimeout, timeoutMessage,
+                                GoodPublishRequestCount, OutstandingRequestCount);
+                            Utils.LogWarning("WARNING: {0}", error.ToString());
+                            operation.Fault(false, error);
+                        }
+                    }
+                }
+                else if (!result.AsyncWaitHandle.WaitOne(kReconnectTimeout / 2))
+                {
+                    Utils.LogWarning(timeoutMessage, GoodPublishRequestCount, OutstandingRequestCount);
                 }
 
                 // reactivate session.

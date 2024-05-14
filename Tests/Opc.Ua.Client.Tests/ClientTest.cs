@@ -682,12 +682,12 @@ namespace Opc.Ua.Client.Tests
             // cannot read using a closed channel, validate the status code
             sre = Assert.Throws<ServiceResultException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
 
-            // TODO: Both channel should return BadSecureChannelClosed
+            // TODO: Both channel should return BadNotConnected
             if (!(StatusCodes.BadSecureChannelClosed == sre.StatusCode))
             {
                 if (endpoint.EndpointUrl.ToString().StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
                 {
-                    Assert.AreEqual((StatusCode)StatusCodes.BadSessionIdInvalid, (StatusCode)sre.StatusCode, sre.Message);
+                    Assert.AreEqual((StatusCode)StatusCodes.BadNotConnected, (StatusCode)sre.StatusCode, sre.Message);
                 }
                 else
                 {
@@ -701,11 +701,13 @@ namespace Opc.Ua.Client.Tests
         /// the same session on a new channel with saved session secrets
         /// </summary>
         [Test, Order(260)]
-        [TestCase(SecurityPolicies.None, true)]
-        [TestCase(SecurityPolicies.None, false)]
-        [TestCase(SecurityPolicies.Basic256Sha256, true)]
-        [TestCase(SecurityPolicies.Basic256Sha256, false)]
-        public async Task ReconnectSessionOnAlternateChannelWithSavedSessionSecrets(string securityPolicy, bool anonymous)
+        [TestCase(SecurityPolicies.None, true, false)]
+        [TestCase(SecurityPolicies.None, false, false)]
+        [TestCase(SecurityPolicies.None, false, true)]
+        [TestCase(SecurityPolicies.Basic256Sha256, true, false)]
+        [TestCase(SecurityPolicies.Basic256Sha256, false, false)]
+        [TestCase(SecurityPolicies.Basic256Sha256, false, true)]
+        public async Task ReconnectSessionOnAlternateChannelWithSavedSessionSecrets(string securityPolicy, bool anonymous, bool asyncReconnect)
         {
             ServiceResultException sre;
 
@@ -756,8 +758,14 @@ namespace Opc.Ua.Client.Tests
             };
 
             // activate the session from saved session secrets on the new channel
-            session2.Reconnect(channel2);
-
+            if (asyncReconnect)
+            {
+                await session2.ReconnectAsync(channel2, CancellationToken.None).ConfigureAwait(false);
+            }
+            else
+            {
+                session2.Reconnect(channel2);
+            }
             Thread.Sleep(500);
 
             Assert.AreEqual(session1.SessionId, session2.SessionId);
