@@ -285,7 +285,7 @@ namespace Opc.Ua.Client.Tests
                 // client may report channel closed instead of security policy rejected
                 if (StatusCodes.BadSecureChannelClosed == sre.StatusCode)
                 {
-                    Assert.Inconclusive($"Unexpected Status: {sre}" );
+                    Assert.Inconclusive($"Unexpected Status: {sre}");
                 }
                 Assert.AreEqual((StatusCode)StatusCodes.BadSecurityPolicyRejected, (StatusCode)sre.StatusCode, "Unexpected Status: {0}", sre);
             }
@@ -314,7 +314,7 @@ namespace Opc.Ua.Client.Tests
                 // client may report channel closed instead of security policy rejected
                 if (StatusCodes.BadSecureChannelClosed == sre.StatusCode)
                 {
-                    Assert.Inconclusive($"Unexpected Status: {sre}" );
+                    Assert.Inconclusive($"Unexpected Status: {sre}");
                 }
                 Assert.AreEqual((StatusCode)StatusCodes.BadSecurityPolicyRejected, (StatusCode)sre.StatusCode, "Unexpected Status: {0}", sre);
             }
@@ -614,7 +614,7 @@ namespace Opc.Ua.Client.Tests
         /// Close the first channel before or after the new channel is activated.
         /// </summary>
         [Theory, Order(250)]
-        public async Task ReconnectSessionOnAlternateChannel(bool closeChannel)
+        public async Task ReconnectSessionOnAlternateChannel(bool closeChannel, bool asyncReconnect)
         {
             ServiceResultException sre;
 
@@ -649,7 +649,14 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(channel2);
 
             // activate the session on the new channel
-            session1.Reconnect(channel2);
+            if (asyncReconnect)
+            {
+                await session1.ReconnectAsync(channel2, CancellationToken.None).ConfigureAwait(false);
+            }
+            else
+            {
+                session1.Reconnect(channel2);
+            }
 
             // test by reading a value
             ServerStatusDataType value2 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
@@ -669,14 +676,28 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(value1.State, value3.State);
 
             // close the session, keep the channel open
-            session1.Close(closeChannel: false);
+            if (asyncReconnect)
+            {
+                await session1.CloseAsync(closeChannel: false, CancellationToken.None).ConfigureAwait(false);
+            }
+            else
+            {
+                session1.Close(closeChannel: false);
+            }
 
             // cannot read using a closed session, validate the status code
             sre = Assert.Throws<ServiceResultException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
             Assert.AreEqual((StatusCode)StatusCodes.BadSessionIdInvalid, (StatusCode)sre.StatusCode, sre.Message);
 
             // close the channel
-            channel2.Close();
+            if (asyncReconnect)
+            {
+                await channel2.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            else
+            {
+                channel2.Close();
+            }
             channel2.Dispose();
 
             // cannot read using a closed channel, validate the status code
