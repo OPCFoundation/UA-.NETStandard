@@ -234,7 +234,7 @@ namespace Quickstarts.ConsoleReferenceClient
                             var samples = new ClientSamples(output, ClientBase.ValidateResponse, quitEvent, verbose);
                             if (loadTypes)
                             {
-                                await samples.LoadTypeSystemAsync(uaClient.Session).ConfigureAwait(false);
+                                var complexTypeSystem = await samples.LoadTypeSystemAsync(uaClient.Session).ConfigureAwait(false);
                             }
 
                             if (browseall || fetchall || jsonvalues)
@@ -266,8 +266,8 @@ namespace Quickstarts.ConsoleReferenceClient
 
                                 if (subscribe && (browseall || fetchall))
                                 {
-                                    // subscribe to 100 random variables
-                                    const int MaxVariables = 100;
+                                    // subscribe to 1000 random variables
+                                    const int MaxVariables = 1000;
                                     NodeCollection variables = new NodeCollection();
                                     Random random = new Random(62541);
                                     if (fetchall)
@@ -291,15 +291,41 @@ namespace Quickstarts.ConsoleReferenceClient
 
                                     await samples.SubscribeAllValuesAsync(uaClient,
                                         variableIds: new NodeCollection(variables),
-                                        samplingInterval: 1000,
-                                        publishingInterval: 5000,
+                                        samplingInterval: 100,
+                                        publishingInterval: 1000,
                                         queueSize: 10,
-                                        lifetimeCount: 12,
+                                        lifetimeCount: 60,
                                         keepAliveCount: 2).ConfigureAwait(false);
 
                                     // Wait for DataChange notifications from MonitoredItems
                                     output.WriteLine("Subscribed to {0} variables. Press Ctrl-C to exit.", MaxVariables);
-                                    quit = quitEvent.WaitOne(timeout > 0 ? waitTime : Timeout.Infinite);
+
+                                    // free unused memory
+                                    uaClient.Session.NodeCache.Clear();
+
+                                    waitTime = timeout - (int)DateTime.UtcNow.Subtract(start).TotalMilliseconds;
+                                    DateTime endTime = waitTime > 0 ? DateTime.UtcNow.Add(TimeSpan.FromMilliseconds(waitTime)) : DateTime.MaxValue;
+                                    var variableIterator = variables.GetEnumerator();
+                                    while (!quit && endTime > DateTime.UtcNow)
+                                    {
+                                        if (variableIterator.MoveNext())
+                                        {
+                                            try
+                                            {
+                                                var value = await uaClient.Session.ReadValueAsync(variableIterator.Current.NodeId).ConfigureAwait(false);
+                                                output.WriteLine("Value of {0} is {1}", variableIterator.Current.NodeId, value);
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                output.WriteLine("Error reading value of {0}: {1}", variableIterator.Current.NodeId, ex.Message);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            variableIterator = variables.GetEnumerator();
+                                        }
+                                        quit = quitEvent.WaitOne(500);
+                                    }
                                 }
                                 else
                                 {

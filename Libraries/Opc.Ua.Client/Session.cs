@@ -4027,13 +4027,13 @@ namespace Opc.Ua.Client
         /// </summary>
         protected virtual bool OnKeepAliveError(ServiceResult result)
         {
-            long ticks = DateTime.UtcNow.Ticks;
+            DateTime now = DateTime.UtcNow;
 
             m_lastKeepAliveErrorStatusCode = result.StatusCode;
             if (result.StatusCode == StatusCodes.BadNoCommunication)
             {
                 // keep alive read timed out
-                long delta = ticks - Interlocked.Read(ref m_lastKeepAliveTime);
+                long delta = now.Ticks - Interlocked.Read(ref m_lastKeepAliveTime);
                 Utils.LogInfo(
                     "KEEP ALIVE LATE: {0}s, EndpointUrl={1}, RequestCount={2}/{3}",
                     ((double)delta) / TimeSpan.TicksPerSecond,
@@ -4048,7 +4048,7 @@ namespace Opc.Ua.Client
             {
                 try
                 {
-                    KeepAliveEventArgs args = new KeepAliveEventArgs(result, ServerState.Unknown, DateTime.UtcNow);
+                    KeepAliveEventArgs args = new KeepAliveEventArgs(result, ServerState.Unknown, now);
                     callback(this, args);
                     return !args.CancelKeepAlive;
                 }
