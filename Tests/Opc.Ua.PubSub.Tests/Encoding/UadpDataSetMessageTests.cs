@@ -33,6 +33,7 @@ using System;
 using System.Linq;
 using System.IO;
 using Opc.Ua.PubSub.Encoding;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
 {
@@ -257,17 +258,18 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
 
             UadpDataSetMessage uaDataSetMessageDecoded = new UadpDataSetMessage();
-            BinaryDecoder decoder = new BinaryDecoder(bytes, messageContextEncode);
+            using (BinaryDecoder decoder = new BinaryDecoder(bytes, messageContextEncode))
+            {
 
-            // Make sure the reader MajorVersion and MinorVersion are the same with the ones on the dataset message
-            DataSetReaderDataType reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
-            reader.DataSetMetaData.ConfigurationVersion.MajorVersion = versionValue;
-            reader.DataSetMetaData.ConfigurationVersion.MinorVersion = versionValue * 10;
+                // Make sure the reader MajorVersion and MinorVersion are the same with the ones on the dataset message
+                DataSetReaderDataType reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
+                reader.DataSetMetaData.ConfigurationVersion.MajorVersion = versionValue;
+                reader.DataSetMetaData.ConfigurationVersion.MinorVersion = versionValue * 10;
 
-            // workaround
-            uaDataSetMessageDecoded.DataSetWriterId = kTestDataSetWriterId;
-            uaDataSetMessageDecoded.DecodePossibleDataSetReader(decoder, reader);
-            decoder.Dispose();
+                // workaround
+                uaDataSetMessageDecoded.DataSetWriterId = kTestDataSetWriterId;
+                uaDataSetMessageDecoded.DecodePossibleDataSetReader(decoder, reader);
+            }
 
             // Assert
             Assert.AreEqual(DataSetDecodeErrorReason.NoError, uaDataSetMessageDecoded.DecodeErrorReason);
@@ -307,34 +309,34 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             IServiceMessageContext messageContextEncode = new ServiceMessageContext();
             byte[] bytes;
-            var memoryStream = new MemoryStream();
+            using (var memoryStream = new MemoryStream())
             using (BinaryEncoder encoder = new BinaryEncoder(memoryStream, messageContextEncode, true))
             {
                 uadpDataSetMessage.Encode(encoder);
                 _ = encoder.Close();
                 bytes = ReadBytes(memoryStream);
+
+                UadpDataSetMessage uaDataSetMessageDecoded = new UadpDataSetMessage();
+                using (BinaryDecoder decoder = new BinaryDecoder(bytes, messageContextEncode))
+                {
+                    // Make sure the reader MajorVersion is same with the ones on the dataset message
+                    // and MinorVersion differ
+                    DataSetReaderDataType reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
+                    reader.DataSetMetaData.ConfigurationVersion.MajorVersion = uadpDataSetMessage.MetaDataVersion.MajorVersion;
+                    reader.DataSetMetaData.ConfigurationVersion.MinorVersion = uadpDataSetMessage.MetaDataVersion.MinorVersion + 1;
+
+                    // workaround
+                    uaDataSetMessageDecoded.DataSetWriterId = kTestDataSetWriterId;
+                    uaDataSetMessageDecoded.DecodePossibleDataSetReader(decoder, reader);
+                }
+
+                // Assert
+                Assert.AreEqual(DataSetDecodeErrorReason.NoError, uaDataSetMessageDecoded.DecodeErrorReason);
+                Assert.AreEqual(false, uaDataSetMessageDecoded.IsMetadataMajorVersionChange);
+                Assert.AreNotEqual(null, uaDataSetMessageDecoded.DataSet);
+                // compare uadpDataSetMessage with uaDataSetMessageDecoded
+                CompareUadpDataSetMessages(uadpDataSetMessage, uaDataSetMessageDecoded);
             }
-
-            UadpDataSetMessage uaDataSetMessageDecoded = new UadpDataSetMessage();
-            BinaryDecoder decoder = new BinaryDecoder(bytes, messageContextEncode);
-
-            // Make sure the reader MajorVersion is same with the ones on the dataset message
-            // and MinorVersion differ
-            DataSetReaderDataType reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
-            reader.DataSetMetaData.ConfigurationVersion.MajorVersion = uadpDataSetMessage.MetaDataVersion.MajorVersion;
-            reader.DataSetMetaData.ConfigurationVersion.MinorVersion = uadpDataSetMessage.MetaDataVersion.MinorVersion + 1;
-
-            // workaround
-            uaDataSetMessageDecoded.DataSetWriterId = kTestDataSetWriterId;
-            uaDataSetMessageDecoded.DecodePossibleDataSetReader(decoder, reader);
-            decoder.Dispose();
-
-            // Assert
-            Assert.AreEqual(DataSetDecodeErrorReason.NoError, uaDataSetMessageDecoded.DecodeErrorReason);
-            Assert.AreEqual(false, uaDataSetMessageDecoded.IsMetadataMajorVersionChange);
-            Assert.AreNotEqual(null, uaDataSetMessageDecoded.DataSet);
-            // compare uadpDataSetMessage with uaDataSetMessageDecoded
-            CompareUadpDataSetMessages(uadpDataSetMessage, uaDataSetMessageDecoded);
         }
 
         [Test(Description = "Validate MajorVersion differ and MinorVersion are equal")]
@@ -367,7 +369,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             IServiceMessageContext messageContextEncode = new ServiceMessageContext();
             byte[] bytes;
-            var memoryStream = new MemoryStream();
+            using (var memoryStream = new MemoryStream())
             using (BinaryEncoder encoder = new BinaryEncoder(memoryStream, messageContextEncode, true))
             {
                 uadpDataSetMessage.Encode(encoder);
@@ -376,17 +378,17 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
 
             UadpDataSetMessage uaDataSetMessageDecoded = new UadpDataSetMessage();
-            BinaryDecoder decoder = new BinaryDecoder(bytes, messageContextEncode);
+            using (BinaryDecoder decoder = new BinaryDecoder(bytes, messageContextEncode))
+            {
+                // Make sure the reader MajorVersion differ and MinorVersion are equal
+                DataSetReaderDataType reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
+                reader.DataSetMetaData.ConfigurationVersion.MajorVersion = uadpDataSetMessage.MetaDataVersion.MajorVersion + 1;
+                reader.DataSetMetaData.ConfigurationVersion.MinorVersion = uadpDataSetMessage.MetaDataVersion.MinorVersion;
 
-            // Make sure the reader MajorVersion differ and MinorVersion are equal
-            DataSetReaderDataType reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
-            reader.DataSetMetaData.ConfigurationVersion.MajorVersion = uadpDataSetMessage.MetaDataVersion.MajorVersion + 1;
-            reader.DataSetMetaData.ConfigurationVersion.MinorVersion = uadpDataSetMessage.MetaDataVersion.MinorVersion;
-
-            // workaround
-            uaDataSetMessageDecoded.DataSetWriterId = kTestDataSetWriterId;
-            uaDataSetMessageDecoded.DecodePossibleDataSetReader(decoder, reader);
-            decoder.Dispose();
+                // workaround
+                uaDataSetMessageDecoded.DataSetWriterId = kTestDataSetWriterId;
+                uaDataSetMessageDecoded.DecodePossibleDataSetReader(decoder, reader);
+            }
 
             // Assert
             Assert.AreEqual(DataSetDecodeErrorReason.MetadataMajorVersion, uaDataSetMessageDecoded.DecodeErrorReason);
@@ -433,17 +435,18 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
 
             UadpDataSetMessage uaDataSetMessageDecoded = new UadpDataSetMessage();
-            BinaryDecoder decoder = new BinaryDecoder(bytes, messageContextEncode);
+            using (BinaryDecoder decoder = new BinaryDecoder(bytes, messageContextEncode))
+            {
 
-            // Make sure the reader MajorVersion differ and MinorVersion differ
-            DataSetReaderDataType reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
-            reader.DataSetMetaData.ConfigurationVersion.MajorVersion = uadpDataSetMessage.MetaDataVersion.MajorVersion + 1;
-            reader.DataSetMetaData.ConfigurationVersion.MinorVersion = uadpDataSetMessage.MetaDataVersion.MinorVersion + 1;
+                // Make sure the reader MajorVersion differ and MinorVersion differ
+                DataSetReaderDataType reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
+                reader.DataSetMetaData.ConfigurationVersion.MajorVersion = uadpDataSetMessage.MetaDataVersion.MajorVersion + 1;
+                reader.DataSetMetaData.ConfigurationVersion.MinorVersion = uadpDataSetMessage.MetaDataVersion.MinorVersion + 1;
 
-            // workaround
-            uaDataSetMessageDecoded.DataSetWriterId = kTestDataSetWriterId;
-            uaDataSetMessageDecoded.DecodePossibleDataSetReader(decoder, reader);
-            decoder.Dispose();
+                // workaround
+                uaDataSetMessageDecoded.DataSetWriterId = kTestDataSetWriterId;
+                uaDataSetMessageDecoded.DecodePossibleDataSetReader(decoder, reader);
+            }
 
             // Assert
             Assert.AreEqual(DataSetDecodeErrorReason.MetadataMajorVersion, uaDataSetMessageDecoded.DecodeErrorReason);
@@ -570,7 +573,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             IServiceMessageContext messageContextEncode = new ServiceMessageContext();
             byte[] bytes;
-            var memoryStream = new MemoryStream();
+            using (var memoryStream = new MemoryStream())
             using (BinaryEncoder encoder = new BinaryEncoder(memoryStream, messageContextEncode, true))
             {
                 uadpDataSetMessage.Encode(encoder);
@@ -579,12 +582,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
 
             UadpDataSetMessage uaDataSetMessageDecoded = new UadpDataSetMessage();
-            BinaryDecoder decoder = new BinaryDecoder(bytes, messageContextEncode);
-
-            // workaround
-            uaDataSetMessageDecoded.DataSetWriterId = kTestDataSetWriterId;
-            uaDataSetMessageDecoded.DecodePossibleDataSetReader(decoder, m_firstDataSetReaderType);
-            decoder.Dispose();
+            using (BinaryDecoder decoder = new BinaryDecoder(bytes, messageContextEncode))
+            {
+                // workaround
+                uaDataSetMessageDecoded.DataSetWriterId = kTestDataSetWriterId;
+                uaDataSetMessageDecoded.DecodePossibleDataSetReader(decoder, m_firstDataSetReaderType);
+            }
 
             // compare uadpDataSetMessage with uaDataSetMessageDecoded
             CompareUadpDataSetMessages(uadpDataSetMessage, uaDataSetMessageDecoded);

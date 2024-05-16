@@ -37,6 +37,8 @@ using NUnit.Framework;
 using NUnit.Framework.Constraints;
 using Opc.Ua.Core.Tests.Stack.Schema;
 using Opc.Ua.Schema.Xml;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 
 namespace Opc.Ua.Core.Tests.Types.Schemas
 {

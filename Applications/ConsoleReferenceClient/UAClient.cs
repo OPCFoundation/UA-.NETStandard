@@ -74,6 +74,7 @@ namespace Quickstarts
         /// </summary>
         public void Dispose()
         {
+            m_disposed = true;
             Utils.SilentDispose(m_session);
             m_configuration.CertificateValidator.CertificateValidation -= CertificateValidation;
             GC.SuppressFinalize(this);
@@ -133,6 +134,7 @@ namespace Quickstarts
         /// </summary>
         public async Task<bool> ConnectAsync(string serverUrl, bool useSecurity = true, CancellationToken ct = default)
         {
+            if (m_disposed) throw new ObjectDisposedException(nameof(UAClient));
             if (serverUrl == null) throw new ArgumentNullException(nameof(serverUrl));
 
             try
@@ -230,7 +232,8 @@ namespace Quickstarts
         /// <summary>
         /// Disconnects the session.
         /// </summary>
-        public void Disconnect()
+        /// <param name="leaveChannelOpen">Leaves the channel open.</param>
+        public void Disconnect(bool leaveChannelOpen = false)
         {
             try
             {
@@ -245,7 +248,12 @@ namespace Quickstarts
                         m_reconnectHandler = null;
                     }
 
-                    m_session.Close();
+                    m_session.Close(!leaveChannelOpen);
+                    if (leaveChannelOpen)
+                    {
+                        // detach the channel, so it doesn't get closed when the session is disposed.
+                        m_session.DetachChannel();
+                    }
                     m_session.Dispose();
                     m_session = null;
 
@@ -387,6 +395,7 @@ namespace Quickstarts
         private ISession m_session;
         private readonly TextWriter m_output;
         private readonly Action<IList, IList> m_validateResponse;
+        private bool m_disposed = false;
         #endregion
     }
 }

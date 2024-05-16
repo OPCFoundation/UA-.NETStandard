@@ -101,7 +101,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the tables used to map namespace and server uris during decoding.
         /// </summary>
-        /// <param name="namespaceUris">The namespaces URIs referenced by the data being decoded.</param>
+        /// <param name="namespaceUris">The namespace URIs referenced by the data being decoded.</param>
         /// <param name="serverUris">The server URIs referenced by the data being decoded.</param>
         public void SetMappingTables(NamespaceTable namespaceUris, StringTable serverUris)
         {
@@ -814,34 +814,7 @@ namespace Opc.Ua
 
                 if (!String.IsNullOrEmpty(xml))
                 {
-                    float value = 0;
-
-                    if (xml.Length == 3)
-                    {
-                        if (xml == "NaN")
-                        {
-                            value = Single.NaN;
-                        }
-
-                        if (xml == "INF")
-                        {
-                            value = Single.PositiveInfinity;
-                        }
-                    }
-
-                    if (xml.Length == 4)
-                    {
-                        if (xml == "-INF")
-                        {
-                            value = Single.NegativeInfinity;
-                        }
-                    }
-
-                    if (value == 0)
-                    {
-                        value = XmlConvert.ToSingle(xml);
-                    }
-
+                    float value = XmlConvert.ToSingle(xml);
                     EndField(fieldName);
                     return value;
                 }
@@ -861,34 +834,7 @@ namespace Opc.Ua
 
                 if (!String.IsNullOrEmpty(xml))
                 {
-                    double value = 0;
-
-                    if (xml.Length == 3)
-                    {
-                        if (xml == "NaN")
-                        {
-                            value = Single.NaN;
-                        }
-
-                        if (xml == "INF")
-                        {
-                            value = Single.PositiveInfinity;
-                        }
-                    }
-
-                    if (xml.Length == 4)
-                    {
-                        if (xml == "-INF")
-                        {
-                            value = Single.NegativeInfinity;
-                        }
-                    }
-
-                    if (value == 0)
-                    {
-                        value = XmlConvert.ToDouble(xml);
-                    }
-
+                    double value = XmlConvert.ToDouble(xml);
                     EndField(fieldName);
                     return value;
                 }
@@ -1011,7 +957,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Exracts the XML from the reader.
+        /// Extracts the XML from the reader.
         /// </summary>
         private void ExtractXml(StringBuilder builder)
         {
@@ -1291,10 +1237,10 @@ namespace Opc.Ua
                             object contents = ReadVariantContents(out typeInfo);
                             value = new Variant(contents, typeInfo);
                         }
-                        catch (Exception ex)
+                        catch (Exception ex) when (!(ex is ServiceResultException))
                         {
-                            Utils.LogError(ex, "XmlDecoder: Error reading variant.");
-                            value = new Variant(StatusCodes.BadDecodingError);
+                            Utils.LogError(ex, "XmlDecoder: Error reading variant. {0}", ex.Message);
+                            value = new Variant((StatusCode)StatusCodes.BadDecodingError);
                         }
                         EndField("Value");
                     }
@@ -1366,7 +1312,7 @@ namespace Opc.Ua
             if (!NodeId.IsNull(typeId) && NodeId.IsNull(absoluteId))
             {
                 Utils.LogWarning(
-                    "Cannot de-serialized extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}",
+                    "Cannot de-serialize extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}",
                     typeId);
             }
 
@@ -2453,7 +2399,7 @@ namespace Opc.Ua
         /// Reads an encodeable array from the stream.
         /// </summary>
         /// <param name="fieldName">The encodeable array field name</param>
-        /// <param name="systemType">The system type of the encopdeable objects to be read object</param>
+        /// <param name="systemType">The system type of the encodeable objects to be read object</param>
         /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instances that will be read.</param>
         /// <returns>An <see cref="IEncodeable"/> array that was read from the stream.</returns>
         public Array ReadEncodeableArray(string fieldName, System.Type systemType, ExpandedNodeId encodeableTypeId = null)
@@ -2673,7 +2619,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Reads an Matrix from the stream.
+        /// Reads a Matrix from the stream.
         /// </summary>
         private Matrix ReadMatrix(string fieldName)
         {
@@ -2710,7 +2656,17 @@ namespace Opc.Ua
 
                 if (dimensions != null && dimensions.Count > 0)
                 {
-                    return new Matrix(elements, typeInfo.BuiltInType, dimensions.ToArray());
+                    int length = elements.Length;
+                    var dimensionsArray = dimensions.ToArray();
+                    (bool valid, int matrixLength) = Matrix.ValidateDimensions(dimensionsArray, length, Context.MaxArrayLength);
+
+                    if (!valid || (matrixLength != length))
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                            "ArrayDimensions length does not match with the ArrayLength in Variant object.");
+                    }
+
+                    return new Matrix(elements, typeInfo.BuiltInType, dimensionsArray);
                 }
 
                 return new Matrix(elements, typeInfo.BuiltInType);
@@ -2956,7 +2912,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Reads the start of filed where the presences of the xsi:nil attribute is not significant.
+        /// Reads the start of field where the presences of the xsi:nil attribute is not significant.
         /// </summary>
         private bool BeginField(string fieldName, bool isOptional)
         {

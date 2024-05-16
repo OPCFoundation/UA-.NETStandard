@@ -32,6 +32,8 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {

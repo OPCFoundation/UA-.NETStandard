@@ -225,9 +225,9 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="allowUntrustedCertificates">Specifies if untrusted certificates should be accepted in the process of certificate validation</param>
         /// <param name="ignoreCertificateChainErrors">Specifies if Certificate Chain errors should be validated in the process of certificate validation</param>
         /// <param name="ignoreRevocationListErrors">Specifies if Certificate Revocation List errors should be validated in the process of certificate validation</param>
-        /// <param name="trustedIssuerCertificates">The trusted issuer certifficates store identifier</param>
-        /// <param name="trustedPeerCertificates">The trusted peer certifficates store identifier</param>
-        /// <param name="rejectedCertificateStore">The rejected certifficates store identifier</param>
+        /// <param name="trustedIssuerCertificates">The trusted issuer certificates store identifier</param>
+        /// <param name="trustedPeerCertificates">The trusted peer certificates store identifier</param>
+        /// <param name="rejectedCertificateStore">The rejected certificates store identifier</param>
         public MqttTlsOptions(MqttTlsCertificates certificates = null,
             SslProtocols sslProtocolVersion = SslProtocols.Tls12,
             bool allowUntrustedCertificates = false,

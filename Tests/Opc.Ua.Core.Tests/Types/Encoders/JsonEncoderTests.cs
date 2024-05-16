@@ -37,6 +37,7 @@ using System.Xml;
 using BenchmarkDotNet.Attributes;
 using Microsoft.IO;
 using NUnit.Framework;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
@@ -612,7 +613,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         /// <summary>
-        /// Within a object JSON don't allow another object without fieldname.
+        /// Within an object JSON don't allow another object without fieldname.
         /// </summary>
         [TestCase(false, "{\"Foo\":\"bar_1\"}")]
         [TestCase(true, "[{\"Foo\":\"bar_1\"}]")]

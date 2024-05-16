@@ -35,6 +35,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Configuration.Tests
 {
@@ -443,7 +444,7 @@ namespace Opc.Ua.Configuration.Tests
                 {
                     var sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false));
-                    Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
+                    Assert.AreEqual((StatusCode)StatusCodes.BadConfigurationError, (StatusCode)sre.StatusCode);
                 }
             }
         }
@@ -530,7 +531,7 @@ namespace Opc.Ua.Configuration.Tests
                 {
                     var sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false));
-                    Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
+                    Assert.AreEqual((StatusCode)StatusCodes.BadConfigurationError, (StatusCode)sre.StatusCode);
                 }
             }
         }
@@ -611,7 +612,7 @@ namespace Opc.Ua.Configuration.Tests
             {
                 var sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false));
-                Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
+                Assert.AreEqual((StatusCode)StatusCodes.BadConfigurationError, (StatusCode)sre.StatusCode);
             }
             else
             {

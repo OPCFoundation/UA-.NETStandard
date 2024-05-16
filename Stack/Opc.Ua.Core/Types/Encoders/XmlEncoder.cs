@@ -133,7 +133,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the tables used to map namespace and server uris during encoding.
         /// </summary>
-        /// <param name="namespaceUris">The namespaces URIs referenced by the data being encoded.</param>
+        /// <param name="namespaceUris">The namespace URIs referenced by the data being encoded.</param>
         /// <param name="serverUris">The server URIs referenced by the data being encoded.</param>
         public void SetMappingTables(NamespaceTable namespaceUris, StringTable serverUris)
         {
@@ -297,6 +297,27 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Encodes a message with its header.
+        /// </summary>
+        public void EncodeMessage(IEncodeable message)
+        {
+            if (message == null) throw new ArgumentNullException(nameof(message));
+
+            // convert the namespace uri to an index.
+            NodeId typeId = ExpandedNodeId.ToNodeId(message.TypeId, m_context.NamespaceUris);
+
+            PushNamespace(Namespaces.OpcUaXsd);
+
+            // write the type id.
+            WriteNodeId("TypeId", typeId);
+
+            // write the message.
+            WriteEncodeable("Body", message, message.GetType());
+
+            PopNamespace();
+        }
+
+        /// <summary>
         /// Writes a boolean to the stream.
         /// </summary>
         public void WriteBoolean(string fieldName, bool value)
@@ -411,23 +432,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, false, false))
             {
-                if (Single.IsNaN(value))
-                {
-                    m_writer.WriteValue("NaN");
-                }
-                else if (Single.IsPositiveInfinity(value))
-                {
-                    m_writer.WriteValue("INF");
-                }
-                else if (Single.IsNegativeInfinity(value))
-                {
-                    m_writer.WriteValue("-INF");
-                }
-                else
-                {
-                    m_writer.WriteValue(value);
-                }
-
+                m_writer.WriteValue(value);
                 EndField(fieldName);
             }
         }
@@ -969,7 +974,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Writes a sbyte array to the stream.
+        /// Writes a byte array to the stream.
         /// </summary>
         public void WriteByteArray(string fieldName, IList<byte> values)
         {

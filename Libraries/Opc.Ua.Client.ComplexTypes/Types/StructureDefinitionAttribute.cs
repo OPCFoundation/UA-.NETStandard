@@ -56,7 +56,7 @@ namespace Opc.Ua.Client.ComplexTypes
     /// Attribute for a base complex type structure definition.
     /// </summary>
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
-    public class StructureDefinitionAttribute : Attribute
+    public sealed class StructureDefinitionAttribute : Attribute
     {
         #region Constructors
         /// <summary>

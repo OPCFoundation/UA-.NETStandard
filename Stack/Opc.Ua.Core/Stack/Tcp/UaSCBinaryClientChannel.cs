@@ -469,13 +469,10 @@ namespace Opc.Ua.Bindings
             }
 
             // read buffer sizes.
-            MemoryStream istrm = new MemoryStream(messageChunk.Array, messageChunk.Offset, messageChunk.Count);
-            BinaryDecoder decoder = new BinaryDecoder(istrm, Quotas.MessageContext);
-
-            istrm.Seek(TcpMessageLimits.MessageTypeAndSize, SeekOrigin.Current);
-
-            try
+            using (var decoder = new BinaryDecoder(messageChunk, Quotas.MessageContext))
             {
+                ReadAndVerifyMessageTypeAndSize(decoder, TcpMessageType.Acknowledge, messageChunk.Count);
+
                 uint protocolVersion = decoder.ReadUInt32(null);
                 SendBufferSize = (int)decoder.ReadUInt32(null);
                 ReceiveBufferSize = (int)decoder.ReadUInt32(null);
@@ -499,9 +496,7 @@ namespace Opc.Ua.Bindings
                 {
                     MaxRequestChunkCount = (int)maxChunkCount;
                 }
-            }
-            finally
-            {
+
                 decoder.Close();
             }
 
@@ -582,10 +577,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                if (chunksToSend != null)
-                {
-                    chunksToSend.Release(BufferManager, "SendOpenSecureChannelRequest");
-                }
+                chunksToSend?.Release(BufferManager, "SendOpenSecureChannelRequest");
             }
         }
 
@@ -714,10 +706,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                if (chunksToProcess != null)
-                {
-                    chunksToProcess.Release(BufferManager, "ProcessOpenSecureChannelResponse");
-                }
+                chunksToProcess?.Release(BufferManager, "ProcessOpenSecureChannelResponse");
             }
 
             return false;
@@ -1021,10 +1010,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                if (buffers != null)
-                {
-                    buffers.Release(BufferManager, "SendRequest");
-                }
+                buffers?.Release(BufferManager, "SendRequest");
 
                 if (!success)
                 {
@@ -1162,7 +1148,7 @@ namespace Opc.Ua.Bindings
                 // halt any scheduled tasks.
                 if (m_handshakeTimer != null)
                 {
-                    m_handshakeTimer.Dispose();
+                    Utils.SilentDispose(m_handshakeTimer);
                     m_handshakeTimer = null;
                 }
 
@@ -1209,7 +1195,7 @@ namespace Opc.Ua.Bindings
             // cancel any outstanding renew operations.
             if (m_handshakeTimer != null)
             {
-                m_handshakeTimer.Dispose();
+                Utils.SilentDispose(m_handshakeTimer);
                 m_handshakeTimer = null;
             }
 
@@ -1229,7 +1215,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Creates a object to manage the state of an asynchronous operation. 
+        /// Creates an object to manage the state of an asynchronous operation. 
         /// </summary>
         private WriteOperation BeginOperation(int timeout, AsyncCallback callback, object state)
         {
@@ -1363,33 +1349,31 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected bool ProcessErrorMessage(uint messageType, ArraySegment<byte> messageChunk)
         {
+            ServiceResult error;
+
             // read request buffer sizes.            
-            MemoryStream istrm = new MemoryStream(messageChunk.Array, messageChunk.Offset, messageChunk.Count, false);
-            BinaryDecoder decoder = new BinaryDecoder(istrm, Quotas.MessageContext);
-
-            istrm.Seek(TcpMessageLimits.MessageTypeAndSize, SeekOrigin.Current);
-
-            try
+            using (var decoder = new BinaryDecoder(messageChunk, Quotas.MessageContext))
             {
-                ServiceResult error = ReadErrorMessageBody(decoder);
+                ReadAndVerifyMessageTypeAndSize(decoder, TcpMessageType.Error, messageChunk.Count);
 
-                Utils.LogTrace("ChannelId {0}: ProcessErrorMessage({1})", ChannelId, error);
+                error = ReadErrorMessageBody(decoder);
 
-                // check if a handshake is in progress
-                if (m_handshakeOperation != null)
-                {
-                    m_handshakeOperation.Fault(error);
-                    return false;
-                }
-
-                // handle the fatal error.
-                ForceReconnect(error);
-                return false;
-            }
-            finally
-            {
                 decoder.Close();
             }
+
+            Utils.LogTrace("ChannelId {0}: ProcessErrorMessage({1})", ChannelId, error);
+
+            // check if a handshake is in progress
+            if (m_handshakeOperation != null)
+            {
+                m_handshakeOperation.Fault(error);
+                return false;
+            }
+
+            // handle the fatal error.
+            ForceReconnect(error);
+            return false;
+
         }
 
         /// <summary>
@@ -1399,7 +1383,7 @@ namespace Opc.Ua.Bindings
         {
             Utils.LogTrace("ChannelId {0}: SendCloseSecureChannelRequest()", ChannelId);
 
-            // supress reconnects if an error occurs.
+            // suppress reconnects if an error occurs.
             m_waitBetweenReconnects = Timeout.Infinite;
 
             // check for valid token.
@@ -1433,10 +1417,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                if (buffers != null)
-                {
-                    buffers.Release(BufferManager, "SendCloseSecureChannelRequest");
-                }
+                buffers?.Release(BufferManager, "SendCloseSecureChannelRequest");
             }
         }
 
@@ -1488,11 +1469,14 @@ namespace Opc.Ua.Bindings
                     // get the chunks to process.
                     chunksToProcess = GetSavedChunks(requestId, messageBody, false);
 
-                    // decoder reason.
-                    MemoryStream istrm = new MemoryStream(messageBody.Array, messageBody.Offset, messageBody.Count, false);
-                    BinaryDecoder decoder = new BinaryDecoder(istrm, Quotas.MessageContext);
-                    ServiceResult error = ReadErrorMessageBody(decoder);
-                    decoder.Close();
+                    ServiceResult error;
+
+                    // decode error reason.
+                    using (var decoder = new BinaryDecoder(messageBody, Quotas.MessageContext))
+                    {
+                        error = ReadErrorMessageBody(decoder);
+                        decoder.Close();
+                    }
 
                     // report a fault.
                     operation.Fault(true, error);
@@ -1531,10 +1515,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                if (chunksToProcess != null)
-                {
-                    chunksToProcess.Release(BufferManager, "ProcessResponseMessage");
-                }
+                chunksToProcess?.Release(BufferManager, "ProcessResponseMessage");
             }
         }
         #endregion

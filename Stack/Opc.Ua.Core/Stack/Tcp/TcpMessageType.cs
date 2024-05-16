@@ -237,17 +237,21 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The default buffer size to use for communication.
         /// </summary>
-        public const int DefaultMaxBufferSize = 65535;
+        public const int DefaultMaxBufferSize = UInt16.MaxValue;
 
         /// <summary>
         /// The default maximum chunk count for Request and Response messages.
         /// </summary>
-        public const int DefaultMaxChunkCount = 16;
+        public const int DefaultMaxChunkCount = DefaultMaxMessageSize / MinBufferSize;
 
         /// <summary>
         /// The default maximum message size.
         /// </summary>
-        public const int DefaultMaxMessageSize = DefaultMaxChunkCount * DefaultMaxBufferSize;
+        /// <remarks>
+        /// The default is 2MB. Ensure to set this to a value aligned to <see cref="MinBufferSize"/>.
+        /// This default is for the Tcp transport. <see cref="DefaultEncodingLimits.MaxMessageSize"/> for the generic default.
+        /// </remarks>
+        public const int DefaultMaxMessageSize = MinBufferSize * 256;
 
         /// <summary>
         /// The default maximum message size for the discovery channel.
@@ -255,9 +259,14 @@ namespace Opc.Ua.Bindings
         public const int DefaultDiscoveryMaxMessageSize = DefaultMaxBufferSize;
 
         /// <summary>
-        /// How long a connection will remain in the server after it goes into a faulted state.
+        /// How long processing of a service call can take before it goes into a faulted state.
         /// </summary>
-        public const int DefaultChannelLifetime = 60000;
+        public const int DefaultOperationTimeout = 120000;
+
+        /// <summary>
+        /// How long a secure channel will remain in the server after it goes into a faulted state.
+        /// </summary>
+        public const int DefaultChannelLifetime = 30000;
 
         /// <summary>
         /// How long a security token lasts before it needs to be renewed.
@@ -293,5 +302,17 @@ namespace Opc.Ua.Bindings
         /// The certificates that have the key size larger than KeySizeExtraPadding need an extra padding byte in the transport message
         /// </summary>
         public const int KeySizeExtraPadding = 2048;
+
+        /// <summary>
+        /// Aligns the max message size to the nearest min buffer size.
+        /// </summary>
+        /// <remarks>
+        /// Align user configured maximum message size to avoid rounding errors in other UA implementations.
+        /// </remarks>
+        public static int AlignRoundMaxMessageSize(int value)
+        {
+            int alignmentMask = MinBufferSize - 1;
+            return (value + alignmentMask) & ~alignmentMask;
+        }
     }
 }

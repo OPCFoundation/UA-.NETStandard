@@ -31,6 +31,8 @@ using System;
 using System.IO;
 using System.Text;
 using NUnit.Framework;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
@@ -524,38 +526,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using (var decoderStream = new MemoryStream(buffer))
             using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, typeof(DataValue)))
             {
-                switch (encoderType)
-                {
-                    case EncodingType.Json:
-                    {
-                        // check such matrix cannot be initialized when decoding from Json format
-                        // the exception is thrown while trying to construct the Matrix 
-                        Assert.Throws(
-                            typeof(ArgumentException),
-                            () => {
-                                decoder.ReadDataValue("DataValue");
-                            });
-                        break;
-                    }
-                    case EncodingType.Xml:
-                    {
-                        // check such matrix cannot be initialized when decoding from Xml format
-                        // the exception is thrown while trying to construct the Matrix but is caught and handled
+                // check such matrix cannot be initialized when decoding from Binary format
+                // the exception is thrown before trying to construct the Matrix
+                ServiceResultException sre = Assert.Throws<ServiceResultException>(
+                    () => {
                         decoder.ReadDataValue("DataValue");
-                        break;
-                    }
-                    case EncodingType.Binary:
-                    {
-                        // check such matrix cannot be initialized when decoding from Binary format
-                        // the exception is thrown before trying to construct the Matrix
-                        Assert.Throws(
-                            typeof(ServiceResultException),
-                            () => {
-                                decoder.ReadDataValue("DataValue");
-                            });
-                        break;
-                    }
-                }
+                    });
+                Assert.AreEqual((StatusCode)StatusCodes.BadDecodingError, (StatusCode)sre.StatusCode, sre.Message);
             }
         }
 
@@ -615,38 +592,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using (var decoderStream = new MemoryStream(buffer))
             using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, typeof(DataValue)))
             {
-                switch (encoderType)
-                {
-                    case EncodingType.Json:
-                    {
-                        // check such matrix cannot be initialized when decoding from Json format
-                        // the exception is thrown while trying to construct the Matrix 
-                        Assert.Throws(
-                            typeof(ArgumentException),
-                            () => {
-                                decoder.ReadDataValue("DataValue");
-                            });
-                        break;
-                    }
-                    case EncodingType.Xml:
-                    {
-                        // check such matrix cannot be initialized when decoding from Xml format
-                        // the exception is thrown while trying to construct the Matrix but is caught and handled
+                // check such matrix cannot be initialized when decoding from Json format
+                // the exception is thrown while trying to construct the Matrix 
+                var sre = Assert.Throws<ServiceResultException>(
+                    () => {
                         decoder.ReadDataValue("DataValue");
-                        break;
-                    }
-                    case EncodingType.Binary:
-                    {
-                        // check such matrix cannot be initialized when decoding from Binary format
-                        // the exception is thrown before trying to construct the Matrix
-                        Assert.Throws(
-                            typeof(ServiceResultException),
-                            () => {
-                                decoder.ReadDataValue("DataValue");
-                            });
-                        break;
-                    }
-                }
+                    });
+
+                Assert.AreEqual((StatusCode)StatusCodes.BadDecodingError, (StatusCode)sre.StatusCode, sre.Message);
             }
         }
 
@@ -721,43 +674,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using (var decoderStream = new MemoryStream(buffer))
             using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type))
             {
-                switch (encoderType)
-                {
-                    case EncodingType.Json:
-                    {
-                        // If this would execute:
-                        // check such matrix cannot be initialized when decoding from Json format
-                        // the exception is thrown while trying to construct the Matrix 
-                        Assert.Throws(
-                            typeof(ServiceResultException),
-                            () => {
-                                decoder.ReadArray(builtInType.ToString(), matrix.TypeInfo.ValueRank, builtInType);
-                            });
-                        break;
-                    }
-                    case EncodingType.Xml:
-                    {
-                        // check such matrix cannot be initialized when decoding from Xml format
-                        // the exception is thrown while trying to construct the Matrix but is caught and handled
-                        Assert.Throws(
-                            typeof(ArgumentException),
-                            () => {
-                                decoder.ReadArray(builtInType.ToString(), matrix.TypeInfo.ValueRank, builtInType);
-                            });
-                        break;
-                    }
-                    case EncodingType.Binary:
-                    {
-                        // check such matrix cannot be initialized when decoding from Binary format
-                        // the exception is thrown before trying to construct the Matrix
-                        Assert.Throws(
-                            typeof(ServiceResultException),
-                            () => {
-                                decoder.ReadArray(builtInType.ToString(), matrix.TypeInfo.ValueRank, builtInType);
-                            });
-                        break;
-                    }
-                }
+                ServiceResultException sre = Assert.Throws<ServiceResultException>(
+                    () => {
+                        decoder.ReadArray(builtInType.ToString(), matrix.TypeInfo.ValueRank, builtInType);
+                    });
+
+                Assert.AreEqual((StatusCode)StatusCodes.BadEncodingLimitsExceeded, (StatusCode)sre.StatusCode, sre.Message);
             }
         }
         #endregion

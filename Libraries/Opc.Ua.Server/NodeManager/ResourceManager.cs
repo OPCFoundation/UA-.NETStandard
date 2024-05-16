@@ -518,7 +518,7 @@ namespace Opc.Ua.Server
 
                     if (m_statusCodeMapping.TryGetValue(statusCode.Code, out info))
                     {
-                        // merge the argument list with the trahslateion info cached for the status code.
+                        // merge the argument list with the translation info cached for the status code.
                         if (args != null)
                         {
                             info = new TranslationInfo(
@@ -549,7 +549,7 @@ namespace Opc.Ua.Server
 
                     if (m_symbolicIdMapping.TryGetValue(new XmlQualifiedName(symbolicId, namespaceUri), out info))
                     {
-                        // merge the argument list with the trahslateion info cached for the symbolic id.
+                        // merge the argument list with the translation info cached for the symbolic id.
                         if (args != null)
                         {
                             info = new TranslationInfo(

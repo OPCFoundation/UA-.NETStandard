@@ -329,6 +329,7 @@ namespace Opc.Ua.Security.Certificates
                 // this update
                 WriteTime(crlWriter, ThisUpdate);
 
+                // next update is OPTIONAL
                 if (NextUpdate != DateTime.MinValue &&
                     NextUpdate > ThisUpdate)
                 {
@@ -336,32 +337,36 @@ namespace Opc.Ua.Security.Certificates
                     WriteTime(crlWriter, NextUpdate);
                 }
 
-                // sequence to start the revoked certificates.
-                crlWriter.PushSequence();
-
-                foreach (RevokedCertificate revokedCert in RevokedCertificates)
+                // revocedCertificates is OPTIONAL
+                if (RevokedCertificates.Count > 0)
                 {
+                    // sequence to start the revoked certificates.
                     crlWriter.PushSequence();
 
-                    var srlNumberValue = new BigInteger(revokedCert.UserCertificate);
-                    crlWriter.WriteInteger(srlNumberValue);
-                    WriteTime(crlWriter, revokedCert.RevocationDate);
-
-                    if (revokedCert.CrlEntryExtensions.Count > 0)
+                    foreach (RevokedCertificate revokedCert in RevokedCertificates)
                     {
                         crlWriter.PushSequence();
-                        foreach (X509Extension crlEntryExt in revokedCert.CrlEntryExtensions)
+
+                        var srlNumberValue = new BigInteger(revokedCert.UserCertificate);
+                        crlWriter.WriteInteger(srlNumberValue);
+                        WriteTime(crlWriter, revokedCert.RevocationDate);
+
+                        if (revokedCert.CrlEntryExtensions.Count > 0)
                         {
-                            crlWriter.WriteExtension(crlEntryExt);
+                            crlWriter.PushSequence();
+                            foreach (X509Extension crlEntryExt in revokedCert.CrlEntryExtensions)
+                            {
+                                crlWriter.WriteExtension(crlEntryExt);
+                            }
+                            crlWriter.PopSequence();
                         }
                         crlWriter.PopSequence();
                     }
+
                     crlWriter.PopSequence();
                 }
 
-                crlWriter.PopSequence();
-
-                // CRL extensions
+                // CRL extensions OPTIONAL
                 if (CrlExtensions.Count > 0)
                 {
                     // [0]  EXPLICIT Extensions OPTIONAL
