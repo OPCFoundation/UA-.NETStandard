@@ -423,13 +423,13 @@ namespace Opc.Ua.Bindings
             EndpointConfiguration configuration = m_settings.Configuration;
             m_quotas = new ChannelQuotas {
                 MaxBufferSize = configuration.MaxBufferSize,
-                MaxMessageSize = configuration.MaxMessageSize,
+                MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(configuration.MaxMessageSize),
                 ChannelLifetime = configuration.ChannelLifetime,
                 SecurityTokenLifetime = configuration.SecurityTokenLifetime,
                 MessageContext = new ServiceMessageContext() {
                     MaxArrayLength = configuration.MaxArrayLength,
                     MaxByteStringLength = configuration.MaxByteStringLength,
-                    MaxMessageSize = configuration.MaxMessageSize,
+                    MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(configuration.MaxMessageSize),
                     MaxStringLength = configuration.MaxStringLength,
                     MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
                     MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
