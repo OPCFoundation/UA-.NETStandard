@@ -164,7 +164,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
 
 #if NET472_OR_GREATER
         /// <summary>
-        /// Get private key parameters from a ECDsa private key.
+        /// Get BouncyCastle format private key parameters from a System.Security.Cryptography.ECDsa.
         /// The private key must be exportable.
         /// </summary>
         internal static ECPrivateKeyParameters GetECPrivateKeyParameter(ECDsa ec)
@@ -172,11 +172,46 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             ECParameters ecParams = ec.ExportParameters(true);
             BigInteger d = new BigInteger(1, ecParams.D);
 
-            X9ECParameters curve = null;
+            X9ECParameters curve = GetX9ECParameters(ecParams);
+
+            if (curve == null) throw new ArgumentException("Curve OID is not recognized ", ecParams.Curve.Oid.ToString());
+            ECDomainParameters domainParameters = new ECDomainParameters(curve.Curve, curve.G, curve.N, curve.H);
+            return new ECPrivateKeyParameters(d, domainParameters);
+
+        }
+
+        /// <summary>
+        /// Get BouncyCastle format public key parameters from a System.Security.Cryptography.ECDsa
+        /// </summary>
+        internal static ECPublicKeyParameters GetECPublicKeyParameters(ECDsa ec)
+        {
+            ECParameters ecParams = ec.ExportParameters(false);
+
+            X9ECParameters curve = GetX9ECParameters(ecParams);
+
+            if (curve == null) throw new ArgumentException("Curve OID is not recognized ", ecParams.Curve.Oid.ToString());
+
+            var q = curve.Curve.CreatePoint(
+                new BigInteger(1, ecParams.Q.X),
+                new BigInteger(1, ecParams.Q.Y));
+
+            ECDomainParameters domainParameters = new ECDomainParameters(curve.Curve, curve.G, curve.N, curve.H, curve.GetSeed());
+
+            return new ECPublicKeyParameters(q, domainParameters);
+
+        }
+
+        /// <summary>
+        /// Return Bouncy Castle X9ECParameters value equivalent of System.Security.Cryptography.ECparameters
+        /// </summary>
+        /// <param name="ecParams"></param>
+        /// <returns>X9ECParameters value equivalent of System.Security.Cryptography.ECparameters if found else null</returns>
+        internal static X9ECParameters GetX9ECParameters(ECParameters ecParams)
+        {
             if (!string.IsNullOrEmpty(ecParams.Curve.Oid.Value))
             {
                 var oid = new DerObjectIdentifier(ecParams.Curve.Oid.Value);
-                curve = ECNamedCurveTable.GetByOid(oid);
+                return ECNamedCurveTable.GetByOid(oid);
             }
             else if (!string.IsNullOrEmpty(ecParams.Curve.Oid.FriendlyName))
             {
@@ -195,12 +230,49 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
                         return lastChar + "-" + number;
                     });
                 }
-                curve = ECNamedCurveTable.GetByName(bcFriendlyName);
+                return ECNamedCurveTable.GetByName(bcFriendlyName);
             }
 
-            if (curve == null) throw new ArgumentException("Curve OID is not recognized ", ecParams.Curve.Oid.ToString());
-            ECDomainParameters domainParameters = new ECDomainParameters(curve.Curve, curve.G, curve.N, curve.H);
-            return new ECPrivateKeyParameters(d, domainParameters);
+            return null;
+        }
+
+         /// <summary>
+        /// Identifies a named curve by the provided coeficients A and B from their first 4 bytes
+        /// </summary>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        /// <returns>The successfully identified named System.Security.Cryptography.ECCurve curve
+        /// or throws if no curve is identified</returns>
+        internal static ECCurve IdentifyEccCurveByCoefficients(byte[] a, byte[] b)
+        {
+            byte[] brainpoolP256AStart = new byte[] { 0x7D, 0x5A, 0x09, 0x75 };
+            byte[] brainpoolP256BStart = new byte[] { 0x26, 0xDC, 0x5C, 0x6C };
+            byte[] brainpoolP384AStart = new byte[] { 0x7B, 0xC3, 0x82, 0xC6 };
+            byte[] brainpoolP384BStart = new byte[] { 0x04, 0xA8, 0xC7, 0xDD };
+            byte[] nistP256AStart = new byte[] { 0xFF, 0xFF, 0xFF, 0xFF };
+            byte[] nistP256BStart = new byte[] { 0x5A, 0xC6, 0x35, 0xD8 };
+            byte[] nistP384AStart = new byte[] { 0xFF, 0xFF, 0xFF, 0xFF };
+            byte[] nistP384BStart = new byte[] { 0xB3, 0x31, 0x2F, 0xA7 };
+
+
+            if (a.Take(4).SequenceEqual(brainpoolP256AStart) && b.Take(4).SequenceEqual(brainpoolP256BStart))
+            {
+                return ECCurve.NamedCurves.brainpoolP256r1;
+            }
+            else if (a.Take(4).SequenceEqual(brainpoolP384AStart) && b.Take(4).SequenceEqual(brainpoolP384BStart))
+            {
+                return ECCurve.NamedCurves.brainpoolP384r1;
+            }
+            else if (a.Take(4).SequenceEqual(nistP256AStart) && b.Take(4).SequenceEqual(nistP256BStart))
+            {
+                return ECCurve.NamedCurves.nistP256;
+            }
+            else if (a.Take(4).SequenceEqual(nistP384AStart) && b.Take(4).SequenceEqual(nistP384BStart))
+            {
+                return ECCurve.NamedCurves.nistP384;
+            }
+
+            throw new ArgumentException("EccCurveByCoefficients cannot be identified");
 
         }
 #endif

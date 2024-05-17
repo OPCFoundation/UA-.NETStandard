@@ -74,7 +74,7 @@ namespace Opc.Ua.Security.Certificates
                 return EncodeAsPEM(serializedPrivateBytes, "PRIVATE KEY");
             }
 #else
-            return null; // Only on NETSTANDARD2_0
+            throw new ArgumentException("ExportPrivateKeyAsPEM not supported on this platform."); // Only on NETSTANDARD2_0
 #endif            
         }
 #endregion

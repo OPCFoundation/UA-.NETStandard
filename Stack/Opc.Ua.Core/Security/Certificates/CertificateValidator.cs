@@ -1908,7 +1908,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private readonly ReentrantSemaphoreSlim m_semaphore = new ReentrantSemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim m_semaphore = new SemaphoreSlim(1, 1);
         private readonly object m_callbackLock = new object();
         private readonly Dictionary<string, X509Certificate2> m_validatedCertificates;
         private CertificateStoreIdentifier m_trustedCertificateStore;

@@ -500,7 +500,6 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        // TODO
                         using (ICertificateStore appStore = existingCertIdentifier.OpenStore())
                         {
                             Utils.LogCertificate(Utils.TraceMasks.Security, "Delete application certificate: ", existingCertIdentifier.Certificate);
