@@ -120,11 +120,13 @@ public static partial class FuzzableCode
     {
         try
         {
-            using (var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
+            XmlReader reader = null;
+            try
             {
                 Type systemType = null;
                 try
                 {
+                    reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
                     reader.MoveToContent();
                     string typeName = reader.LocalName;
                     string namespaceUri = reader.NamespaceURI;
@@ -156,6 +158,10 @@ public static partial class FuzzableCode
                 {
                     return decoder.DecodeMessage(systemType);
                 }
+            }
+            finally
+            {
+                Utils.SilentDispose(reader);
             }
         }
         catch (ServiceResultException sre)

@@ -29,6 +29,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using Opc.Ua;
 
 /// <summary>
@@ -75,6 +76,48 @@ public static partial class FuzzableCode
     }
 
     /// <summary>
+    /// The binary encoder indempotent fuzz target for afl-fuzz.
+    /// </summary>
+    /// <param name="stream">The stdin stream from the afl-fuzz process.</param>
+    public static void AflfuzzBinaryEncoderIndempotent(Stream stream)
+    {
+        IEncodeable encodeable = null;
+        byte[] serialized = null;
+        using (var memoryStream = PrepareArraySegmentStream(stream))
+        {
+            try
+            {
+                encodeable = FuzzBinaryDecoderCore(memoryStream);
+                serialized = BinaryEncoder.EncodeMessage(encodeable, messageContext);
+            }
+            catch
+            {
+                return;
+            }
+        }
+
+        // reencode the fuzzed object and see if they are indempotent
+        if (serialized != null)
+        {
+            using (var memoryStream = new MemoryStream(serialized))
+            {
+                IEncodeable encodeable2 = FuzzBinaryDecoderCore(memoryStream);
+                byte[] serialized2 = BinaryEncoder.EncodeMessage(encodeable2, messageContext);
+
+                if (!serialized.SequenceEqual(serialized2))
+                {
+                    throw new Exception("Indempotent encoding failed.");
+                }
+
+                if (!Utils.IsEqual(encodeable, encodeable2))
+                {
+                    throw new Exception("Indempotent encoding failed.");
+                }
+            }
+        }
+    }
+
+    /// <summary>
     /// The binary decoder fuzz target for libfuzzer.
     /// </summary>
     public static void LibfuzzBinaryDecoder(ReadOnlySpan<byte> input)
@@ -86,7 +129,7 @@ public static partial class FuzzableCode
     }
 
     /// <summary>
-    /// The binary encoder fuzz target for afl-fuzz.
+    /// The binary encoder fuzz target for libfuzzer.
     /// </summary>
     public static void LibfuzzBinaryEncoder(ReadOnlySpan<byte> input)
     {
@@ -107,6 +150,47 @@ public static partial class FuzzableCode
         if (encodeable != null)
         {
             _ = BinaryEncoder.EncodeMessage(encodeable, messageContext);
+        }
+    }
+
+    /// <summary>
+    /// The binary encoder indempotent fuzz target for libfuzzer.
+    /// </summary>
+    public static void LibfuzzBinaryEncoderIndempotent(ReadOnlySpan<byte> input)
+    {
+        IEncodeable encodeable = null;
+        byte[] serialized = null;
+        using (var memoryStream = new MemoryStream(input.ToArray()))
+        {
+            try
+            {
+                encodeable = FuzzBinaryDecoderCore(memoryStream);
+                serialized = BinaryEncoder.EncodeMessage(encodeable, messageContext);
+            }
+            catch
+            {
+                return;
+            }
+        }
+
+        // reencode the fuzzed object and see if they are indempotent
+        if (serialized != null)
+        {
+            using (var memoryStream = new MemoryStream(serialized))
+            {
+                IEncodeable encodeable2 = FuzzBinaryDecoderCore(memoryStream);
+                byte[] serialized2 = BinaryEncoder.EncodeMessage(encodeable2, messageContext);
+
+                if (!serialized.SequenceEqual(serialized2))
+                {
+                    throw new Exception("Indempotent decoding failed.");
+                }
+
+                if (!Utils.IsEqual(encodeable, encodeable2))
+                {
+                    throw new Exception("Indempotent encoding failed.");
+                }
+            }
         }
     }
 
@@ -134,9 +218,14 @@ public static partial class FuzzableCode
                         return null;
                     }
                     break;
+
+                default:
+                    break;
+
             }
 
             throw;
+
         }
     }
 }

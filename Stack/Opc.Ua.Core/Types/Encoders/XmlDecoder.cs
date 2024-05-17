@@ -1528,13 +1528,9 @@ namespace Opc.Ua
                             value = (Enum)Enum.Parse(enumType, xml, false);
                         }
                     }
-                    catch (ArgumentException ae)
+                    catch (Exception ex) when (ex is ArgumentException || ex is FormatException || ex is OverflowException)
                     {
-                        throw CreateBadDecodingError(fieldName, ae);
-                    }
-                    catch (FormatException fe)
-                    {
-                        throw CreateBadDecodingError(fieldName, fe);
+                        throw CreateBadDecodingError(fieldName, ex);
                     }
                 }
 
