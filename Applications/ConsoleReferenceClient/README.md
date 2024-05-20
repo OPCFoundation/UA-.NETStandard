@@ -14,7 +14,7 @@ Specify as console parameters:
     `-up YourPassword`
 
 #### Certificate
-Place certificate in the TrustedUserCertificatesStore (the path can be found in the client configuration XML).
+Place your user certificate in the TrustedUserCertificatesStore (the path can be found in the client configuration XML). Make shure to include an accessible private key with the certificate.
 Specify console parameters:
     `-uc Thumbprint` (of the user certificate to select)
     `-ucp Password` (of the user certificates private key (optional))
