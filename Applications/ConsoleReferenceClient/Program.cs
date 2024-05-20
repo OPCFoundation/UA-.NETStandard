@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -69,6 +70,8 @@ namespace Quickstarts.ConsoleReferenceClient
             bool autoAccept = false;
             string username = null;
             string userpassword = null;
+            string userCertificateThumbprint = null;
+            string userCertificatePassword = null;
             bool logConsole = false;
             bool appLog = false;
             bool renewCertificate = false;
@@ -93,6 +96,8 @@ namespace Quickstarts.ConsoleReferenceClient
                 { "nsec|nosecurity", "select endpoint with security NONE, least secure if unavailable", s => noSecurity = s != null },
                 { "un|username=", "the name of the user identity for the connection", (string u) => username = u },
                 { "up|userpassword=", "the password of the user identity for the connection", (string u) => userpassword = u },
+                { "uc|usercertificate=", "the thumbprint of the user certificate for the user identity", (string u) => userCertificateThumbprint = u },
+                { "ucp|usercertificatepassword=", "the password of the  user certificate for the user identity", (string u) => userCertificatePassword = u },
                 { "c|console", "log to console", c => logConsole = c != null },
                 { "l|log", "log app output", c => appLog = c != null },
                 { "p|password=", "optional password for private key", (string p) => password = p },
@@ -195,12 +200,12 @@ namespace Quickstarts.ConsoleReferenceClient
                         {
                             if (!forever)
                             {
-                            break;
-                        }
+                                break;
+                            }
                             else
                             {
                                 waitTime = 0;
-                    }
+                            }
                         }
 
                         if (forever)
@@ -215,10 +220,27 @@ namespace Quickstarts.ConsoleReferenceClient
                         SessionLifeTime = 60_000,
                     })
                     {
-                        // set user identity
-                        if (!String.IsNullOrEmpty(username))
+                        // set user identity of type username/pw
+                        if (!string.IsNullOrEmpty(username))
                         {
                             uaClient.UserIdentity = new UserIdentity(username, userpassword ?? string.Empty);
+                        }
+
+                        // set user identity of type certificate
+                        if (!string.IsNullOrEmpty(userCertificateThumbprint))
+                        {
+                            CertificateIdentifier userCertificateIdentifier =
+                                await FindUserCertificateIdentifierAsync(userCertificateThumbprint,
+                                    application.ApplicationConfiguration.SecurityConfiguration.TrustedUserCertificates);
+
+                            if (userCertificateIdentifier != null)
+                            {
+                                uaClient.UserIdentity = new UserIdentity(userCertificateIdentifier, new CertificatePasswordProvider(userCertificatePassword ?? string.Empty));
+                            }
+                            else
+                            {
+                                output.WriteLine($"Failed to load user certificate with Thumbprint {userCertificateThumbprint}");
+                            }
                         }
 
                         bool connected = await uaClient.ConnectAsync(serverUrl.ToString(), !noSecurity, quitCTS.Token).ConfigureAwait(false);
@@ -345,6 +367,33 @@ namespace Quickstarts.ConsoleReferenceClient
                 Utils.SilentDispose(reverseConnectManager);
                 output.Close();
             }
+        }
+        /// <summary>
+        /// returns a CertificateIdentifier of the Certificate with the specified thumbprint if it is found in the trustedUserCertificates TrustList
+        /// </summary>
+        /// <param name="thumbprint">the thumbprint of the certificate to select</param>
+        /// <param name="trustedUserCertificates">the trustlist of the user certificates</param>
+        /// <returns>Certificate Identifier</returns>
+        private static async Task<CertificateIdentifier> FindUserCertificateIdentifierAsync(string thumbprint, CertificateTrustList trustedUserCertificates)
+        {
+            CertificateIdentifier userCertificateIdentifier = null;
+
+            // get user certificate with matching thumbprint
+            X509Certificate2Collection userCertifiactesWithMatchingThumbprint =
+                (await trustedUserCertificates
+                .GetCertificates())
+                .Find(X509FindType.FindByThumbprint, thumbprint, false);
+
+            // create Certificate Identifier
+            if (userCertifiactesWithMatchingThumbprint.Count == 1)
+            {
+                userCertificateIdentifier = new CertificateIdentifier(userCertifiactesWithMatchingThumbprint[0]) {
+                    StorePath = trustedUserCertificates.StorePath,
+                    StoreType = trustedUserCertificates.StoreType
+                };
+            }
+
+            return userCertificateIdentifier;
         }
     }
 }
