@@ -35,6 +35,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 using Opc.Ua.Tests;
+ using Assert = NUnit.Framework.Legacy.ClassicAssert;
 #if NETFRAMEWORK
 using Org.BouncyCastle.X509;
 #endif
@@ -98,6 +99,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .SetECCurve(eCCurveHash.Curve)
                     .CreateForECDsa())
                 {
+                    
                     Assert.NotNull(cert);
                     WriteCertificate(cert, $"Default cert with ECDsa {eCCurveHash.Curve.Oid.FriendlyName} {eCCurveHash.HashAlgorithmName} signature.");
                     Assert.AreEqual(eCCurveHash.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));

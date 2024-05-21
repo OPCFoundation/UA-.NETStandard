@@ -83,6 +83,8 @@ namespace Quickstarts.ConsoleReferenceClient
             int timeout = Timeout.Infinite;
             string logFile = null;
             string reverseConnectUrlString = null;
+            bool leakChannels = false;
+            bool forever = false;
 
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                 usage,
@@ -104,6 +106,8 @@ namespace Quickstarts.ConsoleReferenceClient
                 { "v|verbose", "Verbose output", v => { if (v != null) verbose = true; } },
                 { "s|subscribe", "Subscribe", s => { if (s != null) subscribe = true; } },
                 { "rc|reverseconnect=", "Connect using the reverse connect endpoint. (e.g. rc=opc.tcp://localhost:65300)", (string url) => reverseConnectUrlString = url},
+                { "forever", "run inner connect/disconnect loop forever", f => { if (f != null) forever = true; } },
+                { "leakchannels", "Leave a channel leak open when disconnecting a session.", l => { if (l != null) leakChannels = true; } },
             };
 
             ReverseConnectManager reverseConnectManager = null;
@@ -189,12 +193,23 @@ namespace Quickstarts.ConsoleReferenceClient
                         waitTime = timeout - (int)DateTime.UtcNow.Subtract(start).TotalMilliseconds;
                         if (waitTime <= 0)
                         {
+                            if (!forever)
+                            {
                             break;
+                        }
+                            else
+                            {
+                                waitTime = 0;
+                    }
+                        }
+
+                        if (forever)
+                        {
+                            start = DateTime.UtcNow;
                         }
                     }
 
                     // create the UA Client object and connect to configured server.
-
                     using (UAClient uaClient = new UAClient(application.ApplicationConfiguration, reverseConnectManager, output, ClientBase.ValidateResponse) {
                         AutoAccept = autoAccept,
                         SessionLifeTime = 60_000,
@@ -308,7 +323,7 @@ namespace Quickstarts.ConsoleReferenceClient
 
                             output.WriteLine("Client disconnected.");
 
-                            uaClient.Disconnect();
+                            uaClient.Disconnect(leakChannels);
                         }
                         else
                         {

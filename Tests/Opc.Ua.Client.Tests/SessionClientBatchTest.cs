@@ -34,6 +34,8 @@ using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 
 namespace Opc.Ua.Client.Tests
 {
@@ -145,7 +147,7 @@ namespace Opc.Ua.Client.Tests
                 Assert.AreEqual(diagnosticInfos.Count, diagnosticInfos.Count);
             });
 
-            Assert.AreEqual(StatusCodes.BadServiceUnsupported, sre.StatusCode);
+            Assert.AreEqual((StatusCode)StatusCodes.BadServiceUnsupported, (StatusCode)sre.StatusCode);
         }
 
 #if (CLIENT_ASYNC)
@@ -172,7 +174,7 @@ namespace Opc.Ua.Client.Tests
                 Assert.AreEqual(diagnosticInfos.Count, diagnosticInfos.Count);
             });
 
-            Assert.AreEqual(StatusCodes.BadServiceUnsupported, sre.StatusCode, sre.ToString());
+            Assert.AreEqual((StatusCode)StatusCodes.BadServiceUnsupported, (StatusCode)sre.StatusCode, sre.ToString());
         }
 #endif
 
@@ -198,7 +200,7 @@ namespace Opc.Ua.Client.Tests
                 Assert.AreEqual(diagnosticInfos.Count, diagnosticInfos.Count);
             });
 
-            Assert.AreEqual(StatusCodes.BadServiceUnsupported, sre.StatusCode);
+            Assert.AreEqual((StatusCode)StatusCodes.BadServiceUnsupported, (StatusCode)sre.StatusCode);
         }
 
 #if (CLIENT_ASYNC)
@@ -225,7 +227,7 @@ namespace Opc.Ua.Client.Tests
                 Assert.AreEqual(diagnosticInfos.Count, diagnosticInfos.Count);
             });
 
-            Assert.AreEqual(StatusCodes.BadServiceUnsupported, sre.StatusCode);
+            Assert.AreEqual((StatusCode)StatusCodes.BadServiceUnsupported, (StatusCode)sre.StatusCode);
         }
 #endif
 
@@ -251,7 +253,7 @@ namespace Opc.Ua.Client.Tests
                 Assert.AreEqual(diagnosticInfos.Count, diagnosticInfos.Count);
             });
 
-            Assert.AreEqual(StatusCodes.BadServiceUnsupported, sre.StatusCode);
+            Assert.AreEqual((StatusCode)StatusCodes.BadServiceUnsupported, (StatusCode)sre.StatusCode);
         }
 
 #if (CLIENT_ASYNC)
@@ -278,7 +280,7 @@ namespace Opc.Ua.Client.Tests
                 Assert.AreEqual(diagnosticInfos.Count, diagnosticInfos.Count);
             });
 
-            Assert.AreEqual(StatusCodes.BadServiceUnsupported, sre.StatusCode);
+            Assert.AreEqual((StatusCode)StatusCodes.BadServiceUnsupported, (StatusCode)sre.StatusCode);
         }
 #endif
 
@@ -304,7 +306,7 @@ namespace Opc.Ua.Client.Tests
                 Assert.AreEqual(diagnosticInfos.Count, diagnosticInfos.Count);
             });
 
-            Assert.AreEqual(StatusCodes.BadServiceUnsupported, sre.StatusCode);
+            Assert.AreEqual((StatusCode)StatusCodes.BadServiceUnsupported, (StatusCode)sre.StatusCode);
         }
 
 #if (CLIENT_ASYNC)
@@ -331,7 +333,7 @@ namespace Opc.Ua.Client.Tests
                 Assert.AreEqual(diagnosticInfos.Count, diagnosticInfos.Count);
             });
 
-            Assert.AreEqual(StatusCodes.BadServiceUnsupported, sre.StatusCode);
+            Assert.AreEqual((StatusCode)StatusCodes.BadServiceUnsupported, (StatusCode)sre.StatusCode);
         }
 #endif
 

@@ -11,10 +11,13 @@
 */
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
@@ -39,6 +42,9 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class TcpTransportListener : ITransportListener, ITcpChannelListener
     {
+        // The limit of queued connections for the listener socket..
+        const int kSocketBacklog = 10;
+
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
@@ -58,6 +64,12 @@ namespace Opc.Ua.Bindings
             {
                 lock (m_lock)
                 {
+                    if (m_inactivityDetectionTimer != null)
+                    {
+                        Utils.SilentDispose(m_inactivityDetectionTimer);
+                        m_inactivityDetectionTimer = null;
+                    }
+
                     if (m_listeningSocket != null)
                     {
                         Utils.SilentDispose(m_listeningSocket);
@@ -90,6 +102,11 @@ namespace Opc.Ua.Bindings
         public string UriScheme => Utils.UriSchemeOpcTcp;
 
         /// <summary>
+        /// The Id of the transport listener.
+        /// </summary>
+        public string ListenerId => m_listenerId;
+
+        /// <summary>
         /// Opens the listener and starts accepting connection.
         /// </summary>
         /// <param name="baseAddress">The base address.</param>
@@ -119,14 +136,17 @@ namespace Opc.Ua.Bindings
 
             if (configuration != null)
             {
+                m_inactivityDetectPeriod = configuration.ChannelLifetime / 2;
                 m_quotas.MaxBufferSize = configuration.MaxBufferSize;
-                m_quotas.MaxMessageSize = configuration.MaxMessageSize;
+                m_quotas.MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(configuration.MaxMessageSize);
                 m_quotas.ChannelLifetime = configuration.ChannelLifetime;
                 m_quotas.SecurityTokenLifetime = configuration.SecurityTokenLifetime;
                 messageContext.MaxArrayLength = configuration.MaxArrayLength;
                 messageContext.MaxByteStringLength = configuration.MaxByteStringLength;
-                messageContext.MaxMessageSize = configuration.MaxMessageSize;
+                messageContext.MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(configuration.MaxMessageSize);
                 messageContext.MaxStringLength = configuration.MaxStringLength;
+                messageContext.MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels;
+                messageContext.MaxDecoderRecoveries = configuration.MaxDecoderRecoveries;
             }
             m_quotas.MessageContext = messageContext;
 
@@ -138,6 +158,7 @@ namespace Opc.Ua.Bindings
             m_bufferManager = new BufferManager("Server", m_quotas.MaxBufferSize);
             m_channels = new Dictionary<uint, TcpListenerChannel>();
             m_reverseConnectListener = settings.ReverseConnectListener;
+            m_maxChannelCount = settings.MaxChannelCount;
 
             // save the callback to the server.
             m_callback = callback;
@@ -153,6 +174,26 @@ namespace Opc.Ua.Bindings
         public void Close()
         {
             Stop();
+        }
+
+        /// <inheritdoc/>
+        public void UpdateChannelLastActiveTime(string globalChannelId)
+        {
+            try
+            {
+                var channelIdString = globalChannelId.Substring(ListenerId.Length + 1);
+                var channelId = Convert.ToUInt32(channelIdString);
+
+                if (channelId > 0 &&
+                    m_channels.TryGetValue(channelId, out TcpListenerChannel channel))
+                {
+                    channel?.UpdateLastActiveTime();
+                }
+            }
+            catch
+            {
+                // ignore errors for calls with invalid channel id
+            }
         }
         #endregion
 
@@ -198,10 +239,7 @@ namespace Opc.Ua.Bindings
         {
             lock (m_lock)
             {
-                if (m_channels != null)
-                {
-                    m_channels.Remove(channelId);
-                }
+                m_channels?.Remove(channelId);
             }
 
             Utils.LogInfo("ChannelId {0}: closed", channelId);
@@ -309,7 +347,13 @@ namespace Opc.Ua.Bindings
                     args.Completed += OnAccept;
                     args.UserToken = m_listeningSocket;
                     m_listeningSocket.Bind(endpoint);
-                    m_listeningSocket.Listen(Int32.MaxValue);
+                    m_listeningSocket.Listen(kSocketBacklog);
+
+                    m_inactivityDetectionTimer = new Timer(DetectInactiveChannels,
+                        null,
+                        m_inactivityDetectPeriod,
+                        m_inactivityDetectPeriod);
+
                     if (!m_listeningSocket.AcceptAsync(args))
                     {
                         OnAccept(null, args);
@@ -476,8 +520,16 @@ namespace Opc.Ua.Bindings
                         return;
                     }
 
+                    bool serveChannel = !(m_maxChannelCount > 0 && m_maxChannelCount < m_channels.Count);
+                    if (!serveChannel)
+                    {
+                        Utils.LogError("OnAccept: Maximum number of channels {0} reached, serving channels is stopped until number is lower or equal than {1} ",
+                            m_channels.Count, m_maxChannelCount);
+                        Utils.SilentDispose(e.AcceptSocket);
+                    }
+
                     // check if the accept socket has been created.
-                    if (e.AcceptSocket != null && e.SocketError == SocketError.Success)
+                    if (serveChannel && e.AcceptSocket != null && e.SocketError == SocketError.Success)
                     {
                         try
                         {
@@ -549,6 +601,46 @@ namespace Opc.Ua.Bindings
                 }
             } while (repeatAccept);
         }
+
+        /// <summary>
+        /// The inactive timer callback which detects stale channels.
+        /// </summary>
+        /// <param name="state"></param>
+        private void DetectInactiveChannels(object state = null)
+        {
+            List<TcpListenerChannel> channels;
+
+            lock (m_lock)
+            {
+                channels = new List<TcpListenerChannel>();
+                foreach (var chEntry in m_channels)
+                {
+                    if (chEntry.Value.ElapsedSinceLastActiveTime > m_quotas.ChannelLifetime)
+                    {
+                        channels.Add(chEntry.Value);
+                    }
+                }
+            }
+
+            if (channels.Count > 0)
+            {
+                Utils.LogInfo("TCPLISTENER: {0} channels scheduled for IdleCleanup.", channels.Count);
+                foreach (var channel in channels)
+                {
+                    lock (m_lock)
+                    {
+                        channel.IdleCleanup();
+                    }
+                }
+            }
+        }
+        #endregion
+
+        #region Public Fields
+        /// <summary>
+        /// The maximum number of secure channels
+        /// </summary>
+        public int MaxChannelCount => m_maxChannelCount;
         #endregion
 
         #region Private Methods
@@ -658,13 +750,14 @@ namespace Opc.Ua.Bindings
                 do
                 {
                     uint nextChannelId = ++m_lastChannelId;
-                    if (!m_channels.ContainsKey(nextChannelId))
+                    if (nextChannelId != 0 && !m_channels.ContainsKey(nextChannelId))
                     {
                         return nextChannelId;
                     }
                 } while (true);
             }
         }
+
 
         /// <summary>
         /// Sets the URI for the listener.
@@ -715,6 +808,9 @@ namespace Opc.Ua.Bindings
         private Dictionary<uint, TcpListenerChannel> m_channels;
         private ITransportListenerCallback m_callback;
         private bool m_reverseConnectListener;
+        private int m_inactivityDetectPeriod;
+        private Timer m_inactivityDetectionTimer;
+        private int m_maxChannelCount;
         #endregion
     }
 

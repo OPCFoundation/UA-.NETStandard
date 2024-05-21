@@ -196,7 +196,7 @@ namespace Opc.Ua.PubSub.Transport
 
 
         /// <summary>
-        /// Sends a DataSetMetadata discovery response message
+        /// Sends a DataSetMetaData discovery response message
         /// </summary>
         private async Task SendResponseDataSetMetaData()
         {

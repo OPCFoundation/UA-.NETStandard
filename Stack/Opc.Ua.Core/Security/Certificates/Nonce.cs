@@ -10,7 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-#if ECC_SUPPORT
 using System;
 using System.Security.Cryptography;
 using System.Runtime.Serialization;
@@ -34,7 +33,11 @@ namespace Opc.Ua
     /// Represents a cryptographic nonce used for secure communication.
     /// </summary>
     [Serializable]
+#if ECC_SUPPORT
     public class Nonce : IDisposable, ISerializable
+#else
+    public class Nonce : ISerializable
+#endif  
     {
         #region Constructor
 
@@ -43,12 +46,14 @@ namespace Opc.Ua
         /// </summary>
         private Nonce()
         {
+#if ECC_SUPPORT
             m_ecdh = null;
+#endif
 #if CURVE25519
             m_bcKeyPair = null;
 #endif
         }
-        #endregion
+#endregion
 
         #region Public Properties
 
@@ -69,10 +74,11 @@ namespace Opc.Ua
 
         #endregion
 
-        #region Public Methods
+#region Public Methods
 
-        #region Instance Methods
+#region Instance Methods
 
+#if ECC_SUPPORT
         /// <summary>
         /// Derives a key from the remote nonce, using the specified salt, hash algorithm, and length.
         /// </summary>
@@ -167,8 +173,9 @@ namespace Opc.Ua
 
             return Data;
         }
+#endif
 
-        #endregion
+#endregion
 
         #region Factory Methods
         /// <summary>
@@ -389,7 +396,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        #endregion
+#endregion
 
         #region Private Methods
 
@@ -422,13 +429,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a new Nonce instance with the specified curve and nonce data.
+        /// Creates a new Nonce instance with the specified ECC curve and nonce data.
         /// </summary>
         /// <param name="curve">The elliptic curve to use for the ECDH key exchange.</param>
         /// <param name="nonceData">The nonce data to use for the ECDH key exchange.</param>
         /// <returns>A new Nonce instance with the specified curve and nonce data.</returns>
         private static Nonce CreateNonce(ECCurve curve, byte[] nonceData)
         {
+#if ECC_SUPPORT
             Nonce nonce = new Nonce() {
                 Data = nonceData
             };
@@ -448,6 +456,9 @@ namespace Opc.Ua
             nonce.m_ecdh = ECDiffieHellman.Create(ecdhParameters);
 
             return nonce;
+#else
+            throw new NotSupportedException("Platform does not support ECC curves");
+#endif
         }
 
         /// <summary>
@@ -457,10 +468,12 @@ namespace Opc.Ua
         /// <returns>A new Nonce instance.</returns>
         private static Nonce CreateNonce(ECCurve curve)
         {
+#if ECC_SUPPORT
             var ecdh = (ECDiffieHellman)ECDiffieHellman.Create(curve);
             var ecdhParameters = ecdh.ExportParameters(false);
             int xLen = ecdhParameters.Q.X.Length;
             int yLen = ecdhParameters.Q.Y.Length;
+
             byte[] senderNonce = new byte[xLen + yLen];
             Array.Copy(ecdhParameters.Q.X, senderNonce, xLen);
             Array.Copy(ecdhParameters.Q.Y, 0, senderNonce, xLen, yLen);
@@ -471,6 +484,10 @@ namespace Opc.Ua
             };
 
             return nonce;
+
+#else
+            throw new NotSupportedException("Platform does not support ECC curves");
+#endif
         }
 
 
@@ -543,7 +560,7 @@ namespace Opc.Ua
 #endif
 
 
-        #endregion
+#endregion
 
         #region Protected Methods
         /// <summary>
@@ -554,6 +571,8 @@ namespace Opc.Ua
         protected Nonce(SerializationInfo info, StreamingContext context)
         {
             var curveName = info.GetString("CurveName");
+
+#if ECC_SUPPORT
             var ecParams = new ECParameters {
                 Curve = ECCurve.CreateFromFriendlyName(curveName),
                 Q = new ECPoint {
@@ -562,14 +581,17 @@ namespace Opc.Ua
                 }
             };
             m_ecdh = ECDiffieHellman.Create(ecParams);
+#endif
 
             Data = (byte[])info.GetValue("Data", typeof(byte[]));
         }
         #endregion
 
-        #region Private Members
+#region Private Members
 
+#if ECC_SUPPORT
         private ECDiffieHellman m_ecdh;
+#endif
 
         private byte[] m_data;
 
@@ -577,7 +599,7 @@ namespace Opc.Ua
         private AsymmetricCipherKeyPair m_bcKeyPair;
 #endif
 
-        #endregion
+#endregion
 
         #region Private Static Members
         private static readonly RandomNumberGenerator m_rng = RandomNumberGenerator.Create();
@@ -585,7 +607,8 @@ namespace Opc.Ua
         private static uint m_minNonceLength = 0;
         #endregion
 
-        #region IDisposable 
+#region IDisposable
+#if ECC_SUPPORT
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -608,7 +631,8 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
+#endif
+#endregion
 
         #region ISerializable
 
@@ -619,6 +643,7 @@ namespace Opc.Ua
         /// <param name="context"></param>
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
+#if ECC_SUPPORT
             if (m_ecdh != null)
             {
                 var ecParams = m_ecdh.ExportParameters(false);
@@ -626,13 +651,13 @@ namespace Opc.Ua
                 info.AddValue("QX", ecParams.Q.X);
                 info.AddValue("QY", ecParams.Q.Y);
             }
+#endif
             if (Data != null)
             {
                 info.AddValue("Data", Data);
             }
         }
 
-        #endregion
+#endregion
     }
 }
-#endif

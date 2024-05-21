@@ -30,6 +30,7 @@
 using System;
 using System.Security.Cryptography;
 using NUnit.Framework;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Nonce
 {

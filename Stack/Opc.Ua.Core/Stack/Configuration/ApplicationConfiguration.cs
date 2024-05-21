@@ -181,6 +181,8 @@ namespace Opc.Ua
                 messageContext.MaxByteStringLength = m_transportQuotas.MaxByteStringLength;
                 messageContext.MaxStringLength = m_transportQuotas.MaxStringLength;
                 messageContext.MaxMessageSize = m_transportQuotas.MaxMessageSize;
+                messageContext.MaxEncodingNestingLevels = m_transportQuotas.MaxEncodingNestingLevels;
+                messageContext.MaxDecoderRecoveries = m_transportQuotas.MaxDecoderRecoveries;
             }
 
             messageContext.NamespaceUris = new NamespaceTable();

@@ -114,6 +114,18 @@ stages:
       jobnamesuffix: net462
       agents: '@{ windows = "windows-2022" }'
       customtestarget: net462
+- stage: testnet472
+  dependsOn: [build]
+  displayName: 'Test .NET 4.7.2'
+  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
+  jobs:
+  - template: .azurepipelines/test.yml
+    parameters:
+      framework: net472
+      configuration: Release
+      jobnamesuffix: net472
+      agents: '@{ windows = "windows-2022" }'
+      customtestarget: net472
 - stage: testnetstandard20
   dependsOn: [build]
   displayName: 'Test .NETStandard 2.0'

@@ -17,7 +17,7 @@ using Opc.Ua.Bindings;
 namespace Opc.Ua
 {
     /// <summary>
-    /// This is an interface to a object that receives audit event notifications.
+    /// This is an interface to an object that receives audit event notifications.
     /// </summary>
     public interface IAuditEventCallback
     {

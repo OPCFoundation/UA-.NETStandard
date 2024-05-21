@@ -350,6 +350,20 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// The last time the session was contacted by the client.
+        /// </summary>
+        public DateTime ClientLastContactTime
+        {
+            get
+            {
+                lock (DiagnosticsLock)
+                {
+                    return m_diagnostics.ClientLastContactTime;
+                }
+            }
+        }
+
+        /// <summary>
         /// Whether the session has been activated.
         /// </summary>
         public bool Activated
@@ -988,7 +1002,7 @@ namespace Opc.Ua.Server
             {
                 if (policy.IssuedTokenType == Profiles.JwtUserToken)
                 {
-                    issuedToken.IssuedTokenType = IssuedTokenType.JWT; 
+                    issuedToken.IssuedTokenType = IssuedTokenType.JWT;
                 }
             }
 

@@ -106,6 +106,16 @@ namespace Opc.Ua
             get { return m_reverseConnectListener; }
             set { m_reverseConnectListener = value; }
         }
+
+        /// <summary>
+        /// Indicates the max number of channels that can be created by the listener.
+        /// 0 indictates no limit.
+        /// </summary>
+        public int MaxChannelCount
+        {
+            get { return m_maxChannelCount; }
+            set { m_maxChannelCount = value; }
+        }
         #endregion
 
         #region Private Fields
@@ -116,6 +126,7 @@ namespace Opc.Ua
         private NamespaceTable m_namespaceUris;
         private IEncodeableFactory m_channelFactory;
         private bool m_reverseConnectListener;
+        private int m_maxChannelCount;
         #endregion
     }
 }

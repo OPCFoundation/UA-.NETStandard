@@ -41,6 +41,8 @@ using EmbedIO;
 using EmbedIO.Actions;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 #if !ECC_SUPPORT
 using X509SignatureGenerator = Opc.Ua.Security.Certificates.X509SignatureGenerator;
 #endif
@@ -145,7 +147,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             catch
             {
-                Assert.Ignore("Web server could not start at: {0}", m_webServerUrl);
+                Assert.Ignore($"Web server could not start at: {m_webServerUrl}");
             }
         }
 
@@ -304,7 +306,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// <summary>
         /// Validate a chain with a loop is detected.
         /// </summary>
-        [Test, Timeout(10000)]
+        [Test, CancelAfter(10000)]
         public async Task VerifyLoopChainIsDetected()
         {
             const string rootSubject = "CN=Root";

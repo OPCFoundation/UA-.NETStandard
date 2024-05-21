@@ -53,7 +53,7 @@ jobs:
       run: dotnet build ${{ env.CSPROJECT }} --force --framework ${{ matrix.framework }} --configuration ${{ matrix.configuration }} /p:CustomTestTarget=${{ matrix.customtesttarget }}
       
     - name: Test
-      # note: /p:CollectCoverage=true is only used to disable deterministc builds
+      # note: /p:CollectCoverage=true is only used to disable deterministic builds
       run: dotnet test ${{ env.CSPROJECT }} --no-build --framework ${{ matrix.framework }} --logger trx --configuration ${{ matrix.configuration }} /p:CollectCoverage=true /p:CustomTestTarget=${{ matrix.customtesttarget }} --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory ${{ env.TESTRESULTS }} 
 
     - name: Upload test results

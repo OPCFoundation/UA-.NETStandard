@@ -64,6 +64,11 @@ namespace Opc.Ua
         void PopNamespace();
 
         /// <summary>
+        /// Encodes a message with its header.
+        /// </summary>
+        void EncodeMessage(IEncodeable message);
+
+        /// <summary>
         /// Writes a boolean to the stream.
         /// </summary>
         void WriteBoolean(string fieldName, bool value);
@@ -214,7 +219,7 @@ namespace Opc.Ua
         void WriteSByteArray(string fieldName, IList<sbyte> values);
 
         /// <summary>
-        /// Writes a sbyte array to the stream.
+        /// Writes a byte array to the stream.
         /// </summary>
         void WriteByteArray(string fieldName, IList<byte> values);
 

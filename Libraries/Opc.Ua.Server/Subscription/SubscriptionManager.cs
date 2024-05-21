@@ -627,7 +627,7 @@ namespace Opc.Ua.Server
             uint publishingIntervalCount = 0;
             Subscription subscription = null;
 
-            // get sessin from context.
+            // get session from context.
             Session session = context.Session;
 
             // assign new identifier.
@@ -799,7 +799,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            // save results for asynchrounous operation.
+            // save results for asynchronous operation.
             if (operation != null)
             {
                 operation.Response.Results = acknowledgeResults;

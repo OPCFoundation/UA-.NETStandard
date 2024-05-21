@@ -162,6 +162,7 @@ namespace Opc.Ua
             // handle ECC encryption.
             else
             {
+#if ECC_SUPPORT
                 EncryptedSecret secret = new EncryptedSecret();
 
                 secret.ReceiverCertificate = receiverCertificate;
@@ -193,6 +194,9 @@ namespace Opc.Ua
                 var utf8 = new UTF8Encoding(false).GetBytes(m_decryptedPassword);
                 m_password = secret.Encrypt(utf8, receiverNonce);
                 m_encryptionAlgorithm = null;
+#else
+                throw new NotSupportedException("Platform does not support ECC curves");
+#endif
             }
         }
 
@@ -250,13 +254,14 @@ namespace Opc.Ua
                         throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected);
                     }
                 }
-           
+
                 // convert to UTF-8.
                 m_decryptedPassword = new UTF8Encoding().GetString(decryptedPassword, 0, startOfNonce);
             }
             // handle ECC encryption.
             else
             {
+#if ECC_SUPPORT
                 EncryptedSecret secret = new EncryptedSecret();
 
                 secret.SenderCertificate = senderCertificate;
@@ -268,10 +273,13 @@ namespace Opc.Ua
 
                 var plainText = secret.Decrypt(DateTime.UtcNow.AddHours(-1), receiverNonce.Data, m_password, 0, m_password.Length);
                 m_decryptedPassword = new UTF8Encoding().GetString(plainText);
+#else
+                throw new NotSupportedException("Platform does not support ECC curves");
+#endif
             }
         }
 
-        #endregion
+#endregion
 
 #region Private Fields
         private string m_decryptedPassword;

@@ -1031,7 +1031,7 @@ namespace Opc.Ua
 
         #region String, Object and Data Convienence Functions
         /// <summary>
-        /// Supresses any exceptions while disposing the object.
+        /// Suppresses any exceptions while disposing the object.
         /// </summary>
         /// <remarks>
         /// Writes errors to trace output in DEBUG builds.
@@ -1043,7 +1043,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Supresses any exceptions while disposing the object.
+        /// Suppresses any exceptions while disposing the object.
         /// </summary>
         /// <remarks>
         /// Writes errors to trace output in DEBUG builds.

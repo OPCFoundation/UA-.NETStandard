@@ -28,7 +28,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         /// <param name="parent">The parent node.</param>
         public BaseVariableState(NodeState parent) : base(NodeClass.Variable, parent)
@@ -361,44 +361,49 @@ namespace Opc.Ua
                 return extension.Body;
             }
 
-
             if (Activator.CreateInstance(targetType) is IEncodeable instance)
             {
                 IDecoder decoder = null;
-
-                ServiceMessageContext messageContext = ServiceMessageContext.GlobalContext;
-
-                if (context != null)
+                try
                 {
-                    messageContext = new ServiceMessageContext();
-                    messageContext.NamespaceUris = context.NamespaceUris;
-                    messageContext.ServerUris = context.ServerUris;
-                    messageContext.Factory = context.EncodeableFactory;
-                }
+                    ServiceMessageContext messageContext = ServiceMessageContext.GlobalContext;
 
-                if (extension.Encoding == ExtensionObjectEncoding.Binary)
-                {
-                    decoder = new BinaryDecoder(extension.Body as byte[], messageContext);
-                }
-                else if (extension.Encoding == ExtensionObjectEncoding.Xml)
-                {
-                    decoder = new XmlDecoder(extension.Body as XmlElement, messageContext);
-                }
-
-                if (decoder != null)
-                {
-                    try
+                    if (context != null)
                     {
-                        instance.Decode(decoder);
-                        return instance;
+                        messageContext = new ServiceMessageContext();
+                        messageContext.NamespaceUris = context.NamespaceUris;
+                        messageContext.ServerUris = context.ServerUris;
+                        messageContext.Factory = context.EncodeableFactory;
                     }
-                    catch (Exception e)
+
+                    if (extension.Encoding == ExtensionObjectEncoding.Binary)
                     {
-                        if (throwOnError)
+                        decoder = new BinaryDecoder(extension.Body as byte[], messageContext);
+                    }
+                    else if (extension.Encoding == ExtensionObjectEncoding.Xml)
+                    {
+                        decoder = new XmlDecoder(extension.Body as XmlElement, messageContext);
+                    }
+
+                    if (decoder != null)
+                    {
+                        try
                         {
-                            throw ServiceResultException.Create(StatusCodes.BadTypeMismatch, "Cannot convert ExtensionObject to {0}. Error = {1}", targetType.Name, e.Message);
+                            instance.Decode(decoder);
+                            return instance;
+                        }
+                        catch (Exception e)
+                        {
+                            if (throwOnError)
+                            {
+                                throw ServiceResultException.Create(StatusCodes.BadTypeMismatch, "Cannot convert ExtensionObject to {0}. Error = {1}", targetType.Name, e.Message);
+                            }
                         }
                     }
+                }
+                finally
+                {
+                    Utils.SilentDispose(decoder);
                 }
             }
 
@@ -1298,7 +1303,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        #region Overrridden Methods
+        #region Overridden Methods
         /// <summary>
         /// Recusively sets the status code and timestamp for the node and all child variables.
         /// </summary>
@@ -1324,7 +1329,7 @@ namespace Opc.Ua
         /// Reads the value for any non-value attribute.
         /// </summary>
         /// <param name="context">The context.</param>
-        /// <param name="attributeId">The attribute idetifier <see cref="Attributes"/>.</param>
+        /// <param name="attributeId">The attribute identifier <see cref="Attributes"/>.</param>
         /// <param name="value">The returned value.</param>
         /// <returns>
         /// An instance of the <see cref="ServiceResult"/> containing the status code and diagnostic info for the operation.
@@ -1609,7 +1614,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Applys the index range and the data encoding to the value.
+        /// Applies the index range and the data encoding to the value.
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="indexRange">The index range.</param>
@@ -2082,7 +2087,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         public PropertyState(NodeState parent) : base(parent)
         {
@@ -2144,7 +2149,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         public PropertyState(NodeState parent) : base(parent)
         {
@@ -2202,7 +2207,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         public BaseDataVariableState(NodeState parent) : base(parent)
         {
@@ -2362,7 +2367,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         public BaseDataVariableState(NodeState parent) : base(parent)
         {

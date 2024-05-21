@@ -228,8 +228,7 @@ namespace Opc.Ua.Security.Certificates
             try
             {
                 var crlReader = new AsnReader(tbs, AsnEncodingRules.DER);
-                Asn1Tag tag = Asn1Tag.Sequence;
-                AsnReader seqReader = crlReader.ReadSequence(tag);
+                AsnReader seqReader = crlReader.ReadSequence(Asn1Tag.Sequence);
                 crlReader.ThrowIfNotEmpty();
                 if (seqReader != null)
                 {
@@ -267,52 +266,56 @@ namespace Opc.Ua.Security.Certificates
                     // nextUpdate is OPTIONAL
                     m_nextUpdate = X509CRL.ReadTime(seqReader, optional: true);
 
-                    var seqTag = new Asn1Tag(UniversalTagNumber.Sequence, true);
-                    peekTag = seqReader.PeekTag();
-                    if (peekTag == seqTag)
+                    // revokedCertificates is OPTIONAL
+                    if (seqReader.HasData)
                     {
-                        // revoked certificates
-                        AsnReader revReader = seqReader.ReadSequence(tag);
-                        var revokedCertificates = new List<RevokedCertificate>();
-                        while (revReader.HasData)
+                        var seqTag = new Asn1Tag(UniversalTagNumber.Sequence, true);
+                        peekTag = seqReader.PeekTag();
+                        if (peekTag == seqTag)
                         {
-                            AsnReader crlEntry = revReader.ReadSequence();
-                            System.Numerics.BigInteger serial = crlEntry.ReadInteger();
-                            var revokedCertificate = new RevokedCertificate(serial.ToByteArray());
-                            revokedCertificate.RevocationDate = X509CRL.ReadTime(crlEntry, optional: false);
-                            if (version == 1 &&
-                                crlEntry.HasData)
+                            // revoked certificates
+                            AsnReader revReader = seqReader.ReadSequence(Asn1Tag.Sequence);
+                            var revokedCertificates = new List<RevokedCertificate>();
+                            while (revReader.HasData)
                             {
-                                // CRL entry extensions
-                                AsnReader crlEntryExtensions = crlEntry.ReadSequence();
-                                while (crlEntryExtensions.HasData)
+                                AsnReader crlEntry = revReader.ReadSequence();
+                                System.Numerics.BigInteger serial = crlEntry.ReadInteger();
+                                var revokedCertificate = new RevokedCertificate(serial.ToByteArray());
+                                revokedCertificate.RevocationDate = X509CRL.ReadTime(crlEntry, optional: false);
+                                if (version == 1 &&
+                                    crlEntry.HasData)
                                 {
-                                    X509Extension extension = crlEntryExtensions.ReadExtension();
-                                    revokedCertificate.CrlEntryExtensions.Add(extension);
+                                    // CRL entry extensions
+                                    AsnReader crlEntryExtensions = crlEntry.ReadSequence();
+                                    while (crlEntryExtensions.HasData)
+                                    {
+                                        X509Extension extension = crlEntryExtensions.ReadExtension();
+                                        revokedCertificate.CrlEntryExtensions.Add(extension);
+                                    }
+                                    crlEntryExtensions.ThrowIfNotEmpty();
                                 }
-                                crlEntryExtensions.ThrowIfNotEmpty();
+                                crlEntry.ThrowIfNotEmpty();
+                                revokedCertificates.Add(revokedCertificate);
                             }
-                            crlEntry.ThrowIfNotEmpty();
-                            revokedCertificates.Add(revokedCertificate);
+                            revReader.ThrowIfNotEmpty();
+                            m_revokedCertificates = revokedCertificates;
                         }
-                        revReader.ThrowIfNotEmpty();
-                        m_revokedCertificates = revokedCertificates;
-                    }
 
-                    // CRL extensions OPTIONAL
-                    if (version == 1 &&
-                        seqReader.HasData)
-                    {
-                        var extTag = new Asn1Tag(TagClass.ContextSpecific, 0);
-                        AsnReader optReader = seqReader.ReadSequence(extTag);
-                        var crlExtensionList = new X509ExtensionCollection();
-                        AsnReader crlExtensions = optReader.ReadSequence();
-                        while (crlExtensions.HasData)
+                        // CRL extensions OPTIONAL
+                        if (version == 1 &&
+                            seqReader.HasData)
                         {
-                            X509Extension extension = crlExtensions.ReadExtension();
-                            crlExtensionList.Add(extension);
+                            var extTag = new Asn1Tag(TagClass.ContextSpecific, 0);
+                            AsnReader optReader = seqReader.ReadSequence(extTag);
+                            var crlExtensionList = new X509ExtensionCollection();
+                            AsnReader crlExtensions = optReader.ReadSequence();
+                            while (crlExtensions.HasData)
+                            {
+                                X509Extension extension = crlExtensions.ReadExtension();
+                                crlExtensionList.Add(extension);
+                            }
+                            m_crlExtensions = crlExtensionList;
                         }
-                        m_crlExtensions = crlExtensionList;
                     }
                     seqReader.ThrowIfNotEmpty();
                     m_decoded = true;

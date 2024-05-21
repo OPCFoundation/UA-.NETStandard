@@ -37,6 +37,7 @@ using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Core.Tests.Types.Encoders;
 using Opc.Ua.Test;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {
@@ -276,6 +277,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// </summary>
         protected void EncodeDecodeComplexType(
             IServiceMessageContext encoderContext,
+            MemoryStreamType memoryStreamType,
             EncodingType encoderType,
             StructureType structureType,
             ExpandedNodeId nodeId,
@@ -291,7 +293,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             TestContext.Out.WriteLine(expected);
 
             byte[] buffer;
-            using (var encoderStream = new MemoryStream())
+            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
                 using (IEncoder encoder = CreateEncoder(encoderType, encoderContext, encoderStream, typeof(DataValue)))
                 {

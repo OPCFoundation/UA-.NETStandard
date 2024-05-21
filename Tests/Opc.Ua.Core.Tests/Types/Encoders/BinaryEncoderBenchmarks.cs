@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2023 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,13 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using BenchmarkDotNet.Attributes;
+using Microsoft.IO;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
@@ -42,67 +42,88 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     [NonParallelizable]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
-    public class BinaryEncoderBenchmarks
+    public class BinaryEncoderBenchmarks : EncoderBenchmarks
     {
-        const int kBufferSize = 4096;
-
-        [Params(1, 2, 8, 64)]
-        public int PayLoadSize { get; set; } = 64;
-
         /// <summary>
-        /// Benchmark encoding with internal memory stream.
+        /// Test encoding with internal memory stream.
         /// </summary>
-        [Benchmark]
         [Test]
-        public void BinaryEncoderConstructor2()
+        public void BinaryEncoderInternalMemoryStreamTest()
         {
             using (var binaryEncoder = new BinaryEncoder(m_context))
             {
                 TestEncoding(binaryEncoder);
-                _ = binaryEncoder.CloseAndReturnBuffer();
+                var result = binaryEncoder.CloseAndReturnBuffer();
+                Assert.NotNull(result);
+            }
+        }
+
+
+        /// <summary>
+        /// Test encoding with internal memory stream,
+        /// uses reflection to get array from memory stream.
+        /// </summary>
+        [Test]
+        public void BinaryEncoderConstructorStreamwriterReflection2()
+        {
+            using (var memoryStream = new MemoryStream(StreamBufferSize))
+            using (var binaryEncoder = new BinaryEncoder(memoryStream, m_context, true))
+            {
+                TestEncoding(binaryEncoder);
+                var result = binaryEncoder.CloseAndReturnBuffer();
+                Assert.NotNull(result);
             }
         }
 
         /// <summary>
-        /// Benchmark encoding with ArrayPool memory stream.
+        /// Test encoding with ArrayPool memory stream.
         /// </summary>
-        [Benchmark]
-        [Test]
-        public void BinaryEncoderConstructor3()
+        [Theory]
+        public void BinaryEncoderArraySegmentStreamTest(bool toArray)
         {
-            using (var stream = new ArraySegmentStream(m_bufferManager, kBufferSize, 0, kBufferSize))
+            using (var memoryStream = new ArraySegmentStream(m_bufferManager))
             {
-                using (var binaryEncoder = new BinaryEncoder(stream, m_context, false))
-                {
-                    TestEncoding(binaryEncoder);
-                    _ = binaryEncoder.CloseAndReturnBuffer();
-                }
+                TestStreamEncode(memoryStream, toArray);
+            }
+        }
+
+        /// <summary>
+        /// Test encoding with memory stream kept open.
+        /// </summary>
+        [Theory]
+        public void BinaryEncoderMemoryStreamTest(bool toArray)
+        {
+            using (var memoryStream = new MemoryStream(StreamBufferSize))
+            {
+                TestStreamEncode(memoryStream, toArray);
+            }
+        }
+
+        /// <summary>
+        /// Test encoding with recyclable memory stream kept open.
+        /// </summary>
+        [Theory]
+        public void BinaryEncoderRecyclableMemoryStream(bool toArray)
+        {
+            using (var memoryStream = new RecyclableMemoryStream(m_memoryManager))
+            {
+                TestStreamEncode(memoryStream, toArray);
             }
         }
 
         /// <summary>
         /// Benchmark encoding with memory stream kept open.
         /// </summary>
-        [Benchmark]
+        [Benchmark(Baseline = true)]
         [Test]
-        public void BinaryEncoderConstructorStreamwriter2()
+        public void BinaryEncoderMemoryStream()
         {
-            using (IEncoder binaryEncoder = new BinaryEncoder(m_memoryStream, m_context, true))
+            using (var memoryStream = new MemoryStream(StreamBufferSize))
             {
-                TestEncoding(binaryEncoder);
-                int length = binaryEncoder.Close();
-                var result = Encoding.UTF8.GetString(m_memoryStream.ToArray());
+                BinaryEncoder_StreamLeaveOpen(memoryStream);
+                // get buffer for write
+                _ = memoryStream.ToArray();
             }
-        }
-
-        /// <summary>
-        /// Encoding test with memory stream kept open.
-        /// </summary>
-        [Benchmark]
-        [Test]
-        public void BinaryEncoderStreamLeaveOpenMemoryStream()
-        {
-            BinaryEncoder_StreamLeaveOpen(m_memoryStream);
         }
 
         /// <summary>
@@ -110,99 +131,117 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [Benchmark]
         [Test]
-        public void BinaryEncoderStreamLeaveOpenRecyclableMemoryStream()
+        public void BinaryEncoderRecyclableMemoryStream()
         {
-            BinaryEncoder_StreamLeaveOpen(m_recyclableMemoryStream);
-        }
-
-        /// <summary>
-        /// Encoding test with memory stream kept open.
-        /// </summary>
-        [Benchmark]
-        [Test]
-        public void BinaryEncoderStreamLeaveOpenArraySegmentStream()
-        {
-            BinaryEncoder_StreamLeaveOpen(m_arraySegmentStream);
-        }
-
-        /// <summary>
-        /// Benchmark encoding with memory stream kept open,
-        /// use internal reflection to get string from memory stream.
-        /// </summary>
-        [Benchmark]
-        [Test]
-        public void BinaryEncoderConstructorStreamwriterReflection2()
-        {
-            using (var binaryEncoder = new BinaryEncoder(m_memoryStream, m_context, true))
+            using (var recyclableMemoryStream = new RecyclableMemoryStream(m_memoryManager))
             {
-                TestEncoding(binaryEncoder);
-                var result = binaryEncoder.CloseAndReturnBuffer();
+                BinaryEncoder_StreamLeaveOpen(recyclableMemoryStream);
+                // get buffers for write
+                _ = recyclableMemoryStream.GetReadOnlySequence();
+            }
+        }
+
+        /// <summary>
+        /// Benchmark encoding with array segment memory stream kept open.
+        /// </summary>
+        [Benchmark]
+        [Test]
+        public void BinaryEncoderArraySegmentStream()
+        {
+            using (var arraySegmentStream = new ArraySegmentStream(m_bufferManager))
+            {
+                BinaryEncoder_StreamLeaveOpen(arraySegmentStream);
+                // get buffers and return them to buffer manager
+                var buffers = arraySegmentStream.GetBuffers("writer");
+                foreach (var buffer in buffers)
+                {
+                    m_bufferManager.ReturnBuffer(buffer.Array, "testreturn");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Benchmark encoding with array segment memory stream kept open,
+        /// to compare the version without span support.
+        /// </summary>
+        [Benchmark]
+        [Test]
+        public void BinaryEncoderArraySegmentStreamNoSpan()
+        {
+#if NET6_0_OR_GREATER && ECC_SUPPORT
+            using (var arraySegmentStream = new ArraySegmentStreamNoSpan(m_bufferManager))
+#else
+            using (var arraySegmentStream = new ArraySegmentStream(m_bufferManager))
+#endif
+            {
+                BinaryEncoder_StreamLeaveOpen(arraySegmentStream);
+                // get buffers and return them to buffer manager
+                var buffers = arraySegmentStream.GetBuffers("writer");
+                foreach (var buffer in buffers)
+                {
+                    m_bufferManager.ReturnBuffer(buffer.Array, "testreturn");
+                }
             }
         }
 
         #region Private Methods
-        private void BinaryEncoder_StreamLeaveOpen(MemoryStream stream)
+        private void TestStreamEncode(MemoryStream memoryStream, bool toArray)
+        {
+            using (var binaryEncoder = new BinaryEncoder(memoryStream, m_context, true))
+            {
+                TestEncoding(binaryEncoder);
+                _ = binaryEncoder.Close();
+            }
+            using (var binaryEncoder = new BinaryEncoder(memoryStream, m_context, true))
+            {
+                TestEncoding(binaryEncoder);
+                if (toArray)
+                {
+                    int length = binaryEncoder.Close();
+                    Assert.AreEqual(length, memoryStream.Position);
+                    var result = memoryStream.ToArray();
+                    Assert.NotNull(result);
+                    Assert.AreEqual(length, result.Length);
+                }
+                else
+                {
+                    var result = binaryEncoder.CloseAndReturnBuffer();
+                    Assert.NotNull(result);
+                }
+            }
+        }
+
+        private int BinaryEncoder_StreamLeaveOpen(MemoryStream memoryStream, bool testResult = false)
         {
             int length1;
             int length2;
-            m_memoryStream.Position = 0;
-            using (IEncoder encoder = new BinaryEncoder(stream, m_context, true))
+            using (var encoder = new BinaryEncoder(memoryStream, m_context, true))
             {
                 TestEncoding(encoder);
                 length1 = encoder.Close();
             }
-            using (IEncoder encoder = new BinaryEncoder(stream, m_context, true))
+            using (var encoder = new BinaryEncoder(memoryStream, m_context, true))
             {
                 TestEncoding(encoder);
                 length2 = encoder.Close();
             }
-            Assert.AreEqual(length1 * 2, length2);
-            var result = Encoding.UTF8.GetString(stream.ToArray());
-            Assert.NotNull(result);
-            Assert.AreEqual(length2, stream.Position);
-        }
-
-        private void TestEncoding(IEncoder encoder)
-        {
-            int payLoadSize = PayLoadSize;
-            encoder.WriteByte("Byte", 0);
-            while (--payLoadSize > 0)
+            if (testResult)
             {
-                encoder.WriteBoolean("Boolean", true);
-                encoder.WriteUInt64("UInt64", 1234566890);
-                encoder.WriteString("String", "The quick brown fox...");
-                encoder.WriteNodeId("NodeId", s_nodeId);
-                encoder.WriteInt32Array("Array", s_list);
+                Assert.AreEqual(length1 * 2, length2);
+                var result = Encoding.UTF8.GetString(memoryStream.ToArray());
+                Assert.NotNull(result);
+                Assert.AreEqual(length2, memoryStream.Position);
             }
+            return length1 + length2;
         }
         #endregion
 
         #region Test Setup
         [OneTimeSetUp]
-        public void OneTimeSetUp()
-        {
-            // for validating benchmark tests
-            m_context = new ServiceMessageContext();
-            m_memoryStream = new MemoryStream();
-            m_memoryManager = new Microsoft.IO.RecyclableMemoryStreamManager();
-            m_recyclableMemoryStream = new Microsoft.IO.RecyclableMemoryStream(m_memoryManager);
-            m_bufferManager = new BufferManager(nameof(BinaryEncoder), kBufferSize);
-            m_arraySegmentStream = new ArraySegmentStream(m_bufferManager, kBufferSize, 0, kBufferSize);
-        }
+        public new void OneTimeSetUp() => base.OneTimeSetUp();
 
         [OneTimeTearDown]
-        public void OneTimeTearDown()
-        {
-            m_context = null;
-            m_memoryStream.Dispose();
-            m_memoryStream = null;
-            m_recyclableMemoryStream.Dispose();
-            m_recyclableMemoryStream = null;
-            m_memoryManager = null;
-            m_bufferManager = null;
-            m_arraySegmentStream.Dispose();
-            m_arraySegmentStream = null;
-        }
+        public new void OneTimeTearDown() => base.OneTimeTearDown();
         #endregion
 
         #region Benchmark Setup
@@ -210,44 +249,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Set up some variables for benchmarks.
         /// </summary>
         [GlobalSetup]
-        public void GlobalSetup()
-        {
-            // for validating benchmark tests
-            m_context = new ServiceMessageContext();
-            m_memoryStream = new MemoryStream();
-            m_memoryManager = new Microsoft.IO.RecyclableMemoryStreamManager();
-            m_recyclableMemoryStream = new Microsoft.IO.RecyclableMemoryStream(m_memoryManager);
-            m_bufferManager = new BufferManager(nameof(BinaryEncoder), kBufferSize);
-            m_arraySegmentStream = new ArraySegmentStream(m_bufferManager, kBufferSize, 0, kBufferSize);
-        }
+        public new void GlobalSetup() => base.GlobalSetup();
 
         /// <summary>
         /// Tear down benchmark variables.
         /// </summary>
         [GlobalCleanup]
-        public void GlobalCleanup()
-        {
-            m_context = null;
-            m_memoryStream.Dispose();
-            m_memoryStream = null;
-            m_recyclableMemoryStream.Dispose();
-            m_recyclableMemoryStream = null;
-            m_memoryManager = null;
-            m_bufferManager = null;
-            m_arraySegmentStream.Dispose();
-            m_arraySegmentStream = null;
-        }
-        #endregion
-
-        #region Private Fields
-        private static NodeId s_nodeId = new NodeId(1234);
-        private static IList<Int32> s_list = new List<Int32>() { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-        private IServiceMessageContext m_context;
-        private MemoryStream m_memoryStream;
-        private Microsoft.IO.RecyclableMemoryStreamManager m_memoryManager;
-        private Microsoft.IO.RecyclableMemoryStream m_recyclableMemoryStream;
-        private BufferManager m_bufferManager;
-        private ArraySegmentStream m_arraySegmentStream;
+        public new void GlobalCleanup() => base.GlobalCleanup();
         #endregion
     }
 }

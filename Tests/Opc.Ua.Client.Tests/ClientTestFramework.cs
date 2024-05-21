@@ -38,6 +38,7 @@ using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -239,7 +240,7 @@ namespace Opc.Ua.Client.Tests
                 }
                 catch (Exception e)
                 {
-                    Assert.Warn("OneTimeSetup failed to create session with {0}, tests fail. Error: {1}", ServerUrl, e.Message);
+                    Assert.Warn($"OneTimeSetup failed to create session with {ServerUrl}, tests fail. Error: {e.Message}");
                 }
             }
         }
@@ -276,7 +277,7 @@ namespace Opc.Ua.Client.Tests
                 }
                 catch (Exception e)
                 {
-                    Assert.Ignore("OneTimeSetup failed to create session, tests skipped. Error: {0}", e.Message);
+                    Assert.Ignore($"OneTimeSetup failed to create session, tests skipped. Error: {e.Message}");
                 }
             }
             if (ServerFixture == null)

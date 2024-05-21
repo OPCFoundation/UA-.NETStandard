@@ -41,6 +41,8 @@ using Opc.Ua.Gds.Server;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Test;
 using OpcUa = Opc.Ua;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -227,7 +229,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.AreEqual(afterAddTrustList.TrustedCrls.Count, beforeTrustList.TrustedCrls.Count);
             Assert.IsFalse(Utils.IsEqual(beforeTrustList, afterAddTrustList));
             var serviceResultException = Assert.Throws<ServiceResultException>(() => { m_pushClient.PushClient.RemoveCertificate(m_caCert.Thumbprint, false); });
-            Assert.AreEqual(StatusCodes.BadInvalidArgument, serviceResultException.StatusCode, serviceResultException.Message);
+            Assert.AreEqual((StatusCode)StatusCodes.BadInvalidArgument, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
             TrustListDataType afterRemoveTrustList = m_pushClient.PushClient.ReadTrustList();
             Assert.IsFalse(Utils.IsEqual(beforeTrustList, afterRemoveTrustList));
             m_pushClient.PushClient.RemoveCertificate(m_caCert.Thumbprint, true);
@@ -468,7 +470,7 @@ namespace Opc.Ua.Gds.Tests
             var keyFormats = m_pushClient.PushClient.GetSupportedKeyFormats();
             if (!keyFormats.Contains(keyFormat))
             {
-                Assert.Ignore("Push server doesn't support {0} key update", keyFormat);
+                Assert.Ignore($"Push server doesn't support {keyFormat} key update");
             }
 
             X509Certificate2 newCert = CertificateFactory.CreateCertificate(
@@ -490,7 +492,7 @@ namespace Opc.Ua.Gds.Tests
             }
             else
             {
-                Assert.Fail("Testing unsupported key format {0}.", keyFormat);
+                Assert.Fail($"Testing unsupported key format {keyFormat}.");
             }
 
             var success = m_pushClient.PushClient.UpdateCertificate(
@@ -526,7 +528,7 @@ namespace Opc.Ua.Gds.Tests
             var keyFormats = m_pushClient.PushClient.GetSupportedKeyFormats();
             if (!keyFormats.Contains(keyFormat))
             {
-                Assert.Ignore("Push server doesn't support {0} key update", keyFormat);
+                Assert.Ignore($"Push server doesn't support {keyFormat} key update");
             }
 
             NodeId requestId = m_gdsClient.GDSClient.StartNewKeyPairRequest(

@@ -420,23 +420,26 @@ namespace Opc.Ua.Bindings
             m_operationTimeout = settings.Configuration.OperationTimeout;
 
             // initialize the quotas.
-            m_quotas = new ChannelQuotas();
+            EndpointConfiguration configuration = m_settings.Configuration;
+            m_quotas = new ChannelQuotas {
+                MaxBufferSize = configuration.MaxBufferSize,
+                MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(configuration.MaxMessageSize),
+                ChannelLifetime = configuration.ChannelLifetime,
+                SecurityTokenLifetime = configuration.SecurityTokenLifetime,
+                MessageContext = new ServiceMessageContext() {
+                    MaxArrayLength = configuration.MaxArrayLength,
+                    MaxByteStringLength = configuration.MaxByteStringLength,
+                    MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(configuration.MaxMessageSize),
+                    MaxStringLength = configuration.MaxStringLength,
+                    MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
+                    MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
+                    NamespaceUris = m_settings.NamespaceUris,
+                    ServerUris = new StringTable(),
+                    Factory = m_settings.Factory
+                },
 
-            m_quotas.MaxBufferSize = m_settings.Configuration.MaxBufferSize;
-            m_quotas.MaxMessageSize = m_settings.Configuration.MaxMessageSize;
-            m_quotas.ChannelLifetime = m_settings.Configuration.ChannelLifetime;
-            m_quotas.SecurityTokenLifetime = m_settings.Configuration.SecurityTokenLifetime;
-            m_quotas.MessageContext = new ServiceMessageContext() {
-                MaxArrayLength = m_settings.Configuration.MaxArrayLength,
-                MaxByteStringLength = m_settings.Configuration.MaxByteStringLength,
-                MaxMessageSize = m_settings.Configuration.MaxMessageSize,
-                MaxStringLength = m_settings.Configuration.MaxStringLength,
-                NamespaceUris = m_settings.NamespaceUris,
-                ServerUris = new StringTable(),
-                Factory = m_settings.Factory
+                CertificateValidator = settings.CertificateValidator
             };
-
-            m_quotas.CertificateValidator = settings.CertificateValidator;
 
             // create the buffer manager.
             m_bufferManager = new BufferManager("Client", settings.Configuration.MaxBufferSize);

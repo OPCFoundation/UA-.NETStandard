@@ -827,7 +827,7 @@ namespace Opc.Ua.Server
                     message = new TranslationInfo(
                      "AuditActivateSessionEvent",
                     "en-US",
-                    $"Session with Id:{session.Id} was activated.");
+                    $"Session with Id:{session?.Id} was activated.");
                 }
                 else
                 {
@@ -1010,7 +1010,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
         /// <param name="systemContext">The current system context.</param>
-        /// <param name="objectId">The id of the object ued for update certificate method</param>
+        /// <param name="objectId">The id of the object used for update certificate method</param>
         /// <param name="method">The method that triggered the audit event.</param>
         /// <param name="inputArguments">The input arguments used to call the method that triggered the audit event.</param>
         /// <param name="certificateGroupId">The id of the certificate group</param>
@@ -1069,6 +1069,55 @@ namespace Opc.Ua.Server
             catch (Exception ex)
             {
                 Utils.LogError(ex, "Error while reporting ReportCertificateUpdatedAuditEvent event.");
+            }
+        }
+
+        /// <summary>
+        /// Raise CertificateUpdateRequestedAudit event
+        /// </summary>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="systemContext">The current system context.</param>
+        /// <param name="objectId">The id of the object used for update certificate method</param>
+        /// <param name="method">The method that triggered the audit event.</param>
+        /// <param name="inputArguments">The input arguments used to call the method that triggered the audit event.</param>
+        public static void ReportCertificateUpdateRequestedAuditEvent(
+            this IAuditEventServer server,
+            ISystemContext systemContext,
+            NodeId objectId,
+            MethodState method,
+            object[] inputArguments)
+        {
+            try
+            {
+                CertificateUpdateRequestedAuditEventState e = new CertificateUpdateRequestedAuditEventState(null);
+
+                TranslationInfo message = new TranslationInfo(
+                       "CertificateUpdateRequestedAuditEvent",
+                       "en-US",
+                       "CertificateUpdateRequestedAuditEvent.");
+                
+                
+
+                e.Initialize(
+                   systemContext,
+                   null,
+                   EventSeverity.Min,
+                   new LocalizedText(message),
+                   true,
+                   DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+
+                e.SetChildValue(systemContext, BrowseNames.SourceNode, objectId, false);
+                e.SetChildValue(systemContext, BrowseNames.SourceName, "Method/UpdateCertificate", false);
+                e.SetChildValue(systemContext, BrowseNames.LocalTime, Utils.GetTimeZoneInfo(), false);
+
+                e.SetChildValue(systemContext, BrowseNames.MethodId, method?.NodeId, false);
+                e.SetChildValue(systemContext, BrowseNames.InputArguments, inputArguments, false);
+
+                server?.ReportAuditEvent(systemContext, e);
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex, "Error while reporting CertificateUpdateRequestedAuditEvent event.");
             }
         }
 
@@ -1468,6 +1517,55 @@ namespace Opc.Ua.Server
             catch (Exception ex)
             {
                 Utils.LogError(ex, "Error while reporting ReportTrustListUpdatedAuditEvent event.");
+            }
+        }
+
+        /// <summary>
+        /// Reports an TrustListUpdatedAudit event.
+        /// </summary>
+        /// <param name="node">The trustlist node.</param>
+        /// <param name="systemContext">The current system context</param>
+        /// <param name="objectId">The object id where the truest list update methods was called</param>
+        /// <param name="sourceName">The source name string</param>
+        /// <param name="methodId">The id of the method that was called</param>
+        /// <param name="inputParameters">The input parameters of the called method</param>
+        public static void ReportTrustListUpdateRequestedAuditEvent(
+            this TrustListState node,
+            ISystemContext systemContext,
+            NodeId objectId,
+            string sourceName,
+            NodeId methodId,
+            object[] inputParameters)
+        {
+            try
+            {
+                TrustListUpdateRequestedAuditEventState e = new TrustListUpdateRequestedAuditEventState(null);
+
+                TranslationInfo message = new TranslationInfo(
+                   "TrustListUpdateRequestedAuditEvent",
+                   "en-US",
+                   $"TrustListUpdateRequestedAuditEvent.");
+
+                e.Initialize(
+                   systemContext,
+                   null,
+                   EventSeverity.Min,
+                   new LocalizedText(message),
+                   true,
+                   DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+
+                e.SetChildValue(systemContext, BrowseNames.SourceNode, objectId, false);
+                e.SetChildValue(systemContext, BrowseNames.SourceName, sourceName, false);
+                e.SetChildValue(systemContext, BrowseNames.LocalTime, Utils.GetTimeZoneInfo(), false);
+
+                e.SetChildValue(systemContext, BrowseNames.MethodId, methodId, false);
+                e.SetChildValue(systemContext, BrowseNames.InputArguments, inputParameters, false);
+
+                node?.ReportEvent(systemContext, e);
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex, "Error while reporting TrustListUpdateRequestedAuditEvent event.");
             }
         }
         #endregion Report Audit Events

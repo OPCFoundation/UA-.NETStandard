@@ -1,8 +1,8 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <DefineConstants>$(DefineConstants);NET_STANDARD;NET_STANDARD_ASYNC</DefineConstants>
-    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <TargetFrameworks>$(LibCoreTargetFrameworks)</TargetFrameworks>
     <AssemblyName>Opc.Ua.Core</AssemblyName>
     <PackageId>OPCFoundation.NetStandard.Opc.Ua.Core</PackageId>
     <RootNamespace>Opc.Ua</RootNamespace>

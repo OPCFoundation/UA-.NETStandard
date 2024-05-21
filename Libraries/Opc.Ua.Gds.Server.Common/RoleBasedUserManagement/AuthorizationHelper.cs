@@ -41,6 +41,7 @@ namespace Opc.Ua.Gds.Server
     {
         internal static List<Role> AuthenticatedUser { get; } = new List<Role> { Role.AuthenticatedUser };
         internal static List<Role> DiscoveryAdmin { get; } = new List<Role> { GdsRole.DiscoveryAdmin };
+        internal static List<Role> DiscoveryAdminOrSelfAdmin { get; } = new List<Role> { GdsRole.DiscoveryAdmin, GdsRole.ApplicationSelfAdmin };
         internal static List<Role> AuthenticatedUserOrSelfAdmin { get; } = new List<Role> { Role.AuthenticatedUser, GdsRole.ApplicationSelfAdmin };
         internal static List<Role> CertificateAuthorityAdminOrSelfAdmin { get; } = new List<Role> { GdsRole.CertificateAuthorityAdmin, GdsRole.ApplicationSelfAdmin };
         internal static List<Role> CertificateAuthorityAdmin { get; } = new List<Role> { GdsRole.CertificateAuthorityAdmin };
@@ -75,9 +76,9 @@ namespace Opc.Ua.Gds.Server
         /// Checks if the current session (context) is allowed to access the trust List (has roles CertificateAuthorityAdmin, SecurityAdmin or <see cref="GdsRole.ApplicationSelfAdmin"/>)
         /// </summary>
         /// <param name="context">the current <see cref="ISystemContext"/></param>
-        /// <param name="trustedStorePath">path of the trustList, needed to check for Application Self Admin priviledge</param>
-        /// <param name="certTypeMap">all supported cert types, needed to check for Application Self Admin priviledge </param>
-        /// <param name="applicationsDatabase">all registered applications  <see cref="IApplicationsDatabase"/> , needed to check for Application Self Admin priviledge </param>
+        /// <param name="trustedStorePath">path of the trustList, needed to check for Application Self Admin privilege</param>
+        /// <param name="certTypeMap">all supported cert types, needed to check for Application Self Admin privilege </param>
+        /// <param name="applicationsDatabase">all registered applications  <see cref="IApplicationsDatabase"/> , needed to check for Application Self Admin privilege </param>
         /// <exception cref="ServiceResultException"></exception>
         public static void HasTrustListAccess(ISystemContext context, string trustedStorePath, Dictionary<NodeId, string> certTypeMap, IApplicationsDatabase applicationsDatabase)
         {
@@ -109,13 +110,11 @@ namespace Opc.Ua.Gds.Server
         }
         private static bool HasRole(IUserIdentity userIdentity, IEnumerable<Role> roles)
         {
-            RoleBasedIdentity identity = userIdentity as RoleBasedIdentity;
-
-            if (identity != null)
+            if (userIdentity != null && userIdentity.TokenType != UserTokenType.Anonymous)
             {
                 foreach (Role role in roles)
                 {
-                    if ((identity.Roles.Contains(role)))
+                    if (!NodeId.IsNull(role.RoleId) && userIdentity.GrantedRoleIds.Contains(role.RoleId))
                     {
                         return true;
                     }

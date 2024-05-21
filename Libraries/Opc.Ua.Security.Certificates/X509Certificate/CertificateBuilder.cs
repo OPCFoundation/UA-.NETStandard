@@ -94,7 +94,7 @@ namespace Opc.Ua.Security.Certificates
             if (m_rsaPublicKey != null &&
                (IssuerCAKeyCert == null || !IssuerCAKeyCert.HasPrivateKey))
             {
-                throw new NotSupportedException("Cannot use a public key without a issuer certificate with a private key.");
+                throw new NotSupportedException("Cannot use a public key without an issuer certificate with a private key.");
             }
 
             RSA rsaKeyPair = null;
@@ -184,7 +184,7 @@ namespace Opc.Ua.Security.Certificates
         {
             if (m_ecdsaPublicKey != null && IssuerCAKeyCert == null)
             {
-                throw new NotSupportedException("Cannot use a public key without a issuer certificate with a private key.");
+                throw new NotSupportedException("Cannot use a public key without an issuer certificate with a private key.");
             }
 
             if (m_ecdsaPublicKey == null && m_curve == null)

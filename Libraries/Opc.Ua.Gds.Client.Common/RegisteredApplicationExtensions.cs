@@ -48,11 +48,11 @@ namespace Opc.Ua.Gds.Client
         {
             if (this.DiscoveryUrl != null)
             {
-                foreach (string disoveryUrl in this.DiscoveryUrl)
+                foreach (string discoveryUrl in this.DiscoveryUrl)
                 {
-                    if (Uri.IsWellFormedUriString(disoveryUrl, UriKind.Absolute))
+                    if (Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
                     {
-                        Uri url = new Uri(disoveryUrl);
+                        Uri url = new Uri(discoveryUrl);
                         return url.DnsSafeHost.Replace("localhost", Utils.GetHostName());
                     }
                 }

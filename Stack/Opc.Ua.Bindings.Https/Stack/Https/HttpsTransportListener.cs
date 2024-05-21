@@ -146,10 +146,11 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region ITransportListener Members
-        /// <summary>
-        /// The URI scheme handled by the listener.
-        /// </summary>
+        /// <inheritdoc/>
         public string UriScheme => m_uriScheme;
+
+        /// <inheritdoc/>
+        public string ListenerId => m_listenerId;
 
         /// <summary>
         /// Opens the listener and starts accepting connection.
@@ -183,6 +184,8 @@ namespace Opc.Ua.Bindings
                     MaxByteStringLength = configuration.MaxByteStringLength,
                     MaxMessageSize = configuration.MaxMessageSize,
                     MaxStringLength = configuration.MaxStringLength,
+                    MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
+                    MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
                     NamespaceUris = settings.NamespaceUris,
                     ServerUris = new StringTable(),
                     Factory = settings.Factory
@@ -231,6 +234,12 @@ namespace Opc.Ua.Bindings
             ConnectionStatusChanged = null;
             ConnectionStatusChanged?.Invoke(null, null);
             throw new NotImplementedException();
+        }
+
+        /// <inheritdoc/>
+        public void UpdateChannelLastActiveTime(string globalChannelId)
+        {
+            // intentionally not implemented
         }
         #endregion
 
@@ -309,7 +318,7 @@ namespace Opc.Ua.Bindings
         {
             Dispose();
         }
-#endregion
+        #endregion
 
         #region Private Methods
         /// <summary>

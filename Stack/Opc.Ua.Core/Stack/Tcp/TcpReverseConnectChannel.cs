@@ -95,37 +95,33 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                MemoryStream istrm = new MemoryStream(messageChunk.Array, messageChunk.Offset, messageChunk.Count, false);
-                BinaryDecoder decoder = new BinaryDecoder(istrm, Quotas.MessageContext);
-                istrm.Seek(TcpMessageLimits.MessageTypeAndSize, SeekOrigin.Current);
+                using (var decoder = new BinaryDecoder(messageChunk, Quotas.MessageContext))
+                {
+                    ReadAndVerifyMessageTypeAndSize(decoder, TcpMessageType.ReverseHello, messageChunk.Count);
 
-                // read peer information.
-                string serverUri = decoder.ReadString(null);
-                string endpointUrlString = decoder.ReadString(null);
-                Uri endpointUri = new Uri(endpointUrlString);
+                    // read peer information.
+                    string serverUri = decoder.ReadString(null);
+                    string endpointUrlString = decoder.ReadString(null);
+                    Uri endpointUri = new Uri(endpointUrlString);
 
-                State = TcpChannelState.Connecting;
+                    State = TcpChannelState.Connecting;
 
-                Task t = Task.Run(async () => {
-                    try
-                    {
-                        if (false == await Listener.TransferListenerChannel(Id, serverUri, endpointUri).ConfigureAwait(false))
+                    Task t = Task.Run(async () => {
+                        try
+                        {
+                            if (false == await Listener.TransferListenerChannel(Id, serverUri, endpointUri).ConfigureAwait(false))
+                            {
+                                SetResponseRequired(true);
+                                ForceChannelFault(StatusCodes.BadTcpMessageTypeInvalid, "The reverse connection was rejected by the client.");
+                            }
+                        }
+                        catch (Exception)
                         {
                             SetResponseRequired(true);
-                            ForceChannelFault(StatusCodes.BadTcpMessageTypeInvalid, "The reverse connection was rejected by the client.");
+                            ForceChannelFault(StatusCodes.BadInternalError, "Internal error approving the reverse connection.");
                         }
-                        else
-                        {
-                            // Socket is now owned by client, don't clean up
-                            CleanupTimer();
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        SetResponseRequired(true);
-                        ForceChannelFault(StatusCodes.BadInternalError, "Internal error approving the reverse connection.");
-                    }
-                });
+                    });
+                }
             }
             catch (Exception e)
             {
