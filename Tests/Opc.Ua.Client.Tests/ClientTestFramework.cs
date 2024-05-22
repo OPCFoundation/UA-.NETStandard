@@ -53,6 +53,7 @@ namespace Opc.Ua.Client.Tests
             new object [] { Utils.UriSchemeOpcHttps},
         };
 
+        public const int MaxChannelCount = 100;
         public const int MaxReferences = 100;
         public const int MaxTimeout = 10000;
         public const int TransportQuotaMaxMessageSize = 4 * 1024 * 1024;
@@ -208,7 +209,8 @@ namespace Opc.Ua.Client.Tests
                   PolicyId = Profiles.JwtUserToken,
                   SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384"
                 });
-                               
+
+                ServerFixture.Config.ServerConfiguration.MaxChannelCount = MaxChannelCount;
 
                 ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
                 ReferenceServer.TokenValidator = this.TokenValidator;
