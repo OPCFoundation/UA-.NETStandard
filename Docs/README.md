@@ -13,7 +13,7 @@ UA Core stack related:
 * Support for [WellKnownRoles & RoleBasedUserManagement](RoleBasedUserManagement.md).
 
 Reference application related:
-* [Reference Server](../Applications/ReferenceServer/README.md) documentation for running against CTT.
+* [Reference Server](../Applications/README.md) documentation for running against CTT.
 * Using the [Container support](ContainerReferenceServer.md) of the Reference Server in VS2022 and for local testing.
 
 For the PubSub support library:
