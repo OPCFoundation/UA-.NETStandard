@@ -452,8 +452,21 @@ namespace Opc.Ua
                 Curve = curve,
                 Q = { X = qx, Y = qy }
             };
-
-            nonce.m_ecdh = ECDiffieHellman.Create(ecdhParameters);
+            //validate curve parameters as ECDiffieHellman.Create expects already validated curve parameters
+            try
+            {
+                ecdhParameters.Validate();
+                nonce.m_ecdh = ECDiffieHellman.Create(ecdhParameters);
+            }
+            catch (CryptographicException e)
+            {
+                throw new ArgumentException("Invalid nonce data provided", nameof(nonceData), e);
+            }
+            //On Windows a PlatformNotSupportedException is thrown when invalid parameters are provided
+            catch (PlatformNotSupportedException e)
+            {
+                throw new ArgumentException("Invalid nonce data provided", nameof(nonceData), e);
+            }
 
             return nonce;
 #else

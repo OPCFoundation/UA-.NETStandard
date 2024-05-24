@@ -118,7 +118,7 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
 
                 if (securityPolicyUri.Contains("ECC_"))
                 {
-                    Assert.Throws(typeof(PlatformNotSupportedException), () => Ua.Nonce.CreateNonce(securityPolicyUri, randomValue));
+                    Assert.Throws(typeof(ArgumentException), () => Ua.Nonce.CreateNonce(securityPolicyUri, randomValue));
                 }
                 else
                 {
