@@ -428,20 +428,12 @@ namespace Opc.Ua.Security.Certificates.Tests
 
         private static byte[] GetPublicKey(ECDsa ecdsa)
         {
-            if (ecdsa is ECDsaCng cng)
-            {
-#if NETFRAMEWORK
-                
-                var pubKeyParams = BouncyCastle.X509Utils.GetECPublicKeyParameters(ecdsa);
-                return SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(pubKeyParams).ToAsn1Object().GetDerEncoded();
+#if NETFRAMEWORK    
+            var pubKeyParams = BouncyCastle.X509Utils.GetECPublicKeyParameters(ecdsa);
+            return SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(pubKeyParams).ToAsn1Object().GetDerEncoded();
 #elif NETCOREAPP3_1 || NET5_0_OR_GREATER
-                return ecdsa.ExportSubjectPublicKeyInfo();
+            return ecdsa.ExportSubjectPublicKeyInfo();
 #endif
-            }
-            else
-            {
-                throw new ArgumentException("Unsuported ECDsa format");
-            }
         }
 #endregion
 
