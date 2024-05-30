@@ -567,7 +567,13 @@ namespace Opc.Ua.Server
             }
         }
 
-#if ECC_SUPPORT 
+#if ECC_SUPPORT
+        /// <summary>
+        /// Process additional parameters during the ECC session creation and set the session's UserToken security policy
+        /// </summary>
+        /// <param name="session">The session</param>
+        /// <param name="parameters">The additional parameters for the session</param>
+        /// <returns>An AdditionalParametersType object containing the processed parameters</returns>
         protected virtual AdditionalParametersType CreateSessionProcessAdditionalParameters(Session session, AdditionalParametersType parameters)
         {
             AdditionalParametersType response = null;
@@ -598,6 +604,13 @@ namespace Opc.Ua.Server
 
             return response;
         }
+
+        /// <summary>
+        /// Process additional parameters during ECC session activation 
+        /// </summary>
+        /// <param name="session">The session</param>
+        /// <param name="parameters">The additional parameters for the session</param>
+        /// <returns>An AdditionalParametersType object containing the processed parameters</returns>
         protected virtual AdditionalParametersType ActivateSessionProcessAdditionalParameters(Session session, AdditionalParametersType parameters)
         {
             AdditionalParametersType response = null;

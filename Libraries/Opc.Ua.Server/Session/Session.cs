@@ -374,6 +374,10 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Set the ECC security policy URI
+        /// </summary>
+        /// <param name="securityPolicyUri"></param>
         public virtual void SetEccUserTokenSecurityPolicy(string securityPolicyUri)
         {
             lock (m_lock)
@@ -383,6 +387,10 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Create new ECC ephemeral key
+        /// </summary>
+        /// <returns>A new ephemeral key</returns>
         public virtual EphemeralKeyType GetNewEccKey()
         {
             lock (m_lock)
