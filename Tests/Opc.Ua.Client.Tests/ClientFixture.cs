@@ -31,6 +31,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -283,7 +284,28 @@ namespace Opc.Ua.Client.Tests
         {
             if (endpoints == null)
             {
-                endpoints = await GetEndpoints(url).ConfigureAwait(false);
+                try
+                {
+                    endpoints = await GetEndpoints(url).ConfigureAwait(false);
+                }
+                catch(Exception)
+                {
+                    // Don't ignore if platform is Windows
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                    {
+                        throw;
+                    }
+                    else
+                    {
+                        // Don't ignore schemes other than opc.https or https
+                        if (!url.Scheme.Equals("opc.https", StringComparison.OrdinalIgnoreCase) &&
+                            !url.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
+                        {
+                            throw;
+                        }
+                        Assert.Ignore("Failed to get endpoints from discovery server on non Windows platform");
+                    }
+                }
             }
             var endpointDescription = SelectEndpoint(Config, endpoints, url, securityPolicy);
             if (endpointDescription == null)
