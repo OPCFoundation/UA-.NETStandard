@@ -1074,7 +1074,7 @@ namespace Opc.Ua
                 EndField(fieldName);
             }
 
-            if (m_namespaceMappings != null && m_namespaceMappings.Length > value.NamespaceIndex)
+            if (m_namespaceMappings != null && m_namespaceMappings.Length > value.NamespaceIndex && !value.IsNull)
             {
                 value.SetNamespaceIndex(m_namespaceMappings[value.NamespaceIndex]);
             }
