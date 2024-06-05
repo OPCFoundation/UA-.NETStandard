@@ -207,9 +207,7 @@ namespace Opc.Ua.Gds.Tests
             using (var x509 = new X509Certificate2(certificate))
             {
                 var certWithPrivateKey = CertificateFactory.CreateCertificateWithPEMPrivateKey(x509, privateKey);
-                m_client.Configuration.SecurityConfiguration.ApplicationCertificate.RawData = certWithPrivateKey.RawData;
-                m_client.Configuration.SecurityConfiguration.ApplicationCertificate.Thumbprint = certWithPrivateKey.Thumbprint;
-                m_client.Configuration.SecurityConfiguration.ApplicationCertificate.Certificate = certWithPrivateKey;
+                m_client.Configuration.SecurityConfiguration.ApplicationCertificate = new CertificateIdentifier(certWithPrivateKey);
                 var store = m_client.Configuration.SecurityConfiguration.ApplicationCertificate.OpenStore();
                 await store.Add(certWithPrivateKey).ConfigureAwait(false);
             }

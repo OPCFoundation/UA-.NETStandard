@@ -969,9 +969,11 @@ namespace Opc.Ua.Test
 
             if (body is byte[] bytes)
             {
-                BinaryDecoder decoder = new BinaryDecoder(bytes, context);
-                body = decoder.ReadEncodeable(null, expectedType);
-                decoder.Close();
+                using (BinaryDecoder decoder = new BinaryDecoder(bytes, context))
+                {
+                    body = decoder.ReadEncodeable(null, expectedType);
+                    decoder.Close();
+                }
 
                 return (IEncodeable)body;
             }

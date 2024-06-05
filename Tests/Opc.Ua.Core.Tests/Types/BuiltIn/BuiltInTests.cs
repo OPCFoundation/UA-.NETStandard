@@ -373,7 +373,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.Throws<ArgumentException>(() => _ = new NodeId((object)(long)7777777, 123));
 
             var sre = Assert.Throws<ServiceResultException>(() => _ = NodeId.Create(123, "urn:xyz", new NamespaceTable()));
-            Assert.AreEqual(StatusCodes.BadNodeIdInvalid, sre.StatusCode);
+            Assert.AreEqual((StatusCode)StatusCodes.BadNodeIdInvalid, (StatusCode)sre.StatusCode);
 
             NodeId opaqueId = new byte[] { 33, 44, 55, 66 };
             NodeId stringId1 = "ns=1;s=Test";

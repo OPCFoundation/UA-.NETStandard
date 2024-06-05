@@ -184,6 +184,8 @@ namespace Opc.Ua.Bindings
                     MaxByteStringLength = configuration.MaxByteStringLength,
                     MaxMessageSize = configuration.MaxMessageSize,
                     MaxStringLength = configuration.MaxStringLength,
+                    MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
+                    MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
                     NamespaceUris = settings.NamespaceUris,
                     ServerUris = new StringTable(),
                     Factory = settings.Factory

@@ -74,6 +74,7 @@ namespace Quickstarts
         /// </summary>
         public void Dispose()
         {
+            m_disposed = true;
             Utils.SilentDispose(m_session);
             m_configuration.CertificateValidator.CertificateValidation -= CertificateValidation;
             GC.SuppressFinalize(this);
@@ -133,6 +134,7 @@ namespace Quickstarts
         /// </summary>
         public async Task<bool> ConnectAsync(string serverUrl, bool useSecurity = true, CancellationToken ct = default)
         {
+            if (m_disposed) throw new ObjectDisposedException(nameof(UAClient));
             if (serverUrl == null) throw new ArgumentNullException(nameof(serverUrl));
 
             try
@@ -393,6 +395,7 @@ namespace Quickstarts
         private ISession m_session;
         private readonly TextWriter m_output;
         private readonly Action<IList, IList> m_validateResponse;
+        private bool m_disposed = false;
         #endregion
     }
 }

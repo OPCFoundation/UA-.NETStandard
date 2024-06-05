@@ -105,6 +105,9 @@ namespace Opc.Ua.Server
                         case ObjectTypes.ServerConfigurationType:
                         {
                             ServerConfigurationState activeNode = new ServerConfigurationState(passiveNode.Parent);
+
+                            activeNode.GetCertificates = new GetCertificatesMethodState(activeNode);
+
                             activeNode.Create(context, passiveNode);
 
                             m_serverConfigurationNode = activeNode;
@@ -202,6 +205,7 @@ namespace Opc.Ua.Server
             m_serverConfigurationNode.CreateSigningRequest.OnCall = new CreateSigningRequestMethodStateMethodCallHandler(CreateSigningRequest);
             m_serverConfigurationNode.ApplyChanges.OnCallMethod = new GenericMethodCalledEventHandler(ApplyChanges);
             m_serverConfigurationNode.GetRejectedList.OnCall = new GetRejectedListMethodStateMethodCallHandler(GetRejectedList);
+            m_serverConfigurationNode.GetCertificates.OnCall = new GetCertificatesMethodStateMethodCallHandler(GetCertificates);
             m_serverConfigurationNode.ClearChangeMasks(systemContext, true);
 
             // setup certificate group trust list handlers
@@ -226,6 +230,8 @@ namespace Opc.Ua.Server
                 serverNamespacesNode.StateChanged += ServerNamespacesChanged;
             }
         }
+
+        
 
         /// <summary>
         /// Gets and returns the <see cref="NamespaceMetadataState"/> node associated with the specified NamespaceUri
@@ -610,6 +616,41 @@ namespace Opc.Ua.Server
 
             return StatusCodes.Good;
         }
+
+        private ServiceResult GetCertificates(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            NodeId certificateGroupId,
+            ref NodeId[] certificateTypeIds,
+            ref byte[][] certificates)
+        {
+            HasApplicationSecureAdminAccess(context);
+
+            ServerCertificateGroup certificateGroup = m_certificateGroups.FirstOrDefault(group => Utils.IsEqual(group.NodeId, certificateGroupId));
+            if (certificateGroup == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Certificate group invalid.");
+            }
+
+            NodeId certificateTypeId = certificateGroup.CertificateTypes.FirstOrDefault();
+
+            //TODO support multiple Application Instance Certificates
+            if (certificateTypeId != null)
+            {
+                certificateTypeIds = new NodeId[1] {certificateTypeId };
+                certificates = new byte[1][];
+                certificates[0] = certificateGroup.ApplicationCertificate.Certificate.GetRawCertData();
+            }
+            else
+            {
+                certificateTypeIds = new NodeId[0];
+                certificates = new byte[0][];
+            }
+
+            return ServiceResult.Good;
+        }
+
 
         private ServerCertificateGroup VerifyGroupAndTypeId(
             NodeId certificateGroupId,

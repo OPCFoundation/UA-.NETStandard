@@ -138,13 +138,15 @@ namespace Opc.Ua.Bindings
             {
                 m_inactivityDetectPeriod = configuration.ChannelLifetime / 2;
                 m_quotas.MaxBufferSize = configuration.MaxBufferSize;
-                m_quotas.MaxMessageSize = configuration.MaxMessageSize;
+                m_quotas.MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(configuration.MaxMessageSize);
                 m_quotas.ChannelLifetime = configuration.ChannelLifetime;
                 m_quotas.SecurityTokenLifetime = configuration.SecurityTokenLifetime;
                 messageContext.MaxArrayLength = configuration.MaxArrayLength;
                 messageContext.MaxByteStringLength = configuration.MaxByteStringLength;
-                messageContext.MaxMessageSize = configuration.MaxMessageSize;
+                messageContext.MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(configuration.MaxMessageSize);
                 messageContext.MaxStringLength = configuration.MaxStringLength;
+                messageContext.MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels;
+                messageContext.MaxDecoderRecoveries = configuration.MaxDecoderRecoveries;
             }
             m_quotas.MessageContext = messageContext;
 
