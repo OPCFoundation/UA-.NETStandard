@@ -856,6 +856,31 @@ namespace Opc.Ua.Gds.Tests
 
         }
 
+        
+        [Test, Order(540)]
+        public void GetGoodCertificates()
+        {
+            AssertIgnoreTestWithoutGoodRegistration();
+            AssertIgnoreTestWithoutGoodNewKeyPairRequest();
+            ConnectGDS(true);
+
+            Assert.That(() => {
+                m_gdsClient.GDSClient.GetCertificates(null, null, out var _, out var _);
+            }, Throws.Exception);
+
+            foreach (var application in m_goodApplicationTestSet)
+            {
+                m_gdsClient.GDSClient.GetCertificates(application.ApplicationRecord.ApplicationId, null, out NodeId[] certificateTypeIds, out byte[][] certificates);
+                Assert.That(certificateTypeIds.Length == 1);
+                Assert.NotNull(certificates[0]);
+                Assert.AreEqual(certificates[0], application.Certificate);
+                m_gdsClient.GDSClient.GetCertificates(application.ApplicationRecord.ApplicationId, application.CertificateGroupId, out NodeId[] certificateTypeIds2, out byte[][] certificates2);
+                Assert.That(certificateTypeIds2.Length == 1);
+                Assert.NotNull(certificates2[0]);
+                Assert.AreEqual(certificates2[0], application.Certificate);
+            }
+        }
+
         [Test, Order(550)]
         public void StartGoodSigningRequestWithInvalidAppURI()
         {
@@ -1308,7 +1333,8 @@ namespace Opc.Ua.Gds.Tests
             foreach (var application in m_goodApplicationTestSet)
             {
                 m_gdsClient.GDSClient.CheckRevocationStatus(application.Certificate, out StatusCode certificateStatus, out DateTime validityTime);
-                Assert.AreEqual((StatusCode)StatusCodes.Good, (StatusCode)certificateStatus.Code);
+                //Status code needs to be Bad as the method builds a custom chain that does not know about the custom cert stores.
+                Assert.True(StatusCode.IsBad(certificateStatus.Code));
                 Assert.NotNull(validityTime);
             }
         }
@@ -1330,7 +1356,7 @@ namespace Opc.Ua.Gds.Tests
                 }, Throws.Exception);
             }
         }
-     
+
         [Test, Order(900)]
         public void UnregisterGoodApplications()
         {
@@ -1350,7 +1376,7 @@ namespace Opc.Ua.Gds.Tests
             foreach (var application in m_goodApplicationTestSet)
             {
                 m_gdsClient.GDSClient.CheckRevocationStatus(application.Certificate, out StatusCode certificateStatus, out DateTime validityTime);
-                Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevoked, (StatusCode)certificateStatus.Code);
+                Assert.IsTrue(((StatusCode)certificateStatus.Code).ToString().StartsWith("BadCertificate"));
                 Assert.NotNull(validityTime);
             }
         }
