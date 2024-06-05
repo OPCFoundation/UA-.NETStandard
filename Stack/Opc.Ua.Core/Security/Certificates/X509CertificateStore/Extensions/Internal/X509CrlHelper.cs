@@ -48,48 +48,48 @@ namespace Opc.Ua.X509StoreExtensions.Internal
         /// <returns>array of all found crls as byte array</returns>
         public static byte[][] GetCrls(IntPtr storeHandle)
         {
+            if (!PlatformHelper.IsWindowsWithCrlSupport())
+            {
+                throw new PlatformNotSupportedException();
+            }
+
             var crls = new List<byte[]>();
 
-            //SupportedOSPlatform("windows5.1.2600")
-            if (PlatformHelper.IsWindowsWithCrlSupport())
+            CRL_CONTEXT* crlContext = (CRL_CONTEXT*)IntPtr.Zero;
+            try
             {
-
-                CRL_CONTEXT* crlContext = (CRL_CONTEXT*)IntPtr.Zero;
-                try
+                //read until Pointer to crlContext is NullPtr  (no more crls in store)
+                while (true)
                 {
-                    //read until Pointer to crlContext is NullPtr  (no more crls in store)
-                    while (true)
+                    crlContext = PInvokeHelper.CertEnumCRLsInStore((HCERTSTORE)storeHandle.ToPointer(), crlContext);
+
+                    if (crlContext != null)
                     {
-                        crlContext = PInvokeHelper.CertEnumCRLsInStore((HCERTSTORE)storeHandle.ToPointer(), crlContext);
+                        byte[] crl = ReadCrlFromCrlContext(crlContext);
 
-                        if (crlContext != null)
+                        if (crl != null)
                         {
-                            byte[] crl = ReadCrlFromCrlContext(crlContext);
-
-                            if (crl != null)
-                            {
-                                crls.Add(crl);
-                            }
-                        }
-                        else
-                        {
-                            int error = Marshal.GetLastWin32Error();
-                            if (error == -2146885628)
-                            {
-                                //No more crls found in store
-                            }
-                            else if (error != 0)
-                            {
-                                Utils.LogError("Error while enumerating Crls from X509Store, Win32Error-Code: {0}", error);
-                            }
-                            break;
+                            crls.Add(crl);
                         }
                     }
+                    else
+                    {
+                        int error = Marshal.GetLastWin32Error();
+                        if (error == -2146885628)
+                        {
+                            //No more crls found in store
+                        }
+                        else if (error != 0)
+                        {
+                            Utils.LogError("Error while enumerating Crls from X509Store, Win32Error-Code: {0}", error);
+                        }
+                        break;
+                    }
                 }
-                catch (Exception ex)
-                {
-                    Utils.LogError(ex, "Exception while enumerating Crls from X509Store");
-                }
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex, "Exception while enumerating Crls from X509Store");
             }
             return crls.ToArray();
         }
@@ -117,67 +117,69 @@ namespace Opc.Ua.X509StoreExtensions.Internal
         /// <param name="crl">the crl as Asn1 or PKCS7 encoded byte array</param>
         public static void AddCrl(IntPtr storeHandle, byte[] crl)
         {
-            if (PlatformHelper.IsWindowsWithCrlSupport())
+
+            if (!PlatformHelper.IsWindowsWithCrlSupport())
             {
-                IntPtr crlPointer = Marshal.AllocHGlobal(crl.Length);
+                throw new PlatformNotSupportedException();
+            }
+            IntPtr crlPointer = Marshal.AllocHGlobal(crl.Length);
 
-                Marshal.Copy(crl, 0, crlPointer, crl.Length);//copy from managed array to unmanaged memory
+            Marshal.Copy(crl, 0, crlPointer, crl.Length);//copy from managed array to unmanaged memory
 
-                try
+            try
+            {
+                /////+-------------------------------------------------------------------------
+                // Add certificate/CRL, encoded, context or element disposition values.
+                //--------------------------------------------------------------------------
+                //#define CERT_STORE_ADD_NEW                                  1
+                //#define CERT_STORE_ADD_USE_EXISTING                         2
+                //#define CERT_STORE_ADD_REPLACE_EXISTING                     3
+                //#define CERT_STORE_ADD_ALWAYS                               4
+                //#define CERT_STORE_ADD_REPLACE_EXISTING_INHERIT_PROPERTIES  5
+                //#define CERT_STORE_ADD_NEWER                                6
+                //#define CERT_STORE_ADD_NEWER_INHERIT_PROPERTIES             7
+                if (PInvokeHelper.CertAddEncodedCRLToStore(
+                    (HCERTSTORE)storeHandle.ToPointer(),
+                    CERT_QUERY_ENCODING_TYPE.X509_ASN_ENCODING | CERT_QUERY_ENCODING_TYPE.PKCS_7_ASN_ENCODING,
+                    (byte*)crlPointer,
+                    (uint)crl.Length,
+                    3,
+                    null))
                 {
-                    /////+-------------------------------------------------------------------------
-                    // Add certificate/CRL, encoded, context or element disposition values.
-                    //--------------------------------------------------------------------------
-                    //#define CERT_STORE_ADD_NEW                                  1
-                    //#define CERT_STORE_ADD_USE_EXISTING                         2
-                    //#define CERT_STORE_ADD_REPLACE_EXISTING                     3
-                    //#define CERT_STORE_ADD_ALWAYS                               4
-                    //#define CERT_STORE_ADD_REPLACE_EXISTING_INHERIT_PROPERTIES  5
-                    //#define CERT_STORE_ADD_NEWER                                6
-                    //#define CERT_STORE_ADD_NEWER_INHERIT_PROPERTIES             7
-                    if (PInvokeHelper.CertAddEncodedCRLToStore(
-                        (HCERTSTORE)storeHandle.ToPointer(),
-                        CERT_QUERY_ENCODING_TYPE.X509_ASN_ENCODING | CERT_QUERY_ENCODING_TYPE.PKCS_7_ASN_ENCODING,
-                        (byte*)crlPointer,
-                        (uint)crl.Length,
-                        3,
-                        null))
-                    {
-                        //success
-                        return;
-                    }
-                    else
-                    {
-                        int error = Marshal.GetLastWin32Error();
-                        if (error == -2147024809)
-                        {
-                            Utils.LogError("Error while adding Crl to X509Store, Win32Error-Code: {0}: ERROR_INVALID_PARAMETER, The parameter is incorrect. ", error);
-                        }
-                        if (error == -2146881269)
-                        {
-                            Utils.LogError("Error while adding Crl to X509Store, Win32Error-Code: {0}: CRYPT_E_ASN1_BADTAG, ASN1 bad tag value met. ", error);
-                        }
-                        if (error == -2147024891)
-                        {
-                            Utils.LogError("Error while adding Crl to X509Store, Win32Error-Code: {0}: ERROR_ACCESS_DENIED, Access is denied. ", error);
-                        }
-                        if (error != 0)
-                        {
-                            Utils.LogError("Error while adding Crl to X509Store, Win32Error-Code: {0}: ", error);
-                        }
-                        return;
-                    }
+                    //success
+                    return;
                 }
-                catch (Exception ex)
+                else
                 {
-                    Utils.LogError(ex, "Exception while adding Crl to X509Store");
-                }
-                finally
-                {
-                    if (crlPointer != IntPtr.Zero)
+                    int error = Marshal.GetLastWin32Error();
+                    if (error == -2147024809)
                     {
-                        Marshal.FreeHGlobal(crlPointer);
+                        Utils.LogError("Error while adding Crl to X509Store, Win32Error-Code: {0}: ERROR_INVALID_PARAMETER, The parameter is incorrect. ", error);
                     }
+                    if (error == -2146881269)
+                    {
+                        Utils.LogError("Error while adding Crl to X509Store, Win32Error-Code: {0}: CRYPT_E_ASN1_BADTAG, ASN1 bad tag value met. ", error);
+                    }
+                    if (error == -2147024891)
+                    {
+                        Utils.LogError("Error while adding Crl to X509Store, Win32Error-Code: {0}: ERROR_ACCESS_DENIED, Access is denied. ", error);
+                    }
+                    if (error != 0)
+                    {
+                        Utils.LogError("Error while adding Crl to X509Store, Win32Error-Code: {0}: ", error);
+                    }
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex, "Exception while adding Crl to X509Store");
+            }
+            finally
+            {
+                if (crlPointer != IntPtr.Zero)
+                {
+                    Marshal.FreeHGlobal(crlPointer);
                 }
             }
         }
@@ -190,59 +192,60 @@ namespace Opc.Ua.X509StoreExtensions.Internal
         /// <returns>true if delete sucessfully, false if failure</returns>
         public static bool DeleteCrl(IntPtr storeHandle, byte[] crl)
         {
-            if (PlatformHelper.IsWindowsWithCrlSupport())
+            if (!PlatformHelper.IsWindowsWithCrlSupport())
             {
-                CRL_CONTEXT* crlContext = (CRL_CONTEXT*)IntPtr.Zero;
-                try
+                throw new PlatformNotSupportedException();
+            }
+            CRL_CONTEXT* crlContext = (CRL_CONTEXT*)IntPtr.Zero;
+            try
+            {
+                //read until Pointer to crlContext is NullPtr (no more crls in store)
+                while (true)
                 {
-                    //read until Pointer to crlContext is NullPtr (no more crls in store)
-                    while (true)
+                    crlContext = PInvokeHelper.CertEnumCRLsInStore((HCERTSTORE)storeHandle.ToPointer(), crlContext);
+
+                    if (crlContext != null)
                     {
-                        crlContext = PInvokeHelper.CertEnumCRLsInStore((HCERTSTORE)storeHandle.ToPointer(), crlContext);
+                        byte[] storeCrl = ReadCrlFromCrlContext(crlContext);
 
-                        if (crlContext != null)
+
+                        if (crl != null && crl.SequenceEqual(storeCrl))
                         {
-                            byte[] storeCrl = ReadCrlFromCrlContext(crlContext);
-
-
-                            if (crl != null && crl.SequenceEqual(storeCrl))
+                            if (!PInvokeHelper.CertDeleteCRLFromStore(crlContext))
                             {
-                                if (!PInvokeHelper.CertDeleteCRLFromStore(crlContext))
+                                var error = Marshal.GetLastWin32Error();
+                                if (error != 0)
                                 {
-                                    var error = Marshal.GetLastWin32Error();
-                                    if (error != 0)
-                                    {
-                                        Utils.LogError("Error while deleting Crl from X509Store, Win32Error-Code: {0}", error);
-                                    }
+                                    Utils.LogError("Error while deleting Crl from X509Store, Win32Error-Code: {0}", error);
                                 }
-                                else
-                                {
-                                    //was freed by CertDeleteCRLFromStore
-                                    crlContext = (CRL_CONTEXT*)IntPtr.Zero;
-                                    return true;
-                                }
-                                break;
                             }
-                        }
-                        else
-                        {
-                            var error = Marshal.GetLastWin32Error();
-                            if (error == -2146885628)
+                            else
                             {
-                                //No more crls found in store"
-                            }
-                            else if (error != 0)
-                            {
-                                Utils.LogError("Error while deleting Crl from X509Store, Win32Error-Code: {0}", error);
+                                //was freed by CertDeleteCRLFromStore
+                                crlContext = (CRL_CONTEXT*)IntPtr.Zero;
+                                return true;
                             }
                             break;
                         }
                     }
+                    else
+                    {
+                        var error = Marshal.GetLastWin32Error();
+                        if (error == -2146885628)
+                        {
+                            //No more crls found in store
+                        }
+                        else if (error != 0)
+                        {
+                            Utils.LogError("Error while deleting Crl from X509Store, Win32Error-Code: {0}", error);
+                        }
+                        break;
+                    }
                 }
-                catch (Exception ex)
-                {
-                    Utils.LogError(ex, "Exception while deleting Crl from X509Store");
-                }
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex, "Exception while deleting Crl from X509Store");
             }
             return false;
         }
