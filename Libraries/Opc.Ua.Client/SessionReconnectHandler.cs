@@ -288,7 +288,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private async void OnReconnectAsync(object state)
         {
-            DateTime reconnectStart = DateTime.UtcNow;
+            int reconnectStart = HiResClock.TickCount;
             try
             {
                 // check for exit.
@@ -354,7 +354,7 @@ namespace Opc.Ua.Client
                     }
                     else
                     {
-                        int elapsed = (int)DateTime.UtcNow.Subtract(reconnectStart).TotalMilliseconds;
+                        int elapsed = HiResClock.TickCount - reconnectStart;
                         Utils.LogInfo("Reconnect period is {0} ms, {1} ms elapsed in reconnect.", m_reconnectPeriod, elapsed);
                         int adjustedReconnectPeriod = CheckedReconnectPeriod(m_reconnectPeriod - elapsed);
                         adjustedReconnectPeriod = JitteredReconnectPeriod(adjustedReconnectPeriod);
@@ -414,10 +414,10 @@ namespace Opc.Ua.Client
                             sre.StatusCode == StatusCodes.BadTimeout)
                         {
                             // check if reactivating is still an option.
-                            TimeSpan timeout = m_session.LastKeepAliveTime.AddMilliseconds(m_session.SessionTimeout) - DateTime.UtcNow;
-                            if (timeout.TotalMilliseconds > 0)
+                            double timeout = m_session.LastKeepAliveTimeMonotonic + m_session.SessionTimeout - HiResClock.TickCount;
+                            if (timeout > 0)
                             {
-                                Utils.LogInfo("Retry to reactivate, est. session timeout in {0} ms.", timeout.TotalMilliseconds);
+                                Utils.LogInfo("Retry to reactivate, est. session timeout in {0} ms.", timeout);
                                 return false;
                             }
                         }

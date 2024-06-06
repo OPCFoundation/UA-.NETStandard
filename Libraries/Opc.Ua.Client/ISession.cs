@@ -252,6 +252,11 @@ namespace Opc.Ua.Client
         DateTime LastKeepAliveTime { get; }
 
         /// <summary>
+        /// Gets the time in ms of the last keep alive.
+        /// </summary>
+        int LastKeepAliveTimeMonotonic { get; }
+
+        /// <summary>
         /// Gets the number of outstanding publish or keep alive requests.
         /// </summary>
         int OutstandingRequestCount { get; }

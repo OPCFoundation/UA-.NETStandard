@@ -212,6 +212,9 @@ namespace Opc.Ua.Client
         public DateTime LastKeepAliveTime => m_session.LastKeepAliveTime;
 
         /// <inheritdoc/>
+        public int LastKeepAliveTimeMonotonic => m_session.LastKeepAliveTimeMonotonic;
+
+        /// <inheritdoc/>
         public int OutstandingRequestCount => m_session.OutstandingRequestCount;
 
         /// <inheritdoc/>

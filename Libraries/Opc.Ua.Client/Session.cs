@@ -748,10 +748,10 @@ namespace Opc.Ua.Client
         {
             get
             {
-                TimeSpan delta = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - Interlocked.Read(ref m_lastKeepAliveTime));
+                int delta = HiResClock.TickCount - m_lastKeepAliveTimeMonotonic;
 
                 // add a guard band to allow for network lag.
-                return (m_keepAliveInterval + kKeepAliveGuardBand) <= delta.TotalMilliseconds;
+                return (m_keepAliveInterval + kKeepAliveGuardBand) <= delta;
             }
         }
 
@@ -764,6 +764,18 @@ namespace Opc.Ua.Client
             {
                 var ticks = Interlocked.Read(ref m_lastKeepAliveTime);
                 return new DateTime(ticks, DateTimeKind.Utc);
+            }
+        }
+
+        /// <summary>
+        /// Gets the time in ms of the last keep alive.
+        /// Independent of System time changes
+        /// </summary>
+        public int LastKeepAliveTimeMonotonic
+        {
+            get
+            {
+                return m_lastKeepAliveTimeMonotonic;
             }
         }
 
@@ -3691,6 +3703,7 @@ namespace Opc.Ua.Client
             int keepAliveInterval = m_keepAliveInterval;
 
             Interlocked.Exchange(ref m_lastKeepAliveTime, DateTime.UtcNow.Ticks);
+            m_lastKeepAliveTimeMonotonic = HiResClock.TickCount;
 
             m_serverState = ServerState.Unknown;
 
@@ -3774,7 +3787,7 @@ namespace Opc.Ua.Client
                     state.RequestId = requestId;
                     state.RequestTypeId = typeId;
                     state.Result = result;
-                    state.Timestamp = DateTime.UtcNow;
+                    state.Timestamp = HiResClock.TickCount;
 
                     m_outstandingRequests.AddLast(state);
                 }
@@ -3794,7 +3807,7 @@ namespace Opc.Ua.Client
                 if (state != null)
                 {
                     // mark any old requests as default (i.e. the should have returned before this request).
-                    DateTime maxAge = state.Timestamp.AddSeconds(-1);
+                    int maxAge = state.Timestamp - 1000;
 
                     for (LinkedListNode<AsyncRequestState> ii = m_outstandingRequests.First; ii != null; ii = ii.Next)
                     {
@@ -3814,7 +3827,7 @@ namespace Opc.Ua.Client
                     state.RequestId = requestId;
                     state.RequestTypeId = typeId;
                     state.Result = result;
-                    state.Timestamp = DateTime.UtcNow;
+                    state.Timestamp = HiResClock.TickCount;
 
                     m_outstandingRequests.AddLast(state);
                 }
@@ -3961,6 +3974,7 @@ namespace Opc.Ua.Client
                 }
 
                 Interlocked.Exchange(ref m_lastKeepAliveTime, DateTime.UtcNow.Ticks);
+                m_lastKeepAliveTimeMonotonic = HiResClock.TickCount;
 
                 lock (m_outstandingRequests)
                 {
@@ -3978,6 +3992,7 @@ namespace Opc.Ua.Client
             else
             {
                 Interlocked.Exchange(ref m_lastKeepAliveTime, DateTime.UtcNow.Ticks);
+                m_lastKeepAliveTimeMonotonic = HiResClock.TickCount;
             }
 
             // save server state.
@@ -4003,11 +4018,12 @@ namespace Opc.Ua.Client
         /// </summary>
         protected virtual bool OnKeepAliveError(ServiceResult result)
         {
-            long delta = DateTime.UtcNow.Ticks - Interlocked.Read(ref m_lastKeepAliveTime);
+            
+            int delta = HiResClock.TickCount - m_lastKeepAliveTimeMonotonic;
 
             Utils.LogInfo(
                 "KEEP ALIVE LATE: {0}s, EndpointUrl={1}, RequestCount={2}/{3}",
-                ((double)delta) / TimeSpan.TicksPerSecond,
+                delta / 1000,
                 this.Endpoint?.EndpointUrl,
                 this.GoodPublishRequestCount,
                 this.OutstandingRequestCount);
@@ -4880,7 +4896,7 @@ namespace Opc.Ua.Client
             var state = new AsyncRequestState {
                 RequestTypeId = DataTypes.PublishRequest,
                 RequestId = requestHeader.RequestHandle,
-                Timestamp = DateTime.UtcNow
+                Timestamp = HiResClock.TickCount
             };
 
             CoreClientUtils.EventLog.PublishStart((int)requestHeader.RequestHandle);
@@ -6315,6 +6331,7 @@ namespace Opc.Ua.Client
         private long m_publishCounter;
         private int m_tooManyPublishRequests;
         private long m_lastKeepAliveTime;
+        private int m_lastKeepAliveTimeMonotonic;
         private ServerState m_serverState;
         private int m_keepAliveInterval;
 #if NET6_0_OR_GREATER
@@ -6334,7 +6351,7 @@ namespace Opc.Ua.Client
         {
             public uint RequestTypeId;
             public uint RequestId;
-            public DateTime Timestamp;
+            public int Timestamp;
             public IAsyncResult Result;
             public bool Defunct;
         }
