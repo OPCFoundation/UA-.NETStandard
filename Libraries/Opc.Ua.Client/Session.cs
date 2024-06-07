@@ -4050,7 +4050,7 @@ namespace Opc.Ua.Client
                 int delta = HiResClock.TickCount - m_lastKeepAliveTimeMonotonic;
                 Utils.LogInfo(
                     "KEEP ALIVE LATE: {0}s, EndpointUrl={1}, RequestCount={2}/{3}",
-                    ((double)delta) / 1000,
+                    delta / 1000,
                     this.Endpoint?.EndpointUrl,
                     this.GoodPublishRequestCount,
                     this.OutstandingRequestCount);
