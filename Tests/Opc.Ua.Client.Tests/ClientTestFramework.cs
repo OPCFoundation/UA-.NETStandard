@@ -71,6 +71,7 @@ namespace Opc.Ua.Client.Tests
         public string UriScheme { get; private set; }
         public string PkiRoot { get; set; }
         public Uri ServerUrl { get; private set; }
+        public int ServerFixturePort { get; set; }
         public ExpandedNodeId[] TestSetStatic { get; private set; }
         public ExpandedNodeId[] TestSetSimulation { get; private set; }
         public ExpandedNodeId[] TestSetDataSimulation { get; private set; }
@@ -107,7 +108,11 @@ namespace Opc.Ua.Client.Tests
         /// Setup a server and client fixture.
         /// </summary>
         /// <param name="writer">The test output writer.</param>
-        public async Task OneTimeSetUpAsync(TextWriter writer = null, bool securityNone = false, bool enableTracing = false, bool disableActivityLogging = false)
+        public async Task OneTimeSetUpAsync(TextWriter writer = null,
+            bool securityNone = false,
+            bool enableTracing = false,
+            bool disableActivityLogging = false
+            )
         {
             // pki directory root for test runs.
             PkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
@@ -134,32 +139,36 @@ namespace Opc.Ua.Client.Tests
 
             if (customUrl == null)
             {
-                // start Ref server
-                ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging)
-                {
-                    UriScheme = UriScheme,
-                    SecurityNone = securityNone,
-                    AutoAccept = true,
-                    AllNodeManagers = true,
-                    OperationLimits = true
-                };
+                await CreateReferenceServerFixture(enableTracing, disableActivityLogging, securityNone, writer).ConfigureAwait(false);
+            //    {
+            //        // start Ref server
+            //        ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging) {
+            //            UriScheme = UriScheme,
+            //            SecurityNone = securityNone,
+            //            AutoAccept = true,
+            //            AllNodeManagers = true,
+            //            OperationLimits = true
+            //        };
+            //    }
 
-                if (writer != null)
-                {
-                    ServerFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
-                }
+            //    if (writer != null)
+            //    {
+            //        ServerFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
+            //    }
 
-                await ServerFixture.LoadConfiguration(PkiRoot).ConfigureAwait(false);
-                ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
-                ServerFixture.Config.TransportQuotas.MaxByteStringLength =
-                ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
-                ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName));
-                ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate));
-                ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                    new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Opc.Ua.Profiles.JwtUserToken });
+            //    await ServerFixture.LoadConfiguration(PkiRoot).ConfigureAwait(false);
+            //    ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
+            //    ServerFixture.Config.TransportQuotas.MaxByteStringLength =
+            //    ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
+            //    ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName));
+            //    ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate));
+            //    ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+            //        new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Opc.Ua.Profiles.JwtUserToken });
 
-                ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
-                ReferenceServer.TokenValidator = this.TokenValidator;
+            //    ServerFixture.Config.ServerConfiguration.MaxBrowseContinuationPoints = 2;
+                
+            //    ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
+            //    ReferenceServer.TokenValidator = this.TokenValidator;
             }
 
             ClientFixture = new ClientFixture(enableTracing, disableActivityLogging);
@@ -175,7 +184,7 @@ namespace Opc.Ua.Client.Tests
             }
             else
             {
-                ServerUrl = new Uri(UriScheme + "://localhost:" + ServerFixture.Port.ToString(CultureInfo.InvariantCulture));
+                ServerUrl = new Uri(UriScheme + "://localhost:" + ServerFixturePort.ToString(CultureInfo.InvariantCulture));
             }
 
             if (SingleSession)
@@ -191,6 +200,42 @@ namespace Opc.Ua.Client.Tests
                     Assert.Warn($"OneTimeSetup failed to create session with {ServerUrl}, tests fail. Error: {e.Message}");
                 }
             }
+        }
+
+        virtual public async Task CreateReferenceServerFixture(
+            bool enableTracing,
+            bool disableActivityLogging,
+            bool securityNone,
+            TextWriter writer)
+        {
+            {
+                // start Ref server
+                ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging) {
+                    UriScheme = UriScheme,
+                    SecurityNone = securityNone,
+                    AutoAccept = true,
+                    AllNodeManagers = true,
+                    OperationLimits = true
+                };
+            }
+
+            if (writer != null)
+            {
+                ServerFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
+            }
+
+            await ServerFixture.LoadConfiguration(PkiRoot).ConfigureAwait(false);
+            ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
+            ServerFixture.Config.TransportQuotas.MaxByteStringLength =
+            ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName));
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate));
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Opc.Ua.Profiles.JwtUserToken });
+
+            ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
+            ReferenceServer.TokenValidator = this.TokenValidator;
+            ServerFixturePort =ServerFixture.Port;
         }
 
         /// <summary>
@@ -221,6 +266,7 @@ namespace Opc.Ua.Client.Tests
             {
                 try
                 {
+                    //Session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.None).ConfigureAwait(false);
                     Session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
                 }
                 catch (Exception e)
