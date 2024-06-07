@@ -760,11 +760,11 @@ namespace Opc.Ua.Client
                     int delta = HiResClock.TickCount - m_lastKeepAliveTimeMonotonic;
 
                     // add a guard band to allow for network lag.
-                    return (m_keepAliveInterval + kKeepAliveGuardBand) <= delta.TotalMilliseconds;
+                    return (m_keepAliveInterval + kKeepAliveGuardBand) <= delta;
                 }
 
                 // another error was reported which caused keep alive to stop.
-                return true
+                return true;
             }
         }
 
