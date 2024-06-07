@@ -315,8 +315,8 @@ namespace Opc.Ua.Client
                     keepaliveRecovered = true;
                     // breaking change, the callback must only assign the new
                     // session if the property is != null
-                    m_session = null;
                     Utils.LogInfo("Reconnect {0} aborted, KeepAlive recovered.", m_session?.SessionId);
+                    m_session = null;
                 }
                 else
                 {
@@ -375,6 +375,7 @@ namespace Opc.Ua.Client
             // helper to override operation timeout
             int operationTimeout = m_session.OperationTimeout;
             int reconnectOperationTimeout = Math.Max(m_reconnectPeriod, MinReconnectOperationTimeout);
+            ITransportChannel transportChannel = null;
 
             // try a reconnect.
             if (!m_reconnectFailed)
@@ -429,10 +430,15 @@ namespace Opc.Ua.Client
                             m_updateFromServer = true;
                             Utils.LogInfo("Reconnect failed due to security check. Request endpoint update from server. {0}", sre.Message);
                         }
-                        // wait for next scheduled reconnect if connection failed,
-                        // otherwise recreate session immediately
-                        else if (sre.StatusCode != StatusCodes.BadSessionIdInvalid)
+                        // recreate session immediately, use existing channel
+                        else if (sre.StatusCode == StatusCodes.BadSessionIdInvalid)
                         {
+                            transportChannel = m_session.NullableTransportChannel;
+                            m_session.DetachChannel();
+                        }
+                        else
+                        {
+                        // wait for next scheduled reconnect if connection failed,
                             // next attempt is to recreate session
                             m_reconnectFailed = true;
                             return false;
@@ -492,7 +498,7 @@ namespace Opc.Ua.Client
                         m_updateFromServer = false;
                     }
 
-                    session = await m_session.SessionFactory.RecreateAsync(m_session).ConfigureAwait(false);
+                    session = await m_session.SessionFactory.RecreateAsync(m_session, transportChannel).ConfigureAwait(false);
                 }
                 // note: the template session is not connected at this point
                 //       and must be disposed by the owner

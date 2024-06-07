@@ -699,7 +699,7 @@ namespace Quickstarts
         /// Outputs elapsed time information for perf testing and lists all
         /// types that were successfully added to the session encodeable type factory.
         /// </remarks>
-        public async Task LoadTypeSystemAsync(ISession session)
+        public async Task<ComplexTypeSystem> LoadTypeSystemAsync(ISession session)
         {
             m_output.WriteLine("Load the server type system.");
 
@@ -732,6 +732,8 @@ namespace Quickstarts
                     }
                 }
             }
+
+            return complexTypeSystem;
         }
         #endregion
 
@@ -900,7 +902,7 @@ namespace Quickstarts
                         StartNodeId = item.NodeId,
                         AttributeId = Attributes.Value,
                         SamplingInterval = samplingInterval,
-                        DisplayName = item.DisplayName?.Text ?? item.BrowseName.Name,
+                        DisplayName = item.DisplayName?.Text ?? item.BrowseName?.Name ?? "unknown",
                         QueueSize = queueSize,
                         DiscardOldest = true,
                         MonitoringMode = MonitoringMode.Reporting,
