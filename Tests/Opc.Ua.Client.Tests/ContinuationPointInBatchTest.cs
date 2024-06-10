@@ -44,6 +44,7 @@ namespace Opc.Ua.Client.Tests
 {
     public class ReferenceServerForThisUnitTest : ReferenceServer
     {
+        public uint Test_MaxBrowseReferencesPerNode { get; set; } = 10u;
         public override ResponseHeader Browse(
             RequestHeader requestHeader,
             ViewDescription view,
@@ -55,12 +56,19 @@ namespace Opc.Ua.Client.Tests
             return base.Browse(
                 requestHeader,
                 view,
-                10,
+                Test_MaxBrowseReferencesPerNode,
                 nodesToBrowse,
                 out results,
                 out diagnosticInfos
                 );
+            
         }
+
+        public void SetMaxNumberOfContinuationPoints( uint maxNumberOfContinuationPoints )
+        {
+            Configuration.ServerConfiguration.MaxBrowseContinuationPoints = (int) maxNumberOfContinuationPoints;
+        }
+        
     }
 
 
@@ -111,8 +119,9 @@ namespace Opc.Ua.Client.Tests
 
             ServerFixtureForThisUnitTest.Config.ServerConfiguration.MaxBrowseContinuationPoints = 2;
 
-            ReferenceServer = await ServerFixtureForThisUnitTest.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
-            ReferenceServer.TokenValidator = this.TokenValidator;
+            ReferenceServerForThisUnitTest = await ServerFixtureForThisUnitTest.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
+            ReferenceServerForThisUnitTest.TokenValidator = this.TokenValidator;
+            ReferenceServer = ReferenceServerForThisUnitTest;
             ServerFixturePort = ServerFixtureForThisUnitTest.Port;
         }
         public ContinuationPointInBatchTest(string uriScheme = Utils.UriSchemeOpcTcp) :
@@ -188,7 +197,7 @@ namespace Opc.Ua.Client.Tests
 
         /// <summary>
         /// Browse all variables in the objects folder.
-        /// </summary>
+        /// </summary>        
         [Test, Order(100)]
         public void NodeCache_BrowseAllVariables()
         {
@@ -229,6 +238,75 @@ namespace Opc.Ua.Client.Tests
             }
 
             TestContext.Out.WriteLine("Found {0} variables", result.Count);
+        }
+        [Test, Order(200)]
+        public void BrowseWithManyContinuationPoints()
+        {
+            ReferenceServerForThisUnitTest.Test_MaxBrowseReferencesPerNode = 10;
+            ReferenceServerForThisUnitTest.SetMaxNumberOfContinuationPoints(2);
+
+            List<String> nodesToBrowse = new List<String>()
+                {
+                "Scalar_Simulation_Mass_Boolean",
+                "Scalar_Simulation_Mass_Byte",
+                "Scalar_Simulation_Mass_ByteString",
+                "Scalar_Simulation_Mass_DateTime",
+                "Scalar_Simulation_Mass_Double",
+                "Scalar_Simulation_Mass_Duration",
+                "Scalar_Simulation_Mass_Float",
+                "Scalar_Simulation_Mass_Guid",
+                "Scalar_Simulation_Mass_Int16",
+                "Scalar_Simulation_Mass_Int32",
+                "Scalar_Simulation_Mass_Int64",
+                };
+
+            // get namespace index of http://opcfoundation.org/Quickstarts/ReferenceServer
+            int nsi = Session.NamespaceUris.GetIndex("http://opcfoundation.org/Quickstarts/ReferenceServer");
+
+            BrowseDescriptionCollection browseDescriptions = new BrowseDescriptionCollection();
+            foreach (String nodeString in nodesToBrowse)
+            {
+
+                BrowseDescription bd = new BrowseDescription() {
+                    NodeId = new NodeId(nodeString, (ushort)nsi),
+                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    BrowseDirection = BrowseDirection.Forward,
+                    IncludeSubtypes = true
+                };
+                browseDescriptions.Add(bd);
+            }
+            BrowseResultCollection resultsWithContstraints = new BrowseResultCollection();
+            DiagnosticInfoCollection diagnosticInfosWithConstraints = new DiagnosticInfoCollection();
+            Session.Browse(
+                null,
+                null,
+                0u,
+                browseDescriptions,
+                out resultsWithContstraints,
+                out diagnosticInfosWithConstraints
+                );
+
+            ReferenceServerForThisUnitTest.Test_MaxBrowseReferencesPerNode = 1000;
+            ReferenceServerForThisUnitTest.SetMaxNumberOfContinuationPoints(10);
+
+            BrowseResultCollection resultsWithDefaultSettings = new BrowseResultCollection();
+            DiagnosticInfoCollection diagnosticInfosWithDefaultSettings = new DiagnosticInfoCollection();
+
+            Session.Browse(
+                null,
+                null,
+                0u,
+                browseDescriptions,
+                out resultsWithDefaultSettings,
+                out diagnosticInfosWithDefaultSettings
+                );
+
+            Assert.AreEqual(resultsWithDefaultSettings.Count, resultsWithContstraints.Count);
+            for(int i = 0; i < resultsWithDefaultSettings.Count; i++)
+            {
+                Assert.AreEqual(resultsWithDefaultSettings[i].References.Count, resultsWithContstraints[i].References.Count);   
+            }
+
         }
         #endregion
     }

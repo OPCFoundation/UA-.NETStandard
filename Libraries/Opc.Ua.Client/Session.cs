@@ -3356,7 +3356,7 @@ namespace Opc.Ua.Client
             out IList<ServiceResult> errors)
         {
 
-            BrowseDescriptionCollection browseDescription = new BrowseDescriptionCollection();
+            BrowseDescriptionCollection browseDescriptions = new BrowseDescriptionCollection();
             foreach (var nodeToBrowse in nodesToBrowse)
             {
                 BrowseDescription description = new BrowseDescription {
@@ -3368,19 +3368,19 @@ namespace Opc.Ua.Client
                     ResultMask = (uint)BrowseResultMask.All
                 };
 
-                browseDescription.Add(description);
+                browseDescriptions.Add(description);
             }
 
             ResponseHeader responseHeader = Browse(
                 requestHeader,
                 view,
                 maxResultsToReturn,
-                browseDescription,
+                browseDescriptions,
                 out BrowseResultCollection results,
                 out DiagnosticInfoCollection diagnosticInfos);
 
-            ClientBase.ValidateResponse(results, browseDescription);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, browseDescription);
+            ClientBase.ValidateResponse(results, browseDescriptions);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, browseDescriptions);
 
             int ii = 0;
             errors = new List<ServiceResult>();
