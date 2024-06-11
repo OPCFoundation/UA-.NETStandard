@@ -1413,7 +1413,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Reconnects to the server after a network failure using a waiting connection.
         /// </summary>
-        private void Reconnect(ITransportWaitingConnection connection, ITransportChannel transportChannel = null)
+        private void Reconnect(ITransportWaitingConnection connection, ITransportChannel transportChannel)
         {
             bool resetReconnect = false;
             try

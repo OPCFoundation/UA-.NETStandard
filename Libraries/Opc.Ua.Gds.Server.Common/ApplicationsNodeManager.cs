@@ -31,12 +31,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Gds.Server.Diagnostics;
 using Opc.Ua.Server;
+using Org.BouncyCastle.Tls;
 
 namespace Opc.Ua.Gds.Server
 {
@@ -389,7 +391,8 @@ namespace Opc.Ua.Gds.Server
                     Opc.Ua.Gds.CertificateDirectoryState activeNode = new Opc.Ua.Gds.CertificateDirectoryState(passiveNode.Parent);
 
                     activeNode.RevokeCertificate = new RevokeCertificateMethodState(passiveNode);
-                    activeNode.CheckRevocationStatus = new CheckRevocationStatusMethodState(passiveNode.Parent);
+                    activeNode.CheckRevocationStatus = new CheckRevocationStatusMethodState(passiveNode);
+                    activeNode.GetCertificates = new GetCertificatesMethodState(passiveNode);
 
                     activeNode.Create(context, passiveNode);
                     activeNode.QueryServers.OnCall = new QueryServersMethodStateMethodCallHandler(OnQueryServers);
@@ -407,6 +410,7 @@ namespace Opc.Ua.Gds.Server
                     activeNode.StartSigningRequest.OnCall = new StartSigningRequestMethodStateMethodCallHandler(OnStartSigningRequest);
                     activeNode.RevokeCertificate.OnCall = new RevokeCertificateMethodStateMethodCallHandler(OnRevokeCertificate);
                     activeNode.CheckRevocationStatus.OnCall = new CheckRevocationStatusMethodStateMethodCallHandler(OnCheckRevocationStatus);
+                    activeNode.GetCertificates.OnCall = new GetCertificatesMethodStateMethodCallHandler(OnGetCertificates);
 
                     activeNode.CertificateGroups.DefaultApplicationGroup.CertificateTypes.Value = new NodeId[] { Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType };
                     activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.LastUpdateTime.Value = DateTime.UtcNow;
@@ -659,31 +663,141 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthenticatedSecureChannel(context);
 
-            //create CertificateValidator initialized with GDS CAs
-            var certificateValidator = new CertificateValidator();
-            var authorities = new CertificateTrustList() {
-                StorePath = m_globalDiscoveryServerConfiguration.AuthoritiesStorePath,
-                StoreType = CertificateStoreIdentifier.DetermineStoreType(m_globalDiscoveryServerConfiguration.AuthoritiesStorePath)
-            };
-            certificateValidator.Update(null, authorities, null);
-
-            //TODO return validityTime of Certificate once CertificateValidator supports it
+            //TODO return When the result expires and should be rechecked.
             validityTime = DateTime.MinValue;
 
-            using (var x509 = new X509Certificate2(certificate))
+            try
             {
-                try
+                //create chain to validate Certificate against it
+                var chain = new X509Chain();
+                chain.ChainPolicy.RevocationMode = X509RevocationMode.Online;
+                chain.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain;
+
+                //add GDS Issuer Cert Store Certificates to the Chain validation for consitent behaviour on all Platforms
+                using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(m_configuration.SecurityConfiguration.TrustedIssuerCertificates.StorePath))
                 {
-                    certificateValidator.Validate(x509);
+                    chain.ChainPolicy.ExtraStore.AddRange(store.Enumerate().GetAwaiter().GetResult());
                 }
-                catch (ServiceResultException se)
+                using (var x509 = new X509Certificate2(certificate))
                 {
-                    certificateStatus = se.StatusCode;
+                    if (chain.Build(x509))
+                    {
+                        certificateStatus = StatusCodes.Good;
+                        return ServiceResult.Good;
+                    }
+                    else
+                    {
+                        //Assing certificateStatus for invalid chain if no matching found use StatusCodes.BadCertificateRevoked
+                        switch (chain.ChainStatus.FirstOrDefault().Status)
+                        {
+                            case X509ChainStatusFlags.NotTimeValid:
+                                certificateStatus = StatusCodes.BadCertificateTimeInvalid;
+                                break;
+                            case X509ChainStatusFlags.Revoked:
+                                certificateStatus = StatusCodes.BadCertificateRevoked;
+                                break;
+                            case X509ChainStatusFlags.NotSignatureValid:
+                                certificateStatus = StatusCodes.BadCertificateInvalid;
+                                break;
+                            case X509ChainStatusFlags.NotValidForUsage:
+                                certificateStatus = StatusCodes.BadCertificateUseNotAllowed;
+                                break;
+                            case X509ChainStatusFlags.RevocationStatusUnknown:
+                                certificateStatus = StatusCodes.BadCertificateRevocationUnknown;
+                                break;
+                            case X509ChainStatusFlags.PartialChain:
+                                certificateStatus = StatusCodes.BadCertificateChainIncomplete;
+                                break;
+                            case X509ChainStatusFlags.ExplicitDistrust:
+                                certificateStatus = StatusCodes.BadCertificateUntrusted;
+                                break;
+                            //cases not in the OPC UA Status codes -> default to BadCertificateRevoked
+                            case X509ChainStatusFlags.NoError:
+                            case X509ChainStatusFlags.UntrustedRoot:
+                            case X509ChainStatusFlags.NotTimeNested:
+                            case X509ChainStatusFlags.Cyclic:
+                            case X509ChainStatusFlags.InvalidExtension:
+                            case X509ChainStatusFlags.InvalidPolicyConstraints:
+                            case X509ChainStatusFlags.InvalidBasicConstraints:
+                            case X509ChainStatusFlags.InvalidNameConstraints:
+                            case X509ChainStatusFlags.HasNotSupportedNameConstraint:
+                            case X509ChainStatusFlags.HasNotDefinedNameConstraint:
+                            case X509ChainStatusFlags.HasNotPermittedNameConstraint:
+                            case X509ChainStatusFlags.HasExcludedNameConstraint:
+                            case X509ChainStatusFlags.CtlNotTimeValid:
+                            case X509ChainStatusFlags.CtlNotSignatureValid:
+                            case X509ChainStatusFlags.CtlNotValidForUsage:
+                            case X509ChainStatusFlags.OfflineRevocation:
+                            case X509ChainStatusFlags.NoIssuanceChainPolicy:
+                            case X509ChainStatusFlags.HasNotSupportedCriticalExtension:
+                            case X509ChainStatusFlags.HasWeakSignature:
+                            default:
+                                certificateStatus = StatusCodes.BadCertificateRevoked;
+                                break;
+                        }
+                    }
                 }
             }
+            catch (CryptographicException)
+            {
+                certificateStatus = StatusCodes.BadCertificateRevoked;
+            }
+
             return ServiceResult.Good;
         }
 
+        private ServiceResult OnGetCertificates(
+        ISystemContext context,
+        MethodState method,
+        NodeId objectId,
+        NodeId applicationId,
+        NodeId certificateGroupId,
+        ref NodeId[] certificateTypeIds,
+        ref byte[][] certificates)
+        {
+            AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin);
+
+            var certificateTypeIdsList = new List<NodeId>();
+            var certificatesList = new List<byte[]>();
+
+            if (m_database.GetApplication(applicationId) == null)
+            {
+                return new ServiceResult(StatusCodes.BadNotFound, "The ApplicationId does not refer to a registered application.");
+            }
+
+            //If CertificateGroupId is null, the CertificateManager shall return the Certificates for all CertificateGroups assigned to the Application.
+            if (certificateGroupId == null)
+            {
+                foreach (KeyValuePair<NodeId, string> certType in m_certTypeMap)
+                {
+                    if (m_database.GetApplicationCertificate(applicationId, certType.Value, out byte[] certificate) && certificate != null)
+                    {
+                        certificateTypeIdsList.Add(certType.Key);
+                        certificatesList.Add(certificate);
+                    }
+                }
+            }
+            //get only Certificate of the provided CertificateGroup
+            else
+            {
+                if (!m_certificateGroups.TryGetValue(certificateGroupId, out ICertificateGroup certificateGroup)
+                    || !m_certTypeMap.TryGetValue(certificateGroup.CertificateType, out string certificateTypeId))
+                {
+                    return new ServiceResult(StatusCodes.BadInvalidArgument, "The CertificateGroupId is not recognized or not valid for the Application.");
+                }
+                if (m_database.GetApplicationCertificate(applicationId, certificateTypeId, out byte[] certificate) && certificate != null)
+                {
+                    certificateTypeIdsList.Add(certificateGroup.CertificateType);
+                    certificatesList.Add(certificate);
+                }
+            }
+
+            certificates = certificatesList.ToArray();
+            certificateTypeIds = certificateTypeIdsList.ToArray();
+
+            return ServiceResult.Good;
+        }
+       
         private ServiceResult CheckHttpsDomain(ApplicationRecordDataType application, string commonName)
         {
             if (application.ApplicationType == ApplicationType.Client)
@@ -1391,7 +1505,7 @@ namespace Opc.Ua.Gds.Server
             handle.Validated = true;
             return handle.Node;
         }
-        #endregion
+#endregion
 
         #region Overridden Methods
         #endregion

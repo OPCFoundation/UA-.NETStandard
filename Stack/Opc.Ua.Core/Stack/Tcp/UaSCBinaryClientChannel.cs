@@ -286,9 +286,9 @@ namespace Opc.Ua.Bindings
                 {
                     if (m_queuedOperations == null)
                     {
-                        firstCall = true;
                         m_queuedOperations = new List<QueuedOperation>();
                     }
+                    firstCall = m_queuedOperations.Count == 0;
                 }
 
                 // queue operations until connect completes.
@@ -820,7 +820,7 @@ namespace Opc.Ua.Bindings
                 request.TypeId == DataTypeIds.FindServersOnNetworkRequest ||
                 request.TypeId == DataTypeIds.FindServersRequest)
             {
-                m_queuedOperations.Insert(0, queuedOperation);
+                m_queuedOperations.Add(queuedOperation);
                 return true;
             }
 
