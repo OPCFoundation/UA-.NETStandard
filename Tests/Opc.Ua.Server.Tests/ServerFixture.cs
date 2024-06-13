@@ -154,7 +154,6 @@ namespace Opc.Ua.Server.Tests
             Config = await serverConfig.AddSecurityConfiguration(
                     applicationCerts,
                     pkiRoot)
-                .SetMinimumCertificateKeySize(1024)
                 .SetAutoAcceptUntrustedCertificates(AutoAccept)
                 .Create().ConfigureAwait(false);
         }

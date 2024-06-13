@@ -120,7 +120,6 @@ namespace Opc.Ua.Client.Tests
                 // .SetApplicationCertificates(applicationCerts)
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)
-                .SetMinimumCertificateKeySize(1024)
                 .SetOutputFilePath(Path.Combine(pkiRoot, "Logs", "Opc.Ua.Client.Tests.log.txt"))
                 .SetTraceMasks(TraceMasks)
                 .Create().ConfigureAwait(false);
@@ -284,28 +283,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (endpoints == null)
             {
-                try
-                {
-                    endpoints = await GetEndpoints(url).ConfigureAwait(false);
-                }
-                catch(Exception)
-                {
-                    // Don't ignore if platform is Windows
-                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                    {
-                        throw;
-                    }
-                    else
-                    {
-                        // Don't ignore schemes other than opc.https or https
-                        if (!url.Scheme.Equals("opc.https", StringComparison.OrdinalIgnoreCase) &&
-                            !url.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
-                        {
-                            throw;
-                        }
-                        Assert.Ignore("Failed to get endpoints from discovery server on non Windows platform");
-                    }
-                }
+                endpoints = await GetEndpoints(url).ConfigureAwait(false);
             }
             var endpointDescription = SelectEndpoint(Config, endpoints, url, securityPolicy);
             if (endpointDescription == null)
