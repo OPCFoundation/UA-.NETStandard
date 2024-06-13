@@ -240,41 +240,26 @@ namespace Opc.Ua.Client.Tests
             TestContext.Out.WriteLine("Found {0} variables", result.Count);
         }
         [Test, Order(200)]
-        public void BrowseWithManyContinuationPoints()
+        public void BrowseWithManyContinuationPoints_SessionClientBatched()
         {
             ReferenceServerForThisUnitTest.Test_MaxBrowseReferencesPerNode = 10;
             ReferenceServerForThisUnitTest.SetMaxNumberOfContinuationPoints(2);
 
-            List<String> nodesToBrowse = new List<String>()
-                {
-                "Scalar_Simulation_Mass_Boolean",
-                "Scalar_Simulation_Mass_Byte",
-                "Scalar_Simulation_Mass_ByteString",
-                "Scalar_Simulation_Mass_DateTime",
-                "Scalar_Simulation_Mass_Double",
-                "Scalar_Simulation_Mass_Duration",
-                "Scalar_Simulation_Mass_Float",
-                "Scalar_Simulation_Mass_Guid",
-                "Scalar_Simulation_Mass_Int16",
-                "Scalar_Simulation_Mass_Int32",
-                "Scalar_Simulation_Mass_Int64",
-                };
-
-            // get namespace index of http://opcfoundation.org/Quickstarts/ReferenceServer
-            int nsi = Session.NamespaceUris.GetIndex("http://opcfoundation.org/Quickstarts/ReferenceServer");
+            List<NodeId> nodeIds = getNodesToBrowse();
 
             BrowseDescriptionCollection browseDescriptions = new BrowseDescriptionCollection();
-            foreach (String nodeString in nodesToBrowse)
+            foreach (NodeId nodeId in nodeIds)
             {
-
                 BrowseDescription bd = new BrowseDescription() {
-                    NodeId = new NodeId(nodeString, (ushort)nsi),
+                    NodeId = nodeId,
                     ReferenceTypeId = ReferenceTypeIds.Organizes,
                     BrowseDirection = BrowseDirection.Forward,
                     IncludeSubtypes = true
                 };
                 browseDescriptions.Add(bd);
             }
+            
+
             BrowseResultCollection resultsWithContstraints = new BrowseResultCollection();
             DiagnosticInfoCollection diagnosticInfosWithConstraints = new DiagnosticInfoCollection();
             Session.Browse(
@@ -308,6 +293,64 @@ namespace Opc.Ua.Client.Tests
             }
 
         }
+
+        [Test, Order(250)]
+        public void BrowseWithManyContinuationPoints()
+        {
+            ReferenceServerForThisUnitTest.Test_MaxBrowseReferencesPerNode = 10;
+            ReferenceServerForThisUnitTest.SetMaxNumberOfContinuationPoints(2);
+
+            ByteStringCollection ContinuationPoints = new ByteStringCollection();
+            IList<ReferenceDescriptionCollection> referenceDescriptions = new List<ReferenceDescriptionCollection>();
+            IList<ServiceResult> errors = new List<ServiceResult>();
+
+            List<NodeId> nodeIds = getNodesToBrowse();
+            ReferenceServerForThisUnitTest.Test_MaxBrowseReferencesPerNode = 10;
+            ReferenceServerForThisUnitTest.SetMaxNumberOfContinuationPoints(2);
+
+            // ISession does not now this session method with this signature
+            ((Session) Session).Browse(
+                null,
+                null,
+                nodeIds,
+                0,
+                BrowseDirection.Forward,
+                ReferenceTypeIds.Organizes,
+                true,
+                0,
+                out ContinuationPoints,
+                out referenceDescriptions,
+                out errors
+                );
+
+
+        }
+
         #endregion
+        List<NodeId> getNodesToBrowse()
+        {
+            List<String> nodesToBrowse = new List<String>()
+            {
+                "Scalar_Simulation_Mass_Boolean",
+                "Scalar_Simulation_Mass_Byte",
+                "Scalar_Simulation_Mass_ByteString",
+                "Scalar_Simulation_Mass_DateTime",
+                "Scalar_Simulation_Mass_Double",
+                "Scalar_Simulation_Mass_Duration",
+                "Scalar_Simulation_Mass_Float",
+                "Scalar_Simulation_Mass_Guid",
+                "Scalar_Simulation_Mass_Int16",
+                "Scalar_Simulation_Mass_Int32",
+                "Scalar_Simulation_Mass_Int64",
+                };
+
+            int nsi = Session.NamespaceUris.GetIndex("http://opcfoundation.org/Quickstarts/ReferenceServer");
+            List<NodeId> result = new List<NodeId>();
+            foreach (String nodeString in nodesToBrowse)
+            {
+                result.Add(new NodeId(nodeString, (ushort)nsi));                
+            }
+            return result;
+        }
     }
 }

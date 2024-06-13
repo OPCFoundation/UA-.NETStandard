@@ -33,6 +33,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
@@ -851,6 +852,15 @@ namespace Opc.Ua.Client
                 }
             }
         }
+
+        /// <summary>
+        /// The server capability MaxContinuationPointsPerBrowse
+        /// </summary>
+        public uint ServerMaxContinuationPointsPerBrowse
+        {
+            get => m_ServerMaxContinuationPointsPerBrowse;
+            set => m_ServerMaxContinuationPointsPerBrowse = value;
+        }
         #endregion
 
         #region Public Static Methods
@@ -1608,6 +1618,35 @@ namespace Opc.Ua.Client
                 }
             }
         }
+
+        /// <summary>
+        /// Fetch the server capabilities, as far as needed:
+        /// MaxContinuationPointsPerBrowse
+        /// </summary>
+        public void FetchServerCapabilities()
+        {
+            try
+            {   var nodeIdCollection = new NodeIdCollection();
+                var nodeId = VariableIds.ServerType_ServerCapabilities_MaxBrowseContinuationPoints;
+                nodeIdCollection.Add(nodeId);
+                IList<Type> types = new List<Type>();
+                types.Add(typeof(UInt16));
+
+                ReadValues(nodeIdCollection, types, out var values, out var errors);
+
+                if (values[0] != null && ServiceResult.IsNotBad(errors[0]))
+                {
+                    ServerMaxContinuationPointsPerBrowse = (UInt16)values[0];
+                }
+
+            }
+            catch(Exception ex)
+            {
+                Utils.LogError(ex, "Failed to read the Server Capabilities from the server. Using defaults.");
+                ServerMaxContinuationPointsPerBrowse = 0;
+            }
+        }
+
 
         /// <inheritdoc/>
         public void FetchTypeTree(ExpandedNodeId typeId)
@@ -2527,6 +2566,9 @@ namespace Opc.Ua.Client
 
                 // fetch operation limits
                 FetchOperationLimits();
+
+                // fetch those server capabilities which are evaluated
+                FetchServerCapabilities();
 
                 // start keep alive thread.
                 StartKeepAliveTimer();
@@ -3598,6 +3640,88 @@ namespace Opc.Ua.Client
             return responseHeader;
         }
         #endregion
+
+        #region combined browse/browse next
+        /// <summary>
+        /// Execute browse and, if necessary, browse next in one
+        /// service call. Take care of BadNoContinuationPoint and BadInvalidContnuationPoint errors
+        /// </summary>
+        /// <param name="requestHeader"></param>
+        /// <param name="view"></param>
+        /// <param name="nodesToBrowse"></param>
+        /// <param name="maxResultsToReturn"></param>
+        /// <param name="browseDirection"></param>
+        /// <param name="referenceTypeId"></param>
+        /// <param name="includeSubtypes"></param>
+        /// <param name="nodeClassMask"></param>
+        /// <param name="referencesList"></param>
+        /// <returns></returns>
+        public virtual ResponseHeader ManagedBrowse(
+            RequestHeader requestHeader,
+            ViewDescription view,
+            IList<NodeId> nodesToBrowse,
+            uint maxResultsToReturn,
+            BrowseDirection browseDirection,
+            NodeId referenceTypeId,
+            bool includeSubtypes,
+            uint nodeClassMask,
+            out IList<ReferenceDescriptionCollection> referencesList)
+        {
+            ResponseHeader responseHeader = null;
+            referencesList = null;
+            List<NodeId> nodesForRebrowse = new List<NodeId> ();
+
+            ReferenceDescriptionCollection[] referencesArray = Enumerable.Repeat<ReferenceDescriptionCollection>(null, nodesToBrowse.Count).ToArray();
+            bool[] isBrowseCompleteForNode = Enumerable.Repeat(false,nodesForRebrowse.Count).ToArray();
+
+            uint maxNodesPerBrowse = OperationLimits.MaxNodesPerBrowse;
+
+            // start browsing using the existing methdod(s)
+            bool isBrowseComplete = false;
+            try
+            {
+                var currentNodesToBrowse = (maxNodesPerBrowse == 0) ?
+                    nodesToBrowse : nodesToBrowse.Take((int)maxNodesPerBrowse).ToList();
+                while (!isBrowseComplete)
+                {
+                    responseHeader = Browse
+                        (
+                        requestHeader,
+                        view,
+                        currentNodesToBrowse,
+                        maxResultsToReturn,
+                        browseDirection,
+                        referenceTypeId,
+                        includeSubtypes,
+                        nodeClassMask,
+                        out var continuationPoints,
+                        out referencesList,
+                        out var errors
+                        );
+                    int ii = 0;
+                    foreach( ReferenceDescriptionCollection references in referencesList )
+                    {
+                        // check status code
+                        StatusCode statusCode = errors[ii].StatusCode;
+                        if(StatusCode.IsBad( statusCode ) )
+                        {
+                            if(statusCode == StatusCodes.BadNoContinuationPoints )
+                            {
+                                nodesForRebrowse.Add(currentNodesToBrowse[ii]);
+                            }
+                        }
+                    }
+                }
+            }
+            catch 
+            {
+
+            }
+            return responseHeader;
+        }
+
+        #endregion
+
 
         #region Call Methods
         /// <inheritdoc/>
@@ -6329,6 +6453,7 @@ namespace Opc.Ua.Client
         private LinkedList<AsyncRequestState> m_outstandingRequests;
         private readonly EndpointDescriptionCollection m_discoveryServerEndpoints;
         private readonly StringCollection m_discoveryProfileUris;
+        private uint m_ServerMaxContinuationPointsPerBrowse;
 
         private class AsyncRequestState
         {
