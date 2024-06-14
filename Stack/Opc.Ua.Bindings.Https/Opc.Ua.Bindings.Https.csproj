@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
     <TargetFrameworks>$(HttpsTargetFrameworks)</TargetFrameworks>
     <AssemblyName>Opc.Ua.Bindings.Https</AssemblyName>
     <PackageId>OPCFoundation.NetStandard.Opc.Ua.Bindings.Https</PackageId>

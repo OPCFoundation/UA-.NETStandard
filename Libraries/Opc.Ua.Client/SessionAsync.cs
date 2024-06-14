@@ -1374,6 +1374,11 @@ namespace Opc.Ua.Client
         /// <returns>The new session object.</returns>
         public static async Task<Session> RecreateAsync(Session sessionTemplate, ITransportChannel transportChannel, CancellationToken ct = default)
         {
+            if (transportChannel == null)
+            {
+                return await Session.RecreateAsync(sessionTemplate, ct).ConfigureAwait(false);
+            }
+
             ServiceMessageContext messageContext = sessionTemplate.m_configuration.CreateMessageContext();
             messageContext.Factory = sessionTemplate.Factory;
 
@@ -1541,15 +1546,27 @@ namespace Opc.Ua.Client
                     connection,
                     transportChannel);
 
-                if (!(result is ChannelAsyncOperation<int> operation)) throw new ArgumentNullException(nameof(result));
-
-                try
+                const string timeoutMessage = "ACTIVATE SESSION ASYNC timed out. {0}/{1}";
+                if (result is ChannelAsyncOperation<int> operation)
                 {
-                    _ = await operation.EndAsync(kReconnectTimeout / 2, true, ct).ConfigureAwait(false);
+                    try
+                    {
+                        _ = await operation.EndAsync(kReconnectTimeout / 2, true, ct).ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException sre)
+                    {
+                        if (sre.StatusCode == StatusCodes.BadRequestInterrupted)
+                        {
+                            var error = ServiceResult.Create(StatusCodes.BadRequestTimeout, timeoutMessage,
+                                GoodPublishRequestCount, OutstandingRequestCount);
+                            Utils.LogWarning("WARNING: {0}", error.ToString());
+                            operation.Fault(false, error);
+                        }
+                    }
                 }
-                catch (ServiceResultException)
+                else if (!result.AsyncWaitHandle.WaitOne(kReconnectTimeout / 2))
                 {
-                    Utils.LogWarning("WARNING: ACTIVATE SESSION {0} timed out. {1}/{2}", SessionId, GoodPublishRequestCount, OutstandingRequestCount);
+                    Utils.LogWarning(timeoutMessage, GoodPublishRequestCount, OutstandingRequestCount);
                 }
 
                 // reactivate session.

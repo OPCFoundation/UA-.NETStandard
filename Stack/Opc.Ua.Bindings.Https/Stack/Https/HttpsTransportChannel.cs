@@ -17,9 +17,8 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Security;
-using System.Runtime.InteropServices;
-using System.Security.Cryptography.X509Certificates;
 using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 

@@ -29,6 +29,7 @@
 
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server;
@@ -49,13 +50,23 @@ namespace Opc.Ua.Gds.Tests
             s_autoAccept = autoAccept;
         }
 
-        public async Task StartServer(bool clean, int basePort = -1)
+        public async Task StartServer(bool clean, int basePort = -1, string storeType = CertificateStoreType.Directory)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
+
+            string configSectionName = "Opc.Ua.GlobalDiscoveryTestServer";
+            if (storeType == CertificateStoreType.X509Store)
+            {
+                if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    throw new PlatformNotSupportedException("X509 Store with crls is only supported on Windows");
+                }
+                configSectionName = "Opc.Ua.GlobalDiscoveryTestServerX509Stores";
+            }
             Application = new ApplicationInstance {
                 ApplicationName = "Global Discovery Server",
                 ApplicationType = ApplicationType.Server,
-                ConfigSectionName = "Opc.Ua.GlobalDiscoveryTestServer"
+                ConfigSectionName = configSectionName
             };
 
             BasePort = basePort;

@@ -24,7 +24,7 @@
   </Choose>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.10.0" />
     <PackageReference Include="NUnit" Version="4.1.0" />
     <PackageReference Include="NUnit.Console" Version="3.17.0" />
     <PackageReference Include="NUnit3TestAdapter" Version="4.5.0">
@@ -38,7 +38,7 @@
   </ItemGroup>
   
   <ItemGroup>
-    <Compile Include="..\Common\Main.cs"/>
+    <Compile Include="..\Common\Main.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -53,6 +53,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Opc.Ua.GlobalDiscoveryTestServerX509Stores.Config.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Opc.Ua.GlobalDiscoveryTestClientX509Stores.Config.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="Opc.Ua.GlobalDiscoveryTestClient.Config.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

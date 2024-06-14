@@ -16,6 +16,7 @@ using System.IO;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Bindings;
+using Opc.Ua.Security;
 
 namespace Opc.Ua
 {
@@ -651,7 +652,7 @@ namespace Opc.Ua
 
     #region ServerSecurityPolicy Class
     /// <summary>
-    /// A class that defines a group of sampling rates supported by the server.
+    /// A class that defines a group of security policies supported by the server.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public class ServerSecurityPolicy

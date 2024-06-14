@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -45,6 +46,7 @@ namespace Opc.Ua.Gds.Tests
     /// Test GDS Registration and Client Pull.
     /// </summary>
     [TestFixture, Category("GDSRegistrationAndPull"), Category("GDS")]
+    [TestFixtureSource(nameof(FixtureArgs))]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [NonParallelizable]
     public class ClientTest
@@ -68,16 +70,33 @@ namespace Opc.Ua.Gds.Tests
         }
 
         /// <summary>
+        /// store types to run the tests with
+        /// </summary>
+        public static readonly object[] FixtureArgs = {
+            new object [] { CertificateStoreType.Directory},
+            new object [] { CertificateStoreType.X509Store}
+        };
+
+        public ClientTest(string storeType = CertificateStoreType.Directory)
+        {
+            if (storeType == CertificateStoreType.X509Store && !RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                Assert.Ignore("X509 Store with crls is only supported on Windows, skipping test run");
+            }
+            m_storeType = storeType;
+        }
+
+        /// <summary>
         /// Set up a Global Discovery Server and Client instance and connect the session
         /// </summary>
         [OneTimeSetUp]
         protected async Task OneTimeSetUp()
         {
             // start GDS
-            m_server = await TestUtils.StartGDS(true).ConfigureAwait(false);
+            m_server = await TestUtils.StartGDS(true, m_storeType).ConfigureAwait(false);
 
             // load client
-            m_gdsClient = new GlobalDiscoveryTestClient(true);
+            m_gdsClient = new GlobalDiscoveryTestClient(true, m_storeType);
             await m_gdsClient.LoadClientConfiguration(m_server.BasePort).ConfigureAwait(false);
 
             // good applications test set
@@ -856,6 +875,31 @@ namespace Opc.Ua.Gds.Tests
 
         }
 
+        
+        [Test, Order(540)]
+        public void GetGoodCertificates()
+        {
+            AssertIgnoreTestWithoutGoodRegistration();
+            AssertIgnoreTestWithoutGoodNewKeyPairRequest();
+            ConnectGDS(true);
+
+            Assert.That(() => {
+                m_gdsClient.GDSClient.GetCertificates(null, null, out var _, out var _);
+            }, Throws.Exception);
+
+            foreach (var application in m_goodApplicationTestSet)
+            {
+                m_gdsClient.GDSClient.GetCertificates(application.ApplicationRecord.ApplicationId, null, out NodeId[] certificateTypeIds, out byte[][] certificates);
+                Assert.That(certificateTypeIds.Length == 1);
+                Assert.NotNull(certificates[0]);
+                Assert.AreEqual(certificates[0], application.Certificate);
+                m_gdsClient.GDSClient.GetCertificates(application.ApplicationRecord.ApplicationId, application.CertificateGroupId, out NodeId[] certificateTypeIds2, out byte[][] certificates2);
+                Assert.That(certificateTypeIds2.Length == 1);
+                Assert.NotNull(certificates2[0]);
+                Assert.AreEqual(certificates2[0], application.Certificate);
+            }
+        }
+
         [Test, Order(550)]
         public void StartGoodSigningRequestWithInvalidAppURI()
         {
@@ -1308,7 +1352,8 @@ namespace Opc.Ua.Gds.Tests
             foreach (var application in m_goodApplicationTestSet)
             {
                 m_gdsClient.GDSClient.CheckRevocationStatus(application.Certificate, out StatusCode certificateStatus, out DateTime validityTime);
-                Assert.AreEqual((StatusCode)StatusCodes.Good, (StatusCode)certificateStatus.Code);
+                //Status code needs to be Bad as the method builds a custom chain that does not know about the custom cert stores.
+                Assert.True(StatusCode.IsBad(certificateStatus.Code));
                 Assert.NotNull(validityTime);
             }
         }
@@ -1330,7 +1375,7 @@ namespace Opc.Ua.Gds.Tests
                 }, Throws.Exception);
             }
         }
-     
+
         [Test, Order(900)]
         public void UnregisterGoodApplications()
         {
@@ -1350,7 +1395,7 @@ namespace Opc.Ua.Gds.Tests
             foreach (var application in m_goodApplicationTestSet)
             {
                 m_gdsClient.GDSClient.CheckRevocationStatus(application.Certificate, out StatusCode certificateStatus, out DateTime validityTime);
-                Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevoked, (StatusCode)certificateStatus.Code);
+                Assert.IsTrue(((StatusCode)certificateStatus.Code).ToString().StartsWith("BadCertificate"));
                 Assert.NotNull(validityTime);
             }
         }
@@ -1487,6 +1532,7 @@ namespace Opc.Ua.Gds.Tests
         private bool m_invalidRegistrationOk;
         private bool m_gdsRegisteredTestClient;
         private bool m_goodNewKeyPairRequestOk;
+        private string m_storeType;
         #endregion
     }
 

@@ -20,14 +20,18 @@ namespace Opc.Ua.Gds.Tests
 
         private string _path;
 
-        public CertificateGroupTests()
+        [SetUp]
+        public void Setup()
         {
             _path = Utils.ReplaceSpecialFolderNames("%LocalApplicationData%/OPC/GDS/TestStore");
         }
-
+        [TearDown]
         public void Dispose()
         {
-            Directory.Delete(_path, true);
+            if (Directory.Exists(_path))
+            {
+                Directory.Delete(_path, true);
+            }
         }
         #region Test Methods
 
