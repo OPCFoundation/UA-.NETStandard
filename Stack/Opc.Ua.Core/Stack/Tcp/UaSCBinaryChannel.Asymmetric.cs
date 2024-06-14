@@ -234,7 +234,7 @@ namespace Opc.Ua.Bindings
             }
 
             // check the length.
-            if (nonce == null || nonce.Length < Nonce.GetNonceLength(SecurityPolicyUri))
+            if (nonce == null || nonce.Length != Nonce.GetNonceLength(SecurityPolicyUri))
             {
                 return false;
             }
