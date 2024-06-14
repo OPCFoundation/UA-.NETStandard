@@ -62,7 +62,6 @@ namespace Opc.Ua.Client.Tests
             SupportsExternalServerUrl = true;
             // create a new session for every test
             SingleSession = false;
-            MaxChannelCount = 1000;
             return base.OneTimeSetUpAsync(null, true);
         }
 

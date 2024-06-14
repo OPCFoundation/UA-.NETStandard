@@ -678,7 +678,7 @@ namespace Opc.Ua.Server
             {
                 certificateTypeIds = new NodeId[1] {certificateTypeId };
                 certificates = new byte[1][];
-                certificates[0] = certificateGroup.ApplicationCertificate.Certificate.GetRawCertData();
+                certificates[0] = certificateGroup.ApplicationCertificates[0].Certificate.GetRawCertData();
             }
             else
             {
