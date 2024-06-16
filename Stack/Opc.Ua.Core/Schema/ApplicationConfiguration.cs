@@ -691,35 +691,7 @@ namespace Opc.Ua
         /// </summary>
         public static byte CalculateSecurityLevel(MessageSecurityMode mode, string policyUri)
         {
-            if ((mode == MessageSecurityMode.Invalid) || (mode == MessageSecurityMode.None))
-            {
-                return 0;
-            }
-
-            byte result = 0;
-            switch (policyUri)
-            {
-                case SecurityPolicies.Basic128Rsa15: result = 2; break;
-                case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve448:
-                case SecurityPolicies.Basic256: result = 4; break;
-                case SecurityPolicies.Basic256Sha256: result = 6; break;
-                case SecurityPolicies.ECC_nistP256: result = 12; break;
-                case SecurityPolicies.ECC_brainpoolP256r1: result = 11; break;
-                case SecurityPolicies.Aes128_Sha256_RsaOaep: result = 8; break;
-                case SecurityPolicies.ECC_nistP384: result = 14; break;
-                case SecurityPolicies.ECC_brainpoolP384r1: result = 13; break;
-                case SecurityPolicies.Aes256_Sha256_RsaPss: result = 10; break;
-                case SecurityPolicies.None:
-                default: return 0;
-            }
-
-            if (mode == MessageSecurityMode.SignAndEncrypt)
-            {
-                result += 100;
-            }
-
-            return result;
+            return SecuredApplication.CalculateSecurityLevel(mode, policyUri);
         }
 
         /// <summary>
