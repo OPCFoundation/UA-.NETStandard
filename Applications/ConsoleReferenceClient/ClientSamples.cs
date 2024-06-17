@@ -521,7 +521,7 @@ namespace Quickstarts
             stopWatch.Start();
 
             // Browse template
-            const int kMaxReferencesPerNode = 1000;
+            const int kMaxReferencesPerNode = 10;
             var browseTemplate = browseDescription ?? new BrowseDescription {
                 NodeId = startingNode ?? ObjectIds.RootFolder,
                 BrowseDirection = BrowseDirection.Forward,

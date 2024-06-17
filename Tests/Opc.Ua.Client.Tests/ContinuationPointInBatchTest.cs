@@ -305,14 +305,20 @@ namespace Opc.Ua.Client.Tests
             IList<ServiceResult> errors = new List<ServiceResult>();
 
             List<NodeId> nodeIds = getNodesToBrowse();
-            ReferenceServerForThisUnitTest.Test_MaxBrowseReferencesPerNode = 10;
-            ReferenceServerForThisUnitTest.SetMaxNumberOfContinuationPoints(2);
+
+            Session theSession = ((Session)(((TraceableSession)Session).Session));
 
             // ISession does not now this session method with this signature
-            ((Session) Session).Browse(
+            List<NodeId> firstBatch = nodeIds.Take(5).ToList();
+            List<NodeId> secondBatch = nodeIds.Skip(5).ToList();
+            List<ReferenceDescriptionCollection> result = new List<ReferenceDescriptionCollection>();
+            ByteStringCollection continuationPoints = new ByteStringCollection();
+            List<ServiceResult> theErrors = new List< ServiceResult>();
+            theSession.Browse(
+           //((Session) (TraceableSession)Session.Ses).Browse(
                 null,
                 null,
-                nodeIds,
+                firstBatch,
                 0,
                 BrowseDirection.Forward,
                 ReferenceTypeIds.Organizes,
@@ -323,11 +329,69 @@ namespace Opc.Ua.Client.Tests
                 out errors
                 );
 
+            result.AddRange(referenceDescriptions);
+            continuationPoints.AddRange(ContinuationPoints);
+            theErrors.AddRange(errors);
 
+            theSession.Browse(
+    //((Session) (TraceableSession)Session.Ses).Browse(
+                null,
+                null,
+                secondBatch,
+                0,
+                BrowseDirection.Forward,
+                ReferenceTypeIds.Organizes,
+                true,
+                0,
+                out ContinuationPoints,
+                out referenceDescriptions,
+                out errors
+                );
+
+            result.AddRange(referenceDescriptions);
+            continuationPoints.AddRange(ContinuationPoints);
+            theErrors.AddRange(errors);
+
+            theSession.BrowseNext(
+                null,
+                false,
+                continuationPoints,
+                out ContinuationPoints,
+                out referenceDescriptions,
+                out errors);
         }
 
-        #endregion
-        List<NodeId> getNodesToBrowse()
+        [Test, Order(300)]
+        public void ManagedBrowseWithManyContinuationPoints()
+        {
+            ReferenceServerForThisUnitTest.Test_MaxBrowseReferencesPerNode = 10;
+            ReferenceServerForThisUnitTest.SetMaxNumberOfContinuationPoints(2);
+
+            ByteStringCollection ContinuationPoints = new ByteStringCollection();
+            IList<ReferenceDescriptionCollection> referenceDescriptions = new List<ReferenceDescriptionCollection>();
+            IList<ServiceResult> errors = new List<ServiceResult>();
+
+            List<NodeId> nodeIds = getNodesToBrowse();
+
+            Session theSession = ((Session)(((TraceableSession)Session).Session));
+
+            // ISession does not now this session method with this signature
+            List<NodeId> firstBatch = nodeIds.Take(5).ToList();
+            List<NodeId> secondBatch = nodeIds.Skip(5).ToList();
+            List<ReferenceDescriptionCollection> result = new List<ReferenceDescriptionCollection>();
+            ByteStringCollection continuationPoints = new ByteStringCollection();
+            List<ServiceResult> theErrors = new List<ServiceResult>();
+
+            theSession.ManagedBrowse(
+                null, null, nodeIds, 0, BrowseDirection.Forward, ReferenceTypeIds.Organizes, true, 0,
+                out var referenceDescriptions1, out var errors1);
+
+            int dummy = 0;
+            dummy++;
+        }
+
+            #endregion
+            List<NodeId> getNodesToBrowse()
         {
             List<String> nodesToBrowse = new List<String>()
             {
