@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -601,7 +600,7 @@ namespace Opc.Ua.Configuration
                 if (!DisableCertificateAutoCreation)
                 {
                     certificate = await CreateApplicationInstanceCertificateAsync(configuration, id,
-                        minimumKeySize, lifeTimeInMonths, ct).ConfigureAwait(false);
+                        lifeTimeInMonths, ct).ConfigureAwait(false);
                 }
                 else
                 {
@@ -858,14 +857,12 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="configuration">The configuration.</param>
         /// <param name="id">The certificate identifier.</param>
-        /// <param name="keySize">Size of the key.</param>
         /// <param name="lifeTimeInMonths">The lifetime in months.</param>
         /// <param name="ct"></param>
         /// <returns>The new certificate</returns>
         private static async Task<X509Certificate2> CreateApplicationInstanceCertificateAsync(
             ApplicationConfiguration configuration,
             CertificateIdentifier id,
-            ushort keySize,
             ushort lifeTimeInMonths,
             CancellationToken ct)
         {
@@ -901,7 +898,7 @@ namespace Opc.Ua.Configuration
                 id.CertificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
             {
                 id.Certificate = builder
-                    .SetRSAKeySize(keySize)
+                    .SetRSAKeySize(CertificateFactory.DefaultKeySize)
                     .CreateForRSA();
 
                 Utils.LogCertificate("Certificate created for RSA.", id.Certificate);
