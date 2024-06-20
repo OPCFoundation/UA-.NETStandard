@@ -53,6 +53,7 @@ namespace Opc.Ua.Server
         /// <param name="clientDescription">Application description for the client application.</param>
         /// <param name="endpointUrl">The endpoint URL.</param>
         /// <param name="clientCertificate">The client certificate.</param>
+        /// <param name="clientCertificateChain">The client certifiate chain</param>
         /// <param name="sessionTimeout">The session timeout.</param>
         /// <param name="maxResponseMessageSize">The maximum size of a response message</param>
         /// <param name="maxRequestAge">The max request age.</param>
@@ -65,11 +66,12 @@ namespace Opc.Ua.Server
             X509Certificate2 serverCertificate,
             NodeId authenticationToken,
             byte[] clientNonce,
-            byte[] serverNonce,
+            Nonce serverNonce,
             string sessionName,
             ApplicationDescription clientDescription,
             string endpointUrl,
             X509Certificate2 clientCertificate,
+            X509Certificate2Collection clientCertificateChain,
             double sessionTimeout,
             uint maxResponseMessageSize,
             double maxRequestAge,
@@ -92,6 +94,9 @@ namespace Opc.Ua.Server
             m_sessionName = sessionName;
             m_serverCertificate = serverCertificate;
             m_clientCertificate = clientCertificate;
+
+            m_clientIssuerCertificates = clientCertificateChain;
+
             m_secureChannelId = context.ChannelContext.SecureChannelId;
             m_maxResponseMessageSize = maxResponseMessageSize;
             m_maxRequestAge = maxRequestAge;
@@ -185,9 +190,9 @@ namespace Opc.Ua.Server
 
             TraceState("CREATED");
         }
-        #endregion
+#endregion
 
-        #region IDisposable Members
+#region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -237,9 +242,9 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
+#endregion
 
-        #region Public Interface
+#region Public Interface
         /// <summary>
         /// Gets the identifier assigned to the session when it was created.
         /// </summary>
@@ -370,6 +375,44 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Set the ECC security policy URI
+        /// </summary>
+        /// <param name="securityPolicyUri"></param>
+        public virtual void SetEccUserTokenSecurityPolicy(string securityPolicyUri)
+        {
+            lock (m_lock)
+            {
+                m_eccUserTokenSecurityPolicyUri = securityPolicyUri;
+                m_eccUserTokenNonce = null;
+            }
+        }
+
+        /// <summary>
+        /// Create new ECC ephemeral key
+        /// </summary>
+        /// <returns>A new ephemeral key</returns>
+        public virtual EphemeralKeyType GetNewEccKey()
+        {
+            lock (m_lock)
+            {
+                if (m_eccUserTokenSecurityPolicyUri == null)
+                {
+                    return null;
+                }
+
+                m_eccUserTokenNonce = Nonce.CreateNonce(m_eccUserTokenSecurityPolicyUri);
+
+                EphemeralKeyType key = new EphemeralKeyType() {
+                    PublicKey = m_eccUserTokenNonce.Data
+                };
+
+                key.Signature = EccUtils.Sign(new ArraySegment<byte>(key.PublicKey), m_serverCertificate, m_eccUserTokenSecurityPolicyUri);
+
+                return key;
+            }
+        }
+
+        /// <summary>
         /// Returns the session's endpoint
         /// </summary>
         public EndpointDescription EndpointDescription
@@ -388,6 +431,17 @@ namespace Opc.Ua.Server
             get
             {
                 return m_secureChannelId;
+            }
+        }
+
+        /// <summary>
+        /// The Server generated ephemeral key
+        /// </summary>
+        public EphemeralKeyType EphemeralKey
+        {
+            set
+            {
+                m_ephemeralKey = value;
             }
         }
 
@@ -490,8 +544,6 @@ namespace Opc.Ua.Server
             List<SoftwareCertificate> clientSoftwareCertificates,
             ExtensionObject userIdentityToken,
             SignatureData userTokenSignature,
-            StringCollection localeIds,
-            byte[] serverNonce,
             out UserIdentityToken identityToken,
             out UserTokenPolicy userTokenPolicy)
         {
@@ -519,7 +571,7 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(StatusCodes.BadApplicationSignatureInvalid);
                     }
 
-                    byte[] dataToSign = Utils.Append(m_serverCertificate.RawData, m_serverNonce);
+                    byte[] dataToSign = Utils.Append(m_serverCertificate.RawData, m_serverNonce.Data);
 
                     if (!SecurityPolicies.Verify(m_clientCertificate, m_endpoint.SecurityPolicyUri, dataToSign, clientSignature))
                     {
@@ -537,7 +589,8 @@ namespace Opc.Ua.Server
                             }
 
                             byte[] serverCertificateChainData = serverCertificateChainList.ToArray();
-                            dataToSign = Utils.Append(serverCertificateChainData, m_serverNonce);
+
+                            dataToSign = Utils.Append(serverCertificateChainData, m_serverNonce.Data);
 
                             if (!SecurityPolicies.Verify(m_clientCertificate, m_endpoint.SecurityPolicyUri, dataToSign, clientSignature))
                             {
@@ -585,7 +638,7 @@ namespace Opc.Ua.Server
             IUserIdentity identity,
             IUserIdentity effectiveIdentity,
             StringCollection localeIds,
-            byte[] serverNonce)
+            Nonce serverNonce)
         {
             lock (m_lock)
             {
@@ -813,9 +866,9 @@ namespace Opc.Ua.Server
             public object Value;
             public DateTime Timestamp;
         }
-        #endregion
+#endregion
 
-        #region Private Methods
+#region Private Methods
         /// <summary>
         /// Dumps the current state of the session queue.
         /// </summary>
@@ -911,7 +964,7 @@ namespace Opc.Ua.Server
                         throw ServiceResultException.Create(StatusCodes.BadUserAccessDenied, "Invalid user identity token provided.");
                     }
 
-                    policy = m_endpoint.FindUserTokenPolicy(newToken.PolicyId);
+                    policy = m_endpoint.FindUserTokenPolicy(newToken.PolicyId, m_endpoint.SecurityPolicyUri);
                     if (policy == null)
                     {
                         throw ServiceResultException.Create(StatusCodes.BadUserAccessDenied, "User token policy not supported.", "Opc.Ua.Server.Session.ValidateUserIdentityToken");
@@ -946,7 +999,7 @@ namespace Opc.Ua.Server
             }
 
             // find the user token policy.
-            policy = m_endpoint.FindUserTokenPolicy(token.PolicyId);
+            policy = m_endpoint.FindUserTokenPolicy(token.PolicyId, m_endpoint.SecurityPolicyUri);
 
             if (policy == null)
             {
@@ -985,7 +1038,12 @@ namespace Opc.Ua.Server
 
                 try
                 {
-                    token.Decrypt(m_serverCertificate, m_serverNonce, securityPolicyUri);
+                    token.Decrypt(m_serverCertificate,
+                        m_serverNonce,
+                        securityPolicyUri,
+                        m_eccUserTokenNonce,
+                        m_clientCertificate,
+                        m_clientIssuerCertificates);
                 }
                 catch (Exception e)
                 {
@@ -1000,7 +1058,8 @@ namespace Opc.Ua.Server
                 // verify the signature.
                 if (securityPolicyUri != SecurityPolicies.None)
                 {
-                    byte[] dataToSign = Utils.Append(m_serverCertificate.RawData, m_serverNonce);
+
+                    byte[] dataToSign = Utils.Append(m_serverCertificate.RawData, m_serverNonce.Data);
 
                     if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
                     {
@@ -1018,7 +1077,8 @@ namespace Opc.Ua.Server
                             }
 
                             byte[] serverCertificateChainData = serverCertificateChainList.ToArray();
-                            dataToSign = Utils.Append(serverCertificateChainData, m_serverNonce);
+
+                            dataToSign = Utils.Append(serverCertificateChainData, m_serverNonce.Data);
 
                             if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
                             {
@@ -1145,9 +1205,9 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private readonly object m_lock = new object();
         private NodeId m_sessionId;
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
@@ -1160,15 +1220,20 @@ namespace Opc.Ua.Server
         private bool m_activated;
 
         private X509Certificate2 m_clientCertificate;
+
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
         private List<SoftwareCertificate> m_softwareCertificates;
         private byte[] m_clientNonce;
-        private byte[] m_serverNonce;
         private string m_sessionName;
         private string m_secureChannelId;
         private EndpointDescription m_endpoint;
         private X509Certificate2 m_serverCertificate;
         private byte[] m_serverCertificateChain;
+
+        private Nonce m_serverNonce;
+        private string m_eccUserTokenSecurityPolicyUri;
+        private Nonce m_eccUserTokenNonce;
+        private X509Certificate2Collection m_clientIssuerCertificates;
 
         private string[] m_localeIds;
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
@@ -1181,6 +1246,8 @@ namespace Opc.Ua.Server
         private SessionSecurityDiagnosticsDataType m_securityDiagnostics;
         private List<ContinuationPoint> m_browseContinuationPoints;
         private List<HistoryContinuationPoint> m_historyContinuationPoints;
-        #endregion
+
+        private EphemeralKeyType m_ephemeralKey;
+#endregion
     }
 }

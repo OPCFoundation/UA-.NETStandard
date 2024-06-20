@@ -66,6 +66,28 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Verify RSA key pair of two certificates.
         /// </summary>
+        public static bool VerifyKeyPair(
+            X509Certificate2 certWithPublicKey,
+            X509Certificate2 certWithPrivateKey,
+            bool throwOnError = false)
+        {
+            if (IsECDsaSignature(certWithPublicKey))
+            {
+#if ECC_SUPPORT
+                return VerifyECDsaKeyPair(certWithPublicKey, certWithPrivateKey, throwOnError);
+#else
+                throw new NotSupportedException("This platform does not support ECC.");
+#endif
+            }
+            else
+            {
+                return VerifyRSAKeyPair(certWithPublicKey, certWithPrivateKey, throwOnError);
+            }
+        }
+
+        /// <summary>
+        /// Verify RSA key pair of two certificates.
+        /// </summary>
         public static bool VerifyRSAKeyPair(
             X509Certificate2 certWithPublicKey,
             X509Certificate2 certWithPrivateKey,
@@ -157,8 +179,7 @@ namespace Opc.Ua.Security.Certificates
                         rawData,
                         password ?? string.Empty,
                         flag);
-                    // can we really access the private key?
-                    if (VerifyRSAKeyPair(certificate, certificate, true))
+                    if (VerifyKeyPair(certificate, certificate, true))
                     {
                         return certificate;
                     }
@@ -208,6 +229,22 @@ namespace Opc.Ua.Security.Certificates
             s_rnd.NextBytes(testBlock);
             byte[] signature = rsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
             return rsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        }
+
+        /// <summary>
+        /// If the certificate has a ECDsa signature.
+        /// </summary>
+        public static bool IsECDsaSignature(X509Certificate2 cert)
+        {
+            switch (cert.SignatureAlgorithm.Value)
+            {
+                case Oids.ECDsaWithSha1:
+                case Oids.ECDsaWithSha256:
+                case Oids.ECDsaWithSha384:
+                case Oids.ECDsaWithSha512:
+                    return true;
+            }
+            return false;
         }
 
 #if ECC_SUPPORT

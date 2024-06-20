@@ -389,11 +389,18 @@ namespace Opc.Ua.Security
             switch (policyUri)
             {
                 case SecurityPolicies.Basic128Rsa15: result = 2; break;
+                case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve448:
                 case SecurityPolicies.Basic256: result = 4; break;
                 case SecurityPolicies.Basic256Sha256: result = 6; break;
                 case SecurityPolicies.Aes128_Sha256_RsaOaep: result = 8; break;
                 case SecurityPolicies.Aes256_Sha256_RsaPss: result = 10; break;
+                case SecurityPolicies.ECC_brainpoolP256r1: result = 11; break;
+                case SecurityPolicies.ECC_nistP256: result = 12; break;
+                case SecurityPolicies.ECC_brainpoolP384r1: result = 13; break;
+                case SecurityPolicies.ECC_nistP384: result = 14; break;
                 case SecurityPolicies.None:
+                    return 0;
                 default:
                     Utils.LogWarning("Security level requested for unknown Security Policy {policy}. Returning security level 0", policyUri);
                     return 0;
@@ -431,11 +438,19 @@ namespace Opc.Ua.Security
                     case SecurityPolicies.Basic256Sha256:
                     case SecurityPolicies.Aes128_Sha256_RsaOaep:
                     case SecurityPolicies.Aes256_Sha256_RsaPss:
+                    case SecurityPolicies.ECC_nistP256:
+                    case SecurityPolicies.ECC_brainpoolP256r1:
+                    case SecurityPolicies.ECC_nistP384:
+                    case SecurityPolicies.ECC_brainpoolP384r1:
+                    case SecurityPolicies.ECC_curve25519:
+                    case SecurityPolicies.ECC_curve448:
                     {
                         policy.SecurityMode = MessageSecurityMode.SignAndEncrypt;
                         break;
                     }
 
+                    default:
+                        break;
                 }
             }
 
@@ -451,6 +466,15 @@ namespace Opc.Ua.Security
             policy.ProfileUri = profileUri;
             policy.Enabled = false;
             return policy;
+        }
+
+        /// <summary>
+        ///  TODO: Holds the application certificates but should be generated and the Opc.Ua.Security namespace automatically 
+        ///  TODO: Should replace ApplicationCertificateField in the generated Opc.Ua.Security.SecuredApplication class
+        /// </summary>
+        public CertificateList ApplicationCertificates
+        {
+            get; set;
         }
     }
 
