@@ -111,13 +111,15 @@ namespace Opc.Ua.Client.Tests
             await ServerFixtureForThisUnitTest.LoadConfiguration(PkiRoot).ConfigureAwait(false);
             ServerFixtureForThisUnitTest.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
             ServerFixtureForThisUnitTest.Config.TransportQuotas.MaxByteStringLength =
-            ServerFixtureForThisUnitTest.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
+            ServerFixtureForThisUnitTest.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;            
+
             ServerFixtureForThisUnitTest.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName));
             ServerFixtureForThisUnitTest.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate));
             ServerFixtureForThisUnitTest.Config.ServerConfiguration.UserTokenPolicies.Add(
                 new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Opc.Ua.Profiles.JwtUserToken });
 
             ServerFixtureForThisUnitTest.Config.ServerConfiguration.MaxBrowseContinuationPoints = 2;
+            ServerFixtureForThisUnitTest.Config.ServerConfiguration.OperationLimits.MaxNodesPerBrowse = 5;
 
             ReferenceServerForThisUnitTest = await ServerFixtureForThisUnitTest.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
             ReferenceServerForThisUnitTest.TokenValidator = this.TokenValidator;
@@ -160,7 +162,9 @@ namespace Opc.Ua.Client.Tests
 
             // clear node cache
             Session.NodeCache.Clear();
+            // for Debugging
             Session.KeepAliveInterval = 45000; // ms?
+            Session.OperationTimeout = 45000;
         }
 
         /// <summary>
@@ -245,7 +249,7 @@ namespace Opc.Ua.Client.Tests
             ReferenceServerForThisUnitTest.Test_MaxBrowseReferencesPerNode = 10;
             ReferenceServerForThisUnitTest.SetMaxNumberOfContinuationPoints(2);
 
-            List<NodeId> nodeIds = getNodesToBrowse();
+            List<NodeId> nodeIds = getMassFolderNodesToBrowse();
 
             BrowseDescriptionCollection browseDescriptions = new BrowseDescriptionCollection();
             foreach (NodeId nodeId in nodeIds)
@@ -304,7 +308,7 @@ namespace Opc.Ua.Client.Tests
             IList<ReferenceDescriptionCollection> referenceDescriptions = new List<ReferenceDescriptionCollection>();
             IList<ServiceResult> errors = new List<ServiceResult>();
 
-            List<NodeId> nodeIds = getNodesToBrowse();
+            List<NodeId> nodeIds = getMassFolderNodesToBrowse();
 
             Session theSession = ((Session)(((TraceableSession)Session).Session));
 
@@ -367,17 +371,10 @@ namespace Opc.Ua.Client.Tests
             ReferenceServerForThisUnitTest.Test_MaxBrowseReferencesPerNode = 10;
             ReferenceServerForThisUnitTest.SetMaxNumberOfContinuationPoints(2);
 
-            ByteStringCollection ContinuationPoints = new ByteStringCollection();
-            IList<ReferenceDescriptionCollection> referenceDescriptions = new List<ReferenceDescriptionCollection>();
-            IList<ServiceResult> errors = new List<ServiceResult>();
-
-            List<NodeId> nodeIds = getNodesToBrowse();
+            List<NodeId> nodeIds = getMassFolderNodesToBrowse();
 
             Session theSession = ((Session)(((TraceableSession)Session).Session));
 
-            // ISession does not now this session method with this signature
-            List<NodeId> firstBatch = nodeIds.Take(5).ToList();
-            List<NodeId> secondBatch = nodeIds.Skip(5).ToList();
             List<ReferenceDescriptionCollection> result = new List<ReferenceDescriptionCollection>();
             ByteStringCollection continuationPoints = new ByteStringCollection();
             List<ServiceResult> theErrors = new List<ServiceResult>();
@@ -386,27 +383,52 @@ namespace Opc.Ua.Client.Tests
                 null, null, nodeIds, 0, BrowseDirection.Forward, ReferenceTypeIds.Organizes, true, 0,
                 out var referenceDescriptions1, out var errors1);
 
+            Assert.AreEqual(nodeIds.Count, referenceDescriptions1.Count);
+
+            Random random = new Random();
+
+
+
+            ReferenceServerForThisUnitTest.Test_MaxBrowseReferencesPerNode = 1000;
+            ReferenceServerForThisUnitTest.SetMaxNumberOfContinuationPoints(0);
+            theSession.Browse(null, null, nodeIds, 0, BrowseDirection.Forward,
+                ReferenceTypeIds.Organizes, true, 0,
+                out var continuationPoints2ndBrowse,
+                out var referenceDescriptions2ndBrowse,
+                out var errors2ndBrowse );
+
+            int index = 0;
+            foreach (var referenceDescription in referenceDescriptions1)
+            {
+                String randomNodeName =
+                    referenceDescription[random.Next(0, referenceDescription.Count - 1)].DisplayName.Text;
+                String suffix = getSuffixesForMassFolders()[index];
+                Assert.IsTrue(randomNodeName.StartsWith(suffix));                
+
+                int ii = random.Next(0, referenceDescription.Count - 1);
+
+                Assert.AreEqual(referenceDescription.Count, referenceDescriptions2ndBrowse[index].Count);
+                Assert.AreEqual(referenceDescription[ii].NodeId, referenceDescriptions2ndBrowse[index][ii].NodeId);
+
+                index++;
+            }
+
+
             int dummy = 0;
             dummy++;
         }
 
             #endregion
-            List<NodeId> getNodesToBrowse()
+            List<NodeId> getMassFolderNodesToBrowse()
         {
-            List<String> nodesToBrowse = new List<String>()
+            
+            String MassFolderPrefix = "Scalar_Simulation_Mass_";
+
+            List<String> nodesToBrowse = new List<String>();
+            foreach(string suffix in getSuffixesForMassFolders())
             {
-                "Scalar_Simulation_Mass_Boolean",
-                "Scalar_Simulation_Mass_Byte",
-                "Scalar_Simulation_Mass_ByteString",
-                "Scalar_Simulation_Mass_DateTime",
-                "Scalar_Simulation_Mass_Double",
-                "Scalar_Simulation_Mass_Duration",
-                "Scalar_Simulation_Mass_Float",
-                "Scalar_Simulation_Mass_Guid",
-                "Scalar_Simulation_Mass_Int16",
-                "Scalar_Simulation_Mass_Int32",
-                "Scalar_Simulation_Mass_Int64",
-                };
+                nodesToBrowse.Add(MassFolderPrefix+suffix);
+            }
 
             int nsi = Session.NamespaceUris.GetIndex("http://opcfoundation.org/Quickstarts/ReferenceServer");
             List<NodeId> result = new List<NodeId>();
@@ -416,5 +438,17 @@ namespace Opc.Ua.Client.Tests
             }
             return result;
         }
+
+        List<string> getSuffixesForMassFolders()
+        {
+            return new List<string>
+            {
+                "Boolean", "Byte", "ByteString", "DateTime", "Double", "Duration", "Float", "Guid",
+                "Int16", "Int32", "Int64", "Integer", "LocaleId", "LocalizedText", "NodeId", "Number",
+                "QualifiedName", "SByte", "String", "UInt16", "UInt32", "UInt64", "UInteger", "UtcTime",
+                "Variant", "XmlElement"
+            };
+        }
+
     }
 }

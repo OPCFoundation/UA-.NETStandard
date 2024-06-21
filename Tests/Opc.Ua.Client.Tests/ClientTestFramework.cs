@@ -140,35 +140,6 @@ namespace Opc.Ua.Client.Tests
             if (customUrl == null)
             {
                 await CreateReferenceServerFixture(enableTracing, disableActivityLogging, securityNone, writer).ConfigureAwait(false);
-            //    {
-            //        // start Ref server
-            //        ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging) {
-            //            UriScheme = UriScheme,
-            //            SecurityNone = securityNone,
-            //            AutoAccept = true,
-            //            AllNodeManagers = true,
-            //            OperationLimits = true
-            //        };
-            //    }
-
-            //    if (writer != null)
-            //    {
-            //        ServerFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
-            //    }
-
-            //    await ServerFixture.LoadConfiguration(PkiRoot).ConfigureAwait(false);
-            //    ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
-            //    ServerFixture.Config.TransportQuotas.MaxByteStringLength =
-            //    ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
-            //    ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName));
-            //    ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate));
-            //    ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-            //        new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Opc.Ua.Profiles.JwtUserToken });
-
-            //    ServerFixture.Config.ServerConfiguration.MaxBrowseContinuationPoints = 2;
-                
-            //    ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
-            //    ReferenceServer.TokenValidator = this.TokenValidator;
             }
 
             ClientFixture = new ClientFixture(enableTracing, disableActivityLogging);
@@ -176,7 +147,7 @@ namespace Opc.Ua.Client.Tests
             await ClientFixture.LoadClientConfiguration(PkiRoot).ConfigureAwait(false);
             ClientFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
             ClientFixture.Config.TransportQuotas.MaxByteStringLength =
-            ClientFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
+            ClientFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;            
 
             if (!string.IsNullOrEmpty(customUrl))
             {
@@ -266,8 +237,8 @@ namespace Opc.Ua.Client.Tests
             {
                 try
                 {
-                    Session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.None).ConfigureAwait(false);
-                    //Session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+                    //Session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.None).ConfigureAwait(false);
+                    Session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
