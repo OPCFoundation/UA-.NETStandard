@@ -462,6 +462,11 @@ namespace Opc.Ua
         public bool UseReversibleEncoding { get; private set; }
 
         /// <summary>
+        /// Use the JSON string form of NodeIds, ExpandedNodeIds and QualifiedNames.
+        /// </summary>
+        public bool UseStringNodeIds { get; set; }
+
+        /// <summary>
         /// The Json encoder to encoder namespace URI instead of
         /// namespace Index in NodeIds.
         /// </summary>
@@ -1096,6 +1101,19 @@ namespace Opc.Ua
                 return;
             }
 
+            if (UseStringNodeIds)
+            {
+                if ((ForceNamespaceUriForIndex1 && value.NamespaceIndex > 0) || (ForceNamespaceUri && value.NamespaceIndex > 1))
+                {
+                    var uri = m_context.NamespaceUris.GetString(value.NamespaceIndex);
+                    WriteString(fieldName, $"nsu={uri};{new NodeId(value.Identifier, 0)}");
+                    return;
+                }
+
+                WriteString(fieldName, value.ToString());
+                return;
+            }
+
             PushStructure(fieldName);
 
             ushort namespaceIndex = value.NamespaceIndex;
@@ -1120,6 +1138,32 @@ namespace Opc.Ua
                 (!UseReversibleEncoding && NodeId.IsNull(value)))
             {
                 WriteSimpleFieldNull(fieldName);
+                return;
+            }
+
+            if (UseStringNodeIds)
+            {
+                if ((ForceNamespaceUriForIndex1 && value.NamespaceIndex > 0) || (ForceNamespaceUri && value.NamespaceIndex > 1))
+                {
+                    var sb = new StringBuilder();
+
+                    if (value.ServerIndex > 0)
+                    {
+                        sb.Append("svr=");
+                        sb.Append(m_context.ServerUris.GetString(value.ServerIndex));
+                        sb.Append(";");
+                    }
+
+                    sb.Append("nsu=");
+                    sb.Append(m_context.NamespaceUris.GetString(value.NamespaceIndex));
+                    sb.Append(";");
+                    sb.Append($"{new NodeId(value.Identifier, 0)}");
+
+                    WriteString(fieldName, sb.ToString());
+                    return;
+                }
+
+                WriteString(fieldName, value.ToString());
                 return;
             }
 
@@ -1203,6 +1247,19 @@ namespace Opc.Ua
             if (QualifiedName.IsNull(value))
             {
                 WriteSimpleFieldNull(fieldName);
+                return;
+            }
+
+            if (UseStringNodeIds)
+            {
+                if ((ForceNamespaceUriForIndex1 && value.NamespaceIndex > 0) || (ForceNamespaceUri && value.NamespaceIndex > 1))
+                {
+                    var uri = m_context.NamespaceUris.GetString(value.NamespaceIndex);
+                    WriteString(fieldName, $"nsu={uri};{value.Name}");
+                    return;
+                }
+
+                WriteString(fieldName, $"{value.NamespaceIndex}:{value.Name}");
                 return;
             }
 

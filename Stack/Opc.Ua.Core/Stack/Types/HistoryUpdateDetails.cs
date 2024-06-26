@@ -20,13 +20,13 @@ namespace Opc.Ua
     /// <summary>
     /// The description of a value to read.
     /// </summary>
-    public partial class HistoryUpdateDetails
+    public abstract partial class HistoryUpdateDetails
     {
         #region Supporting Properties and Methods
         /// <summary>
         /// The identifier for the Node being updated.
         /// </summary>
-        public virtual NodeId NodeId
+        public abstract NodeId NodeId
         {
             get;
             set;

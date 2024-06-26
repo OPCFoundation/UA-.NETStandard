@@ -245,6 +245,17 @@ namespace Opc.Ua.Export {
         }
         
         /// <remarks/>
+        [System.Xml.Serialization.XmlAttributeAttribute(DataType="token")]
+        public string ModelVersion {
+            get {
+                return this.modelVersionField;
+            }
+            set {
+                this.modelVersionField = value;
+            }
+        }
+        
+        /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         public string ModelVersion {
             get {
