@@ -53,6 +53,7 @@ namespace Opc.Ua.Client.Tests
             new object [] { Utils.UriSchemeOpcHttps},
         };
 
+        public const int MaxChannelCount = 100;
         public const int MaxReferences = 100;
         public const int MaxTimeout = 10000;
         public const int TransportQuotaMaxMessageSize = 4 * 1024 * 1024;
@@ -60,7 +61,6 @@ namespace Opc.Ua.Client.Tests
         public TokenValidatorMock TokenValidator { get; set; } = new TokenValidatorMock();
 
         public bool SingleSession { get; set; } = true;
-        public int MaxChannelCount { get; set; } = 10;
         public bool SupportsExternalServerUrl { get; set; } = false;
         public ServerFixture<ReferenceServer> ServerFixture { get; set; }
         public ClientFixture ClientFixture { get; set; }
@@ -158,6 +158,59 @@ namespace Opc.Ua.Client.Tests
                 ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate));
                 ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
                     new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Opc.Ua.Profiles.JwtUserToken });
+
+
+                ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName) {
+                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
+                });
+                ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName) {
+                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1"
+                });
+                ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName) {
+                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256"
+                });
+                ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName) {
+                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384"
+                });
+
+                ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate) {
+                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
+                });
+                ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate) {
+                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1"
+                });
+                ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate) {
+                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256"
+                });
+                ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate) {
+                    SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384"
+                });
+
+                ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken) {
+                  IssuedTokenType = Opc.Ua.Profiles.JwtUserToken,
+                  PolicyId = Profiles.JwtUserToken,
+                  SecurityPolicyUri =  "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
+                });
+                ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken)
+                {
+                  IssuedTokenType = Opc.Ua.Profiles.JwtUserToken,
+                  PolicyId = Profiles.JwtUserToken,
+                  SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1"
+                });
+                ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken)
+                {
+                  IssuedTokenType = Opc.Ua.Profiles.JwtUserToken,
+                  PolicyId = Profiles.JwtUserToken,
+                  SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256"
+                });
+                ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken)
+                {
+                  IssuedTokenType = Opc.Ua.Profiles.JwtUserToken,
+                  PolicyId = Profiles.JwtUserToken,
+                  SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384"
+                });
+
+                ServerFixture.Config.ServerConfiguration.MaxChannelCount = MaxChannelCount;
 
                 ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
                 ReferenceServer.TokenValidator = this.TokenValidator;

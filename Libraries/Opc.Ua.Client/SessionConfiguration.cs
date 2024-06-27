@@ -30,6 +30,7 @@
 using System;
 using System.IO;
 using System.Runtime.Serialization;
+using System.Security.Cryptography;
 using System.Xml;
 
 namespace Opc.Ua.Client
@@ -44,8 +45,32 @@ namespace Opc.Ua.Client
     [KnownType(typeof(X509IdentityToken))]
     [KnownType(typeof(IssuedIdentityToken))]
     [KnownType(typeof(UserIdentity))]
+#if ECC_SUPPORT
+    [KnownType(typeof(ECParameters))]
+#endif
     public class SessionConfiguration
     {
+#if ECC_SUPPORT
+        /// <summary>
+        /// Creates a session configuration
+        /// </summary>
+        internal SessionConfiguration(ISession session,
+            byte[] serverNonce,
+            string userIdentityTokenPolicy,
+            Nonce eccServerEphemeralKey,
+            NodeId authenthicationToken)
+        {
+            SessionName = session.SessionName;
+            SessionId = session.SessionId;
+            AuthenticationToken = authenthicationToken;
+            Identity = session.Identity;
+            ConfiguredEndpoint = session.ConfiguredEndpoint;
+            CheckDomain = session.CheckDomain;
+            ServerNonce = serverNonce;
+            ServerEccEphemeralKey = eccServerEphemeralKey;
+            UserIdentityTokenPolicy = userIdentityTokenPolicy;
+        }
+#else
         /// <summary>
         /// Creates a session configuration
         /// </summary>
@@ -60,6 +85,7 @@ namespace Opc.Ua.Client
             CheckDomain = session.CheckDomain;
             ServerNonce = serverNonce;
         }
+#endif
 
         /// <summary>
         /// Creates the session configuration from a stream.
@@ -123,5 +149,20 @@ namespace Opc.Ua.Client
         /// </summary>
         [DataMember(IsRequired = true, Order = 80)]
         public byte[] ServerNonce { get; set; }
+
+#if ECC_SUPPORT
+        /// <summary>
+        /// The last server ecc ephemeral key received.
+        /// </summary>
+        [DataMember(IsRequired = true, Order = 80)]
+        public string UserIdentityTokenPolicy { get; set; }
+
+        /// <summary>
+        /// The last server ecc ephemeral key received.
+        /// </summary>
+        [DataMember(IsRequired = true, Order = 90)]
+        public Nonce ServerEccEphemeralKey { get; set; }
+#endif
+
     }
 }
