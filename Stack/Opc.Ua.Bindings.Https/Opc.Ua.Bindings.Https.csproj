@@ -6,7 +6,7 @@
     <AssemblyName>Opc.Ua.Bindings.Https</AssemblyName>
     <PackageId>OPCFoundation.NetStandard.Opc.Ua.Bindings.Https</PackageId>
     <RootNamespace>Opc.Ua.Bindings</RootNamespace>
-    <Description>OPC UA Https Binding Library</Description>
+    <Description>OPC UA Https Binding Library for a Opc.Ua.Server.</Description>
     <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
