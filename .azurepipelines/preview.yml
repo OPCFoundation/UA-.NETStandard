@@ -70,6 +70,7 @@ jobs:
       command: restore
       projects: 'UA Core Library.sln'
       arguments: '--configuration ${{parameters.config}}'
+      restoreArguments: '--disable-parallel'
   - task: DotNetCoreCLI@2
     displayName: Build ${{parameters.config}}
     inputs:
