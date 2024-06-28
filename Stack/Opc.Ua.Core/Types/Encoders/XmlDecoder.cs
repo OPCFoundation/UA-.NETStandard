@@ -1160,12 +1160,12 @@ namespace Opc.Ua
                 EndField(fieldName);
             }
 
-            if (m_namespaceMappings != null && m_namespaceMappings.Length > value.NamespaceIndex)
+            if (m_namespaceMappings != null && m_namespaceMappings.Length > value.NamespaceIndex && !value.IsNull)
             {
                 value.SetNamespaceIndex(m_namespaceMappings[value.NamespaceIndex]);
             }
 
-            if (m_serverMappings != null && m_serverMappings.Length > value.ServerIndex)
+            if (m_serverMappings != null && m_serverMappings.Length > value.ServerIndex && !value.IsNull)
             {
                 value.SetServerIndex(m_serverMappings[value.ServerIndex]);
             }

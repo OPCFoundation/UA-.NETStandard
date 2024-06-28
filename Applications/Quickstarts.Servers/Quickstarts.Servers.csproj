@@ -9,7 +9,7 @@
     <Description>OPC UA Quickstarts Servers Class Library</Description>
     <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
     <NoWarn>CS1591;CS1573;RCS1139</NoWarn>
-    <IsPackable>false</IsPackable>
+    <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
