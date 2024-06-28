@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,42 +27,33 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Threading.Tasks;
+using System;
 
-namespace Opc.Ua.Core.Tests
+namespace Opc.Ua.X509StoreExtensions
 {
     /// <summary>
-    /// Common utilities for tests.
+    /// Static Helper class to retrieve if executed on a specific operating system
     /// </summary>
-    public static class TestUtils
+    internal static class PlatformHelper
     {
+        private static bool? _isWindowsWithCrlSupport = null;
         /// <summary>
-        /// A common method to clean up the test trust list.
+        /// True if OS Windows and Version >= Windows XP
         /// </summary>
-        /// <param name="store"></param>
-        /// <param name="dispose"></param>
-        public static async Task CleanupTrustListAsync(ICertificateStore store, bool dispose = true)
+        /// <returns>True if Crl Support is given in the system X509 Store</returns>
+        public static bool IsWindowsWithCrlSupport()
         {
-            if (store != null)
+            if (_isWindowsWithCrlSupport != null)
             {
-                var certs = await store.Enumerate().ConfigureAwait(false);
-                foreach (var cert in certs)
-                {
-                    await store.Delete(cert.Thumbprint).ConfigureAwait(false);
-                }
-                if (store.SupportsCRLs)
-                {
-                    var crls = await store.EnumerateCRLs().ConfigureAwait(false);
-                    foreach (var crl in crls)
-                    {
-                        await store.DeleteCRL(crl).ConfigureAwait(false);
-                    }
-                }
-                if (dispose)
-                {
-                    store.Dispose();
-                }
+                return _isWindowsWithCrlSupport.Value;
             }
+            OperatingSystem version = Environment.OSVersion;
+            _isWindowsWithCrlSupport = version.Platform == PlatformID.Win32NT
+                && (
+                       (version.Version.Major > 5)
+                        || (version.Version.Major == 5 && version.Version.Minor >= 1)
+                    );
+            return _isWindowsWithCrlSupport.Value;
         }
     }
 }

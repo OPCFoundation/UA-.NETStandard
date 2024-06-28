@@ -672,7 +672,7 @@ namespace Opc.Ua.Client.Tests
                 if (endpoint.EndpointUrl.ToString().StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
                 {
                     sre = Assert.Throws<ServiceResultException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
-                    Assert.AreEqual((StatusCode)StatusCodes.BadSecureChannelClosed, (StatusCode)sre.StatusCode, sre.Message);
+                    Assert.AreEqual((StatusCode)StatusCodes.BadSecureChannelIdInvalid, (StatusCode)sre.StatusCode, sre.Message);
                 }
                 else
                 {
