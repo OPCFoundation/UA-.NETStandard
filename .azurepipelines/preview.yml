@@ -144,7 +144,7 @@ jobs:
     displayName: 'Remove Quickstarts.Servers'
     inputs:
       script: |
-        del /q /s $(Build.ArtifactStagingDirectory)\OPCFoundation.NetStandard.Quickstarts.*.*nupkg 
+        del /q /s $(Build.ArtifactStagingDirectory)\OPCFoundation.NetStandard.Opc.Ua.Quickstarts.Servers.*.*nupkg 
   - task: PublishPipelineArtifact@1
     displayName: 'Publish Artifacts'
     inputs:
