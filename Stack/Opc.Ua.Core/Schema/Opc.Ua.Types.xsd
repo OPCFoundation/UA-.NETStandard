@@ -37,7 +37,7 @@
 >
   <xs:annotation>
     <xs:appinfo>
-      <ua:Model ModelUri="http://opcfoundation.org/UA/" Version="1.05.04" PublicationDate="2024-04-15T00:00:00Z" />
+      <ua:Model ModelUri="http://opcfoundation.org/UA/" Version="1.05.04" PublicationDate="2024-07-01T00:00:00Z" />
     </xs:appinfo>
   </xs:annotation>
   
@@ -817,6 +817,7 @@
       <xs:enumeration value="AuthenticatedUser_6" />
       <xs:enumeration value="Application_7" />
       <xs:enumeration value="X509Subject_8" />
+      <xs:enumeration value="TrustedApplication_9" />
     </xs:restriction>
   </xs:simpleType>
   <xs:element name="IdentityCriteriaType" type="tns:IdentityCriteriaType" />
@@ -1622,6 +1623,24 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ListOfActionMethodDataType" type="tns:ListOfActionMethodDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="PublishedActionMethodDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:PublishedActionDataType">
+        <xs:sequence>
+          <xs:element name="ActionMethods" type="tns:ListOfActionMethodDataType" minOccurs="0" nillable="true" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="PublishedActionMethodDataType" type="tns:PublishedActionMethodDataType" />
+
+  <xs:complexType name="ListOfPublishedActionMethodDataType">
+    <xs:sequence>
+      <xs:element name="PublishedActionMethodDataType" type="tns:PublishedActionMethodDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfPublishedActionMethodDataType" type="tns:ListOfPublishedActionMethodDataType" nillable="true"></xs:element>
 
   <xs:simpleType  name="DataSetFieldContentMask">
     <xs:restriction base="xs:unsignedInt">
@@ -2510,6 +2529,24 @@
   </xs:complexType>
   <xs:element name="ListOfDatagramDataSetReaderTransportDataType" type="tns:ListOfDatagramDataSetReaderTransportDataType" nillable="true"></xs:element>
 
+  <xs:complexType name="DtlsPubSubConnectionDataType">
+    <xs:sequence>
+      <xs:element name="ClientCipherSuite" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="ServerCipherSuites" type="ua:ListOfString" minOccurs="0" nillable="true" />
+      <xs:element name="ZeroRTT" type="xs:boolean" minOccurs="0" />
+      <xs:element name="CertificateGroupId" type="ua:NodeId" minOccurs="0" nillable="true" />
+      <xs:element name="VerifyClientCertificate" type="xs:boolean" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="DtlsPubSubConnectionDataType" type="tns:DtlsPubSubConnectionDataType" />
+
+  <xs:complexType name="ListOfDtlsPubSubConnectionDataType">
+    <xs:sequence>
+      <xs:element name="DtlsPubSubConnectionDataType" type="tns:DtlsPubSubConnectionDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfDtlsPubSubConnectionDataType" type="tns:ListOfDtlsPubSubConnectionDataType" nillable="true"></xs:element>
+
   <xs:complexType name="BrokerConnectionTransportDataType">
     <xs:complexContent mixed="false">
       <xs:extension base="tns:ConnectionTransportDataType">
@@ -2911,6 +2948,63 @@
   </xs:complexType>
   <xs:element name="ListOfTsnListenerStatus" type="tns:ListOfTsnListenerStatus" nillable="true"></xs:element>
 
+  <xs:simpleType  name="ChassisIdSubtype">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="ChassisComponent_1" />
+      <xs:enumeration value="InterfaceAlias_2" />
+      <xs:enumeration value="PortComponent_3" />
+      <xs:enumeration value="MacAddress_4" />
+      <xs:enumeration value="NetworkAddress_5" />
+      <xs:enumeration value="InterfaceName_6" />
+      <xs:enumeration value="Local_7" />
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="ChassisIdSubtype" type="tns:ChassisIdSubtype" />
+
+  <xs:complexType name="ListOfChassisIdSubtype">
+    <xs:sequence>
+      <xs:element name="ChassisIdSubtype" type="tns:ChassisIdSubtype" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfChassisIdSubtype" type="tns:ListOfChassisIdSubtype" nillable="true"></xs:element>
+
+  <xs:simpleType  name="PortIdSubtype">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="InterfaceAlias_1" />
+      <xs:enumeration value="PortComponent_2" />
+      <xs:enumeration value="MacAddress_3" />
+      <xs:enumeration value="NetworkAddress_4" />
+      <xs:enumeration value="InterfaceName_5" />
+      <xs:enumeration value="AgentCircuitId_6" />
+      <xs:enumeration value="Local_7" />
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="PortIdSubtype" type="tns:PortIdSubtype" />
+
+  <xs:complexType name="ListOfPortIdSubtype">
+    <xs:sequence>
+      <xs:element name="PortIdSubtype" type="tns:PortIdSubtype" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfPortIdSubtype" type="tns:ListOfPortIdSubtype" nillable="true"></xs:element>
+
+  <xs:simpleType  name="ManAddrIfSubtype">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="None_0" />
+      <xs:enumeration value="Unknown_1" />
+      <xs:enumeration value="PortRef_2" />
+      <xs:enumeration value="SystemPortNumber_3" />
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="ManAddrIfSubtype" type="tns:ManAddrIfSubtype" />
+
+  <xs:complexType name="ListOfManAddrIfSubtype">
+    <xs:sequence>
+      <xs:element name="ManAddrIfSubtype" type="tns:ManAddrIfSubtype" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfManAddrIfSubtype" type="tns:ListOfManAddrIfSubtype" nillable="true"></xs:element>
+
   <xs:complexType name="PriorityMappingEntryType">
     <xs:sequence>
       <xs:element name="MappingUri" type="xs:string" minOccurs="0" nillable="true" />
@@ -2927,6 +3021,70 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ListOfPriorityMappingEntryType" type="tns:ListOfPriorityMappingEntryType" nillable="true"></xs:element>
+
+  <xs:complexType name="LldpManagementAddressTxPortType">
+    <xs:sequence>
+      <xs:element name="AddressSubtype" type="xs:unsignedInt" minOccurs="0" />
+      <xs:element name="ManAddress" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="TxEnable" type="xs:boolean" minOccurs="0" />
+      <xs:element name="AddrLen" type="xs:unsignedInt" minOccurs="0" />
+      <xs:element name="IfSubtype" type="tns:ManAddrIfSubtype" minOccurs="0" />
+      <xs:element name="IfId" type="xs:unsignedInt" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="LldpManagementAddressTxPortType" type="tns:LldpManagementAddressTxPortType" />
+
+  <xs:complexType name="ListOfLldpManagementAddressTxPortType">
+    <xs:sequence>
+      <xs:element name="LldpManagementAddressTxPortType" type="tns:LldpManagementAddressTxPortType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfLldpManagementAddressTxPortType" type="tns:ListOfLldpManagementAddressTxPortType" nillable="true"></xs:element>
+
+  <xs:complexType name="LldpManagementAddressType">
+    <xs:sequence>
+      <xs:element name="AddressSubtype" type="xs:unsignedInt" minOccurs="0" />
+      <xs:element name="Address" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="IfSubtype" type="tns:ManAddrIfSubtype" minOccurs="0" />
+      <xs:element name="IfId" type="xs:unsignedInt" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="LldpManagementAddressType" type="tns:LldpManagementAddressType" />
+
+  <xs:complexType name="ListOfLldpManagementAddressType">
+    <xs:sequence>
+      <xs:element name="LldpManagementAddressType" type="tns:LldpManagementAddressType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfLldpManagementAddressType" type="tns:ListOfLldpManagementAddressType" nillable="true"></xs:element>
+
+  <xs:complexType name="LldpTlvType">
+    <xs:sequence>
+      <xs:element name="TlvType" type="xs:unsignedInt" minOccurs="0" />
+      <xs:element name="TlvInfo" type="xs:base64Binary" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="LldpTlvType" type="tns:LldpTlvType" />
+
+  <xs:complexType name="ListOfLldpTlvType">
+    <xs:sequence>
+      <xs:element name="LldpTlvType" type="tns:LldpTlvType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfLldpTlvType" type="tns:ListOfLldpTlvType" nillable="true"></xs:element>
+
+  <xs:simpleType  name="LldpSystemCapabilitiesMap">
+    <xs:restriction base="xs:unsignedInt">
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="LldpSystemCapabilitiesMap" type="tns:LldpSystemCapabilitiesMap" />
+
+  <xs:complexType name="ListOfLldpSystemCapabilitiesMap">
+    <xs:sequence>
+      <xs:element name="LldpSystemCapabilitiesMap" type="tns:LldpSystemCapabilitiesMap" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfLldpSystemCapabilitiesMap" type="tns:ListOfLldpSystemCapabilitiesMap" nillable="true"></xs:element>
 
   <xs:complexType name="ReferenceDescriptionDataType">
     <xs:sequence>
@@ -4887,6 +5045,40 @@
   </xs:complexType>
   <xs:element name="ReadEventDetails2" type="tns:ReadEventDetails2" />
 
+  <xs:simpleType  name="SortOrderType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Ascending_0" />
+      <xs:enumeration value="Descending_1" />
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="SortOrderType" type="tns:SortOrderType" />
+
+  <xs:complexType name="SortRuleElement">
+    <xs:sequence>
+      <xs:element name="SortOrder" type="tns:SortOrderType" minOccurs="0" />
+      <xs:element name="EventField" type="tns:SimpleAttributeOperand" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="SortRuleElement" type="tns:SortRuleElement" />
+
+  <xs:complexType name="ListOfSortRuleElement">
+    <xs:sequence>
+      <xs:element name="SortRuleElement" type="tns:SortRuleElement" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfSortRuleElement" type="tns:ListOfSortRuleElement" nillable="true"></xs:element>
+
+  <xs:complexType name="ReadEventDetailsSorted">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:ReadEventDetails">
+        <xs:sequence>
+          <xs:element name="SortClause" type="tns:ListOfSortRuleElement" minOccurs="0" nillable="true" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="ReadEventDetailsSorted" type="tns:ReadEventDetailsSorted" />
+
   <xs:complexType name="ReadRawModifiedDetails">
     <xs:complexContent mixed="false">
       <xs:extension base="tns:HistoryReadDetails">
@@ -6047,7 +6239,7 @@
       <xs:element name="DisabledMonitoredItemCount" type="xs:unsignedInt" minOccurs="0" />
       <xs:element name="MonitoringQueueOverflowCount" type="xs:unsignedInt" minOccurs="0" />
       <xs:element name="NextSequenceNumber" type="xs:unsignedInt" minOccurs="0" />
-      <xs:element name="EventQueueOverFlowCount" type="xs:unsignedInt" minOccurs="0" />
+      <xs:element name="EventQueueOverflowCount" type="xs:unsignedInt" minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
   <xs:element name="SubscriptionDiagnosticsDataType" type="tns:SubscriptionDiagnosticsDataType" />

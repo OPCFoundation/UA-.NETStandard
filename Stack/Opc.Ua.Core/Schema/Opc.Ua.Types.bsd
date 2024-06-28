@@ -348,6 +348,7 @@
     <opc:EnumeratedValue Name="AuthenticatedUser" Value="6" />
     <opc:EnumeratedValue Name="Application" Value="7" />
     <opc:EnumeratedValue Name="X509Subject" Value="8" />
+    <opc:EnumeratedValue Name="TrustedApplication" Value="9" />
   </opc:EnumeratedType>
 
   <opc:StructuredType Name="IdentityMappingRuleType" BaseType="ua:ExtensionObject">
@@ -727,6 +728,14 @@
   <opc:StructuredType Name="ActionMethodDataType" BaseType="ua:ExtensionObject">
     <opc:Field Name="ObjectId" TypeName="ua:NodeId" />
     <opc:Field Name="MethodId" TypeName="ua:NodeId" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="PublishedActionMethodDataType" BaseType="tns:PublishedActionDataType">
+    <opc:Field Name="RequestDataSetMetaData" TypeName="tns:DataSetMetaDataType" SourceType="tns:PublishedActionDataType" />
+    <opc:Field Name="NoOfActionTargets" TypeName="opc:Int32" />
+    <opc:Field Name="ActionTargets" TypeName="tns:ActionTargetDataType" LengthField="NoOfActionTargets" />
+    <opc:Field Name="NoOfActionMethods" TypeName="opc:Int32" />
+    <opc:Field Name="ActionMethods" TypeName="tns:ActionMethodDataType" LengthField="NoOfActionMethods" />
   </opc:StructuredType>
 
   <opc:EnumeratedType Name="DataSetFieldContentMask" LengthInBits="32" IsOptionSet="true">
@@ -1129,6 +1138,15 @@
     <opc:Field Name="Topic" TypeName="opc:String" />
   </opc:StructuredType>
 
+  <opc:StructuredType Name="DtlsPubSubConnectionDataType" BaseType="ua:ExtensionObject">
+    <opc:Field Name="ClientCipherSuite" TypeName="opc:String" />
+    <opc:Field Name="NoOfServerCipherSuites" TypeName="opc:Int32" />
+    <opc:Field Name="ServerCipherSuites" TypeName="opc:String" LengthField="NoOfServerCipherSuites" />
+    <opc:Field Name="ZeroRTT" TypeName="opc:Boolean" />
+    <opc:Field Name="CertificateGroupId" TypeName="ua:NodeId" />
+    <opc:Field Name="VerifyClientCertificate" TypeName="opc:Boolean" />
+  </opc:StructuredType>
+
   <opc:StructuredType Name="BrokerConnectionTransportDataType" BaseType="tns:ConnectionTransportDataType">
     <opc:Field Name="ResourceUri" TypeName="opc:String" />
     <opc:Field Name="AuthenticationProfileUri" TypeName="opc:String" />
@@ -1325,12 +1343,75 @@
     <opc:EnumeratedValue Name="Failed" Value="3" />
   </opc:EnumeratedType>
 
+  <opc:EnumeratedType Name="ChassisIdSubtype" LengthInBits="32">
+    <opc:EnumeratedValue Name="ChassisComponent" Value="1" />
+    <opc:EnumeratedValue Name="InterfaceAlias" Value="2" />
+    <opc:EnumeratedValue Name="PortComponent" Value="3" />
+    <opc:EnumeratedValue Name="MacAddress" Value="4" />
+    <opc:EnumeratedValue Name="NetworkAddress" Value="5" />
+    <opc:EnumeratedValue Name="InterfaceName" Value="6" />
+    <opc:EnumeratedValue Name="Local" Value="7" />
+  </opc:EnumeratedType>
+
+  <opc:EnumeratedType Name="PortIdSubtype" LengthInBits="32">
+    <opc:EnumeratedValue Name="InterfaceAlias" Value="1" />
+    <opc:EnumeratedValue Name="PortComponent" Value="2" />
+    <opc:EnumeratedValue Name="MacAddress" Value="3" />
+    <opc:EnumeratedValue Name="NetworkAddress" Value="4" />
+    <opc:EnumeratedValue Name="InterfaceName" Value="5" />
+    <opc:EnumeratedValue Name="AgentCircuitId" Value="6" />
+    <opc:EnumeratedValue Name="Local" Value="7" />
+  </opc:EnumeratedType>
+
+  <opc:EnumeratedType Name="ManAddrIfSubtype" LengthInBits="32">
+    <opc:EnumeratedValue Name="None" Value="0" />
+    <opc:EnumeratedValue Name="Unknown" Value="1" />
+    <opc:EnumeratedValue Name="PortRef" Value="2" />
+    <opc:EnumeratedValue Name="SystemPortNumber" Value="3" />
+  </opc:EnumeratedType>
+
   <opc:StructuredType Name="PriorityMappingEntryType" BaseType="ua:ExtensionObject">
     <opc:Field Name="MappingUri" TypeName="opc:String" />
     <opc:Field Name="PriorityLabel" TypeName="opc:String" />
     <opc:Field Name="PriorityValue_PCP" TypeName="opc:Byte" />
     <opc:Field Name="PriorityValue_DSCP" TypeName="opc:UInt32" />
   </opc:StructuredType>
+
+  <opc:StructuredType Name="LldpManagementAddressTxPortType" BaseType="ua:ExtensionObject">
+    <opc:Field Name="AddressSubtype" TypeName="opc:UInt32" />
+    <opc:Field Name="ManAddress" TypeName="opc:String" />
+    <opc:Field Name="TxEnable" TypeName="opc:Boolean" />
+    <opc:Field Name="AddrLen" TypeName="opc:UInt32" />
+    <opc:Field Name="IfSubtype" TypeName="tns:ManAddrIfSubtype" />
+    <opc:Field Name="IfId" TypeName="opc:UInt32" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="LldpManagementAddressType" BaseType="ua:ExtensionObject">
+    <opc:Field Name="AddressSubtype" TypeName="opc:UInt32" />
+    <opc:Field Name="Address" TypeName="opc:String" />
+    <opc:Field Name="IfSubtype" TypeName="tns:ManAddrIfSubtype" />
+    <opc:Field Name="IfId" TypeName="opc:UInt32" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="LldpTlvType" BaseType="ua:ExtensionObject">
+    <opc:Field Name="TlvType" TypeName="opc:UInt32" />
+    <opc:Field Name="TlvInfo" TypeName="opc:ByteString" />
+  </opc:StructuredType>
+
+  <opc:EnumeratedType Name="LldpSystemCapabilitiesMap" LengthInBits="32" IsOptionSet="true">
+    <opc:EnumeratedValue Name="None" Value="0" />
+    <opc:EnumeratedValue Name="Other" Value="1" />
+    <opc:EnumeratedValue Name="Repeater" Value="2" />
+    <opc:EnumeratedValue Name="Bridge" Value="4" />
+    <opc:EnumeratedValue Name="WlanAccessPoint" Value="8" />
+    <opc:EnumeratedValue Name="Router" Value="16" />
+    <opc:EnumeratedValue Name="Telephone" Value="32" />
+    <opc:EnumeratedValue Name="DocsisCableDevice" Value="64" />
+    <opc:EnumeratedValue Name="StationOnly" Value="128" />
+    <opc:EnumeratedValue Name="CvlanComponent" Value="256" />
+    <opc:EnumeratedValue Name="SvlanComponent" Value="512" />
+    <opc:EnumeratedValue Name="TwoPortMacRelay" Value="1024" />
+  </opc:EnumeratedType>
 
   <opc:StructuredType Name="ReferenceDescriptionDataType" BaseType="ua:ExtensionObject">
     <opc:Field Name="SourceNode" TypeName="ua:NodeId" />
@@ -2525,6 +2606,25 @@
     <opc:Field Name="ReadModified" TypeName="opc:Boolean" />
   </opc:StructuredType>
 
+  <opc:EnumeratedType Name="SortOrderType" LengthInBits="32">
+    <opc:EnumeratedValue Name="Ascending" Value="0" />
+    <opc:EnumeratedValue Name="Descending" Value="1" />
+  </opc:EnumeratedType>
+
+  <opc:StructuredType Name="SortRuleElement" BaseType="ua:ExtensionObject">
+    <opc:Field Name="SortOrder" TypeName="tns:SortOrderType" />
+    <opc:Field Name="EventField" TypeName="tns:SimpleAttributeOperand" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="ReadEventDetailsSorted" BaseType="tns:ReadEventDetails">
+    <opc:Field Name="NumValuesPerNode" TypeName="opc:UInt32" SourceType="tns:ReadEventDetails" />
+    <opc:Field Name="StartTime" TypeName="opc:DateTime" SourceType="tns:ReadEventDetails" />
+    <opc:Field Name="EndTime" TypeName="opc:DateTime" SourceType="tns:ReadEventDetails" />
+    <opc:Field Name="Filter" TypeName="tns:EventFilter" SourceType="tns:ReadEventDetails" />
+    <opc:Field Name="NoOfSortClause" TypeName="opc:Int32" />
+    <opc:Field Name="SortClause" TypeName="tns:SortRuleElement" LengthField="NoOfSortClause" />
+  </opc:StructuredType>
+
   <opc:StructuredType Name="ReadRawModifiedDetails" BaseType="tns:HistoryReadDetails">
     <opc:Field Name="IsReadModified" TypeName="opc:Boolean" />
     <opc:Field Name="StartTime" TypeName="opc:DateTime" />
@@ -3257,7 +3357,7 @@
     <opc:Field Name="DisabledMonitoredItemCount" TypeName="opc:UInt32" />
     <opc:Field Name="MonitoringQueueOverflowCount" TypeName="opc:UInt32" />
     <opc:Field Name="NextSequenceNumber" TypeName="opc:UInt32" />
-    <opc:Field Name="EventQueueOverFlowCount" TypeName="opc:UInt32" />
+    <opc:Field Name="EventQueueOverflowCount" TypeName="opc:UInt32" />
   </opc:StructuredType>
 
   <opc:EnumeratedType Name="ModelChangeStructureVerbMask" LengthInBits="32">

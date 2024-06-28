@@ -542,7 +542,7 @@ namespace Opc.Ua
         /// <summary>
         /// The semaphore file specified by the client is not valid.
         /// </summary>
-        public const uint BadSempahoreFileMissing = 0x80520000;
+        public const uint BadSemaphoreFileMissing = 0x80520000;
 
         /// <summary>
         /// The security token request type is not valid.

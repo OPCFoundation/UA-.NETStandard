@@ -3207,6 +3207,10 @@ namespace Opc.Ua
         /// <remarks />
         [EnumMember(Value = "X509Subject_8")]
         X509Subject = 8,
+
+        /// <remarks />
+        [EnumMember(Value = "TrustedApplication_9")]
+        TrustedApplication = 9,
     }
 
     #region IdentityCriteriaTypeCollection Class
@@ -12553,6 +12557,202 @@ namespace Opc.Ua
             for (int ii = 0; ii < this.Count; ii++)
             {
                 clone.Add((ActionMethodDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region PublishedActionMethodDataType Class
+    #if (!OPCUA_EXCLUDE_PublishedActionMethodDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class PublishedActionMethodDataType : Opc.Ua.PublishedActionDataType
+    {
+        #region Constructors
+        /// <remarks />
+        public PublishedActionMethodDataType()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_actionMethods = new ActionMethodDataTypeCollection();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "ActionMethods", IsRequired = false, Order = 1)]
+        public ActionMethodDataTypeCollection ActionMethods
+        {
+            get
+            {
+                return m_actionMethods;
+            }
+
+            set
+            {
+                m_actionMethods = value;
+
+                if (value == null)
+                {
+                    m_actionMethods = new ActionMethodDataTypeCollection();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.PublishedActionMethodDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.PublishedActionMethodDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.PublishedActionMethodDataType_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.PublishedActionMethodDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteEncodeableArray("ActionMethods", ActionMethods.ToArray(), typeof(ActionMethodDataType));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            ActionMethods = (ActionMethodDataTypeCollection)decoder.ReadEncodeableArray("ActionMethods", typeof(ActionMethodDataType));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            PublishedActionMethodDataType value = encodeable as PublishedActionMethodDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!base.IsEqual(encodeable)) return false;
+            if (!Utils.IsEqual(m_actionMethods, value.m_actionMethods)) return false;
+
+            return base.IsEqual(encodeable);
+        }    
+
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (PublishedActionMethodDataType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PublishedActionMethodDataType clone = (PublishedActionMethodDataType)base.MemberwiseClone();
+
+            clone.m_actionMethods = (ActionMethodDataTypeCollection)Utils.Clone(this.m_actionMethods);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private ActionMethodDataTypeCollection m_actionMethods;
+        #endregion
+    }
+
+    #region PublishedActionMethodDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfPublishedActionMethodDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PublishedActionMethodDataType")]
+    public partial class PublishedActionMethodDataTypeCollection : List<PublishedActionMethodDataType>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public PublishedActionMethodDataTypeCollection() {}
+
+        /// <remarks />
+        public PublishedActionMethodDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public PublishedActionMethodDataTypeCollection(IEnumerable<PublishedActionMethodDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator PublishedActionMethodDataTypeCollection(PublishedActionMethodDataType[] values)
+        {
+            if (values != null)
+            {
+                return new PublishedActionMethodDataTypeCollection(values);
+            }
+
+            return new PublishedActionMethodDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator PublishedActionMethodDataType[](PublishedActionMethodDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (PublishedActionMethodDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PublishedActionMethodDataTypeCollection clone = new PublishedActionMethodDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((PublishedActionMethodDataType)Utils.Clone(this[ii]));
             }
 
             return clone;
@@ -22853,6 +23053,253 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region DtlsPubSubConnectionDataType Class
+    #if (!OPCUA_EXCLUDE_DtlsPubSubConnectionDataType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class DtlsPubSubConnectionDataType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public DtlsPubSubConnectionDataType()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_clientCipherSuite = null;
+            m_serverCipherSuites = new StringCollection();
+            m_zeroRTT = true;
+            m_certificateGroupId = null;
+            m_verifyClientCertificate = true;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "ClientCipherSuite", IsRequired = false, Order = 1)]
+        public string ClientCipherSuite
+        {
+            get { return m_clientCipherSuite;  }
+            set { m_clientCipherSuite = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ServerCipherSuites", IsRequired = false, Order = 2)]
+        public StringCollection ServerCipherSuites
+        {
+            get
+            {
+                return m_serverCipherSuites;
+            }
+
+            set
+            {
+                m_serverCipherSuites = value;
+
+                if (value == null)
+                {
+                    m_serverCipherSuites = new StringCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ZeroRTT", IsRequired = false, Order = 3)]
+        public bool ZeroRTT
+        {
+            get { return m_zeroRTT;  }
+            set { m_zeroRTT = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "CertificateGroupId", IsRequired = false, Order = 4)]
+        public NodeId CertificateGroupId
+        {
+            get { return m_certificateGroupId;  }
+            set { m_certificateGroupId = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "VerifyClientCertificate", IsRequired = false, Order = 5)]
+        public bool VerifyClientCertificate
+        {
+            get { return m_verifyClientCertificate;  }
+            set { m_verifyClientCertificate = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.DtlsPubSubConnectionDataType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DtlsPubSubConnectionDataType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DtlsPubSubConnectionDataType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DtlsPubSubConnectionDataType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteString("ClientCipherSuite", ClientCipherSuite);
+            encoder.WriteStringArray("ServerCipherSuites", ServerCipherSuites);
+            encoder.WriteBoolean("ZeroRTT", ZeroRTT);
+            encoder.WriteNodeId("CertificateGroupId", CertificateGroupId);
+            encoder.WriteBoolean("VerifyClientCertificate", VerifyClientCertificate);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            ClientCipherSuite = decoder.ReadString("ClientCipherSuite");
+            ServerCipherSuites = decoder.ReadStringArray("ServerCipherSuites");
+            ZeroRTT = decoder.ReadBoolean("ZeroRTT");
+            CertificateGroupId = decoder.ReadNodeId("CertificateGroupId");
+            VerifyClientCertificate = decoder.ReadBoolean("VerifyClientCertificate");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            DtlsPubSubConnectionDataType value = encodeable as DtlsPubSubConnectionDataType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_clientCipherSuite, value.m_clientCipherSuite)) return false;
+            if (!Utils.IsEqual(m_serverCipherSuites, value.m_serverCipherSuites)) return false;
+            if (!Utils.IsEqual(m_zeroRTT, value.m_zeroRTT)) return false;
+            if (!Utils.IsEqual(m_certificateGroupId, value.m_certificateGroupId)) return false;
+            if (!Utils.IsEqual(m_verifyClientCertificate, value.m_verifyClientCertificate)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (DtlsPubSubConnectionDataType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            DtlsPubSubConnectionDataType clone = (DtlsPubSubConnectionDataType)base.MemberwiseClone();
+
+            clone.m_clientCipherSuite = (string)Utils.Clone(this.m_clientCipherSuite);
+            clone.m_serverCipherSuites = (StringCollection)Utils.Clone(this.m_serverCipherSuites);
+            clone.m_zeroRTT = (bool)Utils.Clone(this.m_zeroRTT);
+            clone.m_certificateGroupId = (NodeId)Utils.Clone(this.m_certificateGroupId);
+            clone.m_verifyClientCertificate = (bool)Utils.Clone(this.m_verifyClientCertificate);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_clientCipherSuite;
+        private StringCollection m_serverCipherSuites;
+        private bool m_zeroRTT;
+        private NodeId m_certificateGroupId;
+        private bool m_verifyClientCertificate;
+        #endregion
+    }
+
+    #region DtlsPubSubConnectionDataTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfDtlsPubSubConnectionDataType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "DtlsPubSubConnectionDataType")]
+    public partial class DtlsPubSubConnectionDataTypeCollection : List<DtlsPubSubConnectionDataType>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public DtlsPubSubConnectionDataTypeCollection() {}
+
+        /// <remarks />
+        public DtlsPubSubConnectionDataTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public DtlsPubSubConnectionDataTypeCollection(IEnumerable<DtlsPubSubConnectionDataType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator DtlsPubSubConnectionDataTypeCollection(DtlsPubSubConnectionDataType[] values)
+        {
+            if (values != null)
+            {
+                return new DtlsPubSubConnectionDataTypeCollection(values);
+            }
+
+            return new DtlsPubSubConnectionDataTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator DtlsPubSubConnectionDataType[](DtlsPubSubConnectionDataTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (DtlsPubSubConnectionDataTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            DtlsPubSubConnectionDataTypeCollection clone = new DtlsPubSubConnectionDataTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((DtlsPubSubConnectionDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
     #region BrokerConnectionTransportDataType Class
     #if (!OPCUA_EXCLUDE_BrokerConnectionTransportDataType)
     /// <remarks />
@@ -26075,6 +26522,306 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region ChassisIdSubtype Enumeration
+    #if (!OPCUA_EXCLUDE_ChassisIdSubtype)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public enum ChassisIdSubtype
+    {
+        /// <remarks />
+        [EnumMember(Value = "ChassisComponent_1")]
+        ChassisComponent = 1,
+
+        /// <remarks />
+        [EnumMember(Value = "InterfaceAlias_2")]
+        InterfaceAlias = 2,
+
+        /// <remarks />
+        [EnumMember(Value = "PortComponent_3")]
+        PortComponent = 3,
+
+        /// <remarks />
+        [EnumMember(Value = "MacAddress_4")]
+        MacAddress = 4,
+
+        /// <remarks />
+        [EnumMember(Value = "NetworkAddress_5")]
+        NetworkAddress = 5,
+
+        /// <remarks />
+        [EnumMember(Value = "InterfaceName_6")]
+        InterfaceName = 6,
+
+        /// <remarks />
+        [EnumMember(Value = "Local_7")]
+        Local = 7,
+    }
+
+    #region ChassisIdSubtypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfChassisIdSubtype", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ChassisIdSubtype")]
+    public partial class ChassisIdSubtypeCollection : List<ChassisIdSubtype>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public ChassisIdSubtypeCollection() {}
+
+        /// <remarks />
+        public ChassisIdSubtypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public ChassisIdSubtypeCollection(IEnumerable<ChassisIdSubtype> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator ChassisIdSubtypeCollection(ChassisIdSubtype[] values)
+        {
+            if (values != null)
+            {
+                return new ChassisIdSubtypeCollection(values);
+            }
+
+            return new ChassisIdSubtypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator ChassisIdSubtype[](ChassisIdSubtypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (ChassisIdSubtypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ChassisIdSubtypeCollection clone = new ChassisIdSubtypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((ChassisIdSubtype)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region PortIdSubtype Enumeration
+    #if (!OPCUA_EXCLUDE_PortIdSubtype)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public enum PortIdSubtype
+    {
+        /// <remarks />
+        [EnumMember(Value = "InterfaceAlias_1")]
+        InterfaceAlias = 1,
+
+        /// <remarks />
+        [EnumMember(Value = "PortComponent_2")]
+        PortComponent = 2,
+
+        /// <remarks />
+        [EnumMember(Value = "MacAddress_3")]
+        MacAddress = 3,
+
+        /// <remarks />
+        [EnumMember(Value = "NetworkAddress_4")]
+        NetworkAddress = 4,
+
+        /// <remarks />
+        [EnumMember(Value = "InterfaceName_5")]
+        InterfaceName = 5,
+
+        /// <remarks />
+        [EnumMember(Value = "AgentCircuitId_6")]
+        AgentCircuitId = 6,
+
+        /// <remarks />
+        [EnumMember(Value = "Local_7")]
+        Local = 7,
+    }
+
+    #region PortIdSubtypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfPortIdSubtype", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "PortIdSubtype")]
+    public partial class PortIdSubtypeCollection : List<PortIdSubtype>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public PortIdSubtypeCollection() {}
+
+        /// <remarks />
+        public PortIdSubtypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public PortIdSubtypeCollection(IEnumerable<PortIdSubtype> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator PortIdSubtypeCollection(PortIdSubtype[] values)
+        {
+            if (values != null)
+            {
+                return new PortIdSubtypeCollection(values);
+            }
+
+            return new PortIdSubtypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator PortIdSubtype[](PortIdSubtypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (PortIdSubtypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            PortIdSubtypeCollection clone = new PortIdSubtypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((PortIdSubtype)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region ManAddrIfSubtype Enumeration
+    #if (!OPCUA_EXCLUDE_ManAddrIfSubtype)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public enum ManAddrIfSubtype
+    {
+        /// <remarks />
+        [EnumMember(Value = "None_0")]
+        None = 0,
+
+        /// <remarks />
+        [EnumMember(Value = "Unknown_1")]
+        Unknown = 1,
+
+        /// <remarks />
+        [EnumMember(Value = "PortRef_2")]
+        PortRef = 2,
+
+        /// <remarks />
+        [EnumMember(Value = "SystemPortNumber_3")]
+        SystemPortNumber = 3,
+    }
+
+    #region ManAddrIfSubtypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfManAddrIfSubtype", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "ManAddrIfSubtype")]
+    public partial class ManAddrIfSubtypeCollection : List<ManAddrIfSubtype>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public ManAddrIfSubtypeCollection() {}
+
+        /// <remarks />
+        public ManAddrIfSubtypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public ManAddrIfSubtypeCollection(IEnumerable<ManAddrIfSubtype> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator ManAddrIfSubtypeCollection(ManAddrIfSubtype[] values)
+        {
+            if (values != null)
+            {
+                return new ManAddrIfSubtypeCollection(values);
+            }
+
+            return new ManAddrIfSubtypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator ManAddrIfSubtype[](ManAddrIfSubtypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (ManAddrIfSubtypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ManAddrIfSubtypeCollection clone = new ManAddrIfSubtypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((ManAddrIfSubtype)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
     #region PriorityMappingEntryType Class
     #if (!OPCUA_EXCLUDE_PriorityMappingEntryType)
     /// <remarks />
@@ -26287,6 +27034,793 @@ namespace Opc.Ua
             for (int ii = 0; ii < this.Count; ii++)
             {
                 clone.Add((PriorityMappingEntryType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region LldpManagementAddressTxPortType Class
+    #if (!OPCUA_EXCLUDE_LldpManagementAddressTxPortType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class LldpManagementAddressTxPortType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public LldpManagementAddressTxPortType()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_addressSubtype = (uint)0;
+            m_manAddress = null;
+            m_txEnable = true;
+            m_addrLen = (uint)0;
+            m_ifSubtype = ManAddrIfSubtype.None;
+            m_ifId = (uint)0;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "AddressSubtype", IsRequired = false, Order = 1)]
+        public uint AddressSubtype
+        {
+            get { return m_addressSubtype;  }
+            set { m_addressSubtype = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "ManAddress", IsRequired = false, Order = 2)]
+        public string ManAddress
+        {
+            get { return m_manAddress;  }
+            set { m_manAddress = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "TxEnable", IsRequired = false, Order = 3)]
+        public bool TxEnable
+        {
+            get { return m_txEnable;  }
+            set { m_txEnable = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "AddrLen", IsRequired = false, Order = 4)]
+        public uint AddrLen
+        {
+            get { return m_addrLen;  }
+            set { m_addrLen = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "IfSubtype", IsRequired = false, Order = 5)]
+        public ManAddrIfSubtype IfSubtype
+        {
+            get { return m_ifSubtype;  }
+            set { m_ifSubtype = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "IfId", IsRequired = false, Order = 6)]
+        public uint IfId
+        {
+            get { return m_ifId;  }
+            set { m_ifId = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.LldpManagementAddressTxPortType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.LldpManagementAddressTxPortType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.LldpManagementAddressTxPortType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.LldpManagementAddressTxPortType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteUInt32("AddressSubtype", AddressSubtype);
+            encoder.WriteString("ManAddress", ManAddress);
+            encoder.WriteBoolean("TxEnable", TxEnable);
+            encoder.WriteUInt32("AddrLen", AddrLen);
+            encoder.WriteEnumerated("IfSubtype", IfSubtype);
+            encoder.WriteUInt32("IfId", IfId);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            AddressSubtype = decoder.ReadUInt32("AddressSubtype");
+            ManAddress = decoder.ReadString("ManAddress");
+            TxEnable = decoder.ReadBoolean("TxEnable");
+            AddrLen = decoder.ReadUInt32("AddrLen");
+            IfSubtype = (ManAddrIfSubtype)decoder.ReadEnumerated("IfSubtype", typeof(ManAddrIfSubtype));
+            IfId = decoder.ReadUInt32("IfId");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            LldpManagementAddressTxPortType value = encodeable as LldpManagementAddressTxPortType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_addressSubtype, value.m_addressSubtype)) return false;
+            if (!Utils.IsEqual(m_manAddress, value.m_manAddress)) return false;
+            if (!Utils.IsEqual(m_txEnable, value.m_txEnable)) return false;
+            if (!Utils.IsEqual(m_addrLen, value.m_addrLen)) return false;
+            if (!Utils.IsEqual(m_ifSubtype, value.m_ifSubtype)) return false;
+            if (!Utils.IsEqual(m_ifId, value.m_ifId)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (LldpManagementAddressTxPortType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            LldpManagementAddressTxPortType clone = (LldpManagementAddressTxPortType)base.MemberwiseClone();
+
+            clone.m_addressSubtype = (uint)Utils.Clone(this.m_addressSubtype);
+            clone.m_manAddress = (string)Utils.Clone(this.m_manAddress);
+            clone.m_txEnable = (bool)Utils.Clone(this.m_txEnable);
+            clone.m_addrLen = (uint)Utils.Clone(this.m_addrLen);
+            clone.m_ifSubtype = (ManAddrIfSubtype)Utils.Clone(this.m_ifSubtype);
+            clone.m_ifId = (uint)Utils.Clone(this.m_ifId);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private uint m_addressSubtype;
+        private string m_manAddress;
+        private bool m_txEnable;
+        private uint m_addrLen;
+        private ManAddrIfSubtype m_ifSubtype;
+        private uint m_ifId;
+        #endregion
+    }
+
+    #region LldpManagementAddressTxPortTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfLldpManagementAddressTxPortType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LldpManagementAddressTxPortType")]
+    public partial class LldpManagementAddressTxPortTypeCollection : List<LldpManagementAddressTxPortType>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public LldpManagementAddressTxPortTypeCollection() {}
+
+        /// <remarks />
+        public LldpManagementAddressTxPortTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public LldpManagementAddressTxPortTypeCollection(IEnumerable<LldpManagementAddressTxPortType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator LldpManagementAddressTxPortTypeCollection(LldpManagementAddressTxPortType[] values)
+        {
+            if (values != null)
+            {
+                return new LldpManagementAddressTxPortTypeCollection(values);
+            }
+
+            return new LldpManagementAddressTxPortTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator LldpManagementAddressTxPortType[](LldpManagementAddressTxPortTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (LldpManagementAddressTxPortTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            LldpManagementAddressTxPortTypeCollection clone = new LldpManagementAddressTxPortTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((LldpManagementAddressTxPortType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region LldpManagementAddressType Class
+    #if (!OPCUA_EXCLUDE_LldpManagementAddressType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class LldpManagementAddressType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public LldpManagementAddressType()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_addressSubtype = (uint)0;
+            m_address = null;
+            m_ifSubtype = ManAddrIfSubtype.None;
+            m_ifId = (uint)0;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "AddressSubtype", IsRequired = false, Order = 1)]
+        public uint AddressSubtype
+        {
+            get { return m_addressSubtype;  }
+            set { m_addressSubtype = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Address", IsRequired = false, Order = 2)]
+        public string Address
+        {
+            get { return m_address;  }
+            set { m_address = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "IfSubtype", IsRequired = false, Order = 3)]
+        public ManAddrIfSubtype IfSubtype
+        {
+            get { return m_ifSubtype;  }
+            set { m_ifSubtype = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "IfId", IsRequired = false, Order = 4)]
+        public uint IfId
+        {
+            get { return m_ifId;  }
+            set { m_ifId = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.LldpManagementAddressType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.LldpManagementAddressType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.LldpManagementAddressType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.LldpManagementAddressType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteUInt32("AddressSubtype", AddressSubtype);
+            encoder.WriteString("Address", Address);
+            encoder.WriteEnumerated("IfSubtype", IfSubtype);
+            encoder.WriteUInt32("IfId", IfId);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            AddressSubtype = decoder.ReadUInt32("AddressSubtype");
+            Address = decoder.ReadString("Address");
+            IfSubtype = (ManAddrIfSubtype)decoder.ReadEnumerated("IfSubtype", typeof(ManAddrIfSubtype));
+            IfId = decoder.ReadUInt32("IfId");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            LldpManagementAddressType value = encodeable as LldpManagementAddressType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_addressSubtype, value.m_addressSubtype)) return false;
+            if (!Utils.IsEqual(m_address, value.m_address)) return false;
+            if (!Utils.IsEqual(m_ifSubtype, value.m_ifSubtype)) return false;
+            if (!Utils.IsEqual(m_ifId, value.m_ifId)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (LldpManagementAddressType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            LldpManagementAddressType clone = (LldpManagementAddressType)base.MemberwiseClone();
+
+            clone.m_addressSubtype = (uint)Utils.Clone(this.m_addressSubtype);
+            clone.m_address = (string)Utils.Clone(this.m_address);
+            clone.m_ifSubtype = (ManAddrIfSubtype)Utils.Clone(this.m_ifSubtype);
+            clone.m_ifId = (uint)Utils.Clone(this.m_ifId);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private uint m_addressSubtype;
+        private string m_address;
+        private ManAddrIfSubtype m_ifSubtype;
+        private uint m_ifId;
+        #endregion
+    }
+
+    #region LldpManagementAddressTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfLldpManagementAddressType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LldpManagementAddressType")]
+    public partial class LldpManagementAddressTypeCollection : List<LldpManagementAddressType>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public LldpManagementAddressTypeCollection() {}
+
+        /// <remarks />
+        public LldpManagementAddressTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public LldpManagementAddressTypeCollection(IEnumerable<LldpManagementAddressType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator LldpManagementAddressTypeCollection(LldpManagementAddressType[] values)
+        {
+            if (values != null)
+            {
+                return new LldpManagementAddressTypeCollection(values);
+            }
+
+            return new LldpManagementAddressTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator LldpManagementAddressType[](LldpManagementAddressTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (LldpManagementAddressTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            LldpManagementAddressTypeCollection clone = new LldpManagementAddressTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((LldpManagementAddressType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region LldpTlvType Class
+    #if (!OPCUA_EXCLUDE_LldpTlvType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class LldpTlvType : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public LldpTlvType()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_tlvType = (uint)0;
+            m_tlvInfo = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "TlvType", IsRequired = false, Order = 1)]
+        public uint TlvType
+        {
+            get { return m_tlvType;  }
+            set { m_tlvType = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "TlvInfo", IsRequired = false, Order = 2)]
+        public byte[] TlvInfo
+        {
+            get { return m_tlvInfo;  }
+            set { m_tlvInfo = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.LldpTlvType; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.LldpTlvType_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.LldpTlvType_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.LldpTlvType_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteUInt32("TlvType", TlvType);
+            encoder.WriteByteString("TlvInfo", TlvInfo);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            TlvType = decoder.ReadUInt32("TlvType");
+            TlvInfo = decoder.ReadByteString("TlvInfo");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            LldpTlvType value = encodeable as LldpTlvType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_tlvType, value.m_tlvType)) return false;
+            if (!Utils.IsEqual(m_tlvInfo, value.m_tlvInfo)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (LldpTlvType)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            LldpTlvType clone = (LldpTlvType)base.MemberwiseClone();
+
+            clone.m_tlvType = (uint)Utils.Clone(this.m_tlvType);
+            clone.m_tlvInfo = (byte[])Utils.Clone(this.m_tlvInfo);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private uint m_tlvType;
+        private byte[] m_tlvInfo;
+        #endregion
+    }
+
+    #region LldpTlvTypeCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfLldpTlvType", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LldpTlvType")]
+    public partial class LldpTlvTypeCollection : List<LldpTlvType>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public LldpTlvTypeCollection() {}
+
+        /// <remarks />
+        public LldpTlvTypeCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public LldpTlvTypeCollection(IEnumerable<LldpTlvType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator LldpTlvTypeCollection(LldpTlvType[] values)
+        {
+            if (values != null)
+            {
+                return new LldpTlvTypeCollection(values);
+            }
+
+            return new LldpTlvTypeCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator LldpTlvType[](LldpTlvTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (LldpTlvTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            LldpTlvTypeCollection clone = new LldpTlvTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((LldpTlvType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region LldpSystemCapabilitiesMap Enumeration
+    #if (!OPCUA_EXCLUDE_LldpSystemCapabilitiesMap)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)][Flags]
+    public enum LldpSystemCapabilitiesMap : UInt32
+    {
+        /// <remarks />
+        [EnumMember(Value = "None_0")]
+        None = 0,
+
+        /// <remarks />
+        [EnumMember(Value = "Other_1")]
+        Other = 1,
+
+        /// <remarks />
+        [EnumMember(Value = "Repeater_2")]
+        Repeater = 2,
+
+        /// <remarks />
+        [EnumMember(Value = "Bridge_4")]
+        Bridge = 4,
+
+        /// <remarks />
+        [EnumMember(Value = "WlanAccessPoint_8")]
+        WlanAccessPoint = 8,
+
+        /// <remarks />
+        [EnumMember(Value = "Router_16")]
+        Router = 16,
+
+        /// <remarks />
+        [EnumMember(Value = "Telephone_32")]
+        Telephone = 32,
+
+        /// <remarks />
+        [EnumMember(Value = "DocsisCableDevice_64")]
+        DocsisCableDevice = 64,
+
+        /// <remarks />
+        [EnumMember(Value = "StationOnly_128")]
+        StationOnly = 128,
+
+        /// <remarks />
+        [EnumMember(Value = "CvlanComponent_256")]
+        CvlanComponent = 256,
+
+        /// <remarks />
+        [EnumMember(Value = "SvlanComponent_512")]
+        SvlanComponent = 512,
+
+        /// <remarks />
+        [EnumMember(Value = "TwoPortMacRelay_1024")]
+        TwoPortMacRelay = 1024,
+    }
+
+    #region LldpSystemCapabilitiesMapCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfLldpSystemCapabilitiesMap", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "LldpSystemCapabilitiesMap")]
+    public partial class LldpSystemCapabilitiesMapCollection : List<LldpSystemCapabilitiesMap>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public LldpSystemCapabilitiesMapCollection() {}
+
+        /// <remarks />
+        public LldpSystemCapabilitiesMapCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public LldpSystemCapabilitiesMapCollection(IEnumerable<LldpSystemCapabilitiesMap> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator LldpSystemCapabilitiesMapCollection(LldpSystemCapabilitiesMap[] values)
+        {
+            if (values != null)
+            {
+                return new LldpSystemCapabilitiesMapCollection(values);
+            }
+
+            return new LldpSystemCapabilitiesMapCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator LldpSystemCapabilitiesMap[](LldpSystemCapabilitiesMapCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (LldpSystemCapabilitiesMapCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            LldpSystemCapabilitiesMapCollection clone = new LldpSystemCapabilitiesMapCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((LldpSystemCapabilitiesMap)Utils.Clone(this[ii]));
             }
 
             return clone;
@@ -51977,6 +53511,361 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region SortOrderType Enumeration
+    #if (!OPCUA_EXCLUDE_SortOrderType)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public enum SortOrderType
+    {
+        /// <remarks />
+        [EnumMember(Value = "Ascending_0")]
+        Ascending = 0,
+
+        /// <remarks />
+        [EnumMember(Value = "Descending_1")]
+        Descending = 1,
+    }
+    #endif
+    #endregion
+
+    #region SortRuleElement Class
+    #if (!OPCUA_EXCLUDE_SortRuleElement)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class SortRuleElement : IEncodeable, IJsonEncodeable
+    {
+        #region Constructors
+        /// <remarks />
+        public SortRuleElement()
+        {
+            Initialize();
+        }
+            
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+            
+        private void Initialize()
+        {
+            m_sortOrder = SortOrderType.Ascending;
+            m_eventField = new SimpleAttributeOperand();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "SortOrder", IsRequired = false, Order = 1)]
+        public SortOrderType SortOrder
+        {
+            get { return m_sortOrder;  }
+            set { m_sortOrder = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "EventField", IsRequired = false, Order = 2)]
+        public SimpleAttributeOperand EventField
+        {
+            get
+            {
+                return m_eventField;
+            }
+
+            set
+            {
+                m_eventField = value;
+
+                if (value == null)
+                {
+                    m_eventField = new SimpleAttributeOperand();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId => DataTypeIds.SortRuleElement; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SortRuleElement_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SortRuleElement_Encoding_DefaultXml;
+                    
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SortRuleElement_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteEnumerated("SortOrder", SortOrder);
+            encoder.WriteEncodeable("EventField", EventField, typeof(SimpleAttributeOperand));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            SortOrder = (SortOrderType)decoder.ReadEnumerated("SortOrder", typeof(SortOrderType));
+            EventField = (SimpleAttributeOperand)decoder.ReadEncodeable("EventField", typeof(SimpleAttributeOperand));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            SortRuleElement value = encodeable as SortRuleElement;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_sortOrder, value.m_sortOrder)) return false;
+            if (!Utils.IsEqual(m_eventField, value.m_eventField)) return false;
+
+            return true;
+        }
+
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (SortRuleElement)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            SortRuleElement clone = (SortRuleElement)base.MemberwiseClone();
+
+            clone.m_sortOrder = (SortOrderType)Utils.Clone(this.m_sortOrder);
+            clone.m_eventField = (SimpleAttributeOperand)Utils.Clone(this.m_eventField);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private SortOrderType m_sortOrder;
+        private SimpleAttributeOperand m_eventField;
+        #endregion
+    }
+
+    #region SortRuleElementCollection Class
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfSortRuleElement", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "SortRuleElement")]
+    public partial class SortRuleElementCollection : List<SortRuleElement>, ICloneable
+    {
+        #region Constructors
+        /// <remarks />
+        public SortRuleElementCollection() {}
+
+        /// <remarks />
+        public SortRuleElementCollection(int capacity) : base(capacity) {}
+
+        /// <remarks />
+        public SortRuleElementCollection(IEnumerable<SortRuleElement> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <remarks />
+        public static implicit operator SortRuleElementCollection(SortRuleElement[] values)
+        {
+            if (values != null)
+            {
+                return new SortRuleElementCollection(values);
+            }
+
+            return new SortRuleElementCollection();
+        }
+
+        /// <remarks />
+        public static explicit operator SortRuleElement[](SortRuleElementCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #region ICloneable Methods
+        /// <remarks />
+        public object Clone()
+        {
+            return (SortRuleElementCollection)this.MemberwiseClone();
+        }
+        #endregion
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            SortRuleElementCollection clone = new SortRuleElementCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((SortRuleElement)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region ReadEventDetailsSorted Class
+    #if (!OPCUA_EXCLUDE_ReadEventDetailsSorted)
+    /// <remarks />
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class ReadEventDetailsSorted : Opc.Ua.ReadEventDetails
+    {
+        #region Constructors
+        /// <remarks />
+        public ReadEventDetailsSorted()
+        {
+            Initialize();
+        }
+
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            m_sortClause = new SortRuleElementCollection();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "SortClause", IsRequired = false, Order = 1)]
+        public SortRuleElementCollection SortClause
+        {
+            get
+            {
+                return m_sortClause;
+            }
+
+            set
+            {
+                m_sortClause = value;
+
+                if (value == null)
+                {
+                    m_sortClause = new SortRuleElementCollection();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId => DataTypeIds.ReadEventDetailsSorted; 
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReadEventDetailsSorted_Encoding_DefaultBinary;
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId => ObjectIds.ReadEventDetailsSorted_Encoding_DefaultXml;
+            
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        public override ExpandedNodeId JsonEncodingId => ObjectIds.ReadEventDetailsSorted_Encoding_DefaultJson; 
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteEncodeableArray("SortClause", SortClause.ToArray(), typeof(SortRuleElement));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            SortClause = (SortRuleElementCollection)decoder.ReadEncodeableArray("SortClause", typeof(SortRuleElement));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            ReadEventDetailsSorted value = encodeable as ReadEventDetailsSorted;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!base.IsEqual(encodeable)) return false;
+            if (!Utils.IsEqual(m_sortClause, value.m_sortClause)) return false;
+
+            return base.IsEqual(encodeable);
+        }    
+
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (ReadEventDetailsSorted)this.MemberwiseClone();
+        }
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            ReadEventDetailsSorted clone = (ReadEventDetailsSorted)base.MemberwiseClone();
+
+            clone.m_sortClause = (SortRuleElementCollection)Utils.Clone(this.m_sortClause);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private SortRuleElementCollection m_sortClause;
+        #endregion
+    }
+    #endif
+    #endregion
+
     #region ReadRawModifiedDetails Class
     #if (!OPCUA_EXCLUDE_ReadRawModifiedDetails)
     /// <remarks />
@@ -68456,7 +70345,7 @@ namespace Opc.Ua
             m_disabledMonitoredItemCount = (uint)0;
             m_monitoringQueueOverflowCount = (uint)0;
             m_nextSequenceNumber = (uint)0;
-            m_eventQueueOverFlowCount = (uint)0;
+            m_eventQueueOverflowCount = (uint)0;
         }
         #endregion
 
@@ -68702,11 +70591,11 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        [DataMember(Name = "EventQueueOverFlowCount", IsRequired = false, Order = 31)]
-        public uint EventQueueOverFlowCount
+        [DataMember(Name = "EventQueueOverflowCount", IsRequired = false, Order = 31)]
+        public uint EventQueueOverflowCount
         {
-            get { return m_eventQueueOverFlowCount;  }
-            set { m_eventQueueOverFlowCount = value; }
+            get { return m_eventQueueOverflowCount;  }
+            set { m_eventQueueOverflowCount = value; }
         }
         #endregion
 
@@ -68758,7 +70647,7 @@ namespace Opc.Ua
             encoder.WriteUInt32("DisabledMonitoredItemCount", DisabledMonitoredItemCount);
             encoder.WriteUInt32("MonitoringQueueOverflowCount", MonitoringQueueOverflowCount);
             encoder.WriteUInt32("NextSequenceNumber", NextSequenceNumber);
-            encoder.WriteUInt32("EventQueueOverFlowCount", EventQueueOverFlowCount);
+            encoder.WriteUInt32("EventQueueOverflowCount", EventQueueOverflowCount);
 
             encoder.PopNamespace();
         }
@@ -68798,7 +70687,7 @@ namespace Opc.Ua
             DisabledMonitoredItemCount = decoder.ReadUInt32("DisabledMonitoredItemCount");
             MonitoringQueueOverflowCount = decoder.ReadUInt32("MonitoringQueueOverflowCount");
             NextSequenceNumber = decoder.ReadUInt32("NextSequenceNumber");
-            EventQueueOverFlowCount = decoder.ReadUInt32("EventQueueOverFlowCount");
+            EventQueueOverflowCount = decoder.ReadUInt32("EventQueueOverflowCount");
 
             decoder.PopNamespace();
         }
@@ -68848,7 +70737,7 @@ namespace Opc.Ua
             if (!Utils.IsEqual(m_disabledMonitoredItemCount, value.m_disabledMonitoredItemCount)) return false;
             if (!Utils.IsEqual(m_monitoringQueueOverflowCount, value.m_monitoringQueueOverflowCount)) return false;
             if (!Utils.IsEqual(m_nextSequenceNumber, value.m_nextSequenceNumber)) return false;
-            if (!Utils.IsEqual(m_eventQueueOverFlowCount, value.m_eventQueueOverFlowCount)) return false;
+            if (!Utils.IsEqual(m_eventQueueOverflowCount, value.m_eventQueueOverflowCount)) return false;
 
             return true;
         }
@@ -68894,7 +70783,7 @@ namespace Opc.Ua
             clone.m_disabledMonitoredItemCount = (uint)Utils.Clone(this.m_disabledMonitoredItemCount);
             clone.m_monitoringQueueOverflowCount = (uint)Utils.Clone(this.m_monitoringQueueOverflowCount);
             clone.m_nextSequenceNumber = (uint)Utils.Clone(this.m_nextSequenceNumber);
-            clone.m_eventQueueOverFlowCount = (uint)Utils.Clone(this.m_eventQueueOverFlowCount);
+            clone.m_eventQueueOverflowCount = (uint)Utils.Clone(this.m_eventQueueOverflowCount);
 
             return clone;
         }
@@ -68931,7 +70820,7 @@ namespace Opc.Ua
         private uint m_disabledMonitoredItemCount;
         private uint m_monitoringQueueOverflowCount;
         private uint m_nextSequenceNumber;
-        private uint m_eventQueueOverFlowCount;
+        private uint m_eventQueueOverflowCount;
         #endregion
     }
 

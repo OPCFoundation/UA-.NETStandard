@@ -364,6 +364,9 @@ namespace Opc.Ua
         public const uint ActionMethodDataType = 18597;
 
         /// <remarks />
+        public const uint PublishedActionMethodDataType = 18793;
+
+        /// <remarks />
         public const uint DataSetFieldContentMask = 15583;
 
         /// <remarks />
@@ -514,6 +517,9 @@ namespace Opc.Ua
         public const uint DatagramDataSetReaderTransportDataType = 23614;
 
         /// <remarks />
+        public const uint DtlsPubSubConnectionDataType = 18794;
+
+        /// <remarks />
         public const uint BrokerConnectionTransportDataType = 15007;
 
         /// <remarks />
@@ -583,7 +589,28 @@ namespace Opc.Ua
         public const uint TsnListenerStatus = 24224;
 
         /// <remarks />
+        public const uint ChassisIdSubtype = 18947;
+
+        /// <remarks />
+        public const uint PortIdSubtype = 18949;
+
+        /// <remarks />
+        public const uint ManAddrIfSubtype = 18951;
+
+        /// <remarks />
         public const uint PriorityMappingEntryType = 25220;
+
+        /// <remarks />
+        public const uint LldpManagementAddressTxPortType = 18953;
+
+        /// <remarks />
+        public const uint LldpManagementAddressType = 18954;
+
+        /// <remarks />
+        public const uint LldpTlvType = 18955;
+
+        /// <remarks />
+        public const uint LldpSystemCapabilitiesMap = 18956;
 
         /// <remarks />
         public const uint ReferenceDescriptionDataType = 32659;
@@ -1100,6 +1127,15 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ReadEventDetails2 = 32799;
+
+        /// <remarks />
+        public const uint SortOrderType = 18646;
+
+        /// <remarks />
+        public const uint SortRuleElement = 18648;
+
+        /// <remarks />
+        public const uint ReadEventDetailsSorted = 18649;
 
         /// <remarks />
         public const uint ReadRawModifiedDetails = 647;
@@ -1663,42 +1699,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint RoleType_RemoveEndpoint = 16182;
-
-        /// <remarks />
-        public const uint WellKnownRole_Anonymous_AddIdentity = 15648;
-
-        /// <remarks />
-        public const uint WellKnownRole_Anonymous_RemoveIdentity = 15650;
-
-        /// <remarks />
-        public const uint WellKnownRole_Anonymous_AddApplication = 16195;
-
-        /// <remarks />
-        public const uint WellKnownRole_Anonymous_RemoveApplication = 16197;
-
-        /// <remarks />
-        public const uint WellKnownRole_Anonymous_AddEndpoint = 16199;
-
-        /// <remarks />
-        public const uint WellKnownRole_Anonymous_RemoveEndpoint = 16201;
-
-        /// <remarks />
-        public const uint WellKnownRole_AuthenticatedUser_AddIdentity = 15660;
-
-        /// <remarks />
-        public const uint WellKnownRole_AuthenticatedUser_RemoveIdentity = 15662;
-
-        /// <remarks />
-        public const uint WellKnownRole_AuthenticatedUser_AddApplication = 16206;
-
-        /// <remarks />
-        public const uint WellKnownRole_AuthenticatedUser_RemoveApplication = 16208;
-
-        /// <remarks />
-        public const uint WellKnownRole_AuthenticatedUser_AddEndpoint = 16210;
-
-        /// <remarks />
-        public const uint WellKnownRole_AuthenticatedUser_RemoveEndpoint = 16212;
 
         /// <remarks />
         public const uint WellKnownRole_Observer_AddIdentity = 15672;
@@ -2367,10 +2367,10 @@ namespace Opc.Ua
         public const uint CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ShelvingState_OneShotShelve = 21637;
 
         /// <remarks />
-        public const uint ConfigurationFileType_CloseAndUpdate = 15505;
+        public const uint ConfigurationFileType_ConfirmUpdate = 15508;
 
         /// <remarks />
-        public const uint ConfigurationFileType_ConfirmUpdate = 15508;
+        public const uint ConfigurationFileType_CloseAndUpdate = 15505;
 
         /// <remarks />
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Open = 16717;
@@ -2619,10 +2619,10 @@ namespace Opc.Ua
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SetPosition = 18575;
 
         /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate = 18581;
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate = 18584;
 
         /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate = 18584;
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate = 18581;
 
         /// <remarks />
         public const uint ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustList_Open = 13958;
@@ -2880,10 +2880,10 @@ namespace Opc.Ua
         public const uint ServerConfigurationType_ConfigurationFile_SetPosition = 15810;
 
         /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_CloseAndUpdate = 15849;
+        public const uint ServerConfigurationType_ConfigurationFile_ConfirmUpdate = 15863;
 
         /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_ConfirmUpdate = 15863;
+        public const uint ServerConfigurationType_ConfigurationFile_CloseAndUpdate = 15849;
 
         /// <remarks />
         public const uint ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open = 12647;
@@ -3138,13 +3138,16 @@ namespace Opc.Ua
         public const uint ServerConfiguration_ConfigurationFile_SetPosition = 16124;
 
         /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_CloseAndUpdate = 16317;
-
-        /// <remarks />
         public const uint ServerConfiguration_ConfigurationFile_ConfirmUpdate = 16320;
 
         /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_CloseAndUpdate = 16317;
+
+        /// <remarks />
         public const uint KeyCredentialConfigurationFolderType_CreateCredential = 17522;
+
+        /// <remarks />
+        public const uint KeyCredentialConfiguration_CreateCredential = 17528;
 
         /// <remarks />
         public const uint KeyCredentialConfigurationType_GetEncryptingKey = 17534;
@@ -3801,10 +3804,10 @@ namespace Opc.Ua
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SetPosition = 16345;
 
         /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate = 16368;
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate = 16523;
 
         /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate = 16523;
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate = 16368;
 
         /// <remarks />
         public const uint ProvisionableDevice_RequestTickets = 29880;
@@ -4032,6 +4035,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint WellKnownRole_AuthenticatedUser = 15656;
+
+        /// <remarks />
+        public const uint WellKnownRole_TrustedApplication = 18625;
 
         /// <remarks />
         public const uint WellKnownRole_Observer = 15668;
@@ -4844,7 +4850,34 @@ namespace Opc.Ua
         public const uint ListenerStreams = 24232;
 
         /// <remarks />
+        public const uint LLDP = 18958;
+
+        /// <remarks />
+        public const uint LLDP_LocalSystemData = 18965;
+
+        /// <remarks />
+        public const uint LLDP_Ports = 18972;
+
+        /// <remarks />
         public const uint IetfBaseNetworkInterfaceType_InterfaceName_Placeholder = 25226;
+
+        /// <remarks />
+        public const uint LldpInformationType_RemoteStatistics = 18974;
+
+        /// <remarks />
+        public const uint LldpInformationType_LocalSystemData = 18980;
+
+        /// <remarks />
+        public const uint LldpInformationType_Ports = 18987;
+
+        /// <remarks />
+        public const uint LldpInformationType_Ports_LldpPortInformation_Placeholder = 18988;
+
+        /// <remarks />
+        public const uint LldpPortInformationType_RemoteSystemsData = 19016;
+
+        /// <remarks />
+        public const uint LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder = 19017;
 
         /// <remarks />
         public const uint Union_Encoding_DefaultBinary = 12766;
@@ -5009,6 +5042,9 @@ namespace Opc.Ua
         public const uint ActionMethodDataType_Encoding_DefaultBinary = 18600;
 
         /// <remarks />
+        public const uint PublishedActionMethodDataType_Encoding_DefaultBinary = 18795;
+
+        /// <remarks />
         public const uint DataSetWriterDataType_Encoding_DefaultBinary = 15682;
 
         /// <remarks />
@@ -5138,6 +5174,9 @@ namespace Opc.Ua
         public const uint DatagramDataSetReaderTransportDataType_Encoding_DefaultBinary = 23866;
 
         /// <remarks />
+        public const uint DtlsPubSubConnectionDataType_Encoding_DefaultBinary = 18930;
+
+        /// <remarks />
         public const uint BrokerConnectionTransportDataType_Encoding_DefaultBinary = 15479;
 
         /// <remarks />
@@ -5163,6 +5202,15 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint PriorityMappingEntryType_Encoding_DefaultBinary = 25239;
+
+        /// <remarks />
+        public const uint LldpManagementAddressTxPortType_Encoding_DefaultBinary = 19079;
+
+        /// <remarks />
+        public const uint LldpManagementAddressType_Encoding_DefaultBinary = 19080;
+
+        /// <remarks />
+        public const uint LldpTlvType_Encoding_DefaultBinary = 19081;
 
         /// <remarks />
         public const uint ReferenceDescriptionDataType_Encoding_DefaultBinary = 32661;
@@ -5571,6 +5619,12 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ReadEventDetails2_Encoding_DefaultBinary = 32800;
+
+        /// <remarks />
+        public const uint SortRuleElement_Encoding_DefaultBinary = 18650;
+
+        /// <remarks />
+        public const uint ReadEventDetailsSorted_Encoding_DefaultBinary = 18651;
 
         /// <remarks />
         public const uint ReadRawModifiedDetails_Encoding_DefaultBinary = 649;
@@ -6044,6 +6098,9 @@ namespace Opc.Ua
         public const uint ActionMethodDataType_Encoding_DefaultXml = 18612;
 
         /// <remarks />
+        public const uint PublishedActionMethodDataType_Encoding_DefaultXml = 18937;
+
+        /// <remarks />
         public const uint DataSetWriterDataType_Encoding_DefaultXml = 15955;
 
         /// <remarks />
@@ -6173,6 +6230,9 @@ namespace Opc.Ua
         public const uint DatagramDataSetReaderTransportDataType_Encoding_DefaultXml = 23934;
 
         /// <remarks />
+        public const uint DtlsPubSubConnectionDataType_Encoding_DefaultXml = 18938;
+
+        /// <remarks />
         public const uint BrokerConnectionTransportDataType_Encoding_DefaultXml = 15579;
 
         /// <remarks />
@@ -6198,6 +6258,15 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint PriorityMappingEntryType_Encoding_DefaultXml = 25243;
+
+        /// <remarks />
+        public const uint LldpManagementAddressTxPortType_Encoding_DefaultXml = 19100;
+
+        /// <remarks />
+        public const uint LldpManagementAddressType_Encoding_DefaultXml = 19101;
+
+        /// <remarks />
+        public const uint LldpTlvType_Encoding_DefaultXml = 19102;
 
         /// <remarks />
         public const uint ReferenceDescriptionDataType_Encoding_DefaultXml = 32669;
@@ -6606,6 +6675,12 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ReadEventDetails2_Encoding_DefaultXml = 32801;
+
+        /// <remarks />
+        public const uint SortRuleElement_Encoding_DefaultXml = 18652;
+
+        /// <remarks />
+        public const uint ReadEventDetailsSorted_Encoding_DefaultXml = 18653;
 
         /// <remarks />
         public const uint ReadRawModifiedDetails_Encoding_DefaultXml = 648;
@@ -7079,6 +7154,9 @@ namespace Opc.Ua
         public const uint ActionMethodDataType_Encoding_DefaultJson = 18624;
 
         /// <remarks />
+        public const uint PublishedActionMethodDataType_Encoding_DefaultJson = 18945;
+
+        /// <remarks />
         public const uint DataSetWriterDataType_Encoding_DefaultJson = 16156;
 
         /// <remarks />
@@ -7208,6 +7286,9 @@ namespace Opc.Ua
         public const uint DatagramDataSetReaderTransportDataType_Encoding_DefaultJson = 24002;
 
         /// <remarks />
+        public const uint DtlsPubSubConnectionDataType_Encoding_DefaultJson = 18946;
+
+        /// <remarks />
         public const uint BrokerConnectionTransportDataType_Encoding_DefaultJson = 15726;
 
         /// <remarks />
@@ -7233,6 +7314,15 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint PriorityMappingEntryType_Encoding_DefaultJson = 25247;
+
+        /// <remarks />
+        public const uint LldpManagementAddressTxPortType_Encoding_DefaultJson = 19299;
+
+        /// <remarks />
+        public const uint LldpManagementAddressType_Encoding_DefaultJson = 19300;
+
+        /// <remarks />
+        public const uint LldpTlvType_Encoding_DefaultJson = 19301;
 
         /// <remarks />
         public const uint ReferenceDescriptionDataType_Encoding_DefaultJson = 32677;
@@ -7641,6 +7731,12 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ReadEventDetails2_Encoding_DefaultJson = 32802;
+
+        /// <remarks />
+        public const uint SortRuleElement_Encoding_DefaultJson = 18654;
+
+        /// <remarks />
+        public const uint ReadEventDetailsSorted_Encoding_DefaultJson = 18655;
 
         /// <remarks />
         public const uint ReadRawModifiedDetails_Encoding_DefaultJson = 15263;
@@ -8759,6 +8855,21 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint PriorityMappingTableType = 25227;
+
+        /// <remarks />
+        public const uint LldpInformationType = 18973;
+
+        /// <remarks />
+        public const uint LldpRemoteStatisticsType = 18996;
+
+        /// <remarks />
+        public const uint LldpLocalSystemType = 19002;
+
+        /// <remarks />
+        public const uint LldpPortInformationType = 19009;
+
+        /// <remarks />
+        public const uint LldpRemoteSystemType = 19033;
     }
     #endregion
 
@@ -11564,18 +11675,6 @@ namespace Opc.Ua
         public const uint WellKnownRole_Anonymous_Identities = 16192;
 
         /// <remarks />
-        public const uint WellKnownRole_Anonymous_ApplicationsExclude = 15412;
-
-        /// <remarks />
-        public const uint WellKnownRole_Anonymous_Applications = 16193;
-
-        /// <remarks />
-        public const uint WellKnownRole_Anonymous_EndpointsExclude = 15413;
-
-        /// <remarks />
-        public const uint WellKnownRole_Anonymous_Endpoints = 16194;
-
-        /// <remarks />
         public const uint WellKnownRole_Anonymous_AddIdentity_InputArguments = 15649;
 
         /// <remarks />
@@ -11597,21 +11696,6 @@ namespace Opc.Ua
         public const uint WellKnownRole_AuthenticatedUser_Identities = 16203;
 
         /// <remarks />
-        public const uint WellKnownRole_AuthenticatedUser_ApplicationsExclude = 15414;
-
-        /// <remarks />
-        public const uint WellKnownRole_AuthenticatedUser_Applications = 16204;
-
-        /// <remarks />
-        public const uint WellKnownRole_AuthenticatedUser_EndpointsExclude = 15415;
-
-        /// <remarks />
-        public const uint WellKnownRole_AuthenticatedUser_Endpoints = 16205;
-
-        /// <remarks />
-        public const uint WellKnownRole_AuthenticatedUser_CustomConfiguration = 24141;
-
-        /// <remarks />
         public const uint WellKnownRole_AuthenticatedUser_AddIdentity_InputArguments = 15661;
 
         /// <remarks />
@@ -11628,6 +11712,27 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint WellKnownRole_AuthenticatedUser_RemoveEndpoint_InputArguments = 16213;
+
+        /// <remarks />
+        public const uint WellKnownRole_TrustedApplication_Identities = 18626;
+
+        /// <remarks />
+        public const uint WellKnownRole_TrustedApplication_AddIdentity_InputArguments = 18633;
+
+        /// <remarks />
+        public const uint WellKnownRole_TrustedApplication_RemoveIdentity_InputArguments = 18635;
+
+        /// <remarks />
+        public const uint WellKnownRole_TrustedApplication_AddApplication_InputArguments = 18637;
+
+        /// <remarks />
+        public const uint WellKnownRole_TrustedApplication_RemoveApplication_InputArguments = 18639;
+
+        /// <remarks />
+        public const uint WellKnownRole_TrustedApplication_AddEndpoint_InputArguments = 18641;
+
+        /// <remarks />
+        public const uint WellKnownRole_TrustedApplication_RemoveEndpoint_InputArguments = 18643;
 
         /// <remarks />
         public const uint WellKnownRole_Observer_Identities = 16214;
@@ -12053,9 +12158,6 @@ namespace Opc.Ua
         public const uint UnitType_Symbol = 32443;
 
         /// <remarks />
-        public const uint UnitType_Description = 32444;
-
-        /// <remarks />
         public const uint UnitType_UnitSystem = 32445;
 
         /// <remarks />
@@ -12087,9 +12189,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint QuantityType_Symbol = 32476;
-
-        /// <remarks />
-        public const uint QuantityType_Description = 32477;
 
         /// <remarks />
         public const uint QuantityType_Annotation = 32478;
@@ -13197,6 +13296,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint HistoricalEventConfigurationType_StartOfOnlineArchive = 32624;
+
+        /// <remarks />
+        public const uint HistoricalEventConfigurationType_SortByEventFields = 18644;
 
         /// <remarks />
         public const uint HistoricalExternalEventSourceType_Server = 32626;
@@ -15473,16 +15575,16 @@ namespace Opc.Ua
         public const uint ConfigurationFileType_SupportedDataType = 15504;
 
         /// <remarks />
-        public const uint ConfigurationFileType_CloseAndUpdate_InputArguments = 15506;
-
-        /// <remarks />
-        public const uint ConfigurationFileType_CloseAndUpdate_OutputArguments = 15507;
-
-        /// <remarks />
         public const uint ConfigurationFileType_ConfirmUpdate_InputArguments = 15511;
 
         /// <remarks />
         public const uint ConfigurationFileType_ConfirmUpdate_OutputArguments = 15512;
+
+        /// <remarks />
+        public const uint ConfigurationFileType_CloseAndUpdate_InputArguments = 15506;
+
+        /// <remarks />
+        public const uint ConfigurationFileType_CloseAndUpdate_OutputArguments = 15507;
 
         /// <remarks />
         public const uint ConfigurationUpdateType_EnumValues = 15540;
@@ -16832,16 +16934,16 @@ namespace Opc.Ua
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SupportedDataType = 18580;
 
         /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments = 18582;
-
-        /// <remarks />
-        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments = 18583;
-
-        /// <remarks />
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_InputArguments = 18585;
 
         /// <remarks />
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_OutputArguments = 18586;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments = 18582;
+
+        /// <remarks />
+        public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments = 18583;
 
         /// <remarks />
         public const uint ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_AvailableNetworks = 18587;
@@ -18092,6 +18194,9 @@ namespace Opc.Ua
         public const uint ServerConfigurationType_ApplicationType = 25697;
 
         /// <remarks />
+        public const uint ServerConfigurationType_ApplicationNames = 18660;
+
+        /// <remarks />
         public const uint ServerConfigurationType_ServerCapabilities = 12708;
 
         /// <remarks />
@@ -18105,6 +18210,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint ServerConfigurationType_HasSecureElement = 23593;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_SupportsTransactions = 18661;
 
         /// <remarks />
         public const uint ServerConfigurationType_UpdateCertificate_InputArguments = 12617;
@@ -18197,16 +18305,16 @@ namespace Opc.Ua
         public const uint ServerConfigurationType_ConfigurationFile_SupportedDataType = 15848;
 
         /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_CloseAndUpdate_InputArguments = 15850;
-
-        /// <remarks />
-        public const uint ServerConfigurationType_ConfigurationFile_CloseAndUpdate_OutputArguments = 15851;
-
-        /// <remarks />
         public const uint ServerConfigurationType_ConfigurationFile_ConfirmUpdate_InputArguments = 15864;
 
         /// <remarks />
         public const uint ServerConfigurationType_ConfigurationFile_ConfirmUpdate_OutputArguments = 15865;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_CloseAndUpdate_InputArguments = 15850;
+
+        /// <remarks />
+        public const uint ServerConfigurationType_ConfigurationFile_CloseAndUpdate_OutputArguments = 15851;
 
         /// <remarks />
         public const uint ServerConfigurationType_ConfigurationFile_AvailableNetworks = 16646;
@@ -19550,16 +19658,16 @@ namespace Opc.Ua
         public const uint ServerConfiguration_ConfigurationFile_SupportedDataType = 16316;
 
         /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_CloseAndUpdate_InputArguments = 16318;
-
-        /// <remarks />
-        public const uint ServerConfiguration_ConfigurationFile_CloseAndUpdate_OutputArguments = 16319;
-
-        /// <remarks />
         public const uint ServerConfiguration_ConfigurationFile_ConfirmUpdate_InputArguments = 16321;
 
         /// <remarks />
         public const uint ServerConfiguration_ConfigurationFile_ConfirmUpdate_OutputArguments = 16322;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_CloseAndUpdate_InputArguments = 16318;
+
+        /// <remarks />
+        public const uint ServerConfiguration_ConfigurationFile_CloseAndUpdate_OutputArguments = 16319;
 
         /// <remarks />
         public const uint ServerConfiguration_ConfigurationFile_AvailableNetworks = 16652;
@@ -19611,6 +19719,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint KeyCredentialConfigurationType_EndpointUrls = 18004;
+
+        /// <remarks />
+        public const uint KeyCredentialConfigurationType_CredentialId = 18657;
 
         /// <remarks />
         public const uint KeyCredentialConfigurationType_ServiceStatus = 18005;
@@ -24932,16 +25043,16 @@ namespace Opc.Ua
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SupportedDataType = 16367;
 
         /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments = 16369;
-
-        /// <remarks />
-        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments = 16370;
-
-        /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_InputArguments = 16536;
 
         /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_OutputArguments = 16537;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments = 16369;
+
+        /// <remarks />
+        public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments = 16370;
 
         /// <remarks />
         public const uint ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_AvailableNetworks = 16657;
@@ -25112,6 +25223,45 @@ namespace Opc.Ua
         public const uint TsnListenerStatus_EnumValues = 24242;
 
         /// <remarks />
+        public const uint ChassisIdSubtype_EnumValues = 18948;
+
+        /// <remarks />
+        public const uint PortIdSubtype_EnumValues = 18950;
+
+        /// <remarks />
+        public const uint ManAddrIfSubtype_EnumValues = 18952;
+
+        /// <remarks />
+        public const uint LldpSystemCapabilitiesMap_OptionSetValues = 18957;
+
+        /// <remarks />
+        public const uint LLDP_RemoteStatistics_LastChangeTime = 18960;
+
+        /// <remarks />
+        public const uint LLDP_RemoteStatistics_RemoteInserts = 18961;
+
+        /// <remarks />
+        public const uint LLDP_RemoteStatistics_RemoteDeletes = 18962;
+
+        /// <remarks />
+        public const uint LLDP_RemoteStatistics_RemoteDrops = 18963;
+
+        /// <remarks />
+        public const uint LLDP_RemoteStatistics_RemoteAgeouts = 18964;
+
+        /// <remarks />
+        public const uint LLDP_LocalSystemData_ChassisIdSubtype = 18966;
+
+        /// <remarks />
+        public const uint LLDP_LocalSystemData_ChassisId = 18967;
+
+        /// <remarks />
+        public const uint LLDP_LocalSystemData_SystemName = 18968;
+
+        /// <remarks />
+        public const uint LLDP_LocalSystemData_SystemDescription = 18969;
+
+        /// <remarks />
         public const uint IetfBaseNetworkInterfaceType_AdminStatus = 25222;
 
         /// <remarks />
@@ -25134,6 +25284,159 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint PriorityMappingTableType_DeletePriorityMappingEntry_InputArguments = 25232;
+
+        /// <remarks />
+        public const uint LldpInformationType_RemoteStatistics_LastChangeTime = 18975;
+
+        /// <remarks />
+        public const uint LldpInformationType_RemoteStatistics_RemoteInserts = 18976;
+
+        /// <remarks />
+        public const uint LldpInformationType_RemoteStatistics_RemoteDeletes = 18977;
+
+        /// <remarks />
+        public const uint LldpInformationType_RemoteStatistics_RemoteDrops = 18978;
+
+        /// <remarks />
+        public const uint LldpInformationType_RemoteStatistics_RemoteAgeouts = 18979;
+
+        /// <remarks />
+        public const uint LldpInformationType_LocalSystemData_ChassisIdSubtype = 18981;
+
+        /// <remarks />
+        public const uint LldpInformationType_LocalSystemData_ChassisId = 18982;
+
+        /// <remarks />
+        public const uint LldpInformationType_LocalSystemData_SystemName = 18983;
+
+        /// <remarks />
+        public const uint LldpInformationType_LocalSystemData_SystemDescription = 18984;
+
+        /// <remarks />
+        public const uint LldpInformationType_Ports_LldpPortInformation_Placeholder_IetfBaseNetworkInterfaceName = 18989;
+
+        /// <remarks />
+        public const uint LldpInformationType_Ports_LldpPortInformation_Placeholder_DestMacAddress = 18990;
+
+        /// <remarks />
+        public const uint LldpInformationType_Ports_LldpPortInformation_Placeholder_PortIdSubtype = 18991;
+
+        /// <remarks />
+        public const uint LldpInformationType_Ports_LldpPortInformation_Placeholder_PortId = 18992;
+
+        /// <remarks />
+        public const uint LldpRemoteStatisticsType_LastChangeTime = 18997;
+
+        /// <remarks />
+        public const uint LldpRemoteStatisticsType_RemoteInserts = 18998;
+
+        /// <remarks />
+        public const uint LldpRemoteStatisticsType_RemoteDeletes = 18999;
+
+        /// <remarks />
+        public const uint LldpRemoteStatisticsType_RemoteDrops = 19000;
+
+        /// <remarks />
+        public const uint LldpRemoteStatisticsType_RemoteAgeouts = 19001;
+
+        /// <remarks />
+        public const uint LldpLocalSystemType_ChassisIdSubtype = 19003;
+
+        /// <remarks />
+        public const uint LldpLocalSystemType_ChassisId = 19004;
+
+        /// <remarks />
+        public const uint LldpLocalSystemType_SystemName = 19005;
+
+        /// <remarks />
+        public const uint LldpLocalSystemType_SystemDescription = 19006;
+
+        /// <remarks />
+        public const uint LldpLocalSystemType_SystemCapabilitiesSupported = 19007;
+
+        /// <remarks />
+        public const uint LldpLocalSystemType_SystemCapabilitiesEnabled = 19008;
+
+        /// <remarks />
+        public const uint LldpPortInformationType_IetfBaseNetworkInterfaceName = 19010;
+
+        /// <remarks />
+        public const uint LldpPortInformationType_DestMacAddress = 19011;
+
+        /// <remarks />
+        public const uint LldpPortInformationType_PortIdSubtype = 19012;
+
+        /// <remarks />
+        public const uint LldpPortInformationType_PortId = 19013;
+
+        /// <remarks />
+        public const uint LldpPortInformationType_PortDescription = 19014;
+
+        /// <remarks />
+        public const uint LldpPortInformationType_ManagementAddressTxPort = 19015;
+
+        /// <remarks />
+        public const uint LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_TimeMark = 19018;
+
+        /// <remarks />
+        public const uint LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_RemoteIndex = 19019;
+
+        /// <remarks />
+        public const uint LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_ChassisIdSubtype = 19020;
+
+        /// <remarks />
+        public const uint LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_ChassisId = 19021;
+
+        /// <remarks />
+        public const uint LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_PortIdSubtype = 19022;
+
+        /// <remarks />
+        public const uint LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_PortId = 19023;
+
+        /// <remarks />
+        public const uint LldpRemoteSystemType_TimeMark = 19034;
+
+        /// <remarks />
+        public const uint LldpRemoteSystemType_RemoteIndex = 19035;
+
+        /// <remarks />
+        public const uint LldpRemoteSystemType_ChassisIdSubtype = 19036;
+
+        /// <remarks />
+        public const uint LldpRemoteSystemType_ChassisId = 19037;
+
+        /// <remarks />
+        public const uint LldpRemoteSystemType_PortIdSubtype = 19038;
+
+        /// <remarks />
+        public const uint LldpRemoteSystemType_PortId = 19039;
+
+        /// <remarks />
+        public const uint LldpRemoteSystemType_PortDescription = 19040;
+
+        /// <remarks />
+        public const uint LldpRemoteSystemType_SystemName = 19041;
+
+        /// <remarks />
+        public const uint LldpRemoteSystemType_SystemDescription = 19042;
+
+        /// <remarks />
+        public const uint LldpRemoteSystemType_SystemCapabilitiesSupported = 19043;
+
+        /// <remarks />
+        public const uint LldpRemoteSystemType_SystemCapabilitiesEnabled = 19044;
+
+        /// <remarks />
+        public const uint LldpRemoteSystemType_RemoteChanges = 19045;
+
+        /// <remarks />
+        public const uint LldpRemoteSystemType_RemoteTooManyNeighbors = 19046;
+
+        /// <remarks />
+        public const uint LldpRemoteSystemType_ManagementAddress = 19047;
+
+        /// <remarks />
+        public const uint LldpRemoteSystemType_RemoteUnknownTlv = 19078;
 
         /// <remarks />
         public const uint ReferenceDescriptionVariableType_ReferenceRefinement = 32658;
@@ -25191,6 +25494,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint TimestampsToReturn_EnumStrings = 7606;
+
+        /// <remarks />
+        public const uint SortOrderType_EnumStrings = 18647;
 
         /// <remarks />
         public const uint HistoryUpdateType_EnumValues = 11884;
@@ -25394,6 +25700,9 @@ namespace Opc.Ua
         public const uint OpcUa_BinarySchema_ActionMethodDataType = 18607;
 
         /// <remarks />
+        public const uint OpcUa_BinarySchema_PublishedActionMethodDataType = 18931;
+
+        /// <remarks />
         public const uint OpcUa_BinarySchema_DataSetWriterDataType = 15778;
 
         /// <remarks />
@@ -25523,6 +25832,9 @@ namespace Opc.Ua
         public const uint OpcUa_BinarySchema_DatagramDataSetReaderTransportDataType = 23915;
 
         /// <remarks />
+        public const uint OpcUa_BinarySchema_DtlsPubSubConnectionDataType = 18934;
+
+        /// <remarks />
         public const uint OpcUa_BinarySchema_BrokerConnectionTransportDataType = 15524;
 
         /// <remarks />
@@ -25548,6 +25860,15 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint OpcUa_BinarySchema_PriorityMappingEntryType = 25240;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_LldpManagementAddressTxPortType = 19085;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_LldpManagementAddressType = 19088;
+
+        /// <remarks />
+        public const uint OpcUa_BinarySchema_LldpTlvType = 19097;
 
         /// <remarks />
         public const uint OpcUa_BinarySchema_ReferenceDescriptionDataType = 32663;
@@ -25925,6 +26246,9 @@ namespace Opc.Ua
         public const uint OpcUa_XmlSchema_ActionMethodDataType = 18619;
 
         /// <remarks />
+        public const uint OpcUa_XmlSchema_PublishedActionMethodDataType = 18939;
+
+        /// <remarks />
         public const uint OpcUa_XmlSchema_DataSetWriterDataType = 16047;
 
         /// <remarks />
@@ -26054,6 +26378,9 @@ namespace Opc.Ua
         public const uint OpcUa_XmlSchema_DatagramDataSetReaderTransportDataType = 23983;
 
         /// <remarks />
+        public const uint OpcUa_XmlSchema_DtlsPubSubConnectionDataType = 18942;
+
+        /// <remarks />
         public const uint OpcUa_XmlSchema_BrokerConnectionTransportDataType = 15640;
 
         /// <remarks />
@@ -26079,6 +26406,15 @@ namespace Opc.Ua
 
         /// <remarks />
         public const uint OpcUa_XmlSchema_PriorityMappingEntryType = 25244;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_LldpManagementAddressTxPortType = 19103;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_LldpManagementAddressType = 19106;
+
+        /// <remarks />
+        public const uint OpcUa_XmlSchema_LldpTlvType = 19291;
 
         /// <remarks />
         public const uint OpcUa_XmlSchema_ReferenceDescriptionDataType = 32671;
@@ -26811,6 +27147,9 @@ namespace Opc.Ua
         public static readonly NodeId ActionMethodDataType = new NodeId(Opc.Ua.DataTypes.ActionMethodDataType);
 
         /// <remarks />
+        public static readonly NodeId PublishedActionMethodDataType = new NodeId(Opc.Ua.DataTypes.PublishedActionMethodDataType);
+
+        /// <remarks />
         public static readonly NodeId DataSetFieldContentMask = new NodeId(Opc.Ua.DataTypes.DataSetFieldContentMask);
 
         /// <remarks />
@@ -26961,6 +27300,9 @@ namespace Opc.Ua
         public static readonly NodeId DatagramDataSetReaderTransportDataType = new NodeId(Opc.Ua.DataTypes.DatagramDataSetReaderTransportDataType);
 
         /// <remarks />
+        public static readonly NodeId DtlsPubSubConnectionDataType = new NodeId(Opc.Ua.DataTypes.DtlsPubSubConnectionDataType);
+
+        /// <remarks />
         public static readonly NodeId BrokerConnectionTransportDataType = new NodeId(Opc.Ua.DataTypes.BrokerConnectionTransportDataType);
 
         /// <remarks />
@@ -27030,7 +27372,28 @@ namespace Opc.Ua
         public static readonly NodeId TsnListenerStatus = new NodeId(Opc.Ua.DataTypes.TsnListenerStatus);
 
         /// <remarks />
+        public static readonly NodeId ChassisIdSubtype = new NodeId(Opc.Ua.DataTypes.ChassisIdSubtype);
+
+        /// <remarks />
+        public static readonly NodeId PortIdSubtype = new NodeId(Opc.Ua.DataTypes.PortIdSubtype);
+
+        /// <remarks />
+        public static readonly NodeId ManAddrIfSubtype = new NodeId(Opc.Ua.DataTypes.ManAddrIfSubtype);
+
+        /// <remarks />
         public static readonly NodeId PriorityMappingEntryType = new NodeId(Opc.Ua.DataTypes.PriorityMappingEntryType);
+
+        /// <remarks />
+        public static readonly NodeId LldpManagementAddressTxPortType = new NodeId(Opc.Ua.DataTypes.LldpManagementAddressTxPortType);
+
+        /// <remarks />
+        public static readonly NodeId LldpManagementAddressType = new NodeId(Opc.Ua.DataTypes.LldpManagementAddressType);
+
+        /// <remarks />
+        public static readonly NodeId LldpTlvType = new NodeId(Opc.Ua.DataTypes.LldpTlvType);
+
+        /// <remarks />
+        public static readonly NodeId LldpSystemCapabilitiesMap = new NodeId(Opc.Ua.DataTypes.LldpSystemCapabilitiesMap);
 
         /// <remarks />
         public static readonly NodeId ReferenceDescriptionDataType = new NodeId(Opc.Ua.DataTypes.ReferenceDescriptionDataType);
@@ -27547,6 +27910,15 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ReadEventDetails2 = new NodeId(Opc.Ua.DataTypes.ReadEventDetails2);
+
+        /// <remarks />
+        public static readonly NodeId SortOrderType = new NodeId(Opc.Ua.DataTypes.SortOrderType);
+
+        /// <remarks />
+        public static readonly NodeId SortRuleElement = new NodeId(Opc.Ua.DataTypes.SortRuleElement);
+
+        /// <remarks />
+        public static readonly NodeId ReadEventDetailsSorted = new NodeId(Opc.Ua.DataTypes.ReadEventDetailsSorted);
 
         /// <remarks />
         public static readonly NodeId ReadRawModifiedDetails = new NodeId(Opc.Ua.DataTypes.ReadRawModifiedDetails);
@@ -28110,42 +28482,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId RoleType_RemoveEndpoint = new NodeId(Opc.Ua.Methods.RoleType_RemoveEndpoint);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_Anonymous_AddIdentity = new NodeId(Opc.Ua.Methods.WellKnownRole_Anonymous_AddIdentity);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_Anonymous_RemoveIdentity = new NodeId(Opc.Ua.Methods.WellKnownRole_Anonymous_RemoveIdentity);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_Anonymous_AddApplication = new NodeId(Opc.Ua.Methods.WellKnownRole_Anonymous_AddApplication);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_Anonymous_RemoveApplication = new NodeId(Opc.Ua.Methods.WellKnownRole_Anonymous_RemoveApplication);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_Anonymous_AddEndpoint = new NodeId(Opc.Ua.Methods.WellKnownRole_Anonymous_AddEndpoint);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_Anonymous_RemoveEndpoint = new NodeId(Opc.Ua.Methods.WellKnownRole_Anonymous_RemoveEndpoint);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_AuthenticatedUser_AddIdentity = new NodeId(Opc.Ua.Methods.WellKnownRole_AuthenticatedUser_AddIdentity);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_AuthenticatedUser_RemoveIdentity = new NodeId(Opc.Ua.Methods.WellKnownRole_AuthenticatedUser_RemoveIdentity);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_AuthenticatedUser_AddApplication = new NodeId(Opc.Ua.Methods.WellKnownRole_AuthenticatedUser_AddApplication);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_AuthenticatedUser_RemoveApplication = new NodeId(Opc.Ua.Methods.WellKnownRole_AuthenticatedUser_RemoveApplication);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_AuthenticatedUser_AddEndpoint = new NodeId(Opc.Ua.Methods.WellKnownRole_AuthenticatedUser_AddEndpoint);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_AuthenticatedUser_RemoveEndpoint = new NodeId(Opc.Ua.Methods.WellKnownRole_AuthenticatedUser_RemoveEndpoint);
 
         /// <remarks />
         public static readonly NodeId WellKnownRole_Observer_AddIdentity = new NodeId(Opc.Ua.Methods.WellKnownRole_Observer_AddIdentity);
@@ -28814,10 +29150,10 @@ namespace Opc.Ua
         public static readonly NodeId CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.CertificateGroupFolderType_AdditionalGroup_Placeholder_TrustListOutOfDate_ShelvingState_OneShotShelve);
 
         /// <remarks />
-        public static readonly NodeId ConfigurationFileType_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ConfigurationFileType_CloseAndUpdate);
+        public static readonly NodeId ConfigurationFileType_ConfirmUpdate = new NodeId(Opc.Ua.Methods.ConfigurationFileType_ConfirmUpdate);
 
         /// <remarks />
-        public static readonly NodeId ConfigurationFileType_ConfirmUpdate = new NodeId(Opc.Ua.Methods.ConfigurationFileType_ConfirmUpdate);
+        public static readonly NodeId ConfigurationFileType_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ConfigurationFileType_CloseAndUpdate);
 
         /// <remarks />
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Open = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_CertificateGroups_DefaultApplicationGroup_TrustList_Open);
@@ -29066,10 +29402,10 @@ namespace Opc.Ua
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SetPosition = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SetPosition);
 
         /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate);
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate);
 
         /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate);
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate);
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustList_Open = new NodeId(Opc.Ua.Methods.ServerConfigurationType_CertificateGroups_DefaultApplicationGroup_TrustList_Open);
@@ -29327,10 +29663,10 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfigurationType_ConfigurationFile_SetPosition = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_SetPosition);
 
         /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_CloseAndUpdate);
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_ConfirmUpdate = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_ConfirmUpdate);
 
         /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_ConfirmUpdate = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_ConfirmUpdate);
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ServerConfigurationType_ConfigurationFile_CloseAndUpdate);
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open = new NodeId(Opc.Ua.Methods.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open);
@@ -29585,13 +29921,16 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfiguration_ConfigurationFile_SetPosition = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_SetPosition);
 
         /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_CloseAndUpdate);
-
-        /// <remarks />
         public static readonly NodeId ServerConfiguration_ConfigurationFile_ConfirmUpdate = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_ConfirmUpdate);
 
         /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ServerConfiguration_ConfigurationFile_CloseAndUpdate);
+
+        /// <remarks />
         public static readonly NodeId KeyCredentialConfigurationFolderType_CreateCredential = new NodeId(Opc.Ua.Methods.KeyCredentialConfigurationFolderType_CreateCredential);
+
+        /// <remarks />
+        public static readonly NodeId KeyCredentialConfiguration_CreateCredential = new NodeId(Opc.Ua.Methods.KeyCredentialConfiguration_CreateCredential);
 
         /// <remarks />
         public static readonly NodeId KeyCredentialConfigurationType_GetEncryptingKey = new NodeId(Opc.Ua.Methods.KeyCredentialConfigurationType_GetEncryptingKey);
@@ -30248,10 +30587,10 @@ namespace Opc.Ua
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SetPosition = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SetPosition);
 
         /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate);
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate);
 
         /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate);
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate = new NodeId(Opc.Ua.Methods.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate);
 
         /// <remarks />
         public static readonly NodeId ProvisionableDevice_RequestTickets = new NodeId(Opc.Ua.Methods.ProvisionableDevice_RequestTickets);
@@ -30479,6 +30818,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId WellKnownRole_AuthenticatedUser = new NodeId(Opc.Ua.Objects.WellKnownRole_AuthenticatedUser);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_TrustedApplication = new NodeId(Opc.Ua.Objects.WellKnownRole_TrustedApplication);
 
         /// <remarks />
         public static readonly NodeId WellKnownRole_Observer = new NodeId(Opc.Ua.Objects.WellKnownRole_Observer);
@@ -31291,7 +31633,34 @@ namespace Opc.Ua
         public static readonly NodeId ListenerStreams = new NodeId(Opc.Ua.Objects.ListenerStreams);
 
         /// <remarks />
+        public static readonly NodeId LLDP = new NodeId(Opc.Ua.Objects.LLDP);
+
+        /// <remarks />
+        public static readonly NodeId LLDP_LocalSystemData = new NodeId(Opc.Ua.Objects.LLDP_LocalSystemData);
+
+        /// <remarks />
+        public static readonly NodeId LLDP_Ports = new NodeId(Opc.Ua.Objects.LLDP_Ports);
+
+        /// <remarks />
         public static readonly NodeId IetfBaseNetworkInterfaceType_InterfaceName_Placeholder = new NodeId(Opc.Ua.Objects.IetfBaseNetworkInterfaceType_InterfaceName_Placeholder);
+
+        /// <remarks />
+        public static readonly NodeId LldpInformationType_RemoteStatistics = new NodeId(Opc.Ua.Objects.LldpInformationType_RemoteStatistics);
+
+        /// <remarks />
+        public static readonly NodeId LldpInformationType_LocalSystemData = new NodeId(Opc.Ua.Objects.LldpInformationType_LocalSystemData);
+
+        /// <remarks />
+        public static readonly NodeId LldpInformationType_Ports = new NodeId(Opc.Ua.Objects.LldpInformationType_Ports);
+
+        /// <remarks />
+        public static readonly NodeId LldpInformationType_Ports_LldpPortInformation_Placeholder = new NodeId(Opc.Ua.Objects.LldpInformationType_Ports_LldpPortInformation_Placeholder);
+
+        /// <remarks />
+        public static readonly NodeId LldpPortInformationType_RemoteSystemsData = new NodeId(Opc.Ua.Objects.LldpPortInformationType_RemoteSystemsData);
+
+        /// <remarks />
+        public static readonly NodeId LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder = new NodeId(Opc.Ua.Objects.LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder);
 
         /// <remarks />
         public static readonly NodeId Union_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.Union_Encoding_DefaultBinary);
@@ -31456,6 +31825,9 @@ namespace Opc.Ua
         public static readonly NodeId ActionMethodDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ActionMethodDataType_Encoding_DefaultBinary);
 
         /// <remarks />
+        public static readonly NodeId PublishedActionMethodDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.PublishedActionMethodDataType_Encoding_DefaultBinary);
+
+        /// <remarks />
         public static readonly NodeId DataSetWriterDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.DataSetWriterDataType_Encoding_DefaultBinary);
 
         /// <remarks />
@@ -31585,6 +31957,9 @@ namespace Opc.Ua
         public static readonly NodeId DatagramDataSetReaderTransportDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.DatagramDataSetReaderTransportDataType_Encoding_DefaultBinary);
 
         /// <remarks />
+        public static readonly NodeId DtlsPubSubConnectionDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.DtlsPubSubConnectionDataType_Encoding_DefaultBinary);
+
+        /// <remarks />
         public static readonly NodeId BrokerConnectionTransportDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.BrokerConnectionTransportDataType_Encoding_DefaultBinary);
 
         /// <remarks />
@@ -31610,6 +31985,15 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId PriorityMappingEntryType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.PriorityMappingEntryType_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId LldpManagementAddressTxPortType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.LldpManagementAddressTxPortType_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId LldpManagementAddressType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.LldpManagementAddressType_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId LldpTlvType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.LldpTlvType_Encoding_DefaultBinary);
 
         /// <remarks />
         public static readonly NodeId ReferenceDescriptionDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ReferenceDescriptionDataType_Encoding_DefaultBinary);
@@ -32018,6 +32402,12 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ReadEventDetails2_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ReadEventDetails2_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId SortRuleElement_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.SortRuleElement_Encoding_DefaultBinary);
+
+        /// <remarks />
+        public static readonly NodeId ReadEventDetailsSorted_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ReadEventDetailsSorted_Encoding_DefaultBinary);
 
         /// <remarks />
         public static readonly NodeId ReadRawModifiedDetails_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ReadRawModifiedDetails_Encoding_DefaultBinary);
@@ -32491,6 +32881,9 @@ namespace Opc.Ua
         public static readonly NodeId ActionMethodDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ActionMethodDataType_Encoding_DefaultXml);
 
         /// <remarks />
+        public static readonly NodeId PublishedActionMethodDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.PublishedActionMethodDataType_Encoding_DefaultXml);
+
+        /// <remarks />
         public static readonly NodeId DataSetWriterDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.DataSetWriterDataType_Encoding_DefaultXml);
 
         /// <remarks />
@@ -32620,6 +33013,9 @@ namespace Opc.Ua
         public static readonly NodeId DatagramDataSetReaderTransportDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.DatagramDataSetReaderTransportDataType_Encoding_DefaultXml);
 
         /// <remarks />
+        public static readonly NodeId DtlsPubSubConnectionDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.DtlsPubSubConnectionDataType_Encoding_DefaultXml);
+
+        /// <remarks />
         public static readonly NodeId BrokerConnectionTransportDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.BrokerConnectionTransportDataType_Encoding_DefaultXml);
 
         /// <remarks />
@@ -32645,6 +33041,15 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId PriorityMappingEntryType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.PriorityMappingEntryType_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId LldpManagementAddressTxPortType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.LldpManagementAddressTxPortType_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId LldpManagementAddressType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.LldpManagementAddressType_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId LldpTlvType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.LldpTlvType_Encoding_DefaultXml);
 
         /// <remarks />
         public static readonly NodeId ReferenceDescriptionDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ReferenceDescriptionDataType_Encoding_DefaultXml);
@@ -33053,6 +33458,12 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ReadEventDetails2_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ReadEventDetails2_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId SortRuleElement_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.SortRuleElement_Encoding_DefaultXml);
+
+        /// <remarks />
+        public static readonly NodeId ReadEventDetailsSorted_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ReadEventDetailsSorted_Encoding_DefaultXml);
 
         /// <remarks />
         public static readonly NodeId ReadRawModifiedDetails_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ReadRawModifiedDetails_Encoding_DefaultXml);
@@ -33526,6 +33937,9 @@ namespace Opc.Ua
         public static readonly NodeId ActionMethodDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ActionMethodDataType_Encoding_DefaultJson);
 
         /// <remarks />
+        public static readonly NodeId PublishedActionMethodDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PublishedActionMethodDataType_Encoding_DefaultJson);
+
+        /// <remarks />
         public static readonly NodeId DataSetWriterDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DataSetWriterDataType_Encoding_DefaultJson);
 
         /// <remarks />
@@ -33655,6 +34069,9 @@ namespace Opc.Ua
         public static readonly NodeId DatagramDataSetReaderTransportDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DatagramDataSetReaderTransportDataType_Encoding_DefaultJson);
 
         /// <remarks />
+        public static readonly NodeId DtlsPubSubConnectionDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DtlsPubSubConnectionDataType_Encoding_DefaultJson);
+
+        /// <remarks />
         public static readonly NodeId BrokerConnectionTransportDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.BrokerConnectionTransportDataType_Encoding_DefaultJson);
 
         /// <remarks />
@@ -33680,6 +34097,15 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId PriorityMappingEntryType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.PriorityMappingEntryType_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId LldpManagementAddressTxPortType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.LldpManagementAddressTxPortType_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId LldpManagementAddressType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.LldpManagementAddressType_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId LldpTlvType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.LldpTlvType_Encoding_DefaultJson);
 
         /// <remarks />
         public static readonly NodeId ReferenceDescriptionDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReferenceDescriptionDataType_Encoding_DefaultJson);
@@ -34088,6 +34514,12 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ReadEventDetails2_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReadEventDetails2_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId SortRuleElement_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.SortRuleElement_Encoding_DefaultJson);
+
+        /// <remarks />
+        public static readonly NodeId ReadEventDetailsSorted_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReadEventDetailsSorted_Encoding_DefaultJson);
 
         /// <remarks />
         public static readonly NodeId ReadRawModifiedDetails_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReadRawModifiedDetails_Encoding_DefaultJson);
@@ -35206,6 +35638,21 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId PriorityMappingTableType = new NodeId(Opc.Ua.ObjectTypes.PriorityMappingTableType);
+
+        /// <remarks />
+        public static readonly NodeId LldpInformationType = new NodeId(Opc.Ua.ObjectTypes.LldpInformationType);
+
+        /// <remarks />
+        public static readonly NodeId LldpRemoteStatisticsType = new NodeId(Opc.Ua.ObjectTypes.LldpRemoteStatisticsType);
+
+        /// <remarks />
+        public static readonly NodeId LldpLocalSystemType = new NodeId(Opc.Ua.ObjectTypes.LldpLocalSystemType);
+
+        /// <remarks />
+        public static readonly NodeId LldpPortInformationType = new NodeId(Opc.Ua.ObjectTypes.LldpPortInformationType);
+
+        /// <remarks />
+        public static readonly NodeId LldpRemoteSystemType = new NodeId(Opc.Ua.ObjectTypes.LldpRemoteSystemType);
     }
     #endregion
 
@@ -38011,18 +38458,6 @@ namespace Opc.Ua
         public static readonly NodeId WellKnownRole_Anonymous_Identities = new NodeId(Opc.Ua.Variables.WellKnownRole_Anonymous_Identities);
 
         /// <remarks />
-        public static readonly NodeId WellKnownRole_Anonymous_ApplicationsExclude = new NodeId(Opc.Ua.Variables.WellKnownRole_Anonymous_ApplicationsExclude);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_Anonymous_Applications = new NodeId(Opc.Ua.Variables.WellKnownRole_Anonymous_Applications);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_Anonymous_EndpointsExclude = new NodeId(Opc.Ua.Variables.WellKnownRole_Anonymous_EndpointsExclude);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_Anonymous_Endpoints = new NodeId(Opc.Ua.Variables.WellKnownRole_Anonymous_Endpoints);
-
-        /// <remarks />
         public static readonly NodeId WellKnownRole_Anonymous_AddIdentity_InputArguments = new NodeId(Opc.Ua.Variables.WellKnownRole_Anonymous_AddIdentity_InputArguments);
 
         /// <remarks />
@@ -38044,21 +38479,6 @@ namespace Opc.Ua
         public static readonly NodeId WellKnownRole_AuthenticatedUser_Identities = new NodeId(Opc.Ua.Variables.WellKnownRole_AuthenticatedUser_Identities);
 
         /// <remarks />
-        public static readonly NodeId WellKnownRole_AuthenticatedUser_ApplicationsExclude = new NodeId(Opc.Ua.Variables.WellKnownRole_AuthenticatedUser_ApplicationsExclude);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_AuthenticatedUser_Applications = new NodeId(Opc.Ua.Variables.WellKnownRole_AuthenticatedUser_Applications);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_AuthenticatedUser_EndpointsExclude = new NodeId(Opc.Ua.Variables.WellKnownRole_AuthenticatedUser_EndpointsExclude);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_AuthenticatedUser_Endpoints = new NodeId(Opc.Ua.Variables.WellKnownRole_AuthenticatedUser_Endpoints);
-
-        /// <remarks />
-        public static readonly NodeId WellKnownRole_AuthenticatedUser_CustomConfiguration = new NodeId(Opc.Ua.Variables.WellKnownRole_AuthenticatedUser_CustomConfiguration);
-
-        /// <remarks />
         public static readonly NodeId WellKnownRole_AuthenticatedUser_AddIdentity_InputArguments = new NodeId(Opc.Ua.Variables.WellKnownRole_AuthenticatedUser_AddIdentity_InputArguments);
 
         /// <remarks />
@@ -38075,6 +38495,27 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId WellKnownRole_AuthenticatedUser_RemoveEndpoint_InputArguments = new NodeId(Opc.Ua.Variables.WellKnownRole_AuthenticatedUser_RemoveEndpoint_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_TrustedApplication_Identities = new NodeId(Opc.Ua.Variables.WellKnownRole_TrustedApplication_Identities);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_TrustedApplication_AddIdentity_InputArguments = new NodeId(Opc.Ua.Variables.WellKnownRole_TrustedApplication_AddIdentity_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_TrustedApplication_RemoveIdentity_InputArguments = new NodeId(Opc.Ua.Variables.WellKnownRole_TrustedApplication_RemoveIdentity_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_TrustedApplication_AddApplication_InputArguments = new NodeId(Opc.Ua.Variables.WellKnownRole_TrustedApplication_AddApplication_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_TrustedApplication_RemoveApplication_InputArguments = new NodeId(Opc.Ua.Variables.WellKnownRole_TrustedApplication_RemoveApplication_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_TrustedApplication_AddEndpoint_InputArguments = new NodeId(Opc.Ua.Variables.WellKnownRole_TrustedApplication_AddEndpoint_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId WellKnownRole_TrustedApplication_RemoveEndpoint_InputArguments = new NodeId(Opc.Ua.Variables.WellKnownRole_TrustedApplication_RemoveEndpoint_InputArguments);
 
         /// <remarks />
         public static readonly NodeId WellKnownRole_Observer_Identities = new NodeId(Opc.Ua.Variables.WellKnownRole_Observer_Identities);
@@ -38500,9 +38941,6 @@ namespace Opc.Ua
         public static readonly NodeId UnitType_Symbol = new NodeId(Opc.Ua.Variables.UnitType_Symbol);
 
         /// <remarks />
-        public static readonly NodeId UnitType_Description = new NodeId(Opc.Ua.Variables.UnitType_Description);
-
-        /// <remarks />
         public static readonly NodeId UnitType_UnitSystem = new NodeId(Opc.Ua.Variables.UnitType_UnitSystem);
 
         /// <remarks />
@@ -38534,9 +38972,6 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId QuantityType_Symbol = new NodeId(Opc.Ua.Variables.QuantityType_Symbol);
-
-        /// <remarks />
-        public static readonly NodeId QuantityType_Description = new NodeId(Opc.Ua.Variables.QuantityType_Description);
 
         /// <remarks />
         public static readonly NodeId QuantityType_Annotation = new NodeId(Opc.Ua.Variables.QuantityType_Annotation);
@@ -39644,6 +40079,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId HistoricalEventConfigurationType_StartOfOnlineArchive = new NodeId(Opc.Ua.Variables.HistoricalEventConfigurationType_StartOfOnlineArchive);
+
+        /// <remarks />
+        public static readonly NodeId HistoricalEventConfigurationType_SortByEventFields = new NodeId(Opc.Ua.Variables.HistoricalEventConfigurationType_SortByEventFields);
 
         /// <remarks />
         public static readonly NodeId HistoricalExternalEventSourceType_Server = new NodeId(Opc.Ua.Variables.HistoricalExternalEventSourceType_Server);
@@ -41920,16 +42358,16 @@ namespace Opc.Ua
         public static readonly NodeId ConfigurationFileType_SupportedDataType = new NodeId(Opc.Ua.Variables.ConfigurationFileType_SupportedDataType);
 
         /// <remarks />
-        public static readonly NodeId ConfigurationFileType_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ConfigurationFileType_CloseAndUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ConfigurationFileType_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ConfigurationFileType_CloseAndUpdate_OutputArguments);
-
-        /// <remarks />
         public static readonly NodeId ConfigurationFileType_ConfirmUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ConfigurationFileType_ConfirmUpdate_InputArguments);
 
         /// <remarks />
         public static readonly NodeId ConfigurationFileType_ConfirmUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ConfigurationFileType_ConfirmUpdate_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ConfigurationFileType_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ConfigurationFileType_CloseAndUpdate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ConfigurationFileType_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ConfigurationFileType_CloseAndUpdate_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ConfigurationUpdateType_EnumValues = new NodeId(Opc.Ua.Variables.ConfigurationUpdateType_EnumValues);
@@ -43279,16 +43717,16 @@ namespace Opc.Ua
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SupportedDataType = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_SupportedDataType);
 
         /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments);
-
-        /// <remarks />
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_InputArguments);
 
         /// <remarks />
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_AvailableNetworks = new NodeId(Opc.Ua.Variables.ApplicationConfigurationFolderType_ApplicationName_Placeholder_ConfigurationFile_AvailableNetworks);
@@ -44539,6 +44977,9 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfigurationType_ApplicationType = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ApplicationType);
 
         /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ApplicationNames = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ApplicationNames);
+
+        /// <remarks />
         public static readonly NodeId ServerConfigurationType_ServerCapabilities = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ServerCapabilities);
 
         /// <remarks />
@@ -44552,6 +44993,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_HasSecureElement = new NodeId(Opc.Ua.Variables.ServerConfigurationType_HasSecureElement);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_SupportsTransactions = new NodeId(Opc.Ua.Variables.ServerConfigurationType_SupportsTransactions);
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_UpdateCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_UpdateCertificate_InputArguments);
@@ -44644,16 +45088,16 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfigurationType_ConfigurationFile_SupportedDataType = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_SupportedDataType);
 
         /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_CloseAndUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfigurationType_ConfigurationFile_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_CloseAndUpdate_OutputArguments);
-
-        /// <remarks />
         public static readonly NodeId ServerConfigurationType_ConfigurationFile_ConfirmUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_ConfirmUpdate_InputArguments);
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_ConfigurationFile_ConfirmUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_ConfirmUpdate_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_CloseAndUpdate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfigurationType_ConfigurationFile_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_CloseAndUpdate_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ServerConfigurationType_ConfigurationFile_AvailableNetworks = new NodeId(Opc.Ua.Variables.ServerConfigurationType_ConfigurationFile_AvailableNetworks);
@@ -45997,16 +46441,16 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfiguration_ConfigurationFile_SupportedDataType = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_SupportedDataType);
 
         /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_CloseAndUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ServerConfiguration_ConfigurationFile_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_CloseAndUpdate_OutputArguments);
-
-        /// <remarks />
         public static readonly NodeId ServerConfiguration_ConfigurationFile_ConfirmUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_ConfirmUpdate_InputArguments);
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_ConfigurationFile_ConfirmUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_ConfirmUpdate_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_CloseAndUpdate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ServerConfiguration_ConfigurationFile_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_CloseAndUpdate_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ServerConfiguration_ConfigurationFile_AvailableNetworks = new NodeId(Opc.Ua.Variables.ServerConfiguration_ConfigurationFile_AvailableNetworks);
@@ -46058,6 +46502,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId KeyCredentialConfigurationType_EndpointUrls = new NodeId(Opc.Ua.Variables.KeyCredentialConfigurationType_EndpointUrls);
+
+        /// <remarks />
+        public static readonly NodeId KeyCredentialConfigurationType_CredentialId = new NodeId(Opc.Ua.Variables.KeyCredentialConfigurationType_CredentialId);
 
         /// <remarks />
         public static readonly NodeId KeyCredentialConfigurationType_ServiceStatus = new NodeId(Opc.Ua.Variables.KeyCredentialConfigurationType_ServiceStatus);
@@ -51379,16 +51826,16 @@ namespace Opc.Ua
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SupportedDataType = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_SupportedDataType);
 
         /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments);
-
-        /// <remarks />
-        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments);
-
-        /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_InputArguments);
 
         /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_ConfirmUpdate_OutputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_CloseAndUpdate_OutputArguments);
 
         /// <remarks />
         public static readonly NodeId ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_AvailableNetworks = new NodeId(Opc.Ua.Variables.ProvisionableDeviceType_ApplicationName_Placeholder_ConfigurationFile_AvailableNetworks);
@@ -51559,6 +52006,45 @@ namespace Opc.Ua
         public static readonly NodeId TsnListenerStatus_EnumValues = new NodeId(Opc.Ua.Variables.TsnListenerStatus_EnumValues);
 
         /// <remarks />
+        public static readonly NodeId ChassisIdSubtype_EnumValues = new NodeId(Opc.Ua.Variables.ChassisIdSubtype_EnumValues);
+
+        /// <remarks />
+        public static readonly NodeId PortIdSubtype_EnumValues = new NodeId(Opc.Ua.Variables.PortIdSubtype_EnumValues);
+
+        /// <remarks />
+        public static readonly NodeId ManAddrIfSubtype_EnumValues = new NodeId(Opc.Ua.Variables.ManAddrIfSubtype_EnumValues);
+
+        /// <remarks />
+        public static readonly NodeId LldpSystemCapabilitiesMap_OptionSetValues = new NodeId(Opc.Ua.Variables.LldpSystemCapabilitiesMap_OptionSetValues);
+
+        /// <remarks />
+        public static readonly NodeId LLDP_RemoteStatistics_LastChangeTime = new NodeId(Opc.Ua.Variables.LLDP_RemoteStatistics_LastChangeTime);
+
+        /// <remarks />
+        public static readonly NodeId LLDP_RemoteStatistics_RemoteInserts = new NodeId(Opc.Ua.Variables.LLDP_RemoteStatistics_RemoteInserts);
+
+        /// <remarks />
+        public static readonly NodeId LLDP_RemoteStatistics_RemoteDeletes = new NodeId(Opc.Ua.Variables.LLDP_RemoteStatistics_RemoteDeletes);
+
+        /// <remarks />
+        public static readonly NodeId LLDP_RemoteStatistics_RemoteDrops = new NodeId(Opc.Ua.Variables.LLDP_RemoteStatistics_RemoteDrops);
+
+        /// <remarks />
+        public static readonly NodeId LLDP_RemoteStatistics_RemoteAgeouts = new NodeId(Opc.Ua.Variables.LLDP_RemoteStatistics_RemoteAgeouts);
+
+        /// <remarks />
+        public static readonly NodeId LLDP_LocalSystemData_ChassisIdSubtype = new NodeId(Opc.Ua.Variables.LLDP_LocalSystemData_ChassisIdSubtype);
+
+        /// <remarks />
+        public static readonly NodeId LLDP_LocalSystemData_ChassisId = new NodeId(Opc.Ua.Variables.LLDP_LocalSystemData_ChassisId);
+
+        /// <remarks />
+        public static readonly NodeId LLDP_LocalSystemData_SystemName = new NodeId(Opc.Ua.Variables.LLDP_LocalSystemData_SystemName);
+
+        /// <remarks />
+        public static readonly NodeId LLDP_LocalSystemData_SystemDescription = new NodeId(Opc.Ua.Variables.LLDP_LocalSystemData_SystemDescription);
+
+        /// <remarks />
         public static readonly NodeId IetfBaseNetworkInterfaceType_AdminStatus = new NodeId(Opc.Ua.Variables.IetfBaseNetworkInterfaceType_AdminStatus);
 
         /// <remarks />
@@ -51581,6 +52067,159 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId PriorityMappingTableType_DeletePriorityMappingEntry_InputArguments = new NodeId(Opc.Ua.Variables.PriorityMappingTableType_DeletePriorityMappingEntry_InputArguments);
+
+        /// <remarks />
+        public static readonly NodeId LldpInformationType_RemoteStatistics_LastChangeTime = new NodeId(Opc.Ua.Variables.LldpInformationType_RemoteStatistics_LastChangeTime);
+
+        /// <remarks />
+        public static readonly NodeId LldpInformationType_RemoteStatistics_RemoteInserts = new NodeId(Opc.Ua.Variables.LldpInformationType_RemoteStatistics_RemoteInserts);
+
+        /// <remarks />
+        public static readonly NodeId LldpInformationType_RemoteStatistics_RemoteDeletes = new NodeId(Opc.Ua.Variables.LldpInformationType_RemoteStatistics_RemoteDeletes);
+
+        /// <remarks />
+        public static readonly NodeId LldpInformationType_RemoteStatistics_RemoteDrops = new NodeId(Opc.Ua.Variables.LldpInformationType_RemoteStatistics_RemoteDrops);
+
+        /// <remarks />
+        public static readonly NodeId LldpInformationType_RemoteStatistics_RemoteAgeouts = new NodeId(Opc.Ua.Variables.LldpInformationType_RemoteStatistics_RemoteAgeouts);
+
+        /// <remarks />
+        public static readonly NodeId LldpInformationType_LocalSystemData_ChassisIdSubtype = new NodeId(Opc.Ua.Variables.LldpInformationType_LocalSystemData_ChassisIdSubtype);
+
+        /// <remarks />
+        public static readonly NodeId LldpInformationType_LocalSystemData_ChassisId = new NodeId(Opc.Ua.Variables.LldpInformationType_LocalSystemData_ChassisId);
+
+        /// <remarks />
+        public static readonly NodeId LldpInformationType_LocalSystemData_SystemName = new NodeId(Opc.Ua.Variables.LldpInformationType_LocalSystemData_SystemName);
+
+        /// <remarks />
+        public static readonly NodeId LldpInformationType_LocalSystemData_SystemDescription = new NodeId(Opc.Ua.Variables.LldpInformationType_LocalSystemData_SystemDescription);
+
+        /// <remarks />
+        public static readonly NodeId LldpInformationType_Ports_LldpPortInformation_Placeholder_IetfBaseNetworkInterfaceName = new NodeId(Opc.Ua.Variables.LldpInformationType_Ports_LldpPortInformation_Placeholder_IetfBaseNetworkInterfaceName);
+
+        /// <remarks />
+        public static readonly NodeId LldpInformationType_Ports_LldpPortInformation_Placeholder_DestMacAddress = new NodeId(Opc.Ua.Variables.LldpInformationType_Ports_LldpPortInformation_Placeholder_DestMacAddress);
+
+        /// <remarks />
+        public static readonly NodeId LldpInformationType_Ports_LldpPortInformation_Placeholder_PortIdSubtype = new NodeId(Opc.Ua.Variables.LldpInformationType_Ports_LldpPortInformation_Placeholder_PortIdSubtype);
+
+        /// <remarks />
+        public static readonly NodeId LldpInformationType_Ports_LldpPortInformation_Placeholder_PortId = new NodeId(Opc.Ua.Variables.LldpInformationType_Ports_LldpPortInformation_Placeholder_PortId);
+
+        /// <remarks />
+        public static readonly NodeId LldpRemoteStatisticsType_LastChangeTime = new NodeId(Opc.Ua.Variables.LldpRemoteStatisticsType_LastChangeTime);
+
+        /// <remarks />
+        public static readonly NodeId LldpRemoteStatisticsType_RemoteInserts = new NodeId(Opc.Ua.Variables.LldpRemoteStatisticsType_RemoteInserts);
+
+        /// <remarks />
+        public static readonly NodeId LldpRemoteStatisticsType_RemoteDeletes = new NodeId(Opc.Ua.Variables.LldpRemoteStatisticsType_RemoteDeletes);
+
+        /// <remarks />
+        public static readonly NodeId LldpRemoteStatisticsType_RemoteDrops = new NodeId(Opc.Ua.Variables.LldpRemoteStatisticsType_RemoteDrops);
+
+        /// <remarks />
+        public static readonly NodeId LldpRemoteStatisticsType_RemoteAgeouts = new NodeId(Opc.Ua.Variables.LldpRemoteStatisticsType_RemoteAgeouts);
+
+        /// <remarks />
+        public static readonly NodeId LldpLocalSystemType_ChassisIdSubtype = new NodeId(Opc.Ua.Variables.LldpLocalSystemType_ChassisIdSubtype);
+
+        /// <remarks />
+        public static readonly NodeId LldpLocalSystemType_ChassisId = new NodeId(Opc.Ua.Variables.LldpLocalSystemType_ChassisId);
+
+        /// <remarks />
+        public static readonly NodeId LldpLocalSystemType_SystemName = new NodeId(Opc.Ua.Variables.LldpLocalSystemType_SystemName);
+
+        /// <remarks />
+        public static readonly NodeId LldpLocalSystemType_SystemDescription = new NodeId(Opc.Ua.Variables.LldpLocalSystemType_SystemDescription);
+
+        /// <remarks />
+        public static readonly NodeId LldpLocalSystemType_SystemCapabilitiesSupported = new NodeId(Opc.Ua.Variables.LldpLocalSystemType_SystemCapabilitiesSupported);
+
+        /// <remarks />
+        public static readonly NodeId LldpLocalSystemType_SystemCapabilitiesEnabled = new NodeId(Opc.Ua.Variables.LldpLocalSystemType_SystemCapabilitiesEnabled);
+
+        /// <remarks />
+        public static readonly NodeId LldpPortInformationType_IetfBaseNetworkInterfaceName = new NodeId(Opc.Ua.Variables.LldpPortInformationType_IetfBaseNetworkInterfaceName);
+
+        /// <remarks />
+        public static readonly NodeId LldpPortInformationType_DestMacAddress = new NodeId(Opc.Ua.Variables.LldpPortInformationType_DestMacAddress);
+
+        /// <remarks />
+        public static readonly NodeId LldpPortInformationType_PortIdSubtype = new NodeId(Opc.Ua.Variables.LldpPortInformationType_PortIdSubtype);
+
+        /// <remarks />
+        public static readonly NodeId LldpPortInformationType_PortId = new NodeId(Opc.Ua.Variables.LldpPortInformationType_PortId);
+
+        /// <remarks />
+        public static readonly NodeId LldpPortInformationType_PortDescription = new NodeId(Opc.Ua.Variables.LldpPortInformationType_PortDescription);
+
+        /// <remarks />
+        public static readonly NodeId LldpPortInformationType_ManagementAddressTxPort = new NodeId(Opc.Ua.Variables.LldpPortInformationType_ManagementAddressTxPort);
+
+        /// <remarks />
+        public static readonly NodeId LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_TimeMark = new NodeId(Opc.Ua.Variables.LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_TimeMark);
+
+        /// <remarks />
+        public static readonly NodeId LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_RemoteIndex = new NodeId(Opc.Ua.Variables.LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_RemoteIndex);
+
+        /// <remarks />
+        public static readonly NodeId LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_ChassisIdSubtype = new NodeId(Opc.Ua.Variables.LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_ChassisIdSubtype);
+
+        /// <remarks />
+        public static readonly NodeId LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_ChassisId = new NodeId(Opc.Ua.Variables.LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_ChassisId);
+
+        /// <remarks />
+        public static readonly NodeId LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_PortIdSubtype = new NodeId(Opc.Ua.Variables.LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_PortIdSubtype);
+
+        /// <remarks />
+        public static readonly NodeId LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_PortId = new NodeId(Opc.Ua.Variables.LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder_PortId);
+
+        /// <remarks />
+        public static readonly NodeId LldpRemoteSystemType_TimeMark = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_TimeMark);
+
+        /// <remarks />
+        public static readonly NodeId LldpRemoteSystemType_RemoteIndex = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_RemoteIndex);
+
+        /// <remarks />
+        public static readonly NodeId LldpRemoteSystemType_ChassisIdSubtype = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_ChassisIdSubtype);
+
+        /// <remarks />
+        public static readonly NodeId LldpRemoteSystemType_ChassisId = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_ChassisId);
+
+        /// <remarks />
+        public static readonly NodeId LldpRemoteSystemType_PortIdSubtype = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_PortIdSubtype);
+
+        /// <remarks />
+        public static readonly NodeId LldpRemoteSystemType_PortId = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_PortId);
+
+        /// <remarks />
+        public static readonly NodeId LldpRemoteSystemType_PortDescription = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_PortDescription);
+
+        /// <remarks />
+        public static readonly NodeId LldpRemoteSystemType_SystemName = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_SystemName);
+
+        /// <remarks />
+        public static readonly NodeId LldpRemoteSystemType_SystemDescription = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_SystemDescription);
+
+        /// <remarks />
+        public static readonly NodeId LldpRemoteSystemType_SystemCapabilitiesSupported = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_SystemCapabilitiesSupported);
+
+        /// <remarks />
+        public static readonly NodeId LldpRemoteSystemType_SystemCapabilitiesEnabled = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_SystemCapabilitiesEnabled);
+
+        /// <remarks />
+        public static readonly NodeId LldpRemoteSystemType_RemoteChanges = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_RemoteChanges);
+
+        /// <remarks />
+        public static readonly NodeId LldpRemoteSystemType_RemoteTooManyNeighbors = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_RemoteTooManyNeighbors);
+
+        /// <remarks />
+        public static readonly NodeId LldpRemoteSystemType_ManagementAddress = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_ManagementAddress);
+
+        /// <remarks />
+        public static readonly NodeId LldpRemoteSystemType_RemoteUnknownTlv = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_RemoteUnknownTlv);
 
         /// <remarks />
         public static readonly NodeId ReferenceDescriptionVariableType_ReferenceRefinement = new NodeId(Opc.Ua.Variables.ReferenceDescriptionVariableType_ReferenceRefinement);
@@ -51638,6 +52277,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId TimestampsToReturn_EnumStrings = new NodeId(Opc.Ua.Variables.TimestampsToReturn_EnumStrings);
+
+        /// <remarks />
+        public static readonly NodeId SortOrderType_EnumStrings = new NodeId(Opc.Ua.Variables.SortOrderType_EnumStrings);
 
         /// <remarks />
         public static readonly NodeId HistoryUpdateType_EnumValues = new NodeId(Opc.Ua.Variables.HistoryUpdateType_EnumValues);
@@ -51841,6 +52483,9 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_BinarySchema_ActionMethodDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ActionMethodDataType);
 
         /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_PublishedActionMethodDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_PublishedActionMethodDataType);
+
+        /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_DataSetWriterDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_DataSetWriterDataType);
 
         /// <remarks />
@@ -51970,6 +52615,9 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_BinarySchema_DatagramDataSetReaderTransportDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_DatagramDataSetReaderTransportDataType);
 
         /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_DtlsPubSubConnectionDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_DtlsPubSubConnectionDataType);
+
+        /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_BrokerConnectionTransportDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_BrokerConnectionTransportDataType);
 
         /// <remarks />
@@ -51995,6 +52643,15 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_PriorityMappingEntryType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_PriorityMappingEntryType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_LldpManagementAddressTxPortType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_LldpManagementAddressTxPortType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_LldpManagementAddressType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_LldpManagementAddressType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_BinarySchema_LldpTlvType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_LldpTlvType);
 
         /// <remarks />
         public static readonly NodeId OpcUa_BinarySchema_ReferenceDescriptionDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ReferenceDescriptionDataType);
@@ -52372,6 +53029,9 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_XmlSchema_ActionMethodDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ActionMethodDataType);
 
         /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_PublishedActionMethodDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_PublishedActionMethodDataType);
+
+        /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_DataSetWriterDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_DataSetWriterDataType);
 
         /// <remarks />
@@ -52501,6 +53161,9 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_XmlSchema_DatagramDataSetReaderTransportDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_DatagramDataSetReaderTransportDataType);
 
         /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_DtlsPubSubConnectionDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_DtlsPubSubConnectionDataType);
+
+        /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_BrokerConnectionTransportDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_BrokerConnectionTransportDataType);
 
         /// <remarks />
@@ -52526,6 +53189,15 @@ namespace Opc.Ua
 
         /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_PriorityMappingEntryType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_PriorityMappingEntryType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_LldpManagementAddressTxPortType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_LldpManagementAddressTxPortType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_LldpManagementAddressType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_LldpManagementAddressType);
+
+        /// <remarks />
+        public static readonly NodeId OpcUa_XmlSchema_LldpTlvType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_LldpTlvType);
 
         /// <remarks />
         public static readonly NodeId OpcUa_XmlSchema_ReferenceDescriptionDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ReferenceDescriptionDataType);
@@ -53380,6 +54052,9 @@ namespace Opc.Ua
         public const string ApplicationName_Placeholder = "<ApplicationName>";
 
         /// <remarks />
+        public const string ApplicationNames = "ApplicationNames";
+
+        /// <remarks />
         public const string Applications = "Applications";
 
         /// <remarks />
@@ -53869,6 +54544,12 @@ namespace Opc.Ua
         public const string ChannelSecurityToken = "ChannelSecurityToken";
 
         /// <remarks />
+        public const string ChassisId = "ChassisId";
+
+        /// <remarks />
+        public const string ChassisIdSubtype = "ChassisIdSubtype";
+
+        /// <remarks />
         public const string ChoiceStateType = "ChoiceStateType";
 
         /// <remarks />
@@ -54122,6 +54803,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string CreateTargetVariables = "CreateTargetVariables";
+
+        /// <remarks />
+        public const string CredentialId = "CredentialId";
 
         /// <remarks />
         public const string CubeItemType = "CubeItemType";
@@ -54496,10 +55180,10 @@ namespace Opc.Ua
         public const string Deprecated = "Deprecated";
 
         /// <remarks />
-        public const string Description = "Description";
+        public const string DestinationAddress = "DestinationAddress";
 
         /// <remarks />
-        public const string DestinationAddress = "DestinationAddress";
+        public const string DestMacAddress = "DestMacAddress";
 
         /// <remarks />
         public const string DeviceFailureEventType = "DeviceFailureEventType";
@@ -54590,6 +55274,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string DoubleComplexNumberType = "DoubleComplexNumberType";
+
+        /// <remarks />
+        public const string DtlsPubSubConnectionDataType = "DtlsPubSubConnectionDataType";
 
         /// <remarks />
         public const string Duplex = "Duplex";
@@ -55297,6 +55984,9 @@ namespace Opc.Ua
         public const string IdType = "IdType";
 
         /// <remarks />
+        public const string IetfBaseNetworkInterfaceName = "IetfBaseNetworkInterfaceName";
+
+        /// <remarks />
         public const string IetfBaseNetworkInterfaceType = "IetfBaseNetworkInterfaceType";
 
         /// <remarks />
@@ -55543,6 +56233,9 @@ namespace Opc.Ua
         public const string LastChange = "LastChange";
 
         /// <remarks />
+        public const string LastChangeTime = "LastChangeTime";
+
+        /// <remarks />
         public const string LastMethodCall = "LastMethodCall";
 
         /// <remarks />
@@ -55627,6 +56320,36 @@ namespace Opc.Ua
         public const string LiveValues = "LiveValues";
 
         /// <remarks />
+        public const string LLDP = "LLDP";
+
+        /// <remarks />
+        public const string LldpInformationType = "LldpInformationType";
+
+        /// <remarks />
+        public const string LldpLocalSystemType = "LldpLocalSystemType";
+
+        /// <remarks />
+        public const string LldpManagementAddressTxPortType = "LldpManagementAddressTxPortType";
+
+        /// <remarks />
+        public const string LldpManagementAddressType = "LldpManagementAddressType";
+
+        /// <remarks />
+        public const string LldpPortInformationType = "LldpPortInformationType";
+
+        /// <remarks />
+        public const string LldpRemoteStatisticsType = "LldpRemoteStatisticsType";
+
+        /// <remarks />
+        public const string LldpRemoteSystemType = "LldpRemoteSystemType";
+
+        /// <remarks />
+        public const string LldpSystemCapabilitiesMap = "LldpSystemCapabilitiesMap";
+
+        /// <remarks />
+        public const string LldpTlvType = "LldpTlvType";
+
+        /// <remarks />
         public const string LocaleId = "LocaleId";
 
         /// <remarks />
@@ -55637,6 +56360,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string LocalizedText = "LocalizedText";
+
+        /// <remarks />
+        public const string LocalSystemData = "LocalSystemData";
 
         /// <remarks />
         public const string LocalTime = "LocalTime";
@@ -55681,7 +56407,16 @@ namespace Opc.Ua
         public const string MaintenanceConditionClassType = "MaintenanceConditionClassType";
 
         /// <remarks />
+        public const string ManAddrIfSubtype = "ManAddrIfSubtype";
+
+        /// <remarks />
         public const string ManagedApplications = "ManagedApplications";
+
+        /// <remarks />
+        public const string ManagementAddress = "ManagementAddress";
+
+        /// <remarks />
+        public const string ManagementAddressTxPort = "ManagementAddressTxPort";
 
         /// <remarks />
         public const string ManufacturerName = "ManufacturerName";
@@ -56401,6 +57136,18 @@ namespace Opc.Ua
         public const string PortableQualifiedName = "PortableQualifiedName";
 
         /// <remarks />
+        public const string PortDescription = "PortDescription";
+
+        /// <remarks />
+        public const string PortId = "PortId";
+
+        /// <remarks />
+        public const string PortIdSubtype = "PortIdSubtype";
+
+        /// <remarks />
+        public const string Ports = "Ports";
+
+        /// <remarks />
         public const string Priority = "Priority";
 
         /// <remarks />
@@ -56486,6 +57233,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string PublishedActionDataType = "PublishedActionDataType";
+
+        /// <remarks />
+        public const string PublishedActionMethodDataType = "PublishedActionMethodDataType";
 
         /// <remarks />
         public const string PublishedData = "PublishedData";
@@ -56761,6 +57511,9 @@ namespace Opc.Ua
         public const string ReadEventDetails2 = "ReadEventDetails2";
 
         /// <remarks />
+        public const string ReadEventDetailsSorted = "ReadEventDetailsSorted";
+
+        /// <remarks />
         public const string ReadPrepare = "ReadPrepare";
 
         /// <remarks />
@@ -56915,6 +57668,36 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string RelativePathElement = "RelativePathElement";
+
+        /// <remarks />
+        public const string RemoteAgeouts = "RemoteAgeouts";
+
+        /// <remarks />
+        public const string RemoteChanges = "RemoteChanges";
+
+        /// <remarks />
+        public const string RemoteDeletes = "RemoteDeletes";
+
+        /// <remarks />
+        public const string RemoteDrops = "RemoteDrops";
+
+        /// <remarks />
+        public const string RemoteIndex = "RemoteIndex";
+
+        /// <remarks />
+        public const string RemoteInserts = "RemoteInserts";
+
+        /// <remarks />
+        public const string RemoteStatistics = "RemoteStatistics";
+
+        /// <remarks />
+        public const string RemoteSystemsData = "RemoteSystemsData";
+
+        /// <remarks />
+        public const string RemoteTooManyNeighbors = "RemoteTooManyNeighbors";
+
+        /// <remarks />
+        public const string RemoteUnknownTlv = "RemoteUnknownTlv";
 
         /// <remarks />
         public const string RemoveApplication = "RemoveApplication";
@@ -57520,6 +58303,15 @@ namespace Opc.Ua
         public const string SoftwareVersion = "SoftwareVersion";
 
         /// <remarks />
+        public const string SortByEventFields = "SortByEventFields";
+
+        /// <remarks />
+        public const string SortOrderType = "SortOrderType";
+
+        /// <remarks />
+        public const string SortRuleElement = "SortRuleElement";
+
+        /// <remarks />
         public const string SourceAddress = "SourceAddress";
 
         /// <remarks />
@@ -57709,6 +58501,9 @@ namespace Opc.Ua
         public const string SupportsFilteredRetain = "SupportsFilteredRetain";
 
         /// <remarks />
+        public const string SupportsTransactions = "SupportsTransactions";
+
+        /// <remarks />
         public const string Suppress = "Suppress";
 
         /// <remarks />
@@ -57742,13 +58537,25 @@ namespace Opc.Ua
         public const string SyntaxReferenceEntryType = "SyntaxReferenceEntryType";
 
         /// <remarks />
+        public const string SystemCapabilitiesEnabled = "SystemCapabilitiesEnabled";
+
+        /// <remarks />
+        public const string SystemCapabilitiesSupported = "SystemCapabilitiesSupported";
+
+        /// <remarks />
         public const string SystemConditionClassType = "SystemConditionClassType";
+
+        /// <remarks />
+        public const string SystemDescription = "SystemDescription";
 
         /// <remarks />
         public const string SystemDiagnosticAlarmType = "SystemDiagnosticAlarmType";
 
         /// <remarks />
         public const string SystemEventType = "SystemEventType";
+
+        /// <remarks />
+        public const string SystemName = "SystemName";
 
         /// <remarks />
         public const string SystemOffNormalAlarmType = "SystemOffNormalAlarmType";
@@ -57851,6 +58658,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string TimeFirstChange = "TimeFirstChange";
+
+        /// <remarks />
+        public const string TimeMark = "TimeMark";
 
         /// <remarks />
         public const string TimestampsToReturn = "TimestampsToReturn";
@@ -58325,6 +59135,9 @@ namespace Opc.Ua
 
         /// <remarks />
         public const string WellKnownRole_Supervisor = "Supervisor";
+
+        /// <remarks />
+        public const string WellKnownRole_TrustedApplication = "TrustedApplication";
 
         /// <remarks />
         public const string Writable = "Writable";

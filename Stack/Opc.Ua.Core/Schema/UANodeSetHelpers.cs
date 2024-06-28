@@ -138,6 +138,7 @@ namespace Opc.Ua.Export
                     BaseObjectState o = (BaseObjectState)node;
                     UAObject value = new UAObject();
                     value.EventNotifier = o.EventNotifier;
+                    value.DesignToolOnly = o.DesignToolOnly;
 
                     if (o.Parent != null)
                     {
@@ -158,6 +159,7 @@ namespace Opc.Ua.Export
                     value.AccessLevel = o.AccessLevelEx;
                     value.MinimumSamplingInterval = o.MinimumSamplingInterval;
                     value.Historizing = o.Historizing;
+                    value.DesignToolOnly = o.DesignToolOnly;
 
                     if (o.Parent != null)
                     {
@@ -493,6 +495,7 @@ namespace Opc.Ua.Export
                     UAObject o = (UAObject)node;
                     BaseObjectState value = new BaseObjectState(null);
                     value.EventNotifier = o.EventNotifier;
+                    value.DesignToolOnly = o.DesignToolOnly;
                     importedNode = value;
                     break;
                 }
@@ -537,6 +540,7 @@ namespace Opc.Ua.Export
                     value.UserAccessLevel = (byte)(o.AccessLevel & 0xFF);
                     value.MinimumSamplingInterval = o.MinimumSamplingInterval;
                     value.Historizing = o.Historizing;
+                    value.DesignToolOnly = o.DesignToolOnly;
 
                     if (o.Value != null)
                     {
