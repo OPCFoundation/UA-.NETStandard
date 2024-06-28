@@ -352,7 +352,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (m_traceLogger == null)
             {
-                m_traceLogger = NUnitTestLogger<ClientFixture>.Create(writer, Config, TraceMasks);               
+                m_traceLogger = NUnitTestLogger<ClientFixture>.Create(writer, Config, TraceMasks);
             }
             else
             {

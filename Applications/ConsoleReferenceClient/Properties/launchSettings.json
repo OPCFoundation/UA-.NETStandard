@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "ConsoleReferenceClient": {
-      "commandName": "Project",
-      "commandLineArgs": "-b"
-    }
-  }
-}
