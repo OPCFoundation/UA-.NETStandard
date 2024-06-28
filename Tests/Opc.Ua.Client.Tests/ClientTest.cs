@@ -32,14 +32,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using Moq;
-using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
@@ -285,9 +283,9 @@ namespace Opc.Ua.Client.Tests
                 // client may report channel closed instead of security policy rejected
                 if (StatusCodes.BadSecureChannelClosed == sre.StatusCode)
                 {
-                    Assert.Inconclusive($"Unexpected Status: {sre}" );
+                    Assert.Inconclusive($"Unexpected Status: {sre}");
                 }
-                Assert.AreEqual(StatusCodes.BadSecurityPolicyRejected, sre.StatusCode, "Unexpected Status: {0}", sre);
+                Assert.AreEqual((StatusCode)StatusCodes.BadSecurityPolicyRejected, (StatusCode)sre.StatusCode, "Unexpected Status: {0}", sre);
             }
         }
 
@@ -314,9 +312,9 @@ namespace Opc.Ua.Client.Tests
                 // client may report channel closed instead of security policy rejected
                 if (StatusCodes.BadSecureChannelClosed == sre.StatusCode)
                 {
-                    Assert.Inconclusive($"Unexpected Status: {sre}" );
+                    Assert.Inconclusive($"Unexpected Status: {sre}");
                 }
-                Assert.AreEqual(StatusCodes.BadSecurityPolicyRejected, sre.StatusCode, "Unexpected Status: {0}", sre);
+                Assert.AreEqual((StatusCode)StatusCodes.BadSecurityPolicyRejected, (StatusCode)sre.StatusCode, "Unexpected Status: {0}", sre);
             }
         }
 
@@ -377,7 +375,7 @@ namespace Opc.Ua.Client.Tests
                 await Task.Delay(5_000).ConfigureAwait(false);
 
                 var sre = Assert.ThrowsAsync<ServiceResultException>(async () => await session.ReadNodeAsync(nodeId, CancellationToken.None).ConfigureAwait(false));
-                Assert.AreEqual((StatusCode)StatusCodes.BadSessionIdInvalid, sre.StatusCode);
+                Assert.AreEqual((StatusCode)StatusCodes.BadSessionIdInvalid, (StatusCode)sre.StatusCode);
             }
         }
 
@@ -404,7 +402,7 @@ namespace Opc.Ua.Client.Tests
                 await Task.Delay(5_000).ConfigureAwait(false);
 
                 var sre = Assert.ThrowsAsync<ServiceResultException>(async () => await session.ReadNodeAsync(nodeId, CancellationToken.None).ConfigureAwait(false));
-                Assert.AreEqual((StatusCode)StatusCodes.BadSessionIdInvalid, sre.StatusCode);
+                Assert.AreEqual((StatusCode)StatusCodes.BadSessionIdInvalid, (StatusCode)sre.StatusCode);
 
                 // reconect/reactivate
                 await session.OpenAsync(sessionName, userIdentity, CancellationToken.None).ConfigureAwait(false);
@@ -614,7 +612,7 @@ namespace Opc.Ua.Client.Tests
         /// Close the first channel before or after the new channel is activated.
         /// </summary>
         [Theory, Order(250)]
-        public async Task ReconnectSessionOnAlternateChannel(bool closeChannel)
+        public async Task ReconnectSessionOnAlternateChannel(bool closeChannel, bool asyncReconnect)
         {
             ServiceResultException sre;
 
@@ -641,7 +639,7 @@ namespace Opc.Ua.Client.Tests
 
                 // cannot read using a detached channel
                 var exception = Assert.Throws<ServiceResultException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
-                Assert.AreEqual(StatusCodes.BadSecureChannelClosed, exception.StatusCode);
+                Assert.AreEqual((StatusCode)StatusCodes.BadSecureChannelClosed, (StatusCode)exception.StatusCode);
             }
 
             // the inactive channel
@@ -649,7 +647,14 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(channel2);
 
             // activate the session on the new channel
-            session1.Reconnect(channel2);
+            if (asyncReconnect)
+            {
+                await session1.ReconnectAsync(channel2, CancellationToken.None).ConfigureAwait(false);
+            }
+            else
+            {
+                session1.Reconnect(channel2);
+            }
 
             // test by reading a value
             ServerStatusDataType value2 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
@@ -669,29 +674,43 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(value1.State, value3.State);
 
             // close the session, keep the channel open
-            session1.Close(closeChannel: false);
+            if (asyncReconnect)
+            {
+                await session1.CloseAsync(closeChannel: false, CancellationToken.None).ConfigureAwait(false);
+            }
+            else
+            {
+                session1.Close(closeChannel: false);
+            }
 
             // cannot read using a closed session, validate the status code
             sre = Assert.Throws<ServiceResultException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
-            Assert.AreEqual(StatusCodes.BadSessionIdInvalid, sre.StatusCode, sre.Message);
+            Assert.AreEqual((StatusCode)StatusCodes.BadSessionIdInvalid, (StatusCode)sre.StatusCode, sre.Message);
 
             // close the channel
-            channel2.Close();
+            if (asyncReconnect)
+            {
+                await channel2.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            else
+            {
+                channel2.Close();
+            }
             channel2.Dispose();
 
             // cannot read using a closed channel, validate the status code
             sre = Assert.Throws<ServiceResultException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
 
-            // TODO: Both channel should return BadSecureChannelClosed
+            // TODO: Both channel should return BadNotConnected
             if (!(StatusCodes.BadSecureChannelClosed == sre.StatusCode))
             {
                 if (endpoint.EndpointUrl.ToString().StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
                 {
-                    Assert.AreEqual(StatusCodes.BadSessionIdInvalid, sre.StatusCode, sre.Message);
+                    Assert.AreEqual((StatusCode)StatusCodes.BadNotConnected, (StatusCode)sre.StatusCode, sre.Message);
                 }
                 else
                 {
-                    Assert.AreEqual(StatusCodes.BadUnknownResponse, sre.StatusCode, sre.Message);
+                    Assert.AreEqual((StatusCode)StatusCodes.BadUnknownResponse, (StatusCode)sre.StatusCode, sre.Message);
                 }
             }
         }
@@ -701,11 +720,13 @@ namespace Opc.Ua.Client.Tests
         /// the same session on a new channel with saved session secrets
         /// </summary>
         [Test, Order(260)]
-        [TestCase(SecurityPolicies.None, true)]
-        [TestCase(SecurityPolicies.None, false)]
-        [TestCase(SecurityPolicies.Basic256Sha256, true)]
-        [TestCase(SecurityPolicies.Basic256Sha256, false)]
-        public async Task ReconnectSessionOnAlternateChannelWithSavedSessionSecrets(string securityPolicy, bool anonymous)
+        [TestCase(SecurityPolicies.None, true, false)]
+        [TestCase(SecurityPolicies.None, false, false)]
+        [TestCase(SecurityPolicies.None, false, true)]
+        [TestCase(SecurityPolicies.Basic256Sha256, true, false)]
+        [TestCase(SecurityPolicies.Basic256Sha256, false, false)]
+        [TestCase(SecurityPolicies.Basic256Sha256, false, true)]
+        public async Task ReconnectSessionOnAlternateChannelWithSavedSessionSecrets(string securityPolicy, bool anonymous, bool asyncReconnect)
         {
             ServiceResultException sre;
 
@@ -756,8 +777,14 @@ namespace Opc.Ua.Client.Tests
             };
 
             // activate the session from saved session secrets on the new channel
-            session2.Reconnect(channel2);
-
+            if (asyncReconnect)
+            {
+                await session2.ReconnectAsync(channel2, CancellationToken.None).ConfigureAwait(false);
+            }
+            else
+            {
+                session2.Reconnect(channel2);
+            }
             Thread.Sleep(500);
 
             Assert.AreEqual(session1.SessionId, session2.SessionId);
@@ -771,7 +798,7 @@ namespace Opc.Ua.Client.Tests
             if (endpoint.EndpointUrl.ToString().StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
             {
                 sre = Assert.Throws<ServiceResultException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
-                Assert.AreEqual(StatusCodes.BadSecureChannelIdInvalid, sre.StatusCode, sre.Message);
+                Assert.AreEqual((StatusCode)StatusCodes.BadSecureChannelIdInvalid, (StatusCode)sre.StatusCode, sre.Message);
             }
             else
             {
@@ -860,7 +887,7 @@ namespace Opc.Ua.Client.Tests
             _ = Session.ReadValue(VariableIds.Server_ServerRedundancy_RedundancySupport, typeof(Int32));
             _ = Session.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
             var sre = Assert.Throws<ServiceResultException>(() => Session.ReadValue(VariableIds.Server_ServerStatus, typeof(ServiceHost)));
-            Assert.AreEqual(StatusCodes.BadTypeMismatch, sre.StatusCode);
+            Assert.AreEqual((StatusCode)StatusCodes.BadTypeMismatch, (StatusCode)sre.StatusCode);
         }
 
         [Test]
@@ -1016,7 +1043,7 @@ namespace Opc.Ua.Client.Tests
                 {
                     Session.OperationLimits.MaxNodesPerRead = 0;
                     var sre = Assert.Throws<ServiceResultException>(() => Session.ReadDisplayName(nodeIds, out var displayNames, out var errors));
-                    Assert.AreEqual(StatusCodes.BadTooManyOperations, sre.StatusCode);
+                    Assert.AreEqual((StatusCode)StatusCodes.BadTooManyOperations, (StatusCode)sre.StatusCode);
                     while (nodeIds.Count > 0)
                     {
                         Session.ReadDisplayName(nodeIds.Take((int)OperationLimits.MaxNodesPerRead).ToArray(), out var displayNames, out var errors);
@@ -1251,7 +1278,7 @@ namespace Opc.Ua.Client.Tests
         public void ReadAvailableEncodings()
         {
             var sre = Assert.Throws<ServiceResultException>(() => Session.ReadAvailableEncodings(DataTypeIds.BaseDataType));
-            Assert.AreEqual(StatusCodes.BadNodeIdInvalid, sre.StatusCode);
+            Assert.AreEqual((StatusCode)StatusCodes.BadNodeIdInvalid, (StatusCode)sre.StatusCode);
             var encoding = Session.ReadAvailableEncodings(VariableIds.Server_ServerStatus_CurrentTime);
             Assert.NotNull(encoding);
             Assert.AreEqual(0, encoding.Count);
@@ -1263,7 +1290,7 @@ namespace Opc.Ua.Client.Tests
             var sre = Assert.ThrowsAsync<ServiceResultException>(async () => {
                 var t = await Session.LoadDataTypeSystem(ObjectIds.ObjectAttributes_Encoding_DefaultJson).ConfigureAwait(false);
             });
-            Assert.AreEqual(StatusCodes.BadNodeIdInvalid, sre.StatusCode);
+            Assert.AreEqual((StatusCode)StatusCodes.BadNodeIdInvalid, (StatusCode)sre.StatusCode);
             var typeSystem = await Session.LoadDataTypeSystem().ConfigureAwait(false);
             Assert.NotNull(typeSystem);
             typeSystem = await Session.LoadDataTypeSystem(ObjectIds.OPCBinarySchema_TypeSystem).ConfigureAwait(false);

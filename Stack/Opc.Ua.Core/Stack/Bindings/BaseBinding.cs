@@ -31,6 +31,8 @@ namespace Opc.Ua.Bindings
                 MaxByteStringLength = configuration.MaxByteStringLength,
                 MaxArrayLength = configuration.MaxArrayLength,
                 MaxMessageSize = configuration.MaxMessageSize,
+                MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
+                MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
                 Factory = factory,
                 NamespaceUris = namespaceUris
             };

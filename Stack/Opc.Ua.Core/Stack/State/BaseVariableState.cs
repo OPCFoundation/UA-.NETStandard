@@ -361,44 +361,49 @@ namespace Opc.Ua
                 return extension.Body;
             }
 
-
             if (Activator.CreateInstance(targetType) is IEncodeable instance)
             {
                 IDecoder decoder = null;
-
-                ServiceMessageContext messageContext = ServiceMessageContext.GlobalContext;
-
-                if (context != null)
+                try
                 {
-                    messageContext = new ServiceMessageContext();
-                    messageContext.NamespaceUris = context.NamespaceUris;
-                    messageContext.ServerUris = context.ServerUris;
-                    messageContext.Factory = context.EncodeableFactory;
-                }
+                    ServiceMessageContext messageContext = ServiceMessageContext.GlobalContext;
 
-                if (extension.Encoding == ExtensionObjectEncoding.Binary)
-                {
-                    decoder = new BinaryDecoder(extension.Body as byte[], messageContext);
-                }
-                else if (extension.Encoding == ExtensionObjectEncoding.Xml)
-                {
-                    decoder = new XmlDecoder(extension.Body as XmlElement, messageContext);
-                }
-
-                if (decoder != null)
-                {
-                    try
+                    if (context != null)
                     {
-                        instance.Decode(decoder);
-                        return instance;
+                        messageContext = new ServiceMessageContext();
+                        messageContext.NamespaceUris = context.NamespaceUris;
+                        messageContext.ServerUris = context.ServerUris;
+                        messageContext.Factory = context.EncodeableFactory;
                     }
-                    catch (Exception e)
+
+                    if (extension.Encoding == ExtensionObjectEncoding.Binary)
                     {
-                        if (throwOnError)
+                        decoder = new BinaryDecoder(extension.Body as byte[], messageContext);
+                    }
+                    else if (extension.Encoding == ExtensionObjectEncoding.Xml)
+                    {
+                        decoder = new XmlDecoder(extension.Body as XmlElement, messageContext);
+                    }
+
+                    if (decoder != null)
+                    {
+                        try
                         {
-                            throw ServiceResultException.Create(StatusCodes.BadTypeMismatch, "Cannot convert ExtensionObject to {0}. Error = {1}", targetType.Name, e.Message);
+                            instance.Decode(decoder);
+                            return instance;
+                        }
+                        catch (Exception e)
+                        {
+                            if (throwOnError)
+                            {
+                                throw ServiceResultException.Create(StatusCodes.BadTypeMismatch, "Cannot convert ExtensionObject to {0}. Error = {1}", targetType.Name, e.Message);
+                            }
                         }
                     }
+                }
+                finally
+                {
+                    Utils.SilentDispose(decoder);
                 }
             }
 

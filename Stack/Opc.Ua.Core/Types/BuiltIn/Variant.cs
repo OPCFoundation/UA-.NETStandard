@@ -63,6 +63,11 @@ namespace Opc.Ua
             Set(value, typeInfo);
 
 #if DEBUG
+            // no sanity check possible for null values
+            if (m_value == null)
+            {
+                return;
+            }
 
             TypeInfo sanityCheck = TypeInfo.Construct(m_value);
 

@@ -64,6 +64,11 @@ namespace Opc.Ua
         void PopNamespace();
 
         /// <summary>
+        /// Encodes a message with its header.
+        /// </summary>
+        void EncodeMessage(IEncodeable message);
+
+        /// <summary>
         /// Writes a boolean to the stream.
         /// </summary>
         void WriteBoolean(string fieldName, bool value);

@@ -62,6 +62,7 @@ namespace Opc.Ua.Client.Tests
             SupportsExternalServerUrl = true;
             // create a new session for every test
             SingleSession = false;
+            MaxChannelCount = 1000;
             return base.OneTimeSetUpAsync(null, true);
         }
 
@@ -169,7 +170,7 @@ namespace Opc.Ua.Client.Tests
 
             subscription.ConditionRefresh();
             var sre = Assert.Throws<ServiceResultException>(() => subscription.Republish(subscription.SequenceNumber + 100));
-            Assert.AreEqual(StatusCodes.BadMessageNotAvailable, sre.StatusCode);
+            Assert.AreEqual((StatusCode)StatusCodes.BadMessageNotAvailable, (StatusCode)sre.StatusCode);
 
             // verify that reconnect created subclassed version of subscription and monitored item
             foreach (var s in Session.Subscriptions)
@@ -281,7 +282,7 @@ namespace Opc.Ua.Client.Tests
 
             await subscription.ConditionRefreshAsync().ConfigureAwait(false);
             var sre = Assert.ThrowsAsync<ServiceResultException>(async () => await subscription.RepublishAsync(subscription.SequenceNumber + 100).ConfigureAwait(false));
-            Assert.AreEqual(StatusCodes.BadMessageNotAvailable, sre.StatusCode, $"Expected BadMessageNotAvailable, but received {sre.Message}");
+            Assert.AreEqual((StatusCode)StatusCodes.BadMessageNotAvailable, (StatusCode)sre.StatusCode, $"Expected BadMessageNotAvailable, but received {sre.Message}");
 
             // verify that reconnect created subclassed version of subscription and monitored item
             foreach (var s in Session.Subscriptions)
@@ -503,6 +504,7 @@ namespace Opc.Ua.Client.Tests
             // the active channel
             ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity).ConfigureAwait(false);
             Assert.NotNull(session1);
+            var sessionId1 = session1.SessionId;
 
             int session1ConfigChanged = 0;
             session1.SessionConfigurationChanged += (object sender, EventArgs e) => { session1ConfigChanged++; };
@@ -616,80 +618,85 @@ namespace Opc.Ua.Client.Tests
 
             await Task.Delay(2 * kDelay).ConfigureAwait(false);
 
-            Assert.AreEqual(session1.SessionId, session2.SessionId);
-
-            if (asyncTest)
+            try
             {
-                DataValue value2 = await session2.ReadValueAsync(VariableIds.Server_ServerStatus).ConfigureAwait(false);
-                Assert.NotNull(value2);
-            }
-            else
-            {
-                ServerStatusDataType value2 = (ServerStatusDataType)session2.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
-                Assert.NotNull(value2);
-            }
+                Assert.AreEqual(sessionId1, session2.SessionId);
 
-            for (ii = 0; ii < kTestSubscriptions; ii++)
-            {
-                var monitoredItemCount = restoredSubscriptions[ii].MonitoredItemCount;
-                string errorText = $"Error in test subscription {ii}";
-
-                // the static subscription doesn't resend data until there is a data change
-                if (ii == 0 && !sendInitialValues)
+                if (asyncTest)
                 {
-                    Assert.AreEqual(0, targetSubscriptionCounters[ii], errorText);
-                    Assert.AreEqual(0, targetSubscriptionFastDataCounters[ii], errorText);
-                }
-                else if (ii == 0)
-                {
-                    Assert.AreEqual(monitoredItemCount, targetSubscriptionCounters[ii], errorText);
-                    Assert.AreEqual(1, targetSubscriptionFastDataCounters[ii], errorText);
+                    DataValue value2 = await session2.ReadValueAsync(VariableIds.Server_ServerStatus).ConfigureAwait(false);
+                    Assert.NotNull(value2);
                 }
                 else
                 {
-                    Assert.LessOrEqual(monitoredItemCount, targetSubscriptionCounters[ii], errorText);
-                    Assert.LessOrEqual(1, targetSubscriptionFastDataCounters[ii], errorText);
+                    ServerStatusDataType value2 = (ServerStatusDataType)session2.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+                    Assert.NotNull(value2);
                 }
-            }
 
-            await Task.Delay(kDelay).ConfigureAwait(false);
-
-            // verify that reconnect created subclassed version of subscription and monitored item
-            foreach (var s in session2.Subscriptions)
-            {
-                Assert.AreEqual(typeof(TestableSubscription), s.GetType());
-                foreach (var m in s.MonitoredItems)
+                for (ii = 0; ii < kTestSubscriptions; ii++)
                 {
-                    Assert.AreEqual(typeof(TestableMonitoredItem), m.GetType());
+                    var monitoredItemCount = restoredSubscriptions[ii].MonitoredItemCount;
+                    string errorText = $"Error in test subscription {ii}";
+
+                    // the static subscription doesn't resend data until there is a data change
+                    if (ii == 0 && !sendInitialValues)
+                    {
+                        Assert.AreEqual(0, targetSubscriptionCounters[ii], errorText);
+                        Assert.AreEqual(0, targetSubscriptionFastDataCounters[ii], errorText);
+                    }
+                    else if (ii == 0)
+                    {
+                        Assert.AreEqual(monitoredItemCount, targetSubscriptionCounters[ii], errorText);
+                        Assert.AreEqual(1, targetSubscriptionFastDataCounters[ii], errorText);
+                    }
+                    else
+                    {
+                        Assert.LessOrEqual(monitoredItemCount, targetSubscriptionCounters[ii], errorText);
+                        Assert.LessOrEqual(1, targetSubscriptionFastDataCounters[ii], errorText);
+                    }
+                }
+
+                await Task.Delay(kDelay).ConfigureAwait(false);
+
+                // verify that reconnect created subclassed version of subscription and monitored item
+                foreach (var s in session2.Subscriptions)
+                {
+                    Assert.AreEqual(typeof(TestableSubscription), s.GetType());
+                    foreach (var m in s.MonitoredItems)
+                    {
+                        Assert.AreEqual(typeof(TestableMonitoredItem), m.GetType());
+                    }
+                }
+
+                // cannot read using a closed channel, validate the status code
+                if (endpoint.EndpointUrl.ToString().StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
+                {
+                    sre = Assert.Throws<ServiceResultException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
+                    Assert.AreEqual((StatusCode)StatusCodes.BadSecureChannelIdInvalid, (StatusCode)sre.StatusCode, sre.Message);
+                }
+                else
+                {
+                    var result = session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+                    Assert.NotNull(result);
                 }
             }
-
-            // cannot read using a closed channel, validate the status code
-            if (endpoint.EndpointUrl.ToString().StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
+            finally
             {
-                sre = Assert.Throws<ServiceResultException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
-                Assert.AreEqual(StatusCodes.BadSecureChannelIdInvalid, sre.StatusCode, sre.Message);
+                session1.DeleteSubscriptionsOnClose = true;
+                session2.DeleteSubscriptionsOnClose = true;
+                if (asyncTest)
+                {
+                    await session1.CloseAsync(1000, true).ConfigureAwait(false);
+                    await session2.CloseAsync(1000, true).ConfigureAwait(false);
+                }
+                else
+                {
+                    session1.Close(1000, true);
+                    session2.Close(1000, true);
+                }
+                Utils.SilentDispose(session1);
+                Utils.SilentDispose(session2);
             }
-            else
-            {
-                var result = session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
-                Assert.NotNull(result);
-            }
-
-            session1.DeleteSubscriptionsOnClose = true;
-            session2.DeleteSubscriptionsOnClose = true;
-            if (asyncTest)
-            {
-                await session1.CloseAsync(1000).ConfigureAwait(false);
-                await session2.CloseAsync(1000).ConfigureAwait(false);
-            }
-            else
-            {
-                session1.Close(1000);
-                session2.Close(1000);
-            }
-            Utils.SilentDispose(session1);
-            Utils.SilentDispose(session2);
 
             Assert.AreEqual(0, session1ConfigChanged);
             Assert.Less(0, session2ConfigChanged);
@@ -1186,7 +1193,7 @@ namespace Opc.Ua.Client.Tests
             Assert.True(conditionRefresh);
 
             var sre = Assert.Throws<ServiceResultException>(() => subscription.Republish(subscription.SequenceNumber + 100));
-            Assert.AreEqual(StatusCodes.BadMessageNotAvailable, sre.StatusCode);
+            Assert.AreEqual((StatusCode)StatusCodes.BadMessageNotAvailable, (StatusCode)sre.StatusCode);
 
             subscription.RemoveItems(list);
             subscription.ApplyChanges();

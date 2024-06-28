@@ -105,7 +105,9 @@ namespace Opc.Ua.Server
                         case ObjectTypes.ServerConfigurationType:
                         {
                             ServerConfigurationState activeNode = new ServerConfigurationState(passiveNode.Parent);
-                            activeNode.ConfigurationFile = new ApplicationConfigurationFileState(activeNode);
+
+                            activeNode.GetCertificates = new GetCertificatesMethodState(activeNode);
+
                             activeNode.Create(context, passiveNode);
 
                             m_serverConfigurationNode = activeNode;
@@ -120,7 +122,6 @@ namespace Opc.Ua.Server
                                 var serverNode = FindNodeInAddressSpace(ObjectIds.Server);
                                 serverNode?.ReplaceChild(context, activeNode);
                             }
-
                             // remove the reference to server node because it is set as parent
                             activeNode.RemoveReference(ReferenceTypeIds.HasComponent, true, ObjectIds.Server);
 
@@ -204,40 +205,8 @@ namespace Opc.Ua.Server
             m_serverConfigurationNode.CreateSigningRequest.OnCall = new CreateSigningRequestMethodStateMethodCallHandler(CreateSigningRequest);
             m_serverConfigurationNode.ApplyChanges.OnCallMethod = new GenericMethodCalledEventHandler(ApplyChanges);
             m_serverConfigurationNode.GetRejectedList.OnCall = new GetRejectedListMethodStateMethodCallHandler(GetRejectedList);
+            m_serverConfigurationNode.GetCertificates.OnCall = new GetCertificatesMethodStateMethodCallHandler(GetCertificates);
             m_serverConfigurationNode.ClearChangeMasks(systemContext, true);
-
-            m_serverConfigurationNode.ConfigurationFile.AvailableNetworks.Value = new string[0];
-            m_serverConfigurationNode.ConfigurationFile.AvailablePorts.Value = "40000:60000";
-
-            var policies = this.m_configuration?.ServerConfiguration?.SecurityPolicies;
-
-            if (policies != null)
-            {
-                m_serverConfigurationNode.ConfigurationFile.SecurityPolicyUris.Value = policies.Select(p => p.SecurityPolicyUri).ToArray();
-            }
-
-            var userTokenPolicies = this.m_configuration?.ServerConfiguration?.UserTokenPolicies;
-
-            if (userTokenPolicies != null)
-            {
-                m_serverConfigurationNode.ConfigurationFile.UserTokenTypes.Value = userTokenPolicies.ToArray();
-            }
-
-            m_serverConfigurationNode.ConfigurationFile.CertificateTypes.Value = new NodeId[]
-            {
-                ObjectTypeIds.RsaSha256ApplicationCertificateType
-            };
-
-            m_serverConfigurationNode.ConfigurationFile.LastUpdateTime.Value = DateTime.UtcNow;
-            m_serverConfigurationNode.ConfigurationFile.CurrentVersion.Value = Utils.GetVersionTime();
-            m_serverConfigurationNode.ConfigurationFile.SupportedDataType.Value = DataTypeIds.ApplicationConfigurationDataType;
-            m_serverConfigurationNode.ConfigurationFile.ActivityTimeout.Value = 120000;
-
-            m_serverConfigurationNode.ConfigurationFile.Handle = new ConfigurationFile(
-                m_serverConfigurationNode.ConfigurationFile,
-                new ConfigurationFile.SecureAccess(HasApplicationSecureAdminAccess),
-                new ConfigurationFile.SecureAccess(HasApplicationSecureAdminAccess));
-            m_serverConfigurationNode.ConfigurationFile.ClearChangeMasks(systemContext, true);
 
             // setup certificate group trust list handlers
             foreach (var certGroup in m_certificateGroups)
@@ -261,6 +230,8 @@ namespace Opc.Ua.Server
                 serverNamespacesNode.StateChanged += ServerNamespacesChanged;
             }
         }
+
+        
 
         /// <summary>
         /// Gets and returns the <see cref="NamespaceMetadataState"/> node associated with the specified NamespaceUri
@@ -645,6 +616,41 @@ namespace Opc.Ua.Server
 
             return StatusCodes.Good;
         }
+
+        private ServiceResult GetCertificates(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            NodeId certificateGroupId,
+            ref NodeId[] certificateTypeIds,
+            ref byte[][] certificates)
+        {
+            HasApplicationSecureAdminAccess(context);
+
+            ServerCertificateGroup certificateGroup = m_certificateGroups.FirstOrDefault(group => Utils.IsEqual(group.NodeId, certificateGroupId));
+            if (certificateGroup == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Certificate group invalid.");
+            }
+
+            NodeId certificateTypeId = certificateGroup.CertificateTypes.FirstOrDefault();
+
+            //TODO support multiple Application Instance Certificates
+            if (certificateTypeId != null)
+            {
+                certificateTypeIds = new NodeId[1] {certificateTypeId };
+                certificates = new byte[1][];
+                certificates[0] = certificateGroup.ApplicationCertificate.Certificate.GetRawCertData();
+            }
+            else
+            {
+                certificateTypeIds = new NodeId[0];
+                certificates = new byte[0][];
+            }
+
+            return ServiceResult.Good;
+        }
+
 
         private ServerCertificateGroup VerifyGroupAndTypeId(
             NodeId certificateGroupId,

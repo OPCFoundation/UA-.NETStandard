@@ -95,6 +95,7 @@
   <PropertyGroup>
     <ZipTmp>$(BaseIntermediateOutputPath)/zipnodeset2</ZipTmp>
     <ZipNodeSet2XML>Schema/Opc.Ua.NodeSet2.xml</ZipNodeSet2XML>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <Target Name="ZipNodeSet2" BeforeTargets="PrepareForBuild" Inputs="$(ZipNodeSet2XML)" Outputs="$(ZipNodeSet2XML).zip">

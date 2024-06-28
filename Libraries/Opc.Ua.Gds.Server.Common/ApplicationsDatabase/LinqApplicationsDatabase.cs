@@ -672,7 +672,6 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             Guid id = GetNodeIdGuid(applicationId);
 
-            List<byte[]> certificates = new List<byte[]>();
 
             lock (Lock)
             {
