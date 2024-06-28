@@ -127,6 +127,7 @@ namespace Opc.Ua.Server
                 Utils.SilentDispose(m_nodeManager);
                 Utils.SilentDispose(m_sessionManager);
                 Utils.SilentDispose(m_subscriptionManager);
+                Utils.SilentDispose(m_durableMonitoredItemQueueFactory);
             }
         }
         #endregion
@@ -191,6 +192,16 @@ namespace Opc.Ua.Server
         {
             m_sessionManager = sessionManager;
             m_subscriptionManager = subscriptionManager;
+        }
+
+        /// <summary>
+        /// Stores the DurableMonitoredItemQueueFactory in the datastore.
+        /// </summary>
+        /// <param name="durableMonitoredItemQueueFactory">The DurableMonitoredItemQueueFactory.</param>
+        public void SetDurableMonitoredItemQueueFactory(
+            IDurableMonitoredItemQueueFactory durableMonitoredItemQueueFactory)
+        {
+            m_durableMonitoredItemQueueFactory = durableMonitoredItemQueueFactory;
         }
         #endregion
 
@@ -344,6 +355,15 @@ namespace Opc.Ua.Server
         ISubscriptionManager IServerInternal.SubscriptionManager
         {
             get { return m_subscriptionManager; }
+        }
+
+
+        /// <summary>
+        /// The factory for durable monitored item queues
+        /// </summary>
+        public IDurableMonitoredItemQueueFactory DurableMonitoredItemQueueFactory
+        {
+            get { return m_durableMonitoredItemQueueFactory; }
         }
 
 
@@ -875,6 +895,7 @@ namespace Opc.Ua.Server
         private EventManager m_eventManager;
         private SessionManager m_sessionManager;
         private SubscriptionManager m_subscriptionManager;
+        private IDurableMonitoredItemQueueFactory m_durableMonitoredItemQueueFactory;
 
         private readonly object m_dataLock = new object();
         private ServerObjectState m_serverObject;

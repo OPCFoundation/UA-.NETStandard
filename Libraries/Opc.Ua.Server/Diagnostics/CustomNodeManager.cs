@@ -3450,6 +3450,12 @@ namespace Opc.Ua.Server
             return ServiceResult.Good;
         }
 
+        ///<inheritdoc/>
+        public virtual void CreateDurableMonitoredItems(OperationContext context, uint subscriptionId, double publishingInterval, TimestampsToReturn timestampsToReturn, IList<MonitoredItemCreateRequest> itemsToCreate, IList<ServiceResult> errors, IList<MonitoringFilterResult> filterErrors, IList<IDurableMonitoredItem> monitoredItems, ref long globalIdCounter)
+        {
+            throw new NotImplementedException();
+        }
+
         /// <summary>
         /// Creates a new set of monitored items for a set of variables.
         /// </summary>
@@ -4769,6 +4775,7 @@ namespace Opc.Ua.Server
                 return node;
             }
         }
+
         #endregion
 
         #region Private Fields

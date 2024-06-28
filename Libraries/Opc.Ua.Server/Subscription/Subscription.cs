@@ -109,6 +109,8 @@ namespace Opc.Ua.Server
             m_waitingForPublish = false;
             m_maxMessageCount = maxMessageCount;
             m_sentMessages = new List<NotificationMessage>();
+            m_supportsDurable = m_server.DurableMonitoredItemQueueFactory != null;
+            m_durable = false;
 
             m_monitoredItems = new Dictionary<uint, LinkedListNode<IMonitoredItem>>();
             m_itemsToCheck = new LinkedList<IMonitoredItem>();
@@ -261,6 +263,17 @@ namespace Opc.Ua.Server
         public UserIdentityToken OwnerIdentity
         {
             get { return (m_session != null) ? m_session.IdentityToken : m_savedOwnerIdentity; }
+        }
+
+        /// <summary>
+        /// True if the subscription is set to durable and supports long lifetime and queue size
+        /// </summary>
+        public bool IsDurable
+        {
+            get
+            {
+                return m_durable;
+            }
         }
 
         /// <summary>
@@ -1444,8 +1457,13 @@ namespace Opc.Ua.Server
                 errors.Add(null);
                 filterResults.Add(null);
             }
+            if (IsDurable)
+            {
 
-            m_server.NodeManager.CreateMonitoredItems(
+            }
+            else
+            {
+                m_server.NodeManager.CreateMonitoredItems(
                 context,
                 this.m_id,
                 m_publishingInterval,
@@ -1454,6 +1472,8 @@ namespace Opc.Ua.Server
                 errors,
                 filterResults,
                 monitoredItems);
+            }
+            
 
             // allocate results.
             bool diagnosticsExist = false;
@@ -2280,7 +2300,14 @@ namespace Opc.Ua.Server
                     return StatusCodes.BadInvalidState;
                 }
 
-                // TODO: enable the durable subscription support here
+                if (!m_supportsDurable)
+                {
+                    Utils.LogWarning("SetSubscriptionDurable requested for subscription with id {0}, but no IDurableMonitoredItemQueueFactory was registered", m_id);
+                    return StatusCodes.BadConfigurationError;
+                }
+
+                // TODO: enable the durable subscription support here & calculte revised lifetime 
+                m_durable = true;
 
                 return StatusCodes.Good;
             }
@@ -2437,6 +2464,8 @@ namespace Opc.Ua.Server
         private bool m_refreshInProgress;
         private bool m_expired;
         private Dictionary<uint, List<ITriggeredMonitoredItem>> m_itemsToTrigger;
+        private bool m_supportsDurable;
+        private bool m_durable;
         #endregion
     }
 }

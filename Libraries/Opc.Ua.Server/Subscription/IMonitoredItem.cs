@@ -297,6 +297,18 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// A monitored item with a persistent queue that works with a durable sucription
+    /// </summary>
+    public interface IDurableMonitoredItem : ISampledDataChangeMonitoredItem, IEventMonitoredItem, IDisposable
+    {
+        /// <summary>
+        /// True when the subscription the item belongs to is a durable subscription, false if not
+        /// When true the monitored Item needs to use a persistent queue
+        /// </summary>
+        bool IsDurable { get; }
+    }
+
+    /// <summary>
     /// Defines constants for the monitored item type.
     /// </summary>
     /// <remarks>

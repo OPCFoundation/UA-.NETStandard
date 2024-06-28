@@ -2963,6 +2963,12 @@ namespace Opc.Ua.Server
                     // add the session manager to the datastore.
                     m_serverInternal.SetSessionManager(sessionManager, subscriptionManager);
 
+                    //create the DurableMonitoredItemQueueFactory
+                    IDurableMonitoredItemQueueFactory durableMonitoredItemQueueFactory = CreateDurableMonitoredItemQueueFactory(m_serverInternal, configuration);
+
+                    //add the DurableMonitoredItemQueueFactory to the datastore.
+                    m_serverInternal.SetDurableMonitoredItemQueueFactory(durableMonitoredItemQueueFactory);
+
                     ServerError = null;
 
                     // setup registration information.
@@ -3300,6 +3306,17 @@ namespace Opc.Ua.Server
         protected virtual SubscriptionManager CreateSubscriptionManager(IServerInternal server, ApplicationConfiguration configuration)
         {
             return new SubscriptionManager(server, configuration);
+        }
+
+        /// <summary>
+        /// Creates the session manager for the server.
+        /// </summary>
+        /// <param name="server">The server.</param>
+        /// <param name="configuration">The configuration.</param>
+        /// <returns>Returns a generic session manager object for a server, the return type is <seealso cref="SubscriptionManager"/>.</returns>
+        protected virtual IDurableMonitoredItemQueueFactory CreateDurableMonitoredItemQueueFactory(IServerInternal server, ApplicationConfiguration configuration)
+        {
+            throw new NotImplementedException();
         }
 
         /// <summary>

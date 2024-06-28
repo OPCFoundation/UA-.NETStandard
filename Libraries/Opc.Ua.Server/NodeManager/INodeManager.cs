@@ -286,6 +286,20 @@ namespace Opc.Ua.Server
             ref long globalIdCounter);
 
         /// <summary>
+        /// Creates a set of durable monitored items.
+        /// </summary>
+        void CreateDurableMonitoredItems(
+            OperationContext context,
+            uint subscriptionId,
+            double publishingInterval,
+            TimestampsToReturn timestampsToReturn,
+            IList<MonitoredItemCreateRequest> itemsToCreate,
+            IList<ServiceResult> errors,
+            IList<MonitoringFilterResult> filterErrors,
+            IList<IDurableMonitoredItem> monitoredItems,
+            ref long globalIdCounter);
+
+        /// <summary>
         /// Modifies a set of monitored items.
         /// </summary>
         void ModifyMonitoredItems(

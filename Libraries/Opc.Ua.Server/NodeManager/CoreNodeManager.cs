@@ -1115,6 +1115,12 @@ namespace Opc.Ua.Server
             return ServiceResult.Good;
         }
 
+        ///<inheritdoc/>
+        public void CreateDurableMonitoredItems(OperationContext context, uint subscriptionId, double publishingInterval, TimestampsToReturn timestampsToReturn, IList<MonitoredItemCreateRequest> itemsToCreate, IList<ServiceResult> errors, IList<MonitoringFilterResult> filterErrors, IList<IDurableMonitoredItem> monitoredItems, ref long globalIdCounter)
+        {
+            throw new NotImplementedException();
+        }
+
         /// <summary>
         /// Creates a set of monitored items.
         /// </summary>

@@ -2182,6 +2182,22 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Creates a set of durable monitored items.
+        /// </summary>
+        public virtual void CreateDurableMonitoredItems(
+            OperationContext context,
+            uint subscriptionId,
+            double publishingInterval,
+            TimestampsToReturn timestampsToReturn,
+            IList<MonitoredItemCreateRequest> itemsToCreate,
+            IList<ServiceResult> errors,
+            IList<MonitoringFilterResult> filterResults,
+            IList<IDurableMonitoredItem> monitoredItems)
+        {
+           throw new NotImplementedException();
+        }
+
+        /// <summary>
         /// Creates a set of monitored items.
         /// </summary>
         public virtual void CreateMonitoredItems(

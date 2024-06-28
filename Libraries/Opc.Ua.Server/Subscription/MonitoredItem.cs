@@ -38,7 +38,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A handle that describes how to access a node/attribute via an i/o manager.
     /// </summary>
-    public class MonitoredItem : IEventMonitoredItem, ISampledDataChangeMonitoredItem, ITriggeredMonitoredItem
+    public class MonitoredItem : IDurableMonitoredItem, ITriggeredMonitoredItem
     {
         #region Constructors
         /// <summary>
@@ -91,7 +91,8 @@ namespace Opc.Ua.Server
             double samplingInterval,
             uint queueSize,
             bool discardOldest,
-            double sourceSamplingInterval)
+            double sourceSamplingInterval,
+            bool createDurable = false)
         {
             if (itemToMonitor == null) throw new ArgumentNullException(nameof(itemToMonitor));
 
@@ -121,8 +122,16 @@ namespace Opc.Ua.Server
             m_calculator = null;
             m_nextSamplingTime = HiResClock.TickCount64;
             m_alwaysReportUpdates = false;
+            m_durableQueueFactory = m_server.DurableMonitoredItemQueueFactory;
+            m_isDurable = createDurable;
 
-            m_typeMask = MonitoredItemTypeMask.DataChange;
+            if (m_durableQueueFactory == null && m_isDurable)
+            {
+                Utils.LogError("Durable subscription was create butd no factory for DurableMonitoredItemQueue was registered, monitored item with id {id} could not be created", id);
+                throw new ServiceResultException(StatusCodes.BadInternalError);
+            }
+
+                m_typeMask = MonitoredItemTypeMask.DataChange;
 
             if (originalFilter is EventFilter)
             {
@@ -1456,6 +1465,8 @@ namespace Opc.Ua.Server
                 }
             }
         }
+        /// <inheritdoc/>
+        public bool IsDurable => m_isDurable;
         #endregion
 
         #region Private Methods
@@ -1736,12 +1747,24 @@ namespace Opc.Ua.Server
                 {
                     m_queue = null;
                     m_events = null;
+                    m_durableQueue?.Dispose();
                     break;
                 }
 
                 case MonitoringMode.Reporting:
                 case MonitoringMode.Sampling:
                 {
+                    if (IsDurable)
+                    {
+                        m_durableQueue = m_durableQueueFactory.Create(Id);
+                        // TODO configure queue
+
+                        //m_durableQueue.SetQueueSize(QueueSize, m_discardOldest, m_diagnosticsMasks);
+                        //m_durableQueue.SetSamplingInterval(m_samplingInterval);
+                        throw new NotImplementedException();
+                    }
+
+
                     // check if queuing is disabled.
                     if (m_queueSize == 0)
                     {
@@ -1817,6 +1840,12 @@ namespace Opc.Ua.Server
             m_subscription?.QueueOverflowHandler();
         }
 
+        /// Disposes the durable monitoredItemQueue
+        public void Dispose()
+        {
+            m_durableQueue?.Dispose();
+        }
+
         #endregion
 
         #region Private Members
@@ -1844,12 +1873,14 @@ namespace Opc.Ua.Server
         private bool m_discardOldest;
         private int m_sourceSamplingInterval;
         private bool m_alwaysReportUpdates;
-
+        private readonly IDurableMonitoredItemQueueFactory m_durableQueueFactory;
+        private readonly bool m_isDurable;
         private DataValue m_lastValue;
         private ServiceResult m_lastError;
         private long m_nextSamplingTime;
         private List<EventFieldList> m_events;
         private MonitoredItemQueue m_queue;
+        private IDurableMonitoredItemQueue m_durableQueue;
         private bool m_overflow;
         private bool m_readyToPublish;
         private bool m_readyToTrigger;
