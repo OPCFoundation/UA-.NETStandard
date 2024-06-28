@@ -148,7 +148,7 @@ namespace Opc.Ua.Client.Tests
             await ClientFixture.LoadClientConfiguration(PkiRoot).ConfigureAwait(false);
             ClientFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
             ClientFixture.Config.TransportQuotas.MaxByteStringLength =
-            ClientFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;            
+            ClientFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
 
             if (!string.IsNullOrEmpty(customUrl))
             {
