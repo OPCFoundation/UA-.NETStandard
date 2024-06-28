@@ -62,7 +62,7 @@ namespace Opc.Ua.Client.Tests
             SupportsExternalServerUrl = true;
             // create a new session for every test
             SingleSession = false;
-            return base.OneTimeSetUpAsync(null, true);
+            return base.OneTimeSetUpAsync(writer: null, securityNone: true);
         }
 
         /// <summary>

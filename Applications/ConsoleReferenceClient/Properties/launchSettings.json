@@ -2,7 +2,7 @@
   "profiles": {
     "ConsoleReferenceClient": {
       "commandName": "Project",
-      "commandLineArgs": "-nsec -b"
+      "commandLineArgs": "-b"
     }
   }
 }

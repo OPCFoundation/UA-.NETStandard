@@ -110,7 +110,8 @@ namespace Opc.Ua.Client.Tests
         /// <param name="writer">The test output writer.</param>
         public async Task OneTimeSetUpAsync(TextWriter writer = null,
             bool securityNone = false,
-            bool enableTracing = false,
+            bool enableClientSideTracing = false,
+            bool enableServerSideTracing = false,
             bool disableActivityLogging = false
             )
         {
@@ -139,10 +140,10 @@ namespace Opc.Ua.Client.Tests
 
             if (customUrl == null)
             {
-                await CreateReferenceServerFixture(enableTracing, disableActivityLogging, securityNone, writer).ConfigureAwait(false);
+                await CreateReferenceServerFixture(enableServerSideTracing, disableActivityLogging, securityNone, writer).ConfigureAwait(false);
             }
 
-            ClientFixture = new ClientFixture(enableTracing, disableActivityLogging);
+            ClientFixture = new ClientFixture(enableClientSideTracing, disableActivityLogging);
 
             await ClientFixture.LoadClientConfiguration(PkiRoot).ConfigureAwait(false);
             ClientFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
@@ -237,7 +238,6 @@ namespace Opc.Ua.Client.Tests
             {
                 try
                 {
-                    //Session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.None).ConfigureAwait(false);
                     Session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
                 }
                 catch (Exception e)

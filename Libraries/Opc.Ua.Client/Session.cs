@@ -3641,7 +3641,7 @@ namespace Opc.Ua.Client
         }
         #endregion
 
-        #region combined browse/browse next
+        #region Combined Browse/BrowseNext
 
         /// <summary>
         /// Execute browse and, if necessary, browse next in one
@@ -3742,9 +3742,9 @@ namespace Opc.Ua.Client
                             errorsForPass[batchOffset + ii] = errorsForBatch[ii];
                             
                         }
-                        int badNoCp = errors.Count(x => x.StatusCode == StatusCodes.BadNoContinuationPoints);
-                        int badCpI = errors.Count(x => x.StatusCode== StatusCodes.BadContinuationPointInvalid);
-                        int bad = errors.Count(x => StatusCode.IsBad(x.StatusCode));
+                        int badNoCp = errorsForBatch.Count(x => x.StatusCode == StatusCodes.BadNoContinuationPoints);
+                        int badCpI = errorsForBatch.Count(x => x.StatusCode== StatusCodes.BadContinuationPointInvalid);
+                        int bad = errorsForBatch.Count(x => StatusCode.IsBad(x.StatusCode));
                         badNoCPErrorsPerPass += badNoCp;
                         badCPInvalidErrorsPerPass += badCpI;
                         otherErrorsPerPass += bad - badNoCp - badCpI;
@@ -3764,9 +3764,27 @@ namespace Opc.Ua.Client
                     nodesToBrowseForPass.AddRange( nodesToBrowseForNextPass );
                     nodesToBrowseForNextPass.Clear();
 
-                    Utils.LogTrace("Session {0}: during ManagedBrowse {1} BadNoContinuationPoints, " +
-                        "{2} BadContinuationPointInvalid and {3] other status codes of severity 'Bad' occured.",
-                        SessionId, badNoCPErrorsPerPass, badCPInvalidErrorsPerPass, otherErrorsPerPass);
+                    String aggregatedErrorMessage = "ManagedBrowse: in pass {0}, {1} {2} occured with a status code {3}";
+
+                    if (badCPInvalidErrorsPerPass > 0)
+                    {                         
+                        Utils.LogInfo(aggregatedErrorMessage, passCount, badCPInvalidErrorsPerPass,
+                            badCPInvalidErrorsPerPass == 1 ? "error" : "errors", "BadContinuationPointInvalid.");
+                    }
+                    if( badNoCPErrorsPerPass > 0 )
+                    {
+                        Utils.LogInfo(aggregatedErrorMessage, passCount, badNoCPErrorsPerPass,
+                            badNoCPErrorsPerPass == 1 ? "error" : "errors", "BadNoContinuationPoints.");
+                    }
+                    if( otherErrorsPerPass > 0)
+                    {
+                        Utils.LogInfo(aggregatedErrorMessage, passCount, otherErrorsPerPass,
+                            otherErrorsPerPass == 1 ? "error" : "errors", "different from BadNoContinuationPoints or BadContinuationPointInvalid.");
+                    }
+                    if (otherErrorsPerPass == 0 && badCPInvalidErrorsPerPass == 0 && badNoCPErrorsPerPass == 0)
+                    {
+                        Utils.LogTrace("MangedBrowse completed with no errors.");
+                    }
 
                     passCount++;
 

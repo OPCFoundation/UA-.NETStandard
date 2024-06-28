@@ -31,6 +31,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server.Tests;
@@ -351,7 +352,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (m_traceLogger == null)
             {
-                m_traceLogger = NUnitTestLogger<ClientFixture>.Create(writer, Config, TraceMasks);
+                m_traceLogger = NUnitTestLogger<ClientFixture>.Create(writer, Config, TraceMasks);               
             }
             else
             {
@@ -359,6 +360,13 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
+        public void SetTraceOutputLevel(LogLevel logLevel = LogLevel.Debug)
+        {
+            if(m_traceLogger != null)
+            {
+                m_traceLogger.MinimumLogLevel = logLevel;
+            }
+        }
         /// <summary>
         /// Configures Activity Listener and registers with Activity Source.
         /// </summary>
