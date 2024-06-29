@@ -3804,7 +3804,7 @@ namespace Opc.Ua.Client
                     state.RequestId = requestId;
                     state.RequestTypeId = typeId;
                     state.Result = result;
-                    state.Timestamp = HiResClock.TickCount;
+                    state.TickCount = HiResClock.TickCount;
 
                     m_outstandingRequests.AddLast(state);
                 }
@@ -3824,11 +3824,11 @@ namespace Opc.Ua.Client
                 if (state != null)
                 {
                     // mark any old requests as default (i.e. the should have returned before this request).
-                    int maxAge = state.Timestamp - 1000;
+                    const int maxAge = 1000;
 
                     for (LinkedListNode<AsyncRequestState> ii = m_outstandingRequests.First; ii != null; ii = ii.Next)
                     {
-                        if (ii.Value.RequestTypeId == typeId && ii.Value.Timestamp < maxAge)
+                        if (ii.Value.RequestTypeId == typeId && (state.TickCount - ii.Value.TickCount) > maxAge)
                         {
                             ii.Value.Defunct = true;
                         }
@@ -3844,7 +3844,7 @@ namespace Opc.Ua.Client
                     state.RequestId = requestId;
                     state.RequestTypeId = typeId;
                     state.Result = result;
-                    state.Timestamp = HiResClock.TickCount;
+                    state.TickCount = HiResClock.TickCount;
 
                     m_outstandingRequests.AddLast(state);
                 }
@@ -4925,7 +4925,7 @@ namespace Opc.Ua.Client
             var state = new AsyncRequestState {
                 RequestTypeId = DataTypes.PublishRequest,
                 RequestId = requestHeader.RequestHandle,
-                Timestamp = HiResClock.TickCount
+                TickCount = HiResClock.TickCount
             };
 
             CoreClientUtils.EventLog.PublishStart((int)requestHeader.RequestHandle);
@@ -6396,7 +6396,7 @@ namespace Opc.Ua.Client
         {
             public uint RequestTypeId;
             public uint RequestId;
-            public int Timestamp;
+            public int TickCount;
             public IAsyncResult Result;
             public bool Defunct;
         }
