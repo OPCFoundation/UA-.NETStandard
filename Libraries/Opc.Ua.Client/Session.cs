@@ -781,8 +781,8 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Gets the time in ms of the last keep alive.
-        /// Independent of System time changes
+        /// Gets the TickCount in ms of the last keep alive based on <see cref="HiResClock.TickCount"/>.
+        /// Independent of system time changes.
         /// </summary>
         public int LastKeepAliveTickCount
         {
