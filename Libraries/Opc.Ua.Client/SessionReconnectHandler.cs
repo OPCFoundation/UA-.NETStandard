@@ -412,7 +412,7 @@ namespace Opc.Ua.Client
                             sre.StatusCode == StatusCodes.BadTimeout)
                         {
                             // check if reactivating is still an option.
-                            double timeout = (int)(HiResClock.TickCount - m_session.LastKeepAliveTickCount) + m_session.SessionTimeout;
+                            int timeout = Convert.ToInt32(m_session.SessionTimeout) - (HiResClock.TickCount - m_session.LastKeepAliveTickCount);
                             if (timeout > 0)
                             {
                                 Utils.LogInfo("Retry to reactivate, est. session timeout in {0} ms.", timeout);
