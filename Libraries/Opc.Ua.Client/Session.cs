@@ -757,7 +757,7 @@ namespace Opc.Ua.Client
                 StatusCode lastKeepAliveErrorStatusCode = m_lastKeepAliveErrorStatusCode;
                 if (StatusCode.IsGood(lastKeepAliveErrorStatusCode) || lastKeepAliveErrorStatusCode == StatusCodes.BadNoCommunication)
                 {
-                    int delta = HiResClock.TickCount - m_lastKeepAliveTimeMonotonic;
+                    int delta = HiResClock.TickCount - m_lastKeepAliveTickCount;
 
                     // add a guard band to allow for network lag.
                     return (m_keepAliveInterval + kKeepAliveGuardBand) <= delta;
@@ -784,11 +784,11 @@ namespace Opc.Ua.Client
         /// Gets the time in ms of the last keep alive.
         /// Independent of System time changes
         /// </summary>
-        public int LastKeepAliveTimeMonotonic
+        public int LastKeepAliveTickCount
         {
             get
             {
-                return m_lastKeepAliveTimeMonotonic;
+                return m_lastKeepAliveTickCount;
             }
         }
 
@@ -3720,7 +3720,7 @@ namespace Opc.Ua.Client
 
             m_lastKeepAliveErrorStatusCode = StatusCodes.Good;
             Interlocked.Exchange(ref m_lastKeepAliveTime, DateTime.UtcNow.Ticks);
-            m_lastKeepAliveTimeMonotonic = HiResClock.TickCount;
+            m_lastKeepAliveTickCount = HiResClock.TickCount;
 
             m_serverState = ServerState.Unknown;
 
@@ -3997,7 +3997,7 @@ namespace Opc.Ua.Client
 
                 m_lastKeepAliveErrorStatusCode = StatusCodes.Good;
                 Interlocked.Exchange(ref m_lastKeepAliveTime, DateTime.UtcNow.Ticks);
-                m_lastKeepAliveTimeMonotonic = HiResClock.TickCount;
+                m_lastKeepAliveTickCount = HiResClock.TickCount;
 
                 lock (m_outstandingRequests)
                 {
@@ -4016,7 +4016,7 @@ namespace Opc.Ua.Client
             {
                 m_lastKeepAliveErrorStatusCode = StatusCodes.Good;
                 Interlocked.Exchange(ref m_lastKeepAliveTime, DateTime.UtcNow.Ticks);
-                m_lastKeepAliveTimeMonotonic = HiResClock.TickCount;
+                m_lastKeepAliveTickCount = HiResClock.TickCount;
             }
 
             // save server state.
@@ -4047,10 +4047,10 @@ namespace Opc.Ua.Client
             if (result.StatusCode == StatusCodes.BadNoCommunication)
             {
                 //keep alive read timed out
-                int delta = HiResClock.TickCount - m_lastKeepAliveTimeMonotonic;
+                int delta = HiResClock.TickCount - m_lastKeepAliveTickCount;
                 Utils.LogInfo(
-                    "KEEP ALIVE LATE: {0}s, EndpointUrl={1}, RequestCount={2}/{3}",
-                    delta / 1000,
+                    "KEEP ALIVE LATE: {0}ms, EndpointUrl={1}, RequestCount={2}/{3}",
+                    delta,
                     this.Endpoint?.EndpointUrl,
                     this.GoodPublishRequestCount,
                     this.OutstandingRequestCount);
@@ -6375,7 +6375,7 @@ namespace Opc.Ua.Client
         private long m_publishCounter;
         private int m_tooManyPublishRequests;
         private long m_lastKeepAliveTime;
-        private int m_lastKeepAliveTimeMonotonic;
+        private int m_lastKeepAliveTickCount;
         private StatusCode m_lastKeepAliveErrorStatusCode;
         private ServerState m_serverState;
         private int m_keepAliveInterval;

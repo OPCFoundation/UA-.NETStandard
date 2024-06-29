@@ -799,7 +799,7 @@ namespace Opc.Ua.Client
         {
             get
             {
-                int timeSinceLastNotification = HiResClock.TickCount - m_lastNotificatioTimeMonotonic;
+                int timeSinceLastNotification = HiResClock.TickCount - m_lastNotificationTickCount;
                 if (timeSinceLastNotification > m_keepAliveInterval + kKeepAliveTimerMargin)
                 {
                     return true;
@@ -1430,8 +1430,8 @@ namespace Opc.Ua.Client
 
                 DateTime now = DateTime.UtcNow;
                 Interlocked.Exchange(ref m_lastNotificationTime, now.Ticks);
-                int nowMonotonic = HiResClock.TickCount;
-                m_lastNotificatioTimeMonotonic = nowMonotonic;
+                int tickCount = HiResClock.TickCount;
+                m_lastNotificationTickCount = tickCount;
 
                 // save the string table that came with notification.
                 message.StringTable = new List<string>(stringTable);
@@ -1443,7 +1443,7 @@ namespace Opc.Ua.Client
                 }
 
                 // find or create an entry for the incoming sequence number.
-                IncomingMessage entry = FindOrCreateEntry(now, nowMonotonic, message.SequenceNumber);
+                IncomingMessage entry = FindOrCreateEntry(now, tickCount, message.SequenceNumber);
 
                 // check for keep alive.
                 if (message.NotificationData.Count > 0)
@@ -1465,7 +1465,7 @@ namespace Opc.Ua.Client
                         IncomingMessage placeholder = new IncomingMessage();
                         placeholder.SequenceNumber = entry.SequenceNumber + 1;
                         placeholder.Timestamp = now;
-                        placeholder.TimestampMonotonic = nowMonotonic;
+                        placeholder.TickCount = tickCount;
                         node = m_incomingMessages.AddAfter(node, placeholder);
                         continue;
                     }
@@ -1483,7 +1483,7 @@ namespace Opc.Ua.Client
 
                     // can only pull off processed or expired or missing messages.
                     if (!entry.Processed &&
-                        !(entry.Republished && (entry.RepublishStatus != StatusCodes.Good || entry.TimestampMonotonic + kRepublishMessageExpiredTimeout < nowMonotonic)))
+                        !(entry.Republished && (entry.RepublishStatus != StatusCodes.Good || (tickCount - entry.TickCount) > kRepublishMessageExpiredTimeout)))
                     {
                         break;
                     }
@@ -1744,8 +1744,8 @@ namespace Opc.Ua.Client
                     // only republish consecutive sequence numbers
                     // triggers the republish mechanism immediately,
                     // if event is in the past
-                    var now = DateTime.UtcNow.AddMilliseconds(-kRepublishMessageTimeout * 2);
-                    var nowMonotonic = HiResClock.TickCount - (kRepublishMessageTimeout * 2);
+                    DateTime now = DateTime.UtcNow.AddMilliseconds(-kRepublishMessageTimeout * 2);
+                    int tickCount = HiResClock.TickCount - (kRepublishMessageTimeout * 2);
                     uint lastSequenceNumberToRepublish = m_lastSequenceNumberProcessed - 1;
                     int availableNumbers = availableSequenceNumbers.Count;
                     int republishMessages = 0;
@@ -1756,7 +1756,7 @@ namespace Opc.Ua.Client
                         {
                             if (lastSequenceNumberToRepublish == sequenceNumber)
                             {
-                                FindOrCreateEntry(now, nowMonotonic, sequenceNumber);
+                                FindOrCreateEntry(now, tickCount, sequenceNumber);
                                 found = true;
                                 break;
                             }
@@ -1845,7 +1845,7 @@ namespace Opc.Ua.Client
                 m_publishTimer = null;
 
                 Interlocked.Exchange(ref m_lastNotificationTime, DateTime.UtcNow.Ticks);
-                m_lastNotificatioTimeMonotonic = HiResClock.TickCount;
+                m_lastNotificationTickCount = HiResClock.TickCount;
                 m_keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * (m_currentKeepAliveCount + 1), Int32.MaxValue));
                 if (m_keepAliveInterval < kMinKeepAliveTimerInterval)
                 {
@@ -2246,7 +2246,7 @@ namespace Opc.Ua.Client
                         {
                             // tolerate if a single request was received out of order
                             if (ii.Next.Next != null &&
-                                ii.Value.TimestampMonotonic + kRepublishMessageTimeout < HiResClock.TickCount)
+                                (HiResClock.TickCount - ii.Value.TickCount) > kRepublishMessageTimeout)
                             {
                                 ii.Value.Republished = true;
                                 publishStateChangedMask |= PublishStateChangedMask.Republish;
@@ -2735,9 +2735,9 @@ namespace Opc.Ua.Client
         /// Find or create an entry for the incoming sequence number.
         /// </summary>
         /// <param name="utcNow">The current Utc time.</param>
-        /// <param name="utcNowMonotonic">The current monotonic time</param>
+        /// <param name="tickCount">The current monotonic time</param>
         /// <param name="sequenceNumber">The sequence number for the new entry.</param>
-        private IncomingMessage FindOrCreateEntry(DateTime utcNow, int utcNowMonotonic, uint sequenceNumber)
+        private IncomingMessage FindOrCreateEntry(DateTime utcNow, int tickCount, uint sequenceNumber)
         {
             IncomingMessage entry = null;
             LinkedListNode<IncomingMessage> node = m_incomingMessages.Last;
@@ -2751,7 +2751,7 @@ namespace Opc.Ua.Client
                 if (entry.SequenceNumber == sequenceNumber)
                 {
                     entry.Timestamp = utcNow;
-                    entry.TimestampMonotonic = utcNowMonotonic;
+                    entry.TickCount = tickCount;
                     break;
                 }
 
@@ -2760,7 +2760,7 @@ namespace Opc.Ua.Client
                     entry = new IncomingMessage();
                     entry.SequenceNumber = sequenceNumber;
                     entry.Timestamp = utcNow;
-                    entry.TimestampMonotonic = utcNowMonotonic;
+                    entry.TickCount = tickCount;
                     m_incomingMessages.AddAfter(node, entry);
                     break;
                 }
@@ -2774,6 +2774,7 @@ namespace Opc.Ua.Client
                 entry = new IncomingMessage();
                 entry.SequenceNumber = sequenceNumber;
                 entry.Timestamp = utcNow;
+                entry.TickCount = tickCount;
                 m_incomingMessages.AddLast(entry);
             }
 
@@ -2811,7 +2812,7 @@ namespace Opc.Ua.Client
         private Timer m_publishTimer;
 #endif
         private long m_lastNotificationTime;
-        private int m_lastNotificatioTimeMonotonic;
+        private int m_lastNotificationTickCount;
         private int m_keepAliveInterval;
         private int m_publishLateCount;
         private event PublishStateChangedEventHandler m_publishStatusChanged;
@@ -2841,7 +2842,7 @@ namespace Opc.Ua.Client
         {
             public uint SequenceNumber;
             public DateTime Timestamp;
-            public int TimestampMonotonic;
+            public int TickCount;
             public NotificationMessage Message;
             public bool Processed;
             public bool Republished;
