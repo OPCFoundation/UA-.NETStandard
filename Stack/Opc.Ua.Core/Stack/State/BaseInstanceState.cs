@@ -265,6 +265,15 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Indicates that the instance is for use in design tools only.
+        /// </summary>
+        public bool DesignToolOnly
+        {
+            get;
+            set;
+        }
+
+        /// <summary>
         /// Sets the flag which indicates whether event are being monitored for the instance and its children.
         /// </summary>
         /// <param name="context">The system context.</param>
