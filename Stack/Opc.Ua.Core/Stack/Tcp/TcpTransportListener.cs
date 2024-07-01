@@ -186,7 +186,7 @@ namespace Opc.Ua.Bindings
                 var channelId = Convert.ToUInt32(channelIdString);
 
                 if (channelId > 0 &&
-                    m_channels.TryGetValue(channelId, out TcpListenerChannel channel))
+                    m_channels?.TryGetValue(channelId, out TcpListenerChannel channel) == true)
                 {
                     channel?.UpdateLastActiveTime();
                 }
