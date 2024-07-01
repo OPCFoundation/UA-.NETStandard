@@ -13,6 +13,7 @@ UA Core stack related:
 * Support for [WellKnownRoles & RoleBasedUserManagement](RoleBasedUserManagement.md).
 
 Reference application related:
+* [Reference Client](../Applications/ConsoleReferenceClient/README.md) documentation for configuration of the console reference client using parameters.
 * [Reference Server](../Applications/README.md) documentation for running against CTT.
 * Using the [Container support](ContainerReferenceServer.md) of the Reference Server in VS2022 and for local testing.
 

@@ -585,6 +585,43 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <summary>
+        /// Returns the Certificates assigned to Application and associated with the CertificateGroup.
+        /// </summary>
+        /// <param name="applicationId">The identifier assigned to the Application by the GDS.</param>
+        /// <param name="certificateGroupId">An identifier for the CertificateGroup that the Certificates belong to.
+        ///If null, the CertificateManager shall return the Certificates for all CertificateGroups assigned to the Application.</param>
+        /// <param name="certificateTypeIds">The CertificateTypes that currently have a Certificate assigned.
+        /// The length of this list is the same as the length as certificates list.</param>
+        /// <param name="certificates">A list of DER encoded Certificates assigned to Application.
+        /// This list only includes Certificates that are currently valid.</param>
+        public void GetCertificates(
+            NodeId applicationId,
+            NodeId certificateGroupId,
+            out NodeId[] certificateTypeIds,
+            out byte[][] certificates)
+        {
+            certificateTypeIds = Array.Empty<NodeId>();
+            certificates = Array.Empty<byte[]>();
+
+            if (!IsConnected)
+            {
+                Connect();
+            }
+
+            var outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_GetCertificates, Session.NamespaceUris),
+                applicationId,
+                certificateGroupId);
+
+            if (outputArguments.Count >= 2)
+            {
+                certificateTypeIds = outputArguments[0] as NodeId[];
+                certificates = outputArguments[1] as byte[][];
+            }
+        }
+
+        /// <summary>
         /// Checks the provided certificate for validity
         /// </summary>
         /// <param name="certificate">The DER encoded form of the Certificate to check.</param>

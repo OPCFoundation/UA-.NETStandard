@@ -288,7 +288,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private async void OnReconnectAsync(object state)
         {
-            DateTime reconnectStart = DateTime.UtcNow;
+            int reconnectStart = HiResClock.TickCount;
             try
             {
                 // check for exit.
@@ -315,8 +315,8 @@ namespace Opc.Ua.Client
                     keepaliveRecovered = true;
                     // breaking change, the callback must only assign the new
                     // session if the property is != null
-                    m_session = null;
                     Utils.LogInfo("Reconnect {0} aborted, KeepAlive recovered.", m_session?.SessionId);
+                    m_session = null;
                 }
                 else
                 {
@@ -354,7 +354,7 @@ namespace Opc.Ua.Client
                     }
                     else
                     {
-                        int elapsed = (int)DateTime.UtcNow.Subtract(reconnectStart).TotalMilliseconds;
+                        int elapsed = HiResClock.TickCount - reconnectStart;
                         Utils.LogInfo("Reconnect period is {0} ms, {1} ms elapsed in reconnect.", m_reconnectPeriod, elapsed);
                         int adjustedReconnectPeriod = CheckedReconnectPeriod(m_reconnectPeriod - elapsed);
                         adjustedReconnectPeriod = JitteredReconnectPeriod(adjustedReconnectPeriod);
@@ -373,15 +373,13 @@ namespace Opc.Ua.Client
         private async Task<bool> DoReconnectAsync()
         {
             // helper to override operation timeout
-            int operationTimeout = m_session.OperationTimeout;
-            int reconnectOperationTimeout = Math.Max(m_reconnectPeriod, MinReconnectOperationTimeout);
+            ITransportChannel transportChannel = null;
 
             // try a reconnect.
             if (!m_reconnectFailed)
             {
                 try
                 {
-                    m_session.OperationTimeout = reconnectOperationTimeout;
                     if (m_reverseConnectManager != null)
                     {
                         var connection = await m_reverseConnectManager.WaitForConnection(
@@ -414,10 +412,10 @@ namespace Opc.Ua.Client
                             sre.StatusCode == StatusCodes.BadTimeout)
                         {
                             // check if reactivating is still an option.
-                            TimeSpan timeout = m_session.LastKeepAliveTime.AddMilliseconds(m_session.SessionTimeout) - DateTime.UtcNow;
-                            if (timeout.TotalMilliseconds > 0)
+                            int timeout = Convert.ToInt32(m_session.SessionTimeout) - (HiResClock.TickCount - m_session.LastKeepAliveTickCount);
+                            if (timeout > 0)
                             {
-                                Utils.LogInfo("Retry to reactivate, est. session timeout in {0} ms.", timeout.TotalMilliseconds);
+                                Utils.LogInfo("Retry to reactivate, est. session timeout in {0} ms.", timeout);
                                 return false;
                             }
                         }
@@ -429,10 +427,15 @@ namespace Opc.Ua.Client
                             m_updateFromServer = true;
                             Utils.LogInfo("Reconnect failed due to security check. Request endpoint update from server. {0}", sre.Message);
                         }
-                        // wait for next scheduled reconnect if connection failed,
-                        // otherwise recreate session immediately
-                        else if (sre.StatusCode != StatusCodes.BadSessionIdInvalid)
+                        // recreate session immediately, use existing channel
+                        else if (sre.StatusCode == StatusCodes.BadSessionIdInvalid)
                         {
+                            transportChannel = m_session.NullableTransportChannel;
+                            m_session.DetachChannel();
+                        }
+                        else
+                        {
+                            // wait for next scheduled reconnect if connection failed,
                             // next attempt is to recreate session
                             m_reconnectFailed = true;
                             return false;
@@ -445,17 +448,12 @@ namespace Opc.Ua.Client
 
                     m_reconnectFailed = true;
                 }
-                finally
-                {
-                    m_session.OperationTimeout = operationTimeout;
-                }
             }
 
             // re-create the session.
             try
             {
                 ISession session;
-                m_session.OperationTimeout = reconnectOperationTimeout;
                 if (m_reverseConnectManager != null)
                 {
                     ITransportWaitingConnection connection;
@@ -492,7 +490,7 @@ namespace Opc.Ua.Client
                         m_updateFromServer = false;
                     }
 
-                    session = await m_session.SessionFactory.RecreateAsync(m_session).ConfigureAwait(false);
+                    session = await m_session.SessionFactory.RecreateAsync(m_session, transportChannel).ConfigureAwait(false);
                 }
                 // note: the template session is not connected at this point
                 //       and must be disposed by the owner
@@ -523,10 +521,6 @@ namespace Opc.Ua.Client
             {
                 Utils.LogError("Could not reconnect the Session. {0}", Redact.Create(exception));
                 return false;
-            }
-            finally
-            {
-                m_session.OperationTimeout = operationTimeout;
             }
         }
 
