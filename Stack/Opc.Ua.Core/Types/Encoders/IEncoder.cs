@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Xml;
 
@@ -148,6 +149,17 @@ namespace Opc.Ua
         /// </summary>
         void WriteByteString(string fieldName, byte[] value);
 
+        /// <summary>
+        /// Writes a byte string to the stream with a given index and count.
+        /// </summary>
+        void WriteByteString(string fieldName, byte[] value, int index, int count);
+
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+        /// <summary>
+        /// Writes a byte string to the stream.
+        /// </summary>
+        void WriteByteString(string fieldName, ReadOnlySpan<byte> value);
+#endif
         /// <summary>
         /// Writes an XmlElement to the stream.
         /// </summary>

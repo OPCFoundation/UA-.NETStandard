@@ -338,61 +338,62 @@ namespace Opc.Ua
 
             using (XmlReader reader = XmlReader.Create(istrm, Utils.DefaultXmlReaderSettings()))
             {
-                XmlDecoder decoder = new XmlDecoder(null, reader, messageContext);
-
-                NamespaceTable namespaceUris = new NamespaceTable();
-
-                if (!decoder.LoadStringTable("NamespaceUris", "NamespaceUri", namespaceUris))
+                using (XmlDecoder decoder = new XmlDecoder(null, reader, messageContext))
                 {
-                    namespaceUris = null;
-                }
+                    NamespaceTable namespaceUris = new NamespaceTable();
 
-                // update namespace table.
-                if (updateTables)
-                {
-                    if (namespaceUris != null && context.NamespaceUris != null)
+                    if (!decoder.LoadStringTable("NamespaceUris", "NamespaceUri", namespaceUris))
                     {
-                        for (int ii = 0; ii < namespaceUris.Count; ii++)
+                        namespaceUris = null;
+                    }
+
+                    // update namespace table.
+                    if (updateTables)
+                    {
+                        if (namespaceUris != null && context.NamespaceUris != null)
                         {
-                            context.NamespaceUris.GetIndexOrAppend(namespaceUris.GetString((uint)ii));
+                            for (int ii = 0; ii < namespaceUris.Count; ii++)
+                            {
+                                context.NamespaceUris.GetIndexOrAppend(namespaceUris.GetString((uint)ii));
+                            }
                         }
                     }
-                }
 
-                StringTable serverUris = new StringTable();
+                    StringTable serverUris = new StringTable();
 
-                if (!decoder.LoadStringTable("ServerUris", "ServerUri", context.ServerUris))
-                {
-                    serverUris = null;
-                }
-
-                // update server table.
-                if (updateTables)
-                {
-                    if (serverUris != null && context.ServerUris != null)
+                    if (!decoder.LoadStringTable("ServerUris", "ServerUri", context.ServerUris))
                     {
-                        for (int ii = 0; ii < serverUris.Count; ii++)
+                        serverUris = null;
+                    }
+
+                    // update server table.
+                    if (updateTables)
+                    {
+                        if (serverUris != null && context.ServerUris != null)
                         {
-                            context.ServerUris.GetIndexOrAppend(serverUris.GetString((uint)ii));
+                            for (int ii = 0; ii < serverUris.Count; ii++)
+                            {
+                                context.ServerUris.GetIndexOrAppend(serverUris.GetString((uint)ii));
+                            }
                         }
                     }
+
+                    // set mapping.
+                    decoder.SetMappingTables(namespaceUris, serverUris);
+
+                    decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+                    NodeState state = NodeState.LoadNode(context, decoder);
+
+                    while (state != null)
+                    {
+                        this.Add(state);
+
+                        state = NodeState.LoadNode(context, decoder);
+                    }
+
+                    decoder.Close();
                 }
-
-                // set mapping.
-                decoder.SetMappingTables(namespaceUris, serverUris);
-
-                decoder.PushNamespace(Namespaces.OpcUaXsd);
-
-                NodeState state = NodeState.LoadNode(context, decoder);
-
-                while (state != null)
-                {
-                    this.Add(state);
-
-                    state = NodeState.LoadNode(context, decoder);
-                }
-
-                decoder.Close();
             }
         }
 

@@ -805,25 +805,26 @@ namespace Opc.Ua
                 TypeInfo typeInfo = null;
 
                 // create decoder.
-                XmlDecoder decoder = new XmlDecoder(value, MessageContextExtension.CurrentContext);
-
-                try
+                using (XmlDecoder decoder = new XmlDecoder(value, MessageContextExtension.CurrentContext))
                 {
-                    // read value.
-                    object body = decoder.ReadVariantContents(out typeInfo);
-                    Set(body, typeInfo);
-                }
-                catch (Exception e)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadDecodingError,
-                        e,
-                        "Error decoding Variant value.");
-                }
-                finally
-                {
-                    // close decoder.
-                    decoder.Close();
+                    try
+                    {
+                        // read value.
+                        object body = decoder.ReadVariantContents(out typeInfo);
+                        Set(body, typeInfo);
+                    }
+                    catch (Exception e)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            e,
+                            "Error decoding Variant value.");
+                    }
+                    finally
+                    {
+                        // close decoder.
+                        decoder.Close();
+                    }
                 }
             }
         }

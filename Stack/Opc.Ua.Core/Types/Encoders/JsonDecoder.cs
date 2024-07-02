@@ -261,11 +261,8 @@ namespace Opc.Ua
         {
             if (disposing)
             {
-                if (m_reader != null)
-                {
-                    m_reader.Close();
-                    m_reader = null;
-                }
+                Utils.SilentDispose(m_reader);
+                m_reader = null;
             }
         }
         #endregion

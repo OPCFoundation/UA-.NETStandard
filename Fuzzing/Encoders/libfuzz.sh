@@ -7,7 +7,9 @@ display_menu() {
     echo "2. Opc.Ua.BinaryEncoder"
     echo "3. Opc.Ua.JsonDecoder"
     echo "4. Opc.Ua.JsonEncoder"
-    echo "5. Exit"
+    echo "5. Opc.Ua.XmlDecoder"
+    echo "6. Opc.Ua.XmlEncoder"
+    echo "7. Exit"
 }
 
 # Function to execute fuzz-afl PowerShell script based on user choice
@@ -29,6 +31,14 @@ execute_powershell_script() {
             echo "Running libfuzzer with Opc.Ua.JsonEncoder"
             pwsh ../scripts/fuzz-libfuzzer.ps1 -libFuzzer "./libfuzzer-dotnet-ubuntu" -project ./Fuzz/Encoders.Fuzz.csproj -fuzztarget LibfuzzJsonEncoder -dict ../dictionaries/json.dict -corpus ./Fuzz/Testcases.Json/
             ;;
+        5)
+            echo "Running libfuzzer with Opc.Ua.XmlDecoder"
+            pwsh ../scripts/fuzz-libfuzzer.ps1 -libFuzzer "./libfuzzer-dotnet-ubuntu" -project ./Fuzz/Encoders.Fuzz.csproj -fuzztarget LibfuzzXmlDecoder -dict ../dictionaries/xml.dict -corpus ./Fuzz/Testcases.Xml/
+            ;;
+        6)
+            echo "Running libfuzzer with Opc.Ua.XmlEncoder"
+            pwsh ../scripts/fuzz-libfuzzer.ps1 -libFuzzer "./libfuzzer-dotnet-ubuntu" -project ./Fuzz/Encoders.Fuzz.csproj -fuzztarget LibfuzzXmlEncoder -dict ../dictionaries/xml.dict -corpus ./Fuzz/Testcases.Xml/
+            ;;
         *)
             echo "Invalid option. Exiting."
             ;;
@@ -41,10 +51,10 @@ display_menu
 read -p "Enter your choice (1-5): " choice
 
 case $choice in
-    1|2|3|4)
+    1|2|3|4|5|6)
         execute_powershell_script $choice
         ;;
-    5)
+    7)
         echo "Exiting."
         break
         ;;

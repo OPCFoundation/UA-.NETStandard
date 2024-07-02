@@ -766,29 +766,30 @@ namespace Opc.Ua
                 }
 
                 // create decoder.
-                XmlDecoder decoder = new XmlDecoder(value, m_context);
-
-                // read body.
-                Body = decoder.ReadExtensionObjectBody(m_typeId);
-
-                // clear the type id for encodeables.
-
-                if (m_body is IEncodeable encodeable)
+                using (XmlDecoder decoder = new XmlDecoder(value, m_context))
                 {
-                    m_typeId = ExpandedNodeId.Null;
-                }
+                    // read body.
+                    Body = decoder.ReadExtensionObjectBody(m_typeId);
 
-                // close decoder.
-                try
-                {
-                    decoder.Close(true);
-                }
-                catch (Exception e)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadDecodingError,
-                        Utils.Format("Did not read all of a extension object body: '{0}'", m_typeId),
-                        e);
+                    // clear the type id for encodeables.
+
+                    if (m_body is IEncodeable encodeable)
+                    {
+                        m_typeId = ExpandedNodeId.Null;
+                    }
+
+                    // close decoder.
+                    try
+                    {
+                        decoder.Close(true);
+                    }
+                    catch (Exception e)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadDecodingError,
+                            Utils.Format("Did not read all of a extension object body: '{0}'", m_typeId),
+                            e);
+                    }
                 }
             }
         }
