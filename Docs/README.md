@@ -17,6 +17,8 @@ Reference application related:
 * [Reference Server](../Applications/README.md) documentation for running against CTT.
 * Using the [Container support](ContainerReferenceServer.md) of the Reference Server in VS2022 and for local testing.
 
+Starting with version 1.5.375.XX the winforms reference client & winforms reference server were moved to the [OPC UA .NET Standard Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples) repository.
+
 For the PubSub support library:
 * The [PubSub](PubSub.md) library with samples.
 * The [ConsoleReferencePublisher](../Applications/ConsoleReferencePublisher/README.md) documentation.

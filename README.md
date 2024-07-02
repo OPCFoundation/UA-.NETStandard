@@ -29,7 +29,7 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 * Sessions and Subscriptions.
 * A [PubSub](Docs/PubSub.md) library with samples.
 
-#### **New in 1.05.xxx**
+#### **New in 1.5.374.70
 * CRL Support for the X509Store on Windows
 
 #### **New in 1.05.373**
