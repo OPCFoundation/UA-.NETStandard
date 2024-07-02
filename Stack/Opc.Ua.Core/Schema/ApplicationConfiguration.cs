@@ -51,6 +51,7 @@ namespace Opc.Ua
             m_serverConfiguration = template.m_serverConfiguration;
             m_clientConfiguration = template.m_clientConfiguration;
             m_disableHiResClock = template.m_disableHiResClock;
+            m_enableDurableSubscriptions = template.m_enableDurableSubscriptions;
             m_certificateValidator = template.m_certificateValidator;
             m_transportQuotas = template.m_transportQuotas;
             m_traceConfiguration = template.m_traceConfiguration;
@@ -70,6 +71,7 @@ namespace Opc.Ua
             m_securityConfiguration = new SecurityConfiguration();
             m_transportConfigurations = new TransportConfigurationCollection();
             m_disableHiResClock = false;
+            m_enableDurableSubscriptions = false;
             m_properties = new Dictionary<string, object>();
             m_certificateValidator = new CertificateValidator();
             m_extensionObjects = new List<object>();
@@ -264,6 +266,17 @@ namespace Opc.Ua
             get { return m_disableHiResClock; }
             set { m_disableHiResClock = value; }
         }
+
+        /// <summary>
+        /// Enabling / disabling support for durable subscriptions
+        /// </summary>
+        /// <value><c>true</c> if durable subscriptions are supproted; otherwise, <c>false</c>.</value>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 13)]
+        public bool EnableDurableSubscriptions
+        {
+            get { return m_enableDurableSubscriptions; }
+            set { m_enableDurableSubscriptions = value; }
+        }
         #endregion
 
         #region Private Fields
@@ -281,6 +294,7 @@ namespace Opc.Ua
         private DiscoveryServerConfiguration m_discoveryServerConfiguration;
         private TraceConfiguration m_traceConfiguration;
         private bool m_disableHiResClock;
+        private bool m_enableDurableSubscriptions;
         private XmlElementCollection m_extensions;
         private List<object> m_extensionObjects;
         private string m_sourceFilePath;
