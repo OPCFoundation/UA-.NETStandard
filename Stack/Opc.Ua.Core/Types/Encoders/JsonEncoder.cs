@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -978,6 +979,35 @@ namespace Opc.Ua
         /// </summary>
         public void WriteByteString(string fieldName, byte[] value)
         {
+            WriteByteString(fieldName, value, 0, value.Length);
+        }
+
+        /// <summary>
+        /// Writes a byte string to the stream with a given index and count.
+        /// </summary>
+        public void WriteByteString(string fieldName, byte[] value, int index, int count)
+        {
+            if (value == null)
+            {
+                WriteSimpleFieldNull(fieldName);
+                return;
+            }
+
+            // check the length.
+            if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < count)
+            {
+                throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+            }
+
+            WriteSimpleField(fieldName, Convert.ToBase64String(value, index, count), EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
+        }
+
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+        /// <summary>
+        /// Writes a byte string to the stream.
+        /// </summary>
+        public void WriteByteString(string fieldName, ReadOnlySpan<byte> value)
+        {
             if (value == null)
             {
                 WriteSimpleFieldNull(fieldName);
@@ -992,6 +1022,7 @@ namespace Opc.Ua
 
             WriteSimpleField(fieldName, Convert.ToBase64String(value), EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
         }
+#endif
 
         /// <summary>
         /// Writes an XmlElement to the stream.
@@ -1005,9 +1036,27 @@ namespace Opc.Ua
             }
 
             var xml = value.OuterXml;
-            var bytes = Encoding.UTF8.GetBytes(xml);
+            int maxByteCount = Encoding.UTF8.GetMaxByteCount(xml.Length);
+            byte[] encodedBytes = ArrayPool<byte>.Shared.Rent(maxByteCount);
+            try
+            {
+                int count = Encoding.UTF8.GetBytes(xml, 0, xml.Length, encodedBytes, 0);
 
-            WriteSimpleField(fieldName, Convert.ToBase64String(bytes), EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
+                if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < count)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "MaxByteStringLength {0} < {1}",
+                        m_context.MaxByteStringLength,
+                        count);
+                }
+
+                WriteSimpleField(fieldName, Convert.ToBase64String(encodedBytes, 0, count), EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(encodedBytes);
+            }
         }
 
         private void WriteNamespaceIndex(string fieldName, ushort namespaceIndex)
@@ -1062,7 +1111,20 @@ namespace Opc.Ua
 
                 case IdType.Guid:
                 {
-                    WriteGuid("Id", (Guid)value.Identifier);
+                    if (value.Identifier is Guid guidIdentifier)
+                    {
+                        WriteGuid("Id", guidIdentifier);
+                    }
+                    else if (value.Identifier is Uuid uuidIdentifier)
+                    {
+                        WriteGuid("Id", uuidIdentifier);
+                    }
+                    else
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadEncodingError,
+                            "Invalid Identifier type to encode as Guid NodeId.");
+                    }
                     break;
                 }
 
@@ -2347,7 +2409,7 @@ namespace Opc.Ua
 
             PopArray();
         }
-        #endregion
+#endregion
 
         #region Public Methods
         /// <summary>
