@@ -13,9 +13,11 @@ UA Core stack related:
 * Support for [WellKnownRoles & RoleBasedUserManagement](RoleBasedUserManagement.md).
 
 Reference application related:
-* [Reference Server](../Applications/ReferenceServer/README.md) documentation for running against CTT.
 * [Reference Client](../Applications/ConsoleReferenceClient/README.md) documentation for configuration of the console reference client using parameters.
+* [Reference Server](../Applications/README.md) documentation for running against CTT.
 * Using the [Container support](ContainerReferenceServer.md) of the Reference Server in VS2022 and for local testing.
+
+Starting with version 1.5.375.XX the winforms reference client & winforms reference server were moved to the [OPC UA .NET Standard Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples) repository.
 
 For the PubSub support library:
 * The [PubSub](PubSub.md) library with samples.
