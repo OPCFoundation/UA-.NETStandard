@@ -1576,11 +1576,6 @@ namespace Opc.Ua
                     value.InnerDiagnosticInfo = ReadDiagnosticInfo(null, depth + 1) ?? new DiagnosticInfo();
                 }
 
-                if (value.IsNullDiagnosticInfo)
-                {
-                    // return null;
-                }
-
                 return value;
             }
             finally
