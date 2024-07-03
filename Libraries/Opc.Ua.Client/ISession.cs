@@ -248,8 +248,14 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Gets the time of the last keep alive.
+        /// This time may not be monotonic if the system time is changed.
         /// </summary>
         DateTime LastKeepAliveTime { get; }
+
+        /// <summary>
+        /// Gets the TickCount in ms of the last keep alive based on <see cref="HiResClock.TickCount"/>.
+        /// </summary>
+        int LastKeepAliveTickCount { get; }
 
         /// <summary>
         /// Gets the number of outstanding publish or keep alive requests.

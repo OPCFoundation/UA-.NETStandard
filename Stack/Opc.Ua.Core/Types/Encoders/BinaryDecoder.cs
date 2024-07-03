@@ -425,8 +425,12 @@ namespace Opc.Ua
 
             // length is always >= 1 here
 
-            // If 0 terminated, decrease length by one before converting to string
-            var utf8StringLength = bytes[bytes.Length - 1] == 0 ? bytes.Length - 1 : bytes.Length;
+            // If 0 terminated, decrease length to remove 0 terminators before converting to string
+            int utf8StringLength = bytes.Length;
+            while (utf8StringLength > 0 && bytes[utf8StringLength - 1] == 0)
+            {
+                utf8StringLength--;
+            }
             return Encoding.UTF8.GetString(bytes, 0, utf8StringLength);
         }
 
@@ -1569,7 +1573,7 @@ namespace Opc.Ua
 
                 if ((encodingByte & (byte)DiagnosticInfoEncodingBits.InnerDiagnosticInfo) != 0)
                 {
-                    value.InnerDiagnosticInfo = ReadDiagnosticInfo(null, depth + 1);
+                    value.InnerDiagnosticInfo = ReadDiagnosticInfo(null, depth + 1) ?? new DiagnosticInfo();
                 }
 
                 return value;
@@ -2075,6 +2079,8 @@ namespace Opc.Ua
 
                             // update body.
                             extension.Body = body;
+
+                            xmlDecoder.Close();
                         }
                         catch (Exception e)
                         {
@@ -2270,7 +2276,14 @@ namespace Opc.Ua
                                 "ArrayDimensions length does not match with the ArrayLength in Variant object.");
                         }
 
-                        value = new Variant(new Matrix(array, builtInType, dimensions.ToArray()));
+                        if (dimensions.Count == 1)
+                        {
+                            value = new Variant(array, new TypeInfo(builtInType, 1));
+                        }
+                        else
+                        {
+                            value = new Variant(new Matrix(array, builtInType, dimensionsArray));
+                        }
                     }
                     else
                     {
@@ -2387,7 +2400,7 @@ namespace Opc.Ua
                         }
                         catch (Exception ex)
                         {
-                            Utils.LogError(ex, "Error reading xml element for variant.");
+                            Utils.LogTrace(ex, "Error reading xml element for variant.");
                             value.Set(StatusCodes.BadDecodingError);
                         }
                         break;

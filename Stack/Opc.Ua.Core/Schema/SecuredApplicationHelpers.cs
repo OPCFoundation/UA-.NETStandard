@@ -378,7 +378,9 @@ namespace Opc.Ua.Security
         /// </summary>
         public static byte CalculateSecurityLevel(MessageSecurityMode mode, string policyUri)
         {
-            if ((mode != MessageSecurityMode.Sign) && (mode != MessageSecurityMode.SignAndEncrypt))
+            if ((mode != MessageSecurityMode.Sign &&
+                mode != MessageSecurityMode.SignAndEncrypt) ||
+                policyUri == null)
             {
                 return 0;
             }

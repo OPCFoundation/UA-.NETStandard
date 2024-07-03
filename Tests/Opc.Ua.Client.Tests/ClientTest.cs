@@ -851,6 +851,7 @@ namespace Opc.Ua.Client.Tests
             TestContext.Out.WriteLine("SubscriptionCount: {0}", Session.SubscriptionCount);
             TestContext.Out.WriteLine("DefaultSubscription: {0}", Session.DefaultSubscription);
             TestContext.Out.WriteLine("LastKeepAliveTime: {0}", Session.LastKeepAliveTime);
+            TestContext.Out.WriteLine("LastKeepAliveTickCount: {0}", Session.LastKeepAliveTickCount);
             TestContext.Out.WriteLine("KeepAliveInterval: {0}", Session.KeepAliveInterval);
             Session.KeepAliveInterval += 1000;
             TestContext.Out.WriteLine("KeepAliveInterval: {0}", Session.KeepAliveInterval);
