@@ -1094,10 +1094,25 @@ namespace Opc.Ua.Configuration
                                 return;
                             }
 
-                            Utils.LogCertificate("Delete Certificate from trusted store.", certificate);
+                            bool deleteCert = false;
+                            if (X509Utils.IsECDsaSignature(certificates[ii]) && X509Utils.IsECDsaSignature(certificate))
+                            {
+                                if (X509Utils.GetECDsaQualifier(certificates[ii]).Equals(X509Utils.GetECDsaQualifier(certificate)))
+                                {
+                                    deleteCert = true;
+                                }
+                            }
+                            else if (!X509Utils.IsECDsaSignature(certificates[ii]) && !X509Utils.IsECDsaSignature(certificate))
+                            {
+                                deleteCert = true;
+                            }
 
-                            await store.Delete(certificates[ii].Thumbprint).ConfigureAwait(false);
-                            break;
+                            if (deleteCert)
+                            {
+                                Utils.LogCertificate("Delete Certificate from trusted store.", certificate);
+                                await store.Delete(certificates[ii].Thumbprint).ConfigureAwait(false);
+                                break;
+                            }
                         }
                     }
 
