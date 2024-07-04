@@ -34,6 +34,7 @@
     </PackageReference>
     <PackageReference Include="BenchmarkDotNet" Version="0.13.12" />
     <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
+    <PackageReference Include="System.Private.Uri" Version="4.3.2" />
   </ItemGroup>
 
   <ItemGroup>

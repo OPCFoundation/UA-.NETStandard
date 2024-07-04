@@ -807,7 +807,10 @@ namespace Opc.Ua.Bindings
                 request.TypeId == DataTypeIds.CreateSessionRequest ||
                 request.TypeId == DataTypeIds.GetEndpointsRequest ||
                 request.TypeId == DataTypeIds.FindServersOnNetworkRequest ||
-                request.TypeId == DataTypeIds.FindServersRequest)
+                request.TypeId == DataTypeIds.FindServersRequest ||
+                request.TypeId == DataTypeIds.RegisterServerRequest ||
+                request.TypeId == DataTypeIds.RegisterServer2Request
+                )
             {
                 m_queuedOperations.Add(queuedOperation);
                 return true;
