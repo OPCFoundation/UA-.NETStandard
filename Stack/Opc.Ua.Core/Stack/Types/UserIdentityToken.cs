@@ -22,11 +22,13 @@ namespace Opc.Ua
     /// </summary>
     public partial class UserIdentityToken
     {
-#region Public Methods
+        #region Public Methods
         /// <summary>
         /// Encrypts the token (implemented by the subclass).
         /// </summary>
+#if ECC_SUPPORT
         [Obsolete("Use Encrypt(X509Certificate2, byte[], string securityPolicyUri, Nonce, X509Certificate2, X509Certificate2Collection, bool) ")]
+#endif
         public virtual void Encrypt(X509Certificate2 certificate, byte[] receiverNonce, string securityPolicyUri)
         {
         }
@@ -34,7 +36,9 @@ namespace Opc.Ua
         /// <summary>
         /// Decrypts the token (implemented by the subclass).
         /// </summary>
+#if ECC_SUPPORT
         [Obsolete("Use Decrypt(X509Certificate2, Nonce, string, Nonce, X509Certificate2, X509Certificate2Collection, CertificateValidator) ")]
+#endif
         public virtual void Decrypt(X509Certificate2 certificate, byte[] receiverNonce, string securityPolicyUri)
         {
         }
@@ -101,11 +105,13 @@ namespace Opc.Ua
         }
         #endregion
 
-#region Public Methods
+        #region Public Methods
         /// <summary>
         /// Encrypts the DecryptedPassword using the EncryptionAlgorithm and places the result in Password
         /// </summary>
+#if ECC_SUPPORT
         [Obsolete("Use Encrypt(X509Certificate2, byte[], string securityPolicyUri, Nonce, X509Certificate2, X509Certificate2Collection, bool)")]
+#endif
         public override void Encrypt(X509Certificate2 certificate, byte[] senderNonce, string securityPolicyUri)
         {
             Encrypt(certificate, senderNonce, securityPolicyUri, null);
@@ -114,7 +120,9 @@ namespace Opc.Ua
         /// <summary>
         /// Decrypts the Password using the EncryptionAlgorithm and places the result in DecryptedPassword
         /// </summary>
+#if ECC_SUPPORT
         [Obsolete("Use Decrypt(X509Certificate2, Nonce, string, Nonce, X509Certificate2, X509Certificate2Collection, CertificateValidator) ")]
+#endif
         public override void Decrypt(X509Certificate2 certificate, byte[] senderNonce, string securityPolicyUri)
         {
             Decrypt(certificate, Nonce.CreateNonce(securityPolicyUri, senderNonce), securityPolicyUri);
@@ -416,11 +424,13 @@ namespace Opc.Ua
         }
         #endregion
 
-#region Public Methods
+        #region Public Methods
         /// <summary>
         /// Encrypts the DecryptedTokenData using the EncryptionAlgorithm and places the result in Password
         /// </summary>
+#if ECC_SUPPORT
         [Obsolete("Use Encrypt(X509Certificate2, byte[], string securityPolicyUri, Nonce, X509Certificate2, X509Certificate2Collection, bool)")]
+#endif
         public override void Encrypt(X509Certificate2 certificate, byte[] senderNonce, string securityPolicyUri)
         {
             Encrypt(certificate, senderNonce, securityPolicyUri, null);
@@ -429,7 +439,9 @@ namespace Opc.Ua
         /// <summary>
         /// Decrypts the Password using the EncryptionAlgorithm and places the result in DecryptedPassword
         /// </summary>
+#if ECC_SUPPORT
         [Obsolete("Use Decrypt(X509Certificate2, Nonce, string, Nonce, X509Certificate2, X509Certificate2Collection, CertificateValidator) ")]
+#endif
         public override void Decrypt(X509Certificate2 certificate, byte[] senderNonce, string securityPolicyUri)
         {
             Decrypt(certificate, Nonce.CreateNonce(securityPolicyUri, senderNonce), securityPolicyUri);

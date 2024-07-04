@@ -387,6 +387,7 @@ namespace Opc.Ua.Server
             }
         }
 
+#if ECC_SUPPORT
         /// <summary>
         /// Create new ECC ephemeral key
         /// </summary>
@@ -413,6 +414,17 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// The Server generated ephemeral key
+        /// </summary>
+        public EphemeralKeyType EphemeralKey
+        {
+            set
+            {
+                m_ephemeralKey = value;
+            }
+        }
+#endif
+        /// <summary>
         /// Returns the session's endpoint
         /// </summary>
         public EndpointDescription EndpointDescription
@@ -434,16 +446,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// The Server generated ephemeral key
-        /// </summary>
-        public EphemeralKeyType EphemeralKey
-        {
-            set
-            {
-                m_ephemeralKey = value;
-            }
-        }
+
 
         /// <summary>
         /// Validates the request.
@@ -1247,7 +1250,10 @@ namespace Opc.Ua.Server
         private List<ContinuationPoint> m_browseContinuationPoints;
         private List<HistoryContinuationPoint> m_historyContinuationPoints;
 
+#if ECC_SUPPORT
         private EphemeralKeyType m_ephemeralKey;
+#endif
+
 #endregion
     }
 }
