@@ -45,6 +45,11 @@ using Opc.Ua.Server.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 
+using Opc.Ua.Security.Certificates.Tests;
+using System.Security.Cryptography;
+using System.Runtime.InteropServices;
+using Opc.Ua.Security.Certificates;
+
 namespace Opc.Ua.Client.Tests
 {
     /// <summary>
@@ -325,9 +330,14 @@ namespace Opc.Ua.Client.Tests
                 ApplicationName = ClientFixture.Config.ApplicationName
             };
             Assert.NotNull(applicationInstance);
+
+            CertificateIdentifierCollection applicationCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                ClientFixture.Config.SecurityConfiguration.ApplicationCertificate.SubjectName
+                );
+
             ApplicationConfiguration config = await applicationInstance.Build(ClientFixture.Config.ApplicationUri, ClientFixture.Config.ProductUri)
                 .AsClient()
-                .AddSecurityConfiguration(ClientFixture.Config.SecurityConfiguration.ApplicationCertificate.SubjectName)
+                .AddSecurityConfiguration(applicationCerts)
                 .Create().ConfigureAwait(false);
         }
 
@@ -726,6 +736,18 @@ namespace Opc.Ua.Client.Tests
         [TestCase(SecurityPolicies.Basic256Sha256, true, false)]
         [TestCase(SecurityPolicies.Basic256Sha256, false, false)]
         [TestCase(SecurityPolicies.Basic256Sha256, false, true)]
+        [TestCase(SecurityPolicies.ECC_brainpoolP256r1, true, false)]
+        [TestCase(SecurityPolicies.ECC_brainpoolP256r1, false, false)]
+        [TestCase(SecurityPolicies.ECC_brainpoolP256r1, false, true)]
+        [TestCase(SecurityPolicies.ECC_brainpoolP384r1, true, false)]
+        [TestCase(SecurityPolicies.ECC_brainpoolP384r1, false, false)]
+        [TestCase(SecurityPolicies.ECC_brainpoolP384r1, false, true)]
+        [TestCase(SecurityPolicies.ECC_nistP256, true, false)]
+        [TestCase(SecurityPolicies.ECC_nistP256, false, false)]
+        [TestCase(SecurityPolicies.ECC_nistP256, false, true)]
+        [TestCase(SecurityPolicies.ECC_nistP384, true, false)]
+        [TestCase(SecurityPolicies.ECC_nistP384, false, false)]
+        [TestCase(SecurityPolicies.ECC_nistP384, false, true)]
         public async Task ReconnectSessionOnAlternateChannelWithSavedSessionSecrets(string securityPolicy, bool anonymous, bool asyncReconnect)
         {
             ServiceResultException sre;
@@ -736,7 +758,9 @@ namespace Opc.Ua.Client.Tests
             ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
             Assert.NotNull(endpoint);
 
-            UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentity.TokenType, userIdentity.IssuedTokenType);
+            UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentity.TokenType,
+                userIdentity.IssuedTokenType,
+                endpoint.Description.SecurityPolicyUri);
             if (identityPolicy == null)
             {
                 Assert.Ignore($"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
@@ -751,6 +775,7 @@ namespace Opc.Ua.Client.Tests
 
             // save the session configuration
             var stream = new MemoryStream();
+
             session1.SaveSessionConfiguration(stream);
 
             var streamArray = stream.ToArray();
@@ -1549,6 +1574,152 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(buildInfo.SoftwareVersion, values[4].Value);
             Assert.AreEqual(buildInfo.BuildNumber, values[5].Value);
             Assert.AreEqual(buildInfo.BuildDate, values[6].Value);
+        }
+
+        /// <summary>
+        /// Open a session on a channel using ECC encrypted UserIdentityToken
+        /// </summary>
+        [Test, Combinatorial, Order(10100)]
+        public async Task OpenSessionECCUserNamePwdIdentityToken(
+            [Values(SecurityPolicies.ECC_nistP256,
+                    SecurityPolicies.ECC_nistP384,
+                    SecurityPolicies.ECC_brainpoolP256r1,
+                    SecurityPolicies.ECC_brainpoolP384r1)] string securityPolicy)
+        {
+
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ||
+                (securityPolicy != SecurityPolicies.ECC_brainpoolP256r1) ||
+                (securityPolicy != SecurityPolicies.ECC_brainpoolP384r1))
+            {
+                IUserIdentity userIdentity = new UserIdentity("user1", "password");
+
+                // the first channel determines the endpoint
+                ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
+                Assert.NotNull(endpoint);
+
+                UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentity.TokenType,
+                    userIdentity.IssuedTokenType,
+                    endpoint.Description.SecurityPolicyUri);
+                if (identityPolicy == null)
+                {
+                    Assert.Ignore($"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
+                }
+
+                // the active channel
+                ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity).ConfigureAwait(false);
+                Assert.NotNull(session1);
+
+                ServerStatusDataType value1 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+                Assert.NotNull(value1);
+            }
+
+        }
+
+        /// <summary>
+        /// Open a session on a channel using ECC encrypted IssuedIdentityToken
+        /// </summary>
+        [Test, Combinatorial, Order(10200)]
+        public async Task OpenSessionECCIssuedIdentityToken(
+            [Values(SecurityPolicies.ECC_nistP256,
+                    SecurityPolicies.ECC_nistP384,
+                    SecurityPolicies.ECC_brainpoolP256r1,
+                    SecurityPolicies.ECC_brainpoolP384r1)] string securityPolicy)
+        {
+
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ||
+                (securityPolicy != SecurityPolicies.ECC_brainpoolP256r1) ||
+                (securityPolicy != SecurityPolicies.ECC_brainpoolP384r1))
+
+            {
+                var identityToken = "fakeTokenString";
+
+                var issuedToken = new IssuedIdentityToken() {
+                    IssuedTokenType = IssuedTokenType.JWT,
+                    PolicyId = Profiles.JwtUserToken,
+                    DecryptedTokenData = Encoding.UTF8.GetBytes(identityToken),
+                };
+
+                IUserIdentity userIdentity = new UserIdentity(issuedToken);
+
+                // the first channel determines the endpoint
+                ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
+                Assert.NotNull(endpoint);
+
+                UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentity.TokenType,
+                    userIdentity.IssuedTokenType,
+                    securityPolicy);
+
+                if (identityPolicy == null)
+                {
+                    Assert.Ignore($"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
+                }
+
+                // the active channel
+                ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity).ConfigureAwait(false);
+                Assert.NotNull(session1);
+
+                ServerStatusDataType value1 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+                Assert.NotNull(value1);
+            }
+        }
+
+        /// <summary>
+        /// Open a session on a channel using ECC encrypted UserCertificateIdentityToken
+        /// </summary>
+        [Test, Combinatorial, Order(10300)]
+        public async Task OpenSessionECCUserCertIdentityToken(
+            [Values(SecurityPolicies.ECC_nistP256,
+                    SecurityPolicies.ECC_nistP384,
+                    SecurityPolicies.ECC_brainpoolP256r1,
+                    SecurityPolicies.ECC_brainpoolP384r1)] string securityPolicy)
+        {
+
+            var eccCurveHashPairs = new ECCurveHashPairCollection {
+                { ECCurve.NamedCurves.nistP256, HashAlgorithmName.SHA256 },
+                { ECCurve.NamedCurves.nistP384, HashAlgorithmName.SHA384 } };
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                eccCurveHashPairs.AddRange(new ECCurveHashPairCollection {
+                { ECCurve.NamedCurves.brainpoolP256r1, HashAlgorithmName.SHA256 },
+                { ECCurve.NamedCurves.brainpoolP384r1, HashAlgorithmName.SHA384 }});
+            }
+
+            foreach (var eccurveHashPair in eccCurveHashPairs)
+            {
+                string extractedFriendlyNamae = null;
+                string[] friendlyNameContext = securityPolicy.Split('_');
+                if (friendlyNameContext.Length > 1)
+                {
+                    extractedFriendlyNamae = friendlyNameContext[1];
+                }
+                if (eccurveHashPair.Curve.Oid.FriendlyName.Contains(extractedFriendlyNamae))
+                {
+                    X509Certificate2 cert = CertificateBuilder.Create("CN=Client Test ECC Subject, O=OPC Foundation")
+                    .SetECCurve(eccurveHashPair.Curve)
+                    .CreateForECDsa();
+
+                    IUserIdentity userIdentity = new UserIdentity(cert);
+
+                    // the first channel determines the endpoint
+                    ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
+                    Assert.NotNull(endpoint);
+
+                    UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(userIdentity.TokenType,
+                        userIdentity.IssuedTokenType,
+                        endpoint.Description.SecurityPolicyUri);
+                    if (identityPolicy == null)
+                    {
+                        Assert.Ignore($"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
+                    }
+
+                    // the active channel
+                    ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity).ConfigureAwait(false);
+                    Assert.NotNull(session1);
+
+                    ServerStatusDataType value1 = (ServerStatusDataType)session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+                    Assert.NotNull(value1);
+                }
+            }
         }
         #endregion
 

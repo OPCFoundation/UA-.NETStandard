@@ -66,7 +66,7 @@ namespace Quickstarts.ReferenceServer
                 SerilogTraceLogger.Create(loggerConfiguration, config);
 
                 // check the application certificate.
-                bool certOk = application.CheckApplicationInstanceCertificate(false, 0).Result;
+                bool certOk = application.CheckApplicationInstanceCertificates(false).Result;
                 if (!certOk)
                 {
                     throw new Exception("Application instance certificate invalid!");

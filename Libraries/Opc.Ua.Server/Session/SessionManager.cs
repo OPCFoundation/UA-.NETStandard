@@ -60,10 +60,9 @@ namespace Opc.Ua.Server
             m_maxRequestAge = configuration.ServerConfiguration.MaxRequestAge;
             m_maxBrowseContinuationPoints = configuration.ServerConfiguration.MaxBrowseContinuationPoints;
             m_maxHistoryContinuationPoints = configuration.ServerConfiguration.MaxHistoryContinuationPoints;
-            m_minNonceLength = configuration.SecurityConfiguration.NonceLength;
 
             m_sessions = new Dictionary<NodeId, Session>();
-            m_lastSessionId = BitConverter.ToInt64(Utils.Nonce.CreateNonce(sizeof(long)), 0);
+            m_lastSessionId = BitConverter.ToInt64(Nonce.CreateRandomNonceData(sizeof(long)), 0);
 
             // create a event to signal shutdown.
             m_shutdownEvent = new ManualResetEvent(true);
@@ -153,6 +152,7 @@ namespace Opc.Ua.Server
             ApplicationDescription clientDescription,
             string endpointUrl,
             X509Certificate2 clientCertificate,
+            X509Certificate2Collection clientCertificateChain,
             double requestedSessionTimeout,
             uint maxResponseMessageSize,
             out NodeId sessionId,
@@ -161,6 +161,7 @@ namespace Opc.Ua.Server
             out double revisedSessionTimeout)
         {
             sessionId = 0;
+            serverNonce = null;
             revisedSessionTimeout = requestedSessionTimeout;
 
             Session session = null;
@@ -178,7 +179,7 @@ namespace Opc.Ua.Server
                 {
                     foreach (Session sessionIterator in m_sessions.Values)
                     {
-                        if (Utils.CompareNonce(sessionIterator.ClientNonce, clientNonce))
+                        if (Nonce.CompareNonce(sessionIterator.ClientNonce, clientNonce))
                         {
                             throw new ServiceResultException(StatusCodes.BadNonceInvalid);
                         }
@@ -198,7 +199,7 @@ namespace Opc.Ua.Server
                 // must assign a hard-to-guess id if not secured.
                 if (authenticationToken == null)
                 {
-                    byte[] token = Utils.Nonce.CreateNonce(32);
+                    byte[] token = Nonce.CreateRandomNonceData(32);
                     authenticationToken = new NodeId(token);
                 }
 
@@ -214,7 +215,8 @@ namespace Opc.Ua.Server
                 }
 
                 // create server nonce.
-                serverNonce = Utils.Nonce.CreateNonce((uint)m_minNonceLength);
+                var serverNonceObject = Nonce.CreateNonce(context.ChannelContext.EndpointDescription.SecurityPolicyUri);
+
 
                 // assign client name.
                 if (String.IsNullOrEmpty(sessionName))
@@ -229,18 +231,18 @@ namespace Opc.Ua.Server
                     serverCertificate,
                     authenticationToken,
                     clientNonce,
-                    serverNonce,
+                    serverNonceObject,
                     sessionName,
                     clientDescription,
                     endpointUrl,
                     clientCertificate,
+                    clientCertificateChain,
                     revisedSessionTimeout,
-                    maxResponseMessageSize,
-                    m_maxRequestAge,
-                    m_maxBrowseContinuationPoints);
+                    maxResponseMessageSize);
 
                 // get the session id.
                 sessionId = session.Id;
+                serverNonce = serverNonceObject.Data;
 
                 // save session.
                 m_sessions.Add(authenticationToken, session);
@@ -251,6 +253,42 @@ namespace Opc.Ua.Server
 
             // return session.
             return session;
+        }
+
+        /// <summary>
+        /// Creates a new session.
+        /// </summary>
+        [Obsolete("Use CreateSession that passes X509Certificate2Collection)")]
+        public virtual Session CreateSession(
+            OperationContext context,
+            X509Certificate2 serverCertificate,
+            string sessionName,
+            byte[] clientNonce,
+            ApplicationDescription clientDescription,
+            string endpointUrl,
+            X509Certificate2 clientCertificate,
+            double requestedSessionTimeout,
+            uint maxResponseMessageSize,
+            out NodeId sessionId,
+            out NodeId authenticationToken,
+            out byte[] serverNonce,
+            out double revisedSessionTimeout)
+        {
+            return CreateSession(
+              context,
+              serverCertificate,
+              sessionName,
+              clientNonce,
+              clientDescription,
+              endpointUrl,
+              clientCertificate,
+              null,
+              requestedSessionTimeout,
+              maxResponseMessageSize,
+              out sessionId,
+              out authenticationToken,
+              out serverNonce,
+              out revisedSessionTimeout);
         }
 
         /// <summary>
@@ -267,6 +305,8 @@ namespace Opc.Ua.Server
             out byte[] serverNonce)
         {
             serverNonce = null;
+
+            Nonce serverNonceObject = null;
 
             Session session = null;
             UserIdentityToken newIdentity = null;
@@ -292,7 +332,7 @@ namespace Opc.Ua.Server
                 }
 
                 // create new server nonce.
-                serverNonce = Utils.Nonce.CreateNonce((uint)m_minNonceLength);
+                serverNonceObject = Nonce.CreateNonce(context.ChannelContext.EndpointDescription.SecurityPolicyUri);
 
                 // validate before activation.
                 session.ValidateBeforeActivate(
@@ -301,10 +341,10 @@ namespace Opc.Ua.Server
                     clientSoftwareCertificates,
                     userIdentityToken,
                     userTokenSignature,
-                    localeIds,
-                    serverNonce,
                     out newIdentity,
                     out userTokenPolicy);
+
+                serverNonce = serverNonceObject.Data;
             }
 
             IUserIdentity identity = null;
@@ -366,6 +406,7 @@ namespace Opc.Ua.Server
             }
 
             // activate session.
+
             bool contextChanged = session.Activate(
                 context,
                 clientSoftwareCertificates,
@@ -373,7 +414,7 @@ namespace Opc.Ua.Server
                 identity,
                 effectiveIdentity,
                 localeIds,
-                serverNonce);
+                serverNonceObject);
 
             // raise session related event.
             if (contextChanged)
@@ -508,15 +549,14 @@ namespace Opc.Ua.Server
             X509Certificate2 serverCertificate,
             NodeId sessionCookie,
             byte[] clientNonce,
-            byte[] serverNonce,
+            Nonce serverNonce,
             string sessionName,
             ApplicationDescription clientDescription,
             string endpointUrl,
             X509Certificate2 clientCertificate,
+            X509Certificate2Collection clientCertificateChain,
             double sessionTimeout,
-            uint maxResponseMessageSize,
-            int maxRequestAge, // TBD - Remove unused parameter.
-            int maxContinuationPoints) // TBD - Remove unused parameter.
+            uint maxResponseMessageSize)
         {
             Session session = new Session(
                 context,
@@ -529,6 +569,7 @@ namespace Opc.Ua.Server
                 clientDescription,
                 endpointUrl,
                 clientCertificate,
+                clientCertificateChain,
                 sessionTimeout,
                 maxResponseMessageSize,
                 m_maxRequestAge,
@@ -568,9 +609,9 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
+#endregion
 
-        #region Private Methods
+#region Private Methods
         /// <summary>
         /// Periodically checks if the sessions have timed out.
         /// </summary>
@@ -631,7 +672,7 @@ namespace Opc.Ua.Server
         }
         #endregion
 
-        #region Private Fields
+#region Private Fields
         private readonly object m_lock = new object();
         private IServerInternal m_server;
         private Dictionary<NodeId, Session> m_sessions;
@@ -644,7 +685,6 @@ namespace Opc.Ua.Server
         private int m_maxRequestAge;
         private int m_maxBrowseContinuationPoints;
         private int m_maxHistoryContinuationPoints;
-        private int m_minNonceLength;
 
         private readonly object m_eventLock = new object();
         private event SessionEventHandler m_sessionCreated;
@@ -653,9 +693,9 @@ namespace Opc.Ua.Server
         private event SessionEventHandler m_sessionChannelKeepAlive;
         private event ImpersonateEventHandler m_impersonateUser;
         private event EventHandler<ValidateSessionLessRequestEventArgs> m_validateSessionLessRequest;
-        #endregion
+#endregion
 
-        #region ISessionManager Members
+#region ISessionManager Members
         /// <inheritdoc/>
         public event SessionEventHandler SessionCreated
         {
@@ -798,7 +838,7 @@ namespace Opc.Ua.Server
             }
             return session;
         }
-        #endregion
+#endregion
     }
 
     /// <summary>
@@ -889,13 +929,13 @@ namespace Opc.Ua.Server
     /// </summary>
     public delegate void SessionEventHandler(Session session, SessionEventReason reason);
 
-    #region ImpersonateEventArgs Class
+#region ImpersonateEventArgs Class
     /// <summary>
     /// A class which provides the event arguments for session related event.
     /// </summary>
     public class ImpersonateEventArgs : EventArgs
     {
-        #region Constructors
+#region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -905,9 +945,9 @@ namespace Opc.Ua.Server
             m_userTokenPolicy = userTokenPolicy;
             m_endpointDescription = endpointDescription;
         }
-        #endregion
+#endregion
 
-        #region Public Properties
+#region Public Properties
         /// <summary>
         /// The new user identity for the session.
         /// </summary>
@@ -958,31 +998,31 @@ namespace Opc.Ua.Server
         {
             get { return m_endpointDescription; }
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private UserIdentityToken m_newIdentity;
         private UserTokenPolicy m_userTokenPolicy;
         private ServiceResult m_identityValidationError;
         private IUserIdentity m_identity;
         private IUserIdentity m_effectiveIdentity;
         private EndpointDescription m_endpointDescription;
-        #endregion
+#endregion
     }
 
     /// <summary>
     /// The delegate for functions used to receive impersonation events.
     /// </summary>
     public delegate void ImpersonateEventHandler(Session session, ImpersonateEventArgs args);
-    #endregion
+#endregion
 
-    #region ImpersonateEventArgs Class
+#region ImpersonateEventArgs Class
     /// <summary>
     /// A class which provides the event arguments for session related event.
     /// </summary>
     public class ValidateSessionLessRequestEventArgs : EventArgs
     {
-        #region Constructors
+#region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -991,9 +1031,9 @@ namespace Opc.Ua.Server
             AuthenticationToken = authenticationToken;
             RequestType = requestType;
         }
-        #endregion
+#endregion
 
-        #region Public Properties
+#region Public Properties
         /// <summary>
         /// The request type for the request.
         /// </summary>
@@ -1013,7 +1053,7 @@ namespace Opc.Ua.Server
         /// Set to indicate that an error occurred validating the session-less request and that it should be rejected.
         /// </summary>
         public ServiceResult Error { get; set; }
-        #endregion
+#endregion
     }
-    #endregion
+#endregion
 }
