@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Bindings;
+using Opc.Ua.Security;
 
 namespace Opc.Ua
 {
@@ -650,7 +651,7 @@ namespace Opc.Ua
 
     #region ServerSecurityPolicy Class
     /// <summary>
-    /// A class that defines a group of sampling rates supported by the server.
+    /// A class that defines a group of security policies supported by the server.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public class ServerSecurityPolicy
@@ -689,29 +690,7 @@ namespace Opc.Ua
         /// </summary>
         public static byte CalculateSecurityLevel(MessageSecurityMode mode, string policyUri)
         {
-            if ((mode == MessageSecurityMode.Invalid) || (mode == MessageSecurityMode.None))
-            {
-                return 0;
-            }
-
-            byte result = 0;
-            switch (policyUri)
-            {
-                case SecurityPolicies.Basic128Rsa15: result = 2; break;
-                case SecurityPolicies.Basic256: result = 4; break;
-                case SecurityPolicies.Basic256Sha256: result = 6; break;
-                case SecurityPolicies.Aes128_Sha256_RsaOaep: result = 8; break;
-                case SecurityPolicies.Aes256_Sha256_RsaPss: result = 10; break;
-                case SecurityPolicies.None:
-                default: return 0;
-            }
-
-            if (mode == MessageSecurityMode.SignAndEncrypt)
-            {
-                result += 100;
-            }
-
-            return result;
+            return SecuredApplication.CalculateSecurityLevel(mode, policyUri);
         }
 
         /// <summary>

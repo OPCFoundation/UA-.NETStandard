@@ -359,9 +359,11 @@ namespace Opc.Ua.Bindings
             if (channel == null)
             {
                 channel = CreateChannel();
-                if (Interlocked.CompareExchange(ref m_channel, channel, null) != null)
+                var currentChannel = Interlocked.CompareExchange(ref m_channel, channel, null);
+                if (currentChannel != null)
                 {
-                    channel = m_channel;
+                    Utils.SilentDispose(channel);
+                    channel = currentChannel;
                 }
             }
 
@@ -423,13 +425,13 @@ namespace Opc.Ua.Bindings
             EndpointConfiguration configuration = m_settings.Configuration;
             m_quotas = new ChannelQuotas {
                 MaxBufferSize = configuration.MaxBufferSize,
-                MaxMessageSize = configuration.MaxMessageSize,
+                MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(configuration.MaxMessageSize),
                 ChannelLifetime = configuration.ChannelLifetime,
                 SecurityTokenLifetime = configuration.SecurityTokenLifetime,
                 MessageContext = new ServiceMessageContext() {
                     MaxArrayLength = configuration.MaxArrayLength,
                     MaxByteStringLength = configuration.MaxByteStringLength,
-                    MaxMessageSize = configuration.MaxMessageSize,
+                    MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(configuration.MaxMessageSize),
                     MaxStringLength = configuration.MaxStringLength,
                     MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
                     MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,

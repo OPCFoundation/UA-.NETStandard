@@ -138,12 +138,12 @@ namespace Opc.Ua.Bindings
             {
                 m_inactivityDetectPeriod = configuration.ChannelLifetime / 2;
                 m_quotas.MaxBufferSize = configuration.MaxBufferSize;
-                m_quotas.MaxMessageSize = configuration.MaxMessageSize;
+                m_quotas.MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(configuration.MaxMessageSize);
                 m_quotas.ChannelLifetime = configuration.ChannelLifetime;
                 m_quotas.SecurityTokenLifetime = configuration.SecurityTokenLifetime;
                 messageContext.MaxArrayLength = configuration.MaxArrayLength;
                 messageContext.MaxByteStringLength = configuration.MaxByteStringLength;
-                messageContext.MaxMessageSize = configuration.MaxMessageSize;
+                messageContext.MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(configuration.MaxMessageSize);
                 messageContext.MaxStringLength = configuration.MaxStringLength;
                 messageContext.MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels;
                 messageContext.MaxDecoderRecoveries = configuration.MaxDecoderRecoveries;
@@ -221,7 +221,7 @@ namespace Opc.Ua.Bindings
 
             lock (m_lock)
             {
-                if (!m_channels.TryGetValue(channelId, out channel))
+                if (m_channels?.TryGetValue(channelId, out channel) != true)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadTcpSecureChannelUnknown, "Could not find secure channel referenced in the OpenSecureChannel request.");
                 }
@@ -445,7 +445,7 @@ namespace Opc.Ua.Bindings
             TcpListenerChannel channel = null;
             lock (m_lock)
             {
-                if (!m_channels.TryGetValue(channelId, out channel))
+                if (m_channels?.TryGetValue(channelId, out channel) != true)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadTcpSecureChannelUnknown, "Could not find secure channel request.");
                 }
@@ -464,7 +464,7 @@ namespace Opc.Ua.Bindings
                 lock (m_lock)
                 {
                     // remove it so it does not get cleaned up as an inactive connection.
-                    m_channels.Remove(channelId);
+                    m_channels?.Remove(channelId);
                 }
             }
 
@@ -525,16 +525,17 @@ namespace Opc.Ua.Bindings
                         return;
                     }
 
-                    bool serveChannel = !(m_maxChannelCount > 0 && m_maxChannelCount < m_channels.Count);
+                    int channelCount = m_channels?.Count ?? 0;
+                    bool serveChannel = !(m_maxChannelCount > 0 && m_maxChannelCount < channelCount);
                     if (!serveChannel)
                     {
                         Utils.LogError("OnAccept: Maximum number of channels {0} reached, serving channels is stopped until number is lower or equal than {1} ",
-                            m_channels.Count, m_maxChannelCount);
+                            channelCount, m_maxChannelCount);
                         Utils.SilentDispose(e.AcceptSocket);
                     }
 
                     // check if the accept socket has been created.
-                    if (serveChannel && e.AcceptSocket != null && e.SocketError == SocketError.Success)
+                    if (serveChannel && e.AcceptSocket != null && e.SocketError == SocketError.Success && m_channels != null)
                     {
                         try
                         {
@@ -756,7 +757,7 @@ namespace Opc.Ua.Bindings
                 do
                 {
                     uint nextChannelId = ++m_lastChannelId;
-                    if (nextChannelId != 0 && !m_channels.ContainsKey(nextChannelId))
+                    if (nextChannelId != 0 && m_channels?.ContainsKey(nextChannelId) != true)
                     {
                         return nextChannelId;
                     }

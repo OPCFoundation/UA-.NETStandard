@@ -60,14 +60,25 @@ namespace Opc.Ua
         /// Initializes the object with an X509 certificate identifier
         /// </summary>
         public UserIdentity(CertificateIdentifier certificateId)
+            : this(certificateId, new CertificatePasswordProvider(string.Empty))
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with an X509 certificate identifier and a CertificatePasswordProvider
+        /// </summary>
+        public UserIdentity(CertificateIdentifier certificateId, CertificatePasswordProvider certificatePasswordProvider)
         {
             if (certificateId == null) throw new ArgumentNullException(nameof(certificateId));
 
-            X509Certificate2 certificate = certificateId.Find().Result;
-            if (certificate != null)
+            X509Certificate2 certificate = certificateId.LoadPrivateKeyEx(certificatePasswordProvider).Result;
+
+            if (certificate == null || !certificate.HasPrivateKey)
             {
-                Initialize(certificate);
+                throw new ServiceResultException("Cannot create User Identity with CertificateIdentifier that does not contain a private key");
             }
+
+            Initialize(certificate);
         }
 
         /// <summary>
@@ -76,6 +87,7 @@ namespace Opc.Ua
         public UserIdentity(X509Certificate2 certificate)
         {
             if (certificate == null) throw new ArgumentNullException(nameof(certificate));
+            if (!certificate.HasPrivateKey) throw new ServiceResultException("Cannot create User Identity with Certificate that does not have a private key");
             Initialize(certificate);
         }
 

@@ -15,10 +15,12 @@
 */
 
 using System;
+using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.X509StoreExtensions;
 
 namespace Opc.Ua
 {
@@ -217,42 +219,183 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        /// <remarks>CRLs are not supported here.</remarks>
-        public bool SupportsCRLs => false;
+        /// <remarks>CRLs are only supported on Windows Platform.</remarks>
+        public bool SupportsCRLs => PlatformHelper.IsWindowsWithCrlSupport();
 
         /// <inheritdoc/>
-        /// <remarks>CRLs are not supported here.</remarks>
-        public Task<StatusCode> IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
+        /// <remarks>CRLs are only supported on Windows Platform.</remarks>
+        public async Task<StatusCode> IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
         {
-            return Task.FromResult((StatusCode)StatusCodes.BadNotSupported);
+            if (!SupportsCRLs)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported);
+            }
+
+            if (issuer == null)
+            {
+                throw new ArgumentNullException(nameof(issuer));
+            }
+
+            if (certificate == null)
+            {
+                throw new ArgumentNullException(nameof(certificate));
+            }
+
+            X509CRLCollection crls = await EnumerateCRLs().ConfigureAwait(false);
+            // check for CRL.
+
+            bool crlExpired = true;
+
+            foreach (X509CRL crl in crls)
+            {
+
+                if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
+                {
+                    continue;
+                }
+
+                if (!crl.VerifySignature(issuer, false))
+                {
+                    continue;
+                }
+
+                if (crl.IsRevoked(certificate))
+                {
+                    return (StatusCode)StatusCodes.BadCertificateRevoked;
+                }
+
+                if (crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
+                {
+                    crlExpired = false;
+                }
+            }
+
+            // certificate is fine.
+            if (!crlExpired)
+            {
+                return (StatusCode)StatusCodes.Good;
+            }
+
+            // can't find a valid CRL.
+            return (StatusCode)StatusCodes.BadCertificateRevocationUnknown;
         }
 
         /// <inheritdoc/>
-        /// <remarks>CRLs are not supported here.</remarks>
+        /// <remarks>CRLs are only supported on Windows Platform.</remarks>
         public Task<X509CRLCollection> EnumerateCRLs()
         {
-            throw new ServiceResultException(StatusCodes.BadNotSupported);
+            if (!SupportsCRLs)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported);
+            }
+            var crls = new X509CRLCollection();
+            using (var store = new X509Store(m_storeName, m_storeLocation))
+            {
+                store.Open(OpenFlags.ReadOnly);
+
+                byte[][] rawCrls = store.EnumerateCrls();
+                foreach (byte[] rawCrl in rawCrls)
+                {
+                    var crl = new X509CRL(rawCrl);
+                    crls.Add(crl);
+                }
+            }
+            return Task.FromResult(crls);
         }
 
         /// <inheritdoc/>
-        /// <remarks>CRLs are not supported here.</remarks>
-        public Task<X509CRLCollection> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
+        /// <remarks>CRLs are only supported on Windows Platform.</remarks>
+        public async Task<X509CRLCollection> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
         {
-            throw new ServiceResultException(StatusCodes.BadNotSupported);
+            if (!SupportsCRLs)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported);
+            }
+            if (issuer == null)
+            {
+                throw new ArgumentNullException(nameof(issuer));
+            }
+            var crls = new X509CRLCollection();
+            foreach (X509CRL crl in await EnumerateCRLs().ConfigureAwait(false))
+            {
+                if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
+                {
+                    continue;
+                }
+
+                if (!crl.VerifySignature(issuer, false))
+                {
+                    continue;
+                }
+
+                if (!validateUpdateTime ||
+                    crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
+                {
+                    crls.Add(crl);
+                }
+            }
+
+            return crls;
         }
 
         /// <inheritdoc/>
-        /// <remarks>CRLs are not supported here.</remarks>
-        public Task AddCRL(X509CRL crl)
+        /// <remarks>CRLs are only supported on Windows Platform.</remarks>
+        public async Task AddCRL(X509CRL crl)
         {
-            throw new ServiceResultException(StatusCodes.BadNotSupported);
+            if (!SupportsCRLs)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported);
+            }
+            if (crl == null)
+            {
+                throw new ArgumentNullException(nameof(crl));
+            }
+
+            X509Certificate2 issuer = null;
+            X509Certificate2Collection certificates = null;
+            certificates = await Enumerate().ConfigureAwait(false);
+            foreach (X509Certificate2 certificate in certificates)
+            {
+                if (X509Utils.CompareDistinguishedName(certificate.SubjectName, crl.IssuerName))
+                {
+                    if (crl.VerifySignature(certificate, false))
+                    {
+                        issuer = certificate;
+                        break;
+                    }
+                }
+            }
+
+            if (issuer == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Could not find issuer of the CRL.");
+            }
+            using (var store = new X509Store(m_storeName, m_storeLocation))
+            {
+                store.Open(OpenFlags.ReadWrite);
+
+                store.AddCrl(crl.RawData);
+            }
         }
 
         /// <inheritdoc/>
-        /// <remarks>CRLs are not supported here.</remarks>
+        /// <remarks>CRLs are only supported on Windows Platform.</remarks>
         public Task<bool> DeleteCRL(X509CRL crl)
         {
-            throw new ServiceResultException(StatusCodes.BadNotSupported);
+            if (!SupportsCRLs)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported);
+            }
+            if (crl == null)
+            {
+                throw new ArgumentNullException(nameof(crl));
+            }
+            using (var store = new X509Store(m_storeName, m_storeLocation))
+            {
+                store.Open(OpenFlags.ReadWrite);
+
+                return Task.FromResult(store.DeleteCrl(crl.RawData));
+            }
         }
 
         private bool m_noPrivateKeys;
