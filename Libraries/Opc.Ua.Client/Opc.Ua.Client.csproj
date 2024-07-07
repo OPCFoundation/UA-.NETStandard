@@ -30,10 +30,6 @@
     <ProjectReference Include="..\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Update="C:\Users\roman\source\repos\romanett\UA-.NETStandard\/nuget/logo.jpg" Link="logo.jpg" />
-  </ItemGroup>
-
   <Target Name="GetPackagingOutputs" />
 
 </Project>
