@@ -28,26 +28,30 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Used to create <see cref="IDurableMonitoredItemQueue"/> and dispose unmanaged resources on server shutdown
+    /// Used to create <see cref="IDurableMonitoredItemQueue{T}"/> and dispose unmanaged resources on server shutdown
     /// </summary>
     public interface IDurableMonitoredItemQueueFactory : IDisposable
     {
         /// <summary>
-        /// Creates an empty queue.
+        /// Creates an empty queue for data values.
         /// </summary>
-        IDurableMonitoredItemQueue Create(uint monitoredItemId, Action discardedValueHandler = null);
+        IDurableMonitoredItemQueue<DataValue> CreateDataValueQueue(uint monitoredItemId, bool isDurable, Action discardedValueHandler = null);
+
+        /// <summary>
+        /// Creates an empty queue for events.
+        /// </summary>
+        IDurableMonitoredItemQueue<EventFieldList> CreateEventQeue(uint monitoredItemId, bool isDurable, Action discardedValueHandler = null);
     }
 
     /// <summary>
     /// Provides a durable queue for data changes and events that can handle a queue size of several thousand elements.
-    /// Internally two queues are used, one for events and one for DataValues
+    /// T defines if the queue is for events or for DataValues
     /// </summary>
-    public interface IDurableMonitoredItemQueue : IDisposable
+    public interface IDurableMonitoredItemQueue<T> : IDisposable
     {
         /// <summary>
         /// The event for the discarded value handler.
@@ -68,12 +72,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets number of elements actually contained in value queue.
         /// </summary>
-        int ItemsInValueQueue { get; }
+        int ItemsInQueue { get; }
 
-        /// <summary>
-        /// Gets number of elements actually contained in event queue.
-        /// </summary>
-        int ItemsInEventQueue { get; }
 
         /// <summary>
         /// Sets the sampling interval used when queuing values.
@@ -87,22 +87,14 @@ namespace Opc.Ua.Server
         /// <param name="queueSize">The new queue size.</param>
         /// <param name="discardOldest">Whether to discard the oldest values if the queue overflows.</param>
         /// <param name="diagnosticsMasks">Specifies which diagnostics which should be kept in the queue.</param>
-        /// <param name="durable">Specifies if the queue is durable and values will be persisted to storage.</param>
-        void SetQueueSize(uint queueSize, bool discardOldest, DiagnosticsMasks diagnosticsMasks, bool durable);
+        void SetQueueSize(uint queueSize, bool discardOldest, DiagnosticsMasks diagnosticsMasks);
 
         /// <summary>
         /// Adds the value to the queue.
         /// </summary>
         /// <param name="value">The value to queue.</param>
         /// <param name="error">The error to queue.</param>
-        void QueueValue(DataValue value, ServiceResult error);
-
-        /// <summary>
-        /// Adds an Event to the queue.
-        /// </summary>
-        /// <param name="fields">The event to queue.</param>
-        /// <param name="error">The error to queue</param>
-        void QueueEvent(EventFieldList fields, ServiceResult error);
+        void QueueValue(T value, ServiceResult error);
 
         /// <summary>
         /// Publishes the oldest value in the queue.
@@ -110,14 +102,6 @@ namespace Opc.Ua.Server
         /// <param name="value">The value.</param>
         /// <param name="error">The error associated with the value.</param>
         /// <returns>True if a value was found. False if the queue is empty.</returns>
-        bool PublishValue(out DataValue value, out ServiceResult error);
-
-        /// <summary>
-        /// Publishes the oldest event in the queue.
-        /// </summary>
-        /// <param name="fields">The event</param>
-        /// <param name="error">The error associated with the event</param>
-        /// <returns></returns>
-        bool PublishEvent(out EventFieldList fields, out ServiceResult error);
+        bool Publish(out T value, out ServiceResult error);
     }
 }

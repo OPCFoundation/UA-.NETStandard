@@ -33,14 +33,37 @@ using System.Collections.Generic;
 namespace Opc.Ua.Server
 {
     /// <summary>
+    /// A factory for <see cref="IDurableMonitoredItemQueue{T}"/>
+    /// </summary>
+    public class DurableMonitoredItemQueueFactory : IDurableMonitoredItemQueueFactory
+    {
+        /// <inheritdoc/>
+        public IDurableMonitoredItemQueue<DataValue> CreateDataValueQueue(uint monitoredItemId, bool durable, Action discardedValueHandler = null)
+        {
+            return new MonitoredItemQueue(monitoredItemId, durable);
+        }
+
+        /// <inheritdoc/>
+        public IDurableMonitoredItemQueue<EventFieldList> CreateEventQeue(uint monitoredItemId, bool durable, Action discardedValueHandler = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            throw new NotImplementedException();
+        }
+    }
+    /// <summary>
     /// Provides a queue for data changes.
     /// </summary>
-    public class MonitoredItemQueue
+    public class MonitoredItemQueue : IDurableMonitoredItemQueue<DataValue>
     {
         /// <summary>
         /// Creates an empty queue.
         /// </summary>
-        public MonitoredItemQueue(uint monitoredItemId, DiscardedValueHandler discardedValueHandler = null)
+        public MonitoredItemQueue(uint monitoredItemId, bool isDurable, DiscardedValueHandler discardedValueHandler = null)
         {
             m_monitoredItemId = monitoredItemId;
             m_values = null;
@@ -52,6 +75,20 @@ namespace Opc.Ua.Server
             m_nextSampleTime = 0;
             m_samplingInterval = 0;
             m_discardedValueHandler = discardedValueHandler;
+            m_isDurable = isDurable;
+        }
+
+        event Action IDurableMonitoredItemQueue<DataValue>.DiscardedValueHandler
+        {
+            add
+            {
+                throw new NotImplementedException();
+            }
+
+            remove
+            {
+                throw new NotImplementedException();
+            }
         }
 
         #region Public Methods
@@ -96,6 +133,8 @@ namespace Opc.Ua.Server
                 return m_values.Length - m_start + m_end - 1;
             }
         }
+        /// <inheritdoc/>
+        public bool IsDurable => m_isDurable;
 
         /// <summary>
         /// Sets the sampling interval used when queuing values.
@@ -429,10 +468,18 @@ namespace Opc.Ua.Server
                 error = copy;
             }
         }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            m_values = null;
+            m_errors = null;
+        }
         #endregion
 
         #region Private Fields
         private uint m_monitoredItemId;
+        private bool m_isDurable;
         private DataValue[] m_values;
         private ServiceResult[] m_errors;
         private int m_start;

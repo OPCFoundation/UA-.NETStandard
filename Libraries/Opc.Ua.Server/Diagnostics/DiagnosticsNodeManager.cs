@@ -231,26 +231,7 @@ namespace Opc.Ua.Server
             uint lifetimeInHours,
             ref uint revisedLifetimeInHours)
         {
-            revisedLifetimeInHours = 0;
-
-            foreach (Subscription subscription in Server.SubscriptionManager.GetSubscriptions())
-            {
-                if (subscription.Id == subscriptionId)
-                {
-                    if (subscription.SessionId != context.SessionId)
-                    {
-                        // user tries to access subscription of different session
-                        return StatusCodes.BadUserAccessDenied;
-                    }
-
-                    ServiceResult result = subscription.SetSubscriptionDurable(lifetimeInHours, out uint revisedLifeTimeHours);
-
-                    revisedLifetimeInHours = revisedLifeTimeHours;
-                    return result;
-                }
-            }
-
-            return StatusCodes.BadSubscriptionIdInvalid;
+            return Server.SubscriptionManager.SetSubscriptionDurable(context, subscriptionId, lifetimeInHours, out revisedLifetimeInHours);
         }
 
         /// <summary>

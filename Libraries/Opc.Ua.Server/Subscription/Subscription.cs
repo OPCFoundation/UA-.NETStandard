@@ -2293,26 +2293,27 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Sets the subscription to durable mode.
         /// </summary>
-        public ServiceResult SetSubscriptionDurable(uint lifeTimeInHours, out uint revisedLifeTimeInHours)
+        public ServiceResult SetSubscriptionDurable(uint maxLifetimeCount, uint maxKeepAliveCount)
         {
             lock (m_lock)
             {
-                // set default
-                revisedLifeTimeInHours = 0;
-
-                if (m_monitoredItems.Count > 0)
-                {
-                    return StatusCodes.BadInvalidState;
-                }
-
                 if (!m_supportsDurable)
                 {
                     Utils.LogWarning("SetSubscriptionDurable requested for subscription with id {0}, but no IDurableMonitoredItemQueueFactory was registered", m_id);
-                    return StatusCodes.BadConfigurationError;
+                    return StatusCodes.BadInternalError;
                 }
 
-                // TODO: enable the durable subscription support here & calculte revised lifetime 
                 m_isDurable = true;
+
+                // clear lifetime counter.
+                ResetLifetimeCount();
+
+                m_maxLifetimeCount = maxLifetimeCount;
+
+                if (maxKeepAliveCount != m_maxKeepAliveCount)
+                {
+                    m_maxKeepAliveCount = maxKeepAliveCount;
+                }
 
                 return StatusCodes.Good;
             }

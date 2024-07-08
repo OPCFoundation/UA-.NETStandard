@@ -3316,7 +3316,7 @@ namespace Opc.Ua.Server
         /// <returns>Returns a generic session manager object for a server, the return type is <seealso cref="SubscriptionManager"/>.</returns>
         protected virtual IDurableMonitoredItemQueueFactory CreateDurableMonitoredItemQueueFactory(IServerInternal server, ApplicationConfiguration configuration)
         {
-            throw new NotImplementedException();
+           return new DurableMonitoredItemQueueFactory();
         }
 
         /// <summary>
