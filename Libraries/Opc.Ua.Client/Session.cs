@@ -3729,8 +3729,8 @@ namespace Opc.Ua.Client
 
                         for (int ii = 0; ii < nodesToBrowseBatch.Count; ii++)
                         {
-                            if ( errorsForBatch[ii].StatusCode == StatusCodes.BadNoContinuationPoints ||
-                                 errorsForBatch[ii].StatusCode == StatusCodes.BadContinuationPointInvalid )
+                            if(errorsForBatch[ii].StatusCode == StatusCodes.BadNoContinuationPoints ||
+                                errorsForBatch[ii].StatusCode == StatusCodes.BadContinuationPointInvalid)
                             {
                                 nodesToBrowseForNextPass.Add( nodesToBrowseForPass[batchOffset + ii] );                                
                                 referenceDescriptionsForNextPass.Add( resultForPass[batchOffset + ii] );                                
@@ -3804,125 +3804,123 @@ namespace Opc.Ua.Client
         /// BadNoContinuationPoins and BadContinuationPointInvalid  
         /// </summary>
         /// <param name="view"></param>
-        /// <param name="nodesToBrowse"></param>
+        /// <param name="nodeIds"></param>
         /// <param name="maxResultsToReturn"></param>
         /// <param name="browseDirection"></param>
         /// <param name="referenceTypeId"></param>
         /// <param name="includeSubtypes"></param>
         /// <param name="nodeClassMask"></param>
-        /// <param name="result"></param>
-        /// <param name="errors"></param>
+        /// <param name="referenceDescriptions"></param>
+        /// <param name="finalErrors"></param>
         /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
         private void BrowseWithBrowseNext(
             ViewDescription view,
-            List<NodeId> nodesToBrowse,
+            List<NodeId> nodeIds,
             uint maxResultsToReturn,
             BrowseDirection browseDirection,
             NodeId referenceTypeId,
             bool includeSubtypes,
             uint nodeClassMask,
-            out List<ReferenceDescriptionCollection> result,
-            out List<ServiceResult> errors )
+            out List<ReferenceDescriptionCollection> referenceDescriptions,
+            out IList<ServiceResult> finalErrors)
         {
-            
-            ResponseHeader responseHeader = null;
-            responseHeader = Browse
-                    (
-                    null,
-                    view,
-                    nodesToBrowse,
-                    maxResultsToReturn,
-                    browseDirection,
-                    referenceTypeId,
-                    includeSubtypes,
-                    nodeClassMask,
-                    out var batchContinuationPoints,
-                    out var result1,
-                    out var errors1
-                    );
-            result = result1.ToList();
-            errors = errors1.ToList();
-            ByteStringCollection continuationPointsForBrowseNext = new ByteStringCollection();
+            var result = new List<ReferenceDescriptionCollection>();
 
-            for ( int ii = 0; ii < nodesToBrowse.Count; ii++ )
+            referenceDescriptions = result;
+
+            // browse for all references.
+            Browse(
+                null,
+                view,
+                nodeIds,
+                maxResultsToReturn,
+                browseDirection,
+                referenceTypeId,
+                includeSubtypes,
+                nodeClassMask,
+                out ByteStringCollection continuationPoints,
+                out IList<ReferenceDescriptionCollection> descriptions,
+                out IList<ServiceResult> errors);
+
+            result.AddRange(descriptions);
+
+            // process any continuation point.
+            var previousResults = result;
+            var errorAnchors = new List<List<ServiceResult>>();
+            var previousErrors = new List<List<ServiceResult>>();
+            foreach (var error in errors)
             {
-                if (batchContinuationPoints[ii] != null && StatusCode.IsBad( errors1[ii].StatusCode ))
+                previousErrors.Add(new List<ServiceResult> { error });
+                errorAnchors.Add(previousErrors.Last());
+            }
+
+            byte[] nullByte = new byte[16];
+
+            var nextContinuationPoints = new ByteStringCollection();
+            var nextResults = new List<ReferenceDescriptionCollection>();
+            var nextErrors = new List<List<ServiceResult>>();            
+
+            for(int ii = 0; ii< nodeIds.Count; ii++)
+            {
+                if (continuationPoints[ii] != null && !ByteArraysEqual(continuationPoints[ii], nullByte))
                 {
-                    continuationPointsForBrowseNext.Add( batchContinuationPoints[ii] );
+                    if (!StatusCode.IsBad(previousErrors[ii].Last().StatusCode))
+                    {
+                        nextContinuationPoints.Add(continuationPoints[ii]);
+                        nextResults.Add(previousResults[ii]);
+                        nextErrors.Add( previousErrors[ii] );
+                    }
+                    // ToDo: status code is bad and continuation point is not null
                 }
             }
 
-            if ( continuationPointsForBrowseNext.Count > 0 )
-            {
-                try
-                {
-                    BrowseNext(null, true, continuationPointsForBrowseNext, out var dummy1, out var dummy2);
-                }
-                catch { }
-            }
+            while(nextContinuationPoints.Count > 0)
+            { 
 
-            continuationPointsForBrowseNext.Clear();
-            List<ReferenceDescriptionCollection> resultForBrowseNext = new List<ReferenceDescriptionCollection>();
-            List<ServiceResult> errorForBrowseNext = new List<ServiceResult>();
+                BrowseNext(null,
+                    false,
+                    nextContinuationPoints,
+                    out var revisedContinuationPoints,
+                    out var browseNextResults,
+                    out var browseNextErrors);
 
-            for ( int ii = 0; ii < nodesToBrowse.Count; ii++ )
-            {
-                if (batchContinuationPoints[ii] != null && StatusCode.IsNotBad( errors1[ii].StatusCode) )
-                {
-                    continuationPointsForBrowseNext.Add( batchContinuationPoints[ii] );
-                    resultForBrowseNext.Add( result[ii] );
-                    errorForBrowseNext.Add( errors1[ii] );
-                }
-            }
-            
-            while ( continuationPointsForBrowseNext.Count > 0 )
-            {
-                BrowseNext( null, false, continuationPointsForBrowseNext, out var revisedContinuationPoints, out var result2, out var errors2 );
-                int count = continuationPointsForBrowseNext.Count;
-                continuationPointsForBrowseNext.Clear();
-
-                for (int ii = 0; ii < count; ii++)
-                {
-                    if ( revisedContinuationPoints[ii] != null && StatusCode.IsBad(errors2[ii].StatusCode ))
-                    {
-                        continuationPointsForBrowseNext.Add( revisedContinuationPoints[ii] );
-                    }
-                }
-
-                if ( continuationPointsForBrowseNext.Count > 0 )
-                {
-                    try
-                    {
-                        BrowseNext( null, true, continuationPointsForBrowseNext, out var dummy3, out var dummy4 );
-                    }
-                    catch { }
-                }
-
-                List<ReferenceDescriptionCollection> referencesForNextBrowseNext = new List<ReferenceDescriptionCollection>();
-                List<ServiceResult> errorsForNextBrowseNext = new List<ServiceResult>();
-
-                for ( int ii = 0; ii < count; ii++ )
-                {
-                    resultForBrowseNext[ii].AddRange( result2[ii] );
-                    errorForBrowseNext[ii] = errors2[ii];
-                    if (revisedContinuationPoints[ii] != null && StatusCode.IsNotBad( errors2[ii].StatusCode ))
-                    {
-                        referencesForNextBrowseNext.Add( resultForBrowseNext[ii] );
-                        errorForBrowseNext.Add( errors2[ii] );
-                    }
-                    
-                }                
-
-                continuationPointsForBrowseNext.Clear();
-
-                foreach( var entry in revisedContinuationPoints )
-                {
-                    if( entry != null ) { continuationPointsForBrowseNext.Add( entry ); }
-                }
                 
-            }            
-        }        
+                for(int ii = 0; ii < browseNextResults.Count; ii++)
+                {
+                    nextResults[ii].AddRange(browseNextResults[ii]);
+                    nextErrors[ii].Add (browseNextErrors[ii] );
+                }
+
+                previousResults = nextResults;
+                previousErrors =  nextErrors;
+
+                nextResults = new List<ReferenceDescriptionCollection>();
+                nextErrors  = new List<List<ServiceResult>>();
+                nextContinuationPoints = new ByteStringCollection();
+
+                for (int ii = 0; ii < revisedContinuationPoints.Count; ii++)
+                {
+                    if(revisedContinuationPoints[ii] != null && !ByteArraysEqual(revisedContinuationPoints[ii], nullByte))
+                    {
+                        nextContinuationPoints.Add(revisedContinuationPoints[ii]);
+                        nextResults.Add(previousResults[ii]);
+                        nextErrors.Add( previousErrors[ii] );
+                    }
+                }
+
+            }
+            finalErrors = new List<ServiceResult>();
+            foreach (var errorList in errorAnchors)
+            {
+                finalErrors.Add(errorList.Last());
+            }
+        }
+
+        // see https://stackoverflow.com/questions/43289/comparing-two-byte-arrays-in-net
+        private static bool ByteArraysEqual(ReadOnlySpan<byte> a1, ReadOnlySpan<byte> a2)
+        {
+            return a1.SequenceEqual(a2);
+        }       
 
         #endregion
 
