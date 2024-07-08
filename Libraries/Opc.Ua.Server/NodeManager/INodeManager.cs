@@ -283,20 +283,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterErrors,
             IList<IMonitoredItem> monitoredItems,
-            ref long globalIdCounter);
-
-        /// <summary>
-        /// Creates a set of durable monitored items.
-        /// </summary>
-        void CreateDurableMonitoredItems(
-            OperationContext context,
-            uint subscriptionId,
-            double publishingInterval,
-            TimestampsToReturn timestampsToReturn,
-            IList<MonitoredItemCreateRequest> itemsToCreate,
-            IList<ServiceResult> errors,
-            IList<MonitoringFilterResult> filterErrors,
-            IList<IDurableMonitoredItem> monitoredItems,
+            bool createDurable,
             ref long globalIdCounter);
 
         /// <summary>

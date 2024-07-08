@@ -110,7 +110,7 @@ namespace Opc.Ua.Server
             m_maxMessageCount = maxMessageCount;
             m_sentMessages = new List<NotificationMessage>();
             m_supportsDurable = m_server.DurableMonitoredItemQueueFactory != null;
-            m_durable = false;
+            m_isDurable = false;
 
             m_monitoredItems = new Dictionary<uint, LinkedListNode<IMonitoredItem>>();
             m_itemsToCheck = new LinkedList<IMonitoredItem>();
@@ -184,6 +184,11 @@ namespace Opc.Ua.Server
             {
                 lock (m_lock)
                 {
+                    foreach (KeyValuePair<uint, LinkedListNode<IMonitoredItem>> monitoredItemKVP in m_monitoredItems)
+                    {
+                        monitoredItemKVP.Value?.Value?.Dispose();
+                    }
+
                     m_monitoredItems.Clear();
                     m_sentMessages.Clear();
                     m_itemsToCheck.Clear();
@@ -272,7 +277,7 @@ namespace Opc.Ua.Server
         {
             get
             {
-                return m_durable;
+                return m_isDurable;
             }
         }
 
@@ -1457,23 +1462,17 @@ namespace Opc.Ua.Server
                 errors.Add(null);
                 filterResults.Add(null);
             }
-            if (IsDurable)
-            {
 
-            }
-            else
-            {
-                m_server.NodeManager.CreateMonitoredItems(
-                context,
-                this.m_id,
-                m_publishingInterval,
-                timestampsToReturn,
-                itemsToCreate,
-                errors,
-                filterResults,
-                monitoredItems);
-            }
-            
+            m_server.NodeManager.CreateMonitoredItems(
+            context,
+            this.m_id,
+            m_publishingInterval,
+            timestampsToReturn,
+            itemsToCreate,
+            errors,
+            filterResults,
+            monitoredItems,
+            m_isDurable);
 
             // allocate results.
             bool diagnosticsExist = false;
@@ -1899,6 +1898,12 @@ namespace Opc.Ua.Server
                     errors);
             }
 
+            //dispose monitored Items
+            foreach (IMonitoredItem monitoredItem in monitoredItems)
+            {
+                monitoredItem?.Dispose();
+            }
+
             lock (m_lock)
             {
                 // update diagnostics.
@@ -2307,7 +2312,7 @@ namespace Opc.Ua.Server
                 }
 
                 // TODO: enable the durable subscription support here & calculte revised lifetime 
-                m_durable = true;
+                m_isDurable = true;
 
                 return StatusCodes.Good;
             }
@@ -2465,7 +2470,7 @@ namespace Opc.Ua.Server
         private bool m_expired;
         private Dictionary<uint, List<ITriggeredMonitoredItem>> m_itemsToTrigger;
         private bool m_supportsDurable;
-        private bool m_durable;
+        private bool m_isDurable;
         #endregion
     }
 }

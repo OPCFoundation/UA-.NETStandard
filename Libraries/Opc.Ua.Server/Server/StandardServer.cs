@@ -3283,7 +3283,7 @@ namespace Opc.Ua.Server
         /// <returns>Returns an object that manages all events raised within the server, the return type is <seealso cref="EventManager"/>.</returns>
         protected virtual EventManager CreateEventManager(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new EventManager(server, (uint)configuration.ServerConfiguration.MaxEventQueueSize);
+            return new EventManager(server, (uint)configuration.ServerConfiguration.MaxEventQueueSize, (uint)configuration.ServerConfiguration.MaxDurableEventQueueSize);
         }
 
         /// <summary>

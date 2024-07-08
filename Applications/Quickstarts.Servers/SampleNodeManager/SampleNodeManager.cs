@@ -2192,12 +2192,6 @@ namespace Opc.Ua.Sample
             return ServiceResult.Good;
         }
 
-        ///<inheritdoc/>
-        public virtual void CreateDurableMonitoredItems(OperationContext context, uint subscriptionId, double publishingInterval, TimestampsToReturn timestampsToReturn, IList<MonitoredItemCreateRequest> itemsToCreate, IList<ServiceResult> errors, IList<MonitoringFilterResult> filterErrors, IList<IDurableMonitoredItem> monitoredItems, ref long globalIdCounter)
-        {
-            throw new NotImplementedException();
-        }
-
         /// <summary>
         /// Creates a new set of monitored items for a set of variables.
         /// </summary>
@@ -2213,6 +2207,7 @@ namespace Opc.Ua.Sample
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterErrors,
             IList<IMonitoredItem> monitoredItems,
+            bool createDurable,
             ref long globalIdCounter)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
@@ -2271,6 +2266,7 @@ namespace Opc.Ua.Sample
                         context.DiagnosticsMask,
                         timestampsToReturn,
                         itemToCreate,
+                        createDurable,
                         ref globalIdCounter,
                         out filterError,
                         out monitoredItem);
@@ -2317,6 +2313,7 @@ namespace Opc.Ua.Sample
                         context.DiagnosticsMask,
                         timestampsToReturn,
                         itemToCreate,
+                        createDurable,
                         ref globalIdCounter,
                         out filterError,
                         out monitoredItem);
@@ -2464,6 +2461,7 @@ namespace Opc.Ua.Sample
             DiagnosticsMasks diagnosticsMasks,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequest itemToCreate,
+            bool createDurable,
             ref long globalIdCounter,
             out MonitoringFilterResult filterError,
             out IMonitoredItem monitoredItem)

@@ -2182,22 +2182,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Creates a set of durable monitored items.
-        /// </summary>
-        public virtual void CreateDurableMonitoredItems(
-            OperationContext context,
-            uint subscriptionId,
-            double publishingInterval,
-            TimestampsToReturn timestampsToReturn,
-            IList<MonitoredItemCreateRequest> itemsToCreate,
-            IList<ServiceResult> errors,
-            IList<MonitoringFilterResult> filterResults,
-            IList<IDurableMonitoredItem> monitoredItems)
-        {
-           throw new NotImplementedException();
-        }
-
-        /// <summary>
         /// Creates a set of monitored items.
         /// </summary>
         public virtual void CreateMonitoredItems(
@@ -2208,7 +2192,8 @@ namespace Opc.Ua.Server
             IList<MonitoredItemCreateRequest> itemsToCreate,
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterResults,
-            IList<IMonitoredItem> monitoredItems)
+            IList<IMonitoredItem> monitoredItems,
+            bool createDurable)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
             if (itemsToCreate == null) throw new ArgumentNullException(nameof(itemsToCreate));
@@ -2254,6 +2239,7 @@ namespace Opc.Ua.Server
                     errors,
                     filterResults,
                     monitoredItems,
+                    createDurable,
                     ref m_lastMonitoredItemId);
 
                 // create items for data access.
@@ -2268,6 +2254,7 @@ namespace Opc.Ua.Server
                         errors,
                         filterResults,
                         monitoredItems,
+                        createDurable,
                         ref m_lastMonitoredItemId);
                 }
 
@@ -2294,6 +2281,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterResults,
             IList<IMonitoredItem> monitoredItems,
+            bool createDurable,
             ref long globalIdCounter)
         {
             for (int ii = 0; ii < itemsToCreate.Count; ii++)
@@ -2380,7 +2368,8 @@ namespace Opc.Ua.Server
                         timestampsToReturn,
                         publishingInterval,
                         itemToCreate,
-                        filter);
+                        filter,
+                        createDurable);
 
                     // subscribe to all node managers.
                     if (itemToCreate.ItemToMonitor.NodeId == Objects.Server)

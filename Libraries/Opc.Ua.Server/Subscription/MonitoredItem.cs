@@ -38,7 +38,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A handle that describes how to access a node/attribute via an i/o manager.
     /// </summary>
-    public class MonitoredItem : IDurableMonitoredItem, ITriggeredMonitoredItem
+    public class MonitoredItem : IEventMonitoredItem, ISampledDataChangeMonitoredItem, ITriggeredMonitoredItem
     {
         #region Constructors
         /// <summary>

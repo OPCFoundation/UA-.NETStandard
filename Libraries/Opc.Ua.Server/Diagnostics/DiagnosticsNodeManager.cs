@@ -66,7 +66,7 @@ namespace Opc.Ua.Server
             m_doScanBusy = false;
             m_sampledItems = new List<MonitoredItem>();
             m_minimumSamplingInterval = 100;
-            m_durableSubscriptionsEnabled = configuration.EnableDurableSubscriptions;
+            m_durableSubscriptionsEnabled = configuration.ServerConfiguration?.DurableSubscriptionsEnabled ?? false;
         }
         #endregion
 

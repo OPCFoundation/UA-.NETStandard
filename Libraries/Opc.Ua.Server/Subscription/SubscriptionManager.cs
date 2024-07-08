@@ -57,6 +57,7 @@ namespace Opc.Ua.Server
             m_maxPublishingInterval = configuration.ServerConfiguration.MaxPublishingInterval;
             m_publishingResolution = configuration.ServerConfiguration.PublishingResolution;
             m_maxSubscriptionLifetime = (uint)configuration.ServerConfiguration.MaxSubscriptionLifetime;
+            m_maxDurableSubscriptionLifetime = (uint)configuration.ServerConfiguration.MaxDurableSubscriptionLifetime;
             m_minSubscriptionLifetime = (uint)configuration.ServerConfiguration.MinSubscriptionLifetime;
             m_maxMessageCount = (uint)configuration.ServerConfiguration.MaxMessageQueueSize;
             m_maxNotificationsPerPublish = (uint)configuration.ServerConfiguration.MaxNotificationsPerPublish;
@@ -2056,6 +2057,7 @@ namespace Opc.Ua.Server
         private double m_maxPublishingInterval;
         private int m_publishingResolution;
         private uint m_maxSubscriptionLifetime;
+        private uint m_maxDurableSubscriptionLifetime;
         private uint m_minSubscriptionLifetime;
         private uint m_maxMessageCount;
         private uint m_maxNotificationsPerPublish;

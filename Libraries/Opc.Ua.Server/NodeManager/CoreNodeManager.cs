@@ -75,6 +75,7 @@ namespace Opc.Ua.Server
                 server, 
                 this,
                 (uint)configuration.ServerConfiguration.MaxNotificationQueueSize,
+                (uint)configuration.ServerConfiguration.MaxDurableNotificationQueueSize,
                 configuration.ServerConfiguration.AvailableSamplingRates);
         }
         #endregion
@@ -1115,11 +1116,7 @@ namespace Opc.Ua.Server
             return ServiceResult.Good;
         }
 
-        ///<inheritdoc/>
-        public void CreateDurableMonitoredItems(OperationContext context, uint subscriptionId, double publishingInterval, TimestampsToReturn timestampsToReturn, IList<MonitoredItemCreateRequest> itemsToCreate, IList<ServiceResult> errors, IList<MonitoringFilterResult> filterErrors, IList<IDurableMonitoredItem> monitoredItems, ref long globalIdCounter)
-        {
-            throw new NotImplementedException();
-        }
+       
 
         /// <summary>
         /// Creates a set of monitored items.
@@ -1133,6 +1130,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult>              errors,
             IList<MonitoringFilterResult>     filterErrors,
             IList<IMonitoredItem>             monitoredItems,
+            bool                              createDurable,
             ref long                          globalIdCounter)
         {
             if (context == null)         throw new ArgumentNullException(nameof(context));
@@ -1258,7 +1256,8 @@ namespace Opc.Ua.Server
                         node,
                         itemToCreate,
                         range,
-                        minimumSamplingInterval);
+                        minimumSamplingInterval,
+                        createDurable);
 
                     // final check for initial value
                     ServiceResult error = ReadInitialValue(context, node, monitoredItem);

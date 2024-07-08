@@ -45,6 +45,7 @@ namespace Opc.Ua.Server
 
     /// <summary>
     /// Provides a durable queue for data changes and events that can handle a queue size of several thousand elements.
+    /// Internally two queues are used, one for events and one for DataValues
     /// </summary>
     public interface IDurableMonitoredItemQueue : IDisposable
     {
@@ -52,6 +53,11 @@ namespace Opc.Ua.Server
         /// The event for the discarded value handler.
         /// </summary>
         event Action DiscardedValueHandler;
+
+        /// <summary>
+        /// True if the queue is in durable mode and persists the queue values / supports a large queue size
+        /// </summary>
+        bool IsDurable { get; }
 
         /// <summary>
         /// Gets the current queue size.
@@ -62,7 +68,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets number of elements actually contained in value queue.
         /// </summary>
-        int ItemsInQueue { get; }
+        int ItemsInValueQueue { get; }
+
+        /// <summary>
+        /// Gets number of elements actually contained in event queue.
+        /// </summary>
+        int ItemsInEventQueue { get; }
 
         /// <summary>
         /// Sets the sampling interval used when queuing values.
@@ -76,7 +87,8 @@ namespace Opc.Ua.Server
         /// <param name="queueSize">The new queue size.</param>
         /// <param name="discardOldest">Whether to discard the oldest values if the queue overflows.</param>
         /// <param name="diagnosticsMasks">Specifies which diagnostics which should be kept in the queue.</param>
-        void SetQueueSize(uint queueSize, bool discardOldest, DiagnosticsMasks diagnosticsMasks);
+        /// <param name="durable">Specifies if the queue is durable and values will be persisted to storage.</param>
+        void SetQueueSize(uint queueSize, bool discardOldest, DiagnosticsMasks diagnosticsMasks, bool durable);
 
         /// <summary>
         /// Adds the value to the queue.

@@ -69,12 +69,14 @@ namespace Opc.Ua.Server
         {
             // set defaults.
             m_maxQueueSize = 1000;
+            m_maxDurableQueueSize = 200000; //default value in deprecated Conformance Unit Subscription Durable StorageLevel High
 
             if (configuration != null)
             {
                 if (configuration.ServerConfiguration != null)
                 {
                     m_maxQueueSize = (uint)configuration.ServerConfiguration.MaxNotificationQueueSize;
+                    m_maxDurableQueueSize = (uint)configuration.ServerConfiguration.MaxDurableNotificationQueueSize;
                 }
             }
 
@@ -208,6 +210,16 @@ namespace Opc.Ua.Server
         {
             get { return m_maxQueueSize; }
             set { m_maxQueueSize = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the maximum size of a durable monitored item queue.
+        /// </summary>
+        /// <value>The maximum size of a durable monitored item queue.</value>
+        public uint MaxDurableQueueSize
+        {
+            get { return m_maxDurableQueueSize; }
+            set { m_maxDurableQueueSize = value; }
         }
 
         /// <summary>
@@ -3450,12 +3462,6 @@ namespace Opc.Ua.Server
             return ServiceResult.Good;
         }
 
-        ///<inheritdoc/>
-        public virtual void CreateDurableMonitoredItems(OperationContext context, uint subscriptionId, double publishingInterval, TimestampsToReturn timestampsToReturn, IList<MonitoredItemCreateRequest> itemsToCreate, IList<ServiceResult> errors, IList<MonitoringFilterResult> filterErrors, IList<IDurableMonitoredItem> monitoredItems, ref long globalIdCounter)
-        {
-            throw new NotImplementedException();
-        }
-
         /// <summary>
         /// Creates a new set of monitored items for a set of variables.
         /// </summary>
@@ -3471,6 +3477,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             IList<MonitoringFilterResult> filterErrors,
             IList<IMonitoredItem> monitoredItems,
+            bool createDurable,
             ref long globalIdCounter)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
@@ -3546,6 +3553,7 @@ namespace Opc.Ua.Server
                         context.DiagnosticsMask,
                         timestampsToReturn,
                         itemToCreate,
+                        createDurable,
                         ref globalIdCounter,
                         out filterResult,
                         out monitoredItem);
@@ -3591,6 +3599,7 @@ namespace Opc.Ua.Server
             DiagnosticsMasks diagnosticsMasks,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequest itemToCreate,
+            bool createDurable,
             ref long globalIdCounter,
             out MonitoringFilterResult filterResult,
             out IMonitoredItem monitoredItem)
@@ -3650,9 +3659,14 @@ namespace Opc.Ua.Server
             // put an upper limit on queue size.
             uint queueSize = itemToCreate.RequestedParameters.QueueSize;
 
-            if (queueSize > m_maxQueueSize)
+            if (queueSize > m_maxQueueSize && !createDurable)
             {
                 queueSize = m_maxQueueSize;
+            }
+
+            if (queueSize > m_maxDurableQueueSize && createDurable)
+            {
+                queueSize = m_maxDurableQueueSize;
             }
 
             // validate the monitoring filter.
@@ -3693,7 +3707,8 @@ namespace Opc.Ua.Server
                 samplingInterval,
                 queueSize,
                 itemToCreate.RequestedParameters.DiscardOldest,
-                0);
+                0,
+                createDurable);
 
             // report the initial value.
             error = ReadInitialValue(context, handle, datachangeItem);
@@ -4119,9 +4134,14 @@ namespace Opc.Ua.Server
             // put an upper limit on queue size.
             uint queueSize = itemToModify.RequestedParameters.QueueSize;
 
-            if (queueSize > m_maxQueueSize)
+            if (queueSize > m_maxQueueSize && !monitoredItem.IsDurable)
             {
                 queueSize = m_maxQueueSize;
+            }
+
+            if (queueSize > m_maxDurableQueueSize && monitoredItem.IsDurable)
+            {
+                queueSize = m_maxDurableQueueSize;
             }
 
             // validate the monitoring filter.
@@ -4790,6 +4810,7 @@ namespace Opc.Ua.Server
         private NodeIdDictionary<NodeState> m_predefinedNodes;
         private List<NodeState> m_rootNotifiers;
         private uint m_maxQueueSize;
+        private uint m_maxDurableQueueSize;
         private string m_aliasRoot;
         #endregion
     }

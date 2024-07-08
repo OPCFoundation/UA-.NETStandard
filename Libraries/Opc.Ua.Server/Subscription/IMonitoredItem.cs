@@ -40,7 +40,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Manages a monitored item created by a client.
     /// </summary>
-    public interface IMonitoredItem
+    public interface IMonitoredItem : IDisposable
     {
         /// <summary>
         /// The node manager that created the item.
@@ -61,6 +61,12 @@ namespace Opc.Ua.Server
         /// The identifier for the subscription that is unique within the server.
         /// </summary>
         uint SubscriptionId { get; }
+
+        /// <summary>
+        /// True if the subscription the item belongs to is a durable subscription, false if not
+        /// If true the monitored Item needs to use a persistent queue
+        /// </summary>
+        bool IsDurable { get; }
 
         /// <summary>
         /// The identifier for the client handle assigned to the monitored item.
@@ -294,18 +300,6 @@ namespace Opc.Ua.Server
         /// Updates the sampling interval for an item.
         /// </summary>
         void SetSamplingInterval(double samplingInterval);
-    }
-
-    /// <summary>
-    /// A monitored item with a persistent queue that works with a durable sucription
-    /// </summary>
-    public interface IDurableMonitoredItem : ISampledDataChangeMonitoredItem, IEventMonitoredItem, IDisposable
-    {
-        /// <summary>
-        /// True when the subscription the item belongs to is a durable subscription, false if not
-        /// When true the monitored Item needs to use a persistent queue
-        /// </summary>
-        bool IsDurable { get; }
     }
 
     /// <summary>
