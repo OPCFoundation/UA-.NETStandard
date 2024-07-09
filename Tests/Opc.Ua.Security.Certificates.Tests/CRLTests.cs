@@ -30,12 +30,14 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using NUnit.Framework;
 using Opc.Ua.Tests;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Security.Certificates.Tests
 {
@@ -120,24 +122,30 @@ namespace Opc.Ua.Security.Certificates.Tests
         /// Validate the full CRL encoder and decoder pass.
         /// </summary>
         [Theory]
-        public void CrlBuilderTest(KeyHashPair keyHashPair)
+        public void CrlBuilderTest(bool empty, bool noExtensions, KeyHashPair keyHashPair)
         {
             var crlBuilder = CrlBuilder.Create(m_issuerCert.SubjectName, keyHashPair.HashAlgorithmName)
                 .SetThisUpdate(DateTime.UtcNow.Date)
                 .SetNextUpdate(DateTime.UtcNow.Date.AddDays(30));
 
-            // little endian byte array as serial number?
             byte[] serial = new byte[] { 4, 5, 6, 7 };
-            var revokedarray = new RevokedCertificate(serial) {
-                RevocationDate = DateTime.UtcNow.AddDays(30)
-            };
-            crlBuilder.RevokedCertificates.Add(revokedarray);
             string serstring = "123456789101";
-            var revokedstring = new RevokedCertificate(serstring);
-            crlBuilder.RevokedCertificates.Add(revokedstring);
+            if (!empty)
+            {
+                // little endian byte array as serial number?
+                var revokedarray = new RevokedCertificate(serial) {
+                    RevocationDate = DateTime.UtcNow.AddDays(30)
+                };
+                crlBuilder.RevokedCertificates.Add(revokedarray);
+                var revokedstring = new RevokedCertificate(serstring);
+                crlBuilder.RevokedCertificates.Add(revokedstring);
+            }
 
-            crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(1111));
-            crlBuilder.CrlExtensions.Add(X509Extensions.BuildAuthorityKeyIdentifier(m_issuerCert));
+            if (!noExtensions)
+            {
+                crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(1111));
+                crlBuilder.CrlExtensions.Add(X509Extensions.BuildAuthorityKeyIdentifier(m_issuerCert));
+            }
 
             var i509Crl = crlBuilder.CreateForRSA(m_issuerCert);
             X509CRL x509Crl = new X509CRL(i509Crl.RawData);
@@ -147,10 +155,27 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreEqual(m_issuerCert.SubjectName.RawData, x509Crl.IssuerName.RawData);
             Assert.AreEqual(crlBuilder.ThisUpdate, x509Crl.ThisUpdate);
             Assert.AreEqual(crlBuilder.NextUpdate, x509Crl.NextUpdate);
-            Assert.AreEqual(2, x509Crl.RevokedCertificates.Count);
-            Assert.AreEqual(serial, x509Crl.RevokedCertificates[0].UserCertificate);
-            Assert.AreEqual(serstring, x509Crl.RevokedCertificates[1].SerialNumber);
-            Assert.AreEqual(2, x509Crl.CrlExtensions.Count);
+
+            if (empty)
+            {
+                Assert.AreEqual(0, x509Crl.RevokedCertificates.Count);
+            }
+            else
+            {
+                Assert.AreEqual(2, x509Crl.RevokedCertificates.Count);
+                Assert.AreEqual(serial, x509Crl.RevokedCertificates[0].UserCertificate);
+                Assert.AreEqual(serstring, x509Crl.RevokedCertificates[1].SerialNumber);
+            }
+
+            if (noExtensions)
+            {
+                Assert.AreEqual(0, x509Crl.CrlExtensions.Count);
+            }
+            else
+            {
+                Assert.AreEqual(2, x509Crl.CrlExtensions.Count);
+            }
+
             using (var issuerPubKey = new X509Certificate2(m_issuerCert.RawData))
             {
                 Assert.True(x509Crl.VerifySignature(issuerPubKey, true));
@@ -258,7 +283,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             stringBuilder.AppendLine("RevokedCertificates:");
             foreach (var revokedCert in x509Crl.RevokedCertificates)
             {
-                stringBuilder.AppendFormat("{0:20}", revokedCert.SerialNumber).Append(", ").Append(revokedCert.RevocationDate).Append(", ");
+                stringBuilder.AppendFormat(CultureInfo.InvariantCulture, "{0:20}", revokedCert.SerialNumber).Append(", ").Append(revokedCert.RevocationDate).Append(", ");
                 foreach (var entryExt in revokedCert.CrlEntryExtensions)
                 {
                     stringBuilder.Append(entryExt.Format(false)).Append(' ');

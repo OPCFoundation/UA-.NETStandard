@@ -34,6 +34,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Configuration.Tests
 {
@@ -65,7 +66,7 @@ namespace Opc.Ua.Configuration.Tests
 
         #region Test Methods
         [Test]
-        public async Task CertifcateStoreTypeNoConfigTest()
+        public async Task CertificateStoreTypeNoConfigTest()
         {
             ApplicationInstance application = new ApplicationInstance() {
                 ApplicationName = "Application",
@@ -139,7 +140,7 @@ namespace Opc.Ua.Configuration.Tests
 
         public bool SupportsStorePath(string storePath)
         {
-            return storePath != null && storePath.StartsWith(TestCertStore.StoreTypePrefix);
+            return storePath != null && storePath.StartsWith(TestCertStore.StoreTypePrefix, StringComparison.Ordinal);
         }
     }
 

@@ -22,7 +22,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         public ReferenceTypeState() : base(NodeClass.ReferenceType)
         {
@@ -58,9 +58,7 @@ namespace Opc.Ua
         /// </summary>
         protected override void Initialize(ISystemContext context, NodeState source)
         {
-            ReferenceTypeState type = source as ReferenceTypeState;
-
-            if (type != null)
+            if (source is ReferenceTypeState type)
             {
                 m_inverseName = type.m_inverseName;
                 m_symmetric = type.m_symmetric;
@@ -144,9 +142,8 @@ namespace Opc.Ua
         {
             base.Export(context, node);
 
-            ReferenceTypeNode referenceTypeNode = node as ReferenceTypeNode;
 
-            if (referenceTypeNode != null)
+            if (node is ReferenceTypeNode referenceTypeNode)
             {
                 referenceTypeNode.InverseName = this.InverseName;
                 referenceTypeNode.Symmetric = this.Symmetric;
@@ -249,23 +246,23 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="decoder">The decoder.</param>
-        /// <param name="attibutesToLoad">The attributes to load.</param>
-        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attibutesToLoad)
+        /// <param name="attributesToLoad">The attributes to load.</param>
+        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attributesToLoad)
         {
-            base.Update(context, decoder, attibutesToLoad);
+            base.Update(context, decoder, attributesToLoad);
 
-            if ((attibutesToLoad & AttributesToSave.InverseName) != 0)
+            if ((attributesToLoad & AttributesToSave.InverseName) != 0)
             {
                 m_inverseName = decoder.ReadLocalizedText(null);
             }
 
-            if ((attibutesToLoad & AttributesToSave.Symmetric) != 0)
+            if ((attributesToLoad & AttributesToSave.Symmetric) != 0)
             {
                 m_symmetric = decoder.ReadBoolean(null);
             }
         }
         #endregion
-        
+
         #region Event Callbacks
         /// <summary>
         /// Raised when the InverseName attribute is read.
@@ -305,9 +302,11 @@ namespace Opc.Ua
                 {
                     LocalizedText inverseName = m_inverseName;
 
-                    if (OnReadInverseName != null)
+                    NodeAttributeEventHandler<LocalizedText> onReadInverseName = OnReadInverseName;
+
+                    if (onReadInverseName != null)
                     {
-                        result = OnReadInverseName(context, this, ref inverseName);
+                        result = onReadInverseName(context, this, ref inverseName);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -329,9 +328,11 @@ namespace Opc.Ua
                 {
                     bool symmetric = m_symmetric;
 
-                    if (OnReadSymmetric != null)
+                    NodeAttributeEventHandler<bool> onReadSymmetric = OnReadSymmetric;
+
+                    if (onReadSymmetric != null)
                     {
-                        result = OnReadSymmetric(context, this, ref symmetric);
+                        result = onReadSymmetric(context, this, ref symmetric);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -374,9 +375,11 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    if (OnWriteInverseName != null)
+                    NodeAttributeEventHandler<LocalizedText> onWriteInverseName = OnWriteInverseName;
+
+                    if (onWriteInverseName != null)
                     {
-                        result = OnWriteInverseName(context, this, ref inverseName);
+                        result = onWriteInverseName(context, this, ref inverseName);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -403,9 +406,11 @@ namespace Opc.Ua
 
                     bool symmetric = symmetricRef.Value;
 
-                    if (OnWriteSymmetric != null)
+                    NodeAttributeEventHandler<bool> onWriteSymmetric = OnWriteSymmetric;
+
+                    if (onWriteSymmetric != null)
                     {
-                        result = OnWriteSymmetric(context, this, ref symmetric);
+                        result = onWriteSymmetric(context, this, ref symmetric);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -420,7 +425,7 @@ namespace Opc.Ua
             return base.WriteNonValueAttribute(context, attributeId, value);
         }
         #endregion
-        
+
         #region Private Fields
         private LocalizedText m_inverseName;
         private bool m_symmetric;

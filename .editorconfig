@@ -324,3 +324,31 @@ dotnet_diagnostic.IDE0049.severity                                            = 
 # CA1507: Use nameof in place of string
 dotnet_diagnostic.CA1507.severity                                             = warning
 
+# CA1510: Use ArgumentNullException throw helper
+dotnet_diagnostic.CA1510.severity                                             = none
+
+# CA1711: Identifiers should not have incorrect suffix
+dotnet_diagnostic.CA1711.severity                                             = silent
+
+# IDE1005: Simplify delegate invocation
+dotnet_diagnostic.IDE1005.severity                                            = warning
+
+# CA1305: Specify IFormatProvider
+dotnet_diagnostic.CA1305.severity                                             = warning
+
+# CA1819: Properties should not return arrays
+dotnet_diagnostic.CA1819.severity                                             = silent
+
+# CA1721: The property name is confusing given the existence of another method with the same name.
+dotnet_diagnostic.CA1721.severity                                             = silent
+
+# exclude generated code
+[**/Generated/*.cs]
+generated_code = true
+dotnet_diagnostic.severity = none
+dotnet_analyzer.severity = none
+
+[*.{Classes,DataTypes,Constants}.cs]
+generated_code = true
+dotnet_diagnostic.severity = none
+dotnet_analyzer.severity = none

@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Xml.Serialization;
@@ -119,9 +120,7 @@ namespace Opc.Ua
         /// <param name="e">The exception to convert to a status code</param>
         public StatusCode(Exception e, uint defaultCode)
         {
-            ServiceResultException sre = e as ServiceResultException;
-
-            if (sre != null)
+            if (e is ServiceResultException sre)
             {
                 m_code = sre.StatusCode;
             }
@@ -481,10 +480,10 @@ namespace Opc.Ua
 
                 if (!String.IsNullOrEmpty(text))
                 {
-                    return String.Format(formatProvider, "{0}", text);
+                    return string.Format(formatProvider, "{0}", text);
                 }
 
-                return String.Format(formatProvider, "0x{0:X8}", m_code);
+                return string.Format(formatProvider, "0x{0:X8}", m_code);
 
             }
 
@@ -542,7 +541,7 @@ namespace Opc.Ua
 
             if ((0x0000FFFF & Code) != 0)
             {
-                buffer.AppendFormat(" [{0:X4}]", (0x0000FFFF & Code));
+                buffer.AppendFormat(CultureInfo.InvariantCulture, " [{0:X4}]", (0x0000FFFF & Code));
             }
 
             return buffer.ToString();

@@ -26,7 +26,7 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
- 
+
 //
 // Portions of this logging abstraction class were derived from:
 //
@@ -37,13 +37,14 @@
 //
 
 // Disable: 'Use the LoggerMessage delegates'
-#pragma warning disable CA1848 
+#pragma warning disable CA1848
 
 using System;
 using System.Diagnostics;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua
 {
@@ -52,7 +53,7 @@ namespace Opc.Ua
     /// </summary>
     /// <remarks>
     /// To simplify porting from Utils.Trace and to avoid
-    /// name collisons with anything that is called 'Log'
+    /// name collisions with anything that is called 'Log'
     /// the Utils class hosts the Logger class.
     /// </remarks>
     public static partial class Utils
@@ -161,7 +162,7 @@ namespace Opc.Ua
                     {
                         allArgs[i] = args[i];
                     }
-                    allArgs[argsLength] = certificate.Subject;
+                    allArgs[argsLength] = Redact.Create(certificate.Subject);
                     allArgs[argsLength + 1] = certificate.Thumbprint;
                     Log(logLevel, eventId, builder.ToString(), allArgs);
                 }

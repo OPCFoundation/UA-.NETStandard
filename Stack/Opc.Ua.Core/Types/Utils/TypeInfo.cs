@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Globalization;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -227,9 +228,7 @@ namespace Opc.Ua
 
             if (dataTypeId == Opc.Ua.NodeId.Null)
             {
-                Matrix matrix = value as Matrix;
-
-                if (matrix != null)
+                if (value is Matrix matrix)
                 {
                     return GetDataTypeId(matrix.TypeInfo);
                 }
@@ -319,9 +318,7 @@ namespace Opc.Ua
 
             if (typeInfo.BuiltInType == BuiltInType.Null)
             {
-                Matrix matrix = value as Matrix;
-
-                if (matrix != null)
+                if (value is Matrix matrix)
                 {
                     return matrix.TypeInfo.ValueRank;
                 }
@@ -482,7 +479,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the BuiltInType type for the DataTypeId.
         /// </summary>
-        /// <param name="datatypeId">The data type identyfier for a node in a server's address space..</param>
+        /// <param name="datatypeId">The data type identifier for a node in a server's address space..</param>
         /// <param name="typeTree">The type tree for a server. .</param>
         /// <returns>
         /// A <see cref="BuiltInType"/> value for <paramref name="datatypeId"/>
@@ -518,7 +515,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the BuiltInType type for the DataTypeId.
         /// </summary>
-        /// <param name="datatypeId">The data type identyfier for a node in a server's address space..</param>
+        /// <param name="datatypeId">The data type identifier for a node in a server's address space..</param>
         /// <param name="typeTree">The type tree for a server. .</param>
         /// <param name="ct"></param>
         /// <returns>
@@ -930,8 +927,7 @@ namespace Opc.Ua
             Array array = value as Array;
             if (array == null)
             {
-                Matrix matrix = value as Matrix;
-                if (matrix != null)
+                if (value is Matrix matrix)
                 {
                     array = matrix.Elements;
                 }
@@ -1017,14 +1013,12 @@ namespace Opc.Ua
 
             if (BuiltInType == BuiltInType.ExtensionObject)
             {
-                IEncodeable encodeable = value as IEncodeable;
-                if (encodeable != null)
+                if (value is IEncodeable encodeable)
                 {
                     return ExpandedNodeId.ToNodeId(encodeable.TypeId, namespaceUris);
                 }
 
-                ExtensionObject extension = value as ExtensionObject;
-                if (extension != null)
+                if (value is ExtensionObject extension)
                 {
                     encodeable = extension.Body as IEncodeable;
                     if (encodeable != null)
@@ -1178,9 +1172,7 @@ namespace Opc.Ua
             // check for instances of matrices.
             if (typeInfo.BuiltInType == BuiltInType.Null)
             {
-                Matrix matrix = value as Matrix;
-
-                if (matrix != null)
+                if (value is Matrix matrix)
                 {
                     return matrix.TypeInfo;
                 }
@@ -1559,7 +1551,7 @@ namespace Opc.Ua
         /// <param name="source">The instance of a source value.</param>
         /// <param name="targetType">Type of the target.</param>
         /// <returns>Return casted value.<see cref="DBNull"/></returns>
-        /// <exception cref="InvalidCastException">if imposible to cast.</exception>
+        /// <exception cref="InvalidCastException">if impossible to cast.</exception>
         public static object Cast(object source, BuiltInType targetType)
         {
             return Cast(source, TypeInfo.Construct(source), targetType);
@@ -1572,7 +1564,7 @@ namespace Opc.Ua
         /// <param name="sourceType">Type of the source.</param>
         /// <param name="targetType">Type of the target.</param>
         /// <returns>Return casted value.</returns>
-        /// <exception cref="InvalidCastException">if imposible to cast.</exception>
+        /// <exception cref="InvalidCastException">if impossible to cast.</exception>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
         public static object Cast(object source, TypeInfo sourceType, BuiltInType targetType)
         {
@@ -2304,7 +2296,7 @@ namespace Opc.Ua
 
                 case BuiltInType.StatusCode:
                 {
-                    return ((StatusCode)value).Code.ToString();
+                    return ((StatusCode)value).Code.ToString(CultureInfo.InvariantCulture);
                 }
 
                 case BuiltInType.ExtensionObject:
@@ -2562,14 +2554,14 @@ namespace Opc.Ua
 
                 case BuiltInType.UInt16:
                 {
-                    uint code = Convert.ToUInt32((ushort)value);
+                    uint code = Convert.ToUInt32((ushort)value, CultureInfo.InvariantCulture);
                     code <<= 16;
                     return (StatusCode)code;
                 }
 
                 case BuiltInType.Int32:
                 {
-                    return (StatusCode)Convert.ToUInt32((int)value);
+                    return (StatusCode)Convert.ToUInt32((int)value, CultureInfo.InvariantCulture);
                 }
 
                 case BuiltInType.UInt32:
@@ -2579,7 +2571,7 @@ namespace Opc.Ua
 
                 case BuiltInType.Int64:
                 {
-                    return (StatusCode)Convert.ToUInt32((long)value);
+                    return (StatusCode)Convert.ToUInt32((long)value, CultureInfo.InvariantCulture);
                 }
 
                 case BuiltInType.UInt64:
@@ -2598,12 +2590,12 @@ namespace Opc.Ua
 
                     text = text.Trim();
 
-                    if (text.StartsWith("0x"))
+                    if (text.StartsWith("0x", StringComparison.Ordinal))
                     {
                         return (StatusCode)Convert.ToUInt32(text.Substring(2), 16);
                     }
 
-                    return (StatusCode)Convert.ToUInt32((string)value);
+                    return (StatusCode)Convert.ToUInt32((string)value, CultureInfo.InvariantCulture);
                 }
             }
 
@@ -3125,8 +3117,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            TypeInfo typeInfo = obj as TypeInfo;
-            if (typeInfo != null)
+            if (obj is TypeInfo typeInfo)
             {
                 return (m_builtInType == typeInfo.BuiltInType &&
                     m_valueRank == typeInfo.ValueRank);

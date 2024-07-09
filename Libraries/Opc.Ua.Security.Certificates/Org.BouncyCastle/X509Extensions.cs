@@ -49,13 +49,13 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         {
             // subject alternate name
             var generalNames = new List<GeneralName>();
-            foreach (var uri in uris)
+            foreach (string uri in uris)
             {
                 generalNames.Add(new GeneralName(GeneralName.UniformResourceIdentifier, uri));
             }
             generalNames.AddRange(CreateSubjectAlternateNameDomains(domainNames));
             generalNames.AddRange(CreateSubjectAlternateNameDomains(ipAddresses));
-            var rawData = new DerOctetString(new GeneralNames(generalNames.ToArray()).GetDerEncoded()).GetOctets();
+            byte[] rawData = new DerOctetString(new GeneralNames(generalNames.ToArray()).GetDerEncoded()).GetOctets();
             return new X509Extension(Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectAlternativeName.Id, rawData, false);
         }
 

@@ -37,6 +37,7 @@ using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.PubSub.Transport;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
 {
@@ -156,7 +157,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             )] object publisherId)
         {
             // Arrange
-            UadpNetworkMessageContentMask uadpNetworkMessageContentMask =  UadpNetworkMessageContentMask.PublisherId | UadpNetworkMessageContentMask.WriterGroupId;
+            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId | UadpNetworkMessageContentMask.WriterGroupId;
 
             UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.SequenceNumber;
 
@@ -881,8 +882,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // filter out the metadata message
             networkMessages = (from m in networkMessages
-                              where !m.IsMetaDataMessage
-                              select m).ToList();
+                               where !m.IsMetaDataMessage
+                               select m).ToList();
 
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
@@ -926,7 +927,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Arrange
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId;
             UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
-           
+
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
                 MessagesHelper.CreateDataSetMetaData1("MetaData1"),
@@ -983,7 +984,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Arrange
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId;
             UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
-            
+
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
                 MessagesHelper.CreateDataSetMetaData1("MetaData1"),
@@ -1328,7 +1329,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             {
                 // check the number of UadpDataSetMessage counts
                 Assert.AreEqual(uadpNetworkMessageEncode.DataSetMessages.Count,
-                    uadpNetworkMessageDecoded.DataSetMessages.Count, "UadpDataSetMessages.Count was not decoded correctly");          
+                    uadpNetworkMessageDecoded.DataSetMessages.Count, "UadpDataSetMessages.Count was not decoded correctly");
             }
             #endregion
 
@@ -1443,7 +1444,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         Assert.AreEqual(dataValueEncoded.ServerPicoseconds, dataValueDecoded.ServerPicoseconds,
                            "Wrong: Fields[{0}].DataValue.ServerPicoseconds; DataSetWriterId = {1}", fieldName, uadpDataSetMessage.DataSetWriterId);
                     }
-                }               
+                }
             }
             #endregion
         }

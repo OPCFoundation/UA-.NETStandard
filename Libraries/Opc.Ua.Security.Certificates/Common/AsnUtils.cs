@@ -29,6 +29,7 @@
 
 using System;
 using System.Formats.Asn1;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -49,20 +50,20 @@ namespace Opc.Ua.Security.Certificates
                 return String.Empty;
             }
 
-            StringBuilder builder = new StringBuilder(buffer.Length * 2);
+            var builder = new StringBuilder(buffer.Length * 2);
 
             if (invertEndian)
             {
                 for (int ii = buffer.Length - 1; ii >= 0; ii--)
                 {
-                    builder.AppendFormat("{0:X2}", buffer[ii]);
+                    builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
                 }
             }
             else
             {
                 for (int ii = 0; ii < buffer.Length; ii++)
                 {
-                    builder.AppendFormat("{0:X2}", buffer[ii]);
+                    builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
                 }
             }
 
@@ -172,22 +173,22 @@ namespace Opc.Ua.Security.Certificates
         {
             try
             {
-                AsnReader x509Reader = new AsnReader(blob, AsnEncodingRules.DER);
-                var peekBlob = blob.AsSpan(0, x509Reader.PeekContentBytes().Length + 4).ToArray();
-                var seqReader = x509Reader.ReadSequence(Asn1Tag.Sequence);
+                var x509Reader = new AsnReader(blob, AsnEncodingRules.DER);
+                byte[] peekBlob = blob.AsSpan(0, x509Reader.PeekContentBytes().Length + 4).ToArray();
+                AsnReader seqReader = x509Reader.ReadSequence(Asn1Tag.Sequence);
                 if (seqReader != null)
                 {
                     // Tbs encoded data
-                    var tbs = seqReader.ReadEncodedValue();
+                    ReadOnlyMemory<byte> tbs = seqReader.ReadEncodedValue();
 
                     // Signature Algorithm Identifier
-                    var sigOid = seqReader.ReadSequence();
-                    var signatureAlgorithm = sigOid.ReadObjectIdentifier();
-                    var name = Oids.GetHashAlgorithmName(signatureAlgorithm);
+                    AsnReader sigOid = seqReader.ReadSequence();
+                    string signatureAlgorithm = sigOid.ReadObjectIdentifier();
+                    HashAlgorithmName name = Oids.GetHashAlgorithmName(signatureAlgorithm);
 
                     // Signature
                     int unusedBitCount;
-                    var signature = seqReader.ReadBitString(out unusedBitCount);
+                    byte[] signature = seqReader.ReadBitString(out unusedBitCount);
                     if (unusedBitCount != 0)
                     {
                         throw new AsnContentException("Unexpected data in signature.");

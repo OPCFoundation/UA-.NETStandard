@@ -65,10 +65,21 @@ namespace Opc.Ua.PubSub
         public event EventHandler<SubscribedDataEventArgs> MetaDataReceived;
 
         /// <summary>
+        /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives and decodes subscribed DataSet PublisherEndpoints
+        /// </summary>
+        public event EventHandler<PublisherEndpointsEventArgs> PublisherEndpointsReceived;
+
+        /// <summary>
         /// Event that is triggered before the configuration is updated with a new MetaData 
         /// The configuration will not be updated if <see cref="ConfigurationUpdatingEventArgs.Cancel"/> flag is set on true.
         /// </summary>
         public event EventHandler<ConfigurationUpdatingEventArgs> ConfigurationUpdating;
+
+        /// <summary>
+        /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives and decodes subscribed DataSet MetaData
+        /// </summary>
+        public event EventHandler<DataSetWriterConfigurationEventArgs> DataSetWriterConfigurationReceived;
+
         #endregion
 
         #region Event Callbacks
@@ -107,7 +118,7 @@ namespace Opc.Ua.PubSub
             }
             else
             {
-                ApplicationId = $"opcua:{System.Net.Dns.GetHostName()}:{new Random().Next().ToString("D10")}";
+                ApplicationId = $"opcua:{System.Net.Dns.GetHostName()}:{new Random().Next():D10}";
             }
 
             m_dataCollector = new DataCollector(m_dataStore);
@@ -190,7 +201,7 @@ namespace Opc.Ua.PubSub
             // validate input argument 
             if (configFilePath == null)
             {
-                throw new ArgumentException(nameof(configFilePath));
+                throw new ArgumentNullException(nameof(configFilePath));
             }
             if (!File.Exists(configFilePath))
             {
@@ -261,10 +272,7 @@ namespace Opc.Ua.PubSub
         {
             try
             {
-                if (RawDataReceived != null)
-                {
-                    RawDataReceived(this, e);
-                }
+                RawDataReceived?.Invoke(this, e);
             }
             catch (Exception ex)
             {
@@ -280,10 +288,7 @@ namespace Opc.Ua.PubSub
         {
             try
             {
-                if (DataReceived != null)
-                {
-                    DataReceived(this, e);
-                }
+                DataReceived?.Invoke(this, e);
             }
             catch (Exception ex)
             {
@@ -299,14 +304,42 @@ namespace Opc.Ua.PubSub
         {
             try
             {
-                if (MetaDataReceived != null)
-                {
-                    MetaDataReceived(this, e);
-                }
+                MetaDataReceived?.Invoke(this, e);
             }
             catch (Exception ex)
             {
                 Utils.Trace(ex, "UaPubSubApplication.RaiseMetaDataReceivedEvent");
+            }
+        }
+        /// <summary>
+        /// Raise DatasetWriterConfigurationReceived event
+        /// </summary>
+        /// <param name="e"></param>
+        internal void RaiseDatasetWriterConfigurationReceivedEvent(DataSetWriterConfigurationEventArgs e)
+        {
+            try
+            {
+                DataSetWriterConfigurationReceived?.Invoke(this, e);
+            }
+            catch (Exception ex)
+            {
+                Utils.Trace(ex, "UaPubSubApplication.DatasetWriterConfigurationReceivedEvent");
+            }
+        }
+
+        /// <summary>
+        /// Raise PublisherEndpointsReceived event
+        /// </summary>
+        /// <param name="e"></param>
+        internal void RaisePublisherEndpointsReceivedEvent(PublisherEndpointsEventArgs e)
+        {
+            try
+            {
+                PublisherEndpointsReceived?.Invoke(this, e);
+            }
+            catch (Exception ex)
+            {
+                Utils.Trace(ex, "UaPubSubApplication.RaisePublisherEndpointsReceivedEvent");
             }
         }
 
@@ -318,10 +351,7 @@ namespace Opc.Ua.PubSub
         {
             try
             {
-                if (ConfigurationUpdating != null)
-                {
-                    ConfigurationUpdating(this, e);
-                }
+                ConfigurationUpdating?.Invoke(this, e);
             }
             catch (Exception ex)
             {

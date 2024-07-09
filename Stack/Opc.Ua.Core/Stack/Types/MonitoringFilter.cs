@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text;
 
@@ -32,17 +33,17 @@ namespace Opc.Ua
             if ((int)DeadbandType < (int)Opc.Ua.DeadbandType.None || (int)DeadbandType > (int)Opc.Ua.DeadbandType.Percent)
             {
                 return ServiceResult.Create(
-                    StatusCodes.BadDeadbandFilterInvalid, 
-                    "Deadband type '{0}' is not recognized.", 
+                    StatusCodes.BadDeadbandFilterInvalid,
+                    "Deadband type '{0}' is not recognized.",
                     DeadbandType);
             }
 
             // check data change trigger enumeration.
-            if ((int)Trigger < (int)DataChangeTrigger.Status  || (int)Trigger > (int)DataChangeTrigger.StatusValueTimestamp)
+            if ((int)Trigger < (int)DataChangeTrigger.Status || (int)Trigger > (int)DataChangeTrigger.StatusValueTimestamp)
             {
                 return ServiceResult.Create(
-                    StatusCodes.BadDeadbandFilterInvalid, 
-                    "Deadband trigger '{0}' is not recognized.", 
+                    StatusCodes.BadDeadbandFilterInvalid,
+                    "Deadband trigger '{0}' is not recognized.",
                     Trigger);
             }
 
@@ -50,8 +51,8 @@ namespace Opc.Ua
             if (DeadbandValue < 0)
             {
                 return ServiceResult.Create(
-                    StatusCodes.BadDeadbandFilterInvalid, 
-                    "Deadband value '{0}' cannot be less than zero.", 
+                    StatusCodes.BadDeadbandFilterInvalid,
+                    "Deadband value '{0}' cannot be less than zero.",
                     DeadbandValue);
             }
 
@@ -61,8 +62,8 @@ namespace Opc.Ua
                 if (DeadbandValue > 100)
                 {
                     return ServiceResult.Create(
-                        StatusCodes.BadDeadbandFilterInvalid, 
-                        "Percentage deadband value '{0}' cannot be greater than 100.", 
+                        StatusCodes.BadDeadbandFilterInvalid,
+                        "Percentage deadband value '{0}' cannot be greater than 100.",
                         DeadbandValue);
                 }
             }
@@ -70,15 +71,13 @@ namespace Opc.Ua
             // passed initial validation.
             return ServiceResult.Good;
         }
-        
+
         /// <summary>
         /// Returns the AbsoluteDeadband if the filter specifies one. Zero otherwize.
         /// </summary>
         public static double GetAbsoluteDeadband(MonitoringFilter filter)
         {
-            DataChangeFilter datachangeFilter = filter as DataChangeFilter;
-
-            if (datachangeFilter == null)
+            if (!(filter is DataChangeFilter datachangeFilter))
             {
                 return 0.0;
             }
@@ -96,9 +95,7 @@ namespace Opc.Ua
         /// </summary>
         public static double GetPercentageDeadband(MonitoringFilter filter)
         {
-            DataChangeFilter datachangeFilter = filter as DataChangeFilter;
-
-            if (datachangeFilter == null)
+            if (!(filter is DataChangeFilter datachangeFilter))
             {
                 return 0.0;
             }
@@ -112,7 +109,7 @@ namespace Opc.Ua
         }
         #endregion
     }
-    
+
     /// <summary>
     /// A filter to apply when monitoring event.
     /// </summary>
@@ -126,7 +123,7 @@ namespace Opc.Ua
             SimpleAttributeOperand clause = new SimpleAttributeOperand();
 
             clause.TypeDefinitionId = eventTypeId;
-            clause.AttributeId      = Attributes.Value;
+            clause.AttributeId = Attributes.Value;
 
             clause.BrowsePath.Add(propertyName);
 
@@ -141,12 +138,12 @@ namespace Opc.Ua
             SimpleAttributeOperand clause = new SimpleAttributeOperand();
 
             clause.TypeDefinitionId = eventTypeId;
-            clause.AttributeId      = attributeId;
+            clause.AttributeId = attributeId;
 
             if (!String.IsNullOrEmpty(browsePath))
             {
                 clause.BrowsePath = SimpleAttributeOperand.Parse(browsePath);
-            }            
+            }
 
             SelectClauses.Add(clause);
         }
@@ -173,13 +170,13 @@ namespace Opc.Ua
                 result.Status = status;
                 return result;
             }
-            
+
             /// <summary>
             /// The result for the entire filter.
             /// </summary>
             public ServiceResult Status
             {
-                get { return m_status;  }
+                get { return m_status; }
                 set { m_status = value; }
             }
 
@@ -194,28 +191,28 @@ namespace Opc.Ua
                 {
                     if (ServiceResult.IsBad(selectResult))
                     {
-                        buffer.AppendFormat("Select Clause Error: {0}", selectResult.ToString());
+                        buffer.AppendFormat(CultureInfo.InvariantCulture, "Select Clause Error: {0}", selectResult.ToString());
                         buffer.AppendLine();
                     }
                 }
 
                 if (ServiceResult.IsBad(WhereClauseResult.Status))
-                {                    
-                    buffer.AppendFormat("Where Clause Error: {0}", WhereClauseResult.Status.ToString());
+                {
+                    buffer.AppendFormat(CultureInfo.InvariantCulture, "Where Clause Error: {0}", WhereClauseResult.Status.ToString());
                     buffer.AppendLine();
 
                     foreach (ContentFilter.ElementResult elementResult in WhereClauseResult.ElementResults)
                     {
                         if (elementResult != null && ServiceResult.IsBad(elementResult.Status))
                         {
-                            buffer.AppendFormat("Element Error: {0}", elementResult.Status.ToString());
+                            buffer.AppendFormat(CultureInfo.InvariantCulture, "Element Error: {0}", elementResult.Status.ToString());
                             buffer.AppendLine();
 
                             foreach (ServiceResult operandResult in elementResult.OperandResults)
                             {
                                 if (ServiceResult.IsBad(operandResult))
                                 {
-                                    buffer.AppendFormat("Operand Error: {0}",operandResult.ToString());
+                                    buffer.AppendFormat(CultureInfo.InvariantCulture, "Operand Error: {0}", operandResult.ToString());
                                     buffer.AppendLine();
                                 }
                             }
@@ -225,7 +222,7 @@ namespace Opc.Ua
 
                 return buffer.ToString();
             }
-                     
+
             /// <summary>
             /// The result for each select clause.
             /// </summary>   
@@ -252,12 +249,12 @@ namespace Opc.Ua
                     return m_whereClauseResults;
                 }
 
-                internal set 
+                internal set
                 {
                     m_whereClauseResults = value;
                 }
             }
-            
+
             /// <summary>
             /// Converts the object to an EventFilterResult.
             /// </summary>
@@ -290,7 +287,7 @@ namespace Opc.Ua
                 return result;
             }
             #endregion
-            
+
             #region Private Fields
             private ServiceResult m_status;
             private List<ServiceResult> m_selectClauseResults;
@@ -309,16 +306,16 @@ namespace Opc.Ua
             if (m_selectClauses == null || m_selectClauses.Count == 0)
             {
                 result.Status = ServiceResult.Create(
-                    StatusCodes.BadStructureMissing, 
+                    StatusCodes.BadStructureMissing,
                     "EventFilter does not specify any Select Clauses.");
 
                 return result;
-            }            
+            }
 
             if (m_whereClause == null)
             {
                 result.Status = ServiceResult.Create(
-                    StatusCodes.BadStructureMissing, 
+                    StatusCodes.BadStructureMissing,
                     "EventFilter does not specify any Where Clauses.");
 
                 return result;
@@ -337,7 +334,7 @@ namespace Opc.Ua
                 if (clause == null)
                 {
                     clauseResult = ServiceResult.Create(
-                        StatusCodes.BadStructureMissing, 
+                        StatusCodes.BadStructureMissing,
                         "EventFilterSelectClause cannot be null in EventFilter SelectClause.");
 
                     result.SelectClauseResults.Add(clauseResult);
@@ -354,7 +351,7 @@ namespace Opc.Ua
                     error = true;
                     continue;
                 }
-                
+
                 // clause ok.                    
                 result.SelectClauseResults.Add(null);
             }
@@ -367,7 +364,7 @@ namespace Opc.Ua
             {
                 result.SelectClauseResults.Clear();
             }
-            
+
             // validate where clause.          
             result.WhereClauseResult = m_whereClause.Validate(context);
 
@@ -379,7 +376,7 @@ namespace Opc.Ua
             return result;
         }
     }
-        
+
     /// <summary>
     /// A clause that identifies a field to return with the event.
     /// </summary>
@@ -394,9 +391,9 @@ namespace Opc.Ua
             QualifiedName browsePath)
         {
             m_typeDefinitionId = typeId;
-            m_browsePath       = new QualifiedNameCollection();
-            m_attributeId      = Attributes.Value;
-            m_indexRange       = null;
+            m_browsePath = new QualifiedNameCollection();
+            m_attributeId = Attributes.Value;
+            m_indexRange = null;
 
             m_browsePath.Add(browsePath);
         }
@@ -409,54 +406,54 @@ namespace Opc.Ua
             IList<QualifiedName> browsePath)
         {
             m_typeDefinitionId = typeId;
-            m_browsePath       = new QualifiedNameCollection(browsePath);
-            m_attributeId      = Attributes.Value;
-            m_indexRange       = null;
+            m_browsePath = new QualifiedNameCollection(browsePath);
+            m_attributeId = Attributes.Value;
+            m_indexRange = null;
         }
 
         /// <summary>
         /// Creates an operand that references a component/property of a type.
         /// </summary>
         public SimpleAttributeOperand(
-            FilterContext        context, 
-            ExpandedNodeId       typeId,
+            FilterContext context,
+            ExpandedNodeId typeId,
             IList<QualifiedName> browsePath)
         {
             m_typeDefinitionId = ExpandedNodeId.ToNodeId(typeId, context.NamespaceUris);
-            m_browsePath       = new QualifiedNameCollection(browsePath);
-            m_attributeId      = Attributes.Value;
-            m_indexRange       = null;
+            m_browsePath = new QualifiedNameCollection(browsePath);
+            m_attributeId = Attributes.Value;
+            m_indexRange = null;
         }
-        
+
         /// <summary>
         /// Creates an operand that references a component/property of a type.
         /// </summary>
         public SimpleAttributeOperand(
-            FilterContext  context, 
+            FilterContext context,
             ExpandedNodeId typeDefinitionId,
-            string         browsePath,
-            uint           attributeId,
-            string         indexRange)
+            string browsePath,
+            uint attributeId,
+            string indexRange)
         {
             m_typeDefinitionId = ExpandedNodeId.ToNodeId(typeDefinitionId, context.NamespaceUris);
-            m_browsePath       = Parse(browsePath);
-            m_attributeId      = attributeId;
-            m_indexRange       = indexRange;                
+            m_browsePath = Parse(browsePath);
+            m_attributeId = attributeId;
+            m_indexRange = indexRange;
         }
         #endregion
-        
+
         #region IFormattable Members
         /// <summary>
         /// Formats the value of the current instance using the specified format.
         /// </summary>
-        /// <param name="format">The <see cref="T:System.String"/> specifying the format to use.
+        /// <param name="format">The <see cref="System.String"/> specifying the format to use.
         /// -or-
-        /// null to use the default format defined for the type of the <see cref="T:System.IFormattable"/> implementation.</param>
-        /// <param name="formatProvider">The <see cref="T:System.IFormatProvider"/> to use to format the value.
+        /// null to use the default format defined for the type of the <see cref="System.IFormattable"/> implementation.</param>
+        /// <param name="formatProvider">The <see cref="System.IFormatProvider"/> to use to format the value.
         /// -or-
         /// null to obtain the numeric format information from the current locale setting of the operating system.</param>
         /// <returns>
-        /// A <see cref="T:System.String"/> containing the value of the current instance in the specified format.
+        /// A <see cref="System.String"/> containing the value of the current instance in the specified format.
         /// </returns>
         public string ToString(string format, IFormatProvider formatProvider)
         {
@@ -475,7 +472,7 @@ namespace Opc.Ua
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
         #endregion
-        
+
         #region Overridden Methods
         /// <summary>
         /// Returns a <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
@@ -525,8 +522,8 @@ namespace Opc.Ua
             if (!Attributes.IsValid(m_attributeId))
             {
                 return ServiceResult.Create(
-                    StatusCodes.BadAttributeIdInvalid, 
-                    "SimpleAttributeOperand does not specify a valid AttributeId ({0}).", 
+                    StatusCodes.BadAttributeIdInvalid,
+                    "SimpleAttributeOperand does not specify a valid AttributeId ({0}).",
                     m_attributeId);
             }
 
@@ -544,16 +541,16 @@ namespace Opc.Ua
                 {
                     return ServiceResult.Create(
                         e,
-                        StatusCodes.BadIndexRangeInvalid, 
-                        "SimpleAttributeOperand does not specify a valid BrowsePath ({0}).", 
+                        StatusCodes.BadIndexRangeInvalid,
+                        "SimpleAttributeOperand does not specify a valid BrowsePath ({0}).",
                         m_indexRange);
                 }
 
                 if (m_attributeId != Attributes.Value)
                 {
                     return ServiceResult.Create(
-                        StatusCodes.BadIndexRangeInvalid, 
-                        "SimpleAttributeOperand specifies an IndexRange for an Attribute other than Value ({0}).", 
+                        StatusCodes.BadIndexRangeInvalid,
+                        "SimpleAttributeOperand specifies an IndexRange for an Attribute other than Value ({0}).",
                         m_attributeId);
                 }
             }
@@ -574,23 +571,24 @@ namespace Opc.Ua
 
             if (node != null)
             {
-                buffer.AppendFormat("{0}", TypeDefinitionId);
+                // TODO: why is if and else the same codepath
+                buffer.AppendFormat(CultureInfo.InvariantCulture, "{0}", TypeDefinitionId);
             }
             else
             {
-                buffer.AppendFormat("{0}", TypeDefinitionId);
+                buffer.AppendFormat(CultureInfo.InvariantCulture, "{0}", TypeDefinitionId);
             }
-             
+
             if (BrowsePath != null && BrowsePath.Count > 0)
             {
-                buffer.AppendFormat("{0}", Format(BrowsePath));
+                buffer.AppendFormat(CultureInfo.InvariantCulture, "{0}", Format(BrowsePath));
             }
 
             if (!String.IsNullOrEmpty(IndexRange))
             {
-                buffer.AppendFormat("[{0}]", NumericRange.Parse(IndexRange));
+                buffer.AppendFormat(CultureInfo.InvariantCulture, "[{0}]", NumericRange.Parse(IndexRange));
             }
-            
+
             return buffer.ToString();
         }
         #endregion
@@ -618,10 +616,10 @@ namespace Opc.Ua
                 }
 
                 buffer.Append('/');
-                
+
                 if (browseName.NamespaceIndex != 0)
                 {
-                    buffer.AppendFormat("{0}:", browseName.NamespaceIndex);
+                    buffer.AppendFormat(CultureInfo.InvariantCulture, "{0}:", browseName.NamespaceIndex);
                 }
 
                 for (int jj = 0; jj < browseName.Name.Length; jj++)
@@ -639,7 +637,7 @@ namespace Opc.Ua
 
             return buffer.ToString();
         }
-                
+
         /// <summary>
         /// Parses a browse path.
         /// </summary>
@@ -651,7 +649,7 @@ namespace Opc.Ua
             {
                 return browseNames;
             }
-                       
+
             StringBuilder buffer = new StringBuilder();
 
             bool escaped = false;
@@ -697,7 +695,7 @@ namespace Opc.Ua
             return browseNames;
         }
         #endregion
-        
+
         #region Private Fields
         private bool m_validated;
         private NumericRange m_parsedIndexRange;

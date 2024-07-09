@@ -30,6 +30,7 @@
 using System;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Core.Tests
 {
@@ -54,13 +55,13 @@ namespace Opc.Ua.Core.Tests
             // pki directory root for test runs. 
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
             m_issuerStore = new DirectoryCertificateStore();
-            m_issuerStore.Open(m_pkiRoot + "issuer");
+            m_issuerStore.Open(m_pkiRoot + "issuer", true);
             m_trustedStore = new DirectoryCertificateStore();
-            m_trustedStore.Open(m_pkiRoot + "trusted");
+            m_trustedStore.Open(m_pkiRoot + "trusted", true);
             if (rejectedStore)
             {
                 m_rejectedStore = new DirectoryCertificateStore();
-                m_rejectedStore.Open(m_pkiRoot + "rejected");
+                m_rejectedStore.Open(m_pkiRoot + "rejected", true);
             }
         }
 
@@ -79,7 +80,7 @@ namespace Opc.Ua.Core.Tests
         {
             if (Interlocked.CompareExchange(ref m_disposed, 1, 0) == 0)
             {
-                CleanupValidatorAndStores(true);
+                CleanupValidatorAndStoresAsync(true).GetAwaiter().GetResult();
                 m_issuerStore = null;
                 m_trustedStore = null;
                 m_rejectedStore = null;
@@ -138,12 +139,13 @@ namespace Opc.Ua.Core.Tests
         /// <summary>
         /// Clean up (delete) the content of the issuer and trusted store.
         /// </summary>
-        public void CleanupValidatorAndStores(bool dispose = false)
+        public async Task CleanupValidatorAndStoresAsync(bool dispose = false)
         {
-            TestUtils.CleanupTrustList(m_issuerStore, dispose);
-            TestUtils.CleanupTrustList(m_trustedStore, dispose);
-            TestUtils.CleanupTrustList(m_rejectedStore, dispose);
+            await TestUtils.CleanupTrustListAsync(m_issuerStore, dispose).ConfigureAwait(false);
+            await TestUtils.CleanupTrustListAsync(m_trustedStore, dispose).ConfigureAwait(false);
+            await TestUtils.CleanupTrustListAsync(m_rejectedStore, dispose).ConfigureAwait(false);
         }
+
 
         #region Private Fields
         private int m_disposed;

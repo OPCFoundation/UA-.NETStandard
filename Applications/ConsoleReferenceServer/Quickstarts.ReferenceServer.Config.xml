@@ -30,7 +30,7 @@
       <StorePath>%LocalApplicationData%/OPC Foundation/pki/trusted</StorePath>
     </TrustedPeerCertificates>
 
-    <!-- The directory used to store invalid certficates for later review by the administrator. -->
+    <!-- The directory used to store invalid certificates for later review by the administrator. -->
     <RejectedCertificateStore>
       <StoreType>Directory</StoreType>
       <StorePath>%LocalApplicationData%/OPC Foundation/pki/rejected</StorePath>
@@ -40,7 +40,7 @@
     for easy debugging purposes ONLY and turned off for production deployments! -->
     <AutoAcceptUntrustedCertificates>false</AutoAcceptUntrustedCertificates>
 
-    <!-- WARNING: SHA1 signed certficates are by default rejected and should be phased out. 
+    <!-- WARNING: SHA1 signed certificates are by default rejected and should be phased out. 
        only nano and embedded profiles are allowed to use sha1 signed certificates. -->
     <RejectSHA1SignedCertificates>true</RejectSHA1SignedCertificates>
     <RejectUnknownRevocationStatus>true</RejectUnknownRevocationStatus>
@@ -69,7 +69,7 @@
     <MaxArrayLength>65535</MaxArrayLength>
     <MaxMessageSize>4194304</MaxMessageSize>
     <MaxBufferSize>65535</MaxBufferSize>
-    <ChannelLifetime>300000</ChannelLifetime>
+    <ChannelLifetime>30000</ChannelLifetime>
     <SecurityTokenLifetime>3600000</SecurityTokenLifetime>
   </TransportQuotas>
   <ServerConfiguration>
@@ -90,9 +90,9 @@
     -->
     <!--
     <AlternateBaseAddresses>
-      <ua:String>http://AlternateHostName/Quickstarts/ReferenceServer</ua:String>
-      <ua:String>http://10.10.103.150/Quickstarts/ReferenceServer</ua:String>
-      <ua:String>http://[2a01::626d]/Quickstarts/ReferenceServer</ua:String>
+      <ua:String>opc.tcp://AlternateHostName/Quickstarts/ReferenceServer</ua:String>
+      <ua:String>opc.tcp://10.10.103.150/Quickstarts/ReferenceServer</ua:String>
+      <ua:String>opc.tcp://[2a01::626d]/Quickstarts/ReferenceServer</ua:String>
     </AlternateBaseAddresses>
     -->
     <SecurityPolicies>
@@ -163,6 +163,7 @@
     <DiagnosticsEnabled>true</DiagnosticsEnabled>
     <!-- Settings for CTT testing -->
     <MaxSessionCount>75</MaxSessionCount>
+    <MaxChannelCount>1000</MaxChannelCount>
     <MinSessionTimeout>10000</MinSessionTimeout>
     <MaxSessionTimeout>3600000</MaxSessionTimeout>
     <MaxBrowseContinuationPoints>10</MaxBrowseContinuationPoints>
@@ -229,6 +230,7 @@
       <ua:String>http://opcfoundation.org/UA-Profile/Server/ReverseConnect</ua:String>
       <ua:String>http://opcfoundation.org/UA-Profile/Server/ClientRedundancy</ua:String>
     </ServerProfileArray>
+
     <ShutdownDelay>5</ShutdownDelay>
     <ServerCapabilities>
       <ua:String>DA</ua:String>
@@ -259,10 +261,7 @@
     <OperationLimits>
       <MaxNodesPerRead>2500</MaxNodesPerRead>
       <MaxNodesPerHistoryReadData>1000</MaxNodesPerHistoryReadData>
-      <MaxNodesPerHistoryReadEvents>1000</MaxNodesPerHistoryReadEvents>
       <MaxNodesPerWrite>2500</MaxNodesPerWrite>
-      <MaxNodesPerHistoryUpdateData>1000</MaxNodesPerHistoryUpdateData>
-      <MaxNodesPerHistoryUpdateEvents>1000</MaxNodesPerHistoryUpdateEvents>
       <MaxNodesPerMethodCall>2500</MaxNodesPerMethodCall>
       <MaxNodesPerBrowse>2500</MaxNodesPerBrowse>
       <MaxNodesPerRegisterNodes>2500</MaxNodesPerRegisterNodes>
@@ -270,6 +269,7 @@
       <MaxNodesPerNodeManagement>2500</MaxNodesPerNodeManagement>
       <MaxMonitoredItemsPerCall>2500</MaxMonitoredItemsPerCall>
     </OperationLimits>
+
     <AuditingEnabled>true</AuditingEnabled>
   </ServerConfiguration>
 

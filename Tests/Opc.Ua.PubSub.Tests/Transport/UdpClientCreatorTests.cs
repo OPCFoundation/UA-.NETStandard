@@ -36,13 +36,14 @@ using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Transport;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Transport
 {
     public partial class UdpClientCreatorTests
     {
         private string m_publisherConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
-        private string m_urlScheme = string.Format("{0}://", Utils.UriSchemeOpcUdp);
+        private string m_urlScheme = Utils.Format("{0}://", Utils.UriSchemeOpcUdp);
 
         // generic well known address
         private string m_urlHostName = "192.168.0.1";
@@ -208,7 +209,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     byte[] ipAddressBytes = validIp.GetAddressBytes();
                     for (int pos = 0; pos < ipAddressBytes.Length - 1; pos++)
                     {
-                        newIPAddress += string.Format("{0}.", ipAddressBytes[pos]);
+                        newIPAddress += Utils.Format("{0}.", ipAddressBytes[pos]);
                     }
                     newIPAddress += lastIpByte;
                     return newIPAddress;

@@ -29,9 +29,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Security.Cryptography.X509Certificates;
-using System.Reflection;
 
 namespace Opc.Ua.Server
 {
@@ -347,6 +345,20 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// The last time the session was contacted by the client.
+        /// </summary>
+        public DateTime ClientLastContactTime
+        {
+            get
+            {
+                lock (DiagnosticsLock)
+                {
+                    return m_diagnostics.ClientLastContactTime;
+                }
+            }
+        }
+
+        /// <summary>
         /// Whether the session has been activated.
         /// </summary>
         public bool Activated
@@ -405,13 +417,6 @@ namespace Opc.Ua.Server
                         UpdateDiagnosticCounters(requestType, true, true);
                         throw new ServiceResultException(StatusCodes.BadSessionNotActivated);
                     }
-                }
-
-                // verify timestamp.
-                if (requestHeader.Timestamp.AddMilliseconds(m_maxRequestAge) < DateTime.UtcNow)
-                {
-                    UpdateDiagnosticCounters(requestType, true, false);
-                    throw new ServiceResultException(StatusCodes.BadInvalidTimestamp);
                 }
 
                 // request accepted.
@@ -952,7 +957,7 @@ namespace Opc.Ua.Server
             {
                 if (policy.IssuedTokenType == Profiles.JwtUserToken)
                 {
-                    issuedToken.IssuedTokenType = IssuedTokenType.JWT; 
+                    issuedToken.IssuedTokenType = IssuedTokenType.JWT;
                 }
             }
 

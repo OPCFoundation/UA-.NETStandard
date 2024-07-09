@@ -10,16 +10,14 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-
 using System;
 using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Security;
-using System.Runtime.InteropServices;
-using System.Security.Cryptography.X509Certificates;
 using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -233,6 +231,13 @@ namespace Opc.Ua.Bindings
         {
             Utils.LogInfo("{0} Close {1}.", nameof(HttpsTransportChannel), m_url);
             m_client?.Dispose();
+        }
+
+        /// <inheritdoc/>
+        public Task CloseAsync(CancellationToken ct)
+        {
+            Close();
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -489,6 +494,8 @@ namespace Opc.Ua.Bindings
                     MaxByteStringLength = m_settings.Configuration.MaxByteStringLength,
                     MaxMessageSize = m_settings.Configuration.MaxMessageSize,
                     MaxStringLength = m_settings.Configuration.MaxStringLength,
+                    MaxEncodingNestingLevels = m_settings.Configuration.MaxEncodingNestingLevels,
+                    MaxDecoderRecoveries = m_settings.Configuration.MaxDecoderRecoveries,
                     NamespaceUris = m_settings.NamespaceUris,
                     ServerUris = new StringTable(),
                     Factory = m_settings.Factory
@@ -507,4 +514,3 @@ namespace Opc.Ua.Bindings
         private static readonly MediaTypeHeaderValue s_mediaTypeHeaderValue = new MediaTypeHeaderValue("application/octet-stream");
     }
 }
-

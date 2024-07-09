@@ -17,9 +17,9 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
 {
-	/// <summary>
-	/// The description of a monitored item to create.
-	/// </summary>
+    /// <summary>
+    /// The description of a monitored item to create.
+    /// </summary>
     public partial class MonitoredItemCreateResult
     {
         /// <summary>

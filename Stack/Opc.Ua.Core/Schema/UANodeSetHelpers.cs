@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Xml;
@@ -299,6 +300,32 @@ namespace Opc.Ua.Export
             exportedNode.WriteMask = (uint)node.WriteMask;
             exportedNode.UserWriteMask = (uint)node.UserWriteMask;
             exportedNode.Extensions = node.Extensions;
+            exportedNode.RolePermissions = null;
+            exportedNode.AccessRestrictions = 0;
+            exportedNode.AccessRestrictionsSpecified = false;
+
+            if (node.RolePermissions != null)
+            {
+                var permissions = new List<RolePermission>();
+
+                foreach (var ii in node.RolePermissions)
+                {
+                    var permission = new RolePermission() {
+                        Permissions = ii.Permissions,
+                        Value = ExportAlias(ii.RoleId, context.NamespaceUris)
+                    };
+
+                    permissions.Add(permission);
+                }
+
+                exportedNode.RolePermissions = permissions.ToArray();
+            }
+
+            if (node.AccessRestrictions != null)
+            {
+                exportedNode.AccessRestrictions = (ushort)node.AccessRestrictions;
+                exportedNode.AccessRestrictionsSpecified = true;
+            }
 
             if (!String.IsNullOrEmpty(node.SymbolicName) && node.SymbolicName != node.BrowseName.Name)
             {
@@ -614,6 +641,28 @@ namespace Opc.Ua.Export
             importedNode.UserWriteMask = (AttributeWriteMask)node.UserWriteMask;
             importedNode.Extensions = node.Extensions;
 
+            if (node.RolePermissions != null)
+            {
+                var permissions = new RolePermissionTypeCollection();
+
+                foreach (var ii in node.RolePermissions)
+                {
+                    var permission = new RolePermissionType() {
+                        Permissions = ii.Permissions,
+                        RoleId = ImportNodeId(ii.Value, context.NamespaceUris, true)
+                    };
+
+                    permissions.Add(permission);
+                }
+
+                importedNode.RolePermissions = permissions;
+            }
+
+            if (node.AccessRestrictionsSpecified)
+            {
+                importedNode.AccessRestrictions = (AccessRestrictionType?)node.AccessRestrictions;
+            }
+
             if (!String.IsNullOrEmpty(node.SymbolicName))
             {
                 importedNode.SymbolicName = node.SymbolicName;
@@ -621,16 +670,13 @@ namespace Opc.Ua.Export
 
             if (node.References != null)
             {
-                BaseInstanceState instance = importedNode as BaseInstanceState;
-                BaseTypeState type = importedNode as BaseTypeState;
-
                 for (int ii = 0; ii < node.References.Length; ii++)
                 {
                     Opc.Ua.NodeId referenceTypeId = ImportNodeId(node.References[ii].ReferenceType, context.NamespaceUris, true);
                     bool isInverse = !node.References[ii].IsForward;
                     Opc.Ua.ExpandedNodeId targetId = ImportExpandedNodeId(node.References[ii].Value, context.NamespaceUris, context.ServerUris);
 
-                    if (instance != null)
+                    if (importedNode is BaseInstanceState instance)
                     {
                         if (referenceTypeId == ReferenceTypeIds.HasModellingRule && !isInverse)
                         {
@@ -645,7 +691,7 @@ namespace Opc.Ua.Export
                         }
                     }
 
-                    if (type != null)
+                    if (importedNode is BaseTypeState type)
                     {
                         if (referenceTypeId == ReferenceTypeIds.HasSubtype && isInverse)
                         {
@@ -874,9 +920,8 @@ namespace Opc.Ua.Export
                 definition.SymbolicName = dataType.SymbolicName;
             }
 
-            StructureDefinition sd = source.Body as StructureDefinition;
 
-            if (sd != null)
+            if (source.Body is StructureDefinition sd)
             {
                 if (sd.StructureType == StructureType.Union || sd.StructureType == StructureType.UnionWithSubtypedValues)
                 {
@@ -941,9 +986,8 @@ namespace Opc.Ua.Export
                 }
             }
 
-            EnumDefinition ed = source.Body as EnumDefinition;
 
-            if (ed != null)
+            if (source.Body is EnumDefinition ed)
             {
                 definition.IsOptionSet = ed.IsOptionSet;
 
@@ -1168,7 +1212,7 @@ namespace Opc.Ua.Export
             {
                 try
                 {
-                    dimensions[ii] = Convert.ToUInt32(fields[ii]);
+                    dimensions[ii] = Convert.ToUInt32(fields[ii], CultureInfo.InvariantCulture);
                 }
                 catch
                 {

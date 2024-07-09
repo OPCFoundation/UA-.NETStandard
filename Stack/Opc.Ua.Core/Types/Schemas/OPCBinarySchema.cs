@@ -21,327 +21,395 @@ namespace Opc.Ua.Schema.Binary
     [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "2.0.50727.312")]
     [DataContractAttribute()]
     [System.Diagnostics.DebuggerStepThroughAttribute()]
-    [System.Xml.Serialization.XmlTypeAttribute(AnonymousType=true, Namespace="http://opcfoundation.org/BinarySchema/")]
-    [System.Xml.Serialization.XmlRootAttribute(Namespace="http://opcfoundation.org/BinarySchema/", IsNullable=false)]
-    public partial class Documentation {
-        
+    [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true, Namespace = "http://opcfoundation.org/BinarySchema/")]
+    [System.Xml.Serialization.XmlRootAttribute(Namespace = "http://opcfoundation.org/BinarySchema/", IsNullable = false)]
+    public partial class Documentation
+    {
+
         private XmlElement[] itemsField;
-        
+
         private string[] textField;
-        
+
         private string[] anyAttrField;
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlAnyElementAttribute()]
-        public XmlElement[] Items {
-            get {
+        public XmlElement[] Items
+        {
+            get
+            {
                 return this.itemsField;
             }
-            set {
+            set
+            {
                 this.itemsField = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlTextAttribute()]
-        public string[] Text {
-            get {
+        public string[] Text
+        {
+            get
+            {
                 return this.textField;
             }
-            set {
+            set
+            {
                 this.textField = value;
             }
         }
-        
+
         /// <remarks/>
-        public string[] AnyAttr {
-            get {
+        public string[] AnyAttr
+        {
+            get
+            {
                 return this.anyAttrField;
             }
-            set {
+            set
+            {
                 this.anyAttrField = value;
             }
         }
     }
-    
+
     /// <remarks/>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "2.0.50727.312")]
     [DataContractAttribute()]
     [System.Diagnostics.DebuggerStepThroughAttribute()]
-    [System.Xml.Serialization.XmlTypeAttribute(Namespace="http://opcfoundation.org/BinarySchema/")]
-    public partial class FieldType {
-        
+    [System.Xml.Serialization.XmlTypeAttribute(Namespace = "http://opcfoundation.org/BinarySchema/")]
+    public partial class FieldType
+    {
+
         private Documentation documentationField;
-        
+
         private string nameField;
-        
+
         private System.Xml.XmlQualifiedName typeNameField;
-        
+
         private uint lengthField;
-        
+
         private bool lengthFieldSpecified;
-        
+
         private string lengthFieldField;
-        
+
         private bool isLengthInBytesField;
-        
+
         private string switchFieldField;
-        
+
         private uint switchValueField;
-        
+
         private bool switchValueFieldSpecified;
-        
+
         private SwitchOperand switchOperandField;
-        
+
         private bool switchOperandFieldSpecified;
-        
+
         private byte[] terminatorField;
-        
+
         private string[] anyAttrField;
-        
+
         /// <remarks/>
-        public FieldType() {
+        public FieldType()
+        {
             this.isLengthInBytesField = false;
         }
-        
+
         /// <remarks/>
-        public Documentation Documentation {
-            get {
+        public Documentation Documentation
+        {
+            get
+            {
                 return this.documentationField;
             }
-            set {
+            set
+            {
                 this.documentationField = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public string Name {
-            get {
+        public string Name
+        {
+            get
+            {
                 return this.nameField;
             }
-            set {
+            set
+            {
                 this.nameField = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public System.Xml.XmlQualifiedName TypeName {
-            get {
+        public System.Xml.XmlQualifiedName TypeName
+        {
+            get
+            {
                 return this.typeNameField;
             }
-            set {
+            set
+            {
                 this.typeNameField = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public uint Length {
-            get {
+        public uint Length
+        {
+            get
+            {
                 return this.lengthField;
             }
-            set {
+            set
+            {
                 this.lengthField = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
-        public bool LengthSpecified {
-            get {
+        public bool LengthSpecified
+        {
+            get
+            {
                 return this.lengthFieldSpecified;
             }
-            set {
+            set
+            {
                 this.lengthFieldSpecified = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public string LengthField {
-            get {
+        public string LengthField
+        {
+            get
+            {
                 return this.lengthFieldField;
             }
-            set {
+            set
+            {
                 this.lengthFieldField = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         [System.ComponentModel.DefaultValueAttribute(false)]
-        public bool IsLengthInBytes {
-            get {
+        public bool IsLengthInBytes
+        {
+            get
+            {
                 return this.isLengthInBytesField;
             }
-            set {
+            set
+            {
                 this.isLengthInBytesField = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public string SwitchField {
-            get {
+        public string SwitchField
+        {
+            get
+            {
                 return this.switchFieldField;
             }
-            set {
+            set
+            {
                 this.switchFieldField = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public uint SwitchValue {
-            get {
+        public uint SwitchValue
+        {
+            get
+            {
                 return this.switchValueField;
             }
-            set {
+            set
+            {
                 this.switchValueField = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
-        public bool SwitchValueSpecified {
-            get {
+        public bool SwitchValueSpecified
+        {
+            get
+            {
                 return this.switchValueFieldSpecified;
             }
-            set {
+            set
+            {
                 this.switchValueFieldSpecified = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public SwitchOperand SwitchOperand {
-            get {
+        public SwitchOperand SwitchOperand
+        {
+            get
+            {
                 return this.switchOperandField;
             }
-            set {
+            set
+            {
                 this.switchOperandField = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
-        public bool SwitchOperandSpecified {
-            get {
+        public bool SwitchOperandSpecified
+        {
+            get
+            {
                 return this.switchOperandFieldSpecified;
             }
-            set {
+            set
+            {
                 this.switchOperandFieldSpecified = value;
             }
         }
-        
+
         /// <remarks/>
-        [System.Xml.Serialization.XmlAttributeAttribute(DataType="hexBinary")]
-        public byte[] Terminator {
-            get {
+        [System.Xml.Serialization.XmlAttributeAttribute(DataType = "hexBinary")]
+        public byte[] Terminator
+        {
+            get
+            {
                 return this.terminatorField;
             }
-            set {
+            set
+            {
                 this.terminatorField = value;
             }
         }
-        
+
         /// <remarks/>
-        public string[] AnyAttr {
-            get {
+        public string[] AnyAttr
+        {
+            get
+            {
                 return this.anyAttrField;
             }
-            set {
+            set
+            {
                 this.anyAttrField = value;
             }
         }
     }
-    
+
     /// <remarks/>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "2.0.50727.312")]
     [DataContractAttribute()]
-    [System.Xml.Serialization.XmlTypeAttribute(Namespace="http://opcfoundation.org/BinarySchema/")]
-    public enum SwitchOperand {
-        
+    [System.Xml.Serialization.XmlTypeAttribute(Namespace = "http://opcfoundation.org/BinarySchema/")]
+    public enum SwitchOperand
+    {
+
         /// <remarks/>
         Equals,
-        
+
         /// <remarks/>
         GreaterThan,
-        
+
         /// <remarks/>
         LessThan,
-        
+
         /// <remarks/>
         GreaterThanOrEqual,
-        
+
         /// <remarks/>
         LessThanOrEqual,
-        
+
         /// <remarks/>
         NotEqual,
     }
-    
+
     /// <remarks/>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "2.0.50727.312")]
     [DataContractAttribute()]
     [System.Diagnostics.DebuggerStepThroughAttribute()]
-    [System.Xml.Serialization.XmlTypeAttribute(Namespace="http://opcfoundation.org/BinarySchema/")]
-    public partial class EnumeratedValue {
-        
+    [System.Xml.Serialization.XmlTypeAttribute(Namespace = "http://opcfoundation.org/BinarySchema/")]
+    public partial class EnumeratedValue
+    {
+
         private Documentation documentationField;
-        
+
         private string nameField;
-        
+
         private int valueField;
-        
+
         private bool valueFieldSpecified;
-        
+
         /// <remarks/>
-        public Documentation Documentation {
-            get {
+        public Documentation Documentation
+        {
+            get
+            {
                 return this.documentationField;
             }
-            set {
+            set
+            {
                 this.documentationField = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public string Name {
-            get {
+        public string Name
+        {
+            get
+            {
                 return this.nameField;
             }
-            set {
+            set
+            {
                 this.nameField = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public int Value {
-            get {
+        public int Value
+        {
+            get
+            {
                 return this.valueField;
             }
-            set {
+            set
+            {
                 this.valueField = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
-        public bool ValueSpecified {
-            get {
+        public bool ValueSpecified
+        {
+            get
+            {
                 return this.valueFieldSpecified;
             }
-            set {
+            set
+            {
                 this.valueFieldSpecified = value;
             }
         }
     }
-    
+
     /// <remarks/>
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(StructuredType))]
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(OpaqueType))]
@@ -349,299 +417,361 @@ namespace Opc.Ua.Schema.Binary
     [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "2.0.50727.312")]
     [DataContractAttribute()]
     [System.Diagnostics.DebuggerStepThroughAttribute()]
-    [System.Xml.Serialization.XmlTypeAttribute(Namespace="http://opcfoundation.org/BinarySchema/")]
-    public partial class TypeDescription {
-        
+    [System.Xml.Serialization.XmlTypeAttribute(Namespace = "http://opcfoundation.org/BinarySchema/")]
+    public partial class TypeDescription
+    {
+
         private Documentation documentationField;
-        
+
         private string nameField;
-        
+
         private ByteOrder defaultByteOrderField;
-        
+
         private bool defaultByteOrderFieldSpecified;
-        
+
         /// <remarks/>
-        public Documentation Documentation {
-            get {
+        public Documentation Documentation
+        {
+            get
+            {
                 return this.documentationField;
             }
-            set {
+            set
+            {
                 this.documentationField = value;
             }
         }
-        
+
         /// <remarks/>
-        [System.Xml.Serialization.XmlAttributeAttribute(DataType="NCName")]
-        public string Name {
-            get {
+        [System.Xml.Serialization.XmlAttributeAttribute(DataType = "NCName")]
+        public string Name
+        {
+            get
+            {
                 return this.nameField;
             }
-            set {
+            set
+            {
                 this.nameField = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public ByteOrder DefaultByteOrder {
-            get {
+        public ByteOrder DefaultByteOrder
+        {
+            get
+            {
                 return this.defaultByteOrderField;
             }
-            set {
+            set
+            {
                 this.defaultByteOrderField = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
-        public bool DefaultByteOrderSpecified {
-            get {
+        public bool DefaultByteOrderSpecified
+        {
+            get
+            {
                 return this.defaultByteOrderFieldSpecified;
             }
-            set {
+            set
+            {
                 this.defaultByteOrderFieldSpecified = value;
             }
         }
     }
-    
+
     /// <remarks/>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "2.0.50727.312")]
     [DataContractAttribute()]
-    [System.Xml.Serialization.XmlTypeAttribute(Namespace="http://opcfoundation.org/BinarySchema/")]
-    public enum ByteOrder {
-        
+    [System.Xml.Serialization.XmlTypeAttribute(Namespace = "http://opcfoundation.org/BinarySchema/")]
+    public enum ByteOrder
+    {
+
         /// <remarks/>
         BigEndian,
-        
+
         /// <remarks/>
         LittleEndian,
     }
-    
+
     /// <remarks/>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "2.0.50727.312")]
     [DataContractAttribute()]
     [System.Diagnostics.DebuggerStepThroughAttribute()]
-    [System.Xml.Serialization.XmlTypeAttribute(Namespace="http://opcfoundation.org/BinarySchema/")]
-    public partial class StructuredType : TypeDescription {
-        
+    [System.Xml.Serialization.XmlTypeAttribute(Namespace = "http://opcfoundation.org/BinarySchema/")]
+    public partial class StructuredType : TypeDescription
+    {
+
         private FieldType[] fieldField;
-        
+
         private string[] anyAttrField;
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlElementAttribute("Field")]
-        public FieldType[] Field {
-            get {
+        public FieldType[] Field
+        {
+            get
+            {
                 return this.fieldField;
             }
-            set {
+            set
+            {
                 this.fieldField = value;
             }
         }
-        
+
         /// <remarks/>
-        public string[] AnyAttr {
-            get {
+        public string[] AnyAttr
+        {
+            get
+            {
                 return this.anyAttrField;
             }
-            set {
+            set
+            {
                 this.anyAttrField = value;
             }
         }
     }
-    
+
     /// <remarks/>
     [System.Xml.Serialization.XmlIncludeAttribute(typeof(EnumeratedType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "2.0.50727.312")]
     [DataContractAttribute()]
     [System.Diagnostics.DebuggerStepThroughAttribute()]
-    [System.Xml.Serialization.XmlTypeAttribute(Namespace="http://opcfoundation.org/BinarySchema/")]
-    public partial class OpaqueType : TypeDescription {
-        
+    [System.Xml.Serialization.XmlTypeAttribute(Namespace = "http://opcfoundation.org/BinarySchema/")]
+    public partial class OpaqueType : TypeDescription
+    {
+
         private int lengthInBitsField;
-        
+
         private bool lengthInBitsFieldSpecified;
-        
+
         private bool byteOrderSignificantField;
-        
+
         /// <remarks/>
-        public OpaqueType() {
+        public OpaqueType()
+        {
             this.byteOrderSignificantField = false;
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public int LengthInBits {
-            get {
+        public int LengthInBits
+        {
+            get
+            {
                 return this.lengthInBitsField;
             }
-            set {
+            set
+            {
                 this.lengthInBitsField = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
-        public bool LengthInBitsSpecified {
-            get {
+        public bool LengthInBitsSpecified
+        {
+            get
+            {
                 return this.lengthInBitsFieldSpecified;
             }
-            set {
+            set
+            {
                 this.lengthInBitsFieldSpecified = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
         [System.ComponentModel.DefaultValueAttribute(false)]
-        public bool ByteOrderSignificant {
-            get {
+        public bool ByteOrderSignificant
+        {
+            get
+            {
                 return this.byteOrderSignificantField;
             }
-            set {
+            set
+            {
                 this.byteOrderSignificantField = value;
             }
         }
     }
-    
+
     /// <remarks/>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "2.0.50727.312")]
     [DataContractAttribute()]
     [System.Diagnostics.DebuggerStepThroughAttribute()]
-    [System.Xml.Serialization.XmlTypeAttribute(Namespace="http://opcfoundation.org/BinarySchema/")]
-    public partial class EnumeratedType : OpaqueType {
-        
+    [System.Xml.Serialization.XmlTypeAttribute(Namespace = "http://opcfoundation.org/BinarySchema/")]
+    public partial class EnumeratedType : OpaqueType
+    {
+
         private EnumeratedValue[] enumeratedValueField;
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlElementAttribute("EnumeratedValue")]
-        public EnumeratedValue[] EnumeratedValue {
-            get {
+        public EnumeratedValue[] EnumeratedValue
+        {
+            get
+            {
                 return this.enumeratedValueField;
             }
-            set {
+            set
+            {
                 this.enumeratedValueField = value;
             }
         }
     }
-    
+
     /// <remarks/>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "2.0.50727.312")]
     [DataContractAttribute()]
     [System.Diagnostics.DebuggerStepThroughAttribute()]
-    [System.Xml.Serialization.XmlTypeAttribute(Namespace="http://opcfoundation.org/BinarySchema/")]
-    public partial class ImportDirective {
-        
+    [System.Xml.Serialization.XmlTypeAttribute(Namespace = "http://opcfoundation.org/BinarySchema/")]
+    public partial class ImportDirective
+    {
+
         private string namespaceField;
-        
+
         private string locationField;
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public string Namespace {
-            get {
+        public string Namespace
+        {
+            get
+            {
                 return this.namespaceField;
             }
-            set {
+            set
+            {
                 this.namespaceField = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public string Location {
-            get {
+        public string Location
+        {
+            get
+            {
                 return this.locationField;
             }
-            set {
+            set
+            {
                 this.locationField = value;
             }
         }
     }
-    
+
     /// <remarks/>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "2.0.50727.312")]
     [DataContractAttribute()]
     [System.Diagnostics.DebuggerStepThroughAttribute()]
-    [System.Xml.Serialization.XmlTypeAttribute(AnonymousType=true, Namespace="http://opcfoundation.org/BinarySchema/")]
-    [System.Xml.Serialization.XmlRootAttribute(Namespace="http://opcfoundation.org/BinarySchema/", IsNullable=false)]
-    public partial class TypeDictionary {
-        
+    [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true, Namespace = "http://opcfoundation.org/BinarySchema/")]
+    [System.Xml.Serialization.XmlRootAttribute(Namespace = "http://opcfoundation.org/BinarySchema/", IsNullable = false)]
+    public partial class TypeDictionary
+    {
+
         private Documentation documentationField;
-        
+
         private ImportDirective[] importField;
-        
+
         private TypeDescription[] itemsField;
-        
+
         private string targetNamespaceField;
-        
+
         private ByteOrder defaultByteOrderField;
-        
+
         private bool defaultByteOrderFieldSpecified;
-        
+
         /// <remarks/>
-        public Documentation Documentation {
-            get {
+        public Documentation Documentation
+        {
+            get
+            {
                 return this.documentationField;
             }
-            set {
+            set
+            {
                 this.documentationField = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlElementAttribute("Import")]
-        public ImportDirective[] Import {
-            get {
+        public ImportDirective[] Import
+        {
+            get
+            {
                 return this.importField;
             }
-            set {
+            set
+            {
                 this.importField = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlElementAttribute("EnumeratedType", typeof(EnumeratedType))]
         [System.Xml.Serialization.XmlElementAttribute("OpaqueType", typeof(OpaqueType))]
         [System.Xml.Serialization.XmlElementAttribute("StructuredType", typeof(StructuredType))]
-        public TypeDescription[] Items {
-            get {
+        public TypeDescription[] Items
+        {
+            get
+            {
                 return this.itemsField;
             }
-            set {
+            set
+            {
                 this.itemsField = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public string TargetNamespace {
-            get {
+        public string TargetNamespace
+        {
+            get
+            {
                 return this.targetNamespaceField;
             }
-            set {
+            set
+            {
                 this.targetNamespaceField = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public ByteOrder DefaultByteOrder {
-            get {
+        public ByteOrder DefaultByteOrder
+        {
+            get
+            {
                 return this.defaultByteOrderField;
             }
-            set {
+            set
+            {
                 this.defaultByteOrderField = value;
             }
         }
-        
+
         /// <remarks/>
         [System.Xml.Serialization.XmlIgnoreAttribute()]
-        public bool DefaultByteOrderSpecified {
-            get {
+        public bool DefaultByteOrderSpecified
+        {
+            get
+            {
                 return this.defaultByteOrderFieldSpecified;
             }
-            set {
+            set
+            {
                 this.defaultByteOrderFieldSpecified = value;
             }
         }

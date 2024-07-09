@@ -23,6 +23,8 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class UaSCUaBinaryTransportChannel : ITransportChannel, IMessageSocketChannel
     {
+        private const int kChannelCloseDefault = 1_000;
+
         #region Constructors
         /// <summary>
         /// Create a transport channel from a message socket factory.
@@ -51,8 +53,8 @@ namespace Opc.Ua.Bindings
         {
             if (disposing)
             {
-                Utils.SilentDispose(m_channel);
-                m_channel = null;
+                var channel = Interlocked.Exchange(ref m_channel, null);
+                Utils.SilentDispose(channel);
             }
         }
         #endregion
@@ -63,7 +65,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public IMessageSocket Socket
         {
-            get { lock (m_lock) { return m_channel?.Socket; } }
+            get { return m_channel?.Socket; }
         }
         #endregion
 
@@ -74,7 +76,7 @@ namespace Opc.Ua.Bindings
         public TransportChannelFeatures SupportedFeatures =>
             TransportChannelFeatures.Open | TransportChannelFeatures.BeginOpen |
             TransportChannelFeatures.BeginSendRequest | TransportChannelFeatures.SendRequestAsync |
-            ((Socket != null) ? Socket.MessageSocketFeatures : 0);
+            (Socket?.MessageSocketFeatures ?? 0);
 
         /// <summary>
         /// Gets the description for the endpoint used by the channel.
@@ -96,7 +98,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public ChannelToken CurrentToken
         {
-            get { lock (m_lock) { return m_channel?.CurrentToken; } }
+            get { return m_channel?.CurrentToken; }
         }
 
         /// <summary>
@@ -119,7 +121,7 @@ namespace Opc.Ua.Bindings
             TransportChannelSettings settings)
         {
             SaveSettings(url, settings);
-            CreateChannel();
+            Interlocked.Exchange(ref m_channel, CreateChannel());
         }
 
         /// <summary>
@@ -133,7 +135,7 @@ namespace Opc.Ua.Bindings
             TransportChannelSettings settings)
         {
             SaveSettings(connection.EndpointUrl, settings);
-            CreateChannel(connection);
+            Interlocked.Exchange(ref m_channel, CreateChannel(connection));
         }
 
         /// <summary>
@@ -160,7 +162,7 @@ namespace Opc.Ua.Bindings
             lock (m_lock)
             {
                 // create the channel.
-                CreateChannel(null);
+                Interlocked.Exchange(ref m_channel, CreateChannel(null));
 
                 // begin connect operation.
                 return m_channel.BeginConnect(this.m_url, m_operationTimeout, callback, callbackData);
@@ -204,13 +206,12 @@ namespace Opc.Ua.Bindings
                 // the new channel must be created first because WinSock will reuse sockets and this
                 // can result in messages sent over the old socket arriving as messages on the new socket.
                 // if this happens the new channel is shutdown because of a security violation.
-                UaSCUaBinaryClientChannel channel = m_channel;
-                m_channel = null;
+                UaSCUaBinaryClientChannel channel = Interlocked.Exchange(ref m_channel, null);
 
                 try
                 {
                     // reconnect.
-                    CreateChannel(connection);
+                    Interlocked.Exchange(ref m_channel, CreateChannel(connection));
 
                     // begin connect operation.
                     IAsyncResult result = m_channel.BeginConnect(m_url, m_operationTimeout, null, null);
@@ -223,7 +224,7 @@ namespace Opc.Ua.Bindings
                     {
                         try
                         {
-                            channel.Close(1000);
+                            channel.Close(kChannelCloseDefault);
                         }
                         catch (Exception e)
                         {
@@ -271,17 +272,22 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
         public void Close()
         {
-            if (m_channel != null)
+            UaSCUaBinaryClientChannel channel = Interlocked.Exchange(ref m_channel, null);
+            channel?.Close(kChannelCloseDefault);
+        }
+
+        /// <summary>
+        /// Closes the secure channel (async).
+        /// </summary>
+        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
+        public Task CloseAsync(CancellationToken ct)
+        {
+            UaSCUaBinaryClientChannel channel = Interlocked.Exchange(ref m_channel, null);
+            if (channel != null)
             {
-                lock (m_lock)
-                {
-                    if (m_channel != null)
-                    {
-                        m_channel.Close(1000);
-                        m_channel = null;
-                    }
-                }
+                return channel.CloseAsync(kChannelCloseDefault, ct);
             }
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -352,14 +358,12 @@ namespace Opc.Ua.Bindings
 
             if (channel == null)
             {
-                lock (m_lock)
+                channel = CreateChannel();
+                var currentChannel = Interlocked.CompareExchange(ref m_channel, channel, null);
+                if (currentChannel != null)
                 {
-                    if (m_channel == null)
-                    {
-                        CreateChannel();
-                    }
-
-                    channel = m_channel;
+                    Utils.SilentDispose(channel);
+                    channel = currentChannel;
                 }
             }
 
@@ -418,23 +422,26 @@ namespace Opc.Ua.Bindings
             m_operationTimeout = settings.Configuration.OperationTimeout;
 
             // initialize the quotas.
-            m_quotas = new ChannelQuotas();
+            EndpointConfiguration configuration = m_settings.Configuration;
+            m_quotas = new ChannelQuotas {
+                MaxBufferSize = configuration.MaxBufferSize,
+                MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(configuration.MaxMessageSize),
+                ChannelLifetime = configuration.ChannelLifetime,
+                SecurityTokenLifetime = configuration.SecurityTokenLifetime,
+                MessageContext = new ServiceMessageContext() {
+                    MaxArrayLength = configuration.MaxArrayLength,
+                    MaxByteStringLength = configuration.MaxByteStringLength,
+                    MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(configuration.MaxMessageSize),
+                    MaxStringLength = configuration.MaxStringLength,
+                    MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
+                    MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
+                    NamespaceUris = m_settings.NamespaceUris,
+                    ServerUris = new StringTable(),
+                    Factory = m_settings.Factory
+                },
 
-            m_quotas.MaxBufferSize = m_settings.Configuration.MaxBufferSize;
-            m_quotas.MaxMessageSize = m_settings.Configuration.MaxMessageSize;
-            m_quotas.ChannelLifetime = m_settings.Configuration.ChannelLifetime;
-            m_quotas.SecurityTokenLifetime = m_settings.Configuration.SecurityTokenLifetime;
-            m_quotas.MessageContext = new ServiceMessageContext() {
-                MaxArrayLength = m_settings.Configuration.MaxArrayLength,
-                MaxByteStringLength = m_settings.Configuration.MaxByteStringLength,
-                MaxMessageSize = m_settings.Configuration.MaxMessageSize,
-                MaxStringLength = m_settings.Configuration.MaxStringLength,
-                NamespaceUris = m_settings.NamespaceUris,
-                ServerUris = new StringTable(),
-                Factory = m_settings.Factory
+                CertificateValidator = settings.CertificateValidator
             };
-
-            m_quotas.CertificateValidator = settings.CertificateValidator;
 
             // create the buffer manager.
             m_bufferManager = new BufferManager("Client", settings.Configuration.MaxBufferSize);
@@ -444,7 +451,7 @@ namespace Opc.Ua.Bindings
         /// Opens the channel before sending the request.
         /// </summary>
         /// <param name="connection">A reverse connection, null otherwise.</param>
-        private void CreateChannel(ITransportWaitingConnection connection = null)
+        private UaSCUaBinaryClientChannel CreateChannel(ITransportWaitingConnection connection = null)
         {
             IMessageSocket socket = null;
             if (connection != null)
@@ -457,7 +464,7 @@ namespace Opc.Ua.Bindings
             }
 
             // create the channel.
-            m_channel = new UaSCUaBinaryClientChannel(
+            var channel = new UaSCUaBinaryClientChannel(
                 Guid.NewGuid().ToString(),
                 m_bufferManager,
                 m_messageSocketFactory,
@@ -470,15 +477,17 @@ namespace Opc.Ua.Bindings
             // use socket for reverse connections, ignore otherwise
             if (socket != null)
             {
-                m_channel.Socket = socket;
-                m_channel.Socket.ChangeSink(m_channel);
-                m_channel.ReverseSocket = true;
+                channel.Socket = socket;
+                channel.Socket.ChangeSink(channel);
+                channel.ReverseSocket = true;
             }
+
+            return channel;
         }
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private Uri m_url;
         private int m_operationTimeout;
         private TransportChannelSettings m_settings;

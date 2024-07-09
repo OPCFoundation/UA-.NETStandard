@@ -38,6 +38,7 @@ using System.Threading;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Transport;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Transport
 {
@@ -162,7 +163,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 as UadpWriterGroupMessageDataType;
 
             //Act  
-            m_udpPublisherConnection.ResetSequenceNumber();
+            UdpPubSubConnection.ResetSequenceNumber();
 
             var networkMessages = m_udpPublisherConnection.CreateNetworkMessages(writerGroup0, new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
@@ -198,7 +199,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             WriterGroupDataType writerGroup0 = m_udpPublisherConnection.PubSubConnectionConfiguration.WriterGroups.First();
 
             //Act  
-            m_udpPublisherConnection.ResetSequenceNumber();
+            UdpPubSubConnection.ResetSequenceNumber();
             for (int i = 0; i < 10; i++)
             {
                 // Create network message

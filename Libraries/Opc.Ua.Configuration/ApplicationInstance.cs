@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -360,7 +361,7 @@ namespace Opc.Ua.Configuration
 
         /// <summary>
         /// Helper to replace localhost with the hostname
-        /// in the application uri and base adresses of the
+        /// in the application uri and base addresses of the
         /// configuration.
         /// </summary>
         /// <param name="configuration"></param>
@@ -513,7 +514,7 @@ namespace Opc.Ua.Configuration
                         message.AppendLine("Use it instead?");
                         message.AppendLine("Requested: {0}");
                         message.AppendLine("Found: {1}");
-                        if (!await ApplicationInstance.ApproveMessageAsync(String.Format(message.ToString(), id.SubjectName, certificate.Subject), silent).ConfigureAwait(false))
+                        if (!await ApplicationInstance.ApproveMessageAsync(Utils.Format(message.ToString(), id.SubjectName, certificate.Subject), silent).ConfigureAwait(false))
                         {
                             throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
                                 message.ToString(), id.SubjectName, certificate.Subject);
@@ -522,7 +523,7 @@ namespace Opc.Ua.Configuration
                     else
                     {
                         var message = new StringBuilder();
-                        message.AppendLine("Thumbprint was explicitly specified in the configuration. ");
+                        message.AppendLine("Thumbprint was explicitly specified in the configuration.");
                         message.AppendLine("Cannot generate a new certificate.");
                         throw ServiceResultException.Create(StatusCodes.BadConfigurationError, message.ToString());
                     }
@@ -563,6 +564,17 @@ namespace Opc.Ua.Configuration
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Adds a Certificate to the Trusted Store of the Application, needed e.g. for the GDS to trust it´s own CA
+        /// </summary>
+        /// <param name="certificate">The certificate to add to the store</param>
+        /// <param name="ct">The cancellation token</param>
+        /// <returns></returns>
+        public async Task AddOwnCertificateToTrustedStoreAsync(X509Certificate2 certificate, CancellationToken ct)
+        {
+            await AddToTrustedStoreAsync(m_applicationConfiguration, certificate, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -697,7 +709,7 @@ namespace Opc.Ua.Configuration
 
             bool valid = true;
             IList<string> serverDomainNames = configuration.GetServerDomainNames();
-            IList<string> certificateDomainNames = X509Utils.GetDomainsFromCertficate(certificate);
+            IList<string> certificateDomainNames = X509Utils.GetDomainsFromCertificate(certificate);
 
             Utils.LogInfo("Server Domain names:");
             foreach (var name in serverDomainNames)
@@ -987,7 +999,7 @@ namespace Opc.Ua.Configuration
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Could not add certificate to trusted peer store.");
+                Utils.LogError("Could not add certificate to trusted peer store: {0}", Redaction.Redact.Create(e));
             }
         }
 

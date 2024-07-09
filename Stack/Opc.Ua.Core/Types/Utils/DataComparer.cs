@@ -923,7 +923,7 @@ namespace Opc.Ua.Test
             }
         }
 
-        // It stores encodable types of the executing assembly.       
+        // It stores encodeable types of the executing assembly.       
         private static IEncodeableFactory s_Factory = new EncodeableFactory();
 
         /// <summary>
@@ -935,9 +935,8 @@ namespace Opc.Ua.Test
         {
             object body = value.Body;
 
-            IEncodeable encodeable = body as IEncodeable;
 
-            if (encodeable != null)
+            if (body is IEncodeable encodeable)
             {
                 return encodeable;
             }
@@ -953,9 +952,8 @@ namespace Opc.Ua.Test
                 Factory = EncodeableFactory
             };
 
-            XmlElement xml = body as XmlElement;
 
-            if (xml != null)
+            if (body is XmlElement xml)
             {
                 XmlQualifiedName xmlName = Opc.Ua.EncodeableFactory.GetXmlName(expectedType);
                 XmlDecoder decoder = new XmlDecoder(xml, context);
@@ -968,13 +966,14 @@ namespace Opc.Ua.Test
                 return (IEncodeable)body;
             }
 
-            byte[] bytes = body as byte[];
 
-            if (bytes != null)
+            if (body is byte[] bytes)
             {
-                BinaryDecoder decoder = new BinaryDecoder(bytes, context);
-                body = decoder.ReadEncodeable(null, expectedType);
-                decoder.Close();
+                using (BinaryDecoder decoder = new BinaryDecoder(bytes, context))
+                {
+                    body = decoder.ReadEncodeable(null, expectedType);
+                    decoder.Close();
+                }
 
                 return (IEncodeable)body;
             }
@@ -1009,10 +1008,7 @@ namespace Opc.Ua.Test
                 return body1 == body2;
             }
 
-            byte[] bytes1 = value1.Body as byte[];
-            byte[] bytes2 = value2.Body as byte[];
-
-            if (bytes1 != null && bytes2 != null)
+            if (value1.Body is byte[] bytes1 && value2.Body is byte[] bytes2)
             {
                 if (!CompareExpandedNodeId(value1.TypeId, value2.TypeId))
                 {
@@ -1022,10 +1018,7 @@ namespace Opc.Ua.Test
                 return CompareByteString(bytes1, bytes2);
             }
 
-            XmlElement xml1 = value1.Body as XmlElement;
-            XmlElement xml2 = value2.Body as XmlElement;
-
-            if (xml1 != null && xml2 != null)
+            if (value1.Body is XmlElement xml1 && value2.Body is XmlElement xml2)
             {
                 if (!CompareExpandedNodeId(value1.TypeId, value2.TypeId))
                 {
@@ -1056,10 +1049,7 @@ namespace Opc.Ua.Test
                 return true;
             }
 
-            IEncodeable encodeable1 = value1 as IEncodeable;
-            IEncodeable encodeable2 = value2 as IEncodeable;
-
-            if (encodeable1 != null && encodeable2 != null)
+            if (value1 is IEncodeable encodeable1 && value2 is IEncodeable encodeable2)
             {
                 if (encodeable1.IsEqual(encodeable2))
                 {

@@ -11,7 +11,7 @@
 */
 
 namespace Opc.Ua
-{    
+{
     /// <summary>
     /// Defines constants for key security policies.
     /// </summary>
@@ -46,12 +46,12 @@ namespace Opc.Ua
         /// The AES128 algorithm used to encrypt data.
         /// </summary>
         public const string Aes128 = "http://www.w3.org/2001/04/xmlenc#aes128-cbc";
-        
+
         /// <summary>
         /// The AES256 algorithm used to encrypt data.
         /// </summary>
         public const string Aes256 = "http://www.w3.org/2001/04/xmlenc#aes256-cbc";
-        
+
         /// <summary>
         /// The RSA-OAEP algorithm used to encrypt data.
         /// </summary>        
@@ -76,7 +76,7 @@ namespace Opc.Ua
         /// The RSA-OAEP algorithm used to encrypt keys.
         /// </summary>        
         public const string KwRsaOaep = "http://www.w3.org/2001/04/xmlenc#rsa-oaep-mgf1p";
-        
+
         /// <summary>
         /// The RSA-PKCSv1.5 algorithm used to encrypt keys.
         /// </summary>        
@@ -147,7 +147,7 @@ namespace Opc.Ua
         /// Converts the URI to a URI that can be used for comparison.
         /// </summary>
         /// <param name="profileUri">The profile URI.</param>
-        /// <returns>The normalixed URI.</returns>
+        /// <returns>The normalized URI.</returns>
         public static string NormalizeUri(string profileUri)
         {
             if (System.String.IsNullOrEmpty(profileUri))

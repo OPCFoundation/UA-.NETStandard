@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
@@ -49,7 +50,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Initializes the when it is created directly.
+        /// Initializes the object when it is created directly.
         /// </summary>
         /// <param name="host">The host.</param>
         protected EndpointBase(IServiceHostBase host)
@@ -156,6 +157,66 @@ namespace Opc.Ua
         }
         #endregion
 
+        #region TracingContext Members
+        /// <summary>
+        /// Activity Source Name.
+        /// </summary>
+        public static readonly string ActivitySourceName = "Opc.Ua.Server-ActivitySource";
+
+        /// <summary>
+        /// Activity Source static instance.
+        /// </summary>
+        public static ActivitySource ActivitySource => s_activitySource.Value;
+        private static readonly Lazy<ActivitySource> s_activitySource = new Lazy<ActivitySource>(() => new ActivitySource(ActivitySourceName, "1.0.0"));
+
+        /// <summary>
+        /// Tries to extract the trace details from the AdditionalParametersType.
+        /// </summary>
+        public static bool TryExtractActivityContextFromParameters(AdditionalParametersType parameters, out ActivityContext activityContext)
+        {
+            if (parameters == null)
+            {
+                activityContext = default;
+                return false;
+            }
+
+            ActivityTraceId traceId = default;
+            ActivitySpanId spanId = default;
+            ActivityTraceFlags traceFlags = ActivityTraceFlags.None;
+
+            foreach (var item in parameters.Parameters)
+            {
+                if (item.Key == "traceparent")
+                {
+                    var traceparent = item.Value.ToString();
+                    int firstDash = traceparent.IndexOf('-');
+                    int secondDash = traceparent.IndexOf('-', firstDash + 1);
+                    int thirdDash = traceparent.IndexOf('-', secondDash + 1);
+
+                    if (firstDash != -1 && secondDash != -1)
+                    {
+                        ReadOnlySpan<char> traceIdSpan = traceparent.AsSpan(firstDash + 1, secondDash - firstDash - 1);
+                        ReadOnlySpan<char> spanIdSpan = traceparent.AsSpan(secondDash + 1, thirdDash - secondDash - 1);
+                        ReadOnlySpan<char> traceFlagsSpan = traceparent.AsSpan(thirdDash + 1);
+
+                        traceId = ActivityTraceId.CreateFromString(traceIdSpan);
+                        spanId = ActivitySpanId.CreateFromString(spanIdSpan);
+                        traceFlags = traceFlagsSpan.SequenceEqual("01".AsSpan()) ? ActivityTraceFlags.Recorded : ActivityTraceFlags.None;
+
+                        activityContext = new ActivityContext(traceId, spanId, traceFlags);
+                        return true;
+                    }
+                    activityContext = default;
+                    return false;
+                }
+            }
+
+            // no traceparent header found
+            activityContext = default;
+            return false;
+        }
+        #endregion
+
         #region Public Methods
         /// <summary>
         /// Dispatches an incoming binary encoded request.
@@ -240,12 +301,12 @@ namespace Opc.Ua
         /// <summary>
         /// Dispatches an incoming binary encoded request.
         /// </summary>
-        public virtual IAsyncResult BeginInvokeService(InvokeServiceMessage message, AsyncCallback callack, object callbackData)
+        public virtual IAsyncResult BeginInvokeService(InvokeServiceMessage request, AsyncCallback callback, object asyncState)
         {
             try
             {
                 // check for bad data.
-                if (message == null)
+                if (request == null)
                 {
                     throw new ServiceResultException(StatusCodes.BadInvalidArgument);
                 }
@@ -254,8 +315,8 @@ namespace Opc.Ua
                 SetRequestContext(RequestEncoding.Binary);
 
                 // create handler.
-                ProcessRequestAsyncResult result = new ProcessRequestAsyncResult(this, callack, callbackData, 0);
-                return result.BeginProcessRequest(SecureChannelContext.Current, message.InvokeServiceRequest);
+                ProcessRequestAsyncResult result = new ProcessRequestAsyncResult(this, callback, asyncState, 0);
+                return result.BeginProcessRequest(SecureChannelContext.Current, request.InvokeServiceRequest);
             }
             catch (Exception e)
             {
@@ -266,13 +327,13 @@ namespace Opc.Ua
         /// <summary>
         /// Dispatches an incoming binary encoded request.
         /// </summary>
-        /// <param name="ar">The async result.</param>
-        public virtual InvokeServiceResponseMessage EndInvokeService(IAsyncResult ar)
+        /// <param name="result">The async result.</param>
+        public virtual InvokeServiceResponseMessage EndInvokeService(IAsyncResult result)
         {
             try
             {
                 // wait for the response.
-                IServiceResponse response = ProcessRequestAsyncResult.WaitForComplete(ar, false);
+                IServiceResponse response = ProcessRequestAsyncResult.WaitForComplete(result, false);
 
                 // encode the response.
                 InvokeServiceResponseMessage outgoing = new InvokeServiceResponseMessage();
@@ -282,7 +343,7 @@ namespace Opc.Ua
             catch (Exception e)
             {
                 // create fault.
-                ServiceFault fault = CreateFault(ProcessRequestAsyncResult.GetRequest(ar), e);
+                ServiceFault fault = CreateFault(ProcessRequestAsyncResult.GetRequest(result), e);
 
                 // encode the fault as a response.
                 InvokeServiceResponseMessage outgoing = new InvokeServiceResponseMessage();
@@ -414,9 +475,8 @@ namespace Opc.Ua
 
             ServiceResult result = null;
 
-            ServiceResultException sre = exception as ServiceResultException;
 
-            if (sre != null)
+            if (exception is ServiceResultException sre)
             {
                 result = new ServiceResult(sre);
                 Utils.LogWarning("SERVER - Service Fault Occurred. Reason={0}", result.StatusCode);
@@ -785,9 +845,7 @@ namespace Opc.Ua
             /// <returns>The response.</returns>
             public static IServiceResponse WaitForComplete(IAsyncResult ar, bool throwOnError)
             {
-                ProcessRequestAsyncResult result = ar as ProcessRequestAsyncResult;
-
-                if (result == null)
+                if (!(ar is ProcessRequestAsyncResult result))
                 {
                     throw new ArgumentException("End called with an invalid IAsyncResult object.", nameof(ar));
                 }
@@ -815,9 +873,7 @@ namespace Opc.Ua
             /// <returns>The request object if available; otherwise null.</returns>
             public static IServiceRequest GetRequest(IAsyncResult ar)
             {
-                ProcessRequestAsyncResult result = ar as ProcessRequestAsyncResult;
-
-                if (result != null)
+                if (ar is ProcessRequestAsyncResult result)
                 {
                     return result.m_request;
                 }
@@ -831,7 +887,7 @@ namespace Opc.Ua
             /// Saves an exception as response.
             /// </summary>
             /// <param name="e">The exception.</param>
-            private IServiceResponse SaveExceptionAsResponse(Exception e)
+            private ServiceFault SaveExceptionAsResponse(Exception e)
             {
                 try
                 {
@@ -853,8 +909,29 @@ namespace Opc.Ua
                     // set the context.
                     SecureChannelContext.Current = m_context;
 
-                    // call the service.
-                    m_response = m_service.Invoke(m_request);
+                    if (ActivitySource.HasListeners())
+                    {
+                        // extract trace information from the request header if available
+                        if (m_request.RequestHeader?.AdditionalHeader?.Body is AdditionalParametersType parameters &&
+                            TryExtractActivityContextFromParameters(parameters, out var activityContext))
+                        {
+                            using (var activity = ActivitySource.StartActivity(m_request.GetType().Name, ActivityKind.Server, activityContext))
+                            {
+                                // call the service.
+                                m_response = m_service.Invoke(m_request);
+                            }
+                        }
+                        else
+                        {
+                            // call the service even when there is no trace information
+                            m_response = m_service.Invoke(m_request);
+                        }
+                    }
+                    else
+                    {
+                        // no listener, directly call the service.
+                        m_response = m_service.Invoke(m_request);
+                    }
                 }
                 catch (Exception e)
                 {

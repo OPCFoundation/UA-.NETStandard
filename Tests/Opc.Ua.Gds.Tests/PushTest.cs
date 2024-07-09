@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
@@ -42,6 +41,8 @@ using Opc.Ua.Gds.Server;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Test;
 using OpcUa = Opc.Ua;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -83,7 +84,7 @@ namespace Opc.Ua.Gds.Tests
             RegisterPushServerApplication(m_pushClient.PushClient.EndpointUrl);
 
             m_selfSignedServerCert = new X509Certificate2(m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
-            m_domainNames = X509Utils.GetDomainsFromCertficate(m_selfSignedServerCert).ToArray();
+            m_domainNames = X509Utils.GetDomainsFromCertificate(m_selfSignedServerCert).ToArray();
 
             await CreateCATestCerts(m_pushClient.TempStorePath).ConfigureAwait(false);
         }
@@ -228,7 +229,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.AreEqual(afterAddTrustList.TrustedCrls.Count, beforeTrustList.TrustedCrls.Count);
             Assert.IsFalse(Utils.IsEqual(beforeTrustList, afterAddTrustList));
             var serviceResultException = Assert.Throws<ServiceResultException>(() => { m_pushClient.PushClient.RemoveCertificate(m_caCert.Thumbprint, false); });
-            Assert.AreEqual(StatusCodes.BadInvalidArgument, serviceResultException.StatusCode, serviceResultException.Message);
+            Assert.AreEqual((StatusCode)StatusCodes.BadInvalidArgument, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
             TrustListDataType afterRemoveTrustList = m_pushClient.PushClient.ReadTrustList();
             Assert.IsFalse(Utils.IsEqual(beforeTrustList, afterRemoveTrustList));
             m_pushClient.PushClient.RemoveCertificate(m_caCert.Thumbprint, true);
@@ -408,6 +409,9 @@ namespace Opc.Ua.Gds.Tests
             byte[] privateKey = null;
             byte[] certificate = null;
             byte[][] issuerCertificates = null;
+
+            Thread.Sleep(1000);
+
             DateTime now = DateTime.UtcNow;
             do
             {
@@ -473,7 +477,7 @@ namespace Opc.Ua.Gds.Tests
             var keyFormats = m_pushClient.PushClient.GetSupportedKeyFormats();
             if (!keyFormats.Contains(keyFormat))
             {
-                Assert.Ignore("Push server doesn't support {0} key update", keyFormat);
+                Assert.Ignore($"Push server doesn't support {keyFormat} key update");
             }
 
             X509Certificate2 newCert = CertificateFactory.CreateCertificate(
@@ -495,7 +499,7 @@ namespace Opc.Ua.Gds.Tests
             }
             else
             {
-                Assert.Fail("Testing unsupported key format {0}.", keyFormat);
+                Assert.Fail($"Testing unsupported key format {keyFormat}.");
             }
 
             var success = m_pushClient.PushClient.UpdateCertificate(
@@ -531,7 +535,7 @@ namespace Opc.Ua.Gds.Tests
             var keyFormats = m_pushClient.PushClient.GetSupportedKeyFormats();
             if (!keyFormats.Contains(keyFormat))
             {
-                Assert.Ignore("Push server doesn't support {0} key update", keyFormat);
+                Assert.Ignore($"Push server doesn't support {keyFormat} key update");
             }
 
             NodeId requestId = m_gdsClient.GDSClient.StartNewKeyPairRequest(
@@ -599,6 +603,25 @@ namespace Opc.Ua.Gds.Tests
             Assert.NotNull(collection);
         }
 
+        [Test, Order(610)]
+        public void GetCertificates()
+        {
+            ConnectPushClient(true);
+
+            Assert.That(() => {
+                m_pushClient.PushClient.GetCertificates(null, out var _, out var _);
+            }, Throws.Exception);
+
+            m_pushClient.PushClient.GetCertificates(m_pushClient.PushClient.DefaultApplicationGroup, out NodeId[] certificateTypeIds, out byte[][] certificates);
+            
+            Assert.That(certificateTypeIds.Length == 1);
+            Assert.NotNull(certificates[0]);
+            using (var x509 = new X509Certificate2(certificates[0]))
+            {
+                Assert.NotNull(x509);
+            }
+        }
+
         [Test, Order(700)]
         public void ApplyChanges()
         {
@@ -612,6 +635,7 @@ namespace Opc.Ua.Gds.Tests
             ConnectPushClient(false);
             Assert.That(() => { m_pushClient.PushClient.ApplyChanges(); }, Throws.Exception);
             Assert.That(() => { m_pushClient.PushClient.GetRejectedList(); }, Throws.Exception);
+            Assert.That(() => { m_pushClient.PushClient.GetCertificates(null, out _, out _); }, Throws.Exception);
             Assert.That(() => { m_pushClient.PushClient.UpdateCertificate(null, null, m_selfSignedServerCert.RawData, null, null, null); }, Throws.Exception);
             Assert.That(() => { m_pushClient.PushClient.CreateSigningRequest(null, null, null, false, null); }, Throws.Exception);
             Assert.That(() => { m_pushClient.PushClient.ReadTrustList(); }, Throws.Exception);
@@ -797,16 +821,12 @@ namespace Opc.Ua.Gds.Tests
                 var storeCrls = await store.EnumerateCRLs().ConfigureAwait(false);
                 foreach (var crl in storeCrls)
                 {
-                    if (!updatedCrls.Contains(crl))
+                    if (!updatedCrls.Remove(crl))
                     {
                         if (!await store.DeleteCRL(crl).ConfigureAwait(false))
                         {
                             result = false;
                         }
-                    }
-                    else
-                    {
-                        updatedCrls.Remove(crl);
                     }
                 }
                 foreach (var crl in updatedCrls)
@@ -873,11 +893,11 @@ namespace Opc.Ua.Gds.Tests
             Assert.IsTrue(EraseStore(tempStorePath));
 
             string subjectName = "CN=CA Test Cert, O=OPC Foundation";
-            X509Certificate2 newCACert = CertificateFactory.CreateCertificate(
+            X509Certificate2 newCACert = await CertificateFactory.CreateCertificate(
                 null, null, subjectName, null)
                 .SetCAConstraint()
                 .CreateForRSA()
-                .AddToStore(CertificateStoreType.Directory, tempStorePath);
+                .AddToStoreAsync(CertificateStoreType.Directory, tempStorePath).ConfigureAwait(false);
 
             m_caCert = newCACert;
 

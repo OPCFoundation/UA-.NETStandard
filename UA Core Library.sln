@@ -83,6 +83,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Libraries", "Libraries", "{
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Stack", "Stack", "{12710D16-90C2-44B1-8B62-8046C1023055}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "actions", "actions", "{82AA8918-FD9F-4477-A131-874673BDC3B9}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\buildandtest.yml = .github\workflows\buildandtest.yml
+		.github\workflows\codeql-analysis.yml = .github\workflows\codeql-analysis.yml
+		.github\workflows\docker-image.yml = .github\workflows\docker-image.yml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -191,6 +198,7 @@ Global
 		{D9985EA3-0A0F-4552-8BFA-65E282EFC6EA} = {DDDC86D8-79F7-488B-B445-AD176FAE1603}
 		{FC588507-282A-426E-8BC9-940860C76610} = {DDDC86D8-79F7-488B-B445-AD176FAE1603}
 		{9FC5C47D-5070-4222-B4F4-94EB495AEE4C} = {EE37EB25-F581-4794-9CAC-F15BF13D520C}
+		{82AA8918-FD9F-4477-A131-874673BDC3B9} = {0152A569-8287-4E49-9F02-E27FD700B719}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {EA3AA3AE-CE8A-4DF1-BED8-CA0BAFC87303}

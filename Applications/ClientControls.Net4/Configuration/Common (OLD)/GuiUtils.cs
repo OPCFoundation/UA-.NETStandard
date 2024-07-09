@@ -263,7 +263,7 @@ namespace Opc.Ua.Client.Controls
                 buffer.AppendFormat("Valid From: {0}\r\n", certificate.NotBefore);
                 buffer.AppendFormat("Valid To: {0}\r\n", certificate.NotAfter);
                 buffer.AppendFormat("Thumbprint: {0}\r\n\r\n", certificate.Thumbprint);
-                var domains = X509Utils.GetDomainsFromCertficate(certificate);
+                var domains = X509Utils.GetDomainsFromCertificate(certificate);
                 if (domains.Count > 0)
                 {
                     bool comma = false;

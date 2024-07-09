@@ -32,7 +32,7 @@ using System;
 namespace Opc.Ua.PubSub.PublishedData
 {
     /// <summary>
-    /// Entity that holds DataSet structure that is published/received bu the PubSub
+    /// Entity that holds DataSet structure that is published/received by the PubSub
     /// </summary>
     public class DataSet : ICloneable
     {

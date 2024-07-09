@@ -3,7 +3,7 @@
   <PublishedDataSets></PublishedDataSets>
   <Connections>
     <PubSubConnectionDataType>
-      <Name>UADPConection1</Name>
+      <Name>UADPConnection1</Name>
       <Enabled>true</Enabled>
       <PublisherId>
         <Value>
@@ -7950,7 +7950,7 @@
       </ReaderGroups>
     </PubSubConnectionDataType>
     <PubSubConnectionDataType>
-      <Name>UADPConection2</Name>
+      <Name>UADPConnection2</Name>
       <Enabled>true</Enabled>
       <PublisherId>
         <Value>
@@ -15897,7 +15897,7 @@
       </ReaderGroups>
     </PubSubConnectionDataType>
     <PubSubConnectionDataType>
-      <Name>MqttJsonConection1</Name>
+      <Name>MqttJsonConnection1</Name>
       <Enabled>true</Enabled>
       <PublisherId>
         <Value>

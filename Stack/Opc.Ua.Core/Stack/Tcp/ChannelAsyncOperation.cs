@@ -248,7 +248,7 @@ namespace Opc.Ua.Bindings
                         }
                         else
                         {
-                            m_tcs.TrySetCanceled();
+                            m_tcs.TrySetCanceled(ct);
                             badRequestInterrupted = true;
                         }
                     }
@@ -311,7 +311,12 @@ namespace Opc.Ua.Bindings
                 }
             }
         }
-#endregion
+
+        /// <summary>
+        /// Return the result of the operation.
+        /// </summary>
+        public ServiceResult Error => m_error ?? ServiceResult.Good;
+        #endregion
 
         #region IAsyncResult Members
         /// <summary cref="IAsyncResult.AsyncState" />
@@ -421,19 +426,20 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            if (m_callback != null)
+            AsyncCallback callback = m_callback;
+            if (callback != null)
             {
                 if (doNotBlock)
                 {
                     Task.Run(() => {
-                        m_callback(this);
+                        callback(this);
                     });
                 }
                 else
                 {
                     try
                     {
-                        m_callback(this);
+                        callback(this);
                     }
                     catch (Exception e)
                     {
@@ -447,7 +453,7 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private AsyncCallback m_callback;
         private object m_asyncState;
         private bool m_synchronous;

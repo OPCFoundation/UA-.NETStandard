@@ -30,7 +30,7 @@
       <StorePath>%CommonApplicationData%\OPC Foundation\pki\trusted</StorePath>
     </TrustedPeerCertificates>
 
-    <!-- The directory used to store invalid certficates for later review by the administrator. -->
+    <!-- The directory used to store invalid certificates for later review by the administrator. -->
     <RejectedCertificateStore>
       <StoreType>Directory</StoreType>
       <StorePath>%CommonApplicationData%\OPC Foundation\pki\rejected</StorePath>
@@ -40,9 +40,9 @@
     for easy debugging purposes ONLY and turned off for production deployments! -->
     <AutoAcceptUntrustedCertificates>false</AutoAcceptUntrustedCertificates>
 
-    <!-- WARNING: SHA1 signed certficates are by default rejected and should be phased out. 
-    The setting below to allow them is only required for UACTT (1.02.336.244) which uses SHA-1 signed certs. -->
-    <RejectSHA1SignedCertificates>false</RejectSHA1SignedCertificates>
+    <!-- WARNING: SHA1 signed certificates are by default rejected and should be phased out. 
+       only nano and embedded profiles are allowed to use sha1 signed certificates. -->
+    <RejectSHA1SignedCertificates>true</RejectSHA1SignedCertificates>
     <RejectUnknownRevocationStatus>true</RejectUnknownRevocationStatus>
     <MinimumCertificateKeySize>2048</MinimumCertificateKeySize>
     <AddAppCertToTrustedStore>false</AddAppCertToTrustedStore>
@@ -63,13 +63,13 @@
 
   <TransportConfigurations></TransportConfigurations>
   <TransportQuotas>
-    <OperationTimeout>600000</OperationTimeout>
+    <OperationTimeout>120000</OperationTimeout>
     <MaxStringLength>1048576</MaxStringLength>
     <MaxByteStringLength>1048576</MaxByteStringLength>
     <MaxArrayLength>65535</MaxArrayLength>
     <MaxMessageSize>4194304</MaxMessageSize>
     <MaxBufferSize>65535</MaxBufferSize>
-    <ChannelLifetime>300000</ChannelLifetime>
+    <ChannelLifetime>30000</ChannelLifetime>
     <SecurityTokenLifetime>3600000</SecurityTokenLifetime>
   </TransportQuotas>
   <ServerConfiguration>
@@ -90,14 +90,14 @@
     -->
     <!--
     <AlternateBaseAddresses>
-      <ua:String>http://AlternateHostName/Quickstarts/ReferenceServer</ua:String>
-      <ua:String>http://10.10.103.150/Quickstarts/ReferenceServer</ua:String>
-      <ua:String>http://[2a01::626d]/Quickstarts/ReferenceServer</ua:String>
+      <ua:String>opc.tcp://AlternateHostName/Quickstarts/ReferenceServer</ua:String>
+      <ua:String>opc.tcp://10.10.103.150/Quickstarts/ReferenceServer</ua:String>
+      <ua:String>opc.tcp://[2a01::626d]/Quickstarts/ReferenceServer</ua:String>
     </AlternateBaseAddresses>
     -->
     <SecurityPolicies>
       <ServerSecurityPolicy>
-        <SecurityMode>Sign_2</SecurityMode>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
@@ -105,8 +105,12 @@
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</SecurityPolicyUri>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
+        <SecurityMode>Sign_2</SecurityMode>
+        <SecurityPolicyUri></SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+        <SecurityPolicyUri></SecurityPolicyUri>
       </ServerSecurityPolicy>
       <!-- deprecated security policies for reference only 
       <ServerSecurityPolicy>
@@ -126,30 +130,6 @@
           <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
       </ServerSecurityPolicy>
       -->
-      <ServerSecurityPolicy>
-        <SecurityMode>Sign_2</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep</SecurityPolicyUri>
-      </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
-        <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep</SecurityPolicyUri>
-      </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
-        <SecurityMode>Sign_2</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss</SecurityPolicyUri>
-      </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
-        <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss</SecurityPolicyUri>
-      </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
-        <SecurityMode>Sign_2</SecurityMode>
-        <SecurityPolicyUri></SecurityPolicyUri>
-      </ServerSecurityPolicy>
-      <ServerSecurityPolicy>
-        <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri></SecurityPolicyUri>
-      </ServerSecurityPolicy>
     </SecurityPolicies>
 
     <MinRequestThreadCount>5</MinRequestThreadCount>
@@ -180,7 +160,9 @@
     </UserTokenPolicies>
 
     <DiagnosticsEnabled>true</DiagnosticsEnabled>
-    <MaxSessionCount>100</MaxSessionCount>
+    <!-- Settings for CTT testing -->
+    <MaxSessionCount>75</MaxSessionCount>
+    <MaxChannelCount>1000</MaxChannelCount>
     <MinSessionTimeout>10000</MinSessionTimeout>
     <MaxSessionTimeout>3600000</MaxSessionTimeout>
     <MaxBrowseContinuationPoints>10</MaxBrowseContinuationPoints>
@@ -244,6 +226,8 @@
       <ua:String>http://opcfoundation.org/UA-Profile/Server/StandardUA2017</ua:String>
       <ua:String>http://opcfoundation.org/UA-Profile/Server/DataAccess</ua:String>
       <ua:String>http://opcfoundation.org/UA-Profile/Server/Methods</ua:String>
+      <ua:String>http://opcfoundation.org/UA-Profile/Server/ReverseConnect</ua:String>
+      <ua:String>http://opcfoundation.org/UA-Profile/Server/ClientRedundancy</ua:String>
     </ServerProfileArray>
 
     <ShutdownDelay>5</ShutdownDelay>
@@ -256,14 +240,35 @@
     </SupportedPrivateKeyFormats>
     <MaxTrustListSize>0</MaxTrustListSize>
     <MultiCastDnsEnabled>false</MultiCastDnsEnabled>
+
+    <!--  Reverse connection parameters for aggregation server sample -->
+    <!--
+    <ReverseConnect>
+      <Clients>
+        <ReverseConnectClient>
+          <EndpointUrl>opc.tcp://localhost:65300</EndpointUrl>
+          <MaxSessionCount>0</MaxSessionCount>
+          <Enabled>true</Enabled>
+        </ReverseConnectClient>
+      </Clients>
+      <ConnectInterval>15000</ConnectInterval>
+      <ConnectTimeout>30000</ConnectTimeout>
+      <RejectTimeout>60000</RejectTimeout>
+    </ReverseConnect>
+    -->
+
     <OperationLimits>
-      <MaxNodesPerRead>1000</MaxNodesPerRead>
-      <MaxNodesPerWrite>1000</MaxNodesPerWrite>
-      <MaxNodesPerMethodCall>250</MaxNodesPerMethodCall>
+      <MaxNodesPerRead>2500</MaxNodesPerRead>
+      <MaxNodesPerHistoryReadData>1000</MaxNodesPerHistoryReadData>
+      <MaxNodesPerWrite>2500</MaxNodesPerWrite>
+      <MaxNodesPerMethodCall>2500</MaxNodesPerMethodCall>
       <MaxNodesPerBrowse>2500</MaxNodesPerBrowse>
-      <MaxNodesPerTranslateBrowsePathsToNodeIds>1000</MaxNodesPerTranslateBrowsePathsToNodeIds>
-      <MaxMonitoredItemsPerCall>1000</MaxMonitoredItemsPerCall>
+      <MaxNodesPerRegisterNodes>2500</MaxNodesPerRegisterNodes>
+      <MaxNodesPerTranslateBrowsePathsToNodeIds>2500</MaxNodesPerTranslateBrowsePathsToNodeIds>
+      <MaxNodesPerNodeManagement>2500</MaxNodesPerNodeManagement>
+      <MaxMonitoredItemsPerCall>2500</MaxMonitoredItemsPerCall>
     </OperationLimits>
+
     <AuditingEnabled>true</AuditingEnabled>
   </ServerConfiguration>
 

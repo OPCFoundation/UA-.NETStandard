@@ -63,6 +63,11 @@ namespace Opc.Ua
             Set(value, typeInfo);
 
 #if DEBUG
+            // no sanity check possible for null values
+            if (m_value == null)
+            {
+                return;
+            }
 
             TypeInfo sanityCheck = TypeInfo.Construct(m_value);
 
@@ -747,7 +752,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Initializes the object with a object array value.
+        /// Initializes the object with an object array value.
         /// </summary>
         /// <remarks>
         /// Creates a new variant with a <see cref="object"/>-array value
@@ -910,9 +915,8 @@ namespace Opc.Ua
             }
 
             // recusrively write individual elements of an array.
-            Array array = value as Array;
 
-            if (array != null && m_typeInfo.ValueRank <= 1)
+            if (value is Array array && m_typeInfo.ValueRank <= 1)
             {
                 buffer.Append('{');
 
@@ -1524,10 +1528,10 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts a object[] value to an Variant object.
+        /// Converts an object[] value to an Variant object.
         /// </summary>
         /// <remarks>
-        /// Converts a object[] value to an Variant object.
+        /// Converts an object[] value to an Variant object.
         /// </remarks>
         public static implicit operator Variant(object[] value)
         {
@@ -2241,10 +2245,10 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Initializes the object with a object array value.
+        /// Initializes the object with an object array value.
         /// </summary>
         /// <remarks>
-        /// Initializes the object with a <see cref="object"/>-array value.
+        /// Initializes the object with an <see cref="object"/>-array value.
         /// </remarks>
         /// <param name="value">The <see cref="object"/>-array value to set this Variant to</param>
         public void Set(object[] value)
@@ -2288,9 +2292,8 @@ namespace Opc.Ua
                     }
 
                     // check for matrix
-                    Matrix matrix = value as Matrix;
 
-                    if (matrix != null)
+                    if (value is Matrix matrix)
                     {
                         m_value = matrix;
                         return;
@@ -2320,9 +2323,7 @@ namespace Opc.Ua
                 // convert encodeables to extension objects.
                 case BuiltInType.ExtensionObject:
                 {
-                    IEncodeable encodeable = value as IEncodeable;
-
-                    if (encodeable != null)
+                    if (value is IEncodeable encodeable)
                     {
                         m_value = new ExtensionObject(encodeable);
                         return;
@@ -2350,7 +2351,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Stores a on dimensional arrau value in the variant.
+        /// Stores a on dimensional array value in the variant.
         /// </summary>
         private void SetArray(Array array, TypeInfo typeInfo)
         {
@@ -2384,9 +2385,7 @@ namespace Opc.Ua
                 // convert Guids to Uuids.
                 case BuiltInType.Guid:
                 {
-                    Guid[] guids = array as Guid[];
-
-                    if (guids != null)
+                    if (array is Guid[] guids)
                     {
                         Set(guids);
                         return;
@@ -2399,9 +2398,7 @@ namespace Opc.Ua
                 // convert encodeables to extension objects.
                 case BuiltInType.ExtensionObject:
                 {
-                    IEncodeable[] encodeables = array as IEncodeable[];
-
-                    if (encodeables != null)
+                    if (array is IEncodeable[] encodeables)
                     {
                         ExtensionObject[] extensions = new ExtensionObject[encodeables.Length];
 
@@ -2421,9 +2418,7 @@ namespace Opc.Ua
                 // convert objects to variants objects.
                 case BuiltInType.Variant:
                 {
-                    object[] objects = array as object[];
-
-                    if (objects != null)
+                    if (array is object[] objects)
                     {
                         Variant[] variants = new Variant[objects.Length];
 
@@ -2462,9 +2457,7 @@ namespace Opc.Ua
             {
                 if (typeInfo.BuiltInType == BuiltInType.ExtensionObject)
                 {
-                    IEncodeable encodeable = value[ii] as IEncodeable;
-
-                    if (encodeable != null)
+                    if (value[ii] is IEncodeable encodeable)
                     {
                         array.SetValue(new ExtensionObject(encodeable), ii);
                         continue;
@@ -2510,9 +2503,8 @@ namespace Opc.Ua
                 }
 
                 // handle lists.
-                IList list = value as IList;
 
-                if (list != null)
+                if (value is IList list)
                 {
                     SetList(list, typeInfo);
                     return;
@@ -2528,9 +2520,8 @@ namespace Opc.Ua
             }
 
             // handle matrix.
-            Matrix matrix = value as Matrix;
 
-            if (matrix != null)
+            if (value is Matrix matrix)
             {
                 m_value = matrix;
                 m_typeInfo = matrix.TypeInfo;

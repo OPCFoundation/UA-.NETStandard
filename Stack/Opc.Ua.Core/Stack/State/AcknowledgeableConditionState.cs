@@ -150,7 +150,7 @@ namespace Opc.Ua
             {
                 AcknowledgeableConditionState branch = GetAcknowledgeableBranch(eventId);
 
-                if ( branch != null )
+                if (branch != null)
                 {
                     branch.OnAcknowledgeCalled(context, method, objectId, eventId, comment);
 
@@ -159,7 +159,7 @@ namespace Opc.Ua
                         ReplaceBranchEvent(eventId, branch);
                     }
                     else
-                    { 
+                    {
                         RemoveBranchEvent(eventId);
                     }
                 }
@@ -242,7 +242,7 @@ namespace Opc.Ua
             {
                 return StatusCodes.BadConditionDisabled;
             }
-            
+
             if (OnAcknowledge != null)
             {
                 try
@@ -469,12 +469,12 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Determines if a comment should be added on Acknowledgment or Confirm.
+        /// Determines if a comment should be added on Acknowledgement or Confirm.
         /// </summary>
         /// <param name="comment">The client provided comment.</param>
         /// <returns>Boolean stating whether the comment should be set</returns>
         /// <remarks>
-        /// According to the specification for Alarms, the Acknowledgment states that
+        /// According to the specification for Alarms, the Acknowledgement states that
         /// "If the comment field is NULL (both locale and text are empty) it will be
         /// ignored and any existing comments will remain unchanged."
         /// This also applies to the Confirm method, although the spec needs updating
@@ -510,7 +510,7 @@ namespace Opc.Ua
         {
             bool supportsConfirm = false;
 
-            if (this.ConfirmedState != null && this.ConfirmedState.Value != null )
+            if (this.ConfirmedState != null && this.ConfirmedState.Value != null)
             {
                 supportsConfirm = true;
             }
@@ -563,7 +563,7 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    if ( SupportsConfirm() && !this.ConfirmedState.Id.Value)
+                    if (SupportsConfirm() && !this.ConfirmedState.Id.Value)
                     {
                         retainState = true;
                     }

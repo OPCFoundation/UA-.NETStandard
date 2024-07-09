@@ -585,6 +585,73 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <summary>
+        /// Returns the Certificates assigned to Application and associated with the CertificateGroup.
+        /// </summary>
+        /// <param name="applicationId">The identifier assigned to the Application by the GDS.</param>
+        /// <param name="certificateGroupId">An identifier for the CertificateGroup that the Certificates belong to.
+        ///If null, the CertificateManager shall return the Certificates for all CertificateGroups assigned to the Application.</param>
+        /// <param name="certificateTypeIds">The CertificateTypes that currently have a Certificate assigned.
+        /// The length of this list is the same as the length as certificates list.</param>
+        /// <param name="certificates">A list of DER encoded Certificates assigned to Application.
+        /// This list only includes Certificates that are currently valid.</param>
+        public void GetCertificates(
+            NodeId applicationId,
+            NodeId certificateGroupId,
+            out NodeId[] certificateTypeIds,
+            out byte[][] certificates)
+        {
+            certificateTypeIds = Array.Empty<NodeId>();
+            certificates = Array.Empty<byte[]>();
+
+            if (!IsConnected)
+            {
+                Connect();
+            }
+
+            var outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_GetCertificates, Session.NamespaceUris),
+                applicationId,
+                certificateGroupId);
+
+            if (outputArguments.Count >= 2)
+            {
+                certificateTypeIds = outputArguments[0] as NodeId[];
+                certificates = outputArguments[1] as byte[][];
+            }
+        }
+
+        /// <summary>
+        /// Checks the provided certificate for validity
+        /// </summary>
+        /// <param name="certificate">The DER encoded form of the Certificate to check.</param>
+        /// <param name="certificateStatus">The first error encountered when validating the Certificate.</param>
+        /// <param name="validityTime">When the result expires and should be rechecked. DateTime.MinValue if this is unknown.</param>
+        public void CheckRevocationStatus(byte[] certificate,
+            out StatusCode certificateStatus,
+            out DateTime validityTime)
+        {
+            certificateStatus = StatusCodes.Good;
+            validityTime = DateTime.MinValue;
+
+            if (!IsConnected)
+            {
+                Connect();
+            }
+
+            var outputArguments = Session.Call(
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_CheckRevocationStatus, Session.NamespaceUris),
+                certificate);
+
+            if (outputArguments.Count >= 2)
+            {
+                certificateStatus = (StatusCode)outputArguments[0];
+                validityTime = (DateTime)outputArguments[1];
+            }
+        }
+
+        /// <summary>
         /// Updates the application.
         /// </summary>
         /// <param name="application">The application.</param>
@@ -616,6 +683,25 @@ namespace Opc.Ua.Gds.Client
                 ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
                 ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.Directory_UnregisterApplication, Session.NamespaceUris),
                 applicationId);
+        }
+
+        /// <summary>
+        /// Revokes a Certificate issued to the Application by the CertificateManager
+        /// </summary>
+        /// <param name="applicationId">The application id.</param>
+        /// <param name="certificate">The certificate to revoke</param>
+        public void RevokeCertificate(NodeId applicationId, byte[] certificate)
+        {
+            if (!IsConnected)
+            {
+                Connect();
+            }
+
+            Session.Call(
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(Opc.Ua.Gds.MethodIds.CertificateDirectoryType_RevokeCertificate, Session.NamespaceUris),
+                applicationId,
+                certificate);
         }
 
         /// <summary>

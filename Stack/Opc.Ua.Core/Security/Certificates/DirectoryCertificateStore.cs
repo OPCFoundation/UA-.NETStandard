@@ -14,10 +14,12 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua
 {
@@ -102,7 +104,7 @@ namespace Opc.Ua
         {
             lock (m_lock)
             {
-                var trimmedLocation = Utils.ReplaceSpecialFolderNames(location);
+                string trimmedLocation = Utils.ReplaceSpecialFolderNames(location);
                 if (m_directory?.FullName.Equals(trimmedLocation, StringComparison.Ordinal) != true ||
                     NoPrivateKeys != noPrivateKeys)
                 {
@@ -402,9 +404,18 @@ namespace Opc.Ua
                             .Append(Path.DirectorySeparatorChar)
                             .Append(fileRoot);
 
+                        // By default keys are not persisted
+                        X509KeyStorageFlags defaultStorageSet = X509KeyStorageFlags.Exportable;
+#if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER || NET5_0_OR_GREATER
+                        if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                        {
+                            defaultStorageSet |= X509KeyStorageFlags.EphemeralKeySet;
+                        }
+#endif
+
                         X509KeyStorageFlags[] storageFlags = {
-                            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet,
-                            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.UserKeySet
+                            defaultStorageSet | X509KeyStorageFlags.MachineKeySet,
+                            defaultStorageSet | X509KeyStorageFlags.UserKeySet
                         };
 
                         var privateKeyFilePfx = new FileInfo(filePath + kPfxExtension);
@@ -413,7 +424,7 @@ namespace Opc.Ua
                         if (privateKeyFilePfx.Exists)
                         {
                             certificateFound = true;
-                            foreach (var flag in storageFlags)
+                            foreach (X509KeyStorageFlags flag in storageFlags)
                             {
                                 try
                                 {
@@ -469,7 +480,7 @@ namespace Opc.Ua
                 // found a certificate, but some error occurred
                 if (certificateFound)
                 {
-                    Utils.LogError(Utils.TraceMasks.Security, "The private key for the certificate with subject {0} failed to import.", subjectName);
+                    Utils.LogError(Utils.TraceMasks.Security, "The private key for the certificate with subject {0} failed to import.", Redact.Create(subjectName));
                     if (importException != null)
                     {
                         Utils.LogError(importException, "Certificate import failed.");
@@ -710,10 +721,7 @@ namespace Opc.Ua
 
                 if (!NoPrivateKeys)
                 {
-                    if (m_privateKeySubdir != null)
-                    {
-                        m_privateKeySubdir.Refresh();
-                    }
+                    m_privateKeySubdir?.Refresh();
                 }
 
                 // check if store exists.
@@ -751,10 +759,10 @@ namespace Opc.Ua
                         {
                             string fileRoot = file.Name.Substring(0, entry.CertificateFile.Name.Length - entry.CertificateFile.Extension.Length);
 
-                            var filePath = new StringBuilder();
-                            filePath.Append(m_privateKeySubdir.FullName);
-                            filePath.Append(Path.DirectorySeparatorChar);
-                            filePath.Append(fileRoot);
+                            var filePath = new StringBuilder()
+                                .Append(m_privateKeySubdir.FullName)
+                                .Append(Path.DirectorySeparatorChar)
+                                .Append(fileRoot);
 
                             // check for PFX file.
                             entry.PrivateKeyFile = new FileInfo(filePath.ToString() + kPfxExtension);
@@ -820,7 +828,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the file name to use for the certificate.
         /// </summary>
-        private string GetFileName(X509Certificate2 certificate)
+        private static string GetFileName(X509Certificate2 certificate)
         {
             // build file name.
             string commonName = certificate.FriendlyName;
@@ -931,7 +939,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private bool m_noSubDirs;
         private DirectoryInfo m_directory;
         private DirectoryInfo m_certificateSubdir;

@@ -74,6 +74,7 @@ namespace Quickstarts
         /// </summary>
         public void Dispose()
         {
+            m_disposed = true;
             Utils.SilentDispose(m_session);
             m_configuration.CertificateValidator.CertificateValidation -= CertificateValidation;
             GC.SuppressFinalize(this);
@@ -99,7 +100,7 @@ namespace Quickstarts
         /// <summary>
         /// The reconnect period to be used in ms.
         /// </summary>
-        public int ReconnectPeriod { get; set; } = 5000;
+        public int ReconnectPeriod { get; set; } = 1000;
 
         /// <summary>
         /// The reconnect period exponential backoff to be used in ms.
@@ -133,6 +134,7 @@ namespace Quickstarts
         /// </summary>
         public async Task<bool> ConnectAsync(string serverUrl, bool useSecurity = true, CancellationToken ct = default)
         {
+            if (m_disposed) throw new ObjectDisposedException(nameof(UAClient));
             if (serverUrl == null) throw new ArgumentNullException(nameof(serverUrl));
 
             try
@@ -178,11 +180,7 @@ namespace Quickstarts
                     EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_configuration);
                     ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
-#if NET6_0_OR_GREATER
                     var sessionFactory = TraceableSessionFactory.Instance;
-#else
-                    var sessionFactory = DefaultSessionFactory.Instance;
-#endif
 
                     // Create the session
                     var session = await sessionFactory.CreateAsync(
@@ -194,7 +192,8 @@ namespace Quickstarts
                         m_configuration.ApplicationName,
                         SessionLifeTime,
                         UserIdentity,
-                        null
+                        null,
+                        ct
                     ).ConfigureAwait(false);
 
                     // Assign the created session
@@ -233,7 +232,8 @@ namespace Quickstarts
         /// <summary>
         /// Disconnects the session.
         /// </summary>
-        public void Disconnect()
+        /// <param name="leaveChannelOpen">Leaves the channel open.</param>
+        public void Disconnect(bool leaveChannelOpen = false)
         {
             try
             {
@@ -248,7 +248,12 @@ namespace Quickstarts
                         m_reconnectHandler = null;
                     }
 
-                    m_session.Close();
+                    m_session.Close(!leaveChannelOpen);
+                    if (leaveChannelOpen)
+                    {
+                        // detach the channel, so it doesn't get closed when the session is disposed.
+                        m_session.DetachChannel();
+                    }
                     m_session.Dispose();
                     m_session = null;
 
@@ -274,7 +279,7 @@ namespace Quickstarts
             try
             {
                 // check for events from discarded sessions.
-                if (!Object.ReferenceEquals(session, m_session))
+                if (!m_session.Equals(session))
                 {
                     return;
                 }
@@ -297,6 +302,9 @@ namespace Quickstarts
                     {
                         Utils.LogInfo("KeepAlive status {0}, reconnect status {1}.", e.Status, state);
                     }
+
+                    // cancel sending a new keep alive request, because reconnect is triggered.
+                    e.CancelKeepAlive = true;
 
                     return;
                 }
@@ -380,13 +388,14 @@ namespace Quickstarts
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private ReverseConnectManager m_reverseConnectManager;
         private ApplicationConfiguration m_configuration;
         private SessionReconnectHandler m_reconnectHandler;
         private ISession m_session;
         private readonly TextWriter m_output;
         private readonly Action<IList, IList> m_validateResponse;
+        private bool m_disposed = false;
         #endregion
     }
 }

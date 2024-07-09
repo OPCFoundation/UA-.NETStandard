@@ -125,7 +125,6 @@ namespace Opc.Ua
         /// <param name="unboundTypeIds">A dictionary of unbound typeIds, e.g. JSON type ids referenced by object name.</param>
         private void AddEncodeableType(Type systemType, Dictionary<string, ExpandedNodeId> unboundTypeIds)
         {
-
             if (systemType == null)
             {
                 return;
@@ -136,9 +135,8 @@ namespace Opc.Ua
                 return;
             }
 
-            IEncodeable encodeable = Activator.CreateInstance(systemType) as IEncodeable;
 
-            if (encodeable == null)
+            if (!(Activator.CreateInstance(systemType) is IEncodeable encodeable))
             {
                 return;
             }
@@ -261,9 +259,7 @@ namespace Opc.Ua
             {
                 for (int ii = 0; ii < attributes.Length; ii++)
                 {
-                    DataContractAttribute contract = attributes[ii] as DataContractAttribute;
-
-                    if (contract != null)
+                    if (attributes[ii] is DataContractAttribute contract)
                     {
                         if (String.IsNullOrEmpty(contract.Name))
                         {
@@ -281,9 +277,7 @@ namespace Opc.Ua
             {
                 for (int ii = 0; ii < attributes.Length; ii++)
                 {
-                    CollectionDataContractAttribute contract = attributes[ii] as CollectionDataContractAttribute;
-
-                    if (contract != null)
+                    if (attributes[ii] is CollectionDataContractAttribute contract)
                     {
                         if (String.IsNullOrEmpty(contract.Name))
                         {
@@ -313,9 +307,9 @@ namespace Opc.Ua
         /// <param name="context"></param>
         public static XmlQualifiedName GetXmlName(object value, IServiceMessageContext context)
         {
-            if (value is IDynamicComplexTypeInstance xmlEncodable)
+            if (value is IDynamicComplexTypeInstance xmlEncodeable)
             {
-                var xmlName = xmlEncodable.GetXmlName(context);
+                var xmlName = xmlEncodeable.GetXmlName(context);
                 if (xmlName != null)
                 {
                     return xmlName;
@@ -384,11 +378,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Adds all encodable types exported from an assembly to the factory.
+        /// Adds all encodeable types exported from an assembly to the factory.
         /// </summary>
         /// <remarks>
         /// <para>
-        /// Adds all encodable types exported from an assembly to the factory.
+        /// Adds all encodeable types exported from an assembly to the factory.
         /// <br/></para>
         /// <para>
         /// This method uses reflection on the specified assembly to export all of the
@@ -559,7 +553,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private ReaderWriterLockSlim m_readerWriterLockSlim = new ReaderWriterLockSlim();
+        private readonly ReaderWriterLockSlim m_readerWriterLockSlim = new ReaderWriterLockSlim();
         private Dictionary<ExpandedNodeId, Type> m_encodeableTypes;
         private static EncodeableFactory s_globalFactory = new EncodeableFactory();
 

@@ -92,7 +92,7 @@ namespace Opc.Ua
                     return cachedCertificate;
                 }
 
-                // nothing more to do if no private key or dont care about accessibility.
+                // nothing more to do if no private key or don't care about accessibility.
                 if (!certificate.HasPrivateKey || !ensurePrivateKeyAccessible)
                 {
                     return certificate;
@@ -614,7 +614,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        private static Dictionary<string, X509Certificate2> m_certificates = new Dictionary<string, X509Certificate2>();
-        private static object m_certificatesLock = new object();
+        private static readonly Dictionary<string, X509Certificate2> m_certificates = new Dictionary<string, X509Certificate2>();
+        private static readonly object m_certificatesLock = new object();
     }
 }

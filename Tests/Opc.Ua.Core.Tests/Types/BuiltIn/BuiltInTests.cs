@@ -32,6 +32,8 @@ using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.Test;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 
 namespace Opc.Ua.Core.Tests.Types.BuiltIn
 {
@@ -371,7 +373,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.Throws<ArgumentException>(() => _ = new NodeId((object)(long)7777777, 123));
 
             var sre = Assert.Throws<ServiceResultException>(() => _ = NodeId.Create(123, "urn:xyz", new NamespaceTable()));
-            Assert.AreEqual(StatusCodes.BadNodeIdInvalid, sre.StatusCode);
+            Assert.AreEqual((StatusCode)StatusCodes.BadNodeIdInvalid, (StatusCode)sre.StatusCode);
 
             NodeId opaqueId = new byte[] { 33, 44, 55, 66 };
             NodeId stringId1 = "ns=1;s=Test";
@@ -413,7 +415,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.True(NodeId.IsNull((ExpandedNodeId)null));
             Assert.True(NodeId.IsNull(new ExpandedNodeId(Guid.Empty)));
             Assert.True(NodeId.IsNull(ExpandedNodeId.Null));
-            Assert.True(NodeId.IsNull(new ExpandedNodeId(new byte[0])));
+            Assert.True(NodeId.IsNull(new ExpandedNodeId(Array.Empty<byte>())));
             Assert.True(NodeId.IsNull(new ExpandedNodeId("", 0)));
             Assert.True(NodeId.IsNull(new ExpandedNodeId(0)));
             Assert.False(NodeId.IsNull(new ExpandedNodeId(1)));
@@ -548,7 +550,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         public void NodeIdHashCode()
         {
             // ensure that the hash code is the same for the same node id
-            IList<NodeId> nodeIds = new List<NodeId>();
+            var nodeIds = new List<NodeId>();
 
             // Null NodeIds
             nodeIds.Add(0);
@@ -557,7 +559,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             nodeIds.Add(new NodeId(0));
             nodeIds.Add(new NodeId(Guid.Empty));
             nodeIds.Add(new NodeId(""));
-            nodeIds.Add(new NodeId(new byte[0]));
+            nodeIds.Add(new NodeId(Array.Empty<byte>()));
 
             foreach (NodeId nodeId in nodeIds)
             {
@@ -660,7 +662,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 case Opc.Ua.IdType.Numeric: nodeId = new NodeId(0, 0); break;
                 case Opc.Ua.IdType.String: nodeId = new NodeId(""); break;
                 case Opc.Ua.IdType.Guid: nodeId = new NodeId(Guid.Empty); break;
-                case Opc.Ua.IdType.Opaque: nodeId = new NodeId(new byte[0]); break;
+                case Opc.Ua.IdType.Opaque: nodeId = new NodeId(Array.Empty<byte>()); break;
                 case (Opc.Ua.IdType)100: nodeId = new NodeId((byte[])null); break;
             }
 
@@ -669,14 +671,14 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.AreEqual(nodeId, NodeId.Null);
             Assert.AreEqual(nodeId, new NodeId(0, 0));
             Assert.AreEqual(nodeId, new NodeId(Guid.Empty));
-            Assert.AreEqual(nodeId, new NodeId(new byte[0]));
+            Assert.AreEqual(nodeId, new NodeId(Array.Empty<byte>()));
             Assert.AreEqual(nodeId, new NodeId((byte[])null));
             Assert.AreEqual(nodeId, new NodeId((string)null));
 
             Assert.True(nodeId.Equals(NodeId.Null));
             Assert.True(nodeId.Equals(new NodeId(0, 0)));
             Assert.True(nodeId.Equals(new NodeId(Guid.Empty)));
-            Assert.True(nodeId.Equals(new NodeId(new byte[0])));
+            Assert.True(nodeId.Equals(new NodeId(Array.Empty<byte>())));
             Assert.True(nodeId.Equals(new NodeId((byte[])null)));
             Assert.True(nodeId.Equals(new NodeId((string)null)));
 

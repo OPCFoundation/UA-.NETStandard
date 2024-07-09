@@ -34,6 +34,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Client
 {
@@ -56,7 +57,7 @@ namespace Opc.Ua.Client
             {
                 m_cacheLock.EnterReadLock();
 
-                // check if node alredy exists.
+                // check if node already exists.
                 node = m_nodes.Find(nodeId);
             }
             finally
@@ -80,7 +81,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.LogError("Could not fetch node from server: NodeId={0}, Reason='{1}'.", nodeId, e.Message);
+                Utils.LogError("Could not fetch node from server: NodeId={0}, Reason='{1}'.", nodeId, Redact.Create(e));
                 // m_nodes[nodeId] = null;
                 return null;
             }
@@ -263,7 +264,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.LogError("Could not fetch references for valid node with NodeId = {0}. Error = {1}", nodeId, e.Message);
+                Utils.LogError("Could not fetch references for valid node with NodeId = {0}. Error = {1}", nodeId, Redact.Create(e));
             }
 
             InternalWriteLockedAttach(source);
@@ -438,7 +439,7 @@ namespace Opc.Ua.Client
         public async Task FetchSuperTypesAsync(ExpandedNodeId nodeId, CancellationToken ct)
         {
             // find the target node,
-            ILocalNode source = await FindAsync(nodeId).ConfigureAwait(false) as ILocalNode;
+            ILocalNode source = await FindAsync(nodeId, ct).ConfigureAwait(false) as ILocalNode;
 
             if (source == null)
             {
@@ -456,7 +457,7 @@ namespace Opc.Ua.Client
 
                 if (references != null && references.Count > 0)
                 {
-                    superType = await FindAsync(references[0].TargetId).ConfigureAwait(false) as ILocalNode;
+                    superType = await FindAsync(references[0].TargetId, ct).ConfigureAwait(false) as ILocalNode;
                 }
 
                 subType = superType;

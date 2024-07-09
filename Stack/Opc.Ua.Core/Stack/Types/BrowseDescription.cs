@@ -26,11 +26,11 @@ namespace Opc.Ua
         /// </summary>
         public object Handle
         {
-            get { return m_handle;  }
+            get { return m_handle; }
             set { m_handle = value; }
         }
         #endregion
-                            
+
         #region Private Fields
         private object m_handle;
         #endregion

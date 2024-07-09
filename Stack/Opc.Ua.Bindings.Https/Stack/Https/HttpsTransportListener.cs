@@ -4,6 +4,10 @@
      - GPL V2: everybody else
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
    GNU General Public License as published by the Free Software Foundation;
+   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
+   This source code is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
 using System;
@@ -146,10 +150,11 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region ITransportListener Members
-        /// <summary>
-        /// The URI scheme handled by the listener.
-        /// </summary>
+        /// <inheritdoc/>
         public string UriScheme => m_uriScheme;
+
+        /// <inheritdoc/>
+        public string ListenerId => m_listenerId;
 
         /// <summary>
         /// Opens the listener and starts accepting connection.
@@ -183,6 +188,8 @@ namespace Opc.Ua.Bindings
                     MaxByteStringLength = configuration.MaxByteStringLength,
                     MaxMessageSize = configuration.MaxMessageSize,
                     MaxStringLength = configuration.MaxStringLength,
+                    MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
+                    MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
                     NamespaceUris = settings.NamespaceUris,
                     ServerUris = new StringTable(),
                     Factory = settings.Factory
@@ -222,7 +229,7 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         /// <remarks>
-        /// Reverse connect for the https transport listener is not implemeted.
+        /// Reverse connect for the https transport listener is not implemented.
         /// </remarks>
         public void CreateReverseConnection(Uri url, int timeout)
         {
@@ -232,6 +239,12 @@ namespace Opc.Ua.Bindings
             ConnectionStatusChanged = null;
             ConnectionStatusChanged?.Invoke(null, null);
             throw new NotImplementedException();
+        }
+
+        /// <inheritdoc/>
+        public void UpdateChannelLastActiveTime(string globalChannelId)
+        {
+            // intentionally not implemented
         }
         #endregion
 
@@ -253,7 +266,13 @@ namespace Opc.Ua.Bindings
                 CheckCertificateRevocation = false,
                 ClientCertificateMode = ClientCertificateMode.NoCertificate,
                 // note: this is the TLS certificate!
+#if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
+                // Create a copy of the certificate with the private key on platforms
+                // which default to the ephemeral KeySet.
+                ServerCertificate = X509Utils.CreateCopyWithPrivateKey(m_serverCertificate, false)
+#else
                 ServerCertificate = m_serverCertificate
+#endif
             };
 
 #if NET462
@@ -347,9 +366,9 @@ namespace Opc.Ua.Bindings
                 if (NodeId.IsNull(input.RequestHeader.AuthenticationToken) &&
                     input.TypeId != DataTypeIds.CreateSessionRequest)
                 {
-                    if (context.Request.Headers.ContainsKey(kAuthorizationKey))
+                    if (context.Request.Headers.TryGetValue(kAuthorizationKey, out var keys))
                     {
-                        foreach (string value in context.Request.Headers[kAuthorizationKey])
+                        foreach (string value in keys)
                         {
                             if (value.StartsWith(kBearerKey, StringComparison.OrdinalIgnoreCase))
                             {

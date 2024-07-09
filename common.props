@@ -2,9 +2,9 @@
   <PropertyGroup>
     <Product>OPC UA .NET Standard Library</Product>
     <RepositoryUrl>https://github.com/OPCFoundation/UA-.NETStandard</RepositoryUrl>
-    <VersionPrefix>1.04.368</VersionPrefix>
+    <VersionPrefix>1.05.374</VersionPrefix>
     <VersionSuffix>preview-$([System.DateTime]::Now.ToString("yyyyMMdd"))</VersionSuffix>
-    <Copyright>Copyright © 2004-2023 OPC Foundation, Inc</Copyright>
+    <Copyright>Copyright © 2004-2024 OPC Foundation, Inc</Copyright>
     <Company>OPC Foundation</Company>
     <Authors>OPC Foundation</Authors>
     <NoWarn>NU5125;CA2254;CA1307</NoWarn>
@@ -12,17 +12,23 @@
     <HighEntropyVA>true</HighEntropyVA>
     <IsPackable>false</IsPackable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <!-- Highest language version supported by .NET Standard 2.0 and .NET framework -->
+    <!-- Highest language version supported by .NET Standard 2.0 and .NET Framework -->
     <LangVersion>7.3</LangVersion>
-    <!--TODO <GenerateDocumentationFile>true</GenerateDocumentationFile>-->
     <EnablePackageValidation>true</EnablePackageValidation>
     <!-- to check the package validation on a release build, uncomment here -->
-    <!--<PackageValidationBaselineVersion>1.4.370.1</PackageValidationBaselineVersion>-->
+    <!--<PackageValidationBaselineVersion>1.5.374.27</PackageValidationBaselineVersion>-->
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAudit>true</NuGetAudit>
   </PropertyGroup>
 
   <PropertyGroup>
-    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
     <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -32,6 +38,7 @@
     <!-- deprecated <PackageLicenseUrl>https://opcfoundation.org/license/source/1.11/index.html</PackageLicenseUrl>-->
     <PackageLicenseFile>licenses/LICENSE.txt</PackageLicenseFile>
     <PackageReleaseNotes>$(RepositoryUrl)/releases</PackageReleaseNotes>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <PackageTags>OPCFoundation OPC UA netstandard ios linux dotnet net netcore uwp</PackageTags>
   </PropertyGroup>
 
@@ -47,8 +54,12 @@
     <None Include="$(MSBuildThisFileDirectory)/nuget/logo.jpg" Pack="true" PackagePath="$(PackageIcon)"/>
   </ItemGroup>
 
+  <ItemGroup Condition="'$(IsPackable)' != 'false'">
+    <None Include="$(MSBuildThisFileDirectory)/Docs/NugetREADME.md" Pack="true" PackagePath="$(PackageReadmeFile)"/>
+  </ItemGroup>
+
   <ItemGroup Condition="'$(NBGV_PublicRelease)' != ''">
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All"/>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
   </ItemGroup>
 
   <!-- Deterministic build is currently not supported for code coverage tests. -->

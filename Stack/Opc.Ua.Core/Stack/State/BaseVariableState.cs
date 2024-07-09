@@ -16,6 +16,7 @@ using System.Text;
 using System.Xml;
 using System.Runtime.Serialization;
 using System.Reflection;
+using System.Globalization;
 
 namespace Opc.Ua
 {
@@ -27,7 +28,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         /// <param name="parent">The parent node.</param>
         public BaseVariableState(NodeState parent) : base(NodeClass.Variable, parent)
@@ -48,9 +49,7 @@ namespace Opc.Ua
         /// <param name="source">A source node to be copied to this instance.</param>
         protected override void Initialize(ISystemContext context, NodeState source)
         {
-            BaseVariableState instance = source as BaseVariableState;
-
-            if (instance != null)
+            if (source is BaseVariableState instance)
             {
                 // The value will be set to default(T) if the originating value is null
                 m_value = ExtractValueFromVariant(context, instance.m_value, false);
@@ -141,7 +140,7 @@ namespace Opc.Ua
         {
             if (variable == null)
             {
-                return default(T);
+                return default;
             }
 
             return variable.Value;
@@ -159,7 +158,7 @@ namespace Opc.Ua
         {
             if (property == null)
             {
-                return default(T);
+                return default;
             }
 
             return property.Value;
@@ -200,9 +199,8 @@ namespace Opc.Ua
                 return value;
             }
 
-            ExtensionObject extension = value as ExtensionObject;
 
-            if (extension != null)
+            if (value is ExtensionObject extension)
             {
                 if (typeof(T).IsInstanceOfType(extension.Body))
                 {
@@ -227,9 +225,8 @@ namespace Opc.Ua
             if (elementType != null)
             {
                 // check for array of extensions.
-                IList<ExtensionObject> extensions = value as IList<ExtensionObject>;
 
-                if (extensions != null && typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(elementType.GetTypeInfo()))
+                if (value is IList<ExtensionObject> extensions && typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(elementType.GetTypeInfo()))
                 {
                     Array encodeables = Array.CreateInstance(elementType, extensions.Count);
 
@@ -265,9 +262,8 @@ namespace Opc.Ua
                 }
 
                 // check for array of variants.
-                IList<Variant> variants = value as IList<Variant>;
 
-                if (variants != null)
+                if (value is IList<Variant> variants)
                 {
                     // only support conversions to object[].
                     if (elementType != typeof(object))
@@ -292,9 +288,7 @@ namespace Opc.Ua
                 // check for array of uuids.
                 if (typeof(Guid).GetTypeInfo().IsAssignableFrom(elementType.GetTypeInfo()))
                 {
-                    IList<Uuid> uuids = value as IList<Uuid>;
-
-                    if (uuids != null)
+                    if (value is IList<Uuid> uuids)
                     {
                         Guid[] guids = new Guid[uuids.Count];
 
@@ -310,9 +304,7 @@ namespace Opc.Ua
                 // check for array of enumeration.
                 if (typeof(Enum).GetTypeInfo().IsAssignableFrom(elementType.GetTypeInfo()))
                 {
-                    IList<int> values = value as IList<int>;
-
-                    if (values != null)
+                    if (value is IList<int> values)
                     {
                         Array enums = Array.CreateInstance(elementType, values.Count);
 
@@ -369,45 +361,49 @@ namespace Opc.Ua
                 return extension.Body;
             }
 
-            IEncodeable instance = Activator.CreateInstance(targetType) as IEncodeable;
-
-            if (instance != null)
+            if (Activator.CreateInstance(targetType) is IEncodeable instance)
             {
                 IDecoder decoder = null;
-
-                ServiceMessageContext messageContext = ServiceMessageContext.GlobalContext;
-
-                if (context != null)
+                try
                 {
-                    messageContext = new ServiceMessageContext();
-                    messageContext.NamespaceUris = context.NamespaceUris;
-                    messageContext.ServerUris = context.ServerUris;
-                    messageContext.Factory = context.EncodeableFactory;
-                }
+                    ServiceMessageContext messageContext = ServiceMessageContext.GlobalContext;
 
-                if (extension.Encoding == ExtensionObjectEncoding.Binary)
-                {
-                    decoder = new BinaryDecoder(extension.Body as byte[], messageContext);
-                }
-                else if (extension.Encoding == ExtensionObjectEncoding.Xml)
-                {
-                    decoder = new XmlDecoder(extension.Body as XmlElement, messageContext);
-                }
-
-                if (decoder != null)
-                {
-                    try
+                    if (context != null)
                     {
-                        instance.Decode(decoder);
-                        return instance;
+                        messageContext = new ServiceMessageContext();
+                        messageContext.NamespaceUris = context.NamespaceUris;
+                        messageContext.ServerUris = context.ServerUris;
+                        messageContext.Factory = context.EncodeableFactory;
                     }
-                    catch (Exception e)
+
+                    if (extension.Encoding == ExtensionObjectEncoding.Binary)
                     {
-                        if (throwOnError)
+                        decoder = new BinaryDecoder(extension.Body as byte[], messageContext);
+                    }
+                    else if (extension.Encoding == ExtensionObjectEncoding.Xml)
+                    {
+                        decoder = new XmlDecoder(extension.Body as XmlElement, messageContext);
+                    }
+
+                    if (decoder != null)
+                    {
+                        try
                         {
-                            throw ServiceResultException.Create(StatusCodes.BadTypeMismatch, "Cannot convert ExtensionObject to {0}. Error = {1}", targetType.Name, e.Message);
+                            instance.Decode(decoder);
+                            return instance;
+                        }
+                        catch (Exception e)
+                        {
+                            if (throwOnError)
+                            {
+                                throw ServiceResultException.Create(StatusCodes.BadTypeMismatch, "Cannot convert ExtensionObject to {0}. Error = {1}", targetType.Name, e.Message);
+                            }
                         }
                     }
+                }
+                finally
+                {
+                    Utils.SilentDispose(decoder);
                 }
             }
 
@@ -436,7 +432,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(StatusCodes.BadTypeMismatch, "Cannot convert '{0}' to a {1}.", value, typeof(T).Name);
                 }
 
-                return default(T);
+                return default;
             }
 
             return (T)value;
@@ -885,9 +881,8 @@ namespace Opc.Ua
         {
             base.Export(context, node);
 
-            VariableNode variableNode = node as VariableNode;
 
-            if (variableNode != null)
+            if (node is VariableNode variableNode)
             {
                 try
                 {
@@ -897,9 +892,11 @@ namespace Opc.Ua
                     variableNode.ValueRank = this.ValueRank;
                     variableNode.ArrayDimensions = null;
 
-                    if (this.ArrayDimensions != null)
+                    ReadOnlyList<uint> arrayDimensions = this.ArrayDimensions;
+
+                    if (arrayDimensions != null)
                     {
-                        variableNode.ArrayDimensions = new UInt32Collection(this.ArrayDimensions);
+                        variableNode.ArrayDimensions = new UInt32Collection(arrayDimensions);
                     }
 
                     variableNode.AccessLevel = this.AccessLevel;
@@ -1182,32 +1179,32 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="decoder">The decoder.</param>
-        /// <param name="attibutesToLoad">The attributes to load.</param>
-        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attibutesToLoad)
+        /// <param name="attributesToLoad">The attributes to load.</param>
+        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attributesToLoad)
         {
-            base.Update(context, decoder, attibutesToLoad);
+            base.Update(context, decoder, attributesToLoad);
 
-            if ((attibutesToLoad & AttributesToSave.Value) != 0)
+            if ((attributesToLoad & AttributesToSave.Value) != 0)
             {
                 WrappedValue = decoder.ReadVariant(null);
             }
 
-            if ((attibutesToLoad & AttributesToSave.StatusCode) != 0)
+            if ((attributesToLoad & AttributesToSave.StatusCode) != 0)
             {
                 m_statusCode = decoder.ReadStatusCode(null);
             }
 
-            if ((attibutesToLoad & AttributesToSave.DataType) != 0)
+            if ((attributesToLoad & AttributesToSave.DataType) != 0)
             {
                 m_dataType = decoder.ReadNodeId(null);
             }
 
-            if ((attibutesToLoad & AttributesToSave.ValueRank) != 0)
+            if ((attributesToLoad & AttributesToSave.ValueRank) != 0)
             {
                 m_valueRank = decoder.ReadInt32(null);
             }
 
-            if ((attibutesToLoad & AttributesToSave.ArrayDimensions) != 0)
+            if ((attributesToLoad & AttributesToSave.ArrayDimensions) != 0)
             {
                 UInt32Collection arrayDimensions = decoder.ReadUInt32Array(null);
 
@@ -1221,22 +1218,22 @@ namespace Opc.Ua
                 }
             }
 
-            if ((attibutesToLoad & AttributesToSave.AccessLevel) != 0)
+            if ((attributesToLoad & AttributesToSave.AccessLevel) != 0)
             {
                 AccessLevel = decoder.ReadByte(null);
             }
 
-            if ((attibutesToLoad & AttributesToSave.UserAccessLevel) != 0)
+            if ((attributesToLoad & AttributesToSave.UserAccessLevel) != 0)
             {
                 m_userAccessLevel = decoder.ReadByte(null);
             }
 
-            if ((attibutesToLoad & AttributesToSave.MinimumSamplingInterval) != 0)
+            if ((attributesToLoad & AttributesToSave.MinimumSamplingInterval) != 0)
             {
                 m_minimumSamplingInterval = decoder.ReadDouble(null);
             }
 
-            if ((attibutesToLoad & AttributesToSave.Historizing) != 0)
+            if ((attributesToLoad & AttributesToSave.Historizing) != 0)
             {
                 m_historizing = decoder.ReadBoolean(null);
             }
@@ -1281,7 +1278,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            string[] fields = value.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            string[] fields = value.Split(s_commaSeparator, StringSplitOptions.RemoveEmptyEntries);
 
             if (fields == null || fields.Length == 0)
             {
@@ -1294,7 +1291,7 @@ namespace Opc.Ua
             {
                 try
                 {
-                    arrayDimensions[ii] = Convert.ToUInt32(fields[ii]);
+                    arrayDimensions[ii] = Convert.ToUInt32(fields[ii], CultureInfo.InvariantCulture);
                 }
                 catch
                 {
@@ -1306,7 +1303,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        #region Overrridden Methods
+        #region Overridden Methods
         /// <summary>
         /// Recusively sets the status code and timestamp for the node and all child variables.
         /// </summary>
@@ -1332,7 +1329,7 @@ namespace Opc.Ua
         /// Reads the value for any non-value attribute.
         /// </summary>
         /// <param name="context">The context.</param>
-        /// <param name="attributeId">The attribute idetifier <see cref="Attributes"/>.</param>
+        /// <param name="attributeId">The attribute identifier <see cref="Attributes"/>.</param>
         /// <param name="value">The returned value.</param>
         /// <returns>
         /// An instance of the <see cref="ServiceResult"/> containing the status code and diagnostic info for the operation.
@@ -1351,9 +1348,11 @@ namespace Opc.Ua
                 {
                     NodeId dataType = m_dataType;
 
-                    if (OnReadDataType != null)
+                    NodeAttributeEventHandler<NodeId> onReadDataType = OnReadDataType;
+
+                    if (onReadDataType != null)
                     {
-                        result = OnReadDataType(context, this, ref dataType);
+                        result = onReadDataType(context, this, ref dataType);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1368,9 +1367,11 @@ namespace Opc.Ua
                 {
                     int valueRank = m_valueRank;
 
-                    if (OnReadValueRank != null)
+                    NodeAttributeEventHandler<int> onReadValueRank = OnReadValueRank;
+
+                    if (onReadValueRank != null)
                     {
-                        result = OnReadValueRank(context, this, ref valueRank);
+                        result = onReadValueRank(context, this, ref valueRank);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1385,9 +1386,11 @@ namespace Opc.Ua
                 {
                     IList<uint> arrayDimensions = m_arrayDimensions;
 
-                    if (OnReadArrayDimensions != null)
+                    NodeAttributeEventHandler<IList<uint>> onReadArrayDimensions = OnReadArrayDimensions;
+
+                    if (onReadArrayDimensions != null)
                     {
-                        result = OnReadArrayDimensions(context, this, ref arrayDimensions);
+                        result = onReadArrayDimensions(context, this, ref arrayDimensions);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1402,9 +1405,11 @@ namespace Opc.Ua
                 {
                     byte accessLevel = AccessLevel;
 
-                    if (OnReadAccessLevel != null)
+                    NodeAttributeEventHandler<byte> onReadAccessLevel = OnReadAccessLevel;
+
+                    if (onReadAccessLevel != null)
                     {
-                        result = OnReadAccessLevel(context, this, ref accessLevel);
+                        result = onReadAccessLevel(context, this, ref accessLevel);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1419,9 +1424,11 @@ namespace Opc.Ua
                 {
                     uint accessLevelEx = m_accessLevel;
 
-                    if (OnReadAccessLevelEx != null)
+                    NodeAttributeEventHandler<uint> onReadAccessLevelEx = OnReadAccessLevelEx;
+
+                    if (onReadAccessLevelEx != null)
                     {
-                        result = OnReadAccessLevelEx(context, this, ref accessLevelEx);
+                        result = onReadAccessLevelEx(context, this, ref accessLevelEx);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1436,9 +1443,11 @@ namespace Opc.Ua
                 {
                     byte userAccessLevel = m_userAccessLevel;
 
-                    if (OnReadUserAccessLevel != null)
+                    NodeAttributeEventHandler<byte> onReadUserAccessLevel = OnReadUserAccessLevel;
+
+                    if (onReadUserAccessLevel != null)
                     {
-                        result = OnReadUserAccessLevel(context, this, ref userAccessLevel);
+                        result = onReadUserAccessLevel(context, this, ref userAccessLevel);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1453,9 +1462,11 @@ namespace Opc.Ua
                 {
                     double minimumSamplingInterval = m_minimumSamplingInterval;
 
-                    if (OnReadMinimumSamplingInterval != null)
+                    NodeAttributeEventHandler<double> onReadMinimumSamplingInterval = OnReadMinimumSamplingInterval;
+
+                    if (onReadMinimumSamplingInterval != null)
                     {
-                        result = OnReadMinimumSamplingInterval(context, this, ref minimumSamplingInterval);
+                        result = onReadMinimumSamplingInterval(context, this, ref minimumSamplingInterval);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1470,9 +1481,11 @@ namespace Opc.Ua
                 {
                     bool historizing = m_historizing;
 
-                    if (OnReadHistorizing != null)
+                    NodeAttributeEventHandler<bool> onReadHistorizing = OnReadHistorizing;
+
+                    if (onReadHistorizing != null)
                     {
-                        result = OnReadHistorizing(context, this, ref historizing);
+                        result = onReadHistorizing(context, this, ref historizing);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1533,10 +1546,12 @@ namespace Opc.Ua
 
             ServiceResult result = null;
 
+            NodeValueEventHandler onReadValue = OnReadValue;
+
             // check if the read behavior has been overridden.
-            if (OnReadValue != null)
+            if (onReadValue != null)
             {
-                result = OnReadValue(
+                result = onReadValue(
                     context,
                     this,
                     indexRange,
@@ -1559,10 +1574,12 @@ namespace Opc.Ua
                 return result;
             }
 
+            NodeValueSimpleEventHandler onSimpleReadValue = OnSimpleReadValue;
+
             // use default behavior.
-            if (OnSimpleReadValue != null)
+            if (onSimpleReadValue != null)
             {
-                result = OnSimpleReadValue(
+                result = onSimpleReadValue(
                     context,
                     this,
                     ref value);
@@ -1597,7 +1614,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Applys the index range and the data encoding to the value.
+        /// Applies the index range and the data encoding to the value.
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="indexRange">The index range.</param>
@@ -1679,9 +1696,11 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    if (OnWriteDataType != null)
+                    NodeAttributeEventHandler<NodeId> onWriteDataType = OnWriteDataType;
+
+                    if (onWriteDataType != null)
                     {
-                        result = OnWriteDataType(context, this, ref dataType);
+                        result = onWriteDataType(context, this, ref dataType);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1708,9 +1727,11 @@ namespace Opc.Ua
 
                     int valueRank = valueRankRef.Value;
 
-                    if (OnWriteValueRank != null)
+                    NodeAttributeEventHandler<int> onWriteValueRank = OnWriteValueRank;
+
+                    if (onWriteValueRank != null)
                     {
-                        result = OnWriteValueRank(context, this, ref valueRank);
+                        result = onWriteValueRank(context, this, ref valueRank);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1730,9 +1751,11 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    if (OnWriteArrayDimensions != null)
+                    NodeAttributeEventHandler<IList<uint>> onWriteArrayDimensions = OnWriteArrayDimensions;
+
+                    if (onWriteArrayDimensions != null)
                     {
-                        result = OnWriteArrayDimensions(context, this, ref arrayDimensions);
+                        result = onWriteArrayDimensions(context, this, ref arrayDimensions);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1766,9 +1789,11 @@ namespace Opc.Ua
 
                     byte accessLevel = accessLevelRef.Value;
 
-                    if (OnWriteAccessLevel != null)
+                    NodeAttributeEventHandler<byte> onWriteAccessLevel = OnWriteAccessLevel;
+
+                    if (onWriteAccessLevel != null)
                     {
-                        result = OnWriteAccessLevel(context, this, ref accessLevel);
+                        result = onWriteAccessLevel(context, this, ref accessLevel);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1795,9 +1820,11 @@ namespace Opc.Ua
 
                     byte userAccessLevel = userAccessLevelRef.Value;
 
-                    if (OnWriteUserAccessLevel != null)
+                    NodeAttributeEventHandler<byte> onWriteUserAccessLevel = OnWriteUserAccessLevel;
+
+                    if (onWriteUserAccessLevel != null)
                     {
-                        result = OnWriteUserAccessLevel(context, this, ref userAccessLevel);
+                        result = onWriteUserAccessLevel(context, this, ref userAccessLevel);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1824,9 +1851,11 @@ namespace Opc.Ua
 
                     double minimumSamplingInterval = minimumSamplingIntervalRef.Value;
 
-                    if (OnWriteMinimumSamplingInterval != null)
+                    NodeAttributeEventHandler<double> onWriteMinimumSamplingInterval = OnWriteMinimumSamplingInterval;
+
+                    if (onWriteMinimumSamplingInterval != null)
                     {
-                        result = OnWriteMinimumSamplingInterval(context, this, ref minimumSamplingInterval);
+                        result = onWriteMinimumSamplingInterval(context, this, ref minimumSamplingInterval);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1853,9 +1882,11 @@ namespace Opc.Ua
 
                     bool historizing = historizingRef.Value;
 
-                    if (OnWriteHistorizing != null)
+                    NodeAttributeEventHandler<bool> onWriteHistorizing = OnWriteHistorizing;
+
+                    if (onWriteHistorizing != null)
                     {
-                        result = OnWriteHistorizing(context, this, ref historizing);
+                        result = onWriteHistorizing(context, this, ref historizing);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -1906,10 +1937,12 @@ namespace Opc.Ua
                 return StatusCodes.BadUserAccessDenied;
             }
 
+            NodeValueEventHandler onWriteValue = OnWriteValue;
+
             // check if the write behavior has been overridden.
-            if (OnWriteValue != null)
+            if (onWriteValue != null)
             {
-                result = OnWriteValue(
+                result = onWriteValue(
                     context,
                     this,
                     indexRange,
@@ -1979,8 +2012,10 @@ namespace Opc.Ua
                 value = Utils.Clone(value);
             }
 
+            NodeValueSimpleEventHandler onSimpleWriteValue = OnSimpleWriteValue;
+
             // check for simple write value handler.
-            if (OnSimpleWriteValue != null)
+            if (onSimpleWriteValue != null)
             {
                 // index range writes not supported.
                 if (indexRange != NumericRange.Empty)
@@ -1988,7 +2023,7 @@ namespace Opc.Ua
                     return StatusCodes.BadIndexRangeInvalid;
                 }
 
-                result = OnSimpleWriteValue(
+                result = onSimpleWriteValue(
                     context,
                     this,
                     ref value);
@@ -2040,6 +2075,7 @@ namespace Opc.Ua
         private double m_minimumSamplingInterval;
         private bool m_historizing;
         private VariableCopyPolicy m_copyPolicy;
+        private static readonly char[] s_commaSeparator = new char[] { ',' };
         #endregion
     }
 
@@ -2051,7 +2087,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         public PropertyState(NodeState parent) : base(parent)
         {
@@ -2113,11 +2149,11 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         public PropertyState(NodeState parent) : base(parent)
         {
-            Value = default(T);
+            Value = default;
             IsValueType = !typeof(T).GetTypeInfo().IsValueType;
         }
         #endregion
@@ -2130,7 +2166,7 @@ namespace Opc.Ua
         {
             base.Initialize(context);
 
-            Value = default(T);
+            Value = default;
             DataType = TypeInfo.GetDataTypeId(typeof(T));
             ValueRank = TypeInfo.GetValueRank(typeof(T));
         }
@@ -2171,7 +2207,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         public BaseDataVariableState(NodeState parent) : base(parent)
         {
@@ -2331,11 +2367,11 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         public BaseDataVariableState(NodeState parent) : base(parent)
         {
-            Value = default(T);
+            Value = default;
             IsValueType = !typeof(T).GetTypeInfo().IsValueType;
         }
         #endregion
@@ -2349,7 +2385,7 @@ namespace Opc.Ua
         {
             base.Initialize(context);
 
-            Value = default(T);
+            Value = default;
             DataType = TypeInfo.GetDataTypeId(typeof(T));
             ValueRank = TypeInfo.GetValueRank(typeof(T));
         }
@@ -2502,10 +2538,7 @@ namespace Opc.Ua
             ISystemContext context,
             NodeState node)
         {
-            if (OnBeforeRead != null)
-            {
-                OnBeforeRead(context, this, node);
-            }
+            OnBeforeRead?.Invoke(context, this, node);
         }
 
         /// <summary>
@@ -2623,9 +2656,8 @@ namespace Opc.Ua
                         m_updateList[ii] = updateList[ii];
 
                         // the copy copy is enforced by the value wrapper.
-                        BaseVariableState variable = m_updateList[ii] as BaseVariableState;
 
-                        if (variable != null)
+                        if (m_updateList[ii] is BaseVariableState variable)
                         {
                             variable.CopyPolicy = VariableCopyPolicy.Never;
                         }

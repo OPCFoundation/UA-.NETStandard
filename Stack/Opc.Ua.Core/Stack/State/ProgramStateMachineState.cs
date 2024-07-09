@@ -34,7 +34,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        #region Overriden Members
+        #region Overridden Members
         /// <summary>
         /// The table of states belonging to the state machine.
         /// </summary>
@@ -159,9 +159,7 @@ namespace Opc.Ua
             // update program specific event fields.
             if (ServiceResult.IsGood(result))
             {
-                ProgramTransitionAuditEventState e2 = e as ProgramTransitionAuditEventState;
-
-                if (e2 != null)
+                if (e is ProgramTransitionAuditEventState e2)
                 {
                     e2.SetChildValue(context, BrowseNames.Transition, LastTransition, false);
                 }

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading.Tasks;
 
 #pragma warning disable 0618
@@ -406,7 +407,7 @@ namespace Opc.Ua.Server
         }
         
         /// <summary>
-        /// Returns true is the target meets the filter criteria.
+        /// Returns true if the target meets the filter criteria.
         /// </summary>
         private bool ApplyBrowseFilters(
             IReference      reference,
@@ -585,7 +586,7 @@ namespace Opc.Ua.Server
 
                 // Set AccessRestrictions and RolePermissions
                 Node node = (Node)target;
-                metadata.AccessRestrictions = (AccessRestrictionType)Enum.Parse(typeof(AccessRestrictionType), node.AccessRestrictions.ToString()); 
+                metadata.AccessRestrictions = (AccessRestrictionType)Enum.Parse(typeof(AccessRestrictionType), node.AccessRestrictions.ToString(CultureInfo.InvariantCulture)); 
                 metadata.RolePermissions = node.RolePermissions;
                 metadata.UserRolePermissions = node.UserRolePermissions;
 
@@ -3258,7 +3259,7 @@ namespace Opc.Ua.Server
         #endregion
         
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private IServerInternal m_server;
         private NodeTable m_nodes;
         private long m_lastId;

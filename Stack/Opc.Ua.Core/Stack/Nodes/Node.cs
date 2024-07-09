@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace Opc.Ua
 {
@@ -23,7 +24,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Creates a node from a reference desciption.
+        /// Creates a node from a reference description.
         /// </summary>
         /// <param name="reference">The reference.</param>
         public Node(ReferenceDescription reference)
@@ -95,7 +96,7 @@ namespace Opc.Ua
 
         #region Public Properties
         /// <summary>
-        /// An opaque handle that can be assoociated with the node.
+        /// An opaque handle that can be associated with the node.
         /// </summary>
         /// <value>The handle.</value>
         public object Handle
@@ -110,9 +111,9 @@ namespace Opc.Ua
         /// Returns the string representation of the object.
         /// </summary>
         /// <param name="format">The format.</param>
-        /// <param name="provider">The provider.</param>
+        /// <param name="formatProvider">The provider.</param>
         /// <returns>String representation of the object.</returns>
-        public string ToString(string format, IFormatProvider provider)
+        public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
             {
@@ -126,7 +127,7 @@ namespace Opc.Ua
                     return m_browseName.Name;
                 }
 
-                return Utils.Format("(unknown {0})", ((NodeClass)m_nodeClass).ToString().ToLower());
+                return Utils.Format("(unknown {0})", ((NodeClass)m_nodeClass).ToString().ToLower(CultureInfo.InvariantCulture));
             }
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
@@ -401,6 +402,16 @@ namespace Opc.Ua
 
             return null;
         }
+
+        /// <inheritdoc/>
+        public override int GetHashCode()
+        {
+            HashCode hash = new HashCode();
+            hash.Add(m_nodeId);
+            hash.Add(m_nodeClass);
+            hash.Add(m_browseName);
+            return hash.ToHashCode();
+        }
         #endregion
 
         #region Protected Methods
@@ -490,7 +501,7 @@ namespace Opc.Ua
         /// Returns a string representation of the HierarchyBrowsePath.
         /// </summary>
         /// <returns>
-        /// A <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
+        /// A <see cref="System.String"/> that represents the current <see cref="System.Object"/>.
         /// </returns>
         public override string ToString()
         {
@@ -501,9 +512,9 @@ namespace Opc.Ua
         /// Returns a string representation of the HierarchyBrowsePath.
         /// </summary>
         /// <param name="format">The format.</param>
-        /// <param name="provider">The provider.</param>
+        /// <param name="formatProvider">The provider.</param>
         /// <returns>A string representation of the HierarchyBrowsePath.</returns>
-        public string ToString(string format, IFormatProvider provider)
+        public string ToString(string format, IFormatProvider formatProvider)
         {
             if (format != null)
             {
@@ -557,7 +568,11 @@ namespace Opc.Ua
         /// </returns>
         public override int GetHashCode()
         {
-            return base.GetHashCode();
+            HashCode hash = new HashCode();
+            hash.Add(m_referenceTypeId);
+            hash.Add(m_isInverse);
+            hash.Add(m_targetId);
+            return hash.ToHashCode();
         }
 
         /// <summary>
@@ -710,9 +725,8 @@ namespace Opc.Ua
         {
             this.NodeClass = NodeClass.Variable;
 
-            IVariable variable = source as IVariable;
 
-            if (variable != null)
+            if (source is IVariable variable)
             {
                 this.DataType = variable.DataType;
                 this.ValueRank = variable.ValueRank;
@@ -945,9 +959,8 @@ namespace Opc.Ua
         {
             this.NodeClass = NodeClass.Object;
 
-            IObject node = source as IObject;
 
-            if (node != null)
+            if (source is IObject node)
             {
                 this.EventNotifier = node.EventNotifier;
             }
@@ -1022,9 +1035,8 @@ namespace Opc.Ua
         {
             this.NodeClass = NodeClass.ObjectType;
 
-            IObjectType node = source as IObjectType;
 
-            if (node != null)
+            if (source is IObjectType node)
             {
                 this.IsAbstract = node.IsAbstract;
             }
@@ -1099,9 +1111,8 @@ namespace Opc.Ua
         {
             this.NodeClass = NodeClass.VariableType;
 
-            IVariableType node = source as IVariableType;
 
-            if (node != null)
+            if (source is IVariableType node)
             {
                 this.IsAbstract = node.IsAbstract;
                 this.Value = new Variant(node.Value);
@@ -1311,9 +1322,8 @@ namespace Opc.Ua
         {
             this.NodeClass = NodeClass.ReferenceType;
 
-            IReferenceType node = source as IReferenceType;
 
-            if (node != null)
+            if (source is IReferenceType node)
             {
                 this.IsAbstract = node.IsAbstract;
                 this.InverseName = node.InverseName;
@@ -1396,9 +1406,8 @@ namespace Opc.Ua
         {
             this.NodeClass = NodeClass.Method;
 
-            IMethod node = source as IMethod;
 
-            if (node != null)
+            if (source is IMethod node)
             {
                 this.Executable = node.Executable;
                 this.UserExecutable = node.UserExecutable;
@@ -1477,9 +1486,8 @@ namespace Opc.Ua
         {
             this.NodeClass = NodeClass.View;
 
-            IView node = source as IView;
 
-            if (node != null)
+            if (source is IView node)
             {
                 this.EventNotifier = node.EventNotifier;
                 this.ContainsNoLoops = node.ContainsNoLoops;
@@ -1558,9 +1566,8 @@ namespace Opc.Ua
         {
             this.NodeClass = NodeClass.DataType;
 
-            IDataType node = source as IDataType;
 
-            if (node != null)
+            if (source is IDataType node)
             {
                 this.IsAbstract = node.IsAbstract;
             }

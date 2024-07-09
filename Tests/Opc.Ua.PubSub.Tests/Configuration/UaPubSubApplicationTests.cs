@@ -32,6 +32,7 @@ using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
 {
@@ -52,7 +53,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Create call with null path")]
         public void ValidateUaPubSubApplicationCreateNullFilePath()
         {
-            Assert.Throws<ArgumentException>(() => UaPubSubApplication.Create((string)null), "Calling Create with null parameter shall throw error");
+            Assert.Throws<ArgumentNullException>(() => UaPubSubApplication.Create((string)null), "Calling Create with null parameter shall throw error");
         }
 
         [Test(Description = "Validate Create call with null PubSubConfigurationDataType")]
@@ -74,9 +75,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             Assert.IsTrue(connection.Publishers != null, "connection.Publishers is null");
             Assert.IsTrue(connection.Publishers.Count == 1, "connection.Publishers count is not 2");
             int index = 0;
-            foreach(IUaPublisher publisher in connection.Publishers)
+            foreach (IUaPublisher publisher in connection.Publishers)
             {
-                Assert.IsTrue(publisher!= null, "connection.Publishers[{0}] is null", index);
+                Assert.IsTrue(publisher != null, "connection.Publishers[{0}] is null", index);
                 Assert.IsTrue(publisher.PubSubConnection == connection, "connection.Publishers[{0}].PubSubConnection is not set correctly", index);
                 Assert.IsTrue(publisher.WriterGroupConfiguration.WriterGroupId == m_pubSubConfiguration.Connections.First().WriterGroups[index].WriterGroupId, "connection.Publishers[{0}].WriterGroupConfiguration is not set correctly", index);
                 index++;

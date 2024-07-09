@@ -10,8 +10,8 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-using System.Collections.Generic;
+using System.Runtime.Serialization;
+using Opc.Ua.Bindings;
 
 namespace Opc.Ua
 {
@@ -26,17 +26,22 @@ namespace Opc.Ua
         /// </summary>
         public static EndpointConfiguration Create()
         {
-            EndpointConfiguration configuration = new EndpointConfiguration();
+            EndpointConfiguration configuration = new EndpointConfiguration {
+                // message defaults
+                OperationTimeout = TcpMessageLimits.DefaultOperationTimeout,
+                UseBinaryEncoding = true,
+                MaxMessageSize = TcpMessageLimits.DefaultMaxMessageSize,
+                MaxBufferSize = TcpMessageLimits.DefaultMaxBufferSize,
+                ChannelLifetime = TcpMessageLimits.DefaultChannelLifetime,
+                SecurityTokenLifetime = TcpMessageLimits.DefaultSecurityTokenLifeTime,
 
-            configuration.OperationTimeout      = 120000;
-            configuration.UseBinaryEncoding     = true;
-            configuration.MaxArrayLength        = UInt16.MaxValue;
-            configuration.MaxByteStringLength   = UInt16.MaxValue*16;
-            configuration.MaxMessageSize        = UInt16.MaxValue*64;
-            configuration.MaxStringLength       = UInt16.MaxValue;
-            configuration.MaxBufferSize         = UInt16.MaxValue;
-            configuration.ChannelLifetime       = 120000;
-            configuration.SecurityTokenLifetime = 3600000;
+                // encoding defaults
+                MaxArrayLength = DefaultEncodingLimits.MaxArrayLength,
+                MaxByteStringLength = DefaultEncodingLimits.MaxByteStringLength,
+                MaxStringLength = DefaultEncodingLimits.MaxStringLength,
+                MaxEncodingNestingLevels = DefaultEncodingLimits.MaxEncodingNestingLevels,
+                MaxDecoderRecoveries = DefaultEncodingLimits.MaxDecoderRecoveries,
+            };
 
             return configuration;
         }
@@ -51,20 +56,63 @@ namespace Opc.Ua
                 return Create();
             }
 
-            EndpointConfiguration configuration = new EndpointConfiguration();
-            
-            configuration.OperationTimeout      = applicationConfiguration.TransportQuotas.OperationTimeout;
-            configuration.UseBinaryEncoding     = true;
-            configuration.MaxArrayLength        = applicationConfiguration.TransportQuotas.MaxArrayLength;
-            configuration.MaxByteStringLength   = applicationConfiguration.TransportQuotas.MaxByteStringLength;
-            configuration.MaxMessageSize        = applicationConfiguration.TransportQuotas.MaxMessageSize;
-            configuration.MaxStringLength       = applicationConfiguration.TransportQuotas.MaxStringLength;
-            configuration.MaxBufferSize         = applicationConfiguration.TransportQuotas.MaxBufferSize;
-            configuration.ChannelLifetime       = applicationConfiguration.TransportQuotas.ChannelLifetime;
-            configuration.SecurityTokenLifetime = applicationConfiguration.TransportQuotas.SecurityTokenLifetime; 
+            EndpointConfiguration configuration = new EndpointConfiguration {
+                OperationTimeout = applicationConfiguration.TransportQuotas.OperationTimeout,
+                UseBinaryEncoding = true,
+                MaxArrayLength = applicationConfiguration.TransportQuotas.MaxArrayLength,
+                MaxByteStringLength = applicationConfiguration.TransportQuotas.MaxByteStringLength,
+                MaxMessageSize = applicationConfiguration.TransportQuotas.MaxMessageSize,
+                MaxStringLength = applicationConfiguration.TransportQuotas.MaxStringLength,
+                MaxBufferSize = applicationConfiguration.TransportQuotas.MaxBufferSize,
+                MaxEncodingNestingLevels = applicationConfiguration.TransportQuotas.MaxEncodingNestingLevels,
+                MaxDecoderRecoveries = applicationConfiguration.TransportQuotas.MaxDecoderRecoveries,
+                ChannelLifetime = applicationConfiguration.TransportQuotas.ChannelLifetime,
+                SecurityTokenLifetime = applicationConfiguration.TransportQuotas.SecurityTokenLifetime
+            };
 
             return configuration;
         }
         #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// The maximum nesting level accepted while encoding or decoding objects.
+        /// </summary>
+        public int MaxEncodingNestingLevels
+        {
+            get
+            {
+                return m_maxEncodingNestingLevels <= 0 ? DefaultEncodingLimits.MaxEncodingNestingLevels : m_maxEncodingNestingLevels;
+            }
+
+            set
+            {
+                m_maxEncodingNestingLevels = value;
+            }
+        }
+
+        /// <summary>
+        /// The number of times the decoder can recover from an error 
+        /// caused by an encoded ExtensionObject before throwing a decoder error.
+        /// </summary>
+        public int MaxDecoderRecoveries
+        {
+            get
+            {
+                return m_maxDecoderRecoveries;
+            }
+
+            set
+            {
+                m_maxDecoderRecoveries = value;
+            }
+        }
+        #endregion
+
+        #region Private Fields
+        int m_maxEncodingNestingLevels;
+        int m_maxDecoderRecoveries;
+        #endregion
+
     }
 }

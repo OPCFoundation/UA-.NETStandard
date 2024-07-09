@@ -32,6 +32,8 @@ using System.Collections.Generic;
 using System.IO;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 
 namespace Opc.Ua.Core.Tests.Types.LogTests
 {
@@ -114,7 +116,7 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
                     m_writer.WriteLine(e.Exception);
                     m_traceList.Add(e.Exception.Message);
                 }
-                string message = string.Format(e.Format, e.Arguments);
+                string message = Utils.Format(e.Format, e.Arguments);
                 m_writer.WriteLine(message);
                 m_traceList.Add(message);
             }

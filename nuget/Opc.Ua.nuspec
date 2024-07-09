@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
   <metadata>
     <id>OPCFoundation.NetStandard.Opc.Ua</id>
-    <version>1.04.360.0</version>
+    <version>1.04.372.0</version>
     <title>OPC UA .NET Standard Library</title>
     <description>This package contains the OPC UA reference implementation and is targeting the .NET Standard Library.</description>
     <authors>OPC Foundation</authors>
@@ -10,6 +10,7 @@
     <projectUrl>https://github.com/OPCFoundation/UA-.NETStandard</projectUrl>
     <icon>images/logo.jpg</icon>
     <license type="file">licenses/LICENSE.txt</license>
+    <readme>README.md</readme>
     <!-- deprecated <PackageLicenseUrl>https://opcfoundation.org/license/source/1.11/index.html</PackageLicenseUrl>-->
     <tags>OPCFoundation OPC-UA netstandard ios linux dotnet net netcore uwp</tags>
     <dependencies>
@@ -26,5 +27,6 @@
   <files>
     <file src="logo.jpg" target="images/" />
     <file src="../LICENSE.txt" target="licenses/LICENSE.txt"/>
+    <file src="../Docs/NugetREADME.md" target="README.md"/>
   </files>
 </package>

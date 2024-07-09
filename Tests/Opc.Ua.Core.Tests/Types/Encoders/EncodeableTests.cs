@@ -33,13 +33,15 @@ using System.Linq;
 using System.Text;
 using System.Xml;
 using NUnit.Framework;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
     /// <summary>
     /// Tests for the IEncodeable classes.
     /// </summary>
-    [TestFixture, Category("EncodableTypes")]
+    [TestFixture, Category("EncodeableTypes")]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [Parallelizable]
     public class EncodeableTypesTests : EncoderCommon
@@ -51,16 +53,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         #region Test Methods
         /// <summary>
-        /// Verify encode and decode of an encodable type.
+        /// Verify encode and decode of an encodeable type.
         /// </summary>
         [Theory]
-        [Category("EncodableTypes")]
-        public void ActivateEncodableType(
+        [Category("EncodeableTypes")]
+        public void ActivateEncodeableType(
             EncodingType encoderType,
+            MemoryStreamType memoryStreamType,
             Type systemType
             )
         {
-            IEncodeable testObject = CreateDefaultEncodableType(systemType) as IEncodeable;
+            IEncodeable testObject = CreateDefaultEncodeableType(systemType) as IEncodeable;
             Assert.NotNull(testObject);
             Assert.False(testObject.BinaryEncodingId.IsNull);
             Assert.False(testObject.TypeId.IsNull);
@@ -68,13 +71,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.AreNotEqual(testObject.TypeId, testObject.BinaryEncodingId);
             Assert.AreNotEqual(testObject.TypeId, testObject.XmlEncodingId);
             Assert.AreNotEqual(testObject.BinaryEncodingId, testObject.XmlEncodingId);
-            EncodeDecode(encoderType, BuiltInType.ExtensionObject, new ExtensionObject(testObject.TypeId, testObject));
+            EncodeDecode(encoderType, BuiltInType.ExtensionObject, memoryStreamType, new ExtensionObject(testObject.TypeId, testObject));
         }
 
         [Theory]
-        [Category("EncodableTypes")]
-        public void ActivateEncodableTypeArray(
+        [Category("EncodeableTypes")]
+        public void ActivateEncodeableTypeArray(
             EncodingType encoderType,
+            MemoryStreamType memoryStreamType,
             Type systemType
             )
         {
@@ -83,7 +87,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             ExpandedNodeId dataTypeId = NodeId.Null;
             for (int i = 0; i < array.Length; i++)
             {
-                IEncodeable testObject = CreateDefaultEncodableType(systemType) as IEncodeable;
+                IEncodeable testObject = CreateDefaultEncodeableType(systemType) as IEncodeable;
                 array.SetValue(testObject, i);
                 if (dataTypeId == NodeId.Null)
                 {
@@ -95,11 +99,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             BuiltInType builtInType = BuiltInType.Variant;
 
             byte[] buffer;
-            using (var encoderStream = new MemoryStream())
+            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
                 using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, systemType))
                 {
+                    encoder.PushNamespace("urn:This:is:another:namespace");
                     encoder.WriteArray(objectName, array, ValueRanks.OneDimension, builtInType);
+                    encoder.PopNamespace();
                 }
                 buffer = encoderStream.ToArray();
             }
@@ -109,13 +115,19 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 case EncodingType.Json:
                     PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
                     break;
+                case EncodingType.Xml:
+                    var xml = Encoding.UTF8.GetString(buffer);
+                    Assert.IsTrue(xml.Contains("<Array xmlns=\"urn:This:is:another:namespace\">"));
+                    break;
             }
 
             object result;
             using (var decoderStream = new MemoryStream(buffer))
             using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, systemType))
             {
+                decoder.PushNamespace("urn:This:is:another:namespace");
                 result = decoder.ReadArray(objectName, ValueRanks.OneDimension, BuiltInType.Variant, systemType, dataTypeId);
+                decoder.PopNamespace();
             }
 
             TestContext.Out.WriteLine("Result:");
@@ -129,9 +141,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         [Theory]
-        [Category("EncodableTypes")]
-        public void ActivateEncodableTypeMatrix(
+        [Category("EncodeableTypes")]
+        public void ActivateEncodeableTypeMatrix(
             EncodingType encoderType,
+            MemoryStreamType memoryStreamType,
             bool encodeAsMatrix,
             Type systemType
             )
@@ -145,7 +158,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             ExpandedNodeId dataTypeId = NodeId.Null;
             for (int i = 0; i < array.Length; i++)
             {
-                IEncodeable testObject = CreateDefaultEncodableType(systemType) as IEncodeable;
+                IEncodeable testObject = CreateDefaultEncodeableType(systemType) as IEncodeable;
                 array.SetValue(testObject, i);
                 if (dataTypeId == NodeId.Null)
                 {
@@ -159,7 +172,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Matrix matrix = new Matrix(array, builtInType, dimensions);
 
             byte[] buffer;
-            using (var encoderStream = new MemoryStream())
+            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
                 using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, systemType))
                 {
@@ -208,7 +221,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Create an instance of an encodeable type with default values.
         /// </summary>
         /// <param name="systemType">The type to create</param>
-        private object CreateDefaultEncodableType(Type systemType)
+        private object CreateDefaultEncodeableType(Type systemType)
         {
             object instance = Activator.CreateInstance(systemType);
             SetDefaultEncodeableType(systemType, instance);

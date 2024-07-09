@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <AssemblyName>Opc.Ua.PubSub</AssemblyName>
-    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <TargetFrameworks>$(LibxTargetFrameworks)</TargetFrameworks>
     <PackageId>OPCFoundation.NetStandard.Opc.Ua.PubSub</PackageId>
     <RootNamespace>Opc.Ua.PubSub</RootNamespace>
     <Description>OPC UA PubSub Class Library</Description>
@@ -30,13 +30,13 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
   </ItemGroup>
-
+ 
   <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
     <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
   </ItemGroup>
   
   <ItemGroup>
-    <PackageReference Include="MQTTnet" Version="4.3.1.873" />
+    <PackageReference Include="MQTTnet" Version="4.3.6.1152" />
     <PackageReference Include="System.Net.NetworkInformation" Version="4.3.0" />
   </ItemGroup>
 

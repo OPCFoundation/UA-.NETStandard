@@ -30,6 +30,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
@@ -505,6 +506,7 @@ namespace Opc.Ua.Server
                 }
 
                 Utils.LogInfo("Server - SESSION CREATED. SessionId={0}", sessionId);
+
                 // report audit for successful create session
                 ServerInternal.ReportAuditCreateSessionEvent(context?.AuditEntryId, session, revisedSessionTimeout);
 
@@ -2325,7 +2327,8 @@ namespace Opc.Ua.Server
                                 {
                                     client.RegisterServer(requestHeader, m_registrationInfo);
                                 }
-
+                                
+                                m_registeredWithDiscoveryServer = m_registrationInfo.IsOnline;
                                 return true;
                             }
                             catch (Exception e)
@@ -2362,7 +2365,7 @@ namespace Opc.Ua.Server
                     configuration.CertificateValidator.CertificateValidation -= registrationCertificateValidator;
                 }
             }
-
+            m_registeredWithDiscoveryServer = false;
             return false;
         }
 
@@ -2373,7 +2376,7 @@ namespace Opc.Ua.Server
         {
             System.Net.IPAddress[] targetAddresses = Utils.GetHostAddresses(Utils.GetHostName());
 
-            foreach (string domain in X509Utils.GetDomainsFromCertficate(e.Certificate))
+            foreach (string domain in X509Utils.GetDomainsFromCertificate(e.Certificate))
             {
                 System.Net.IPAddress[] actualAddresses = Utils.GetHostAddresses(domain);
 
@@ -2949,6 +2952,9 @@ namespace Opc.Ua.Server
                     SessionManager sessionManager = CreateSessionManager(m_serverInternal, configuration);
                     sessionManager.Startup();
 
+                    // use event to trigger channel that should not be closed.
+                    sessionManager.SessionChannelKeepAlive += SessionChannelKeepAliveEvent;
+
                     // start the subscription manager.
                     Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
                     SubscriptionManager subscriptionManager = CreateSubscriptionManager(m_serverInternal, configuration);
@@ -3007,6 +3013,7 @@ namespace Opc.Ua.Server
 
                         m_registrationEndpoints.Add(endpoint);
 
+                        m_registeredWithDiscoveryServer = false;
                         m_minRegistrationInterval = 1000;
                         m_lastRegistrationInterval = m_minRegistrationInterval;
 
@@ -3075,9 +3082,10 @@ namespace Opc.Ua.Server
             // attempt graceful shutdown the server.
             try
             {
-                if (m_maxRegistrationInterval > 0)
+                
+                if (m_maxRegistrationInterval > 0 && m_registeredWithDiscoveryServer)
                 {
-                    // unregister from Discovery Server
+                    // unregister from Discovery Server if registered before
                     m_registrationInfo.IsOnline = false;
                     RegisterWithDiscoveryServer();
                 }
@@ -3086,6 +3094,7 @@ namespace Opc.Ua.Server
                 {
                     if (m_serverInternal != null)
                     {
+                        m_serverInternal.SessionManager.SessionChannelKeepAlive -= SessionChannelKeepAliveEvent;
                         m_serverInternal.SubscriptionManager.Shutdown();
                         m_serverInternal.SessionManager.Shutdown();
                         m_serverInternal.NodeManager.Shutdown();
@@ -3250,7 +3259,7 @@ namespace Opc.Ua.Server
         /// <returns>Returns the master node manager for the server, the return type is <seealso cref="MasterNodeManager"/>.</returns>
         protected virtual MasterNodeManager CreateMasterNodeManager(IServerInternal server, ApplicationConfiguration configuration)
         {
-            IList<INodeManager> nodeManagers = new List<INodeManager>();
+            var nodeManagers = new List<INodeManager>();
 
             foreach (var nodeManagerFactory in m_nodeManagerFactories)
             {
@@ -3338,6 +3347,24 @@ namespace Opc.Ua.Server
         }
         #endregion
 
+        #region Private Methods
+        /// <summary>
+        /// Reacts to a session channel keep alive event to signal
+        /// a listener channel that a session is still active.
+        /// </summary>
+        private void SessionChannelKeepAliveEvent(Session session, SessionEventReason reason)
+        {
+            Debug.Assert(reason == SessionEventReason.ChannelKeepAlive);
+
+            string secureChannelId = session?.SecureChannelId;
+            if (!string.IsNullOrEmpty(secureChannelId))
+            {
+                var transportListener = TransportListeners.FirstOrDefault(tl => secureChannelId.StartsWith(tl.ListenerId, StringComparison.Ordinal));
+                transportListener?.UpdateChannelLastActiveTime(secureChannelId);
+            }
+        }
+        #endregion
+
         #region Private Properties
         private OperationLimitsState OperationLimits => ServerInternal.ServerObject.ServerCapabilities.OperationLimits;
         #endregion
@@ -3353,9 +3380,10 @@ namespace Opc.Ua.Server
         private int m_minRegistrationInterval;
         private int m_maxRegistrationInterval;
         private int m_lastRegistrationInterval;
+        private bool m_registeredWithDiscoveryServer;
         private int m_minNonceLength;
         private bool m_useRegisterServer2;
-        private IList<INodeManagerFactory> m_nodeManagerFactories;
+        private List<INodeManagerFactory> m_nodeManagerFactories;
         #endregion
     }
 }

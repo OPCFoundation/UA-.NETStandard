@@ -190,7 +190,7 @@ namespace MemoryBuffer
         }
 
         /// <summary>
-        /// Creates an object which can browser the tags in the buffer.
+        /// Creates an object which can browse the tags in the buffer.
         /// </summary>
         public override INodeBrowser CreateBrowser(
             ISystemContext context,
@@ -678,7 +678,7 @@ namespace MemoryBuffer
         #endregion
 
         #region Private Fields
-        private object m_dataLock = new object();
+        private readonly object m_dataLock = new object();
         private IServerInternal m_server;
         private INodeManager m_nodeManager;
         private MemoryBufferMonitoredItem[][] m_monitoringTable;

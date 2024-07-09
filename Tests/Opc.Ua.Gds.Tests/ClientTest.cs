@@ -31,10 +31,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
+
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -42,6 +46,7 @@ namespace Opc.Ua.Gds.Tests
     /// Test GDS Registration and Client Pull.
     /// </summary>
     [TestFixture, Category("GDSRegistrationAndPull"), Category("GDS")]
+    [TestFixtureSource(nameof(FixtureArgs))]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [NonParallelizable]
     public class ClientTest
@@ -65,16 +70,33 @@ namespace Opc.Ua.Gds.Tests
         }
 
         /// <summary>
+        /// store types to run the tests with
+        /// </summary>
+        public static readonly object[] FixtureArgs = {
+            new object [] { CertificateStoreType.Directory},
+            new object [] { CertificateStoreType.X509Store}
+        };
+
+        public ClientTest(string storeType = CertificateStoreType.Directory)
+        {
+            if (storeType == CertificateStoreType.X509Store && !RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                Assert.Ignore("X509 Store with crls is only supported on Windows, skipping test run");
+            }
+            m_storeType = storeType;
+        }
+
+        /// <summary>
         /// Set up a Global Discovery Server and Client instance and connect the session
         /// </summary>
         [OneTimeSetUp]
         protected async Task OneTimeSetUp()
         {
             // start GDS
-            m_server = await TestUtils.StartGDS(true).ConfigureAwait(false);
+            m_server = await TestUtils.StartGDS(true, m_storeType).ConfigureAwait(false);
 
             // load client
-            m_gdsClient = new GlobalDiscoveryTestClient(true);
+            m_gdsClient = new GlobalDiscoveryTestClient(true, m_storeType);
             await m_gdsClient.LoadClientConfiguration(m_server.BasePort).ConfigureAwait(false);
 
             // good applications test set
@@ -85,6 +107,7 @@ namespace Opc.Ua.Gds.Tests
             m_goodRegistrationOk = false;
             m_invalidRegistrationOk = false;
             m_goodNewKeyPairRequestOk = false;
+            m_gdsRegisteredTestClient = false;
         }
 
         /// <summary>
@@ -503,7 +526,7 @@ namespace Opc.Ua.Gds.Tests
         [Test, Order(430)]
         public void QueryServersByName()
         {
-            // search aplications by name
+            // search applications by name
             const int searchPatternLength = 5;
             foreach (var application in m_goodApplicationTestSet)
             {
@@ -535,7 +558,7 @@ namespace Opc.Ua.Gds.Tests
         [Test, Order(440)]
         public void QueryServersByAppUri()
         {
-            // search aplications by name
+            // search applications by name
             const int searchPatternLength = 5;
             foreach (var application in m_goodApplicationTestSet)
             {
@@ -567,7 +590,7 @@ namespace Opc.Ua.Gds.Tests
         [Test, Order(450)]
         public void QueryServersByProductUri()
         {
-            // search aplications by name
+            // search applications by name
             const int searchPatternLength = 5;
             foreach (var application in m_goodApplicationTestSet)
             {
@@ -735,7 +758,9 @@ namespace Opc.Ua.Gds.Tests
             } while (requestBusy);
         }
 
-        [Test, Order(511)]
+
+
+        [Test, Order(512)]
         public void FinishInvalidNewKeyPairRequests()
         {
             AssertIgnoreTestWithoutInvalidRegistration();
@@ -850,6 +875,31 @@ namespace Opc.Ua.Gds.Tests
 
         }
 
+        
+        [Test, Order(540)]
+        public void GetGoodCertificates()
+        {
+            AssertIgnoreTestWithoutGoodRegistration();
+            AssertIgnoreTestWithoutGoodNewKeyPairRequest();
+            ConnectGDS(true);
+
+            Assert.That(() => {
+                m_gdsClient.GDSClient.GetCertificates(null, null, out var _, out var _);
+            }, Throws.Exception);
+
+            foreach (var application in m_goodApplicationTestSet)
+            {
+                m_gdsClient.GDSClient.GetCertificates(application.ApplicationRecord.ApplicationId, null, out NodeId[] certificateTypeIds, out byte[][] certificates);
+                Assert.That(certificateTypeIds.Length == 1);
+                Assert.NotNull(certificates[0]);
+                Assert.AreEqual(certificates[0], application.Certificate);
+                m_gdsClient.GDSClient.GetCertificates(application.ApplicationRecord.ApplicationId, application.CertificateGroupId, out NodeId[] certificateTypeIds2, out byte[][] certificates2);
+                Assert.That(certificateTypeIds2.Length == 1);
+                Assert.NotNull(certificates2[0]);
+                Assert.AreEqual(certificates2[0], application.Certificate);
+            }
+        }
+
         [Test, Order(550)]
         public void StartGoodSigningRequestWithInvalidAppURI()
         {
@@ -936,11 +986,337 @@ namespace Opc.Ua.Gds.Tests
                 foreach (var certificateGroup in certificateGroups)
                 {
                     var trustListId = m_gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, certificateGroup);
-                    // Opc.Ua.TrustListDataType
+
+                    Assert.NotNull(trustListId);
+
+                    // Opc.Ua.TrustListDataType -> not possible, this needs ApplicationUserAccess
                     var trustList = m_gdsClient.GDSClient.ReadTrustList(trustListId);
-                    Assert.NotNull(trustList);
                 }
             }
+        }
+
+        [Test, Order(620)]
+        public void FailToGetGoodCertificateGroupsWithoutPriviledges()
+        {
+            AssertIgnoreTestWithoutGoodRegistration();
+            AssertIgnoreTestWithoutGoodNewKeyPairRequest();
+
+            //connect to GDS without Admin Privilege
+            ConnectGDS(false);
+
+            foreach (var application in m_goodApplicationTestSet)
+            {
+                if (application.Certificate != null)
+                {
+                    var sre = Assert.Throws<ServiceResultException>(() => m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId));
+                    Assert.NotNull(sre);
+                    Assert.AreEqual((StatusCode)StatusCodes.BadUserAccessDenied, (StatusCode)sre.StatusCode, sre.Result.ToString());
+
+                }
+            }
+        }
+
+        /// <summary>
+        /// use self registered application and get the group / trust lists
+        /// </summary>
+        [Test, Order(630)]
+        public void GetGoodCertificateGroupsAsSelfAdmin()
+        {
+            AssertIgnoreTestWithoutGoodRegistration();
+            AssertIgnoreTestWithoutGoodNewKeyPairRequest();
+
+            // register at gds and get gds issued certificate
+            var success = m_gdsClient.RegisterTestClientAtGds();
+
+            if (success)
+            {
+                m_gdsRegisteredTestClient = true;
+            }
+            else
+            {
+                Assert.Fail("Registering test Client at GDS failed");
+            }
+
+            ConnectGDS(false, true);
+
+            // ensure access to other applications is denied
+            foreach (var testApplication in m_goodApplicationTestSet)
+            {
+                if (testApplication.Certificate != null)
+                {
+                    var sre = Assert.Throws<ServiceResultException>(() =>
+                        m_gdsClient.GDSClient.GetCertificateGroups(testApplication.ApplicationRecord.ApplicationId)
+                        );
+                    Assert.NotNull(sre);
+                    Assert.AreEqual((StatusCode)StatusCodes.BadUserAccessDenied, (StatusCode)sre.StatusCode, sre.Result.ToString());
+                }
+            }
+
+            ApplicationTestData application = m_gdsClient.OwnApplicationTestData;
+
+
+            // use self registered application and get the group / trust lists
+            var certificateGroups = m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId);
+
+            foreach (var certificateGroup in certificateGroups)
+            {
+                var trustListId = m_gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, certificateGroup);
+                // Opc.Ua.TrustListDataType
+                var trustList = m_gdsClient.GDSClient.ReadTrustList(trustListId); //ToDo make it possible to read the trust List with SelfAdminPrivilege
+                Assert.NotNull(trustListId);
+            }
+            DisconnectGDS();
+        }
+
+        /// <summary>
+        /// self issue a certificate and read it back
+        /// </summary>
+        [Test, Order(631)]
+        public void GoodSigningRequestAsSelfAdmin()
+        {
+            AssertIgnoreTestWithoutGdsRegisteredTestClient();
+            AssertIgnoreTestWithoutGoodRegistration();
+            AssertIgnoreTestWithoutGoodNewKeyPairRequest();
+
+            ApplicationTestData application = m_gdsClient.OwnApplicationTestData;
+
+            ConnectGDS(false, true);
+            Assert.Null(application.CertificateRequestId);
+            X509Certificate2 csrCertificate;
+            if (application.PrivateKeyFormat == "PFX")
+            {
+                csrCertificate = X509Utils.CreateCertificateFromPKCS12(application.PrivateKey, application.PrivateKeyPassword);
+            }
+            else
+            {
+                csrCertificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(application.Certificate), application.PrivateKey, application.PrivateKeyPassword);
+            }
+            byte[] certificateRequest = CertificateFactory.CreateSigningRequest(csrCertificate, application.DomainNames);
+            csrCertificate.Dispose();
+
+            // ensure access to other applications is denied
+            foreach (var testApplication in m_goodApplicationTestSet)
+            {
+                if (testApplication.CertificateRequestId == null)
+                {
+                    var sre = Assert.Throws<ServiceResultException>(() =>
+                        m_gdsClient.GDSClient.StartSigningRequest(
+                            testApplication.ApplicationRecord.ApplicationId,
+                            testApplication.CertificateGroupId,
+                            testApplication.CertificateTypeId,
+                            certificateRequest)
+                        );
+                    Assert.NotNull(sre);
+                    Assert.AreEqual((StatusCode)StatusCodes.BadUserAccessDenied, (StatusCode)sre.StatusCode, sre.Result.ToString());
+                }
+            }
+
+            //own Application is allowed
+            NodeId requestId = m_gdsClient.GDSClient.StartSigningRequest(
+                application.ApplicationRecord.ApplicationId,
+                application.CertificateGroupId,
+                application.CertificateTypeId,
+                certificateRequest);
+            Assert.NotNull(requestId);
+            application.CertificateRequestId = requestId;
+            bool requestBusy;
+            DateTime now = DateTime.UtcNow;
+            do
+            {
+                requestBusy = false;
+
+
+                if (application.CertificateRequestId != null)
+                {
+                    try
+                    {
+                        var certificate = m_gdsClient.GDSClient.FinishRequest(
+                            application.ApplicationRecord.ApplicationId,
+                            application.CertificateRequestId,
+                            out byte[] privateKey,
+                            out byte[][] issuerCertificates
+                            );
+
+                        if (certificate != null)
+                        {
+                            application.CertificateRequestId = null;
+
+                            Assert.Null(privateKey);
+                            Assert.NotNull(issuerCertificates);
+                            application.Certificate = certificate;
+                            application.IssuerCertificates = issuerCertificates;
+                            X509TestUtils.VerifySignedApplicationCert(application, certificate, issuerCertificates);
+                            X509TestUtils.VerifyApplicationCertIntegrity(certificate, application.PrivateKey, application.PrivateKeyPassword, application.PrivateKeyFormat, issuerCertificates);
+                        }
+                        else
+                        {
+                            requestBusy = true;
+                        }
+                    }
+                    catch (ServiceResultException sre)
+                    {
+                        if (sre.StatusCode == StatusCodes.BadNothingToDo &&
+                            now.AddMinutes(5) > DateTime.UtcNow)
+                        {
+                            requestBusy = true;
+                            Thread.Sleep(1000);
+                        }
+                        else
+                        {
+                            throw;
+                        }
+                    }
+
+                }
+
+                if (requestBusy)
+                {
+                    Thread.Sleep(5000);
+                    Console.WriteLine("Waiting for certificate approval");
+                }
+            } while (requestBusy);
+
+            DisconnectGDS();
+        }
+
+        /// <summary>
+        /// self issue a public/private key pair and read it back
+        /// </summary>
+        [Test, Order(632)]
+        public void GoodKeyPairRequestAsSelfAdmin()
+        {
+            AssertIgnoreTestWithoutGdsRegisteredTestClient();
+            AssertIgnoreTestWithoutGoodRegistration();
+            AssertIgnoreTestWithoutGoodNewKeyPairRequest();
+
+            ApplicationTestData application = m_gdsClient.OwnApplicationTestData;
+
+
+            ConnectGDS(false, true);
+
+            // ensure access to other applications is denied
+            foreach (var testApplication in m_goodApplicationTestSet)
+            {
+                if (testApplication.CertificateRequestId == null)
+                {
+                    var sre = Assert.Throws<ServiceResultException>(() =>
+                        m_gdsClient.GDSClient.StartNewKeyPairRequest(
+                            testApplication.ApplicationRecord.ApplicationId,
+                            testApplication.CertificateGroupId,
+                            testApplication.CertificateTypeId,
+                            testApplication.Subject,
+                            testApplication.DomainNames,
+                            testApplication.PrivateKeyFormat,
+                            testApplication.PrivateKeyPassword)
+                        );
+                    Assert.NotNull(sre);
+                    Assert.AreEqual((StatusCode)StatusCodes.BadUserAccessDenied, (StatusCode)sre.StatusCode, sre.Result.ToString());
+                }
+            }
+
+            Assert.Null(application.CertificateRequestId);
+            //Start KeyPairRequest
+            NodeId requestId = m_gdsClient.GDSClient.StartNewKeyPairRequest(
+                application.ApplicationRecord.ApplicationId,
+                application.CertificateGroupId,
+                application.CertificateTypeId,
+                application.Subject,
+                application.DomainNames,
+                application.PrivateKeyFormat,
+                application.PrivateKeyPassword);
+
+            Assert.NotNull(requestId);
+            application.CertificateRequestId = requestId;
+
+            //Finish KeyPairRequest
+            bool requestBusy;
+            DateTime now = DateTime.UtcNow;
+            do
+            {
+                requestBusy = false;
+                if (application.CertificateRequestId != null)
+                {
+                    try
+                    {
+                        byte[] certificate = m_gdsClient.GDSClient.FinishRequest(
+                            application.ApplicationRecord.ApplicationId,
+                            application.CertificateRequestId,
+                            out byte[] privateKey,
+                            out byte[][] issuerCertificates
+                            );
+
+                        if (certificate != null)
+                        {
+                            application.CertificateRequestId = null;
+
+                            Assert.NotNull(certificate);
+                            Assert.NotNull(privateKey);
+                            Assert.NotNull(issuerCertificates);
+                            X509TestUtils.VerifySignedApplicationCert(application, certificate, issuerCertificates);
+                            X509TestUtils.VerifyApplicationCertIntegrity(certificate, privateKey, application.PrivateKeyPassword, application.PrivateKeyFormat, issuerCertificates);
+                        }
+                        else
+                        {
+                            requestBusy = true;
+                        }
+                    }
+                    catch (ServiceResultException sre)
+                    {
+                        if (sre.StatusCode == StatusCodes.BadNothingToDo &&
+                            now.AddMinutes(5) > DateTime.UtcNow)
+                        {
+                            requestBusy = true;
+                            Thread.Sleep(1000);
+                        }
+                        else
+                        {
+                            throw;
+                        }
+                    }
+
+                }
+
+
+                if (requestBusy)
+                {
+                    Thread.Sleep(5000);
+                    Console.WriteLine("Waiting for certificate approval");
+                }
+
+            } while (requestBusy);
+
+            DisconnectGDS();
+        }
+
+        /// <summary>
+        /// unregister the Client at the GDS and try to read the trust List
+        /// </summary>
+        [Test, Order(633)]
+        public void FailToGetGoodCertificateGroupsWithoutSelfAdminPrivilege()
+        {
+            AssertIgnoreTestWithoutGoodRegistration();
+            AssertIgnoreTestWithoutGoodNewKeyPairRequest();
+            AssertIgnoreTestWithoutGdsRegisteredTestClient();
+
+            ConnectGDS(true);
+
+            ApplicationTestData application = m_gdsClient.OwnApplicationTestData;
+
+            //unregister GDS Client
+            m_gdsClient.GDSClient.UnregisterApplication(application.ApplicationRecord.ApplicationId);
+
+            m_gdsRegisteredTestClient = false;
+
+            DisconnectGDS();
+
+            //connect as self admin with revoked cert
+
+            ConnectGDS(false, true);
+            var sre = Assert.Throws<ServiceResultException>(() =>
+                m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId)
+                );
+            Assert.NotNull(sre);
+            Assert.AreEqual((StatusCode)StatusCodes.BadUserAccessDenied, (StatusCode)sre.StatusCode, sre.Result.ToString());
         }
 
         [Test, Order(690)]
@@ -968,6 +1344,38 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
+        [Test, Order(700)]
+        public void CheckGoodRevocationStatus()
+        {
+            AssertIgnoreTestWithoutGoodRegistration();
+            ConnectGDS(false);
+            foreach (var application in m_goodApplicationTestSet)
+            {
+                m_gdsClient.GDSClient.CheckRevocationStatus(application.Certificate, out StatusCode certificateStatus, out DateTime validityTime);
+                //Status code needs to be Bad as the method builds a custom chain that does not know about the custom cert stores.
+                Assert.True(StatusCode.IsBad(certificateStatus.Code));
+                Assert.NotNull(validityTime);
+            }
+        }
+
+        [Test, Order(895)]
+        public void RevokeGoodCertificates()
+        {
+            AssertIgnoreTestWithoutInvalidRegistration();
+            AssertIgnoreTestWithoutGoodNewKeyPairRequest();
+            ConnectGDS(true);
+            foreach (var application in m_goodApplicationTestSet)
+            {
+                m_gdsClient.GDSClient.RevokeCertificate(application.ApplicationRecord.ApplicationId, application.Certificate);
+            }
+            foreach (var application in m_invalidApplicationTestSet)
+            {
+                Assert.That(() => {
+                    m_gdsClient.GDSClient.RevokeCertificate(application.ApplicationRecord.ApplicationId, application.Certificate);
+                }, Throws.Exception);
+            }
+        }
+
         [Test, Order(900)]
         public void UnregisterGoodApplications()
         {
@@ -976,6 +1384,19 @@ namespace Opc.Ua.Gds.Tests
             foreach (var application in m_goodApplicationTestSet)
             {
                 m_gdsClient.GDSClient.UnregisterApplication(application.ApplicationRecord.ApplicationId);
+            }
+        }
+
+        [Test, Order(910)]
+        public void CheckRevocationStatusUnregisteredApplications()
+        {
+            AssertIgnoreTestWithoutGoodRegistration();
+            ConnectGDS(false);
+            foreach (var application in m_goodApplicationTestSet)
+            {
+                m_gdsClient.GDSClient.CheckRevocationStatus(application.Certificate, out StatusCode certificateStatus, out DateTime validityTime);
+                Assert.IsTrue(((StatusCode)certificateStatus.Code).ToString().StartsWith("BadCertificate"));
+                Assert.NotNull(validityTime);
             }
         }
 
@@ -1034,14 +1455,22 @@ namespace Opc.Ua.Gds.Tests
         #endregion
 
         #region Private Methods
-        private void ConnectGDS(bool admin,
+        private void ConnectGDS(bool admin, bool anonymous = false,
             [System.Runtime.CompilerServices.CallerMemberName] string memberName = ""
             )
         {
-            m_gdsClient.GDSClient.AdminCredentials = admin ? m_gdsClient.AdminUser : m_gdsClient.AppUser;
+            if (anonymous)
+            {
+                m_gdsClient.GDSClient.AdminCredentials = m_gdsClient.Anonymous;
+            }
+            else
+            {
+                m_gdsClient.GDSClient.AdminCredentials = admin ? m_gdsClient.AdminUser : m_gdsClient.AppUser;
+            }
             m_gdsClient.GDSClient.Connect(m_gdsClient.GDSClient.EndpointUrl).Wait();
             TestContext.Progress.WriteLine($"GDS Client({admin}) connected -- {memberName}");
         }
+
 
         private void DisconnectGDS(
             [System.Runtime.CompilerServices.CallerMemberName] string memberName = ""
@@ -1056,6 +1485,14 @@ namespace Opc.Ua.Gds.Tests
             if (!m_goodRegistrationOk)
             {
                 Assert.Ignore("Test requires good application registrations.");
+            }
+        }
+
+        private void AssertIgnoreTestWithoutGdsRegisteredTestClient()
+        {
+            if (!m_gdsRegisteredTestClient)
+            {
+                Assert.Ignore("Test requires the test client to be registered at the GDS and use a GDS signed Certificate.");
             }
         }
 
@@ -1085,7 +1522,6 @@ namespace Opc.Ua.Gds.Tests
         #region Private Fields
         private const int kGoodApplicationsTestCount = 10;
         private const int kInvalidApplicationsTestCount = 10;
-        private const int kRandomStart = 1;
         private ApplicationTestDataGenerator m_appTestDataGenerator;
         private GlobalDiscoveryTestServer m_server;
         private GlobalDiscoveryTestClient m_gdsClient;
@@ -1093,7 +1529,9 @@ namespace Opc.Ua.Gds.Tests
         private IList<ApplicationTestData> m_invalidApplicationTestSet;
         private bool m_goodRegistrationOk;
         private bool m_invalidRegistrationOk;
+        private bool m_gdsRegisteredTestClient;
         private bool m_goodNewKeyPairRequestOk;
+        private string m_storeType;
         #endregion
     }
 

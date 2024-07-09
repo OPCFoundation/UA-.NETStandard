@@ -29,6 +29,7 @@
 
 using System;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
@@ -40,6 +41,11 @@ namespace Opc.Ua.Security.Certificates
     public static class X509PfxUtils
     {
         /// <summary>
+        /// Internal random number generator.
+        /// </summary>
+        private static readonly Random s_rnd = new Random(0x62541);
+
+        /// <summary>
         /// The size of the block used to test a sign or encrypt operation.
         /// </summary>
         public const int TestBlockSize = 0x20;
@@ -49,7 +55,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private static X509KeyUsageFlags GetKeyUsage(X509Certificate2 cert)
         {
-            var allFlags = X509KeyUsageFlags.None;
+            X509KeyUsageFlags allFlags = X509KeyUsageFlags.None;
             foreach (X509KeyUsageExtension ext in cert.Extensions.OfType<X509KeyUsageExtension>())
             {
                 allFlags |= ext.KeyUsages;
@@ -99,14 +105,13 @@ namespace Opc.Ua.Security.Certificates
             {
                 if (throwOnError)
                 {
-                    throwOnError = false;
                     throw;
                 }
             }
 
             if (!result && throwOnError)
             {
-                throw new CryptographicException("The public/private key pair in the certficates do not match.");
+                throw new CryptographicException("The public/private key pair in the certificates do not match.");
             }
 
             return result;
@@ -117,30 +122,40 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="rawData">The raw PKCS #12 store data.</param>
         /// <param name="password">The password to use to access the store.</param>
+        /// <param name="noEphemeralKeySet">Set to true if the key should not use the ephemeral key set.</param>
         /// <returns>The certificate with a private key.</returns>
         public static X509Certificate2 CreateCertificateFromPKCS12(
             byte[] rawData,
-            string password
+            string password,
+            bool noEphemeralKeySet = false
             )
         {
             Exception ex = null;
             X509Certificate2 certificate = null;
 
-            // We need to try MachineKeySet first as UserKeySet in combination with PersistKeySet hangs ASP.Net WebApps on Azure
+            // By default keys are not persisted
+            X509KeyStorageFlags defaultStorageSet = X509KeyStorageFlags.Exportable;
+#if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER || NET5_0_OR_GREATER
+            if (!noEphemeralKeySet && !RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                defaultStorageSet |= X509KeyStorageFlags.EphemeralKeySet;
+            }
+#endif
+
             X509KeyStorageFlags[] storageFlags = {
-                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.MachineKeySet,
-                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.UserKeySet
+                defaultStorageSet | X509KeyStorageFlags.MachineKeySet,
+                defaultStorageSet | X509KeyStorageFlags.UserKeySet
             };
 
             // try some combinations of storage flags, support is platform dependent
-            foreach (var flag in storageFlags)
+            foreach (X509KeyStorageFlags flag in storageFlags)
             {
                 try
                 {
                     // merge first cert with private key into X509Certificate2
                     certificate = new X509Certificate2(
                         rawData,
-                        password ?? String.Empty,
+                        password ?? string.Empty,
                         flag);
                     // can we really access the private key?
                     if (VerifyRSAKeyPair(certificate, certificate, true))
@@ -172,8 +187,7 @@ namespace Opc.Ua.Security.Certificates
             RSA rsaPrivateKey)
         {
             byte[] testBlock = new byte[TestBlockSize];
-            var rnd = new Random();
-            rnd.NextBytes(testBlock);
+            s_rnd.NextBytes(testBlock);
             byte[] encryptedBlock = rsaPublicKey.Encrypt(testBlock, RSAEncryptionPadding.OaepSHA1);
             byte[] decryptedBlock = rsaPrivateKey.Decrypt(encryptedBlock, RSAEncryptionPadding.OaepSHA1);
             if (decryptedBlock != null)
@@ -191,10 +205,9 @@ namespace Opc.Ua.Security.Certificates
             RSA rsaPrivateKey)
         {
             byte[] testBlock = new byte[TestBlockSize];
-            var rnd = new Random();
-            rnd.NextBytes(testBlock);
-            byte[] signature = rsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
-            return rsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
+            s_rnd.NextBytes(testBlock);
+            byte[] signature = rsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            return rsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         }
 
 #if ECC_SUPPORT
@@ -237,7 +250,7 @@ namespace Opc.Ua.Security.Certificates
             }
             if (!result && throwOnError)
             {
-                throw new CryptographicException("The public/private key pair in the certficates do not match.");
+                throw new CryptographicException("The public/private key pair in the certificates do not match.");
             }
             return result;
         }
@@ -250,8 +263,7 @@ namespace Opc.Ua.Security.Certificates
             ECDsa ecdsaPrivateKey)
         {
             byte[] testBlock = new byte[TestBlockSize];
-            var rnd = new Random();
-            rnd.NextBytes(testBlock);
+            s_rnd.NextBytes(testBlock);
             byte[] signature = ecdsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA256);
             return ecdsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA256);
         }

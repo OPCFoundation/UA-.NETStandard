@@ -32,6 +32,7 @@ using System;
 using System.Collections.Generic;
 using System.Xml;
 using System.Linq;
+using System.Globalization;
 
 namespace Opc.Ua.PubSub.Encoding
 {
@@ -250,14 +251,12 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <summary>
-        /// Atempt to Decode dataset
+        /// Attempt to Decode dataset
         /// </summary>
         /// <returns></returns>
         public void DecodePossibleDataSetReader(BinaryDecoder binaryDecoder, DataSetReaderDataType dataSetReader)
         {
-            UadpDataSetReaderMessageDataType messageSettings = ExtensionObject.ToEncodeable(dataSetReader.MessageSettings)
-                as UadpDataSetReaderMessageDataType;
-            if (messageSettings != null)
+            if (ExtensionObject.ToEncodeable(dataSetReader.MessageSettings) is UadpDataSetReaderMessageDataType messageSettings)
             {
                 //StartPositionInStream is calculated but different from reader configuration dataset cannot be decoded
                 if (StartPositionInStream != messageSettings.DataSetOffset)
@@ -382,7 +381,7 @@ namespace Opc.Ua.PubSub.Encoding
                     // DataSetFieldCount is not persisted for RawData
                     foreach (Field field in DataSet.Fields)
                     {
-                        EncodeFieldAsRawData(binaryEncoder, field);
+                        UadpDataSetMessage.EncodeFieldAsRawData(binaryEncoder, field, CultureInfo.InvariantCulture);
                     }
                     break;
                 case FieldTypeEncodingMask.Reserved:
@@ -405,7 +404,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             FieldTypeEncodingMask fieldType = (FieldTypeEncodingMask)(((byte)DataSetFlags1 & kFieldTypeUsedBits) >> 1);
 
-            for (int i =0; i <  DataSet.Fields.Length; i++)
+            for (int i = 0; i < DataSet.Fields.Length; i++)
             {
                 Field field = DataSet.Fields[i];
                 if (field == null) continue; // ignore null fields
@@ -424,13 +423,13 @@ namespace Opc.Ua.PubSub.Encoding
                         binaryEncoder.WriteDataValue("FieldValue", field.Value);
                         break;
                     case FieldTypeEncodingMask.RawData:
-                        EncodeFieldAsRawData(binaryEncoder, field);
+                        UadpDataSetMessage.EncodeFieldAsRawData(binaryEncoder, field, CultureInfo.InvariantCulture);
                         break;
                     case FieldTypeEncodingMask.Reserved:
                         // ignore
                         break;
                 }
-            }            
+            }
         }
 
         #endregion
@@ -520,9 +519,7 @@ namespace Opc.Ua.PubSub.Encoding
                     fieldCount = binaryDecoder.ReadUInt16("DataSetFieldCount");
                 }
 
-                TargetVariablesDataType targetVariablesData =
-                   ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet) as TargetVariablesDataType;
-                
+
                 // check configuration version
                 List<DataValue> dataValues = new List<DataValue>();
                 switch (fieldType)
@@ -562,12 +559,12 @@ namespace Opc.Ua.PubSub.Encoding
                 List<Field> dataFields = new List<Field>();
 
                 for (int i = 0; i < dataValues.Count; i++)
-                {                
+                {
                     Field dataField = new Field();
                     dataField.FieldMetaData = dataSetMetaData?.Fields[i];
                     dataField.Value = dataValues[i];
 
-                    if (targetVariablesData != null && targetVariablesData.TargetVariables != null
+                    if (ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet) is TargetVariablesDataType targetVariablesData && targetVariablesData.TargetVariables != null
                         && i < targetVariablesData.TargetVariables.Count)
                     {
                         // remember the target Attribute and target nodeId
@@ -611,17 +608,14 @@ namespace Opc.Ua.PubSub.Encoding
 
                 if (dataSetMetaData != null)
                 {
-                    TargetVariablesDataType targetVariablesData =
-                        ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet) as TargetVariablesDataType;
-                   
                     // create dataFields collection
                     List<Field> dataFields = new List<Field>();
                     for (int i = 0; i < dataSetMetaData.Fields.Count; i++)
                     {
                         Field dataField = new Field();
                         dataField.FieldMetaData = dataSetMetaData?.Fields[i];
-                        
-                        if (targetVariablesData != null && targetVariablesData.TargetVariables != null
+
+                        if (ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet) is TargetVariablesDataType targetVariablesData && targetVariablesData.TargetVariables != null
                             && i < targetVariablesData.TargetVariables.Count)
                         {
                             // remember the target Attribute and target nodeId
@@ -634,7 +628,7 @@ namespace Opc.Ua.PubSub.Encoding
                     // read number of fields encoded in this delta frame message
                     ushort fieldCount = fieldCount = binaryDecoder.ReadUInt16("FieldCount");
 
-                    for(int i =0; i < fieldCount; i++)
+                    for (int i = 0; i < fieldCount; i++)
                     {
                         ushort fieldIndex = binaryDecoder.ReadUInt16("FieldIndex");
                         // update value in dataFields
@@ -653,7 +647,7 @@ namespace Opc.Ua.PubSub.Encoding
                                 {
                                     var decodedValue = DecodeRawData(binaryDecoder, fieldMetaData);
                                     dataFields[fieldIndex].Value = new DataValue(new Variant(decodedValue));
-                                }                                
+                                }
                                 break;
                             case FieldTypeEncodingMask.Reserved:
                                 // ignore
@@ -668,21 +662,22 @@ namespace Opc.Ua.PubSub.Encoding
                     dataSet.DataSetWriterId = DataSetWriterId;
                     dataSet.SequenceNumber = SequenceNumber;
                     return dataSet;
-                }      
+                }
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "UadpDataSetMessage.DecodeMessageDataDeltaFrame");               
+                Utils.Trace(ex, "UadpDataSetMessage.DecodeMessageDataDeltaFrame");
             }
             return null;
         }
-        
+
         /// <summary>
         /// Encodes field value as RawData
         /// </summary>
         /// <param name="binaryEncoder"></param>
         /// <param name="field"></param>
-        private void EncodeFieldAsRawData(BinaryEncoder binaryEncoder, Field field)
+        /// <param name="formatProvider"></param>
+        private static void EncodeFieldAsRawData(BinaryEncoder binaryEncoder, Field field, IFormatProvider formatProvider)
         {
             try
             {
@@ -700,40 +695,40 @@ namespace Opc.Ua.PubSub.Encoding
                     switch ((BuiltInType)field.FieldMetaData.BuiltInType)
                     {
                         case BuiltInType.Boolean:
-                            binaryEncoder.WriteBoolean("Bool", Convert.ToBoolean(valueToEncode));
+                            binaryEncoder.WriteBoolean("Bool", Convert.ToBoolean(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.SByte:
-                            binaryEncoder.WriteSByte("SByte", Convert.ToSByte(valueToEncode));
+                            binaryEncoder.WriteSByte("SByte", Convert.ToSByte(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.Byte:
-                            binaryEncoder.WriteByte("Byte", Convert.ToByte(valueToEncode));
+                            binaryEncoder.WriteByte("Byte", Convert.ToByte(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.Int16:
-                            binaryEncoder.WriteInt16("Int16", Convert.ToInt16(valueToEncode));
+                            binaryEncoder.WriteInt16("Int16", Convert.ToInt16(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.UInt16:
-                            binaryEncoder.WriteUInt16("UInt16", Convert.ToUInt16(valueToEncode));
+                            binaryEncoder.WriteUInt16("UInt16", Convert.ToUInt16(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.Int32:
-                            binaryEncoder.WriteInt32("Int32", Convert.ToInt32(valueToEncode));
+                            binaryEncoder.WriteInt32("Int32", Convert.ToInt32(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.UInt32:
-                            binaryEncoder.WriteUInt32("UInt32", Convert.ToUInt32(valueToEncode));
+                            binaryEncoder.WriteUInt32("UInt32", Convert.ToUInt32(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.Int64:
-                            binaryEncoder.WriteInt64("Int64", Convert.ToInt64(valueToEncode));
+                            binaryEncoder.WriteInt64("Int64", Convert.ToInt64(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.UInt64:
-                            binaryEncoder.WriteUInt64("UInt64", Convert.ToUInt64(valueToEncode));
+                            binaryEncoder.WriteUInt64("UInt64", Convert.ToUInt64(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.Float:
-                            binaryEncoder.WriteFloat("Float", Convert.ToSingle(valueToEncode));
+                            binaryEncoder.WriteFloat("Float", Convert.ToSingle(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.Double:
-                            binaryEncoder.WriteDouble("Double", Convert.ToDouble(valueToEncode));
+                            binaryEncoder.WriteDouble("Double", Convert.ToDouble(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.DateTime:
-                            binaryEncoder.WriteDateTime("DateTime", Convert.ToDateTime(valueToEncode));
+                            binaryEncoder.WriteDateTime("DateTime", Convert.ToDateTime(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.Guid:
                             binaryEncoder.WriteGuid("GUID", (Uuid)valueToEncode);
@@ -763,7 +758,7 @@ namespace Opc.Ua.PubSub.Encoding
                             binaryEncoder.WriteXmlElement("XmlElement", valueToEncode as XmlElement);
                             break;
                         case BuiltInType.Enumeration:
-                            binaryEncoder.WriteInt32("Enumeration", Convert.ToInt32(valueToEncode));
+                            binaryEncoder.WriteInt32("Enumeration", Convert.ToInt32(valueToEncode, formatProvider));
                             break;
                         case BuiltInType.ExtensionObject:
                             binaryEncoder.WriteExtensionObject("ExtensionObject", valueToEncode as ExtensionObject);
@@ -797,7 +792,7 @@ namespace Opc.Ua.PubSub.Encoding
                     {
 
                         case ValueRanks.Scalar:
-                            return DecodeRawScalar(binaryDecoder, fieldMetaData.BuiltInType);
+                            return UadpDataSetMessage.DecodeRawScalar(binaryDecoder, fieldMetaData.BuiltInType);
 
                         case ValueRanks.OneDimension:
                         case ValueRanks.TwoDimensions:
@@ -828,7 +823,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="binaryDecoder"></param>
         /// <param name="builtInType"></param>
         /// <returns>The decoded object</returns>
-        private object DecodeRawScalar(BinaryDecoder binaryDecoder, byte builtInType)
+        private static object DecodeRawScalar(BinaryDecoder binaryDecoder, byte builtInType)
         {
             switch ((BuiltInType)builtInType)
             {

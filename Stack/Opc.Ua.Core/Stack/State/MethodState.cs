@@ -29,7 +29,7 @@ namespace Opc.Ua
     {
         #region Constructors
         /// <summary>
-        /// Initializes the instance with its defalt attribute values.
+        /// Initializes the instance with its default attribute values.
         /// </summary>
         public MethodState(NodeState parent) : base(NodeClass.Method, parent)
         {
@@ -65,14 +65,12 @@ namespace Opc.Ua
         /// </summary>
         protected override void Initialize(ISystemContext context, NodeState source)
         {
-            MethodState method = source as MethodState;
-
-            if (method != null)
+            if (source is MethodState method)
             {
                 m_executable = method.m_executable;
                 m_userExecutable = method.m_userExecutable;
             }
-            
+
             base.Initialize(context, source);
         }
         #endregion
@@ -120,10 +118,10 @@ namespace Opc.Ua
         public bool Executable
         {
             get
-            { 
-                return m_executable;  
+            {
+                return m_executable;
             }
-            
+
             set
             {
                 if (m_executable != value)
@@ -141,10 +139,10 @@ namespace Opc.Ua
         public bool UserExecutable
         {
             get
-            { 
-                return m_userExecutable;  
+            {
+                return m_userExecutable;
             }
-            
+
             set
             {
                 if (m_userExecutable != value)
@@ -199,9 +197,8 @@ namespace Opc.Ua
         {
             base.Export(context, node);
 
-            MethodNode methodNode = node as MethodNode;
 
-            if (methodNode != null)
+            if (node is MethodNode methodNode)
             {
                 methodNode.Executable = this.Executable;
                 methodNode.UserExecutable = this.UserExecutable;
@@ -304,17 +301,17 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="decoder">The decoder.</param>
-        /// <param name="attibutesToLoad">The attributes to load.</param>
-        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attibutesToLoad)
+        /// <param name="attributesToLoad">The attributes to load.</param>
+        public override void Update(ISystemContext context, BinaryDecoder decoder, AttributesToSave attributesToLoad)
         {
-            base.Update(context, decoder, attibutesToLoad);
+            base.Update(context, decoder, attributesToLoad);
 
-            if ((attibutesToLoad & AttributesToSave.Executable) != 0)
+            if ((attributesToLoad & AttributesToSave.Executable) != 0)
             {
                 m_executable = decoder.ReadBoolean(null);
             }
 
-            if ((attibutesToLoad & AttributesToSave.UserExecutable) != 0)
+            if ((attributesToLoad & AttributesToSave.UserExecutable) != 0)
             {
                 m_userExecutable = decoder.ReadBoolean(null);
             }
@@ -338,9 +335,11 @@ namespace Opc.Ua
                 {
                     bool executable = m_executable;
 
-                    if (OnReadExecutable != null)
+                    NodeAttributeEventHandler<bool> onReadExecutable = OnReadExecutable;
+
+                    if (onReadExecutable != null)
                     {
-                        result = OnReadExecutable(context, this, ref executable);
+                        result = onReadExecutable(context, this, ref executable);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -355,9 +354,11 @@ namespace Opc.Ua
                 {
                     bool userExecutable = m_userExecutable;
 
-                    if (OnReadUserExecutable != null)
+                    NodeAttributeEventHandler<bool> onReadUserExecutable = OnReadUserExecutable;
+
+                    if (onReadUserExecutable != null)
                     {
-                        result = OnReadUserExecutable(context, this, ref userExecutable);
+                        result = onReadUserExecutable(context, this, ref userExecutable);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -402,9 +403,11 @@ namespace Opc.Ua
 
                     bool executable = executableRef.Value;
 
-                    if (OnWriteExecutable != null)
+                    NodeAttributeEventHandler<bool> onWriteExecutable = OnWriteExecutable;
+
+                    if (onWriteExecutable != null)
                     {
-                        result = OnWriteExecutable(context, this, ref executable);
+                        result = onWriteExecutable(context, this, ref executable);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -431,9 +434,11 @@ namespace Opc.Ua
 
                     bool userExecutable = userExecutableRef.Value;
 
-                    if (OnWriteUserExecutable != null)
+                    NodeAttributeEventHandler<bool> onWriteUserExecutable = OnWriteUserExecutable;
+
+                    if (onWriteUserExecutable != null)
                     {
-                        result = OnWriteUserExecutable(context, this, ref userExecutable);
+                        result = onWriteUserExecutable(context, this, ref userExecutable);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -456,10 +461,10 @@ namespace Opc.Ua
         public PropertyState<Argument[]> InputArguments
         {
             get
-            { 
-                return m_inputArguments;  
+            {
+                return m_inputArguments;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_inputArguments, value))
@@ -477,10 +482,10 @@ namespace Opc.Ua
         public PropertyState<Argument[]> OutputArguments
         {
             get
-            { 
-                return m_outputArguments;  
+            {
+                return m_outputArguments;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_outputArguments, value))
@@ -503,14 +508,18 @@ namespace Opc.Ua
             ISystemContext context,
             IList<BaseInstanceState> children)
         {
-            if (m_inputArguments != null)
+            PropertyState<Argument[]> inputArguments = m_inputArguments;
+
+            if (inputArguments != null)
             {
-                children.Add(m_inputArguments);
+                children.Add(inputArguments);
             }
 
-            if (m_outputArguments != null)
+            PropertyState<Argument[]> outputArguments = m_outputArguments;
+
+            if (outputArguments != null)
             {
-                children.Add(m_outputArguments);
+                children.Add(outputArguments);
             }
 
             base.GetChildren(context, children);
@@ -627,9 +636,11 @@ namespace Opc.Ua
             // check for too few or too many arguments.
             int expectedCount = 0;
 
-            if (InputArguments != null && InputArguments.Value != null)
+            PropertyState<Argument[]> expectedInputArguments = InputArguments;
+
+            if (expectedInputArguments != null && expectedInputArguments.Value != null)
             {
-                expectedCount = InputArguments.Value.Length;
+                expectedCount = expectedInputArguments.Value.Length;
             }
 
             if (expectedCount > inputArguments.Count)
@@ -641,7 +652,7 @@ namespace Opc.Ua
             {
                 return StatusCodes.BadTooManyArguments;
             }
-            
+
             // validate individual arguements.
             bool error = false;
 
@@ -667,9 +678,11 @@ namespace Opc.Ua
             // set output arguments to default values.
             List<object> outputs = new List<object>();
 
-            if (OutputArguments != null)
+            PropertyState<Argument[]> expectedOutputArguments = OutputArguments;
+
+            if (expectedOutputArguments != null)
             {
-                IList<Argument> arguments = OutputArguments.Value;
+                IList<Argument> arguments = expectedOutputArguments.Value;
 
                 if (arguments != null && arguments.Count > 0)
                 {
@@ -729,14 +742,18 @@ namespace Opc.Ua
             IList<object> inputArguments,
             IList<object> outputArguments)
         {
-            if (OnCallMethod2 != null)
+            GenericMethodCalledEventHandler2 onCallMethod2 = OnCallMethod2;
+
+            if (onCallMethod2 != null)
             {
-                return OnCallMethod2(context, this, objectId, inputArguments, outputArguments);
+                return onCallMethod2(context, this, objectId, inputArguments, outputArguments);
             }
 
-            if (OnCallMethod != null)
+            GenericMethodCalledEventHandler onCallMethod = this.OnCallMethod;
+
+            if (onCallMethod != null)
             {
-                return OnCallMethod(context, this, inputArguments, outputArguments);
+                return onCallMethod(context, this, inputArguments, outputArguments);
             }
 
             if (Executable && UserExecutable)
@@ -759,12 +776,14 @@ namespace Opc.Ua
             Variant inputArgument,
             int index)
         {
-            if (InputArguments == null)
+            PropertyState<Argument[]> inputArguments = InputArguments;
+
+            if (inputArguments == null)
             {
                 return StatusCodes.BadInvalidArgument;
             }
 
-            IList<Argument> arguments = InputArguments.Value;
+            IList<Argument> arguments = inputArguments.Value;
 
             if (arguments == null || index < 0 || index >= arguments.Count)
             {

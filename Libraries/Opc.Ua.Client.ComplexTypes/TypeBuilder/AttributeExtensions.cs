@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.Serialization;
@@ -156,7 +157,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     structureField.IsOptional,
             };
 
-            // only unambigious built in types get the info,
+            // only unambiguous built in types get the info,
             // IEncodeable types are handled by type property as BuiltInType.Null 
             Int32 builtInType = (Int32)GetBuiltInType(structureField.DataType);
             if (builtInType > (Int32)BuiltInType.Null)
@@ -191,7 +192,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 },
                 new object[]    // values to assign
                 {
-                    Name+"_"+Value.ToString()
+                    Name+"_"+Value.ToString(CultureInfo.InvariantCulture)
                 });
             typeBuilder.SetCustomAttribute(builder);
         }
@@ -282,7 +283,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 // supertypes of numbers
                 case DataTypes.Integer:
                 case DataTypes.UInteger:
-                case DataTypes.Number: return BuiltInType.Variant;
+                case DataTypes.Number: 
+                case DataTypes.Decimal: return BuiltInType.Variant;
             }
 
             return TypeInfo.GetBuiltInType(datatypeId);

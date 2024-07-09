@@ -60,14 +60,25 @@ namespace Opc.Ua
         /// Initializes the object with an X509 certificate identifier
         /// </summary>
         public UserIdentity(CertificateIdentifier certificateId)
+            : this(certificateId, new CertificatePasswordProvider(string.Empty))
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with an X509 certificate identifier and a CertificatePasswordProvider
+        /// </summary>
+        public UserIdentity(CertificateIdentifier certificateId, CertificatePasswordProvider certificatePasswordProvider)
         {
             if (certificateId == null) throw new ArgumentNullException(nameof(certificateId));
 
-            X509Certificate2 certificate = certificateId.Find().Result;
-            if (certificate != null)
+            X509Certificate2 certificate = certificateId.LoadPrivateKeyEx(certificatePasswordProvider).Result;
+
+            if (certificate == null || !certificate.HasPrivateKey)
             {
-                Initialize(certificate);
+                throw new ServiceResultException("Cannot create User Identity with CertificateIdentifier that does not contain a private key");
             }
+
+            Initialize(certificate);
         }
 
         /// <summary>
@@ -76,6 +87,7 @@ namespace Opc.Ua
         public UserIdentity(X509Certificate2 certificate)
         {
             if (certificate == null) throw new ArgumentNullException(nameof(certificate));
+            if (!certificate.HasPrivateKey) throw new ServiceResultException("Cannot create User Identity with Certificate that does not have a private key");
             Initialize(certificate);
         }
 
@@ -155,7 +167,6 @@ namespace Opc.Ua
         public NodeIdCollection GrantedRoleIds
         {
             get { return m_grantedRoleIds; }
-            set { m_grantedRoleIds = value; }
         }
 
         /// <summary cref="IUserIdentity.GetIdentityToken" />
@@ -183,8 +194,7 @@ namespace Opc.Ua
             m_grantedRoleIds = new NodeIdCollection();
             m_token = token;
 
-            UserNameIdentityToken usernameToken = token as UserNameIdentityToken;
-            if (usernameToken != null)
+            if (token is UserNameIdentityToken usernameToken)
             {
                 m_tokenType = UserTokenType.UserName;
                 m_issuedTokenType = null;
@@ -192,8 +202,7 @@ namespace Opc.Ua
                 return;
             }
 
-            X509IdentityToken x509Token = token as X509IdentityToken;
-            if (x509Token != null)
+            if (token is X509IdentityToken x509Token)
             {
                 m_tokenType = UserTokenType.Certificate;
                 m_issuedTokenType = null;
@@ -209,8 +218,7 @@ namespace Opc.Ua
                 return;
             }
 
-            IssuedIdentityToken issuedToken = token as IssuedIdentityToken;
-            if (issuedToken != null)
+            if (token is IssuedIdentityToken issuedToken)
             {
                 if (issuedToken.IssuedTokenType == Ua.IssuedTokenType.JWT)
                 {
@@ -230,8 +238,7 @@ namespace Opc.Ua
                 }
             }
 
-            AnonymousIdentityToken anonymousToken = token as AnonymousIdentityToken;
-            if (anonymousToken != null)
+            if (token is AnonymousIdentityToken anonymousToken)
             {
                 m_tokenType = UserTokenType.Anonymous;
                 m_issuedTokenType = null;

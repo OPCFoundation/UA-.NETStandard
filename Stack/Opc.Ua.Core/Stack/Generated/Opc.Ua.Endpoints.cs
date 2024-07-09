@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -66,7 +66,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Initializes the when it is created directly.
+        /// Initializes the object when it is created directly.
         /// </summary>
         public SessionEndpoint(IServiceHostBase host) : base(host)
         {
@@ -4282,7 +4282,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Initializes the when it is created directly.
+        /// Initializes the object when it is created directly.
         /// </summary>
         public DiscoveryEndpoint(IServiceHostBase host) : base(host)
         {

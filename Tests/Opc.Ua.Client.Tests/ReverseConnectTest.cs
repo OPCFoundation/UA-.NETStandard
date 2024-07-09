@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -35,6 +36,8 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 
 namespace Opc.Ua.Client.Tests
 {
@@ -49,6 +52,8 @@ namespace Opc.Ua.Client.Tests
         Uri m_endpointUrl;
 
         #region DataPointSources
+        [DatapointSource]
+        public static ISessionFactory[] SessionFactories = { TraceableSessionFactory.Instance, TestableSessionFactory.Instance, DefaultSessionFactory.Instance };
         #endregion
 
         #region Test Setup
@@ -63,7 +68,7 @@ namespace Opc.Ua.Client.Tests
             {
                 Assert.Ignore("Reverse connect fails on mac OS.");
             }
-        
+
             // pki directory root for test runs. 
             PkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
@@ -78,12 +83,10 @@ namespace Opc.Ua.Client.Tests
 
             // create client
             ClientFixture = new ClientFixture();
-            ClientFixture.UseTracing = true;
-            ClientFixture.StartActivityListener();
 
             await ClientFixture.LoadClientConfiguration(PkiRoot).ConfigureAwait(false);
             await ClientFixture.StartReverseConnectHost().ConfigureAwait(false);
-            m_endpointUrl = new Uri(Utils.ReplaceLocalhost("opc.tcp://localhost:" + ServerFixture.Port.ToString()));
+            m_endpointUrl = new Uri(Utils.ReplaceLocalhost("opc.tcp://localhost:" + ServerFixture.Port.ToString(CultureInfo.InvariantCulture)));
             // start reverse connection
             ReferenceServer.AddReverseConnection(new Uri(ClientFixture.ReverseConnectUri), MaxTimeout);
         }
@@ -140,11 +143,16 @@ namespace Opc.Ua.Client.Tests
                     m_endpointUrl, null, cancellationTokenSource.Token).ConfigureAwait(false);
                 Assert.NotNull(connection, "Failed to get connection.");
             }
-            var endpointConfiguration = EndpointConfiguration.Create();
-            endpointConfiguration.OperationTimeout = MaxTimeout;
-            using (DiscoveryClient client = DiscoveryClient.Create(config, connection, endpointConfiguration))
+
+            using (var cancellationTokenSource = new CancellationTokenSource(MaxTimeout))
             {
-                Endpoints = client.GetEndpoints(null);
+                var endpointConfiguration = EndpointConfiguration.Create();
+                endpointConfiguration.OperationTimeout = MaxTimeout;
+                using (DiscoveryClient client = DiscoveryClient.Create(config, connection, endpointConfiguration))
+                {
+                    Endpoints = await client.GetEndpointsAsync(null, cancellationTokenSource.Token).ConfigureAwait(false);
+                    await client.CloseAsync(cancellationTokenSource.Token).ConfigureAwait(false);
+                }
             }
         }
 
@@ -164,7 +172,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory, Order(300)]
-        public async Task ReverseConnect(string securityPolicy)
+        public async Task ReverseConnect(string securityPolicy, ISessionFactory sessionFactory)
         {
             // ensure endpoints are available
             await RequireEndpoints().ConfigureAwait(false);
@@ -187,13 +195,8 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(endpoint);
 
             // connect
-#if NET6_0_OR_GREATER
-            var sessionfactory = TraceableSessionFactory.Instance;
-#else
-            var sessionfactory = DefaultSessionFactory.Instance;
-#endif
-            var session = await sessionfactory.CreateAsync(config, connection, endpoint, false, false, "Reverse Connect Client",
-                MaxTimeout, new UserIdentity(new AnonymousIdentityToken()), null).ConfigureAwait(false);
+            var session = await sessionFactory.CreateAsync(config, connection, endpoint, false, false, "Reverse Connect Client",
+                               MaxTimeout, new UserIdentity(new AnonymousIdentityToken()), null).ConfigureAwait(false);
             Assert.NotNull(session);
 
             // default request header
@@ -213,7 +216,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory, Order(301)]
-        public async Task ReverseConnect2(bool updateBeforeConnect, bool checkDomain)
+        public async Task ReverseConnect2(bool updateBeforeConnect, bool checkDomain, ISessionFactory sessionFactory)
         {
             string securityPolicy = SecurityPolicies.Basic256Sha256;
 
@@ -231,14 +234,9 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(endpoint);
 
             // connect
-#if NET6_0_OR_GREATER
-            var sessionfactory = TraceableSessionFactory.Instance;
-#else
-            var sessionfactory = DefaultSessionFactory.Instance;
-#endif
-            var session = await sessionfactory.CreateAsync(config, ClientFixture.ReverseConnectManager, endpoint, updateBeforeConnect, checkDomain, "Reverse Connect Client",
+            var session = await sessionFactory.CreateAsync(config, ClientFixture.ReverseConnectManager, endpoint, updateBeforeConnect, checkDomain, "Reverse Connect Client",
                 MaxTimeout, new UserIdentity(new AnonymousIdentityToken()), null).ConfigureAwait(false);
-                
+
             Assert.NotNull(session);
 
             // header

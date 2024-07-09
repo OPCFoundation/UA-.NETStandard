@@ -358,7 +358,7 @@ namespace Opc.Ua.Sample
 
         #region CreateAddressSpace Support Functions
         /// <summary>
-        /// Loads a node set from a file or resource and addes them to the set of predefined nodes.
+        /// Loads a node set from a file or resource and adds them to the set of predefined nodes.
         /// </summary>
         public virtual void LoadPredefinedNodes(
             ISystemContext context,
@@ -381,7 +381,7 @@ namespace Opc.Ua.Sample
         }
 
         /// <summary>
-        /// Loads a node set from a file or resource and addes them to the set of predefined nodes.
+        /// Loads a node set from a file or resource and adds them to the set of predefined nodes.
         /// </summary>
         protected virtual NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
@@ -389,7 +389,7 @@ namespace Opc.Ua.Sample
         }
 
         /// <summary>
-        /// Loads a node set from a file or resource and addes them to the set of predefined nodes.
+        /// Loads a node set from a file or resource and adds them to the set of predefined nodes.
         /// </summary>
         protected virtual void LoadPredefinedNodes(
             ISystemContext context,
@@ -506,7 +506,7 @@ namespace Opc.Ua.Sample
                 LocalReference referenceToRemove = new LocalReference(
                     (NodeId)reference.TargetId,
                     reference.ReferenceTypeId,
-                    reference.IsInverse,
+                    !reference.IsInverse,
                     node.NodeId);
 
                 referencesToRemove.Add(referenceToRemove);
@@ -722,7 +722,7 @@ namespace Opc.Ua.Sample
         }
 
         /// <summary>
-        /// Finds the specified and checks if it is of the expected type. 
+        /// Finds the specified node and checks if it is of the expected type. 
         /// </summary>
         /// <returns>Returns null if not found or not of the correct type.</returns>
         public NodeState FindPredefinedNode(NodeId nodeId, Type expectedType)
@@ -1297,7 +1297,7 @@ namespace Opc.Ua.Sample
                     {
                         errors[ii] = StatusCodes.BadNodeIdUnknown;
 
-                        // must validate node in a seperate operation.
+                        // must validate node in a separate operation.
                         ReadWriteOperationState operation = new ReadWriteOperationState();
 
                         operation.Source = source;
@@ -1429,7 +1429,7 @@ namespace Opc.Ua.Sample
                     // check if the node is ready for reading.
                     if (source.ValidationRequired)
                     {
-                        // must validate node in a seperate operation.
+                        // must validate node in a separate operation.
                         errors[ii] = StatusCodes.BadNodeIdUnknown;
                         nodesToValidate.Add(operation);
                         continue;
@@ -1639,7 +1639,7 @@ namespace Opc.Ua.Sample
                     {
                         errors[ii] = StatusCodes.BadNodeIdUnknown;
 
-                        // must validate node in a seperate operation.
+                        // must validate node in a separate operation.
                         ReadWriteOperationState operation = new ReadWriteOperationState();
 
                         operation.Source = source;
@@ -1734,7 +1734,7 @@ namespace Opc.Ua.Sample
                     {
                         errors[ii] = StatusCodes.BadNodeIdUnknown;
 
-                        // must validate node in a seperate operation.
+                        // must validate node in a separate operation.
                         ReadWriteOperationState operation = new ReadWriteOperationState();
 
                         operation.Source = source;
@@ -1832,7 +1832,7 @@ namespace Opc.Ua.Sample
                     {
                         errors[ii] = StatusCodes.BadNodeIdUnknown;
 
-                        // must validate node in a seperate operation.
+                        // must validate node in a separate operation.
                         CallOperationState operation = new CallOperationState();
 
                         operation.Source = source;
@@ -2243,7 +2243,7 @@ namespace Opc.Ua.Sample
                     {
                         errors[ii] = StatusCodes.BadNodeIdUnknown;
 
-                        // must validate node in a seperate operation.
+                        // must validate node in a separate operation.
                         ReadWriteOperationState operation = new ReadWriteOperationState();
 
                         operation.Source = source;
@@ -3088,7 +3088,7 @@ namespace Opc.Ua.Sample
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private IServerInternal m_server;
         private ServerSystemContext m_systemContext;
         private IList<string> m_namespaceUris;

@@ -29,7 +29,9 @@
 
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
@@ -42,26 +44,42 @@ namespace Opc.Ua.Gds.Tests
         public GlobalDiscoveryServerClient GDSClient => m_client;
         public static bool AutoAccept = false;
 
-        public GlobalDiscoveryTestClient(bool autoAccept)
+        public GlobalDiscoveryTestClient(bool autoAccept, string storeType = CertificateStoreType.Directory)
         {
             AutoAccept = autoAccept;
+            m_storeType = storeType;
         }
 
         public IUserIdentity AppUser { get; private set; }
         public IUserIdentity AdminUser { get; private set; }
+        public IUserIdentity Anonymous { get; private set; }
+        public ApplicationTestData OwnApplicationTestData { get; private set; }
         public ApplicationConfiguration Configuration { get; private set; }
+        #region public methods
         public async Task LoadClientConfiguration(int port = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
-            ApplicationInstance application = new ApplicationInstance {
+
+            string configSectionName = "Opc.Ua.GlobalDiscoveryTestClient";
+            if (m_storeType == CertificateStoreType.X509Store)
+            {
+                if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    throw new PlatformNotSupportedException("X509 Store with crls is only supported on Windows");
+                }
+                configSectionName = "Opc.Ua.GlobalDiscoveryTestClientX509Stores";
+            }
+
+            m_application = new ApplicationInstance {
                 ApplicationName = "Global Discovery Client",
                 ApplicationType = ApplicationType.Client,
-                ConfigSectionName = "Opc.Ua.GlobalDiscoveryTestClient"
+                ConfigSectionName = configSectionName
             };
+
 
 #if USE_FILE_CONFIG
             // load the application configuration.
-            Configuration = await application.LoadApplicationConfiguration(false).ConfigureAwait(false);
+            Configuration = await m_application.LoadApplicationConfiguration(false).ConfigureAwait(false);
 #else
             string root = Path.Combine("%LocalApplicationData%", "OPC");
             string pkiRoot = Path.Combine(root, "pki");
@@ -74,7 +92,7 @@ namespace Opc.Ua.Gds.Tests
             };
 
             // build the application configuration.
-            Configuration = await application
+            Configuration = await m_application
                 .Build(
                     "urn:localhost:opcfoundation.org:GlobalDiscoveryTestClient",
                     "http://opcfoundation.org/UA/GlobalDiscoveryTestClient")
@@ -94,7 +112,7 @@ namespace Opc.Ua.Gds.Tests
                 .Create().ConfigureAwait(false);
 #endif
             // check the application certificate.
-            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
+            bool haveAppCertificate = await m_application.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
             if (!haveAppCertificate)
             {
                 throw new Exception("Application instance certificate invalid!");
@@ -115,6 +133,55 @@ namespace Opc.Ua.Gds.Tests
                 AppUser = new UserIdentity(gdsClientConfiguration.AppUserName, gdsClientConfiguration.AppPassword);
             }
             AdminUser = new UserIdentity(gdsClientConfiguration.AdminUserName, gdsClientConfiguration.AdminPassword);
+            Anonymous = new UserIdentity();
+        }
+
+        /// <summary>
+        /// Register the Test Client at the used GDS, needed to test the ApplicationSelfAdminPrivilege
+        /// </summary>
+        public bool RegisterTestClientAtGds()
+        {
+            try
+            {
+                OwnApplicationTestData = GetOwnApplicationData();
+
+                m_client.AdminCredentials = AdminUser;
+                //register
+                NodeId id = Register(OwnApplicationTestData);
+                if (id == null)
+                {
+                    return false;
+                }
+                OwnApplicationTestData.ApplicationRecord.ApplicationId = id;
+                //start Key Pair Request
+                NodeId req_id = StartNewKeyPair(OwnApplicationTestData);
+                if (req_id == null)
+                {
+                    return false;
+                }
+
+                OwnApplicationTestData.CertificateRequestId = req_id;
+                //Finish KeyPairRequest
+                byte[] certificate, privateKey;
+                FinishKeyPair(OwnApplicationTestData, out certificate, out privateKey);
+                if (certificate == null || privateKey == null)
+                {
+                    return false;
+                }
+                //apply cert
+                ApplyNewApplicationInstanceCertificateAsync(certificate, privateKey).Wait();
+                OwnApplicationTestData.Certificate = certificate;
+                OwnApplicationTestData.PrivateKey = privateKey;
+                OwnApplicationTestData.CertificateRequestId = null;
+            }
+            catch (ArgumentException e)
+            {
+                Console.WriteLine("RegisterTestClientAtGds at GDS failed" + e.ToString());
+                return false;
+            }
+
+
+            return true;
         }
 
         public void DisconnectClient()
@@ -133,7 +200,57 @@ namespace Opc.Ua.Gds.Tests
         {
             return File.ReadAllText(Utils.ReplaceSpecialFolderNames(Configuration.TraceConfiguration.OutputFilePath));
         }
+        #endregion
+        #region Private Methods
+        private async Task ApplyNewApplicationInstanceCertificateAsync(byte[] certificate, byte[] privateKey)
+        {
+            using (var x509 = new X509Certificate2(certificate))
+            {
+                var certWithPrivateKey = CertificateFactory.CreateCertificateWithPEMPrivateKey(x509, privateKey);
+                m_client.Configuration.SecurityConfiguration.ApplicationCertificate = new CertificateIdentifier(certWithPrivateKey);
+                var store = m_client.Configuration.SecurityConfiguration.ApplicationCertificate.OpenStore();
+                await store.Add(certWithPrivateKey).ConfigureAwait(false);
+            }
+        }
 
+        private void FinishKeyPair(ApplicationTestData ownApplicationTestData, out byte[] certificate, out byte[] privateKey)
+        {
+            m_client.Connect(m_client.EndpointUrl).Wait();
+            //get cert
+            certificate = m_client.FinishRequest(
+             ownApplicationTestData.ApplicationRecord.ApplicationId,
+             ownApplicationTestData.CertificateRequestId,
+             out privateKey,
+             out _
+             );
+            m_client.Disconnect();
+        }
+
+        private NodeId StartNewKeyPair(ApplicationTestData ownApplicationTestData)
+        {
+            m_client.Connect(m_client.EndpointUrl).Wait();
+            //request new Cert
+            var req_id = m_client.StartNewKeyPairRequest(
+             ownApplicationTestData.ApplicationRecord.ApplicationId,
+             ownApplicationTestData.CertificateGroupId,
+             ownApplicationTestData.CertificateTypeId,
+             ownApplicationTestData.Subject,
+             ownApplicationTestData.DomainNames,
+             ownApplicationTestData.PrivateKeyFormat,
+             ownApplicationTestData.PrivateKeyPassword
+             );
+
+            m_client.Disconnect();
+            return req_id;
+        }
+
+        private NodeId Register(ApplicationTestData ownApplicationTestData)
+        {
+            m_client.Connect(m_client.EndpointUrl).Wait();
+            var id = m_client.RegisterApplication(ownApplicationTestData.ApplicationRecord);
+            m_client.Disconnect();
+            return id;
+        }
         private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
         {
             if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
@@ -150,7 +267,30 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
+        private ApplicationTestData GetOwnApplicationData()
+        {
+            ApplicationTestData
+                //fill application record data type with own Data
+                ownApplicationTestData = new ApplicationTestData {
+                    ApplicationRecord = new ApplicationRecordDataType {
+                        ApplicationUri = m_client.Configuration.ApplicationUri,
+                        ApplicationType = m_client.Configuration.ApplicationType,
+                        ProductUri = m_client.Configuration.ProductUri,
+                        ApplicationNames = new LocalizedTextCollection() { new LocalizedText(m_client.Configuration.ApplicationName) },
+                        ApplicationId = new NodeId(Guid.NewGuid())
+                    },
+                    PrivateKeyFormat = "PEM",
+                    Subject = $"CN={m_client.Configuration.ApplicationName},DC={Utils.GetHostName()},O=OPC Foundation",
+                };
+            return ownApplicationTestData;
+        }
+
+        #endregion
+
+
         private GlobalDiscoveryServerClient m_client;
+        private ApplicationInstance m_application;
+        private string m_storeType;
 
     }
 

@@ -29,10 +29,12 @@
 
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database.Linq;
+using Opc.Ua.Server.UserDatabase;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -48,13 +50,23 @@ namespace Opc.Ua.Gds.Tests
             s_autoAccept = autoAccept;
         }
 
-        public async Task StartServer(bool clean, int basePort = -1)
+        public async Task StartServer(bool clean, int basePort = -1, string storeType = CertificateStoreType.Directory)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
+
+            string configSectionName = "Opc.Ua.GlobalDiscoveryTestServer";
+            if (storeType == CertificateStoreType.X509Store)
+            {
+                if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    throw new PlatformNotSupportedException("X509 Store with crls is only supported on Windows");
+                }
+                configSectionName = "Opc.Ua.GlobalDiscoveryTestServerX509Stores";
+            }
             Application = new ApplicationInstance {
                 ApplicationName = "Global Discovery Server",
                 ApplicationType = ApplicationType.Server,
-                ConfigSectionName = "Opc.Ua.GlobalDiscoveryTestServer"
+                ConfigSectionName = configSectionName
             };
 
             BasePort = basePort;
@@ -95,6 +107,7 @@ namespace Opc.Ua.Gds.Tests
             // get the DatabaseStorePath configuration parameter.
             GlobalDiscoveryServerConfiguration gdsConfiguration = Config.ParseExtension<GlobalDiscoveryServerConfiguration>();
             string databaseStorePath = Utils.ReplaceSpecialFolderNames(gdsConfiguration.DatabaseStorePath);
+            string usersDatabaseStorePath = Utils.ReplaceSpecialFolderNames(gdsConfiguration.UsersDatabaseStorePath);
 
             if (clean)
             {
@@ -102,6 +115,10 @@ namespace Opc.Ua.Gds.Tests
                 if (File.Exists(databaseStorePath))
                 {
                     File.Delete(databaseStorePath);
+                }
+                if (File.Exists(usersDatabaseStorePath))
+                {
+                    File.Delete(usersDatabaseStorePath);
                 }
 
                 // clean up GDS stores
@@ -113,13 +130,15 @@ namespace Opc.Ua.Gds.Tests
                 }
             }
 
-            var database = JsonApplicationsDatabase.Load(databaseStorePath);
+            var applicationsDatabase = JsonApplicationsDatabase.Load(databaseStorePath);
+            var usersDatabase = JsonUserDatabase.Load(usersDatabaseStorePath);
 
             // start the server.
             m_server = new GlobalDiscoverySampleServer(
-                database,
-                database,
-                new CertificateGroup());
+                applicationsDatabase,
+                applicationsDatabase,
+                new CertificateGroup(),
+                usersDatabase);
             await Application.Start(m_server).ConfigureAwait(false);
 
             ServerState serverState = Server.GetStatus().State;
@@ -208,7 +227,8 @@ namespace Opc.Ua.Gds.Tests
                         CACertificateLifetime = 60
                     }
                 },
-                DatabaseStorePath = Path.Combine(gdsRoot, "gdsdb.json")
+                DatabaseStorePath = Path.Combine(gdsRoot, "gdsdb.json"),
+                UsersDatabaseStorePath = Path.Combine(gdsRoot, "gdsusersdb.json")
             };
 
             // build the application configuration.

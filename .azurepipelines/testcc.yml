@@ -7,6 +7,7 @@ parameters:
   agent: 'linux'
   poolImage: 'ubuntu-22.04'
   jobnamesuffix: 'net60cc'
+  customtestarget: ''
 jobs:
 - job: testcc${{ parameters.jobnamesuffix }}
   displayName: Coverage ${{ parameters.agent }} ${{ parameters.configuration }}
@@ -14,16 +15,25 @@ jobs:
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
     disable.coverage.autogenerate: true
+    CustomTestTarget: ${{ parameters.customtestarget }}
+    ${{ if eq( parameters.customtestarget, '' ) }}: 
+      DotCliCommandline: '--framework ${{ parameters.framework }}'
+    ${{ else }}: 
+      DotCliCommandline: '/p:CustomTestTarget=${{ parameters.customtestarget }}'
   pool:
     vmImage: ${{ parameters.poolImage }}
   steps:
   - task: UseDotNet@2
     displayName: 'Install .NET 6.0'
-    condition: and(eq('${{parameters.framework}}', 'net6.0'), ne(variables['poolImage'], 'windows-2022'))
+    condition: eq('${{parameters.framework}}', 'net6.0')
     inputs:
       packageType: 'sdk'
       version: '6.0.x'
-      includePreviewVersions: true
+  - task: UseDotNet@2
+    displayName: 'Install .NET 8.0'
+    inputs:
+      packageType: 'sdk'
+      version: '8.0.x'
   - task: NuGetToolInstaller@1
     inputs:
       versionSpec: '>=5.8.x'
@@ -37,15 +47,15 @@ jobs:
     inputs:
       command: restore
       projects: 'UA Core Library.sln'
-      arguments: '--framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }}'
+      arguments: '${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }}'
   - task: DotNetCoreCLI@2
     displayName: Test ${{ parameters.framework }}
-    timeoutInMinutes: 45
+    timeoutInMinutes: 60
     inputs:
       command: test
       projects: 'UA Core Library.sln'
-      # note: /p:CollectCoverage=true is only used to disable deterministc builds
-      arguments: '--no-restore --framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory $(Agent.TempDirectory)'
+      # note: /p:CollectCoverage=true is only used to disable deterministic builds
+      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory $(Agent.TempDirectory)'
       publishTestResults: false
   - script: |
       bash <(curl -s https://codecov.io/bash) -s $(Agent.TempDirectory)

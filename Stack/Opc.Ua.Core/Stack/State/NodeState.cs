@@ -16,6 +16,7 @@ using System.Xml;
 using System.Text;
 using System.IO;
 using System.Linq;
+using System.Globalization;
 
 namespace Opc.Ua
 {
@@ -66,13 +67,21 @@ namespace Opc.Ua
         /// </summary>
         protected object CloneChildren(NodeState clone)
         {
-            if (m_children != null)
-            {
-                clone.m_children = new List<BaseInstanceState>(m_children.Count);
 
-                for (int ii = 0; ii < m_children.Count; ii++)
+            List<BaseInstanceState> children;
+
+            lock (m_childrenLock)
+            {
+                children = m_children != null ? new List<BaseInstanceState>(m_children) : null;
+            }
+
+            if (children != null)
+            {
+                clone.m_children = new List<BaseInstanceState>(children.Count);
+
+                for (int ii = 0; ii < children.Count; ii++)
                 {
-                    BaseInstanceState child = (BaseInstanceState)m_children[ii].Clone();
+                    BaseInstanceState child = (BaseInstanceState)children[ii].Clone();
                     clone.m_children.Add(child);
                 }
             }
@@ -109,9 +118,9 @@ namespace Opc.Ua
         /// <param name="initializationString">The initialization string that is used to initializes the node.</param>
         public virtual void Initialize(ISystemContext context, string initializationString)
         {
-            if (initializationString.StartsWith("<"))
+            if (initializationString.StartsWith("<", StringComparison.Ordinal))
             {
-                using (System.IO.StringReader reader = new System.IO.StringReader(initializationString))
+                using (var reader = new StringReader(initializationString))
                 {
                     LoadFromXml(context, reader);
                 }
@@ -120,7 +129,7 @@ namespace Opc.Ua
             {
                 byte[] bytes = Convert.FromBase64String(initializationString);
 
-                using (System.IO.MemoryStream istrm = new MemoryStream(bytes))
+                using (var istrm = new MemoryStream(bytes))
                 {
                     LoadAsBinary(context, istrm);
                 }
@@ -182,7 +191,7 @@ namespace Opc.Ua
         /// Returns a string representation of the node.
         /// </summary>
         /// <returns>
-        /// A <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
+        /// A <see cref="System.String"/> that represents the current <see cref="System.Object"/>.
         /// </returns>
         public override string ToString()
         {
@@ -192,14 +201,14 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a string representation of the node.
         /// </summary>
-        /// <param name="format">The <see cref="T:System.String"/> specifying the format to use.
+        /// <param name="format">The <see cref="System.String"/> specifying the format to use.
         /// -or-
-        /// null to use the default format defined for the type of the <see cref="T:System.IFormattable"/> implementation.</param>
-        /// <param name="formatProvider">The <see cref="T:System.IFormatProvider"/> to use to format the value.
+        /// null to use the default format defined for the type of the <see cref="System.IFormattable"/> implementation.</param>
+        /// <param name="formatProvider">The <see cref="System.IFormatProvider"/> to use to format the value.
         /// -or-
         /// null to obtain the numeric format information from the current locale setting of the operating system.</param>
         /// <returns>
-        /// A <see cref="T:System.String"/> containing the value of the current instance in the specified format.
+        /// A <see cref="System.String"/> containing the value of the current instance in the specified format.
         /// </returns>
         public string ToString(string format, IFormatProvider formatProvider)
         {
@@ -210,10 +219,10 @@ namespace Opc.Ua
 
             if (!QualifiedName.IsNull(m_browseName))
             {
-                return Utils.Format("[{0}]{1}", m_nodeClass, m_displayName);
+                return string.Format(formatProvider, "[{0}]{1}", m_nodeClass, m_displayName);
             }
 
-            return Utils.Format("[{0}]{1}", m_nodeClass, m_nodeId);
+            return string.Format(formatProvider, "[{0}]{1}", m_nodeClass, m_nodeId);
         }
         #endregion
 
@@ -439,7 +448,7 @@ namespace Opc.Ua
         /// Specifies  a mask indicating any access restrictions that apply to the node.
         /// </summary>
         /// <value>The server specific access restrictions of the node.</value>
-        public AccessRestrictionType AccessRestrictions
+        public AccessRestrictionType? AccessRestrictions
         {
             get
             {
@@ -635,43 +644,44 @@ namespace Opc.Ua
         /// <param name="istrm">The stream to read.</param>
         public void LoadAsBinary(ISystemContext context, Stream istrm)
         {
-            ServiceMessageContext messageContext = new ServiceMessageContext();
+            ServiceMessageContext messageContext = new ServiceMessageContext {
+                NamespaceUris = context.NamespaceUris,
+                ServerUris = context.ServerUris,
+                Factory = context.EncodeableFactory
+            };
 
-            messageContext.NamespaceUris = context.NamespaceUris;
-            messageContext.ServerUris = context.ServerUris;
-            messageContext.Factory = context.EncodeableFactory;
-
-            BinaryDecoder decoder = new BinaryDecoder(istrm, messageContext);
-
-            // check if a namespace table was provided.
-            NamespaceTable namespaceUris = new NamespaceTable();
-
-            if (!decoder.LoadStringTable(namespaceUris))
+            using (var decoder = new BinaryDecoder(istrm, messageContext, true))
             {
-                namespaceUris = null;
+                // check if a namespace table was provided.
+                NamespaceTable namespaceUris = new NamespaceTable();
+
+                if (!decoder.LoadStringTable(namespaceUris))
+                {
+                    namespaceUris = null;
+                }
+
+                // check if a server uri table was provided.
+                StringTable serverUris = new StringTable();
+
+                if (namespaceUris != null && namespaceUris.Count > 1)
+                {
+                    serverUris.Append(namespaceUris.GetString(1));
+                }
+
+                if (!decoder.LoadStringTable(serverUris))
+                {
+                    serverUris = null;
+                }
+
+                // setup the mappings to use during decoding.
+                decoder.SetMappingTables(namespaceUris, serverUris);
+
+                // update the node and children.
+                AttributesToSave attributesToLoad = (AttributesToSave)decoder.ReadUInt32(null);
+                Update(context, decoder, attributesToLoad);
+                UpdateReferences(context, decoder);
+                UpdateChildren(context, decoder);
             }
-
-            // check if a server uri table was provided.
-            StringTable serverUris = new StringTable();
-
-            if (namespaceUris != null && namespaceUris.Count > 1)
-            {
-                serverUris.Append(namespaceUris.GetString(1));
-            }
-
-            if (!decoder.LoadStringTable(serverUris))
-            {
-                serverUris = null;
-            }
-
-            // setup the mappings to use during decoding.
-            decoder.SetMappingTables(namespaceUris, serverUris);
-
-            // update the node and children.
-            AttributesToSave attributesToLoad = (AttributesToSave)decoder.ReadUInt32(null);
-            Update(context, decoder, attributesToLoad);
-            UpdateReferences(context, decoder);
-            UpdateChildren(context, decoder);
         }
 
         #region AttributesToSave Enumeration
@@ -1189,18 +1199,30 @@ namespace Opc.Ua
         {
             int count = decoder.ReadInt32(null);
 
+            // Collect references to temporary list first to avoid unnecessary locking during the deserialization.
+            List<NodeStateReference> references = new List<NodeStateReference>();
+
             for (int ii = 0; ii < count; ii++)
             {
                 NodeId referenceTypeId = decoder.ReadNodeId(null);
                 bool isInverse = decoder.ReadBoolean(null);
                 ExpandedNodeId targetId = decoder.ReadExpandedNodeId(null);
 
+                references.Add(new NodeStateReference(referenceTypeId, isInverse, targetId));
+
+            }
+
+            lock (m_referencesLock)
+            {
                 if (m_references == null)
                 {
                     m_references = new IReferenceDictionary<object>();
                 }
 
-                m_references[new NodeStateReference(referenceTypeId, isInverse, targetId)] = null;
+                foreach (NodeStateReference reference in references)
+                {
+                    m_references[reference] = null;
+                }
             }
         }
 
@@ -1227,7 +1249,7 @@ namespace Opc.Ua
         /// <param name="input">The stream to read.</param>
         public void LoadFromXml(ISystemContext context, TextReader input)
         {
-            using (XmlReader reader = XmlReader.Create(input, Utils.DefaultXmlReaderSettings()))
+            using (var reader = XmlReader.Create(input, Utils.DefaultXmlReaderSettings()))
             {
                 LoadFromXml(context, reader);
             }
@@ -1817,15 +1839,14 @@ namespace Opc.Ua
             }
 
             // create the appropriate node.
-            BaseInstanceState child = factory.CreateInstance(
+
+            if (!(factory.CreateInstance(
                 context,
                 parent,
                 nodeClass,
                 browseName,
                 referenceTypeId,
-                typeDefinitionId) as BaseInstanceState;
-
-            if (child == null)
+                typeDefinitionId) is BaseInstanceState child))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
@@ -2048,15 +2069,14 @@ namespace Opc.Ua
             }
 
             // create the appropriate node.
-            BaseInstanceState child = factory.CreateInstance(
+
+            if (!(factory.CreateInstance(
                 context,
                 parent,
                 nodeClass,
                 browseName,
                 referenceTypeId,
-                typeDefinitionId) as BaseInstanceState;
-
-            if (child == null)
+                typeDefinitionId) is BaseInstanceState child))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
@@ -2235,12 +2255,12 @@ namespace Opc.Ua
         /// <summary>
         /// Called when the AccessRestrictions attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<AccessRestrictionType> OnReadAccessRestrictions;
+        public NodeAttributeEventHandler<AccessRestrictionType?> OnReadAccessRestrictions;
 
         /// <summary>
         /// Called when the AccessRestrictions attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<AccessRestrictionType> OnWriteAccessRestrictions;
+        public NodeAttributeEventHandler<AccessRestrictionType?> OnWriteAccessRestrictions;
         #endregion
 
         #region Public Methods
@@ -2251,9 +2271,8 @@ namespace Opc.Ua
         public NodeState GetHierarchyRoot()
         {
             // only instance nodes can be part of a hierarchy.
-            BaseInstanceState instance = this as BaseInstanceState;
 
-            if (instance == null || instance.Parent == null)
+            if (!(this is BaseInstanceState instance) || instance.Parent == null)
             {
                 return this;
             }
@@ -2309,13 +2328,16 @@ namespace Opc.Ua
         /// <param name="includeChildren">Whether to recursively set the flag on any children.</param>
         public void SetAreEventsMonitored(ISystemContext context, bool areEventsMonitored, bool includeChildren)
         {
-            if (areEventsMonitored)
+            lock (m_areEventsMonitoredLock)
             {
-                m_areEventsMonitored++;
-            }
-            else if (m_areEventsMonitored > 0)
-            {
-                m_areEventsMonitored--;
+                if (areEventsMonitored)
+                {
+                    m_areEventsMonitored++;
+                }
+                else if (m_areEventsMonitored > 0)
+                {
+                    m_areEventsMonitored--;
+                }
             }
 
             // propagate monitoring flag to children.
@@ -2329,14 +2351,21 @@ namespace Opc.Ua
                     children[ii].SetAreEventsMonitored(context, areEventsMonitored, true);
                 }
 
-                // propagate monitoring flag to target notifiers.
-                if (m_notifiers != null)
+                List<Notifier> notifiers;
+
+                lock (m_notifiersLock)
                 {
-                    for (int ii = 0; ii < m_notifiers.Count; ii++)
+                    notifiers = m_notifiers != null ? new List<Notifier>(m_notifiers) : null;
+                }
+
+                // propagate monitoring flag to target notifiers.
+                if (notifiers != null)
+                {
+                    for (int ii = 0; ii < notifiers.Count; ii++)
                     {
-                        if (!m_notifiers[ii].IsInverse)
+                        if (!notifiers[ii].IsInverse)
                         {
-                            m_notifiers[ii].Node.SetAreEventsMonitored(context, areEventsMonitored, includeChildren);
+                            notifiers[ii].Node.SetAreEventsMonitored(context, areEventsMonitored, includeChildren);
                         }
                     }
                 }
@@ -2350,19 +2379,23 @@ namespace Opc.Ua
         /// <param name="e">The event to report.</param>
         public virtual void ReportEvent(ISystemContext context, IFilterTarget e)
         {
-            if (OnReportEvent != null)
+            OnReportEvent?.Invoke(context, this, e);
+
+            List<Notifier> notifiers;
+
+            lock (m_notifiersLock)
             {
-                OnReportEvent(context, this, e);
+                notifiers = m_notifiers != null ? new List<Notifier>(m_notifiers) : null;
             }
 
             // report event to notifier sources.
-            if (m_notifiers != null)
+            if (notifiers != null)
             {
-                for (int ii = 0; ii < m_notifiers.Count; ii++)
+                for (int ii = 0; ii < notifiers.Count; ii++)
                 {
-                    if (m_notifiers[ii].IsInverse)
+                    if (notifiers[ii].IsInverse)
                     {
-                        m_notifiers[ii].Node.ReportEvent(context, e);
+                        notifiers[ii].Node.ReportEvent(context, e);
                     }
                 }
             }
@@ -2381,26 +2414,10 @@ namespace Opc.Ua
             bool isInverse,
             NodeState target)
         {
-            if (m_notifiers == null)
-            {
-                m_notifiers = new List<Notifier>();
-            }
 
             if (NodeId.IsNull(referenceTypeId))
             {
                 referenceTypeId = ReferenceTypeIds.HasEventSource;
-            }
-
-            // check for existing reference.
-            Notifier entry = null;
-
-            for (int ii = 0; ii < m_notifiers.Count; ii++)
-            {
-                if (Object.ReferenceEquals(m_notifiers[ii].Node, target))
-                {
-                    entry = m_notifiers[ii];
-                    break;
-                }
             }
 
             // ensure duplicate references are not left over from the model design.
@@ -2409,16 +2426,36 @@ namespace Opc.Ua
                 RemoveReference(referenceTypeId, isInverse, target.NodeId);
             }
 
-            if (entry == null)
+            lock (m_notifiersLock)
             {
-                entry = new Notifier();
-                m_notifiers.Add(entry);
-            }
+                if (m_notifiers == null)
+                {
+                    m_notifiers = new List<Notifier>();
+                }
 
-            // save the notifier.
-            entry.ReferenceTypeId = referenceTypeId;
-            entry.IsInverse = isInverse;
-            entry.Node = target;
+                // check for existing reference.
+                Notifier entry = null;
+
+                for (int ii = 0; ii < m_notifiers.Count; ii++)
+                {
+                    if (Object.ReferenceEquals(m_notifiers[ii].Node, target))
+                    {
+                        entry = m_notifiers[ii];
+                        break;
+                    }
+                }
+
+                if (entry == null)
+                {
+                    entry = new Notifier();
+                    m_notifiers.Add(entry);
+                }
+
+                // save the notifier.
+                entry.ReferenceTypeId = referenceTypeId;
+                entry.IsInverse = isInverse;
+                entry.Node = target;
+            }
         }
 
         /// <summary>
@@ -2429,28 +2466,35 @@ namespace Opc.Ua
         /// <param name="bidirectional">Whether the inverse relationship should be removed from the target.</param>
         public virtual void RemoveNotifier(ISystemContext context, NodeState target, bool bidirectional)
         {
-            if (m_notifiers != null)
+            NodeState nodeState = null;
+
+            lock (m_notifiersLock)
             {
-                for (int ii = 0; ii < m_notifiers.Count; ii++)
+
+                if (m_notifiers != null)
                 {
-                    Notifier entry = m_notifiers[ii];
-
-                    if (Object.ReferenceEquals(entry.Node, target))
+                    for (int ii = 0; ii < m_notifiers.Count; ii++)
                     {
-                        if (bidirectional)
-                        {
-                            entry.Node.RemoveNotifier(context, this, false);
-                        }
+                        Notifier entry = m_notifiers[ii];
 
-                        m_notifiers.RemoveAt(ii);
-                        break;
+                        if (Object.ReferenceEquals(entry.Node, target))
+                        {
+                            nodeState = entry.Node;
+                            m_notifiers.RemoveAt(ii);
+                            break;
+                        }
+                    }
+
+                    if (m_notifiers.Count == 0)
+                    {
+                        m_notifiers = null;
                     }
                 }
+            }
 
-                if (m_notifiers.Count == 0)
-                {
-                    m_notifiers = null;
-                }
+            if (nodeState != null && bidirectional)
+            {
+                nodeState.RemoveNotifier(context, this, false);
             }
         }
 
@@ -2463,11 +2507,14 @@ namespace Opc.Ua
             ISystemContext context,
             IList<Notifier> notifiers)
         {
-            if (m_notifiers != null)
+            lock (m_notifiersLock)
             {
-                foreach (Notifier notifier in m_notifiers)
+                if (m_notifiers != null)
                 {
-                    notifiers.Add(notifier);
+                    foreach (Notifier notifier in m_notifiers)
+                    {
+                        notifiers.Add(notifier);
+                    }
                 }
             }
         }
@@ -2481,13 +2528,16 @@ namespace Opc.Ua
             NodeId notifierTypeId,
             bool isInverse)
         {
-            if (m_notifiers != null)
+            lock (m_notifiersLock)
             {
-                foreach (Notifier notifier in m_notifiers)
+                if (m_notifiers != null)
                 {
-                    if (isInverse == notifier.IsInverse && notifier.ReferenceTypeId == notifierTypeId)
+                    foreach (Notifier notifier in m_notifiers)
                     {
-                        notifiers.Add(notifier);
+                        if (isInverse == notifier.IsInverse && notifier.ReferenceTypeId == notifierTypeId)
+                        {
+                            notifiers.Add(notifier);
+                        }
                     }
                 }
             }
@@ -2501,10 +2551,7 @@ namespace Opc.Ua
         /// <param name="includeChildren">Whether to recursively report events for the children.</param>
         public virtual void ConditionRefresh(ISystemContext context, List<IFilterTarget> events, bool includeChildren)
         {
-            if (OnConditionRefresh != null)
-            {
-                OnConditionRefresh(context, this, events);
-            }
+            OnConditionRefresh?.Invoke(context, this, events);
 
             if (includeChildren)
             {
@@ -2517,14 +2564,21 @@ namespace Opc.Ua
                     children[ii].ConditionRefresh(context, events, true);
                 }
 
-                // request events from notifier targets.
-                if (m_notifiers != null)
+                List<Notifier> notifiers;
+
+                lock (m_notifiersLock)
                 {
-                    for (int ii = 0; ii < m_notifiers.Count; ii++)
+                    notifiers = m_notifiers != null ? new List<Notifier>(m_notifiers) : null;
+                }
+
+                // request events from notifier targets.
+                if (notifiers != null)
+                {
+                    for (int ii = 0; ii < notifiers.Count; ii++)
                     {
-                        if (!m_notifiers[ii].IsInverse)
+                        if (!notifiers[ii].IsInverse)
                         {
-                            m_notifiers[ii].Node.ConditionRefresh(context, events, true);
+                            notifiers[ii].Node.ConditionRefresh(context, events, true);
                         }
                     }
                 }
@@ -2544,9 +2598,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < children.Count; ii++)
             {
-                MethodState method = children[ii] as MethodState;
-
-                if (method != null)
+                if (children[ii] is MethodState method)
                 {
                     if (method.NodeId == methodId || method.MethodDeclarationId == methodId)
                     {
@@ -2584,18 +2636,12 @@ namespace Opc.Ua
                 }
             }
 
-            if (m_changeMasks != NodeStateChangeMasks.None)
+            NodeStateChangeMasks changeMasks = m_changeMasks;
+
+            if (changeMasks != NodeStateChangeMasks.None)
             {
-                if (OnStateChanged != null)
-                {
-                    OnStateChanged(context, this, m_changeMasks);
-                }
-
-                if (StateChanged != null)
-                {
-                    StateChanged(context, this, m_changeMasks);
-                }
-
+                OnStateChanged?.Invoke(context, this, changeMasks);
+                StateChanged?.Invoke(context, this, changeMasks);
                 m_changeMasks = NodeStateChangeMasks.None;
             }
         }
@@ -2854,9 +2900,11 @@ namespace Opc.Ua
         /// <returns>True if the node is currently valid.</returns>
         public virtual bool Validate(ISystemContext context)
         {
-            if (OnValidate != null)
+            NodeStateValidateHandler onValidate = OnValidate;
+
+            if (onValidate != null)
             {
-                return OnValidate(context, this);
+                return onValidate(context, this);
             }
 
             return true;
@@ -2884,22 +2932,17 @@ namespace Opc.Ua
             IEnumerable<IReference> additionalReferences,
             bool internalOnly)
         {
-            NodeBrowser browser = null;
 
-            // see if a callback has been provided.
-            if (OnCreateBrowser != null)
-            {
-                browser = OnCreateBrowser(
-                    context,
-                    this,
-                    view,
-                    referenceType,
-                    includeSubtypes,
-                    browseDirection,
-                    browseName,
-                    additionalReferences,
-                    internalOnly);
-            }
+            NodeBrowser browser = OnCreateBrowser?.Invoke(
+                context,
+                this,
+                view,
+                referenceType,
+                includeSubtypes,
+                browseDirection,
+                browseName,
+                additionalReferences,
+                internalOnly);
 
             // use default browser.
             if (browser == null)
@@ -2917,10 +2960,7 @@ namespace Opc.Ua
 
             PopulateBrowser(context, browser);
 
-            if (OnPopulateBrowser != null)
-            {
-                OnPopulateBrowser(context, this, browser);
-            }
+            OnPopulateBrowser?.Invoke(context, this, browser);
 
             return browser;
         }
@@ -2970,28 +3010,31 @@ namespace Opc.Ua
             Dictionary<NodeId, string> hierarchy,
             List<NodeStateHierarchyReference> references)
         {
-            // index any references.
-            if (m_references != null)
+            lock (m_referencesLock)
             {
-                foreach (IReference reference in m_references.Keys)
+                // index any references.
+                if (m_references != null)
                 {
-                    NodeId targetId = ExpandedNodeId.ToNodeId(reference.TargetId, context.NamespaceUris);
-
-                    if (targetId == null)
+                    foreach (IReference reference in m_references.Keys)
                     {
-                        references.Add(new NodeStateHierarchyReference(browsePath, reference));
-                        continue;
+                        NodeId targetId = ExpandedNodeId.ToNodeId(reference.TargetId, context.NamespaceUris);
+
+                        if (targetId == null)
+                        {
+                            references.Add(new NodeStateHierarchyReference(browsePath, reference));
+                            continue;
+                        }
+
+                        string targetPath = null;
+
+                        if (!hierarchy.TryGetValue(targetId, out targetPath))
+                        {
+                            references.Add(new NodeStateHierarchyReference(browsePath, reference));
+                            continue;
+                        }
+
+                        references.Add(new NodeStateHierarchyReference(browsePath, targetPath, reference));
                     }
-
-                    string targetPath = null;
-
-                    if (!hierarchy.TryGetValue(targetId, out targetPath))
-                    {
-                        references.Add(new NodeStateHierarchyReference(browsePath, reference));
-                        continue;
-                    }
-
-                    references.Add(new NodeStateHierarchyReference(browsePath, targetPath, reference));
                 }
             }
 
@@ -3026,46 +3069,49 @@ namespace Opc.Ua
             List<BaseInstanceState> children,
             Dictionary<NodeId, NodeId> mappingTable)
         {
-            // check if there are references to update.
-            if (m_references != null)
+            lock (m_referencesLock)
             {
-                List<IReference> referencesToAdd = new List<IReference>();
-                List<IReference> referencesToRemove = new List<IReference>();
-
-                foreach (IReference reference in m_references.Keys)
+                // check if there are references to update.
+                if (m_references != null)
                 {
-                    // check for absolute id.
-                    NodeId oldId = ExpandedNodeId.ToNodeId(reference.TargetId, context.NamespaceUris);
+                    List<IReference> referencesToAdd = new List<IReference>();
+                    List<IReference> referencesToRemove = new List<IReference>();
 
-                    if (oldId == null)
+                    foreach (IReference reference in m_references.Keys)
                     {
-                        continue;
+                        // check for absolute id.
+                        NodeId oldId = ExpandedNodeId.ToNodeId(reference.TargetId, context.NamespaceUris);
+
+                        if (oldId == null)
+                        {
+                            continue;
+                        }
+
+                        // look up new node id.
+                        NodeId newId = null;
+
+                        if (mappingTable.TryGetValue(oldId, out newId))
+                        {
+                            referencesToRemove.Add(reference);
+                            referencesToAdd.Add(new NodeStateReference(reference.ReferenceTypeId, reference.IsInverse, newId));
+                        }
                     }
 
-                    // look up new node id.
-                    NodeId newId = null;
-
-                    if (mappingTable.TryGetValue(oldId, out newId))
+                    // remove old references.
+                    for (int ii = 0; ii < referencesToRemove.Count; ii++)
                     {
-                        referencesToRemove.Add(reference);
-                        referencesToAdd.Add(new NodeStateReference(reference.ReferenceTypeId, reference.IsInverse, newId));
+                        if (m_references.Remove(referencesToRemove[ii]))
+                        {
+                            m_changeMasks |= NodeStateChangeMasks.References;
+                        }
                     }
-                }
 
-                // remove old references.
-                for (int ii = 0; ii < referencesToRemove.Count; ii++)
-                {
-                    if (m_references.Remove(referencesToRemove[ii]))
+                    // add new references.
+                    for (int ii = 0; ii < referencesToAdd.Count; ii++)
                     {
+                        m_references[referencesToAdd[ii]] = null;
                         m_changeMasks |= NodeStateChangeMasks.References;
                     }
-                }
-
-                // add new references.
-                for (int ii = 0; ii < referencesToAdd.Count; ii++)
-                {
-                    m_references[referencesToAdd[ii]] = null;
-                    m_changeMasks |= NodeStateChangeMasks.References;
                 }
             }
 
@@ -3126,83 +3172,104 @@ namespace Opc.Ua
                 }
             }
 
-            // add any notifiers.
-            if (m_notifiers != null)
+            List<Notifier> notifiers;
+
+            lock (m_notifiersLock)
             {
-                for (int ii = 0; ii < m_notifiers.Count; ii++)
+                notifiers = m_notifiers != null ? new List<Notifier>(m_notifiers) : null;
+            }
+
+            // add any notifiers.
+            if (notifiers != null)
+            {
+                for (int ii = 0; ii < notifiers.Count; ii++)
                 {
-                    Notifier entry = m_notifiers[ii];
+                    Notifier entry = notifiers[ii];
 
                     if (browser.IsRequired(entry.ReferenceTypeId, entry.IsInverse))
                     {
-                        browser.Add(entry.ReferenceTypeId, entry.IsInverse, m_notifiers[ii].Node);
+                        browser.Add(entry.ReferenceTypeId, entry.IsInverse, notifiers[ii].Node);
                     }
                 }
             }
 
-            // add any arbitrary references.
-            if (m_references != null)
+            List<IReference> referencesToAdd = new List<IReference>();
+
+            BrowseDirection browserBrowseDirection = browser.BrowseDirection;
+            bool browserIncludeSubtypes = browser.IncludeSubtypes;
+            NodeId browserReferenceType = browser.ReferenceType;
+
+            lock (m_referencesLock)
             {
-                if (referenceTypeId == null)
+                // add any arbitrary references.
+                if (m_references != null)
                 {
-                    foreach (IReference reference in m_references.Keys)
+                    if (referenceTypeId == null)
                     {
-                        if (reference.IsInverse)
+                        foreach (IReference reference in m_references.Keys)
                         {
-                            if (browser.BrowseDirection == BrowseDirection.Forward)
+                            if (reference.IsInverse)
                             {
-                                continue;
+                                if (browserBrowseDirection == BrowseDirection.Forward)
+                                {
+                                    continue;
+                                }
+                            }
+                            else
+                            {
+                                if (browserBrowseDirection == BrowseDirection.Inverse)
+                                {
+                                    continue;
+                                }
+                            }
+
+                            referencesToAdd.Add(reference);
+                        }
+                    }
+                    else
+                    {
+                        IList<IReference> references = null;
+
+                        if (browserBrowseDirection != BrowseDirection.Inverse)
+                        {
+                            if (browserIncludeSubtypes)
+                            {
+                                references = m_references.Find(browserReferenceType, false, context.TypeTable);
+                            }
+                            else
+                            {
+                                references = m_references.Find(browserReferenceType, false);
+                            }
+
+                            for (int ii = 0; ii < references.Count; ii++)
+                            {
+                                referencesToAdd.Add(references[ii]);
                             }
                         }
-                        else
+
+                        if (browserBrowseDirection != BrowseDirection.Forward)
                         {
-                            if (browser.BrowseDirection == BrowseDirection.Inverse)
+                            if (browserIncludeSubtypes)
                             {
-                                continue;
+                                references = m_references.Find(browserReferenceType, true, context.TypeTable);
+                            }
+                            else
+                            {
+                                references = m_references.Find(browserReferenceType, true);
+                            }
+
+                            for (int ii = 0; ii < references.Count; ii++)
+                            {
+                                referencesToAdd.Add(references[ii]);
                             }
                         }
-
-                        browser.Add(reference);
                     }
                 }
-                else
-                {
-                    IList<IReference> references = null;
+            }
 
-                    if (browser.BrowseDirection != BrowseDirection.Inverse)
-                    {
-                        if (browser.IncludeSubtypes)
-                        {
-                            references = m_references.Find(browser.ReferenceType, false, context.TypeTable);
-                        }
-                        else
-                        {
-                            references = m_references.Find(browser.ReferenceType, false);
-                        }
-
-                        for (int ii = 0; ii < references.Count; ii++)
-                        {
-                            browser.Add(references[ii]);
-                        }
-                    }
-
-                    if (browser.BrowseDirection != BrowseDirection.Forward)
-                    {
-                        if (browser.IncludeSubtypes)
-                        {
-                            references = m_references.Find(browser.ReferenceType, true, context.TypeTable);
-                        }
-                        else
-                        {
-                            references = m_references.Find(browser.ReferenceType, true);
-                        }
-
-                        for (int ii = 0; ii < references.Count; ii++)
-                        {
-                            browser.Add(references[ii]);
-                        }
-                    }
-                }
+            foreach (var reference in referencesToAdd)
+            {
+                browser.Add(reference);
             }
         }
 
@@ -3223,17 +3290,15 @@ namespace Opc.Ua
                     continue;
                 }
 
-                BaseVariableState variableInstance = child as BaseVariableState;
 
-                if (variableInstance != null)
+                if (child is BaseVariableState variableInstance)
                 {
                     variableInstance.Value = values.EventFields[ii].Value;
                     continue;
                 }
 
-                BaseObjectState objectInstance = child as BaseObjectState;
 
-                if (objectInstance != null)
+                if (child is BaseObjectState objectInstance)
                 {
                     NodeId nodeId = values.EventFields[ii].Value as NodeId;
 
@@ -3384,7 +3449,7 @@ namespace Opc.Ua
         /// Reads the value for any non-value attribute.
         /// </summary>
         /// <param name="context">The context.</param>
-        /// <param name="attributeId">The attribute idetifier <see cref="Attributes"/>.</param>
+        /// <param name="attributeId">The attribute identifier <see cref="Attributes"/>.</param>
         /// <param name="value">The returned value.</param>
         /// <returns>
         /// An instance of the <see cref="ServiceResult"/> containing the status code and diagnostic info for the operation.
@@ -3403,9 +3468,11 @@ namespace Opc.Ua
                 {
                     NodeId nodeId = m_nodeId;
 
-                    if (OnReadNodeId != null)
+                    NodeAttributeEventHandler<NodeId> onReadNodeId = OnReadNodeId;
+
+                    if (onReadNodeId != null)
                     {
-                        result = OnReadNodeId(context, this, ref nodeId);
+                        result = onReadNodeId(context, this, ref nodeId);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -3420,9 +3487,11 @@ namespace Opc.Ua
                 {
                     NodeClass nodeClass = m_nodeClass;
 
-                    if (OnReadNodeClass != null)
+                    NodeAttributeEventHandler<NodeClass> onReadNodeClass = OnReadNodeClass;
+
+                    if (onReadNodeClass != null)
                     {
-                        result = OnReadNodeClass(context, this, ref nodeClass);
+                        result = onReadNodeClass(context, this, ref nodeClass);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -3437,9 +3506,11 @@ namespace Opc.Ua
                 {
                     QualifiedName browseName = m_browseName;
 
-                    if (OnReadBrowseName != null)
+                    NodeAttributeEventHandler<QualifiedName> onReadBrowseName = OnReadBrowseName;
+
+                    if (onReadBrowseName != null)
                     {
-                        result = OnReadBrowseName(context, this, ref browseName);
+                        result = onReadBrowseName(context, this, ref browseName);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -3454,9 +3525,11 @@ namespace Opc.Ua
                 {
                     LocalizedText displayName = m_displayName;
 
-                    if (OnReadDisplayName != null)
+                    NodeAttributeEventHandler<LocalizedText> onReadDisplayName = OnReadDisplayName;
+
+                    if (onReadDisplayName != null)
                     {
-                        result = OnReadDisplayName(context, this, ref displayName);
+                        result = onReadDisplayName(context, this, ref displayName);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -3476,9 +3549,11 @@ namespace Opc.Ua
                 {
                     LocalizedText description = m_description;
 
-                    if (OnReadDescription != null)
+                    NodeAttributeEventHandler<LocalizedText> onReadDescription = OnReadDescription;
+
+                    if (onReadDescription != null)
                     {
-                        result = OnReadDescription(context, this, ref description);
+                        result = onReadDescription(context, this, ref description);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -3498,9 +3573,11 @@ namespace Opc.Ua
                 {
                     AttributeWriteMask writeMask = m_writeMask;
 
-                    if (OnReadWriteMask != null)
+                    NodeAttributeEventHandler<AttributeWriteMask> onReadWriteMask = OnReadWriteMask;
+
+                    if (onReadWriteMask != null)
                     {
-                        result = OnReadWriteMask(context, this, ref writeMask);
+                        result = onReadWriteMask(context, this, ref writeMask);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -3515,9 +3592,11 @@ namespace Opc.Ua
                 {
                     AttributeWriteMask userWriteMask = m_userWriteMask;
 
-                    if (OnReadUserWriteMask != null)
+                    NodeAttributeEventHandler<AttributeWriteMask> onReadUserWriteMask = OnReadUserWriteMask;
+
+                    if (onReadUserWriteMask != null)
                     {
-                        result = OnReadUserWriteMask(context, this, ref userWriteMask);
+                        result = onReadUserWriteMask(context, this, ref userWriteMask);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -3532,9 +3611,11 @@ namespace Opc.Ua
                 {
                     RolePermissionTypeCollection rolePermissions = m_rolePermissions;
 
-                    if (OnReadRolePermissions != null)
+                    NodeAttributeEventHandler<RolePermissionTypeCollection> onReadRolePermissions = OnReadRolePermissions;
+
+                    if (onReadRolePermissions != null)
                     {
-                        result = OnReadRolePermissions(context, this, ref rolePermissions);
+                        result = onReadRolePermissions(context, this, ref rolePermissions);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -3554,9 +3635,11 @@ namespace Opc.Ua
                 {
                     RolePermissionTypeCollection userRolePermissions = m_userRolePermissions;
 
-                    if (OnReadUserRolePermissions != null)
+                    NodeAttributeEventHandler<RolePermissionTypeCollection> onReadUserRolePermissions = OnReadUserRolePermissions;
+
+                    if (onReadUserRolePermissions != null)
                     {
-                        result = OnReadUserRolePermissions(context, this, ref userRolePermissions);
+                        result = onReadUserRolePermissions(context, this, ref userRolePermissions);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -3574,16 +3657,18 @@ namespace Opc.Ua
 
                 case Attributes.AccessRestrictions:
                 {
-                    AccessRestrictionType accessRestrictions = m_accessRestrictions;
+                    AccessRestrictionType? accessRestrictions = m_accessRestrictions;
 
-                    if (OnReadAccessRestrictions != null)
+                    NodeAttributeEventHandler<AccessRestrictionType?> onReadAccessRestrictions = OnReadAccessRestrictions;
+
+                    if (onReadAccessRestrictions != null)
                     {
-                        result = OnReadAccessRestrictions(context, this, ref accessRestrictions);
+                        result = onReadAccessRestrictions(context, this, ref accessRestrictions);
                     }
 
                     if (ServiceResult.IsGood(result))
                     {
-                        value = (ushort)m_accessRestrictions;
+                        value = accessRestrictions;
                     }
 
                     if (value != null || result != null)
@@ -3729,9 +3814,11 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    if (OnWriteNodeId != null)
+                    NodeAttributeEventHandler<NodeId> onWriteNodeId = OnWriteNodeId;
+
+                    if (onWriteNodeId != null)
                     {
-                        result = OnWriteNodeId(context, this, ref nodeId);
+                        result = onWriteNodeId(context, this, ref nodeId);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -3758,9 +3845,11 @@ namespace Opc.Ua
 
                     NodeClass nodeClass = (NodeClass)nodeClassRef.Value;
 
-                    if (OnWriteNodeClass != null)
+                    NodeAttributeEventHandler<NodeClass> onWriteNodeClass = OnWriteNodeClass;
+
+                    if (onWriteNodeClass != null)
                     {
-                        result = OnWriteNodeClass(context, this, ref nodeClass);
+                        result = onWriteNodeClass(context, this, ref nodeClass);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -3785,9 +3874,11 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    if (OnWriteBrowseName != null)
+                    NodeAttributeEventHandler<QualifiedName> onWriteBrowseName = OnWriteBrowseName;
+
+                    if (onWriteBrowseName != null)
                     {
-                        result = OnWriteBrowseName(context, this, ref browseName);
+                        result = onWriteBrowseName(context, this, ref browseName);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -3812,9 +3903,11 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    if (OnWriteDisplayName != null)
+                    NodeAttributeEventHandler<LocalizedText> onWriteDisplayName = OnWriteDisplayName;
+
+                    if (onWriteDisplayName != null)
                     {
-                        result = OnWriteDisplayName(context, this, ref displayName);
+                        result = onWriteDisplayName(context, this, ref displayName);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -3839,9 +3932,11 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    if (OnWriteDescription != null)
+                    NodeAttributeEventHandler<LocalizedText> onWriteDescription = OnWriteDescription;
+
+                    if (onWriteDescription != null)
                     {
-                        result = OnWriteDescription(context, this, ref description);
+                        result = onWriteDescription(context, this, ref description);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -3868,9 +3963,11 @@ namespace Opc.Ua
 
                     AttributeWriteMask writeMask = (AttributeWriteMask)writeMaskRef.Value;
 
-                    if (OnWriteWriteMask != null)
+                    NodeAttributeEventHandler<AttributeWriteMask> onWriteWriteMask = this.OnWriteWriteMask;
+
+                    if (onWriteWriteMask != null)
                     {
-                        result = OnWriteWriteMask(context, this, ref writeMask);
+                        result = onWriteWriteMask(context, this, ref writeMask);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -3897,9 +3994,11 @@ namespace Opc.Ua
 
                     AttributeWriteMask userWriteMask = (AttributeWriteMask)userWriteMaskRef.Value;
 
-                    if (OnWriteUserWriteMask != null)
+                    NodeAttributeEventHandler<AttributeWriteMask> onWriteUserWriteMask = this.OnWriteUserWriteMask;
+
+                    if (onWriteUserWriteMask != null)
                     {
-                        result = OnWriteUserWriteMask(context, this, ref userWriteMask);
+                        result = onWriteUserWriteMask(context, this, ref userWriteMask);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -3912,9 +4011,7 @@ namespace Opc.Ua
 
                 case Attributes.RolePermissions:
                 {
-                    ExtensionObject[] rolePermissionsArray = value as ExtensionObject[];
-
-                    if (rolePermissionsArray == null)
+                    if (!(value is ExtensionObject[] rolePermissionsArray))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -3923,9 +4020,7 @@ namespace Opc.Ua
 
                     foreach (ExtensionObject arrayValue in rolePermissionsArray)
                     {
-                        RolePermissionType rolePermission = arrayValue.Body as RolePermissionType;
-
-                        if (rolePermission == null)
+                        if (!(arrayValue.Body is RolePermissionType rolePermission))
                         {
                             return StatusCodes.BadTypeMismatch;
                         }
@@ -3940,9 +4035,11 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    if (OnWriteRolePermissions != null)
+                    NodeAttributeEventHandler<RolePermissionTypeCollection> onWriteRolePermissions = OnWriteRolePermissions;
+
+                    if (onWriteRolePermissions != null)
                     {
-                        result = OnWriteRolePermissions(context, this, ref rolePermissions);
+                        result = onWriteRolePermissions(context, this, ref rolePermissions);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -3961,7 +4058,7 @@ namespace Opc.Ua
                     {
                         if (value.GetType() == typeof(uint))
                         {
-                            accessRestrictionsRef = Convert.ToUInt16(value);
+                            accessRestrictionsRef = Convert.ToUInt16(value, CultureInfo.InvariantCulture);
                         }
                         else
                         {
@@ -3974,11 +4071,13 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    AccessRestrictionType accessRestrictions = (AccessRestrictionType)accessRestrictionsRef.Value;
+                    var accessRestrictions = (AccessRestrictionType?)accessRestrictionsRef.Value;
 
-                    if (OnWriteAccessRestrictions != null)
+                    NodeAttributeEventHandler<AccessRestrictionType?> onWriteAccessRestrictions = OnWriteAccessRestrictions;
+
+                    if (onWriteAccessRestrictions != null)
                     {
-                        result = OnWriteAccessRestrictions(context, this, ref accessRestrictions);
+                        result = onWriteAccessRestrictions(context, this, ref accessRestrictions);
                     }
 
                     if (ServiceResult.IsGood(result))
@@ -4024,7 +4123,7 @@ namespace Opc.Ua
         /// <param name="symbolicPath">The symbolic path.</param>
         /// <returns>The matching child. Null if the no child was found.</returns>
         /// <remarks>
-        /// This method assumes the symbolicPath consists of symbolic names seperated by a slash ('/').
+        /// This method assumes the symbolicPath consists of symbolic names separated by a slash ('/').
         /// Leading and trailing slashes are ignored.
         /// </remarks>
         public virtual BaseInstanceState FindChildBySymbolicName(
@@ -4190,12 +4289,17 @@ namespace Opc.Ua
                 }
             }
 
-            if (m_children == null)
+            lock (m_childrenLock)
             {
-                m_children = new List<BaseInstanceState>();
+
+                if (m_children == null)
+                {
+                    m_children = new List<BaseInstanceState>();
+                }
+
+                m_children.Add(child);
             }
 
-            m_children.Add(child);
             m_changeMasks |= NodeStateChangeMasks.Children;
         }
 
@@ -4235,16 +4339,19 @@ namespace Opc.Ua
         /// </summary>
         public void RemoveChild(BaseInstanceState child)
         {
-            if (m_children != null)
+            lock (m_childrenLock)
             {
-                for (int ii = 0; ii < m_children.Count; ii++)
+                if (m_children != null)
                 {
-                    if (Object.ReferenceEquals(m_children[ii], child))
+                    for (int ii = 0; ii < m_children.Count; ii++)
                     {
-                        child.Parent = null;
-                        m_children.RemoveAt(ii);
-                        m_changeMasks |= NodeStateChangeMasks.Children;
-                        return;
+                        if (Object.ReferenceEquals(m_children[ii], child))
+                        {
+                            child.Parent = null;
+                            m_children.RemoveAt(ii);
+                            m_changeMasks |= NodeStateChangeMasks.Children;
+                            return;
+                        }
                     }
                 }
             }
@@ -4266,17 +4373,13 @@ namespace Opc.Ua
                 return false;
             }
 
-            BaseInstanceState child = CreateChild(context, browseName) as BaseInstanceState;
 
-            if (child == null)
+            if (!(CreateChild(context, browseName) is BaseInstanceState child))
             {
                 return false;
             }
 
-            BaseVariableState variable = child as BaseVariableState;
-            BaseVariableState sourceVariable = source as BaseVariableState;
-
-            if (variable != null && sourceVariable != null)
+            if (child is BaseVariableState variable && source is BaseVariableState sourceVariable)
             {
                 if (copy)
                 {
@@ -4310,9 +4413,7 @@ namespace Opc.Ua
             object value,
             bool copy)
         {
-            BaseVariableState child = CreateChild(context, browseName) as BaseVariableState;
-
-            if (child == null)
+            if (!(CreateChild(context, browseName) is BaseVariableState child))
             {
                 return false;
             }
@@ -4403,17 +4504,27 @@ namespace Opc.Ua
                 return WriteAttribute(context, attributeId, NumericRange.Empty, value);
             }
 
-            // recursively update children.
-            if (m_children != null)
+            List<BaseInstanceState> children = null;
+
+            lock (m_childrenLock)
             {
-                for (int ii = 0; ii < m_children.Count; ii++)
+                if (m_children != null)
                 {
-                    if (componentPath[index] != m_children[ii].BrowseName)
+                    children = new List<BaseInstanceState>(m_children);
+                }
+            }
+
+            // recursively update children.
+            if (children != null)
+            {
+                for (int ii = 0; ii < children.Count; ii++)
+                {
+                    if (componentPath[index] != children[ii].BrowseName)
                     {
                         continue;
                     }
 
-                    return m_children[ii].WriteChildAttribute(
+                    return children[ii].WriteChildAttribute(
                         context,
                         componentPath,
                         index + 1,
@@ -4437,12 +4548,15 @@ namespace Opc.Ua
             bool isInverse,
             ExpandedNodeId targetId)
         {
-            if (m_references == null || referenceTypeId == null || targetId == null)
+            lock (m_referencesLock)
             {
-                return false;
-            }
+                if (m_references == null || referenceTypeId == null || targetId == null)
+                {
+                    return false;
+                }
 
-            return m_references.ContainsKey(new NodeStateReference(referenceTypeId, isInverse, targetId));
+                return m_references.ContainsKey(new NodeStateReference(referenceTypeId, isInverse, targetId));
+            }
         }
 
         /// <summary>
@@ -4459,12 +4573,16 @@ namespace Opc.Ua
             if (NodeId.IsNull(referenceTypeId)) throw new ArgumentNullException(nameof(referenceTypeId));
             if (NodeId.IsNull(targetId)) throw new ArgumentNullException(nameof(targetId));
 
-            if (m_references == null)
+            lock (m_referencesLock)
             {
-                m_references = new IReferenceDictionary<object>();
+                if (m_references == null)
+                {
+                    m_references = new IReferenceDictionary<object>();
+                }
+
+                m_references.Add(new NodeStateReference(referenceTypeId, isInverse, targetId), null);
             }
 
-            m_references.Add(new NodeStateReference(referenceTypeId, isInverse, targetId), null);
             m_changeMasks |= NodeStateChangeMasks.References;
 
             OnReferenceAdded?.Invoke(this, referenceTypeId, isInverse, targetId);
@@ -4484,19 +4602,29 @@ namespace Opc.Ua
             if (NodeId.IsNull(referenceTypeId)) throw new ArgumentNullException(nameof(referenceTypeId));
             if (NodeId.IsNull(targetId)) throw new ArgumentNullException(nameof(targetId));
 
-            if (m_references == null)
+            bool removed = false;
+
+            lock (m_referencesLock)
             {
-                return false;
+                if (m_references == null)
+                {
+                    return false;
+                }
+
+                if (m_references.Remove(new NodeStateReference(referenceTypeId, isInverse, targetId)))
+                {
+                    m_changeMasks |= NodeStateChangeMasks.References;
+                    OnReferenceRemoved?.Invoke(this, referenceTypeId, isInverse, targetId);
+                    return true;
+                }
             }
 
-            if (m_references.Remove(new NodeStateReference(referenceTypeId, isInverse, targetId)))
+            if (removed)
             {
-                m_changeMasks |= NodeStateChangeMasks.References;
                 OnReferenceRemoved?.Invoke(this, referenceTypeId, isInverse, targetId);
-                return true;
             }
 
-            return false;
+            return removed;
         }
 
         /// <summary>
@@ -4507,18 +4635,29 @@ namespace Opc.Ua
         {
             if (references == null) throw new ArgumentNullException(nameof(references));
 
-            if (m_references == null)
+            List<IReference> addedReferences = new List<IReference>();
+
+            lock (m_referencesLock)
             {
-                m_references = new IReferenceDictionary<object>();
+                if (m_references == null)
+                {
+                    m_references = new IReferenceDictionary<object>();
+                }
+
+                for (int ii = 0; ii < references.Count; ii++)
+                {
+                    if (!m_references.ContainsKey(references[ii]))
+                    {
+                        m_references.Add(references[ii], null);
+                        addedReferences.Add(references[ii]);
+
+                    }
+                }
             }
 
-            for (int ii = 0; ii < references.Count; ii++)
+            foreach (IReference addedReference in addedReferences)
             {
-                if (!m_references.ContainsKey(references[ii]))
-                {
-                    m_references.Add(references[ii], null);
-                    OnReferenceAdded?.Invoke(this, references[ii].ReferenceTypeId, references[ii].IsInverse, references[ii].TargetId);
-                }
+                OnReferenceAdded?.Invoke(this, addedReference.ReferenceTypeId, addedReference.IsInverse, addedReference.TargetId);
             }
 
             m_changeMasks |= NodeStateChangeMasks.References;
@@ -4535,15 +4674,20 @@ namespace Opc.Ua
         {
             if (NodeId.IsNull(referenceTypeId)) throw new ArgumentNullException(nameof(referenceTypeId));
 
-            if (m_references == null)
-            {
-                return false;
-            }
+            List<IReference> refsToRemove = null;
 
-            var refsToRemove = m_references
-                .Select(r => r.Key)
-                .Where(r => r.ReferenceTypeId == referenceTypeId && r.IsInverse == isInverse)
-                .ToList();
+            lock (m_referencesLock)
+            {
+                if (m_references == null)
+                {
+                    return false;
+                }
+
+                refsToRemove = m_references
+                    .Select(r => r.Key)
+                    .Where(r => r.ReferenceTypeId == referenceTypeId && r.IsInverse == isInverse)
+                    .ToList();
+            }
 
             refsToRemove.ForEach(r => RemoveReference(r.ReferenceTypeId, r.IsInverse, r.TargetId));
 
@@ -4565,11 +4709,14 @@ namespace Opc.Ua
             ISystemContext context,
             IList<BaseInstanceState> children)
         {
-            if (m_children != null)
+            lock (m_childrenLock)
             {
-                for (int ii = 0; ii < m_children.Count; ii++)
+                if (m_children != null)
                 {
-                    children.Add(m_children[ii]);
+                    for (int ii = 0; ii < m_children.Count; ii++)
+                    {
+                        children.Add(m_children[ii]);
+                    }
                 }
             }
         }
@@ -4590,11 +4737,14 @@ namespace Opc.Ua
             ISystemContext context,
             IList<IReference> references)
         {
-            if (m_references != null)
+            lock (m_referencesLock)
             {
-                foreach (IReference reference in m_references.Keys)
+                if (m_references != null)
                 {
-                    references.Add(reference);
+                    foreach (IReference reference in m_references.Keys)
+                    {
+                        references.Add(reference);
+                    }
                 }
             }
         }
@@ -4608,13 +4758,16 @@ namespace Opc.Ua
             NodeId referenceTypeId,
             bool isInverse)
         {
-            if (m_references != null)
+            lock (m_referencesLock)
             {
-                foreach (IReference reference in m_references.Keys)
+                if (m_references != null)
                 {
-                    if (isInverse == reference.IsInverse && reference.ReferenceTypeId == referenceTypeId)
+                    foreach (IReference reference in m_references.Keys)
                     {
-                        references.Add(reference);
+                        if (isInverse == reference.IsInverse && reference.ReferenceTypeId == referenceTypeId)
+                        {
+                            references.Add(reference);
+                        }
                     }
                 }
             }
@@ -4639,20 +4792,23 @@ namespace Opc.Ua
                 return null;
             }
 
-            if (m_children != null)
+            lock (m_childrenLock)
             {
-                for (int ii = 0; ii < m_children.Count; ii++)
+                if (m_children != null)
                 {
-                    BaseInstanceState child = m_children[ii];
-
-                    if (browseName == child.BrowseName)
+                    for (int ii = 0; ii < m_children.Count; ii++)
                     {
-                        if (createOrReplace && replacement != null)
-                        {
-                            m_children[ii] = child = replacement;
-                        }
+                        BaseInstanceState child = m_children[ii];
 
-                        return child;
+                        if (browseName == child.BrowseName)
+                        {
+                            if (createOrReplace && replacement != null)
+                            {
+                                m_children[ii] = child = replacement;
+                            }
+
+                            return child;
+                        }
                     }
                 }
             }
@@ -4705,6 +4861,10 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
+        private readonly object m_areEventsMonitoredLock = new object();
+        private readonly object m_notifiersLock = new object();
+        private readonly object m_referencesLock = new object();
+        private readonly object m_childrenLock = new object();
         private object m_handle;
         private string m_symbolicName;
         private NodeId m_nodeId;
@@ -4716,7 +4876,7 @@ namespace Opc.Ua
         private AttributeWriteMask m_userWriteMask;
         private RolePermissionTypeCollection m_rolePermissions;
         private RolePermissionTypeCollection m_userRolePermissions;
-        private AccessRestrictionType m_accessRestrictions;
+        private AccessRestrictionType? m_accessRestrictions;
         private IReferenceDictionary<object> m_references;
         private int m_areEventsMonitored;
         private bool m_initialized;

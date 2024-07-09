@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Client
 {
@@ -107,7 +108,7 @@ namespace Opc.Ua.Client
             {
                 m_cacheLock.EnterReadLock();
 
-                // check if node alredy exists.
+                // check if node already exists.
                 node = m_nodes.Find(nodeId);
             }
             finally
@@ -131,7 +132,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.LogError("Could not fetch node from server: NodeId={0}, Reason='{1}'.", nodeId, e.Message);
+                Utils.LogError("Could not fetch node from server: NodeId={0}, Reason='{1}'.", nodeId, Redact.Create(e));
                 // m_nodes[nodeId] = null;
                 return null;
             }
@@ -856,7 +857,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.LogError("Could not fetch references for valid node with NodeId = {0}. Error = {1}", nodeId, e.Message);
+                Utils.LogError("Could not fetch references for valid node with NodeId = {0}. Error = {1}", nodeId, Redact.Create(e));
             }
 
             InternalWriteLockedAttach(source);

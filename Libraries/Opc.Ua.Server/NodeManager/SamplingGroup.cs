@@ -312,7 +312,7 @@ namespace Opc.Ua.Server
                     return samplingRate.Start;
                 }
 
-                // check if within range specfied by the group.
+                // check if within range specified by the group.
                 double maxSamplingRate = samplingRate.Start;
 
                 if (samplingRate.Increment > 0)
@@ -476,7 +476,7 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private IServerInternal m_server;
         private INodeManager m_nodeManager;
         private Session m_session;

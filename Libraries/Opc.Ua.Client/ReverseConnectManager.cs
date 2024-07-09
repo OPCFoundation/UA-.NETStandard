@@ -189,7 +189,6 @@ namespace Opc.Ua.Client
         {
             m_state = ReverseConnectManagerState.New;
             m_registrations = new List<Registration>();
-            m_registrationsLock = new object();
             m_endpointUrls = new Dictionary<Uri, ReverseConnectInfo>();
             m_cts = new CancellationTokenSource();
         }
@@ -446,7 +445,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Clears all waiting reverse connectino handlers.
+        /// Clears all waiting reverse connection handlers.
         /// </summary>
         public void ClearWaitingConnections()
         {
@@ -466,7 +465,7 @@ namespace Opc.Ua.Client
         public async Task<ITransportWaitingConnection> WaitForConnection(
             Uri endpointUrl,
             string serverUri,
-            CancellationToken ct = default(CancellationToken))
+            CancellationToken ct = default)
         {
             var tcs = new TaskCompletionSource<ITransportWaitingConnection>();
             int hashCode = RegisterWaitingConnection(endpointUrl, serverUri,
@@ -474,7 +473,7 @@ namespace Opc.Ua.Client
                 ReverseConnectStrategy.Once);
 
             Func<Task> listenForCancelTaskFnc = async () => {
-                if (ct == default(CancellationToken))
+                if (ct == default)
                 {
                     var waitTimeout = m_configuration.WaitTimeout > 0 ? m_configuration.WaitTimeout : DefaultWaitTimeout;
                     await Task.Delay(waitTimeout).ConfigureAwait(false);
@@ -622,8 +621,9 @@ namespace Opc.Ua.Client
         /// </summary>
         private async Task OnConnectionWaiting(object sender, ConnectionWaitingEventArgs e)
         {
-            DateTime startTime = DateTime.UtcNow;
-            DateTime endTime = startTime + TimeSpan.FromMilliseconds(m_configuration.HoldTime);
+            int startTime = HiResClock.TickCount;
+            int endTime = startTime + m_configuration.HoldTime;
+
             bool matched = MatchRegistration(sender, e);
             while (!matched)
             {
@@ -633,8 +633,8 @@ namespace Opc.Ua.Client
                 {
                     ct = m_cts.Token;
                 }
-                TimeSpan delay = endTime - DateTime.UtcNow;
-                if (delay.TotalMilliseconds > 0)
+                int delay = endTime - HiResClock.TickCount;
+                if (delay > 0)
                 {
                     await Task.Delay(delay, ct).ContinueWith(tsk => {
                         if (tsk.IsCanceled)
@@ -644,7 +644,7 @@ namespace Opc.Ua.Client
                             {
                                 Utils.LogInfo("Matched reverse connection {0} {1} after {2}ms",
                                      e.ServerUri, e.EndpointUrl,
-                                    (int)(DateTime.UtcNow - startTime).TotalMilliseconds);
+                                     HiResClock.TickCount - startTime);
                             }
                         }
                     }
@@ -655,7 +655,7 @@ namespace Opc.Ua.Client
 
             Utils.LogInfo("{0} reverse connection: {1} {2} after {3}ms",
                 e.Accepted ? "Accepted" : "Rejected",
-                e.ServerUri, e.EndpointUrl, (int)DateTime.UtcNow.Subtract(startTime).TotalMilliseconds);
+                e.ServerUri, e.EndpointUrl, HiResClock.TickCount - startTime);
         }
 
         /// <summary>

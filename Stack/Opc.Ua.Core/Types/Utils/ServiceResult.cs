@@ -35,7 +35,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object by specifying each property.
+        /// Constructs an object by specifying each property.
         /// </summary>
         public ServiceResult(
             StatusCode code,
@@ -67,7 +67,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object by specifying each property.
+        /// Constructs an object by specifying each property.
         /// </summary>
         public ServiceResult(
             StatusCode code,
@@ -78,7 +78,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object by specifying each property.
+        /// Constructs an object by specifying each property.
         /// </summary>
         public ServiceResult(
             StatusCode code,
@@ -92,7 +92,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object by specifying each property.
+        /// Constructs an object by specifying each property.
         /// </summary>
         public ServiceResult(
             StatusCode code,
@@ -105,7 +105,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object by specifying each property.
+        /// Constructs an object by specifying each property.
         /// </summary>
         public ServiceResult(
             StatusCode code,
@@ -117,7 +117,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object by specifying each property.
+        /// Constructs an object by specifying each property.
         /// </summary>
         public ServiceResult(
             StatusCode code,
@@ -129,7 +129,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object by specifying each property.
+        /// Constructs an object by specifying each property.
         /// </summary>
         public ServiceResult(
             StatusCode code,
@@ -140,7 +140,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object from a StatusCode.
+        /// Constructs an object from a StatusCode.
         /// </summary>
         public ServiceResult(StatusCode status)
         {
@@ -148,7 +148,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object from a StatusCode.
+        /// Constructs an object from a StatusCode.
         /// </summary>
         public ServiceResult(uint code)
         {
@@ -156,7 +156,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object by specifying each property.
+        /// Constructs an object by specifying each property.
         /// </summary>
         /// <remarks>
         /// The innerException is used to construct the inner result.
@@ -195,7 +195,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object by specifying each property.
+        /// Constructs an object by specifying each property.
         /// </summary>
         /// <remarks>
         /// The innerException is used to construct the innerResult.
@@ -212,7 +212,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object by specifying each property.
+        /// Constructs an object by specifying each property.
         /// </summary>
         /// <remarks>
         /// The innerException is used to construct the innerResult.
@@ -228,7 +228,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object by specifying each property.
+        /// Constructs an object by specifying each property.
         /// </summary>
         /// <remarks>
         /// The innerException is used to construct the innerResult.
@@ -243,7 +243,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object by specifying each property.
+        /// Constructs an object by specifying each property.
         /// </summary>
         /// <remarks>
         /// The innerException is used to construct the innerResult.
@@ -255,7 +255,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object from an exception.
+        /// Constructs an object from an exception.
         /// </summary>
         /// <remarks>
         /// The code, symbolicId, namespaceUri and localizedText parameters are ignored for ServiceResultExceptions.
@@ -267,9 +267,7 @@ namespace Opc.Ua
             string defaultNamespaceUri,
             LocalizedText defaultLocalizedText)
         {
-            ServiceResultException sre = e as ServiceResultException;
-
-            if (sre != null)
+            if (e is ServiceResultException sre)
             {
                 m_code = sre.StatusCode;
                 m_namespaceUri = sre.NamespaceUri;
@@ -294,7 +292,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object from an exception.
+        /// Constructs an object from an exception.
         /// </summary>
         /// <remarks>
         /// The defaultCode and defaultLocalizedText parameters are ignored for ServiceResultExceptions.
@@ -309,7 +307,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object from an exception.
+        /// Constructs an object from an exception.
         /// </summary>
         /// <remarks>
         /// The code, symbolicId and namespaceUri parameters are ignored for ServiceResultExceptions.
@@ -325,7 +323,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object from an exception.
+        /// Constructs an object from an exception.
         /// </summary>
         /// <remarks>
         /// The code parameter is ignored for ServiceResultExceptions.
@@ -339,7 +337,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Constructs a object from an exception.
+        /// Constructs an object from an exception.
         /// </summary>
         public ServiceResult(Exception exception)
         :
@@ -430,9 +428,8 @@ namespace Opc.Ua
         public static ServiceResult Create(Exception e, TranslationInfo translation, uint defaultCode)
         {
             // replace the default code with the one from the exception.
-            ServiceResultException sre = e as ServiceResultException;
 
-            if (sre != null)
+            if (e is ServiceResultException sre)
             {
                 defaultCode = sre.StatusCode;
             }
@@ -469,9 +466,8 @@ namespace Opc.Ua
         public static ServiceResult Create(Exception e, uint defaultCode, string format, params object[] args)
         {
             // replace the default code with the one from the exception.
-            ServiceResultException sre = e as ServiceResultException;
 
-            if (sre != null)
+            if (e is ServiceResultException sre)
             {
                 defaultCode = sre.StatusCode;
             }
@@ -726,22 +722,22 @@ namespace Opc.Ua
             {
                 if (!String.IsNullOrEmpty(m_namespaceUri))
                 {
-                    buffer.AppendFormat(" ({0}:{1})", m_namespaceUri, m_symbolicId);
+                    buffer.AppendFormat(CultureInfo.InvariantCulture, " ({0}:{1})", m_namespaceUri, m_symbolicId);
                 }
                 else if (m_symbolicId != buffer.ToString())
                 {
-                    buffer.AppendFormat(" ({0})", m_symbolicId);
+                    buffer.AppendFormat(CultureInfo.InvariantCulture, " ({0})", m_symbolicId);
                 }
             }
 
             if (!LocalizedText.IsNullOrEmpty(m_localizedText))
             {
-                buffer.AppendFormat(" '{0}'", m_localizedText);
+                buffer.AppendFormat(CultureInfo.InvariantCulture, " '{0}'", m_localizedText);
             }
 
             if ((0x0000FFFF & Code) != 0)
             {
-                buffer.AppendFormat(" [{0:X4}]", (0x0000FFFF & Code));
+                buffer.AppendFormat(CultureInfo.InvariantCulture, " [{0:X4}]", (0x0000FFFF & Code));
             }
 
             return buffer.ToString();
@@ -813,12 +809,12 @@ namespace Opc.Ua
         {
             if (exception != null && exception.Message != null)
             {
-                if (exception.Message.StartsWith("[") || exception is ServiceResultException)
+                if (exception.Message.StartsWith("[", StringComparison.Ordinal) || exception is ServiceResultException)
                 {
                     return exception.Message;
                 }
 
-                return String.Format(CultureInfo.InvariantCulture, "[{0}] {1}", exception.GetType().Name, exception.Message);
+                return Utils.Format("[{0}] {1}", exception.GetType().Name, exception.Message);
             }
 
             return String.Empty;

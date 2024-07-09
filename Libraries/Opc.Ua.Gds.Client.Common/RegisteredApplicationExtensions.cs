@@ -48,11 +48,11 @@ namespace Opc.Ua.Gds.Client
         {
             if (this.DiscoveryUrl != null)
             {
-                foreach (string disoveryUrl in this.DiscoveryUrl)
+                foreach (string discoveryUrl in this.DiscoveryUrl)
                 {
-                    if (Uri.IsWellFormedUriString(disoveryUrl, UriKind.Absolute))
+                    if (Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
                     {
-                        Uri url = new Uri(disoveryUrl);
+                        Uri url = new Uri(discoveryUrl);
                         return url.DnsSafeHost.Replace("localhost", Utils.GetHostName());
                     }
                 }
@@ -152,7 +152,7 @@ namespace Opc.Ua.Gds.Client
 
             if (certificate != null)
             {
-                var names = X509Utils.GetDomainsFromCertficate(certificate);
+                var names = X509Utils.GetDomainsFromCertificate(certificate);
 
                 if (names != null && names.Count > 0)
                 {

@@ -147,14 +147,14 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <inheritdoc/>
-        public override bool IsEqual(IEncodeable equalValue)
+        public override bool IsEqual(IEncodeable encodeable)
         {
-            if (Object.ReferenceEquals(this, equalValue))
+            if (Object.ReferenceEquals(this, encodeable))
             {
                 return true;
             }
 
-            if (!(equalValue is UnionComplexType valueBaseType))
+            if (!(encodeable is UnionComplexType valueBaseType))
             {
                 return false;
             }
@@ -218,7 +218,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 if (!NodeId.IsNull(this.TypeId))
                 {
-                    return String.Format(formatProvider, "{{{0}}}", this.TypeId);
+                    return string.Format(formatProvider, "{{{0}}}", this.TypeId);
                 }
 
                 return "(null)";

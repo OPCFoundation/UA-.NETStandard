@@ -57,7 +57,9 @@ namespace Opc.Ua.Types.Utils
                 }
                 else
                 {
-                    var tcs = new TaskCompletionSource<bool>();
+                    // TaskCreationOptions.RunContinuationsAsynchronously is needed
+                    // to decouple the reader thread from the processing in the subscriptions.
+                    var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                     m_waits.Enqueue(tcs);
                     return tcs.Task;
                 }

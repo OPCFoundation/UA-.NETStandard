@@ -10,12 +10,10 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-
 namespace Opc.Ua
 {
     /// <summary>
-	/// Stores context information associated with a UA server that is used during message processing.
+	/// Stores context information associated with a session is used during message processing.
 	/// </summary>
 	public class ServiceMessageContext : IServiceMessageContext
     {
@@ -25,26 +23,25 @@ namespace Opc.Ua
         /// </summary>
         public ServiceMessageContext()
         {
-            m_maxStringLength = UInt16.MaxValue;
-            m_maxByteStringLength = UInt16.MaxValue * 16;
-            m_maxArrayLength = UInt16.MaxValue;
-            m_maxMessageSize = UInt16.MaxValue * 32;
-            m_namespaceUris = new NamespaceTable();
-            m_serverUris = new StringTable();
-            m_factory = EncodeableFactory.GlobalFactory;
-            m_maxEncodingNestingLevels = 200;
+            Initialize(false);
         }
 
         private ServiceMessageContext(bool shared) : this()
         {
-            m_maxStringLength = UInt16.MaxValue;
-            m_maxByteStringLength = UInt16.MaxValue * 16;
-            m_maxArrayLength = UInt16.MaxValue;
-            m_maxMessageSize = UInt16.MaxValue * 32;
+            Initialize(shared);
+        }
+
+        private void Initialize(bool shared)
+        {
+            m_maxStringLength = DefaultEncodingLimits.MaxStringLength;
+            m_maxByteStringLength = DefaultEncodingLimits.MaxByteStringLength;
+            m_maxArrayLength = DefaultEncodingLimits.MaxArrayLength;
+            m_maxMessageSize = DefaultEncodingLimits.MaxMessageSize;
+            m_maxEncodingNestingLevels = DefaultEncodingLimits.MaxEncodingNestingLevels;
+            m_maxDecoderRecoveries = DefaultEncodingLimits.MaxDecoderRecoveries;
             m_namespaceUris = new NamespaceTable(shared);
             m_serverUris = new StringTable(shared);
             m_factory = EncodeableFactory.GlobalFactory;
-            m_maxEncodingNestingLevels = 200;
         }
         #endregion
 
@@ -60,10 +57,7 @@ namespace Opc.Ua
         /// </summary>
         public static ServiceMessageContext ThreadContext
         {
-            get
-            {
-                return s_globalContext;
-            }
+            get => s_globalContext;
 
             set
             {
@@ -72,138 +66,106 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// Returns the object used to synchronize access to the context.
-        /// </summary>
-        public object SyncRoot => m_lock;
-
-        /// <summary>
-        /// The maximum length for any string, byte string or xml element.
-        /// </summary>
+        /// <inheritdoc/>
         public int MaxStringLength
         {
-            get { lock (m_lock) { return m_maxStringLength; } }
-            set { lock (m_lock) { m_maxStringLength = value; } }
+            get => m_maxStringLength;
+            set { m_maxStringLength = value; }
         }
 
-        /// <summary>
-        /// The maximum length for any array.
-        /// </summary>
+        /// <inheritdoc/>
         public int MaxArrayLength
         {
-            get { lock (m_lock) { return m_maxArrayLength; } }
-            set { lock (m_lock) { m_maxArrayLength = value; } }
+            get => m_maxArrayLength;
+            set { m_maxArrayLength = value; }
         }
 
-        /// <summary>
-        /// The maximum length for any ByteString.
-        /// </summary>
+        /// <inheritdoc/>
         public int MaxByteStringLength
         {
-            get { lock (m_lock) { return m_maxByteStringLength; } }
-            set { lock (m_lock) { m_maxByteStringLength = value; } }
+            get => m_maxByteStringLength;
+            set { m_maxByteStringLength = value; }
         }
 
-        /// <summary>
-        /// The maximum length for any Message.
-        /// </summary>
+        /// <inheritdoc/>
         public int MaxMessageSize
         {
-            get { lock (m_lock) { return m_maxMessageSize; } }
-            set { lock (m_lock) { m_maxMessageSize = value; } }
+            get => m_maxMessageSize;
+            set { m_maxMessageSize = value; }
         }
 
-        /// <summary>
-        /// The maximum nesting level accepted while encoding or decoding objects.
-        /// </summary>
-        public uint MaxEncodingNestingLevels
+        /// <inheritdoc/>
+        public int MaxEncodingNestingLevels
         {
-            get { lock (m_lock) { return m_maxEncodingNestingLevels; } }
+            get => m_maxEncodingNestingLevels;
+            set { m_maxEncodingNestingLevels = value; }
         }
 
-        /// <summary>
-        /// The table of namespaces used by the server.
-        /// </summary>
+        /// <inheritdoc/>
+        public int MaxDecoderRecoveries
+        {
+            get => m_maxDecoderRecoveries;
+            set { m_maxDecoderRecoveries = value; }
+        }
+
+        /// <inheritdoc/>
         public NamespaceTable NamespaceUris
         {
-            get
-            {
-                return m_namespaceUris;
-            }
+            get => m_namespaceUris;
 
             set
             {
-                lock (m_lock)
+                if (value == null)
                 {
-                    if (value == null)
-                    {
-                        m_namespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris;
-                        return;
-                    }
-
-                    m_namespaceUris = value;
+                    m_namespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris;
+                    return;
                 }
+                m_namespaceUris = value;
             }
         }
 
-        /// <summary>
-        /// The table of servers used by the server.
-        /// </summary>
+        /// <inheritdoc/>
         public StringTable ServerUris
         {
-            get
-            {
-                return m_serverUris;
-            }
+            get => m_serverUris;
 
             set
             {
-                lock (m_lock)
+                if (value == null)
                 {
-                    if (value == null)
-                    {
-                        m_serverUris = ServiceMessageContext.GlobalContext.ServerUris;
-                        return;
-                    }
-
-                    m_serverUris = value;
+                    m_serverUris = ServiceMessageContext.GlobalContext.ServerUris;
+                    return;
                 }
+
+                m_serverUris = value;
             }
         }
 
-        /// <summary>
-        /// The factory used to create encodeable objects.
-        /// </summary>
+        /// <inheritdoc/>
         public IEncodeableFactory Factory
         {
-            get
-            {
-                return m_factory;
-            }
+            get => m_factory;
 
             set
             {
-                lock (m_lock)
+                if (value == null)
                 {
-                    if (value == null)
-                    {
-                        m_factory = ServiceMessageContext.GlobalContext.Factory;
-                        return;
-                    }
-
-                    m_factory = value;
+                    m_factory = ServiceMessageContext.GlobalContext.Factory;
+                    return;
                 }
+
+                m_factory = value;
             }
         }
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
         private int m_maxStringLength;
         private int m_maxByteStringLength;
         private int m_maxArrayLength;
         private int m_maxMessageSize;
-        private uint m_maxEncodingNestingLevels;
+        private int m_maxEncodingNestingLevels;
+        private int m_maxDecoderRecoveries;
         private NamespaceTable m_namespaceUris;
         private StringTable m_serverUris;
         private IEncodeableFactory m_factory;

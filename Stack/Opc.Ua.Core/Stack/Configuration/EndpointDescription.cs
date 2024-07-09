@@ -11,8 +11,9 @@
 */
 
 using System;
-using System.Collections.Generic;
+using System.Linq;
 using System.Xml;
+using Opc.Ua.Security;
 
 namespace Opc.Ua
 {
@@ -33,9 +34,9 @@ namespace Opc.Ua
 
             if (parsedUrl.Scheme.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal))
             {
-                if (!parsedUrl.Path.EndsWith("/discovery"))
+                if (!parsedUrl.Path.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))
                 {
-                    parsedUrl.Path += "/discovery";
+                    parsedUrl.Path += ConfiguredEndpoint.DiscoverySuffix;
                 }
             }
 
@@ -124,8 +125,8 @@ namespace Opc.Ua
             // construct issuer type.
             string issuedTokenTypeText = issuedTokenType;
 
-            // find matching policy.
-            foreach (UserTokenPolicy policy in m_userIdentityTokens)
+            // find matching policy, return most secure matching policy first.
+            foreach (UserTokenPolicy policy in m_userIdentityTokens.OrderByDescending(token => SecuredApplication.CalculateSecurityLevel(MessageSecurityMode.Sign, token.SecurityPolicyUri)))
             {
                 // check token type.
                 if (tokenType != policy.TokenType)

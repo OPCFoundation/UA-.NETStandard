@@ -657,8 +657,7 @@ namespace Opc.Ua.Server
                 LocalReference reference = referencesToRemove[ii];
 
                 // find source node.
-                INodeManager nodeManager = null;
-                object sourceHandle = GetManagerHandle(reference.SourceId, out nodeManager);
+                object sourceHandle = GetManagerHandle(reference.SourceId, out INodeManager nodeManager);
 
                 if (sourceHandle == null)
                 {
@@ -2068,7 +2067,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Calls a method defined on a object.
+        /// Calls a method defined on an object.
         /// </summary>
         public virtual void Call(
             OperationContext context,
@@ -3346,7 +3345,7 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
+        private readonly object m_lock = new object();
         private IServerInternal m_server;
         private List<INodeManager> m_nodeManagers;
         private long m_lastMonitoredItemId;
@@ -3394,7 +3393,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// True is the reference is an inverse reference.
+        /// True if the reference is an inverse reference.
         /// </summary>
         public bool IsInverse
         {

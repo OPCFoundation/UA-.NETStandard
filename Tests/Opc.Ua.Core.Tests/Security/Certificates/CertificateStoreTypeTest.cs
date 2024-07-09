@@ -4,6 +4,8 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
+
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
@@ -22,7 +24,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         #region Test Methods
         [Test]
-        public async Task CertifcateStoreTypeConfigTest()
+        public async Task CertificateStoreTypeConfigTest()
         {
             var fileInfo = new FileInfo(Path.Combine(TestContext.CurrentContext.TestDirectory, "Security", "Certificates", "CertificateStoreTypeTestConfig.xml"));
             var appConfig = await ApplicationConfiguration.Load(fileInfo, ApplicationType.Client, null).ConfigureAwait(false);

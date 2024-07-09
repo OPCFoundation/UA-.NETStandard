@@ -21,11 +21,6 @@ namespace Opc.Ua
     {
         #region Public Properties
         /// <summary>
-        /// Returns the object used to synchronize access to the context.
-        /// </summary>
-        object SyncRoot { get; }
-
-        /// <summary>
         /// The maximum length for any string, byte string or xml element.
         /// </summary>
         int MaxStringLength { get; }
@@ -48,7 +43,13 @@ namespace Opc.Ua
         /// <summary>
         /// The maximum nesting level accepted while encoding or decoding objects.
         /// </summary>
-        uint MaxEncodingNestingLevels { get; }
+        int MaxEncodingNestingLevels { get; }
+
+        /// <summary>
+        /// The number of times the decoder can recover from an error 
+        /// caused by an encoded ExtensionObject before throwing a decoder error.
+        /// </summary>
+        int MaxDecoderRecoveries { get; }
 
         /// <summary>
         /// The table of namespaces used by the server.

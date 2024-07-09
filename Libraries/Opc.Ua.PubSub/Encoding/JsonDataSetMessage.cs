@@ -158,7 +158,7 @@ namespace Opc.Ua.PubSub.Encoding
                     bool wasPush = jsonDecoder.PushArray(messagesListName, index);
                     if (wasPush)
                     {
-                        // atempt decoding the DataSet fields
+                        // attempt decoding the DataSet fields
                         DecodePossibleDataSetReader(jsonDecoder, dataSetReader);
 
                         // redo jsonDecoder stack
@@ -178,7 +178,7 @@ namespace Opc.Ua.PubSub.Encoding
 
 
         /// <summary>
-        /// Atempt to decode dataset from the KeyValue pairs
+        /// Attempt to decode dataset from the KeyValue pairs
         /// </summary>
         private void DecodePossibleDataSetReader(IJsonDecoder jsonDecoder, DataSetReaderDataType dataSetReader)
         {
@@ -203,9 +203,8 @@ namespace Opc.Ua.PubSub.Encoding
                 payloadStructureName = null;
             }
 
-            Dictionary<string, object> payload = token as Dictionary<string, object>;
 
-            if (payload != null && dataSetReader.DataSetMetaData != null)
+            if (token is Dictionary<string, object> payload && dataSetReader.DataSetMetaData != null)
             {
                 DecodeErrorReason = ValidateMetadataVersion(dataSetReader.DataSetMetaData.ConfigurationVersion);
 
@@ -248,10 +247,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         private DataSet DecodePayloadContent(IJsonDecoder jsonDecoder, DataSetReaderDataType dataSetReader)
         {
-            TargetVariablesDataType targetVariablesData =
-                ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet)
-                    as TargetVariablesDataType;
-
             DataSetMetaDataType dataSetMetaData = dataSetReader.DataSetMetaData;
 
             object token;
@@ -370,7 +365,7 @@ namespace Opc.Ua.PubSub.Encoding
                 dataField.FieldMetaData = dataSetMetaData?.Fields[i];
                 dataField.Value = dataValues[i];
 
-                if (targetVariablesData != null && targetVariablesData.TargetVariables != null
+                if (ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet) is TargetVariablesDataType targetVariablesData && targetVariablesData.TargetVariables != null
                     && i < targetVariablesData.TargetVariables.Count)
                 {
                     // remember the target Attribute and target nodeId
@@ -533,7 +528,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Decode RawData type
         /// </summary>
         /// <returns></returns>
-        private object DecodeRawData(IJsonDecoder jsonDecoder, FieldMetaData fieldMetaData, string fieldName)
+        private static object DecodeRawData(IJsonDecoder jsonDecoder, FieldMetaData fieldMetaData, string fieldName)
         {
             if (fieldMetaData.BuiltInType != 0)
             {
@@ -611,7 +606,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode a scalar type
         /// </summary>
-        private object DecodeRawScalar(IJsonDecoder jsonDecoder, byte builtInType, string fieldName)
+        private static object DecodeRawScalar(IJsonDecoder jsonDecoder, byte builtInType, string fieldName)
         {
             try
             {

@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -226,7 +225,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// - Load the binary schema dictionaries with type definitions.
         /// - Create all remaining enumerated custom types using the dictionaries.
         /// - Convert all structured types in the dictionaries to the DataTypeDefinion attribute, if possible.
-        /// - Create all structured types from the dictionaries using the converted DataTypeDefinion attribute..
+        /// - Create all structured types from the dictionaries using the converted DataTypeDefinion attribute.
         /// </remarks>
         /// <returns>true if all DataTypes were loaded.</returns>
         public async Task<bool> Load(bool onlyEnumTypes = false, bool throwOnError = false, CancellationToken ct = default)
@@ -319,6 +318,13 @@ namespace Opc.Ua.Client.ComplexTypes
             }
         }
 
+        /// <summary>
+        /// Clear references in datatype cache.
+        /// </summary>
+        public void ClearDataTypeCache()
+        {
+            m_dataTypeDefinitionCache.Clear();
+        }
         #endregion Public Members
 
         #region Internal Properties
@@ -328,7 +334,7 @@ namespace Opc.Ua.Client.ComplexTypes
         internal bool DisableDataTypeDefinition { get; set; } = false;
 
         /// <summary>
-        /// Disable the use of DataType Dictinaries to create the complex type definition.
+        /// Disable the use of DataType Dictionaries to create the complex type definition.
         /// </summary>
         internal bool DisableDataTypeDictionary { get; set; } = false;
         #endregion Internal Properties
@@ -1134,8 +1140,11 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private async Task<NodeId> GetBuiltInSuperTypeAsync(NodeId dataType, bool allowSubTypes, bool isOptional, CancellationToken ct = default)
         {
+            const int MaxSuperTypes = 100;
+
+            int iterations = 0;
             NodeId superType = dataType;
-            while (true)
+            while (iterations++ < MaxSuperTypes)
             {
                 superType = await m_complexTypeResolver.FindSuperTypeAsync(superType, ct).ConfigureAwait(false);
                 if (superType?.IsNullNodeId != false)
@@ -1172,10 +1181,21 @@ namespace Opc.Ua.Client.ComplexTypes
                         }
                         return null;
                     }
-                    break;
+                    // end search if a valid BuiltInType is found. Treat type as opaque.
+                    else if (superType.IdType == IdType.Numeric &&
+                        (uint)superType.Identifier >= (uint)BuiltInType.Boolean &&
+                        (uint)superType.Identifier <= (uint)BuiltInType.DiagnosticInfo)
+                    {
+                        return superType;
+                    }
+                    // no valid supertype found
+                    else if (superType == DataTypeIds.BaseDataType)
+                    {
+                        break;
+                    }
                 }
             }
-            return superType;
+            return null;
         }
 
         /// <summary>

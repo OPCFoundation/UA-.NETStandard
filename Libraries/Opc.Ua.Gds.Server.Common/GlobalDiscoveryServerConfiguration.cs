@@ -86,6 +86,9 @@ namespace Opc.Ua.Gds.Server
 
         [DataMember(Order = 7)]
         public string DatabaseStorePath { get; set; }
+
+        [DataMember(Order = 8)]
+        public string UsersDatabaseStorePath { get; set; }
         #endregion
 
         #region Private Members
@@ -181,7 +184,7 @@ namespace Opc.Ua.Gds.Server
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A collection of values to add to this new collection</param>
-        /// <exception cref="T:System.ArgumentNullException">
+        /// <exception cref="System.ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
         public CertificateGroupConfigurationCollection(IEnumerable<CertificateGroupConfiguration> collection) : base(collection) { }

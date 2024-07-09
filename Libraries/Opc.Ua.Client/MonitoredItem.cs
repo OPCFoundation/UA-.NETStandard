@@ -143,7 +143,7 @@ namespace Opc.Ua.Client
         /// Called by the .NET framework during deserialization.
         /// </summary>
         [OnDeserializing]
-        private void Initialize(StreamingContext context)
+        protected void Initialize(StreamingContext context)
         {
             // object initializers are not called during deserialization.
             m_cache = new object();
@@ -658,16 +658,13 @@ namespace Opc.Ua.Client
                 {
                     EventFieldList eventchange = newValue as EventFieldList;
 
-                    if (m_eventCache != null)
+                    if (eventchange != null)
                     {
-                        m_eventCache.OnNotification(eventchange);
+                        m_eventCache?.OnNotification(eventchange);
                     }
                 }
 
-                if (m_Notification != null)
-                {
-                    m_Notification(this, new MonitoredItemNotificationEventArgs(newValue));
-                }
+                m_Notification?.Invoke(this, new MonitoredItemNotificationEventArgs(newValue));
             }
         }
         #endregion
@@ -685,6 +682,15 @@ namespace Opc.Ua.Client
         public new object MemberwiseClone()
         {
             return new MonitoredItem(this);
+        }
+
+        /// <summary>
+        /// Clones a monitored item or the subclass with an option to copy event handlers.
+        /// </summary>
+        /// <returns>A cloned instance of the monitored item or a subclass.</returns>
+        public virtual MonitoredItem CloneMonitoredItem(bool copyEventHandlers, bool copyClientHandle)
+        {
+            return new MonitoredItem(this, copyEventHandlers, copyClientHandle);
         }
         #endregion
 
@@ -775,7 +781,7 @@ namespace Opc.Ua.Client
         {
             // ensure the global counter is not duplicating future handle ids
             Utils.LowerLimitIdentifier(ref s_globalClientHandle, clientHandle);
-            m_clientHandle = clientHandle;  
+            m_clientHandle = clientHandle;
             m_status.SetTransferResult(this);
             m_attributesModified = false;
         }
@@ -1241,7 +1247,7 @@ namespace Opc.Ua.Client
     }
 
     /// <summary>
-    /// Saves the events received from the srever.
+    /// Saves the events received from the server.
     /// </summary>
     public class MonitoredItemEventCache
     {

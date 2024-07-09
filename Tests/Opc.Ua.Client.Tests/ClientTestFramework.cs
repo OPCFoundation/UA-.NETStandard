@@ -38,6 +38,7 @@ using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -59,6 +60,7 @@ namespace Opc.Ua.Client.Tests
         public TokenValidatorMock TokenValidator { get; set; } = new TokenValidatorMock();
 
         public bool SingleSession { get; set; } = true;
+        public int MaxChannelCount { get; set; } = 10;
         public bool SupportsExternalServerUrl { get; set; } = false;
         public ServerFixture<ReferenceServer> ServerFixture { get; set; }
         public ClientFixture ClientFixture { get; set; }
@@ -82,6 +84,10 @@ namespace Opc.Ua.Client.Tests
             TestSetDataSimulation = CommonTestWorkers.NodeIdTestSetDataSimulation;
             TestSetHistory = CommonTestWorkers.NodeIdTestDataHistory;
         }
+        public void InitializeSession(ISession session)
+        {
+            Session = session;
+        }
 
         #region DataPointSources
         [DatapointSource]
@@ -102,7 +108,7 @@ namespace Opc.Ua.Client.Tests
         /// Setup a server and client fixture.
         /// </summary>
         /// <param name="writer">The test output writer.</param>
-        public async Task OneTimeSetUpAsync(TextWriter writer = null, bool securityNone = false)
+        public async Task OneTimeSetUpAsync(TextWriter writer = null, bool securityNone = false, bool enableTracing = false, bool disableActivityLogging = false)
         {
             // pki directory root for test runs.
             PkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
@@ -130,12 +136,13 @@ namespace Opc.Ua.Client.Tests
             if (customUrl == null)
             {
                 // start Ref server
-                ServerFixture = new ServerFixture<ReferenceServer> {
+                ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging) {
                     UriScheme = UriScheme,
                     SecurityNone = securityNone,
                     AutoAccept = true,
                     AllNodeManagers = true,
-                    OperationLimits = true
+                    OperationLimits = true,
+                    MaxChannelCount = MaxChannelCount,
                 };
 
                 if (writer != null)
@@ -156,9 +163,7 @@ namespace Opc.Ua.Client.Tests
                 ReferenceServer.TokenValidator = this.TokenValidator;
             }
 
-            ClientFixture = new ClientFixture();
-            ClientFixture.UseTracing = true;
-            ClientFixture.StartActivityListener();
+            ClientFixture = new ClientFixture(enableTracing, disableActivityLogging);
 
             await ClientFixture.LoadClientConfiguration(PkiRoot).ConfigureAwait(false);
             ClientFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
@@ -184,7 +189,7 @@ namespace Opc.Ua.Client.Tests
                 }
                 catch (Exception e)
                 {
-                    Assert.Warn("OneTimeSetup failed to create session with {0}, tests fail. Error: {1}", ServerUrl, e.Message);
+                    Assert.Warn($"OneTimeSetup failed to create session with {ServerUrl}, tests fail. Error: {e.Message}");
                 }
             }
         }
@@ -221,7 +226,7 @@ namespace Opc.Ua.Client.Tests
                 }
                 catch (Exception e)
                 {
-                    Assert.Ignore("OneTimeSetup failed to create session, tests skipped. Error: {0}", e.Message);
+                    Assert.Ignore($"OneTimeSetup failed to create session, tests skipped. Error: {e.Message}");
                 }
             }
             if (ServerFixture == null)

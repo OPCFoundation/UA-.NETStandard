@@ -16,7 +16,7 @@ using System.Security.Cryptography.X509Certificates;
 namespace Opc.Ua.Security
 {
     /// <summary>
-    /// Implemented by types that have knownledge of an application configuration.
+    /// Implemented by types that have knowledge of an application configuration.
     /// </summary>
     public interface ISecurityConfigurationManager
     {
@@ -63,9 +63,8 @@ namespace Opc.Ua.Security
                     typeName);
             }
 
-            ISecurityConfigurationManager configuration = Activator.CreateInstance(type) as ISecurityConfigurationManager;
 
-            if (configuration == null)
+            if (!(Activator.CreateInstance(type) is ISecurityConfigurationManager configuration))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadNotSupported,

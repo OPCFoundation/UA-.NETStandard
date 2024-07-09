@@ -15,7 +15,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// The binding for the UA native stack
     /// </summary>
-    public abstract class BaseBinding 
+    public abstract class BaseBinding
     {
         #region Constructors
         /// <summary>
@@ -31,6 +31,8 @@ namespace Opc.Ua.Bindings
                 MaxByteStringLength = configuration.MaxByteStringLength,
                 MaxArrayLength = configuration.MaxArrayLength,
                 MaxMessageSize = configuration.MaxMessageSize,
+                MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
+                MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
                 Factory = factory,
                 NamespaceUris = namespaceUris
             };

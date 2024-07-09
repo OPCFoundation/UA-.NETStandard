@@ -92,7 +92,7 @@ namespace Opc.Ua
         /// Determines whether a type is a subtype of another type.
         /// </summary>
         /// <param name="subTypeId">The subtype identifier.</param>
-        /// <param name="superTypeId">The supertype identyfier.</param>
+        /// <param name="superTypeId">The supertype identifier.</param>
         /// <returns>
         /// 	<c>true</c> if <paramref name="superTypeId"/> is supertype of <paramref name="subTypeId"/>; otherwise, <c>false</c>.
         /// </returns>
