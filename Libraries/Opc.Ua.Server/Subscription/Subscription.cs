@@ -109,7 +109,7 @@ namespace Opc.Ua.Server
             m_waitingForPublish = false;
             m_maxMessageCount = maxMessageCount;
             m_sentMessages = new List<NotificationMessage>();
-            m_supportsDurable = m_server.DurableMonitoredItemQueueFactory != null;
+            m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
             m_isDurable = false;
 
             m_monitoredItems = new Dictionary<uint, LinkedListNode<IMonitoredItem>>();
@@ -2299,7 +2299,7 @@ namespace Opc.Ua.Server
             {
                 if (!m_supportsDurable)
                 {
-                    Utils.LogWarning("SetSubscriptionDurable requested for subscription with id {0}, but no IDurableMonitoredItemQueueFactory was registered", m_id);
+                    Utils.LogError("SetSubscriptionDurable requested for subscription with id {0}, but no IMonitoredItemQueueFactory that supports durable queues was registered", m_id);
                     return StatusCodes.BadInternalError;
                 }
 

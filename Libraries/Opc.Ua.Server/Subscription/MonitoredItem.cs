@@ -122,12 +122,12 @@ namespace Opc.Ua.Server
             m_calculator = null;
             m_nextSamplingTime = HiResClock.TickCount64;
             m_alwaysReportUpdates = false;
-            m_durableQueueFactory = m_server.DurableMonitoredItemQueueFactory;
+            m_monitoredItemQueueFactory = m_server.MonitoredItemQueueFactory;
             m_isDurable = createDurable;
 
-            if (m_durableQueueFactory == null && m_isDurable)
+            if (!m_monitoredItemQueueFactory.SupportsDurableQueues && m_isDurable)
             {
-                Utils.LogError("Durable subscription was create butd no factory for DurableMonitoredItemQueue was registered, monitored item with id {id} could not be created", id);
+                Utils.LogError("Durable subscription was create but no MonitoredItemQueueFactory that supports durable queues was registered, monitored item with id {id} could not be created", id);
                 throw new ServiceResultException(StatusCodes.BadInternalError);
             }
 
@@ -477,9 +477,9 @@ namespace Opc.Ua.Server
                     //}
 
 
-                    if (m_durableDataValueQueue != null)
+                    if (m_dataValueQueue != null)
                     {
-                        return m_durableDataValueQueue.ItemsInQueue;
+                        return m_dataValueQueue.ItemsInQueue;
                     }
 
                     return 0;
@@ -911,7 +911,7 @@ namespace Opc.Ua.Server
         {
             if (m_queueSize > 1)
             {
-                m_durableDataValueQueue.QueueValue(value, error);
+                m_dataValueQueue.QueueValue(value, error);
             }
 
             if (m_lastValue != null)
@@ -1298,17 +1298,17 @@ namespace Opc.Ua.Server
                 m_readyToPublish = false;
 
                 // check if queueing enabled.
-                if (m_durableDataValueQueue != null && (!m_resendData || m_durableDataValueQueue.ItemsInQueue != 0))
+                if (m_dataValueQueue != null && (!m_resendData || m_dataValueQueue.ItemsInQueue != 0))
                 {
                     DataValue value = null;
                     ServiceResult error = null;
 
-                    while (m_durableDataValueQueue.Publish(out value, out error))
+                    while (m_dataValueQueue.Publish(out value, out error))
                     {
                         Publish(context, notifications, diagnostics, value, error);
                         if (m_resendData)
                         {
-                            m_readyToPublish = m_durableDataValueQueue.ItemsInQueue > 0;
+                            m_readyToPublish = m_dataValueQueue.ItemsInQueue > 0;
                             break;
                         }
                     }
@@ -1753,7 +1753,7 @@ namespace Opc.Ua.Server
                 {
                     m_events = null;
                     //m_durableEventQueue?.Dispose();
-                    m_durableDataValueQueue?.Dispose();
+                    m_dataValueQueue?.Dispose();
                     break;
                 }
 
@@ -1779,24 +1779,24 @@ namespace Opc.Ua.Server
                     {
                         if (m_queueSize <= 1)
                         {
-                            m_durableDataValueQueue?.Dispose();
+                            m_dataValueQueue?.Dispose();
                             break; // queueing is disabled
                         }
 
                         bool queueLastValue = false;
 
-                        if (m_durableDataValueQueue == null)
+                        if (m_dataValueQueue == null)
                         {
-                            m_durableDataValueQueue = m_durableQueueFactory.CreateDataValueQueue(Id, IsDurable, QueueOverflowHandler);
+                            m_dataValueQueue = m_monitoredItemQueueFactory.CreateDataValueQueue(Id, IsDurable, QueueOverflowHandler);
                             queueLastValue = true;
                         }
 
-                        m_durableDataValueQueue.SetQueueSize(m_queueSize, m_discardOldest, m_diagnosticsMasks);
-                        m_durableDataValueQueue.SetSamplingInterval(m_samplingInterval);
+                        m_dataValueQueue.SetQueueSize(m_queueSize, m_discardOldest, m_diagnosticsMasks);
+                        m_dataValueQueue.SetSamplingInterval(m_samplingInterval);
 
                         if (queueLastValue && m_lastValue != null)
                         {
-                            m_durableDataValueQueue.QueueValue(m_lastValue, m_lastError);
+                            m_dataValueQueue.QueueValue(m_lastValue, m_lastError);
                         }
                     }
                     else // create event queue.
@@ -1839,7 +1839,7 @@ namespace Opc.Ua.Server
         /// Disposes the durable monitoredItemQueue
         public void Dispose()
         {
-            m_durableDataValueQueue?.Dispose();
+            m_dataValueQueue?.Dispose();
             //m_durableEventQueue?.Dispose();
         }
 
@@ -1870,13 +1870,13 @@ namespace Opc.Ua.Server
         private bool m_discardOldest;
         private int m_sourceSamplingInterval;
         private bool m_alwaysReportUpdates;
-        private readonly IDurableMonitoredItemQueueFactory m_durableQueueFactory;
+        private readonly IMonitoredItemQueueFactory m_monitoredItemQueueFactory;
         private readonly bool m_isDurable;
         private DataValue m_lastValue;
         private ServiceResult m_lastError;
         private long m_nextSamplingTime;
         private List<EventFieldList> m_events;
-        private IDurableMonitoredItemQueue<DataValue> m_durableDataValueQueue;
+        private IMonitoredItemQueue<DataValue> m_dataValueQueue;
         //private IDurableMonitoredItemQueue<EventFieldList> m_durableEventQueue;
         private bool m_overflow;
         private bool m_readyToPublish;

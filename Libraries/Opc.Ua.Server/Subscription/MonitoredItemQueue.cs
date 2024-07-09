@@ -34,18 +34,20 @@ using Microsoft.Extensions.Logging;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// A factory for <see cref="IDurableMonitoredItemQueue{T}"/>
+    /// A factory for <see cref="IMonitoredItemQueue{T}"/>
     /// </summary>
-    public class DurableMonitoredItemQueueFactory : IDurableMonitoredItemQueueFactory
+    public class MonitoredItemQueueFactory : IMonitoredItemQueueFactory
     {
         /// <inheritdoc/>
-        public IDurableMonitoredItemQueue<DataValue> CreateDataValueQueue(uint monitoredItemId, bool durable, Action discardedValueHandler = null)
+        public bool SupportsDurableQueues => false;
+        /// <inheritdoc/>
+        public IMonitoredItemQueue<DataValue> CreateDataValueQueue(uint monitoredItemId, bool createDurable, Action discardedValueHandler = null)
         {
-            return new MonitoredItemQueue(monitoredItemId, durable);
+            return new MonitoredItemQueue(monitoredItemId, createDurable);
         }
 
         /// <inheritdoc/>
-        public IDurableMonitoredItemQueue<EventFieldList> CreateEventQeue(uint monitoredItemId, bool durable, Action discardedValueHandler = null)
+        public IMonitoredItemQueue<EventFieldList> CreateEventQeue(uint monitoredItemId, bool createDurable, Action discardedValueHandler = null)
         {
             throw new NotImplementedException();
         }
@@ -59,14 +61,14 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Provides a queue for data changes.
     /// </summary>
-    public class MonitoredItemQueue : IDurableMonitoredItemQueue<DataValue>
+    public class MonitoredItemQueue : IMonitoredItemQueue<DataValue>
     {
         /// <summary>
         /// Creates an empty queue.
         /// </summary>
-        public MonitoredItemQueue(uint monitoredItemId, bool isDurable, Action discardedValueHandler = null)
+        public MonitoredItemQueue(uint monitoredItemId, bool createDurable, Action discardedValueHandler = null)
         {
-            if (isDurable)
+            if (createDurable)
             {
                 Utils.LogError("MonitoredItemQueue does not support durable queues, please provide full implementation of IDurableMonitoredItemQueue using Server.CreateDurableMonitoredItemQueueFactory to supply own factory");
                 throw new ServiceResultException(StatusCodes.BadInternalError);
@@ -82,7 +84,7 @@ namespace Opc.Ua.Server
             m_nextSampleTime = 0;
             m_samplingInterval = 0;
             m_discardedValueHandler = discardedValueHandler;
-            m_isDurable = isDurable;
+            m_isDurable = createDurable;
         }
 
         #region Public Methods
@@ -466,8 +468,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void Dispose()
         {
-            m_values = null;
-            m_errors = null;
+            //only needed for unmanaged resources
         }
         #endregion
 

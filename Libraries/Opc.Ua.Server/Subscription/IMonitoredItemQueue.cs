@@ -32,26 +32,31 @@ using System;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Used to create <see cref="IDurableMonitoredItemQueue{T}"/> and dispose unmanaged resources on server shutdown
+    /// Used to create <see cref="IMonitoredItemQueue{T}"/> and dispose unmanaged resources on server shutdown
     /// </summary>
-    public interface IDurableMonitoredItemQueueFactory : IDisposable
+    public interface IMonitoredItemQueueFactory : IDisposable
     {
         /// <summary>
         /// Creates an empty queue for data values.
         /// </summary>
-        IDurableMonitoredItemQueue<DataValue> CreateDataValueQueue(uint monitoredItemId, bool isDurable, Action discardedValueHandler = null);
+        IMonitoredItemQueue<DataValue> CreateDataValueQueue(uint monitoredItemId, bool isDurable, Action discardedValueHandler = null);
 
         /// <summary>
         /// Creates an empty queue for events.
         /// </summary>
-        IDurableMonitoredItemQueue<EventFieldList> CreateEventQeue(uint monitoredItemId, bool isDurable, Action discardedValueHandler = null);
+        IMonitoredItemQueue<EventFieldList> CreateEventQeue(uint monitoredItemId, bool isDurable, Action discardedValueHandler = null);
+
+        /// <summary>
+        /// If true durable queues can be created by the factory, if false only regular queues with small queue sizes are returned
+        /// </summary>
+        bool SupportsDurableQueues { get; }
     }
 
     /// <summary>
     /// Provides a durable queue for data changes and events that can handle a queue size of several thousand elements.
     /// T defines if the queue is for events or for DataValues
     /// </summary>
-    public interface IDurableMonitoredItemQueue<T> : IDisposable
+    public interface IMonitoredItemQueue<T> : IDisposable
     {
         /// <summary>
         /// The event for the discarded value handler.

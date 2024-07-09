@@ -2963,11 +2963,11 @@ namespace Opc.Ua.Server
                     // add the session manager to the datastore.
                     m_serverInternal.SetSessionManager(sessionManager, subscriptionManager);
 
-                    //create the DurableMonitoredItemQueueFactory
-                    IDurableMonitoredItemQueueFactory durableMonitoredItemQueueFactory = CreateDurableMonitoredItemQueueFactory(m_serverInternal, configuration);
+                    //create the MonitoredItemQueueFactory
+                    IMonitoredItemQueueFactory monitoredItemQueueFactory = CreateMonitoredItemQueueFactory(m_serverInternal, configuration);
 
-                    //add the DurableMonitoredItemQueueFactory to the datastore.
-                    m_serverInternal.SetDurableMonitoredItemQueueFactory(durableMonitoredItemQueueFactory);
+                    //add the eMonitoredItemQueueFactory to the datastore.
+                    m_serverInternal.SetMonitoredItemQueueFactory(monitoredItemQueueFactory);
 
                     ServerError = null;
 
@@ -3309,14 +3309,14 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Creates the session manager for the server.
+        /// Creates the (durable) monitored item queue factory for the server.
         /// </summary>
         /// <param name="server">The server.</param>
         /// <param name="configuration">The configuration.</param>
-        /// <returns>Returns a generic session manager object for a server, the return type is <seealso cref="SubscriptionManager"/>.</returns>
-        protected virtual IDurableMonitoredItemQueueFactory CreateDurableMonitoredItemQueueFactory(IServerInternal server, ApplicationConfiguration configuration)
+        /// <returns>Returns a (durable) monitored item queue factory for a server, the return type is <seealso cref="IMonitoredItemQueueFactory"/>.</returns>
+        protected virtual IMonitoredItemQueueFactory CreateMonitoredItemQueueFactory(IServerInternal server, ApplicationConfiguration configuration)
         {
-           return new DurableMonitoredItemQueueFactory();
+           return new MonitoredItemQueueFactory();
         }
 
         /// <summary>
