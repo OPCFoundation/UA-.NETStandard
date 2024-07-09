@@ -1754,6 +1754,7 @@ namespace Opc.Ua.Server
                     m_events = null;
                     //m_durableEventQueue?.Dispose();
                     m_dataValueQueue?.Dispose();
+                    m_dataValueQueue = null;
                     break;
                 }
 
@@ -1780,6 +1781,7 @@ namespace Opc.Ua.Server
                         if (m_queueSize <= 1)
                         {
                             m_dataValueQueue?.Dispose();
+                            m_dataValueQueue = null;
                             break; // queueing is disabled
                         }
 
