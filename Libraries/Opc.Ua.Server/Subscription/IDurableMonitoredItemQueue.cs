@@ -56,7 +56,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The event for the discarded value handler.
         /// </summary>
-        event Action DiscardedValueHandler;
+        Action DiscardedValueHandler { get; }
 
         /// <summary>
         /// True if the queue is in durable mode and persists the queue values / supports a large queue size

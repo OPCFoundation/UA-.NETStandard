@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -63,8 +64,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates an empty queue.
         /// </summary>
-        public MonitoredItemQueue(uint monitoredItemId, bool isDurable, DiscardedValueHandler discardedValueHandler = null)
+        public MonitoredItemQueue(uint monitoredItemId, bool isDurable, Action discardedValueHandler = null)
         {
+            if (isDurable)
+            {
+                Utils.LogError("MonitoredItemQueue does not support durable queues, please provide full implementation of IDurableMonitoredItemQueue using Server.CreateDurableMonitoredItemQueueFactory to supply own factory");
+                throw new ServiceResultException(StatusCodes.BadInternalError);
+            }
+
             m_monitoredItemId = monitoredItemId;
             m_values = null;
             m_errors = null;
@@ -78,24 +85,11 @@ namespace Opc.Ua.Server
             m_isDurable = isDurable;
         }
 
-        event Action IDurableMonitoredItemQueue<DataValue>.DiscardedValueHandler
-        {
-            add
-            {
-                throw new NotImplementedException();
-            }
-
-            remove
-            {
-                throw new NotImplementedException();
-            }
-        }
-
         #region Public Methods
         /// <summary>
         /// The delegate for the discarded value handler.
         /// </summary>
-        public delegate void DiscardedValueHandler();
+        public Action DiscardedValueHandler => m_discardedValueHandler;
 
         /// <summary>
         /// Gets the current queue size.
@@ -488,7 +482,7 @@ namespace Opc.Ua.Server
         private bool m_discardOldest;
         private long m_nextSampleTime;
         private long m_samplingInterval;
-        DiscardedValueHandler m_discardedValueHandler;
+        Action m_discardedValueHandler;
         #endregion
     }
 }
