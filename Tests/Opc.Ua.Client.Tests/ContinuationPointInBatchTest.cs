@@ -372,7 +372,7 @@ namespace Opc.Ua.Client.Tests
     /// <summary>
     /// Client tests.
     /// </summary>
-    [TestFixture, Category("Client"), Category("NodeCache")]
+    [TestFixture, Category("Client"), Category("ManagedBrowseWithBrowseNext")]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [TestFixtureSource(nameof(FixtureArgs))]
     [MemoryDiagnoser]
