@@ -631,11 +631,19 @@ namespace Opc.Ua.Server
         }
         #endregion
 
+        #region Protected Methods reading some private attributes
+
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+        protected IServerInternal Server { get { return m_server; } }
+        protected int MaxRequestAge => m_maxRequestAge;
+        protected int MaxBrowseContinuationPoints => m_maxBrowseContinuationPoints;
+        protected int MaxHistoryContinuationPoints => m_maxHistoryContinuationPoints;
+#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
+        #endregion
+
         #region Private Fields
         private readonly object m_lock = new object();
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-        protected IServerInternal m_server;
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
+        private IServerInternal m_server;
         private Dictionary<NodeId, Session> m_sessions;
         private long m_lastSessionId;
         private ManualResetEvent m_shutdownEvent;
@@ -643,15 +651,10 @@ namespace Opc.Ua.Server
         private int m_minSessionTimeout;
         private int m_maxSessionTimeout;
         private int m_maxSessionCount;
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-        protected int m_maxRequestAge;
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-        protected int m_maxBrowseContinuationPoints;
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-        protected int m_maxHistoryContinuationPoints;
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
+        private int m_maxRequestAge;
+
+        private int m_maxBrowseContinuationPoints;
+        private int m_maxHistoryContinuationPoints;
         private int m_minNonceLength;
 
         private readonly object m_eventLock = new object();

@@ -136,24 +136,24 @@ namespace Opc.Ua.Client.Tests
         }
 
     protected override Opc.Ua.Server.Session CreateSession(
-    OperationContext context,
-    IServerInternal server,
-    X509Certificate2 serverCertificate,
-    NodeId sessionCookie,
-    byte[] clientNonce,
-    byte[] serverNonce,
-    string sessionName,
-    ApplicationDescription clientDescription,
-    string endpointUrl,
-    X509Certificate2 clientCertificate,
-    double sessionTimeout,
-    uint maxResponseMessageSize,
-    int maxRequestAge, // TBD - Remove unused parameter.
-    int maxContinuationPoints) // TBD - Remove unused parameter.
+        OperationContext context,
+        IServerInternal server,
+        X509Certificate2 serverCertificate,
+        NodeId sessionCookie,
+        byte[] clientNonce,
+        byte[] serverNonce,
+        string sessionName,
+        ApplicationDescription clientDescription,
+        string endpointUrl,
+        X509Certificate2 clientCertificate,
+        double sessionTimeout,
+        uint maxResponseMessageSize,
+        int maxRequestAge, // TBD - Remove unused parameter.
+        int maxContinuationPoints) // TBD - Remove unused parameter.
         {
             ServerSessionForTest session = new ServerSessionForTest(
                 context,
-                m_server,
+                Server,
                 serverCertificate,
                 sessionCookie,
                 clientNonce,
@@ -164,9 +164,9 @@ namespace Opc.Ua.Client.Tests
                 clientCertificate,
                 sessionTimeout,
                 maxResponseMessageSize,
-                m_maxRequestAge,
-                m_maxBrowseContinuationPoints,
-                m_maxHistoryContinuationPoints);
+                MaxRequestAge,
+                MaxBrowseContinuationPoints,
+                MaxHistoryContinuationPoints);
 
             return (Opc.Ua.Server.Session)session;
         }
