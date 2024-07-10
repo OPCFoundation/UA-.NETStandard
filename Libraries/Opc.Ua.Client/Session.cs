@@ -3655,6 +3655,7 @@ namespace Opc.Ua.Client
         /// <param name="referenceTypeId"></param>
         /// <param name="includeSubtypes"></param>
         /// <param name="nodeClassMask"></param>
+        /// <param name="excecuteDefensively"></param>
         /// <param name="result"></param>
         /// <param name="errors"></param>
         /// <returns></returns>
@@ -3666,9 +3667,10 @@ namespace Opc.Ua.Client
             BrowseDirection browseDirection,
             NodeId referenceTypeId,
             bool includeSubtypes,
-            uint nodeClassMask,
+            uint nodeClassMask,            
             out List<ReferenceDescriptionCollection> result,
-            out List<ServiceResult> errors )
+            out List<ServiceResult> errors,
+            bool excecuteDefensively = false)
         {
             
             result = new List<ReferenceDescriptionCollection> ();
@@ -3701,8 +3703,13 @@ namespace Opc.Ua.Client
                     int badNoCPErrorsPerPass = 0;
                     int badCPInvalidErrorsPerPass = 0;
                     int otherErrorsPerPass = 0;
-
                     uint maxNodesPerBrowse = OperationLimits.MaxNodesPerBrowse;
+
+                    if (excecuteDefensively && ServerMaxContinuationPointsPerBrowse > 0)
+                    {
+                        maxNodesPerBrowse = ServerMaxContinuationPointsPerBrowse < maxNodesPerBrowse ? ServerMaxContinuationPointsPerBrowse : maxNodesPerBrowse;
+                    }
+
                     // split input into batches
                     int batchCount = 0;                    
 
@@ -3790,12 +3797,15 @@ namespace Opc.Ua.Client
 
                 } while ( nodesToBrowseForPass.Count > 0 );                
             }
-#pragma warning disable 0168
             catch (Exception ex)
-#pragma warning restore 0168
             {
-
+                Utils.LogError(ex, "ManagedBrowse failed");
             }
+        }
+
+        private class ReferenceWrapper<T>
+        {
+            public T reference { get; set; }
         }
 
         /// <summary>
@@ -3823,7 +3833,8 @@ namespace Opc.Ua.Client
             uint nodeClassMask,
             out List<ReferenceDescriptionCollection> referenceDescriptions,
             out IList<ServiceResult> finalErrors)
-        {
+        {            
+
             var result = new List<ReferenceDescriptionCollection>();
 
             referenceDescriptions = result;
@@ -3846,11 +3857,11 @@ namespace Opc.Ua.Client
 
             // process any continuation point.
             var previousResults = result;
-            var errorAnchors = new List<List<ServiceResult>>();
-            var previousErrors = new List<List<ServiceResult>>();
+            var errorAnchors = new List<ReferenceWrapper<ServiceResult>>();
+            var previousErrors = new List<ReferenceWrapper<ServiceResult>>();
             foreach (var error in errors)
             {
-                previousErrors.Add(new List<ServiceResult> { error });
+                previousErrors.Add(new ReferenceWrapper<ServiceResult> { reference = error });
                 errorAnchors.Add(previousErrors.Last());
             }
 
@@ -3858,13 +3869,13 @@ namespace Opc.Ua.Client
 
             var nextContinuationPoints = new ByteStringCollection();
             var nextResults = new List<ReferenceDescriptionCollection>();
-            var nextErrors = new List<List<ServiceResult>>();            
+            var nextErrors = new List<ReferenceWrapper<ServiceResult>>();            
 
             for(int ii = 0; ii< nodeIds.Count; ii++)
             {
                 if (continuationPoints[ii] != null && !ByteArraysEqual(continuationPoints[ii], nullByte))
                 {
-                    if (!StatusCode.IsBad(previousErrors[ii].Last().StatusCode))
+                    if (!StatusCode.IsBad(previousErrors[ii].reference.StatusCode))
                     {
                         nextContinuationPoints.Add(continuationPoints[ii]);
                         nextResults.Add(previousResults[ii]);
@@ -3888,14 +3899,14 @@ namespace Opc.Ua.Client
                 for(int ii = 0; ii < browseNextResults.Count; ii++)
                 {
                     nextResults[ii].AddRange(browseNextResults[ii]);
-                    nextErrors[ii].Add (browseNextErrors[ii] );
+                    nextErrors[ii].reference = browseNextErrors[ii] ;
                 }
 
                 previousResults = nextResults;
                 previousErrors =  nextErrors;
 
                 nextResults = new List<ReferenceDescriptionCollection>();
-                nextErrors  = new List<List<ServiceResult>>();
+                nextErrors  = new List<ReferenceWrapper<ServiceResult>>();
                 nextContinuationPoints = new ByteStringCollection();
 
                 for (int ii = 0; ii < revisedContinuationPoints.Count; ii++)
@@ -3910,9 +3921,9 @@ namespace Opc.Ua.Client
 
             }
             finalErrors = new List<ServiceResult>();
-            foreach (var errorList in errorAnchors)
+            foreach (var errorReference in errorAnchors)
             {
-                finalErrors.Add(errorList.Last());
+                finalErrors.Add(errorReference.reference);
             }
         }
 

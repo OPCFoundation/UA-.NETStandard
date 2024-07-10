@@ -1174,7 +1174,9 @@ namespace Opc.Ua.Server
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
         private uint m_maxResponseMessageSize;
         private double m_maxRequestAge;
-        private int m_maxBrowseContinuationPoints;
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+        protected int m_maxBrowseContinuationPoints;
+#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
         private int m_maxHistoryContinuationPoints;
 
         private SessionDiagnosticsDataType m_diagnostics;
