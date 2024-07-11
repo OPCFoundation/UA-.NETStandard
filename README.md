@@ -30,6 +30,9 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 * A [PubSub](Docs/PubSub.md) library with samples.
 
 #### **New in 1.05.xxx**
+* Support for [Durable Subscriptions](Docs/DurableSubscription.md)
+
+#### **New in 1.05.374.70**
 * CRL Support for the X509Store on Windows
 
 #### **New in 1.05.373**
