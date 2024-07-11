@@ -10,7 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-
 using System;
 using System.IO;
 using System.Net;
@@ -515,4 +514,3 @@ namespace Opc.Ua.Bindings
         private static readonly MediaTypeHeaderValue s_mediaTypeHeaderValue = new MediaTypeHeaderValue("application/octet-stream");
     }
 }
-

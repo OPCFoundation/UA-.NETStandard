@@ -757,10 +757,10 @@ namespace Opc.Ua.Client
                 StatusCode lastKeepAliveErrorStatusCode = m_lastKeepAliveErrorStatusCode;
                 if (StatusCode.IsGood(lastKeepAliveErrorStatusCode) || lastKeepAliveErrorStatusCode == StatusCodes.BadNoCommunication)
                 {
-                    TimeSpan delta = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - Interlocked.Read(ref m_lastKeepAliveTime));
+                    int delta = HiResClock.TickCount - m_lastKeepAliveTickCount;
 
                     // add a guard band to allow for network lag.
-                    return (m_keepAliveInterval + kKeepAliveGuardBand) <= delta.TotalMilliseconds;
+                    return (m_keepAliveInterval + kKeepAliveGuardBand) <= delta;
                 }
 
                 // another error was reported which caused keep alive to stop.
@@ -777,6 +777,18 @@ namespace Opc.Ua.Client
             {
                 var ticks = Interlocked.Read(ref m_lastKeepAliveTime);
                 return new DateTime(ticks, DateTimeKind.Utc);
+            }
+        }
+
+        /// <summary>
+        /// Gets the TickCount in ms of the last keep alive based on <see cref="HiResClock.TickCount"/>.
+        /// Independent of system time changes.
+        /// </summary>
+        public int LastKeepAliveTickCount
+        {
+            get
+            {
+                return m_lastKeepAliveTickCount;
             }
         }
 
@@ -3708,6 +3720,7 @@ namespace Opc.Ua.Client
 
             m_lastKeepAliveErrorStatusCode = StatusCodes.Good;
             Interlocked.Exchange(ref m_lastKeepAliveTime, DateTime.UtcNow.Ticks);
+            m_lastKeepAliveTickCount = HiResClock.TickCount;
 
             m_serverState = ServerState.Unknown;
 
@@ -3791,7 +3804,7 @@ namespace Opc.Ua.Client
                     state.RequestId = requestId;
                     state.RequestTypeId = typeId;
                     state.Result = result;
-                    state.Timestamp = DateTime.UtcNow;
+                    state.TickCount = HiResClock.TickCount;
 
                     m_outstandingRequests.AddLast(state);
                 }
@@ -3811,11 +3824,11 @@ namespace Opc.Ua.Client
                 if (state != null)
                 {
                     // mark any old requests as default (i.e. the should have returned before this request).
-                    DateTime maxAge = state.Timestamp.AddSeconds(-1);
+                    const int maxAge = 1000;
 
                     for (LinkedListNode<AsyncRequestState> ii = m_outstandingRequests.First; ii != null; ii = ii.Next)
                     {
-                        if (ii.Value.RequestTypeId == typeId && ii.Value.Timestamp < maxAge)
+                        if (ii.Value.RequestTypeId == typeId && (state.TickCount - ii.Value.TickCount) > maxAge)
                         {
                             ii.Value.Defunct = true;
                         }
@@ -3831,7 +3844,7 @@ namespace Opc.Ua.Client
                     state.RequestId = requestId;
                     state.RequestTypeId = typeId;
                     state.Result = result;
-                    state.Timestamp = DateTime.UtcNow;
+                    state.TickCount = HiResClock.TickCount;
 
                     m_outstandingRequests.AddLast(state);
                 }
@@ -3984,6 +3997,7 @@ namespace Opc.Ua.Client
 
                 m_lastKeepAliveErrorStatusCode = StatusCodes.Good;
                 Interlocked.Exchange(ref m_lastKeepAliveTime, DateTime.UtcNow.Ticks);
+                m_lastKeepAliveTickCount = HiResClock.TickCount;
 
                 lock (m_outstandingRequests)
                 {
@@ -4002,6 +4016,7 @@ namespace Opc.Ua.Client
             {
                 m_lastKeepAliveErrorStatusCode = StatusCodes.Good;
                 Interlocked.Exchange(ref m_lastKeepAliveTime, DateTime.UtcNow.Ticks);
+                m_lastKeepAliveTickCount = HiResClock.TickCount;
             }
 
             // save server state.
@@ -4027,19 +4042,19 @@ namespace Opc.Ua.Client
         /// </summary>
         protected virtual bool OnKeepAliveError(ServiceResult result)
         {
-            DateTime now = DateTime.UtcNow;
 
             m_lastKeepAliveErrorStatusCode = result.StatusCode;
             if (result.StatusCode == StatusCodes.BadNoCommunication)
             {
-                // keep alive read timed out
-                long delta = now.Ticks - Interlocked.Read(ref m_lastKeepAliveTime);
+                //keep alive read timed out
+                int delta = HiResClock.TickCount - m_lastKeepAliveTickCount;
                 Utils.LogInfo(
-                    "KEEP ALIVE LATE: {0}s, EndpointUrl={1}, RequestCount={2}/{3}",
-                    ((double)delta) / TimeSpan.TicksPerSecond,
+                    "KEEP ALIVE LATE: {0}ms, EndpointUrl={1}, RequestCount={2}/{3}",
+                    delta,
                     this.Endpoint?.EndpointUrl,
                     this.GoodPublishRequestCount,
                     this.OutstandingRequestCount);
+
             }
 
             KeepAliveEventHandler callback = m_KeepAlive;
@@ -4048,7 +4063,7 @@ namespace Opc.Ua.Client
             {
                 try
                 {
-                    KeepAliveEventArgs args = new KeepAliveEventArgs(result, ServerState.Unknown, now);
+                    KeepAliveEventArgs args = new KeepAliveEventArgs(result, ServerState.Unknown, DateTime.UtcNow);
                     callback(this, args);
                     return !args.CancelKeepAlive;
                 }
@@ -4910,7 +4925,7 @@ namespace Opc.Ua.Client
             var state = new AsyncRequestState {
                 RequestTypeId = DataTypes.PublishRequest,
                 RequestId = requestHeader.RequestHandle,
-                Timestamp = DateTime.UtcNow
+                TickCount = HiResClock.TickCount
             };
 
             CoreClientUtils.EventLog.PublishStart((int)requestHeader.RequestHandle);
@@ -6360,6 +6375,7 @@ namespace Opc.Ua.Client
         private long m_publishCounter;
         private int m_tooManyPublishRequests;
         private long m_lastKeepAliveTime;
+        private int m_lastKeepAliveTickCount;
         private StatusCode m_lastKeepAliveErrorStatusCode;
         private ServerState m_serverState;
         private int m_keepAliveInterval;
@@ -6380,7 +6396,7 @@ namespace Opc.Ua.Client
         {
             public uint RequestTypeId;
             public uint RequestId;
-            public DateTime Timestamp;
+            public int TickCount;
             public IAsyncResult Result;
             public bool Defunct;
         }

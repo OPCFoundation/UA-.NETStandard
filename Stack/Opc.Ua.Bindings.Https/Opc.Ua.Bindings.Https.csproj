@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
@@ -6,7 +6,7 @@
     <AssemblyName>Opc.Ua.Bindings.Https</AssemblyName>
     <PackageId>OPCFoundation.NetStandard.Opc.Ua.Bindings.Https</PackageId>
     <RootNamespace>Opc.Ua.Bindings</RootNamespace>
-    <Description>OPC UA Https Binding Library</Description>
+    <Description>OPC UA Https Binding Library for a Opc.Ua.Server.</Description>
     <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
@@ -38,18 +38,6 @@
     </Otherwise>
   </Choose>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
-    <Reference Include="System.Net.Http" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
-    <Reference Include="System.Net.Http" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
-    <Reference Include="System.Net.Http" />
-  </ItemGroup>
-  
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
   </ItemGroup>
