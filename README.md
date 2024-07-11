@@ -29,6 +29,9 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 * Sessions and Subscriptions.
 * A [PubSub](Docs/PubSub.md) library with samples.
 
+#### **New in 1.05.xxx**
+* CRL Support for the X509Store on Windows
+
 #### **New in 1.05.373**
 * 1.05 Nodeset
 * Support for [WellKnownRoles & RoleBasedUserManagement](Docs/RoleBasedUserManagement.md).

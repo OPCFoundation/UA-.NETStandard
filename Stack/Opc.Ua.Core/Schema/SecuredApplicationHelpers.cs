@@ -372,6 +372,42 @@ namespace Opc.Ua.Security
         }
 
         /// <summary>
+        /// Calculates the security level, given the security mode and policy
+        /// Invalid and none is discouraged
+        /// Just signing is always weaker than any use of encryption
+        /// </summary>
+        public static byte CalculateSecurityLevel(MessageSecurityMode mode, string policyUri)
+        {
+            if ((mode != MessageSecurityMode.Sign &&
+                mode != MessageSecurityMode.SignAndEncrypt) ||
+                policyUri == null)
+            {
+                return 0;
+            }
+
+            byte result = 0;
+            switch (policyUri)
+            {
+                case SecurityPolicies.Basic128Rsa15: result = 2; break;
+                case SecurityPolicies.Basic256: result = 4; break;
+                case SecurityPolicies.Basic256Sha256: result = 6; break;
+                case SecurityPolicies.Aes128_Sha256_RsaOaep: result = 8; break;
+                case SecurityPolicies.Aes256_Sha256_RsaPss: result = 10; break;
+                case SecurityPolicies.None:
+                default:
+                    Utils.LogWarning("Security level requested for unknown Security Policy {policy}. Returning security level 0", policyUri);
+                    return 0;
+            }
+
+            if (mode == MessageSecurityMode.SignAndEncrypt)
+            {
+                result += 100;
+            }
+
+            return result;
+        }
+
+        /// <summary>
         /// Creates a new policy object.
         /// Always uses sign and encrypt for all security policies except none
         /// </summary>

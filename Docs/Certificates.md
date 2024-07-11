@@ -31,6 +31,10 @@ The UA .NET Standard stack supports the following certificate stores:
 
 - The **Trusted Https** store  `<root>/trustedHttps` which contains https certificates which are trusted by an application. To establish trust, the same rules apply as explained for the *Trusted* and the *Issuer* store.
 
+### X509Store on Windows
+Starting with Version 1.5.xx of the UA .NET Standard Stack the X509Store supports the storage and retrieval of CRLS, if used on the **Windows OS**.
+This enables the usage of the X509Store instead of the Directory Store for stores requiring the use of crls, e.g. the issuer or the directory Store.
+
 ### Windows .NET applications
 By default the self signed certificates are stored in a **X509Store** called **CurrentUser\\UA_MachineDefault**. The certificates can be viewed or deleted with the Windows Certificate Management Console (certmgr.msc). The *trusted*, *issuer* and *rejected* stores remain in a folder called **OPC Foundation\pki** with a root folder which is specified by the `SpecialFolder` variable **%CommonApplicationData%**. On Windows 7/8/8.1/10 this is usually the invisible folder **C:\ProgramData**. 
 

@@ -21,8 +21,12 @@ namespace Opc.Ua.Bindings
     {
         static TransportBindings()
         {
-            Channels = new TransportChannelBindings(new Type[] { typeof(TcpTransportChannelFactory) });
-            Listeners = new TransportListenerBindings(new Type[] { typeof(TcpTransportListenerFactory) });
+            Channels = new TransportChannelBindings(new Type[] {
+                typeof(TcpTransportChannelFactory),
+                typeof(HttpsTransportChannelFactory),
+                typeof(OpcHttpsTransportChannelFactory) });
+            Listeners = new TransportListenerBindings(new Type[] {
+                typeof(TcpTransportListenerFactory) });
         }
 
         /// <summary>

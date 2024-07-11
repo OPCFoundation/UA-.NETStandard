@@ -60,6 +60,7 @@ namespace Opc.Ua.Client.Tests
         public TokenValidatorMock TokenValidator { get; set; } = new TokenValidatorMock();
 
         public bool SingleSession { get; set; } = true;
+        public int MaxChannelCount { get; set; } = 10;
         public bool SupportsExternalServerUrl { get; set; } = false;
         public ServerFixture<ReferenceServer> ServerFixture { get; set; }
         public ClientFixture ClientFixture { get; set; }

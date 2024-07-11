@@ -402,7 +402,6 @@ namespace Opc.Ua.Client.Tests
             ActivitySource.AddActivityListener(ActivityListener);
         }
 
-
         /// <summary>
         /// Disposes Activity Listener and unregisters from Activity Source.
         /// </summary>
@@ -418,7 +417,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (ServiceResult.IsBad(e.Status))
             {
-                session?.Dispose();
+                Utils.LogError("Session '{0}' keep alive error: {1}", session.SessionName, e.Status);
             }
         }
         #endregion

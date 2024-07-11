@@ -99,7 +99,7 @@ namespace Opc.Ua.Bindings
             m_discoveryOnly = false;
             m_uninitialized = true;
 
-            m_state = TcpChannelState.Closed;
+            m_state = (int)TcpChannelState.Closed;
             m_receiveBufferSize = quotas.MaxBufferSize;
             m_sendBufferSize = quotas.MaxBufferSize;
             m_activeWriteRequests = 0;
@@ -447,10 +447,15 @@ namespace Opc.Ua.Bindings
         protected void BeginWriteMessage(ArraySegment<byte> buffer, object state)
         {
             ServiceResult error = ServiceResult.Good;
-            IMessageSocketAsyncEventArgs args = null;
+            IMessageSocketAsyncEventArgs args = m_socket?.MessageSocketEventArgs();
+
+            if (args == null)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadConnectionClosed, "The socket was closed by the remote application.");
+            }
+
             try
             {
-                args = m_socket.MessageSocketEventArgs();
                 Interlocked.Increment(ref m_activeWriteRequests);
                 args.SetBuffer(buffer.Array, buffer.Offset, buffer.Count);
                 args.Completed += OnWriteComplete;
@@ -737,16 +742,14 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected TcpChannelState State
         {
-            get { return m_state; }
+            get => (TcpChannelState)m_state;
 
             set
             {
-                if (m_state != value)
+                if (Interlocked.Exchange(ref m_state, (int)value) != (int)value)
                 {
                     Utils.LogTrace("ChannelId {0}: in {1} state.", ChannelId, value);
                 }
-
-                m_state = value;
             }
         }
 
@@ -874,7 +877,8 @@ namespace Opc.Ua.Bindings
         private int m_maxResponseChunkCount;
         private string m_contextId;
 
-        private TcpChannelState m_state;
+        // treat TcpChannelState as int to use Interlocked
+        private int m_state;
         private uint m_channelId;
         private string m_globalChannelId;
         private long m_sequenceNumber;
@@ -892,7 +896,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// The possible channel states.
     /// </summary>
-    public enum TcpChannelState
+    public enum TcpChannelState : int
     {
         /// <summary>
         /// The channel is closed.
