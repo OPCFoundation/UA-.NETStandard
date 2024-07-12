@@ -1968,7 +1968,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The maximum durable subscription lifetime.</value>
         [DataMember(IsRequired = false, Order = 41)]
-        public int MaxDurableSubscriptionLifetime
+        public uint MaxDurableSubscriptionLifetime
         {
             get { return m_maxDurableSubscriptionLifetime; }
             set { m_maxDurableSubscriptionLifetime = value; }
@@ -2014,7 +2014,7 @@ namespace Opc.Ua
         private bool m_DurableSubscriptionsEnabled;
         private int m_maxDurableNotificationQueueSize;
         private int m_maxDurableEventQueueSize;
-        private int m_maxDurableSubscriptionLifetime;
+        private uint m_maxDurableSubscriptionLifetime;
         #endregion
     }
     #endregion

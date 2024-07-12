@@ -1124,34 +1124,31 @@ namespace Opc.Ua.Server
                 }
             }
 
-            if (subscription.Id == subscriptionId)
+            if (subscription.SessionId != context.SessionId)
             {
-                if (subscription.SessionId != context.SessionId)
-                {
-                    // user tries to access subscription of different session
-                    return StatusCodes.BadUserAccessDenied;
-                }
-
-                if (subscription.MonitoredItemCount > 0)
-                {
-                    return StatusCodes.BadInvalidState;
-                }
-
-                // calculate the keep alive count.
-                uint revisedMaxKeepAliveCount = 0; //CalculateKeepAliveCount(subscription.PublishingInterval, requestedMaxKeepAliveCount, true);
-
-                // calculate the lifetime count.
-                uint revisedLifetimeCount = 0; // CalculateLifetimeCount(subscription.PublishingInterval, revisedMaxKeepAliveCount, lifetimeInHours, true);
-
-                ServiceResult result = subscription.SetSubscriptionDurable(revisedLifetimeCount, revisedMaxKeepAliveCount);
-
-                revisedLifetimeInHours = 0;
-                return result;
+                // user tries to access subscription of different session
+                return StatusCodes.BadUserAccessDenied;
             }
 
+            if (subscription.MonitoredItemCount > 0)
+            {
+                // durable subscription can only be created before monitored items are created
+                return StatusCodes.BadInvalidState;
+            }
 
-            return StatusCodes.BadSubscriptionIdInvalid;
+            uint requestedLifetimeCount = uint.MaxValue;
+            if (uint.MaxValue / 3600 < lifetimeInHours)
+            {
+                requestedLifetimeCount = lifetimeInHours * 3600;
+            }
 
+            // calculate the revised lifetime count.
+            uint revisedLifetimeCount = CalculateLifetimeCount(subscription.PublishingInterval, subscription.Diagnostics.MaxKeepAliveCount, requestedLifetimeCount, true);
+
+            ServiceResult result = subscription.SetSubscriptionDurable(revisedLifetimeCount);
+
+            revisedLifetimeInHours = revisedLifetimeCount / 3600;
+            return result;
         }
 
         /// <summary>

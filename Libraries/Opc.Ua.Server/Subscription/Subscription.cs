@@ -2293,7 +2293,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Sets the subscription to durable mode.
         /// </summary>
-        public ServiceResult SetSubscriptionDurable(uint maxLifetimeCount, uint maxKeepAliveCount)
+        public ServiceResult SetSubscriptionDurable(uint maxLifetimeCount)
         {
             lock (m_lock)
             {
@@ -2309,11 +2309,6 @@ namespace Opc.Ua.Server
                 ResetLifetimeCount();
 
                 m_maxLifetimeCount = maxLifetimeCount;
-
-                if (maxKeepAliveCount != m_maxKeepAliveCount)
-                {
-                    m_maxKeepAliveCount = maxKeepAliveCount;
-                }
 
                 return StatusCodes.Good;
             }
