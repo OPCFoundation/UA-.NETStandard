@@ -39,7 +39,7 @@ namespace Opc.Ua.Server
     public class MonitoredItemQueueFactory : IMonitoredItemQueueFactory
     {
         /// <inheritdoc/>
-        public bool SupportsDurableQueues => false;
+        public bool SupportsDurableQueues => true;
         /// <inheritdoc/>
         public IMonitoredItemQueue<DataValue> CreateDataValueQueue(uint monitoredItemId, bool createDurable, Action discardedValueHandler = null)
         {
@@ -55,7 +55,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void Dispose()
         {
-            throw new NotImplementedException();
+            //nothing to do
         }
     }
     /// <summary>
@@ -68,11 +68,11 @@ namespace Opc.Ua.Server
         /// </summary>
         public MonitoredItemQueue(uint monitoredItemId, bool createDurable, Action discardedValueHandler = null)
         {
-            if (createDurable)
-            {
-                Utils.LogError("MonitoredItemQueue does not support durable queues, please provide full implementation of IDurableMonitoredItemQueue using Server.CreateDurableMonitoredItemQueueFactory to supply own factory");
-                throw new ServiceResultException(StatusCodes.BadInternalError);
-            }
+            //if (createDurable)
+            //{
+            //    Utils.LogError("MonitoredItemQueue does not support durable queues, please provide full implementation of IDurableMonitoredItemQueue using Server.CreateDurableMonitoredItemQueueFactory to supply own factory");
+            //    throw new ServiceResultException(StatusCodes.BadInternalError);
+            //}
 
             m_monitoredItemId = monitoredItemId;
             m_values = null;

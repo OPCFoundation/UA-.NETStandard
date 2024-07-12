@@ -1136,11 +1136,7 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadInvalidState;
             }
 
-            uint requestedLifetimeCount = uint.MaxValue;
-            if (uint.MaxValue / 3600 < lifetimeInHours)
-            {
-                requestedLifetimeCount = lifetimeInHours * 3600;
-            }
+            uint requestedLifetimeCount = (uint)(lifetimeInHours / subscription.PublishingInterval * 3600);
 
             // calculate the revised lifetime count.
             uint revisedLifetimeCount = CalculateLifetimeCount(subscription.PublishingInterval, subscription.Diagnostics.MaxKeepAliveCount, requestedLifetimeCount, true);
@@ -1741,7 +1737,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual uint CalculateLifetimeCount(double publishingInterval, uint keepAliveCount, uint lifetimeCount, bool isDurableSubscription = false)
         {
-            uint maxSubscriptionLifetime = isDurableSubscription ? m_maxSubscriptionLifetime : m_maxDurableSubscriptionLifetime;
+            ulong maxSubscriptionLifetime = isDurableSubscription ? m_maxSubscriptionLifetime : m_maxDurableSubscriptionLifetime;
 
             double lifetimeInterval = lifetimeCount * publishingInterval;
 
