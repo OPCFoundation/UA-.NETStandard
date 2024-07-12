@@ -1695,7 +1695,7 @@ namespace Opc.Ua.Server
                 keepAliveCount = 3;
             }
 
-            uint maxSubscriptionLifetime = isDurableSubscription ? m_maxSubscriptionLifetime : m_maxDurableSubscriptionLifetime;
+            uint maxSubscriptionLifetime = isDurableSubscription ? m_maxDurableSubscriptionLifetime : m_maxSubscriptionLifetime;
 
             double keepAliveInterval = keepAliveCount * publishingInterval;
 
@@ -1737,7 +1737,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual uint CalculateLifetimeCount(double publishingInterval, uint keepAliveCount, uint lifetimeCount, bool isDurableSubscription = false)
         {
-            ulong maxSubscriptionLifetime = isDurableSubscription ? m_maxSubscriptionLifetime : m_maxDurableSubscriptionLifetime;
+            ulong maxSubscriptionLifetime = isDurableSubscription ? m_maxDurableSubscriptionLifetime: m_maxSubscriptionLifetime;
 
             double lifetimeInterval = lifetimeCount * publishingInterval;
 
