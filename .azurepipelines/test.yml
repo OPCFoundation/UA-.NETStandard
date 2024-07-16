@@ -40,6 +40,11 @@ jobs:
   pool:
     vmImage: $(poolImage)
   steps:
+  - task: DownloadSecureFile@1
+    name: fuzzingartifacts
+    displayName: 'Download Fuzzing artifacts'
+    inputs:
+      secureFile: 'FuzzingArtifacts.zip'
   - task: UseDotNet@2
     displayName: 'Install .NET 6.0'
     condition: eq('${{parameters.framework}}', 'net6.0')
@@ -65,15 +70,10 @@ jobs:
       command: restore
       projects: $(file)
       arguments: '${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }}'
-  - task: DownloadSecureFile@1
-    name: fuzzingartifacts
-    displayName: 'Download Fuzzing artifacts'
-    inputs:
-      secureFile: 'FuzzingArtifacts.zip'
   - task: ExtractFiles@1
     displayName: 'Extract Fuzzing artifacts'
     inputs:
-      archiveFilePatterns: $(fuzzingartifacts.secureFilePath)
+      archiveFilePatterns: '$(fuzzingartifacts.secureFilePath)'
       destinationFolder: ./Fuzzing/Encoders/Fuzz.Tests/Assets
       cleanDestinationFolder: false
       overwriteExistingFiles: true
