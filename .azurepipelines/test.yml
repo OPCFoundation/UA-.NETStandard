@@ -65,6 +65,18 @@ jobs:
       command: restore
       projects: $(file)
       arguments: '${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }}'
+  - task: DownloadSecureFile@1
+    name: fuzzingartifacts
+    displayName: 'Download Fuzzing artifacts'
+    inputs:
+      secureFile: 'FuzzingArtifacts.zip'
+  - task: ExtractFiles@1
+    displayName: 'Extract Fuzzing artifacts'
+    inputs:
+      archiveFilePatterns: $(fuzzingartifacts.secureFilePath)
+      destinationFolder: ./Fuzzing/Encoders/Fuzz.Tests/Assets
+      cleanDestinationFolder: false
+      overwriteExistingFiles: true
   - task: DotNetCoreCLI@2
     displayName: Test ${{ parameters.configuration }}
     timeoutInMinutes: 30

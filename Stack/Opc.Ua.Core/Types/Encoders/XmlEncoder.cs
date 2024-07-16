@@ -1777,7 +1777,7 @@ namespace Opc.Ua
                 EndField(fieldName);
             }
         }
-#endregion
+        #endregion
 
         #region Public Methods
         /// <summary>
