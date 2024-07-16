@@ -83,22 +83,6 @@ namespace Opc.Ua.Client
                     displayName = m_displayName;
                 }
 
-                // remove any existing numeric suffix.
-                int index = displayName.LastIndexOf(' ');
-
-                if (index != -1)
-                {
-                    try
-                    {
-                        displayName = displayName.Substring(0, index);
-                    }
-                    catch
-                    {
-                        // not a numeric suffix.
-                    }
-                }
-
-                m_displayName = Utils.Format("{0} {1}", displayName, Utils.IncrementIdentifier(ref s_globalSubscriptionCounter));
                 m_publishingInterval = template.m_publishingInterval;
                 m_keepAliveCount = template.m_keepAliveCount;
                 m_lifetimeCount = template.m_lifetimeCount;
@@ -2850,8 +2834,6 @@ namespace Opc.Ua.Client
         }
 
         private LinkedList<IncomingMessage> m_incomingMessages;
-
-        private static long s_globalSubscriptionCounter;
         #endregion
     }
 
