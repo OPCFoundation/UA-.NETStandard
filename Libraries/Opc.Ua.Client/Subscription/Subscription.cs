@@ -76,13 +76,7 @@ namespace Opc.Ua.Client
 
             if (template != null)
             {
-                string displayName = template.DisplayName;
-
-                if (String.IsNullOrEmpty(displayName))
-                {
-                    displayName = m_displayName;
-                }
-
+                m_displayName = template.m_displayName;
                 m_publishingInterval = template.m_publishingInterval;
                 m_keepAliveCount = template.m_keepAliveCount;
                 m_lifetimeCount = template.m_lifetimeCount;
