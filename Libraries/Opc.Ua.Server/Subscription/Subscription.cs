@@ -2310,6 +2310,17 @@ namespace Opc.Ua.Server
 
                 m_maxLifetimeCount = maxLifetimeCount;
 
+
+                // update diagnostics
+                lock (DiagnosticsWriteLock)
+                {
+                    m_diagnostics.ModifyCount++;
+                    m_diagnostics.MaxLifetimeCount = m_maxLifetimeCount;
+
+                }
+
+                TraceState(LogLevel.Information, TraceStateId.Config, "MODIFIED");
+
                 return StatusCodes.Good;
             }
         }

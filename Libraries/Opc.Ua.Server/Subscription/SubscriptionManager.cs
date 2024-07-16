@@ -1142,7 +1142,7 @@ namespace Opc.Ua.Server
                 lifetimeInHours = (uint)(m_maxDurableSubscriptionLifetime / 3600);
             }
 
-            uint requestedLifetimeCount = (uint)(lifetimeInHours / subscription.PublishingInterval * 3600);
+            uint requestedLifetimeCount = (uint)(lifetimeInHours / subscription.PublishingInterval * 3600 * 1000);
 
             // calculate the revised lifetime count.
             uint revisedLifetimeCount = CalculateLifetimeCount(subscription.PublishingInterval, subscription.Diagnostics.MaxKeepAliveCount, requestedLifetimeCount, true);
