@@ -65,11 +65,14 @@ namespace Opc.Ua.Fuzzing
         }
 
         [Theory]
-        public void FuzzCrashAssets(
-            FuzzTargetFunction fuzzableCode,
-            [ValueSource(nameof(CrashAssets))] TestcaseAsset messageEncoder)
+        public void FuzzCrashAssets(FuzzTargetFunction fuzzableCode)
         {
-            FuzzTarget(fuzzableCode, messageEncoder.Testcase);
+            // note: too many crash files can take forever to create
+            // all permutations with nunit, so just run all in one batch
+            foreach (var messageEncoder in CrashAssets)
+            {
+                FuzzTarget(fuzzableCode, messageEncoder.Testcase);
+            }
         }
 
         [Theory]

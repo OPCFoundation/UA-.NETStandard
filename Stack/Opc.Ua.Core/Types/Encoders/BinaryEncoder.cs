@@ -540,6 +540,12 @@ namespace Opc.Ua
         /// </summary>
         public void WriteByteString(string fieldName, byte[] value)
         {
+            if (value == null)
+            {
+                WriteInt32(null, -1);
+                return;
+            }
+
             WriteByteString(fieldName, value, 0, value.Length);
         }
 

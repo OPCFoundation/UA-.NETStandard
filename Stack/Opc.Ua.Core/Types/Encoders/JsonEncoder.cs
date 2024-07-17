@@ -979,6 +979,12 @@ namespace Opc.Ua
         /// </summary>
         public void WriteByteString(string fieldName, byte[] value)
         {
+            if (value == null)
+            {
+                WriteSimpleFieldNull(fieldName);
+                return;
+            }
+
             WriteByteString(fieldName, value, 0, value.Length);
         }
 

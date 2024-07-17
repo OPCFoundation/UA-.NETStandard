@@ -65,7 +65,7 @@ namespace Opc.Ua
             if (writer == null)
             {
                 m_destination = new StringBuilder();
-                m_writer = XmlWriter.Create(m_destination);
+                m_writer = XmlWriter.Create(m_destination, Utils.DefaultXmlWriterSettings());
             }
             else
             {
