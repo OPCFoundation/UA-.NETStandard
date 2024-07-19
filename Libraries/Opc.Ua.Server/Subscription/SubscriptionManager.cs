@@ -1139,16 +1139,19 @@ namespace Opc.Ua.Server
             //use max server lifetime is requested lifetime is 0
             if (lifetimeInHours == 0)
             {
+                //seconds->hours
                 lifetimeInHours = (uint)(m_maxDurableSubscriptionLifetime / 3600);
             }
 
-            uint requestedLifetimeCount = (uint)(lifetimeInHours / subscription.PublishingInterval * 3600);
+            //hours -> seconds -> milliseconds -> publishing interval
+            uint requestedLifetimeCount = (uint)(lifetimeInHours / subscription.PublishingInterval * 3600 * 1000);
 
             // calculate the revised lifetime count.
             uint revisedLifetimeCount = CalculateLifetimeCount(subscription.PublishingInterval, subscription.Diagnostics.MaxKeepAliveCount, requestedLifetimeCount, true);
 
             ServiceResult result = subscription.SetSubscriptionDurable(revisedLifetimeCount);
 
+            //seconds -> hours
             revisedLifetimeInHours = revisedLifetimeCount / 3600;
             return result;
         }
