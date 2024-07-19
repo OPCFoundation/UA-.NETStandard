@@ -86,7 +86,7 @@ namespace Opc.Ua
         {
             return true;
         }
-#endregion
+        #endregion
     }
 
     /// <summary>
@@ -94,7 +94,7 @@ namespace Opc.Ua
     /// </summary>
     public partial class UserNameIdentityToken
     {
-#region Public Properties
+        #region Public Properties
         /// <summary>
         /// The decrypted password associated with the token.
         /// </summary>
@@ -287,11 +287,11 @@ namespace Opc.Ua
             }
         }
 
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private string m_decryptedPassword;
-#endregion
+        #endregion
     }
 
     /// <summary>
@@ -299,7 +299,7 @@ namespace Opc.Ua
     /// </summary>
     public partial class X509IdentityToken
     {
-#region Public Properties
+        #region Public Properties
         /// <summary>
         /// The certificate associated with the token.
         /// </summary>
@@ -315,9 +315,9 @@ namespace Opc.Ua
             }
             set { m_certificate = value; }
         }
-#endregion
+        #endregion
 
-#region Public Methods
+        #region Public Methods
         /// <summary>
         /// Creates a signature with the token.
         /// </summary>
@@ -369,11 +369,11 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(StatusCodes.BadIdentityTokenInvalid, e, "Could not verify user signature!");
             }
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private X509Certificate2 m_certificate;
-#endregion
+        #endregion
     }
 
     /// <summary>
@@ -404,7 +404,7 @@ namespace Opc.Ua
     /// </summary>
     public partial class IssuedIdentityToken
     {
-#region Public Properties
+        #region Public Properties
         /// <summary>
         /// The type of issued token.
         /// </summary>
@@ -543,10 +543,10 @@ namespace Opc.Ua
         {
             return true;
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private byte[] m_decryptedTokenData;
-#endregion
+        #endregion
     }
 }

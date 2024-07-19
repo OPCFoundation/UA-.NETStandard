@@ -126,29 +126,8 @@ namespace Opc.Ua.Client
                 sessionTimeout = (uint)m_configuration.ClientConfiguration.DefaultSessionTimeout;
             }
 
-//TODO: helper for user token selection?
             // select the security policy for the user token.
-            var userTokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
-
-            if (String.IsNullOrEmpty(userTokenSecurityPolicyUri))
-            {
-                userTokenSecurityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
-            }
-            m_userTokenSecurityPolicyUri = userTokenSecurityPolicyUri;
-
-            RequestHeader requestHeader = new RequestHeader();
-
-            if (EccUtils.IsEccPolicy(userTokenSecurityPolicyUri))
-            {
-                AdditionalParametersType parameters = new AdditionalParametersType();
-
-                parameters.Parameters.Add(new KeyValuePair() {
-                    Key = "ECDHPolicyUri",
-                    Value = userTokenSecurityPolicyUri
-                });
-
-                requestHeader.AdditionalHeader = new ExtensionObject(parameters);
-            }
+            RequestHeader requestHeader = CreateRequestHeaderPerUserTokenPolicy(identityPolicy.SecurityPolicyUri, m_endpoint.Description.SecurityPolicyUri);
 
             bool successCreateSession = false;
             CreateSessionResponse response = null;
@@ -264,7 +243,7 @@ namespace Opc.Ua.Client
                 identityToken.Encrypt(
                     serverCertificate,
                     serverNonce,
-                    userTokenSecurityPolicyUri,
+                    m_userTokenSecurityPolicyUri,
                     m_eccServerEphemeralKey,
                     m_instanceCertificate,
                     m_instanceCertificateChain,

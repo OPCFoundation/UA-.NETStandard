@@ -1366,13 +1366,10 @@ namespace Opc.Ua.Client
                 XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
                 using (XmlWriter writer = XmlWriter.Create(stream, settings))
                 {
-                    DataContractSerializer serializer = new DataContractSerializer(typeof(SessionConfiguration),
-                        new[] { typeof(UserIdentityToken), typeof(AnonymousIdentityToken), typeof(X509IdentityToken),
-                        typeof(IssuedIdentityToken), typeof(UserIdentity), typeof(ECParameters) });
+                    DataContractSerializer serializer = new DataContractSerializer(typeof(SessionConfiguration));
                     serializer.WriteObject(writer, sessionConfiguration);
                 }
             }
-
             return sessionConfiguration;
         }
 
@@ -1438,7 +1435,6 @@ namespace Opc.Ua.Client
                     out certificateDiagnosticInfos);
 
                 ProcessResponseAdditionalHeader(responseHeader, m_serverCertificate);
-
 
                 Utils.LogInfo("Session RECONNECT {0} completed successfully.", SessionId);
 
@@ -2362,28 +2358,7 @@ namespace Opc.Ua.Client
             }
 
             // select the security policy for the user token.
-            var userTokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
-
-            if (String.IsNullOrEmpty(userTokenSecurityPolicyUri))
-            {
-                userTokenSecurityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
-            }
-            m_userTokenSecurityPolicyUri = userTokenSecurityPolicyUri;
-
-            RequestHeader requestHeader = new RequestHeader();
-
-            if (EccUtils.IsEccPolicy(userTokenSecurityPolicyUri))
-            {
-                AdditionalParametersType parameters = new AdditionalParametersType();
-
-                parameters.Parameters.Add(new KeyValuePair()
-                {
-                    Key = "ECDHPolicyUri",
-                    Value = userTokenSecurityPolicyUri
-                });
-
-                requestHeader.AdditionalHeader = new ExtensionObject(parameters);
-            }
+            RequestHeader requestHeader = CreateRequestHeaderPerUserTokenPolicy(identityPolicy.SecurityPolicyUri, m_endpoint.Description.SecurityPolicyUri);
 
             bool successCreateSession = false;
             ResponseHeader responseHeader = null;
@@ -2426,7 +2401,7 @@ namespace Opc.Ua.Client
             if (!successCreateSession)
             {
                 responseHeader = base.CreateSession(
-                        null,
+                        requestHeader,
                         clientDescription,
                         m_endpoint.Description.Server.ApplicationUri,
                         m_endpoint.EndpointUrl.ToString(),
@@ -2503,7 +2478,7 @@ namespace Opc.Ua.Client
                 identityToken.Encrypt(
                     serverCertificate,
                     serverNonce,
-                    userTokenSecurityPolicyUri,
+                    m_userTokenSecurityPolicyUri,
                     m_eccServerEphemeralKey,
                     m_instanceCertificate,
                     m_instanceCertificateChain,
@@ -6400,16 +6375,44 @@ namespace Opc.Ua.Client
                 latestSequenceNumberToSend = sequenceNumber;
             }
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
-        /// Process the AdditionalHeader field of a ResponseHeader
+        /// Creates a request header with additional parameters for the ecc user token security policy.
+        /// Returns null if additional header is not needed.
         /// </summary>
-        /// <param name="responseHeader"></param>
-        /// <param name="serverCertificate"></param>
-        /// <exception cref="ServiceResultException"></exception>
-        protected virtual void ProcessResponseAdditionalHeader(ResponseHeader responseHeader, X509Certificate2 serverCertificate)
+        private RequestHeader CreateRequestHeaderPerUserTokenPolicy(string identityTokenSecurityPolicyUri, string endpointSecurityPolicyUri)
+        {
+            var requestHeader = new RequestHeader();
+            var userTokenSecurityPolicyUri = identityTokenSecurityPolicyUri;
+            if (String.IsNullOrEmpty(userTokenSecurityPolicyUri))
+            {
+                userTokenSecurityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
+            }
+            m_userTokenSecurityPolicyUri = userTokenSecurityPolicyUri;
+
+            if (EccUtils.IsEccPolicy(userTokenSecurityPolicyUri))
+            {
+                AdditionalParametersType parameters = new AdditionalParametersType();
+                parameters.Parameters.Add(new KeyValuePair() {
+                    Key = "ECDHPolicyUri",
+                    Value = userTokenSecurityPolicyUri
+                });
+                requestHeader.AdditionalHeader = new ExtensionObject(parameters);
+            }
+
+            return requestHeader;
+        }
+
+    #endregion
+
+    #region Protected Methods
+    /// <summary>
+    /// Process the AdditionalHeader field of a ResponseHeader
+    /// </summary>
+    /// <param name="responseHeader"></param>
+    /// <param name="serverCertificate"></param>
+    /// <exception cref="ServiceResultException"></exception>
+    protected virtual void ProcessResponseAdditionalHeader(ResponseHeader responseHeader, X509Certificate2 serverCertificate)
         {
             AdditionalParametersType parameters = ExtensionObject.ToEncodeable(responseHeader?.AdditionalHeader) as AdditionalParametersType;
 
@@ -6448,8 +6451,6 @@ namespace Opc.Ua.Client
                 }
             }
         }
-
-
         #endregion
 
         #region Protected Fields
