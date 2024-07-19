@@ -201,8 +201,7 @@ namespace Opc.Ua.Client
             m_preferredLocales = new string[] { CultureInfo.CurrentCulture.Name };
 
             // create a context to use.
-            m_systemContext = new SystemContext
-            {
+            m_systemContext = new SystemContext {
                 SystemHandle = this,
                 EncodeableFactory = m_factory,
                 NamespaceUris = m_namespaceUris,
@@ -245,8 +244,7 @@ namespace Opc.Ua.Client
             m_reconnecting = false;
             m_reconnectLock = new SemaphoreSlim(1, 1);
 
-            m_defaultSubscription = new Subscription
-            {
+            m_defaultSubscription = new Subscription {
                 DisplayName = "Subscription",
                 PublishingInterval = 1000,
                 KeepAliveCount = 10,
@@ -1940,8 +1938,7 @@ namespace Opc.Ua.Client
             // first read only nodeclasses for nodes from server.
             var itemsToRead = new ReadValueIdCollection(
                 nodeIds.Select(nodeId =>
-                    new ReadValueId
-                    {
+                    new ReadValueId {
                         NodeId = nodeId,
                         AttributeId = Attributes.NodeClass
                     }));
@@ -2023,8 +2020,7 @@ namespace Opc.Ua.Client
             ReadValueIdCollection itemsToRead = new ReadValueIdCollection();
             foreach (uint attributeId in attributes.Keys)
             {
-                ReadValueId itemToRead = new ReadValueId
-                {
+                ReadValueId itemToRead = new ReadValueId {
                     NodeId = nodeId,
                     AttributeId = attributeId
                 };
@@ -2052,8 +2048,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public DataValue ReadValue(NodeId nodeId)
         {
-            ReadValueId itemToRead = new ReadValueId
-            {
+            ReadValueId itemToRead = new ReadValueId {
                 NodeId = nodeId,
                 AttributeId = Attributes.Value
             };
@@ -2102,8 +2097,7 @@ namespace Opc.Ua.Client
             // read all values from server.
             var itemsToRead = new ReadValueIdCollection(
                 nodeIds.Select(nodeId =>
-                    new ReadValueId
-                    {
+                    new ReadValueId {
                         NodeId = nodeId,
                         AttributeId = Attributes.Value
                     }));
@@ -2344,8 +2338,7 @@ namespace Opc.Ua.Client
             // send the application instance certificate for the client.
             BuildCertificateData(out byte[] clientCertificateData, out byte[] clientCertificateChainData);
 
-            ApplicationDescription clientDescription = new ApplicationDescription
-            {
+            ApplicationDescription clientDescription = new ApplicationDescription {
                 ApplicationUri = m_configuration.ApplicationUri,
                 ApplicationName = m_configuration.ApplicationName,
                 ApplicationType = ApplicationType.Client,
@@ -3053,8 +3046,7 @@ namespace Opc.Ua.Client
                     try
                     {
                         // close the session and delete all subscriptions if specified.
-                        var requestHeader = new RequestHeader()
-                        {
+                        var requestHeader = new RequestHeader() {
                             TimeoutHint = timeout > 0 ? (uint)timeout : (uint)(this.OperationTimeout > 0 ? this.OperationTimeout : 0),
                         };
                         CloseSession(requestHeader, m_deleteSubscriptionsOnClose);
@@ -3391,8 +3383,7 @@ namespace Opc.Ua.Client
             BrowseDescriptionCollection browseDescription = new BrowseDescriptionCollection();
             foreach (var nodeToBrowse in nodesToBrowse)
             {
-                BrowseDescription description = new BrowseDescription
-                {
+                BrowseDescription description = new BrowseDescription {
                     NodeId = nodeToBrowse,
                     BrowseDirection = browseDirection,
                     ReferenceTypeId = referenceTypeId,
@@ -3912,8 +3903,7 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                RequestHeader requestHeader = new RequestHeader
-                {
+                RequestHeader requestHeader = new RequestHeader {
                     RequestHandle = Utils.IncrementIdentifier(ref m_keepAliveCounter),
                     TimeoutHint = (uint)(KeepAliveInterval * 2),
                     ReturnDiagnostics = 0
@@ -4126,8 +4116,7 @@ namespace Opc.Ua.Client
                 var attributes = CreateAttributes(node.NodeClass, optionalAttributes);
                 foreach (uint attributeId in attributes.Keys)
                 {
-                    ReadValueId itemToRead = new ReadValueId
-                    {
+                    ReadValueId itemToRead = new ReadValueId {
                         NodeId = node.NodeId,
                         AttributeId = attributeId
                     };
@@ -4147,8 +4136,7 @@ namespace Opc.Ua.Client
             var nodesToRead = new ReadValueIdCollection();
 
             // request namespace array.
-            ReadValueId valueId = new ReadValueId
-            {
+            ReadValueId valueId = new ReadValueId {
                 NodeId = Variables.Server_NamespaceArray,
                 AttributeId = Attributes.Value
             };
@@ -4156,8 +4144,7 @@ namespace Opc.Ua.Client
             nodesToRead.Add(valueId);
 
             // request server array.
-            valueId = new ReadValueId
-            {
+            valueId = new ReadValueId {
                 NodeId = Variables.Server_ServerArray,
                 AttributeId = Attributes.Value
             };
@@ -4242,8 +4229,7 @@ namespace Opc.Ua.Client
                 var attributes = CreateAttributes(node.NodeClass, optionalAttributes);
                 foreach (uint attributeId in attributes.Keys)
                 {
-                    ReadValueId itemToRead = new ReadValueId
-                    {
+                    ReadValueId itemToRead = new ReadValueId {
                         NodeId = node.NodeId,
                         AttributeId = attributeId
                     };
@@ -4375,294 +4361,294 @@ namespace Opc.Ua.Client
             switch ((NodeClass)nodeClass.Value)
             {
                 default:
-                    {
-                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Node does not have a valid value for NodeClass: {0}.", nodeClass.Value);
-                    }
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Node does not have a valid value for NodeClass: {0}.", nodeClass.Value);
+                }
 
                 case NodeClass.Object:
+                {
+                    ObjectNode objectNode = new ObjectNode();
+
+                    value = attributes[Attributes.EventNotifier];
+
+                    if (value == null)
                     {
-                        ObjectNode objectNode = new ObjectNode();
-
-                        value = attributes[Attributes.EventNotifier];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Object does not support the EventNotifier attribute.");
-                        }
-
-                        objectNode.EventNotifier = (byte)value.GetValue(typeof(byte));
-                        node = objectNode;
-                        break;
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Object does not support the EventNotifier attribute.");
                     }
+
+                    objectNode.EventNotifier = (byte)value.GetValue(typeof(byte));
+                    node = objectNode;
+                    break;
+                }
 
                 case NodeClass.ObjectType:
+                {
+                    ObjectTypeNode objectTypeNode = new ObjectTypeNode();
+
+                    value = attributes[Attributes.IsAbstract];
+
+                    if (value == null)
                     {
-                        ObjectTypeNode objectTypeNode = new ObjectTypeNode();
-
-                        value = attributes[Attributes.IsAbstract];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "ObjectType does not support the IsAbstract attribute.");
-                        }
-
-                        objectTypeNode.IsAbstract = (bool)value.GetValue(typeof(bool));
-                        node = objectTypeNode;
-                        break;
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "ObjectType does not support the IsAbstract attribute.");
                     }
+
+                    objectTypeNode.IsAbstract = (bool)value.GetValue(typeof(bool));
+                    node = objectTypeNode;
+                    break;
+                }
 
                 case NodeClass.Variable:
+                {
+                    VariableNode variableNode = new VariableNode();
+
+                    // DataType Attribute
+                    value = attributes[Attributes.DataType];
+
+                    if (value == null)
                     {
-                        VariableNode variableNode = new VariableNode();
-
-                        // DataType Attribute
-                        value = attributes[Attributes.DataType];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the DataType attribute.");
-                        }
-
-                        variableNode.DataType = (NodeId)value.GetValue(typeof(NodeId));
-
-                        // ValueRank Attribute
-                        value = attributes[Attributes.ValueRank];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the ValueRank attribute.");
-                        }
-
-                        variableNode.ValueRank = (int)value.GetValue(typeof(int));
-
-                        // ArrayDimensions Attribute
-                        value = attributes[Attributes.ArrayDimensions];
-
-                        if (value != null)
-                        {
-                            if (value.Value == null)
-                            {
-                                variableNode.ArrayDimensions = Array.Empty<uint>();
-                            }
-                            else
-                            {
-                                variableNode.ArrayDimensions = (uint[])value.GetValue(typeof(uint[]));
-                            }
-                        }
-
-                        // AccessLevel Attribute
-                        value = attributes[Attributes.AccessLevel];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the AccessLevel attribute.");
-                        }
-
-                        variableNode.AccessLevel = (byte)value.GetValue(typeof(byte));
-
-                        // UserAccessLevel Attribute
-                        value = attributes[Attributes.UserAccessLevel];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the UserAccessLevel attribute.");
-                        }
-
-                        variableNode.UserAccessLevel = (byte)value.GetValue(typeof(byte));
-
-                        // Historizing Attribute
-                        value = attributes[Attributes.Historizing];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the Historizing attribute.");
-                        }
-
-                        variableNode.Historizing = (bool)value.GetValue(typeof(bool));
-
-                        // MinimumSamplingInterval Attribute
-                        value = attributes[Attributes.MinimumSamplingInterval];
-
-                        if (value != null)
-                        {
-                            variableNode.MinimumSamplingInterval = Convert.ToDouble(attributes[Attributes.MinimumSamplingInterval].Value, CultureInfo.InvariantCulture);
-                        }
-
-                        // AccessLevelEx Attribute
-                        value = attributes[Attributes.AccessLevelEx];
-
-                        if (value != null)
-                        {
-                            variableNode.AccessLevelEx = (uint)value.GetValue(typeof(uint));
-                        }
-
-                        node = variableNode;
-                        break;
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the DataType attribute.");
                     }
+
+                    variableNode.DataType = (NodeId)value.GetValue(typeof(NodeId));
+
+                    // ValueRank Attribute
+                    value = attributes[Attributes.ValueRank];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the ValueRank attribute.");
+                    }
+
+                    variableNode.ValueRank = (int)value.GetValue(typeof(int));
+
+                    // ArrayDimensions Attribute
+                    value = attributes[Attributes.ArrayDimensions];
+
+                    if (value != null)
+                    {
+                        if (value.Value == null)
+                        {
+                            variableNode.ArrayDimensions = Array.Empty<uint>();
+                        }
+                        else
+                        {
+                            variableNode.ArrayDimensions = (uint[])value.GetValue(typeof(uint[]));
+                        }
+                    }
+
+                    // AccessLevel Attribute
+                    value = attributes[Attributes.AccessLevel];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the AccessLevel attribute.");
+                    }
+
+                    variableNode.AccessLevel = (byte)value.GetValue(typeof(byte));
+
+                    // UserAccessLevel Attribute
+                    value = attributes[Attributes.UserAccessLevel];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the UserAccessLevel attribute.");
+                    }
+
+                    variableNode.UserAccessLevel = (byte)value.GetValue(typeof(byte));
+
+                    // Historizing Attribute
+                    value = attributes[Attributes.Historizing];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the Historizing attribute.");
+                    }
+
+                    variableNode.Historizing = (bool)value.GetValue(typeof(bool));
+
+                    // MinimumSamplingInterval Attribute
+                    value = attributes[Attributes.MinimumSamplingInterval];
+
+                    if (value != null)
+                    {
+                        variableNode.MinimumSamplingInterval = Convert.ToDouble(attributes[Attributes.MinimumSamplingInterval].Value, CultureInfo.InvariantCulture);
+                    }
+
+                    // AccessLevelEx Attribute
+                    value = attributes[Attributes.AccessLevelEx];
+
+                    if (value != null)
+                    {
+                        variableNode.AccessLevelEx = (uint)value.GetValue(typeof(uint));
+                    }
+
+                    node = variableNode;
+                    break;
+                }
 
                 case NodeClass.VariableType:
+                {
+                    VariableTypeNode variableTypeNode = new VariableTypeNode();
+
+                    // IsAbstract Attribute
+                    value = attributes[Attributes.IsAbstract];
+
+                    if (value == null)
                     {
-                        VariableTypeNode variableTypeNode = new VariableTypeNode();
-
-                        // IsAbstract Attribute
-                        value = attributes[Attributes.IsAbstract];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "VariableType does not support the IsAbstract attribute.");
-                        }
-
-                        variableTypeNode.IsAbstract = (bool)value.GetValue(typeof(bool));
-
-                        // DataType Attribute
-                        value = attributes[Attributes.DataType];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "VariableType does not support the DataType attribute.");
-                        }
-
-                        variableTypeNode.DataType = (NodeId)value.GetValue(typeof(NodeId));
-
-                        // ValueRank Attribute
-                        value = attributes[Attributes.ValueRank];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "VariableType does not support the ValueRank attribute.");
-                        }
-
-                        variableTypeNode.ValueRank = (int)value.GetValue(typeof(int));
-
-                        // ArrayDimensions Attribute
-                        value = attributes[Attributes.ArrayDimensions];
-
-                        if (value != null && value.Value != null)
-                        {
-                            variableTypeNode.ArrayDimensions = (uint[])value.GetValue(typeof(uint[]));
-                        }
-
-                        node = variableTypeNode;
-                        break;
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "VariableType does not support the IsAbstract attribute.");
                     }
+
+                    variableTypeNode.IsAbstract = (bool)value.GetValue(typeof(bool));
+
+                    // DataType Attribute
+                    value = attributes[Attributes.DataType];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "VariableType does not support the DataType attribute.");
+                    }
+
+                    variableTypeNode.DataType = (NodeId)value.GetValue(typeof(NodeId));
+
+                    // ValueRank Attribute
+                    value = attributes[Attributes.ValueRank];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "VariableType does not support the ValueRank attribute.");
+                    }
+
+                    variableTypeNode.ValueRank = (int)value.GetValue(typeof(int));
+
+                    // ArrayDimensions Attribute
+                    value = attributes[Attributes.ArrayDimensions];
+
+                    if (value != null && value.Value != null)
+                    {
+                        variableTypeNode.ArrayDimensions = (uint[])value.GetValue(typeof(uint[]));
+                    }
+
+                    node = variableTypeNode;
+                    break;
+                }
 
                 case NodeClass.Method:
+                {
+                    MethodNode methodNode = new MethodNode();
+
+                    // Executable Attribute
+                    value = attributes[Attributes.Executable];
+
+                    if (value == null)
                     {
-                        MethodNode methodNode = new MethodNode();
-
-                        // Executable Attribute
-                        value = attributes[Attributes.Executable];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Method does not support the Executable attribute.");
-                        }
-
-                        methodNode.Executable = (bool)value.GetValue(typeof(bool));
-
-                        // UserExecutable Attribute
-                        value = attributes[Attributes.UserExecutable];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Method does not support the UserExecutable attribute.");
-                        }
-
-                        methodNode.UserExecutable = (bool)value.GetValue(typeof(bool));
-
-                        node = methodNode;
-                        break;
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Method does not support the Executable attribute.");
                     }
+
+                    methodNode.Executable = (bool)value.GetValue(typeof(bool));
+
+                    // UserExecutable Attribute
+                    value = attributes[Attributes.UserExecutable];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Method does not support the UserExecutable attribute.");
+                    }
+
+                    methodNode.UserExecutable = (bool)value.GetValue(typeof(bool));
+
+                    node = methodNode;
+                    break;
+                }
 
                 case NodeClass.DataType:
+                {
+                    DataTypeNode dataTypeNode = new DataTypeNode();
+
+                    // IsAbstract Attribute
+                    value = attributes[Attributes.IsAbstract];
+
+                    if (value == null)
                     {
-                        DataTypeNode dataTypeNode = new DataTypeNode();
-
-                        // IsAbstract Attribute
-                        value = attributes[Attributes.IsAbstract];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "DataType does not support the IsAbstract attribute.");
-                        }
-
-                        dataTypeNode.IsAbstract = (bool)value.GetValue(typeof(bool));
-
-                        // DataTypeDefinition Attribute
-                        value = attributes[Attributes.DataTypeDefinition];
-
-                        if (value != null)
-                        {
-                            dataTypeNode.DataTypeDefinition = value.Value as ExtensionObject;
-                        }
-
-                        node = dataTypeNode;
-                        break;
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "DataType does not support the IsAbstract attribute.");
                     }
+
+                    dataTypeNode.IsAbstract = (bool)value.GetValue(typeof(bool));
+
+                    // DataTypeDefinition Attribute
+                    value = attributes[Attributes.DataTypeDefinition];
+
+                    if (value != null)
+                    {
+                        dataTypeNode.DataTypeDefinition = value.Value as ExtensionObject;
+                    }
+
+                    node = dataTypeNode;
+                    break;
+                }
 
                 case NodeClass.ReferenceType:
+                {
+                    ReferenceTypeNode referenceTypeNode = new ReferenceTypeNode();
+
+                    // IsAbstract Attribute
+                    value = attributes[Attributes.IsAbstract];
+
+                    if (value == null)
                     {
-                        ReferenceTypeNode referenceTypeNode = new ReferenceTypeNode();
-
-                        // IsAbstract Attribute
-                        value = attributes[Attributes.IsAbstract];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "ReferenceType does not support the IsAbstract attribute.");
-                        }
-
-                        referenceTypeNode.IsAbstract = (bool)value.GetValue(typeof(bool));
-
-                        // Symmetric Attribute
-                        value = attributes[Attributes.Symmetric];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "ReferenceType does not support the Symmetric attribute.");
-                        }
-
-                        referenceTypeNode.Symmetric = (bool)value.GetValue(typeof(bool));
-
-                        // InverseName Attribute
-                        value = attributes[Attributes.InverseName];
-
-                        if (value != null && value.Value != null)
-                        {
-                            referenceTypeNode.InverseName = (LocalizedText)value.GetValue(typeof(LocalizedText));
-                        }
-
-                        node = referenceTypeNode;
-                        break;
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "ReferenceType does not support the IsAbstract attribute.");
                     }
+
+                    referenceTypeNode.IsAbstract = (bool)value.GetValue(typeof(bool));
+
+                    // Symmetric Attribute
+                    value = attributes[Attributes.Symmetric];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "ReferenceType does not support the Symmetric attribute.");
+                    }
+
+                    referenceTypeNode.Symmetric = (bool)value.GetValue(typeof(bool));
+
+                    // InverseName Attribute
+                    value = attributes[Attributes.InverseName];
+
+                    if (value != null && value.Value != null)
+                    {
+                        referenceTypeNode.InverseName = (LocalizedText)value.GetValue(typeof(LocalizedText));
+                    }
+
+                    node = referenceTypeNode;
+                    break;
+                }
 
                 case NodeClass.View:
+                {
+                    ViewNode viewNode = new ViewNode();
+
+                    // EventNotifier Attribute
+                    value = attributes[Attributes.EventNotifier];
+
+                    if (value == null)
                     {
-                        ViewNode viewNode = new ViewNode();
-
-                        // EventNotifier Attribute
-                        value = attributes[Attributes.EventNotifier];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "View does not support the EventNotifier attribute.");
-                        }
-
-                        viewNode.EventNotifier = (byte)value.GetValue(typeof(byte));
-
-                        // ContainsNoLoops Attribute
-                        value = attributes[Attributes.ContainsNoLoops];
-
-                        if (value == null)
-                        {
-                            throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "View does not support the ContainsNoLoops attribute.");
-                        }
-
-                        viewNode.ContainsNoLoops = (bool)value.GetValue(typeof(bool));
-
-                        node = viewNode;
-                        break;
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "View does not support the EventNotifier attribute.");
                     }
+
+                    viewNode.EventNotifier = (byte)value.GetValue(typeof(byte));
+
+                    // ContainsNoLoops Attribute
+                    value = attributes[Attributes.ContainsNoLoops];
+
+                    if (value == null)
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "View does not support the ContainsNoLoops attribute.");
+                    }
+
+                    viewNode.ContainsNoLoops = (bool)value.GetValue(typeof(bool));
+
+                    node = viewNode;
+                    break;
+                }
             }
 
             // NodeId Attribute
@@ -4925,16 +4911,14 @@ namespace Opc.Ua.Client
             timeoutHint = Math.Min((uint)(OperationTimeout / 2), timeoutHint);
 
             // send publish request.
-            var requestHeader = new RequestHeader
-            {
+            var requestHeader = new RequestHeader {
                 // ensure the publish request is discarded before the timeout occurs to ensure the channel is dropped.
                 TimeoutHint = timeoutHint,
                 ReturnDiagnostics = (uint)(int)ReturnDiagnostics,
                 RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter)
             };
 
-            var state = new AsyncRequestState
-            {
+            var state = new AsyncRequestState {
                 RequestTypeId = DataTypes.PublishRequest,
                 RequestId = requestHeader.RequestHandle,
                 TickCount = HiResClock.TickCount
@@ -5148,8 +5132,7 @@ namespace Opc.Ua.Client
                     case StatusCodes.BadTcpServerTooBusy:
                     case StatusCodes.BadServerTooBusy:
                         // throttle the next publish to reduce server load
-                        _ = Task.Run(async () =>
-                        {
+                        _ = Task.Run(async () => {
                             await Task.Delay(100).ConfigureAwait(false);
                             QueueBeginPublish();
                         });
@@ -5175,8 +5158,7 @@ namespace Opc.Ua.Client
             error = ServiceResult.Good;
 
             // send republish request.
-            RequestHeader requestHeader = new RequestHeader
-            {
+            RequestHeader requestHeader = new RequestHeader {
                 TimeoutHint = (uint)OperationTimeout,
                 ReturnDiagnostics = (uint)(int)ReturnDiagnostics,
                 RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter)
@@ -6010,8 +5992,7 @@ namespace Opc.Ua.Client
                 {
                     NotificationEventArgs args = new NotificationEventArgs(subscription, notificationMessage, responseHeader.StringTable);
 
-                    Task.Run(() =>
-                    {
+                    Task.Run(() => {
                         OnRaisePublishNotification(publishEventHandler, args);
                     });
                 }
@@ -6023,8 +6004,7 @@ namespace Opc.Ua.Client
                     // Delete abandoned subscription from server.
                     Utils.LogWarning("Received Publish Response for Unknown SubscriptionId={0}. Deleting abandoned subscription from server.", subscriptionId);
 
-                    Task.Run(() =>
-                    {
+                    Task.Run(() => {
                         DeleteSubscription(subscriptionId);
                     });
                 }
@@ -6235,8 +6215,7 @@ namespace Opc.Ua.Client
 
             Debug.Assert(Monitor.IsEntered(m_acknowledgementsToSendLock));
 
-            SubscriptionAcknowledgement acknowledgement = new SubscriptionAcknowledgement
-            {
+            SubscriptionAcknowledgement acknowledgement = new SubscriptionAcknowledgement {
                 SubscriptionId = subscriptionId,
                 SequenceNumber = sequenceNumber
             };
@@ -6308,8 +6287,7 @@ namespace Opc.Ua.Client
                     new Variant(subscription.Id)
                 };
 
-                var request = new CallMethodRequest
-                {
+                var request = new CallMethodRequest {
                     ObjectId = ObjectIds.Server,
                     MethodId = MethodIds.Server_ResendData,
                     InputArguments = inputArguments
@@ -6403,16 +6381,16 @@ namespace Opc.Ua.Client
             return requestHeader;
         }
 
-    #endregion
+        #endregion
 
-    #region Protected Methods
-    /// <summary>
-    /// Process the AdditionalHeader field of a ResponseHeader
-    /// </summary>
-    /// <param name="responseHeader"></param>
-    /// <param name="serverCertificate"></param>
-    /// <exception cref="ServiceResultException"></exception>
-    protected virtual void ProcessResponseAdditionalHeader(ResponseHeader responseHeader, X509Certificate2 serverCertificate)
+        #region Protected Methods
+        /// <summary>
+        /// Process the AdditionalHeader field of a ResponseHeader
+        /// </summary>
+        /// <param name="responseHeader"></param>
+        /// <param name="serverCertificate"></param>
+        /// <exception cref="ServiceResultException"></exception>
+        protected virtual void ProcessResponseAdditionalHeader(ResponseHeader responseHeader, X509Certificate2 serverCertificate)
         {
             AdditionalParametersType parameters = ExtensionObject.ToEncodeable(responseHeader?.AdditionalHeader) as AdditionalParametersType;
 
