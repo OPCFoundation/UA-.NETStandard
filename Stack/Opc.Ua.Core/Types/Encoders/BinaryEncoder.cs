@@ -17,6 +17,8 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Xml;
+using Opc.Ua.Bindings;
+using Opc.Ua.Buffers;
 
 namespace Opc.Ua
 {
@@ -455,6 +457,7 @@ namespace Opc.Ua
             int maxByteCount = Encoding.UTF8.GetMaxByteCount(value.Length);
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
 #if NET5_0_OR_GREATER
+            const int minByteCountPerBuffer = 256;
             const int maxByteCountPerBuffer = 8192;
 #endif
             const int maxStackAllocByteCount = 128;
@@ -467,7 +470,7 @@ namespace Opc.Ua
 #if NET5_0_OR_GREATER
             else if (maxByteCount > maxByteCountPerBuffer)
             {
-                using (var bufferWriter = new ArrayPoolBufferWriter<byte>(maxByteCountPerBuffer))
+                using (var bufferWriter = new ArrayPoolBufferWriter<byte>(minByteCountPerBuffer, maxByteCountPerBuffer))
                 {
                     long count = Encoding.UTF8.GetBytes(value.AsSpan(), bufferWriter);
                     WriteByteString(null, bufferWriter.GetReadOnlySequence());
@@ -1993,7 +1996,7 @@ namespace Opc.Ua
         #region Private Methods
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
         /// <summary>
-        /// Writes a byte string to the stream.
+        /// Writes a byte string encoded in a ReadOnlySequence to the stream.
         /// </summary>
         private void WriteByteString(string fieldName, ReadOnlySequence<byte> value)
         {

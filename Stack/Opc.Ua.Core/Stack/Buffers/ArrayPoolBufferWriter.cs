@@ -30,8 +30,9 @@
 using System;
 using System.Buffers;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
-namespace Opc.Ua
+namespace Opc.Ua.Buffers
 {
     /// <summary>
     /// Helper to build a <see cref="ReadOnlySequence{T}"/> from a set of buffers.
@@ -39,15 +40,11 @@ namespace Opc.Ua
     /// </summary>
     public sealed class ArrayPoolBufferWriter<T> : IBufferWriter<T>, IDisposable
     {
-#if DEBUG
-        private const bool _clearArray = true;
-#else
-        private const bool _clearArray = false;
-#endif
-
-        private const int DefaultChunkSize = 1024;
+        private const int DefaultChunkSize = 256;
         private const int MaxChunkSize = 65536;
+        private bool _clearArray;
         private int _chunkSize;
+        private int _maxChunkSize;
         private T[] _currentBuffer;
         private ArrayPoolBufferSegment<T> _firstSegment;
         private ArrayPoolBufferSegment<T> _nextSegment;
@@ -56,11 +53,29 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes a new instance of the <see cref="ArrayPoolBufferWriter{T}"/> class.
         /// </summary>
-        public ArrayPoolBufferWriter(int chunksize = DefaultChunkSize, int maxChunkSize = MaxChunkSize)
+        public ArrayPoolBufferWriter()
+            : this(false, DefaultChunkSize, MaxChunkSize)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ArrayPoolBufferWriter{T}"/> class.
+        /// </summary>
+        public ArrayPoolBufferWriter(int defaultChunksize, int maxChunkSize)
+            : this(false, defaultChunksize, maxChunkSize)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ArrayPoolBufferWriter{T}"/> class.
+        /// </summary>
+        public ArrayPoolBufferWriter(bool clearArray, int defaultChunksize, int maxChunkSize)
         {
             _firstSegment = _nextSegment = null;
             _offset = 0;
-            _chunkSize = chunksize;
+            _clearArray = clearArray;
+            _chunkSize = defaultChunksize;
+            _maxChunkSize = maxChunkSize;
             _currentBuffer = Array.Empty<T>();
         }
 
@@ -72,25 +87,38 @@ namespace Opc.Ua
                 ArrayPoolBufferSegment<T> segment = _firstSegment;
                 while (segment != null)
                 {
-                    ArrayPool<T>.Shared.Return(segment.Array(), _clearArray);
+                    segment.Return(_clearArray);
                     segment = (ArrayPoolBufferSegment<T>)segment.Next;
                 }
 
                 _firstSegment = _nextSegment = null;
-                GC.SuppressFinalize(this);
             }
         }
 
         /// <inheritdoc/>
         public void Advance(int count)
         {
+            if (count < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count), $"{nameof(count)} must be non-negative.");
+            }
+
+            if (_offset + count > _currentBuffer.Length)
+            {
+                throw new InvalidOperationException($"Cannot advance past the end of the buffer, which has a size of {_currentBuffer.Length}.");
+            }
+
             _offset += count;
-            Debug.Assert(_offset <= _currentBuffer.Length, "The offset was advanced beyond the length of the current buffer.");
         }
 
         /// <inheritdoc/>
         public Memory<T> GetMemory(int sizeHint = 0)
         {
+            if (sizeHint < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(sizeHint), $"{nameof(sizeHint)} must be non-negative.");
+            }
+
             int remainingSpace = CheckAndAllocateBuffer(sizeHint);
             return _currentBuffer.AsMemory(_offset, remainingSpace);
         }
@@ -98,6 +126,12 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Span<T> GetSpan(int sizeHint = 0)
         {
+            if (sizeHint < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(sizeHint), $"{nameof(sizeHint)} must be non-negative.");
+            }
+
+
             int remainingSpace = CheckAndAllocateBuffer(sizeHint);
             return _currentBuffer.AsSpan(_offset, remainingSpace);
         }
@@ -116,9 +150,10 @@ namespace Opc.Ua
                 return ReadOnlySequence<T>.Empty;
             }
 
-            return new ReadOnlySequence<T>(_firstSegment, 0, _nextSegment, _offset);
+            return new ReadOnlySequence<T>(_firstSegment, 0, _nextSegment, _nextSegment.Memory.Length);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void AddSegment()
         {
             if (_offset > 0)
@@ -132,17 +167,16 @@ namespace Opc.Ua
                     _nextSegment = _nextSegment.Append(_currentBuffer, 0, _offset);
                 }
             }
-            else
+            else if (_currentBuffer.Length > 0)
             {
-                if (_currentBuffer.Length > 0)
-                {
-                    ArrayPool<T>.Shared.Return(_currentBuffer, _clearArray);
-                }
-
-                _currentBuffer = Array.Empty<T>();
+                ArrayPool<T>.Shared.Return(_currentBuffer, _clearArray);
             }
+
+            _offset = 0;
+            _currentBuffer = Array.Empty<T>();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int CheckAndAllocateBuffer(int sizeHint)
         {
             int remainingSpace = _currentBuffer.Length - _offset;
@@ -154,7 +188,7 @@ namespace Opc.Ua
                 _currentBuffer = ArrayPool<T>.Shared.Rent(remainingSpace);
                 _offset = 0;
 
-                if (_chunkSize < MaxChunkSize)
+                if (_chunkSize < _maxChunkSize)
                 {
                     _chunkSize *= 2;
                 }

@@ -30,8 +30,9 @@
 
 using System;
 using System.Buffers;
+using System.Threading;
 
-namespace Opc.Ua
+namespace Opc.Ua.Buffers
 {
 
     /// <summary>
@@ -51,27 +52,16 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Rents a buffer from the pool and returns a <see cref="ArrayPoolBufferSegment{T}"/> instance.
+        /// Returns a rented buffer to the shared pool and invalidates memory.
         /// </summary>
-        /// <param name="length">The length of the segment.</param>
-        public static ArrayPoolBufferSegment<T> Rent(int length)
+        public void Return(bool clearArray = false)
         {
-            var array = ArrayPool<T>.Shared.Rent(length);
-            return new ArrayPoolBufferSegment<T>(array, 0, length);
-        }
-
-        /// <summary>
-        /// Returns the base array of the buffer.
-        /// </summary>
-        public T[] Array() => _array;
-
-        /// <summary>
-        /// Rents a new buffer and appends it to the sequence.
-        /// </summary>
-        public ArrayPoolBufferSegment<T> RentAndAppend(int length)
-        {
-            var array = ArrayPool<T>.Shared.Rent(length);
-            return Append(array, 0, length);
+            var array = Interlocked.Exchange(ref _array, null);
+            if (array != null)
+            {
+                ArrayPool<T>.Shared.Return(array, clearArray);
+                Memory = ReadOnlyMemory<T>.Empty;
+            }
         }
 
         /// <summary>
