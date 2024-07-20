@@ -186,7 +186,7 @@ namespace Opc.Ua.Server
                 {
                     foreach (KeyValuePair<uint, LinkedListNode<IMonitoredItem>> monitoredItemKVP in m_monitoredItems)
                     {
-                        monitoredItemKVP.Value?.Value?.Dispose();
+                        Utils.SilentDispose(monitoredItemKVP.Value?.Value);
                     }
 
                     m_monitoredItems.Clear();
