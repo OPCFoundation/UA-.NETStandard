@@ -299,7 +299,8 @@ namespace Opc.Ua.Client.Tests
         /// but an oversized message should return an error.
         /// </summary>
         [Test, Order(105)]
-        public void GetEndpointsOnDiscoveryChannel()
+        [TestCase(false)]
+        public void GetEndpointsOnDiscoveryChannel(bool securityNoneEnabled)
         {
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
@@ -312,14 +313,24 @@ namespace Opc.Ua.Client.Tests
                     // dummy uri to create a bigger message
                     profileUris.Add($"https://opcfoundation.org/ProfileUri={i}");
                 }
-                var sre = Assert.Throws<ServiceResultException>(() => client.GetEndpoints(profileUris));
-                // race condition, if socket closed is detected before the error was returned,
-                // client may report channel closed instead of security policy rejected
-                if (StatusCodes.BadSecureChannelClosed == sre.StatusCode)
+
+                if (securityNoneEnabled)
                 {
-                    Assert.Inconclusive($"Unexpected Status: {sre}");
+                    // test can pass, there is no limit for discovery messages
+                    // because the server supports security None
+                    client.GetEndpoints(profileUris);
                 }
-                Assert.AreEqual((StatusCode)StatusCodes.BadSecurityPolicyRejected, (StatusCode)sre.StatusCode, "Unexpected Status: {0}", sre);
+                else
+                {
+                    var sre = Assert.Throws<ServiceResultException>(() => client.GetEndpoints(profileUris));
+                    // race condition, if socket closed is detected before the error was returned,
+                    // client may report channel closed instead of security policy rejected
+                    if (StatusCodes.BadSecureChannelClosed == sre.StatusCode)
+                    {
+                        Assert.Inconclusive($"Unexpected Status: {sre}");
+                    }
+                    Assert.AreEqual((StatusCode)StatusCodes.BadSecurityPolicyRejected, (StatusCode)sre.StatusCode, "Unexpected Status: {0}", sre);
+                }
             }
         }
 

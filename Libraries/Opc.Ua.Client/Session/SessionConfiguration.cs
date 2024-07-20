@@ -54,12 +54,14 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates a session configuration
         /// </summary>
-        internal SessionConfiguration(ISession session,
+        public SessionConfiguration(
+            ISession session,
             byte[] serverNonce,
             string userIdentityTokenPolicy,
             Nonce eccServerEphemeralKey,
             NodeId authenthicationToken)
         {
+            Timestamp = DateTime.UtcNow;
             SessionName = session.SessionName;
             SessionId = session.SessionId;
             AuthenticationToken = authenthicationToken;
@@ -154,13 +156,13 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The last server ecc ephemeral key received.
         /// </summary>
-        [DataMember(IsRequired = true, Order = 80)]
+        [DataMember(IsRequired = true, Order = 90)]
         public string UserIdentityTokenPolicy { get; set; }
 
         /// <summary>
         /// The last server ecc ephemeral key received.
         /// </summary>
-        [DataMember(IsRequired = true, Order = 90)]
+        [DataMember(IsRequired = false, Order = 100)]
         public Nonce ServerEccEphemeralKey { get; set; }
 #endif
 
