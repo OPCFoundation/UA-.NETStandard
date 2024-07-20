@@ -143,16 +143,8 @@ namespace Opc.Ua.Configuration
                     StoreType = rejectedRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Rejected, rejectedRoot)
                 },
-                // ensure secure default settings
-                AutoAcceptUntrustedCertificates = false,
-                AddAppCertToTrustedStore = false,
-                RejectSHA1SignedCertificates = true,
-                RejectUnknownRevocationStatus = true,
-                SuppressNonceValidationErrors = false,
-                SendCertificateChain = true,
-                MinimumCertificateKeySize = CertificateFactory.DefaultKeySize,
-                MinimumECCertificateKeySize = CertificateFactory.DefaultECCKeySize,
             };
+            SetSecureDefaults(ApplicationConfiguration.SecurityConfiguration);
 
             return this;
         }
@@ -203,16 +195,9 @@ namespace Opc.Ua.Configuration
                     StoreType = rejectedRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Rejected, rejectedRoot)
                 },
-                // ensure secure default settings
-                AutoAcceptUntrustedCertificates = false,
-                AddAppCertToTrustedStore = false,
-                RejectSHA1SignedCertificates = true,
-                RejectUnknownRevocationStatus = true,
-                SuppressNonceValidationErrors = false,
-                SendCertificateChain = true,
-                MinimumCertificateKeySize = CertificateFactory.DefaultKeySize,
-                MinimumECCertificateKeySize = CertificateFactory.DefaultECCKeySize,
             };
+            SetSecureDefaults(ApplicationConfiguration.SecurityConfiguration);
+
             return this;
         }
 
@@ -1186,6 +1171,7 @@ namespace Opc.Ua.Configuration
             securityConfiguration.SuppressNonceValidationErrors = false;
             securityConfiguration.SendCertificateChain = true;
             securityConfiguration.MinimumCertificateKeySize = CertificateFactory.DefaultKeySize;
+            securityConfiguration.MinimumECCertificateKeySize = CertificateFactory.DefaultECCKeySize;
         }
 
         /// <summary>
