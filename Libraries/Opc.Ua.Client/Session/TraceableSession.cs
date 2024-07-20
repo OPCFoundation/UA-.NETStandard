@@ -231,6 +231,13 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        public int MaxPublishRequestCount
+        {
+            get => m_session.MaxPublishRequestCount;
+            set => m_session.MaxPublishRequestCount = value;
+        }
+
+        /// <inheritdoc/>
         public OperationLimits OperationLimits => m_session.OperationLimits;
 
         /// <inheritdoc/>
