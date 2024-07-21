@@ -5278,7 +5278,7 @@ namespace Opc.Ua.Client
             }
             else
             {
-                Utils.LogInfo("PUBLISH - Did not send another publish request. GoodPublishRequestCount={0}, MinPublishRequestCount={1}", requestCount, minPublishRequestCount);
+                Utils.LogDebug("PUBLISH - Did not send another publish request. GoodPublishRequestCount={0}, MinPublishRequestCount={1}", requestCount, minPublishRequestCount);
             }
         }
 
