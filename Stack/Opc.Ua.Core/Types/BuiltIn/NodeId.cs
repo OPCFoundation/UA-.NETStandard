@@ -1573,6 +1573,11 @@ namespace Opc.Ua
                     byte[] id1 = (byte[])m_identifier;
                     byte[] id2 = (byte[])id;
 
+                    if (id1 == id2)
+                    {
+                        return 0;
+                    }
+
                     if (id1.Length == id2.Length)
                     {
                         for (int ii = 0; ii < id1.Length; ii++)
