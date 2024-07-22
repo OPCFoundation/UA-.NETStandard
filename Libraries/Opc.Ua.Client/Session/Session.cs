@@ -3901,7 +3901,7 @@ namespace Opc.Ua.Client
 
             for(int ii = 0; ii< nodeIds.Count; ii++)
             {
-                if (continuationPoints[ii] != null && !ByteArraysEqual(continuationPoints[ii], nullByte))
+                if (continuationPoints[ii] != null && !Utils.IsEqual(continuationPoints[ii], nullByte))
                 {
                     if (!StatusCode.IsBad(previousErrors[ii].reference.StatusCode))
                     {
@@ -3939,7 +3939,7 @@ namespace Opc.Ua.Client
 
                 for (int ii = 0; ii < revisedContinuationPoints.Count; ii++)
                 {
-                    if(revisedContinuationPoints[ii] != null && !ByteArraysEqual(revisedContinuationPoints[ii], nullByte))
+                    if(revisedContinuationPoints[ii] != null && !Utils.IsEqual(revisedContinuationPoints[ii], nullByte))
                     {
                         nextContinuationPoints.Add(revisedContinuationPoints[ii]);
                         nextResults.Add(previousResults[ii]);
@@ -3954,12 +3954,6 @@ namespace Opc.Ua.Client
                 finalErrors.Add(errorReference.reference);
             }
         }
-
-        // see https://stackoverflow.com/questions/43289/comparing-two-byte-arrays-in-net
-        private static bool ByteArraysEqual(ReadOnlySpan<byte> a1, ReadOnlySpan<byte> a2)
-        {
-            return a1.SequenceEqual(a2);
-        }       
 
         #endregion
 
