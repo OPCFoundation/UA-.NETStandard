@@ -1659,7 +1659,7 @@ namespace Opc.Ua.Server
                 default:
                 case MonitoringMode.Disabled:
                 {
-                    m_eventQueueHandler.Dispose();
+                    m_eventQueueHandler?.Dispose();
                     m_eventQueueHandler = null;
                     m_queueHandler?.Dispose();
                     m_queueHandler = null;
@@ -1690,7 +1690,7 @@ namespace Opc.Ua.Server
                         {
                             m_queueHandler?.Dispose();
                             m_queueHandler = null;
-                            m_eventQueueHandler.Dispose();
+                            m_eventQueueHandler?.Dispose();
                             m_eventQueueHandler = null;
                             break; // queueing is disabled
                         }
@@ -1737,7 +1737,7 @@ namespace Opc.Ua.Server
         public void Dispose()
         {
             m_queueHandler?.Dispose();
-            //m_durableEventQueue?.Dispose();
+            m_eventQueueHandler?.Dispose();
         }
 
         #endregion
