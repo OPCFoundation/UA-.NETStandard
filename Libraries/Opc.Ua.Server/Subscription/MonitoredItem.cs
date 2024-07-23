@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Xml;
+using static Opc.Ua.Server.MonitoredItemQueue;
 
 namespace Opc.Ua.Server
 {
@@ -198,8 +199,6 @@ namespace Opc.Ua.Server
             m_originalFilter = null;
             m_lastValue = null;
             m_lastError = null;
-            m_events = null;
-            m_overflow = false;
             m_readyToPublish = false;
             m_readyToTrigger = false;
             m_sourceSamplingInterval = 0;
@@ -466,16 +465,10 @@ namespace Opc.Ua.Server
             {
                 lock (m_lock)
                 {
-                    if (m_events != null)
+                    if (m_eventQueueHandler != null)
                     {
-                        return m_events.Count;
+                        return m_eventQueueHandler.ItemsInQueue;
                     }
-
-                    //if (m_durableEventQueue != null)
-                    //{
-                    //    return m_durableEventQueue.ItemsInQueue;
-                    //}
-
 
                     if (m_queueHandler != null)
                     {
@@ -518,14 +511,14 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                ReadValueId valueId = new ReadValueId();
-
-                valueId.NodeId = m_nodeId;
-                valueId.AttributeId = m_attributeId;
-                valueId.IndexRange = m_indexRange;
-                valueId.ParsedIndexRange = m_parsedIndexRange;
-                valueId.DataEncoding = m_encoding;
-                valueId.Handle = m_managerHandle;
+                ReadValueId valueId = new ReadValueId {
+                    NodeId = m_nodeId,
+                    AttributeId = m_attributeId,
+                    IndexRange = m_indexRange,
+                    ParsedIndexRange = m_parsedIndexRange,
+                    DataEncoding = m_encoding,
+                    Handle = m_managerHandle
+                };
 
                 return valueId;
             }
@@ -559,12 +552,12 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                result = new MonitoredItemCreateResult();
-
-                result.MonitoredItemId = m_id;
-                result.RevisedSamplingInterval = m_samplingInterval;
-                result.RevisedQueueSize = m_queueSize;
-                result.StatusCode = StatusCodes.Good;
+                result = new MonitoredItemCreateResult {
+                    MonitoredItemId = m_id,
+                    RevisedSamplingInterval = m_samplingInterval,
+                    RevisedQueueSize = m_queueSize,
+                    StatusCode = StatusCodes.Good
+                };
 
                 if (ServiceResult.IsBad(m_samplingError))
                 {
@@ -582,11 +575,11 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                result = new MonitoredItemModifyResult();
-
-                result.RevisedSamplingInterval = m_samplingInterval;
-                result.RevisedQueueSize = m_queueSize;
-                result.StatusCode = StatusCodes.Good;
+                result = new MonitoredItemModifyResult {
+                    RevisedSamplingInterval = m_samplingInterval,
+                    RevisedQueueSize = m_queueSize,
+                    StatusCode = StatusCodes.Good
+                };
 
                 if (ServiceResult.IsBad(m_samplingError))
                 {
@@ -803,14 +796,14 @@ namespace Opc.Ua.Server
                 {
                     Utils.LogTrace(Utils.TraceMasks.OperationDetail, "RECEIVED VALUE[{0}] Value={1}", this.m_id, value.WrappedValue);
 
-                    DataValue copy = new DataValue();
-
-                    copy.WrappedValue = value.WrappedValue;
-                    copy.StatusCode = value.StatusCode;
-                    copy.SourceTimestamp = value.SourceTimestamp;
-                    copy.SourcePicoseconds = value.SourcePicoseconds;
-                    copy.ServerTimestamp = value.ServerTimestamp;
-                    copy.ServerPicoseconds = value.ServerPicoseconds;
+                    var copy = new DataValue {
+                        WrappedValue = value.WrappedValue,
+                        StatusCode = value.StatusCode,
+                        SourceTimestamp = value.SourceTimestamp,
+                        SourcePicoseconds = value.SourcePicoseconds,
+                        ServerTimestamp = value.ServerTimestamp,
+                        ServerPicoseconds = value.ServerPicoseconds
+                    };
 
                     value = copy;
 
@@ -874,34 +867,6 @@ namespace Opc.Ua.Server
                 // add the value to the queue.
                 AddValueToQueue(value, error);
             }
-        }
-
-        /// <summary>
-        /// Sets the overflow bit.
-        /// </summary>
-        private ServiceResult SetOverflowBit(
-            object value,
-            ServiceResult error)
-        {
-            DataValue dataValue = value as DataValue;
-
-            if (dataValue != null)
-            {
-                dataValue.StatusCode = dataValue.StatusCode.SetOverflow(true);
-            }
-
-            if (error != null)
-            {
-                error = new ServiceResult(
-                    error.StatusCode.SetOverflow(true),
-                    error.SymbolicId,
-                    error.NamespaceUri,
-                    error.LocalizedText,
-                    error.AdditionalInfo,
-                    error.InnerResult);
-            }
-
-            return error;
         }
 
         /// <summary>
@@ -1001,33 +966,21 @@ namespace Opc.Ua.Server
                 }
 
                 // can't do anything if queuing is disabled.
-                if (m_events == null)
+                if (m_eventQueueHandler == null)
                 {
                     return;
                 }
 
-                // check for duplicate instances being reported via multiple paths.
-                for (int ii = 0; ii < m_events.Count; ii++)
+                //Check for duplicates and discard
+                if (!m_eventQueueHandler.IsEventContainedInQueue(instance))
                 {
-                    EventFieldList processedEvent = m_events[ii] as EventFieldList;
-
-                    if (processedEvent != null)
-                    {
-                        if (Object.ReferenceEquals(instance, processedEvent.Handle))
-                        {
-                            return;
-                        }
-                    }
+                    return;
                 }
 
                 // check for space in the queue.
-                if (m_events.Count >= m_queueSize)
+                if (m_eventQueueHandler.SetQueueOverflowIfFull())
                 {
-                    if (!m_discardOldest)
-                    {
-                        m_overflow = true;
-                        return;
-                    }
+                    return;
                 }
 
                 // construct the context to use for the event filter.
@@ -1052,35 +1005,12 @@ namespace Opc.Ua.Server
 
                 // fetch the event fields.
                 EventFieldList fields = GetEventFields(context, filter, instance);
-                QueueEvent(fields);
-            }
-        }
 
-        /// <summary>
-        /// Adds an event to the queue.
-        /// </summary>
-        public virtual void QueueEvent(EventFieldList fields)
-        {
-            lock (m_lock)
-            {
-                // make space in the queue.
-                if (m_events.Count >= m_queueSize)
-                {
-                    m_overflow = true;
-
-                    if (m_discardOldest)
-                    {
-                        m_events.RemoveAt(0);
-                    }
-                }
-
-                // queue the event.
-                m_events.Add(fields);
+                m_eventQueueHandler.QueueEvent(fields);
                 m_readyToPublish = true;
                 m_readyToTrigger = true;
             }
         }
-
         /// <summary>
         /// Whether the item has notifications that are ready to publish.
         /// </summary>
@@ -1165,13 +1095,13 @@ namespace Opc.Ua.Server
                 IncrementSampleTime();
 
                 // publish events.
-                if (m_events != null)
+                if (m_eventQueueHandler != null)
                 {
                     Utils.LogTrace(Utils.TraceMasks.OperationDetail, "MONITORED ITEM: Publish(QueueSize={0})", notifications.Count);
 
                     EventFieldList overflowEvent = null;
 
-                    if (m_overflow)
+                    if (m_eventQueueHandler.Overflow)
                     {
                         // construct event.
                         EventQueueOverflowEventState e = new EventQueueOverflowEventState(null);
@@ -1205,27 +1135,7 @@ namespace Opc.Ua.Server
                         notifications.Enqueue(overflowEvent);
                     }
 
-                    for (int ii = 0; ii < m_events.Count; ii++)
-                    {
-                        EventFieldList fields = (EventFieldList)m_events[ii];
-
-                        // apply any diagnostic masks.
-                        for (int jj = 0; jj < fields.EventFields.Count; jj++)
-                        {
-                            object value = fields.EventFields[jj].Value;
-
-                            StatusResult result = value as StatusResult;
-
-                            if (result != null)
-                            {
-                                result.ApplyDiagnosticMasks(context.DiagnosticsMask, context.StringTable);
-                            }
-                        }
-
-                        notifications.Enqueue(m_events[ii]);
-                    }
-
-                    m_events.Clear();
+                    m_eventQueueHandler.Publish(context, notifications);
 
                     // place event at the end of the queue.
                     if (overflowEvent != null && !m_discardOldest)
@@ -1237,7 +1147,6 @@ namespace Opc.Ua.Server
                 }
 
                 // reset state variables.
-                m_overflow = false;
                 m_readyToPublish = false;
                 m_readyToTrigger = false;
                 m_triggered = false;
@@ -1322,7 +1231,6 @@ namespace Opc.Ua.Server
                 }
 
                 // reset state variables.
-                m_overflow = false;
                 m_readyToTrigger = false;
                 m_resendData = false;
                 m_triggered = false;
@@ -1751,8 +1659,8 @@ namespace Opc.Ua.Server
                 default:
                 case MonitoringMode.Disabled:
                 {
-                    m_events = null;
-                    //m_durableEventQueue?.Dispose();
+                    m_eventQueueHandler.Dispose();
+                    m_eventQueueHandler = null;
                     m_queueHandler?.Dispose();
                     m_queueHandler = null;
                     break;
@@ -1782,6 +1690,8 @@ namespace Opc.Ua.Server
                         {
                             m_queueHandler?.Dispose();
                             m_queueHandler = null;
+                            m_eventQueueHandler.Dispose();
+                            m_eventQueueHandler = null;
                             break; // queueing is disabled
                         }
 
@@ -1803,26 +1713,11 @@ namespace Opc.Ua.Server
                     }
                     else // create event queue.
                     {
-                        if (m_events == null)
+                        if (m_eventQueueHandler == null)
                         {
-                            //m_durableEventQueue = m_durableQueueFactory.CreateEventQeue(Id, IsDurable, QueueOverflowHandler);
-                            m_events = new List<EventFieldList>();
+                            m_eventQueueHandler = new EventQueueHandler(Id, IsDurable, m_monitoredItemQueueFactory);
                         }
-
-                        // check if existing queue entries must be discarded;
-                        if (m_events.Count > m_queueSize)
-                        {
-                            int queueSize = (int)m_queueSize;
-
-                            if (m_discardOldest)
-                            {
-                                m_events.RemoveRange(0, m_events.Count - queueSize);
-                            }
-                            else
-                            {
-                                m_events.RemoveRange(queueSize, m_events.Count - queueSize);
-                            }
-                        }
+                        m_eventQueueHandler.SetQueueSize(m_queueSize, m_discardOldest);
                     }
 
                     break;
@@ -1872,15 +1767,13 @@ namespace Opc.Ua.Server
         private bool m_discardOldest;
         private int m_sourceSamplingInterval;
         private bool m_alwaysReportUpdates;
-        private readonly IMonitoredItemQueueFactory m_monitoredItemQueueFactory;
         private readonly bool m_isDurable;
         private DataValue m_lastValue;
         private ServiceResult m_lastError;
         private long m_nextSamplingTime;
-        private List<EventFieldList> m_events;
+        private readonly IMonitoredItemQueueFactory m_monitoredItemQueueFactory;
         private QueueHandler m_queueHandler;
-        //private IDurableMonitoredItemQueue<EventFieldList> m_durableEventQueue;
-        private bool m_overflow;
+        private EventQueueHandler m_eventQueueHandler;
         private bool m_readyToPublish;
         private bool m_readyToTrigger;
         private bool m_semanticsChanged;
@@ -2090,6 +1983,147 @@ namespace Opc.Ua.Server
             private long m_nextSampleTime;
             private long m_samplingInterval;
             private readonly Action m_discardedValueHandler;
+        }
+        #endregion
+
+        #region EventQueueHandler
+        private class EventQueueHandler : IDisposable
+        {
+            public EventQueueHandler(uint monitoredItemId, bool createDurable, IMonitoredItemQueueFactory queueFactory)
+            {
+                m_eventQueue = queueFactory.CreateEventQeue(monitoredItemId, createDurable);
+
+                m_monitoredItemId = monitoredItemId;
+                m_events = new List<EventFieldList>();
+                m_discardOldest = false;
+                m_overflow = false;
+            }
+
+
+            /// <summary>
+            /// Sets the queue size.
+            /// </summary>
+            /// <param name="queueSize">The new queue size.</param>
+            /// <param name="discardOldest">Whether to discard the oldest values if the queue overflows.</param>
+            public void SetQueueSize(uint queueSize, bool discardOldest)
+            {
+                m_discardOldest = discardOldest;
+                m_queueSize = queueSize;
+
+                if (m_events.Count > m_queueSize)
+                {
+                    if (m_discardOldest)
+                    {
+                        m_events.RemoveRange(0, m_events.Count - (int)queueSize);
+                    }
+                    else
+                    {
+                        m_events.RemoveRange((int)queueSize, m_events.Count - (int)queueSize);
+                    }
+                }
+
+                // update internals.
+                m_discardOldest = discardOldest;
+                m_queueSize = queueSize;
+            }
+
+            public int ItemsInQueue => m_events.Count;
+
+            public bool Overflow => m_overflow;
+
+            /// <summary>
+            /// Checks the last 1k queue entries if the event is already in there
+            /// </summary>
+            /// <param name="instance"></param>
+            /// <returns></returns>
+            public bool IsEventContainedInQueue(IFilterTarget instance)
+            {
+                // check for duplicate instances being reported via multiple paths.
+                for (int ii = 0; ii < m_events.Count; ii++)
+                {
+                    if (m_events[ii] is EventFieldList processedEvent)
+                    {
+                        if (ReferenceEquals(instance, processedEvent.Handle))
+                        {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+
+            /// <summary>
+            /// true if queue is already full and discarding is not allowed
+            /// </summary>
+            /// <returns></returns>
+            public bool SetQueueOverflowIfFull()
+            {
+                if (m_events.Count >= m_queueSize)
+                {
+                    if (!m_discardOldest)
+                    {
+                        m_overflow = true;
+                        return true;
+                    }
+                }
+                return false;
+            }
+            public void Dispose()
+            {
+                m_eventQueue.Dispose();
+            }
+
+            /// <summary>
+            /// Adds an event to the queue.
+            /// </summary>
+            public virtual void QueueEvent(EventFieldList fields)
+            {
+                // make space in the queue.
+                if (m_events.Count >= m_queueSize)
+                {
+                    m_overflow = true;
+
+                    if (m_discardOldest)
+                    {
+                        m_events.RemoveAt(0);
+                    }
+                }
+
+                // queue the event.
+                m_events.Add(fields);
+            }
+
+            public void Publish(OperationContext context, Queue<EventFieldList> notifications)
+            {
+                for (int ii = 0; ii < m_events.Count; ii++)
+                {
+                    EventFieldList fields = m_events[ii];
+
+                    // apply any diagnostic masks.
+                    for (int jj = 0; jj < fields.EventFields.Count; jj++)
+                    {
+                        object value = fields.EventFields[jj].Value;
+
+                        if (value is StatusResult result)
+                        {
+                            result.ApplyDiagnosticMasks(context.DiagnosticsMask, context.StringTable);
+                        }
+                    }
+
+                    notifications.Enqueue(m_events[ii]);
+
+                    m_events.Clear();
+
+                    m_overflow = false;
+                }
+            }
+
+            private bool m_overflow;
+            private uint m_queueSize;
+            private bool m_discardOldest;
+            private List<EventFieldList> m_events;
+            private readonly uint m_monitoredItemId;
+            private readonly IMonitoredItemQueue<EventFieldList> m_eventQueue;
         }
         #endregion
     }
