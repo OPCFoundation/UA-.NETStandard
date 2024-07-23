@@ -477,9 +477,9 @@ namespace Opc.Ua.Server
                     //}
 
 
-                    if (m_dataValueQueue != null)
+                    if (m_queueHandler != null)
                     {
-                        return m_dataValueQueue.ItemsInQueue;
+                        return m_queueHandler.ItemsInQueue;
                     }
 
                     return 0;
@@ -911,7 +911,7 @@ namespace Opc.Ua.Server
         {
             if (m_queueSize > 1)
             {
-                m_dataValueQueue.QueueValue(value, error);
+                m_queueHandler.QueueValue(value, error);
             }
 
             if (m_lastValue != null)
@@ -1298,17 +1298,17 @@ namespace Opc.Ua.Server
                 m_readyToPublish = false;
 
                 // check if queueing enabled.
-                if (m_dataValueQueue != null && (!m_resendData || m_dataValueQueue.ItemsInQueue != 0))
+                if (m_queueHandler != null && (!m_resendData || m_queueHandler.ItemsInQueue != 0))
                 {
                     DataValue value = null;
                     ServiceResult error = null;
 
-                    while (m_dataValueQueue.Publish(out value, out error))
+                    while (m_queueHandler.Publish(out value, out error))
                     {
                         Publish(context, notifications, diagnostics, value, error);
                         if (m_resendData)
                         {
-                            m_readyToPublish = m_dataValueQueue.ItemsInQueue > 0;
+                            m_readyToPublish = m_queueHandler.ItemsInQueue > 0;
                             break;
                         }
                     }
@@ -1753,8 +1753,8 @@ namespace Opc.Ua.Server
                 {
                     m_events = null;
                     //m_durableEventQueue?.Dispose();
-                    m_dataValueQueue?.Dispose();
-                    m_dataValueQueue = null;
+                    m_queueHandler?.Dispose();
+                    m_queueHandler = null;
                     break;
                 }
 
@@ -1780,25 +1780,25 @@ namespace Opc.Ua.Server
                     {
                         if (m_queueSize <= 1)
                         {
-                            m_dataValueQueue?.Dispose();
-                            m_dataValueQueue = null;
+                            m_queueHandler?.Dispose();
+                            m_queueHandler = null;
                             break; // queueing is disabled
                         }
 
                         bool queueLastValue = false;
 
-                        if (m_dataValueQueue == null)
+                        if (m_queueHandler == null)
                         {
-                            m_dataValueQueue = m_monitoredItemQueueFactory.CreateDataValueQueue(Id, IsDurable, QueueOverflowHandler);
+                            m_queueHandler = new QueueHandler(Id, IsDurable, m_monitoredItemQueueFactory, QueueOverflowHandler);
                             queueLastValue = true;
                         }
 
-                        m_dataValueQueue.SetQueueSize(m_queueSize, m_discardOldest, m_diagnosticsMasks);
-                        m_dataValueQueue.SetSamplingInterval(m_samplingInterval);
+                        m_queueHandler.SetQueueSize(m_queueSize, m_discardOldest, m_diagnosticsMasks);
+                        m_queueHandler.SetSamplingInterval(m_samplingInterval);
 
                         if (queueLastValue && m_lastValue != null)
                         {
-                            m_dataValueQueue.QueueValue(m_lastValue, m_lastError);
+                            m_queueHandler.QueueValue(m_lastValue, m_lastError);
                         }
                     }
                     else // create event queue.
@@ -1841,7 +1841,7 @@ namespace Opc.Ua.Server
         /// Disposes the durable monitoredItemQueue
         public void Dispose()
         {
-            m_dataValueQueue?.Dispose();
+            m_queueHandler?.Dispose();
             //m_durableEventQueue?.Dispose();
         }
 
@@ -1878,7 +1878,7 @@ namespace Opc.Ua.Server
         private ServiceResult m_lastError;
         private long m_nextSamplingTime;
         private List<EventFieldList> m_events;
-        private IMonitoredItemQueue<DataValue> m_dataValueQueue;
+        private QueueHandler m_queueHandler;
         //private IDurableMonitoredItemQueue<EventFieldList> m_durableEventQueue;
         private bool m_overflow;
         private bool m_readyToPublish;
@@ -1891,5 +1891,208 @@ namespace Opc.Ua.Server
         private bool m_triggered;
         private bool m_resendData;
         #endregion
+
+        #region QueueHandler
+        /// <summary>
+        /// Handles all queue / dequeue actions for a monitoredItem
+        /// </summary>
+        private class QueueHandler : IDisposable
+        {
+            public QueueHandler(uint monitoredItemId, bool createDurable, IMonitoredItemQueueFactory queueFactory, Action discardedValueHandler = null)
+            {
+                m_dataValueQueue = queueFactory.CreateDataValueQueue(createDurable);
+
+                m_discardedValueHandler = discardedValueHandler;
+                m_monitoredItemId = monitoredItemId;
+                m_discardOldest = false;
+                m_nextSampleTime = 0;
+                m_samplingInterval = 0;
+            }
+
+            /// <summary>
+            /// Sets the queue size.
+            /// </summary>
+            /// <param name="queueSize">The new queue size.</param>
+            /// <param name="discardOldest">Whether to discard the oldest values if the queue overflows.</param>
+            /// <param name="diagnosticsMasks">Specifies which diagnostics which should be kept in the queue.</param>
+            public void SetQueueSize(uint queueSize, bool discardOldest, DiagnosticsMasks diagnosticsMasks)
+            {
+                bool queueErrors = (diagnosticsMasks & DiagnosticsMasks.OperationAll) != 0;
+                m_dataValueQueue.SetQueueSize(queueSize, queueErrors);
+
+                // update internals.
+                m_discardOldest = discardOldest;
+            }
+            public void SetSamplingInterval(double samplingInterval)
+            {
+                // substract the previous sampling interval.
+                if (m_samplingInterval < m_nextSampleTime)
+                {
+                    m_nextSampleTime -= m_samplingInterval;
+                }
+
+                // calculate the next sampling interval.
+                m_samplingInterval = (long)samplingInterval;
+
+                if (m_samplingInterval > 0)
+                {
+                    m_nextSampleTime += m_samplingInterval;
+                }
+                else
+                {
+                    m_nextSampleTime = 0;
+                }
+            }
+
+            public int ItemsInQueue => m_dataValueQueue.ItemsInQueue;
+
+            public void QueueValue(DataValue value, ServiceResult error)
+            {
+                long now = HiResClock.TickCount64;
+
+                if (m_dataValueQueue.ItemsInQueue > 0)
+                {
+                    // check if too soon for another sample.
+                    if (now < m_nextSampleTime)
+                    {
+                        m_dataValueQueue.OverwriteLastValue(value, error);
+
+                        m_discardedValueHandler?.Invoke();
+
+                        return;
+                    }
+                }
+
+                // update next sample time.
+                if (m_nextSampleTime > 0)
+                {
+                    long delta = now - m_nextSampleTime;
+
+                    if (m_samplingInterval > 0 && delta >= 0)
+                    {
+                        m_nextSampleTime += ((delta / m_samplingInterval) + 1) * m_samplingInterval;
+                    }
+                }
+                else
+                {
+                    m_nextSampleTime = now + m_samplingInterval;
+                }
+
+                // queue next value.
+                Enqueue(value, error);
+                ServerUtils.EventLog.EnqueueValue(value.WrappedValue);
+            }
+
+            public bool Publish(out DataValue value, out ServiceResult error)
+            {
+                value = null;
+                error = null;
+                if (m_dataValueQueue.Dequeue(out value, out error))
+                {
+                    ServerUtils.EventLog.DequeueValue(value.WrappedValue, value.StatusCode);
+
+                    return true;
+                }
+                return false;
+            }
+
+            private void Enqueue(DataValue value, ServiceResult error)
+            {
+                // check for empty queue.
+                if (m_dataValueQueue.ItemsInQueue == 0)
+                {
+                    ServerUtils.EventLog.EnqueueValue(value.WrappedValue);
+
+                    m_dataValueQueue.QueueValue(value, error);
+
+                    return;
+                }
+
+
+                // check if the latest value has initial dummy data
+                if (m_dataValueQueue.PeekLastValue()?.StatusCode != StatusCodes.BadWaitingForInitialData)
+                {
+                    // check if queue is full.
+                    if (m_dataValueQueue.ItemsInQueue == m_dataValueQueue.QueueSize)
+                    {
+                        m_discardedValueHandler?.Invoke();
+
+                        SetOverflowBit(ref value, ref error);
+
+                        if (!m_discardOldest)
+                        {
+                            ServerUtils.ReportDiscardedValue(null, m_monitoredItemId, value);
+
+                            // overwrite last value
+                            m_dataValueQueue.OverwriteLastValue(value, error);
+
+                            return;
+                        }
+
+                        // remove oldest value.
+                        m_dataValueQueue.Dequeue(out var discardedValue, out var _);
+                        ServerUtils.ReportDiscardedValue(null, m_monitoredItemId, discardedValue);
+                    }
+                    else
+                    {
+                        ServerUtils.EventLog.EnqueueValue(value.WrappedValue);
+                    }
+                }
+                else
+                {
+                    // overwrite the last value
+                    m_dataValueQueue.OverwriteLastValue(value, error);
+                }
+
+                m_dataValueQueue.QueueValue(value, error);
+            }
+
+            /// <summary>
+            /// Sets the overflow bit in the value and error.
+            /// </summary>
+            /// <param name="value">The value to update.</param>
+            /// <param name="error">The error to update.</param>
+            private void SetOverflowBit(ref DataValue value, ref ServiceResult error)
+            {
+                if (value != null)
+                {
+                    StatusCode status = value.StatusCode;
+                    status.Overflow = true;
+                    value.StatusCode = status;
+                }
+
+                if (error != null)
+                {
+                    StatusCode status = error.StatusCode;
+                    status.Overflow = true;
+
+                    // have to copy before updating because the ServiceResult is invariant.
+                    ServiceResult copy = new ServiceResult(
+                        status,
+                        error.SymbolicId,
+                        error.NamespaceUri,
+                        error.LocalizedText,
+                        error.AdditionalInfo,
+                        error.InnerResult);
+
+                    error = copy;
+                }
+            }
+
+            public void Dispose()
+            {
+                m_dataValueQueue.Dispose();
+            }
+
+            private readonly IMonitoredItemQueue<DataValue> m_dataValueQueue;
+            private readonly uint m_monitoredItemId;
+            private bool m_discardOldest;
+            private long m_nextSampleTime;
+            private long m_samplingInterval;
+            private readonly Action m_discardedValueHandler;
+        }
+        #endregion
     }
+
+
 }

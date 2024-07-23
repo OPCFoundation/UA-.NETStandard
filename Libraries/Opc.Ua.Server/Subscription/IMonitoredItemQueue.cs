@@ -39,12 +39,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates an empty queue for data values.
         /// </summary>
-        IMonitoredItemQueue<DataValue> CreateDataValueQueue(uint monitoredItemId, bool isDurable, Action discardedValueHandler = null);
+        IMonitoredItemQueue<DataValue> CreateDataValueQueue(bool isDurable);
 
         /// <summary>
         /// Creates an empty queue for events.
         /// </summary>
-        IMonitoredItemQueue<EventFieldList> CreateEventQeue(uint monitoredItemId, bool isDurable, Action discardedValueHandler = null);
+        IMonitoredItemQueue<EventFieldList> CreateEventQeue(uint monitoredItemId, bool isDurable);
 
         /// <summary>
         /// If true durable queues can be created by the factory, if false only regular queues with small queue sizes are returned
@@ -59,11 +59,6 @@ namespace Opc.Ua.Server
     public interface IMonitoredItemQueue<T> : IDisposable
     {
         /// <summary>
-        /// The event for the discarded value handler.
-        /// </summary>
-        Action DiscardedValueHandler { get; }
-
-        /// <summary>
         /// True if the queue is in durable mode and persists the queue values / supports a large queue size
         /// </summary>
         bool IsDurable { get; }
@@ -73,26 +68,17 @@ namespace Opc.Ua.Server
         /// </summary>
         uint QueueSize { get; }
 
-
         /// <summary>
         /// Gets number of elements actually contained in value queue.
         /// </summary>
         int ItemsInQueue { get; }
 
-
-        /// <summary>
-        /// Sets the sampling interval used when queuing values.
-        /// </summary>
-        /// <param name="samplingInterval">The new sampling interval.</param>
-        void SetSamplingInterval(double samplingInterval);
-
         /// <summary>
         /// Sets the queue size.
         /// </summary>
         /// <param name="queueSize">The new queue size.</param>
-        /// <param name="discardOldest">Whether to discard the oldest values if the queue overflows.</param>
-        /// <param name="diagnosticsMasks">Specifies which diagnostics which should be kept in the queue.</param>
-        void SetQueueSize(uint queueSize, bool discardOldest, DiagnosticsMasks diagnosticsMasks);
+        /// <param name="queueErrors">Specifies wether errors should be queued.</param>
+        void SetQueueSize(uint queueSize, bool queueErrors);
 
         /// <summary>
         /// Adds the value to the queue.
@@ -102,11 +88,24 @@ namespace Opc.Ua.Server
         void QueueValue(T value, ServiceResult error);
 
         /// <summary>
-        /// Publishes the oldest value in the queue.
+        /// Replace the newest value in the queue with the provided Value. Used when values are provided faster than the sampling interval
+        /// </summary>
+        /// <param name="value">The value to queue.</param>
+        /// <param name="error">The error to queue.</param>
+        void OverwriteLastValue(T value, ServiceResult error);
+
+        /// <summary>
+        /// Returns the last value in the queue without dequeuing
+        /// </summary>
+        /// <returns>the last value, null if queue is empty</returns>
+        T PeekLastValue();
+
+        /// <summary>
+        /// Dequeue the oldest value in the queue.
         /// </summary>
         /// <param name="value">The value.</param>
         /// <param name="error">The error associated with the value.</param>
         /// <returns>True if a value was found. False if the queue is empty.</returns>
-        bool Publish(out T value, out ServiceResult error);
+        bool Dequeue(out T value, out ServiceResult error);
     }
 }

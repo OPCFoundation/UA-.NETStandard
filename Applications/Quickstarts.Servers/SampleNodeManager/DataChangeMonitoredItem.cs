@@ -119,7 +119,7 @@ namespace Opc.Ua.Sample
 
             if (queueSize > 1)
             {
-                m_queue = new MonitoredItemQueue(id, false);
+                m_queue = new MonitoredItemQueue(id);
                 m_queue.SetQueueSize(queueSize, discardOldest, diagnosticsMasks);
                 m_queue.SetSamplingInterval(samplingInterval);
             }
@@ -278,7 +278,7 @@ namespace Opc.Ua.Sample
                 {
                     if (m_queue == null)
                     {
-                        m_queue = new MonitoredItemQueue(m_id, false);
+                        m_queue = new MonitoredItemQueue(m_id);
                     }
 
                     m_queue.SetQueueSize(queueSize, discardOldest, diagnosticsMasks);
