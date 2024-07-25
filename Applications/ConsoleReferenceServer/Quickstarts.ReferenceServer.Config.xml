@@ -222,7 +222,10 @@
     <MaxSubscriptionCount>100</MaxSubscriptionCount>
     <MaxEventQueueSize>10000</MaxEventQueueSize>
     <DurableSubscriptionsEnabled>true</DurableSubscriptionsEnabled>
-
+    <MaxDurableNotificationQueueSize>10000</MaxDurableNotificationQueueSize>
+    <MaxDurableEventQueueSize>10000</MaxDurableEventQueueSize>
+    <MaxDurableSubscriptionLifetime>360000000</MaxDurableSubscriptionLifetime>
+    
     <!-- see https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles -->
     <ServerProfileArray>
       <ua:String>http://opcfoundation.org/UA-Profile/Server/StandardUA2017</ua:String>
