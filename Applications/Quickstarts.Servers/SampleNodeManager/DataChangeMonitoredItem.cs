@@ -699,7 +699,7 @@ namespace Opc.Ua.Sample
         /// <summary>
         /// Called by the subscription to publish any notification.
         /// </summary>
-        public bool Publish(OperationContext context, Queue<MonitoredItemNotification> notifications, Queue<DiagnosticInfo> diagnostics)
+        public bool Publish(OperationContext context, Queue<MonitoredItemNotification> notifications, Queue<DiagnosticInfo> diagnostics, uint maxNotificationsPerPublish)
         {
             lock (m_lock)
             {
@@ -727,9 +727,11 @@ namespace Opc.Ua.Sample
                     DataValue value = null;
                     ServiceResult error = null;
 
-                    while (m_queue.Publish(out value, out error))
+                    uint notificationCount = 0;
+                    while (notificationCount <= maxNotificationsPerPublish && m_queue.Publish(out value, out error))
                     {
                         Publish(context, value, error, notifications, diagnostics);
+                        notificationCount++;
 
                         if (m_resendData)
                         {
