@@ -1072,7 +1072,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Publishes all available event notifications.
         /// </summary>
-        public virtual bool Publish(OperationContext context, Queue<EventFieldList> notifications)
+        /// <param name="context">the <see cref="OperationContext"/></param>
+        /// <param name="notifications">the published notifications</param>
+        /// <param name="maxNotificationsPerPublish">the max number of notifications being enqueued per publish</param>
+        public virtual bool Publish(OperationContext context, Queue<EventFieldList> notifications, uint maxNotificationsPerPublish)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
             if (notifications == null) throw new ArgumentNullException(nameof(notifications));
@@ -1135,7 +1138,7 @@ namespace Opc.Ua.Server
                         notifications.Enqueue(overflowEvent);
                     }
 
-                    m_eventQueueHandler.Publish(context, notifications);
+                    m_eventQueueHandler.Publish(context, notifications, maxNotificationsPerPublish - 1);
 
                     // place event at the end of the queue.
                     if (overflowEvent != null && !m_discardOldest)
@@ -1161,7 +1164,8 @@ namespace Opc.Ua.Server
         public virtual bool Publish(
             OperationContext context,
             Queue<MonitoredItemNotification> notifications,
-            Queue<DiagnosticInfo> diagnostics)
+            Queue<DiagnosticInfo> diagnostics,
+            uint maxNotificationsPerPublish)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
             if (notifications == null) throw new ArgumentNullException(nameof(notifications));
@@ -1212,9 +1216,13 @@ namespace Opc.Ua.Server
                     DataValue value = null;
                     ServiceResult error = null;
 
-                    while (m_dataValueQueueHandler.PublishSingleValue(out value, out error))
+                    uint notificationCount = 0;
+                    while (notificationCount <= maxNotificationsPerPublish && m_dataValueQueueHandler.PublishSingleValue(out value, out error))
                     {
                         Publish(context, notifications, diagnostics, value, error);
+
+                        notificationCount++;
+
                         if (m_resendData)
                         {
                             m_readyToPublish = m_dataValueQueueHandler.ItemsInQueue > 0;

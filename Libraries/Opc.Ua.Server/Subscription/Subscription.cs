@@ -872,11 +872,11 @@ namespace Opc.Ua.Server
 
                     if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                     {
-                        ((IDataChangeMonitoredItem)monitoredItem).Publish(context, datachanges, datachangeDiagnostics);
+                        ((IDataChangeMonitoredItem)monitoredItem).Publish(context, datachanges, datachangeDiagnostics, m_maxNotificationsPerPublish);
                     }
                     else
                     {
-                        ((IEventMonitoredItem)monitoredItem).Publish(context, events);
+                        ((IEventMonitoredItem)monitoredItem).Publish(context, events, m_maxNotificationsPerPublish);
                     }
 
                     // add back to list to check.

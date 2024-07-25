@@ -354,9 +354,11 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="context"></param>
         /// <param name="notifications"></param>
-        public void Publish(OperationContext context, Queue<EventFieldList> notifications)
+        /// <param name="maxNotificationsPerPublish">the maximum number of notifications to enqueue per call</param>
+        public void Publish(OperationContext context, Queue<EventFieldList> notifications, uint maxNotificationsPerPublish)
         {
-            while (m_eventQueue.Dequeue(out EventFieldList fields))
+            uint notificationCount = 0;
+            while (notificationCount <= maxNotificationsPerPublish && m_eventQueue.Dequeue(out EventFieldList fields))
             {
                 // apply any diagnostic masks.
                 for (int jj = 0; jj < fields.EventFields.Count; jj++)
@@ -370,6 +372,7 @@ namespace Opc.Ua.Server
                 }
 
                 notifications.Enqueue(fields);
+                notificationCount++;
             }
 
             m_overflow = false;
