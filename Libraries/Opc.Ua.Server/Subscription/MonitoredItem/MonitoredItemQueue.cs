@@ -51,7 +51,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public IEventMonitoredItemQueue CreateEventQueue(bool createDurable)
         {
-            throw new NotImplementedException();
+            return new EventMonitoredItemQueue(createDurable);
         }
 
         /// <inheritdoc/>
