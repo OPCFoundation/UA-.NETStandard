@@ -41,7 +41,7 @@ namespace Opc.Ua.Server
     public class MonitoredItemQueueFactory : IMonitoredItemQueueFactory
     {
         /// <inheritdoc/>
-        public bool SupportsDurableQueues => false;
+        public bool SupportsDurableQueues => true;
         /// <inheritdoc/>
         public IDataChangeMonitoredItemQueue CreateDataValueQueue(bool createDurable)
         {
