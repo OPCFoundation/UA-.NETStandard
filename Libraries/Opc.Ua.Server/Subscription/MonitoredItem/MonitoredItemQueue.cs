@@ -29,26 +29,27 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// A factory for <see cref="IMonitoredItemQueue{T}"/>
+    /// A factory for <see cref="IDataChangeMonitoredItemQueue"> and </see> <see cref="IEventMonitoredItemQueue"/>
     /// </summary>
     public class MonitoredItemQueueFactory : IMonitoredItemQueueFactory
     {
         /// <inheritdoc/>
         public bool SupportsDurableQueues => false;
         /// <inheritdoc/>
-        public IMonitoredItemQueue<DataValue> CreateDataValueQueue(bool createDurable)
+        public IDataChangeMonitoredItemQueue CreateDataValueQueue(bool createDurable)
         {
-            return new InMemoryMonitoredItemQueue(createDurable);
+            return new DataChangeMonitoredItemQueue(createDurable);
         }
 
         /// <inheritdoc/>
-        public IMonitoredItemQueue<EventFieldList> CreateEventQeue(uint monitoredItemId, bool createDurable)
+        public IEventMonitoredItemQueue CreateEventQueue(bool createDurable)
         {
             throw new NotImplementedException();
         }
@@ -56,22 +57,22 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void Dispose()
         {
-            throw new NotImplementedException();
+            //only needed for managed resources
         }
     }
     /// <summary>
     /// Provides a queue for data changes.
     /// </summary>
-    public class InMemoryMonitoredItemQueue : IMonitoredItemQueue<DataValue>
+    public class DataChangeMonitoredItemQueue : IDataChangeMonitoredItemQueue
     {
         /// <summary>
         /// Creates an empty queue.
         /// </summary>
-        public InMemoryMonitoredItemQueue(bool createDurable)
+        public DataChangeMonitoredItemQueue(bool createDurable)
         {
             if (createDurable)
             {
-                Utils.LogError("MonitoredItemQueue does not support durable queues, please provide full implementation of IDurableMonitoredItemQueue using Server.CreateDurableMonitoredItemQueueFactory to supply own factory");
+                Utils.LogError("DataChangeMonitoredItemQueue does not support durable queues, please provide full implementation of IDurableMonitoredItemQueue using Server.CreateDurableMonitoredItemQueueFactory to supply own factory");
                 throw new ServiceResultException(StatusCodes.BadInternalError);
             }
 
@@ -129,7 +130,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="value">The value to queue.</param>
         /// <param name="error">The error to queue.</param>
-        public void QueueValue(DataValue value, ServiceResult error)
+        public void Enqueue(DataValue value, ServiceResult error)
         {
             // check for empty queue.
             if (m_start < 0)
@@ -242,7 +243,7 @@ namespace Opc.Ua.Server
             {
                 for (int ii = 0; ii < existingValues.Count; ii++)
                 {
-                    QueueValue(existingValues[ii], existingErrors[ii]);
+                    Enqueue(existingValues[ii], existingErrors[ii]);
                 }
             }
         }
@@ -305,6 +306,103 @@ namespace Opc.Ua.Server
         private ServiceResult[] m_errors;
         private int m_start;
         private int m_end;
+        #endregion
+    }
+
+    /// <summary>
+    /// Provides a queue for events
+    /// </summary>
+    public class EventMonitoredItemQueue : IEventMonitoredItemQueue
+    {
+        /// <summary>
+        /// Creates an empty queue.
+        /// </summary>
+        public EventMonitoredItemQueue(bool createDurable)
+        {
+            if (createDurable)
+            {
+                Utils.LogError("EventMonitoredItemQueue does not support durable queues, please provide full implementation of IDurableMonitoredItemQueue using Server.CreateDurableMonitoredItemQueueFactory to supply own factory");
+                throw new ServiceResultException(StatusCodes.BadInternalError);
+            }
+            m_events = new List<EventFieldList>();
+            m_isDurable = createDurable;
+        }
+
+        #region Public Methods
+        /// <inheritdoc/>
+        public bool IsDurable => m_isDurable;
+
+        /// <inheritdoc/>
+        public uint QueueSize => throw new NotImplementedException();
+
+        /// <inheritdoc/>
+        public int ItemsInQueue => throw new NotImplementedException();
+
+        /// <inheritdoc/>
+        public bool Dequeue(out EventFieldList value)
+        {
+            value = null;
+            if (m_events.Any())
+            {
+                value = m_events.First();
+                m_events.RemoveAt(0);
+                return true;
+            }
+            return false;
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            //Only needed for unmanaged resources
+        }
+
+        /// <inheritdoc/>
+        public void Enqueue(EventFieldList value)
+        {
+            m_events.Add(value);
+        }
+
+        /// <inheritdoc/>
+        public bool IsEventContainedInQueue(IFilterTarget instance)
+        {
+            // check for duplicate instances being reported via multiple paths.
+            for (int ii = 0; ii < m_events.Count; ii++)
+            {
+                if (m_events[ii] is EventFieldList processedEvent)
+                {
+                    if (ReferenceEquals(instance, processedEvent.Handle))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <inheritdoc/>
+        public void SetQueueSize(uint queueSize, bool discardOldest)
+        {
+            m_queueSize = queueSize;
+
+            if (m_events.Count > m_queueSize)
+            {
+                if (discardOldest)
+                {
+                    m_events.RemoveRange(0, m_events.Count - (int)queueSize);
+                }
+                else
+                {
+                    m_events.RemoveRange((int)queueSize, m_events.Count - (int)queueSize);
+                }
+            }
+        }
+        #endregion
+
+        #region Private Fields
+        private uint m_queueSize;
+        private readonly List<EventFieldList> m_events;
+        private readonly bool m_isDurable;
         #endregion
     }
 }
