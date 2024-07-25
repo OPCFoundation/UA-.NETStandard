@@ -668,6 +668,8 @@ namespace Opc.Ua.Sample
             get { return m_filter; }
         }
 
+        public bool IsDurable => false;
+
         /// <summary>
         /// Increments the sample time to the next interval.
         /// </summary>
@@ -833,6 +835,11 @@ namespace Opc.Ua.Sample
             }
 
             diagnostics.Enqueue(diagnosticInfo);
+        }
+
+        public void Dispose()
+        {
+            //only durable queues need to be disposed
         }
         #endregion
 

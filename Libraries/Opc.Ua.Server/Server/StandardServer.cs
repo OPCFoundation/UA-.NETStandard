@@ -2963,6 +2963,12 @@ namespace Opc.Ua.Server
                     // add the session manager to the datastore.
                     m_serverInternal.SetSessionManager(sessionManager, subscriptionManager);
 
+                    //create the MonitoredItemQueueFactory
+                    IMonitoredItemQueueFactory monitoredItemQueueFactory = CreateMonitoredItemQueueFactory(m_serverInternal, configuration);
+
+                    //add the eMonitoredItemQueueFactory to the datastore.
+                    m_serverInternal.SetMonitoredItemQueueFactory(monitoredItemQueueFactory);
+
                     ServerError = null;
 
                     // setup registration information.
@@ -3277,7 +3283,7 @@ namespace Opc.Ua.Server
         /// <returns>Returns an object that manages all events raised within the server, the return type is <seealso cref="EventManager"/>.</returns>
         protected virtual EventManager CreateEventManager(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new EventManager(server, (uint)configuration.ServerConfiguration.MaxEventQueueSize);
+            return new EventManager(server, (uint)configuration.ServerConfiguration.MaxEventQueueSize, (uint)configuration.ServerConfiguration.MaxDurableEventQueueSize);
         }
 
         /// <summary>
@@ -3300,6 +3306,17 @@ namespace Opc.Ua.Server
         protected virtual SubscriptionManager CreateSubscriptionManager(IServerInternal server, ApplicationConfiguration configuration)
         {
             return new SubscriptionManager(server, configuration);
+        }
+
+        /// <summary>
+        /// Creates the (durable) monitored item queue factory for the server.
+        /// </summary>
+        /// <param name="server">The server.</param>
+        /// <param name="configuration">The configuration.</param>
+        /// <returns>Returns a (durable) monitored item queue factory for a server, the return type is <seealso cref="IMonitoredItemQueueFactory"/>.</returns>
+        protected virtual IMonitoredItemQueueFactory CreateMonitoredItemQueueFactory(IServerInternal server, ApplicationConfiguration configuration)
+        {
+           return new MonitoredItemQueueFactory();
         }
 
         /// <summary>
