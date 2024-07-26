@@ -153,6 +153,7 @@ namespace Opc.Ua.Bindings
             m_maxResponseChunkCount = CalculateChunkCount(m_maxResponseMessageSize, TcpMessageLimits.MinBufferSize);
 
             CalculateSymmetricKeySizes();
+
         }
         #endregion
 
@@ -255,9 +256,39 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected uint GetNewSequenceNumber()
         {
-            // TODO transaction safe
-            m_localSequenceNumber = (uint)m_sequenceNumber;
-            return Utils.IncrementIdentifier(ref m_sequenceNumber);
+            long origValue = 0;
+            long updatedSeqNumber = 0;
+            do
+            {
+                origValue = updatedSeqNumber = Interlocked.Read(ref m_sequenceNumber);
+                // LegacySequenceNumbers are TRUE for non ECC profiles
+                // https://reference.opcfoundation.org/Core/Part6/v105/docs/6.7.2.4
+                if (!EccUtils.IsEccPolicy(SecurityPolicyUri))
+                {
+                    // First number after wrap around shall be less than 1024
+                    if (origValue == kMaxValueLegacyTrue)
+                    {
+                        updatedSeqNumber = -1;
+                    }
+                    updatedSeqNumber++;
+                    m_localSequenceNumber = (uint)(origValue == kMaxValueLegacyTrue ? kMaxValueLegacyTrue : updatedSeqNumber - 1);
+                }
+                else
+                {
+                    // First number after wrap around shall be 0
+                    if (origValue == kMaxValueLegacyFalse)
+                    {
+                        updatedSeqNumber = -1;
+                    }
+                    updatedSeqNumber++;
+                    m_localSequenceNumber = (uint)(origValue == kMaxValueLegacyTrue ? kMaxValueLegacyTrue : updatedSeqNumber - 1);
+
+                }
+                if (Interlocked.CompareExchange(ref m_sequenceNumber, updatedSeqNumber, origValue) == origValue)
+                {
+                    return (uint)updatedSeqNumber;
+                }
+            }while (true);
         }
 
         /// <summary>
@@ -927,6 +958,11 @@ namespace Opc.Ua.Bindings
         private TcpChannelStateEventHandler m_StateChanged;
 
         private int m_lastActiveTickCount;
+        #endregion
+
+        #region Constants
+        private const uint kMaxValueLegacyTrue = TcpMessageLimits.MinSequenceNumber;
+        private const uint kMaxValueLegacyFalse = UInt32.MaxValue;
         #endregion
     }
 
