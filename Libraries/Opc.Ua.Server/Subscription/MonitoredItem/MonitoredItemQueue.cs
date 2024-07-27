@@ -30,8 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json.Linq;
 
 namespace Opc.Ua.Server
 {

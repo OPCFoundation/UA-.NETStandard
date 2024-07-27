@@ -30,9 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Threading;
 using System.Xml;
-using static Opc.Ua.Server.MonitoredItemQueue;
 
 namespace Opc.Ua.Server
 {

@@ -29,11 +29,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Xml;
 using System.Threading;
-using System.Runtime.Serialization;
-using System.Text;
 using Microsoft.Extensions.Logging;
 using System.Linq;
 
