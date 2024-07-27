@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -265,6 +265,19 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc cref="ServerConfiguration.AuditingEnabled"/>
         IApplicationConfigurationBuilderServerOptions SetAuditingEnabled(bool auditingEnabled);
+
+        /// <inheritdoc cref="ServerConfiguration.DurableSubscriptionsEnabled"/>
+        IApplicationConfigurationBuilderServerOptions SetDurableSubscriptionsEnabled(bool durableSubscriptionsEnabled);
+
+        /// <inheritdoc cref="ServerConfiguration.MaxDurableNotificationQueueSize"/>
+        IApplicationConfigurationBuilderServerOptions SetMaxdurableNotificationQueueSize(int maxDurableNotificationQueueSize);
+
+        /// <inheritdoc cref="ServerConfiguration.MaxDurableEventQueueSize"/>
+        IApplicationConfigurationBuilderServerOptions SetMaxDurableEventQueueSize(int maxDurableEventQueueSize);
+
+        /// <inheritdoc cref="ServerConfiguration.MaxDurableSubscriptionLifetime"/>
+        IApplicationConfigurationBuilderServerOptions SetMaxDurableSubscriptionLifetime(ulong maxDurableSubscriptionLifetime);
+
     }
 
     /// <summary>
