@@ -96,14 +96,14 @@ namespace Opc.Ua.Server
         bool Dequeue(out DataValue value, out ServiceResult error);
 
         /// <summary>
-        /// Replace the newest value in the queue with the provided Value. Used when values are provided faster than the sampling interval
+        /// Replace the last (newest) value in the queue with the provided Value. Used when values are provided faster than the sampling interval
         /// </summary>
         /// <param name="value">The value to queue.</param>
         /// <param name="error">The error to queue.</param>
         void OverwriteLastValue(DataValue value, ServiceResult error);
 
         /// <summary>
-        /// Returns the last value in the queue without dequeuing
+        /// Returns the last (newest) value in the queue without dequeuing
         /// </summary>
         /// <returns>the last value, null if queue is empty</returns>
         DataValue PeekLastValue();

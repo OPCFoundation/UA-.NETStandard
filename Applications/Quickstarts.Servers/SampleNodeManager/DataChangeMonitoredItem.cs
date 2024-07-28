@@ -122,7 +122,7 @@ namespace Opc.Ua.Sample
 
             if (queueSize > 1)
             {
-                m_queue = new DataValueQueueHandler(id, false, m_monitoredItemQueueFactory);
+                m_queue = new DataChangeQueueHandler(id, false, m_monitoredItemQueueFactory);
                 m_queue.SetQueueSize(queueSize, discardOldest, diagnosticsMasks);
                 m_queue.SetSamplingInterval(samplingInterval);
             }
@@ -282,7 +282,7 @@ namespace Opc.Ua.Sample
                 {
                     if (m_queue == null)
                     {
-                        m_queue = new DataValueQueueHandler(m_id, false, m_monitoredItemQueueFactory);
+                        m_queue = new DataChangeQueueHandler(m_id, false, m_monitoredItemQueueFactory);
                     }
 
                     m_queue.SetQueueSize(queueSize, discardOldest, diagnosticsMasks);
@@ -864,7 +864,7 @@ namespace Opc.Ua.Sample
         private DiagnosticsMasks m_diagnosticsMasks;
         private uint m_clientHandle;
         private double m_samplingInterval;
-        private DataValueQueueHandler m_queue;
+        private DataChangeQueueHandler m_queue;
         private uint m_queueSize;
         private DataChangeFilter m_filter;
         private double m_range;

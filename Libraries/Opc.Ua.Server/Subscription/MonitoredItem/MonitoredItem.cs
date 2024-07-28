@@ -1705,7 +1705,7 @@ namespace Opc.Ua.Server
 
                         if (m_dataValueQueueHandler == null)
                         {
-                            m_dataValueQueueHandler = new DataValueQueueHandler(Id, IsDurable, m_monitoredItemQueueFactory, QueueOverflowHandler);
+                            m_dataValueQueueHandler = new DataChangeQueueHandler(Id, IsDurable, m_monitoredItemQueueFactory, QueueOverflowHandler);
                             queueLastValue = true;
                         }
 
@@ -1778,7 +1778,7 @@ namespace Opc.Ua.Server
         private ServiceResult m_lastError;
         private long m_nextSamplingTime;
         private readonly IMonitoredItemQueueFactory m_monitoredItemQueueFactory;
-        private DataValueQueueHandler m_dataValueQueueHandler;
+        private DataChangeQueueHandler m_dataValueQueueHandler;
         private EventQueueHandler m_eventQueueHandler;
         private bool m_readyToPublish;
         private bool m_readyToTrigger;
