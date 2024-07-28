@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -846,6 +846,34 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderExtension AddExtension<T>(XmlQualifiedName elementName, object value)
         {
             ApplicationConfiguration.UpdateExtension<T>(elementName, value);
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetDurableSubscriptionsEnabled(bool durableSubscriptionsEnabled)
+        {
+            ApplicationConfiguration.ServerConfiguration.DurableSubscriptionsEnabled = durableSubscriptionsEnabled;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMaxdurableNotificationQueueSize(int maxDurableNotificationQueueSize)
+        {
+            ApplicationConfiguration.ServerConfiguration.MaxDurableNotificationQueueSize = maxDurableNotificationQueueSize;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMaxDurableEventQueueSize(int maxDurableEventQueueSize)
+        {
+            ApplicationConfiguration.ServerConfiguration.MaxDurableEventQueueSize = maxDurableEventQueueSize;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMaxDurableSubscriptionLifetime(ulong maxDurableSubscriptionLifetime)
+        {
+            ApplicationConfiguration.ServerConfiguration.MaxDurableSubscriptionLifetime = maxDurableSubscriptionLifetime;
             return this;
         }
         #endregion

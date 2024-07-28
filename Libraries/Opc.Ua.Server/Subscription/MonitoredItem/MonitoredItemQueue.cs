@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
 
 namespace Opc.Ua.Server
@@ -84,7 +83,7 @@ namespace Opc.Ua.Server
         }
 
         #region Public Methods
-        
+
         /// <summary>
         /// Gets the current queue size.
         /// </summary>
@@ -108,17 +107,17 @@ namespace Opc.Ua.Server
         {
             get
             {
-                if (m_values == null)
+                if (m_values == null || m_start == -1)
                 {
                     return 0;
                 }
 
                 if (m_start < m_end)
                 {
-                    return m_end - m_start - 1;
+                    return m_end - m_start;
                 }
 
-                return m_values.Length - m_start + m_end - 1;
+                return m_values.Length - m_start + m_end;
             }
         }
         /// <inheritdoc/>
@@ -132,6 +131,17 @@ namespace Opc.Ua.Server
         /// <param name="error">The error to queue.</param>
         public void Enqueue(DataValue value, ServiceResult error)
         {
+            if (m_values == null)
+            {
+                throw new InvalidOperationException("Cannot enqueue Value. Queue size not set.");
+            }
+
+            //check for full queue
+            if (ItemsInQueue == m_values.Length)
+            {
+                Dequeue(out _, out _);
+            }
+
             // check for empty queue.
             if (m_start < 0)
             {
@@ -175,6 +185,11 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void OverwriteLastValue(DataValue value, ServiceResult error)
         {
+            if (m_values == null)
+            {
+                throw new InvalidOperationException("Cannot write Value. Queue size not set.");
+            }
+
             int last = m_end - 1;
 
             if (last < 0)
@@ -256,7 +271,14 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            return m_values[m_start];
+            int last = m_end - 1;
+
+            if (last < 0)
+            {
+                last = m_values.Length - 1;
+            }
+
+            return m_values[last];
         }
 
         /// <inheritdoc/>
@@ -310,7 +332,7 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// Provides a queue for events
+    /// Provides a queue for events.
     /// </summary>
     public class EventMonitoredItemQueue : IEventMonitoredItemQueue
     {
@@ -326,6 +348,7 @@ namespace Opc.Ua.Server
             //}
             m_events = new List<EventFieldList>();
             m_isDurable = createDurable;
+            m_queueSize = 0;
         }
 
         #region Public Methods
@@ -333,10 +356,10 @@ namespace Opc.Ua.Server
         public bool IsDurable => m_isDurable;
 
         /// <inheritdoc/>
-        public uint QueueSize => throw new NotImplementedException();
+        public uint QueueSize => m_queueSize;
 
         /// <inheritdoc/>
-        public int ItemsInQueue => throw new NotImplementedException();
+        public int ItemsInQueue => m_events.Count;
 
         /// <inheritdoc/>
         public bool Dequeue(out EventFieldList value)
@@ -360,6 +383,11 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void Enqueue(EventFieldList value)
         {
+            if (m_events.Count == m_queueSize && !Dequeue(out var _))
+            {
+                //Queue is full, but no deque possible
+                return;
+            }
             m_events.Add(value);
         }
 

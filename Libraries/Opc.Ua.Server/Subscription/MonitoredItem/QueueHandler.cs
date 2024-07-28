@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -29,10 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.Threading;
-using System.Xml;
-using static Opc.Ua.Server.MonitoredItemQueue;
 
 namespace Opc.Ua.Server
 {
@@ -40,7 +36,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Mangages a data value queue for a data change monitoredItem
     /// </summary>
-    public class DataValueQueueHandler : IDisposable
+    public class DataChangeQueueHandler : IDisposable
     {
         /// <summary>
         /// Creates a new Queue
@@ -49,7 +45,7 @@ namespace Opc.Ua.Server
         /// <param name="createDurable">true if a durable queue shall be created</param>
         /// <param name="queueFactory">the factory for <see cref="IDataChangeMonitoredItemQueue"/></param>
         /// <param name="discardedValueHandler"></param>
-        public DataValueQueueHandler(uint monitoredItemId, bool createDurable, IMonitoredItemQueueFactory queueFactory, Action discardedValueHandler = null)
+        public DataChangeQueueHandler(uint monitoredItemId, bool createDurable, IMonitoredItemQueueFactory queueFactory, Action discardedValueHandler = null)
         {
             m_dataValueQueue = queueFactory.CreateDataValueQueue(createDurable);
 
@@ -196,7 +192,7 @@ namespace Opc.Ua.Server
                     }
 
                     // remove oldest value.
-                    m_dataValueQueue.Dequeue(out var discardedValue, out var _);
+                    m_dataValueQueue.Dequeue(out var discardedValue, out _);
                     ServerUtils.ReportDiscardedValue(null, m_monitoredItemId, discardedValue);
                 }
                 else
