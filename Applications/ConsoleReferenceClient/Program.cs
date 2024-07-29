@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+//#define Enable_Durable_Subscriptions
+
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -186,6 +188,8 @@ namespace Quickstarts.ConsoleReferenceClient
                 // wait for timeout or Ctrl-C
                 var quitCTS = new CancellationTokenSource();
                 var quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
+
+                bool enableEvents = true;
 
                 // connect to a server until application stops
                 bool quit = false;
@@ -356,17 +360,57 @@ namespace Quickstarts.ConsoleReferenceClient
                             }
                             else
                             {
+                                bool enableDurableSubscriptions = false;
+                                int quitTimeout = 30_000;
+
+#if Enable_Durable_Subscriptions
+                                enableDurableSubscriptions = true;
+                                quitTimeout = 300_000;
+#endif
+
                                 // Run tests for available methods on reference server.
                                 samples.ReadNodes(uaClient.Session);
                                 samples.WriteNodes(uaClient.Session);
                                 samples.Browse(uaClient.Session);
                                 samples.CallMethod(uaClient.Session);
-                                samples.SubscribeToDataChanges(uaClient.Session, 120_000);
+                                if ( enableEvents )
+                                {
+                                    samples.EnableEvents(uaClient.Session);
+                                    enableEvents = false;
+                                }
+                                samples.SubscribeToDataChanges(uaClient.Session, 120_000, enableDurableSubscriptions);
 
                                 output.WriteLine("Waiting...");
 
                                 // Wait for some DataChange notifications from MonitoredItems
-                                quit = quitEvent.WaitOne(timeout > 0 ? waitTime : 30_000);
+                                int waitCounters = 0;
+                                int closeSessionTime = uaClient.ReconnectPeriod * 35;
+                                int restartSessionTime = uaClient.ReconnectPeriod * 65;
+                                while (!quit && waitCounters < quitTimeout)
+                                {
+                                    quit = quitEvent.WaitOne(uaClient.ReconnectPeriod);
+                                    waitCounters += uaClient.ReconnectPeriod;
+                                    if (enableDurableSubscriptions)
+                                    {
+                                        if (waitCounters == closeSessionTime)
+                                        {
+                                            if (uaClient.Session.SubscriptionCount == 1)
+                                            {
+                                                output.WriteLine("Closing Session at " + DateTime.Now.ToLongTimeString());
+                                                uaClient.Session.Close(closeChannel: false);
+                                            }
+                                        }
+
+                                        if (waitCounters == restartSessionTime)
+                                        {
+                                            output.WriteLine("Restarting Session at " + DateTime.Now.ToLongTimeString());
+                                            await uaClient.ReconnectAndTransfer(
+                                                serverUrl.ToString(),
+                                                useSecurity: !noSecurity,
+                                                quitCTS.Token);
+                                        }
+                                    }
+                                }
                             }
 
                             output.WriteLine("Client disconnected.");

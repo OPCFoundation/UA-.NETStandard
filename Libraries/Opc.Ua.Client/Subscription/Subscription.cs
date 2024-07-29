@@ -1786,7 +1786,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Call the GetMonitoredItems method on the server.
         /// </summary>
-        private bool GetMonitoredItems(out UInt32Collection serverHandles, out UInt32Collection clientHandles)
+        public bool GetMonitoredItems(out UInt32Collection serverHandles, out UInt32Collection clientHandles)
         {
             serverHandles = new UInt32Collection();
             clientHandles = new UInt32Collection();
@@ -1807,11 +1807,38 @@ namespace Opc.Ua.Client
             return false;
         }
 
+        /// <summary>
+        /// Set the subscription to durable.
+        /// </summary>
+        public bool SetSubscriptionDurable(uint lifetimeInHours, out uint revisedLifetimeInHours)
+        {
+            revisedLifetimeInHours = lifetimeInHours;
+
+            try
+            {
+                var outputArguments = m_session.Call(ObjectIds.Server,
+                    MethodIds.Server_SetSubscriptionDurable,
+                    m_id, lifetimeInHours);
+
+                if (outputArguments != null && outputArguments.Count == 1)
+                {
+                    revisedLifetimeInHours = (uint)outputArguments[0];
+                    return true;
+                }
+            }
+            catch (ServiceResultException sre)
+            {
+                Utils.LogError(sre, "SubscriptionId {0}: Failed to call SetSubscriptionDurable on server", m_id);
+            }
+
+            return false;
+        }
+
 #if CLIENT_ASYNC
         /// <summary>
         /// Call the GetMonitoredItems method on the server.
         /// </summary>
-        private async Task<(bool, UInt32Collection, UInt32Collection)> GetMonitoredItemsAsync(CancellationToken ct = default)
+        public async Task<(bool, UInt32Collection, UInt32Collection)> GetMonitoredItemsAsync(CancellationToken ct = default)
         {
             var serverHandles = new UInt32Collection();
             var clientHandles = new UInt32Collection();
@@ -1830,6 +1857,36 @@ namespace Opc.Ua.Client
                 Utils.LogError(sre, "SubscriptionId {0}: Failed to call GetMonitoredItems on server", m_id);
             }
             return (false, serverHandles, clientHandles);
+        }
+
+        /// <summary>
+        /// Set the subscription to durable.
+        /// </summary>
+        public async Task<(bool, UInt32)> SetSubscriptionDurableAsync(uint lifetimeInHours, CancellationToken ct = default)
+        {
+            uint revisedLifetimeInHours = lifetimeInHours;
+
+            try
+            {
+                var outputArguments = await m_session.CallAsync(
+                    ObjectIds.Server,
+                    MethodIds.Server_SetSubscriptionDurable,
+                    ct, m_transferId,
+                    lifetimeInHours).ConfigureAwait(false);
+
+                if (outputArguments != null && outputArguments.Count == 1)
+                {
+                    revisedLifetimeInHours = (uint)outputArguments[0];
+                    return (true, revisedLifetimeInHours);
+
+                }
+            }
+            catch (ServiceResultException sre)
+            {
+                Utils.LogError(sre, "SubscriptionId {0}: Failed to call SetSubscriptionDurable on server", m_id);
+            }
+
+            return (false, revisedLifetimeInHours);
         }
 #endif
 

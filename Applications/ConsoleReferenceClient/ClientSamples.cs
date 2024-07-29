@@ -35,6 +35,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -69,6 +70,13 @@ namespace Quickstarts
             m_validateResponse = validateResponse ?? ClientBase.ValidateResponse;
             m_quitEvent = quitEvent;
             m_verbose = verbose;
+            m_desiredEventFields = new Dictionary<int, QualifiedNameCollection>();
+            int eventIndexCounter = 0;
+            m_desiredEventFields.Add(eventIndexCounter++, new QualifiedNameCollection(new QualifiedName[] { BrowseNames.Time }));
+            m_desiredEventFields.Add(eventIndexCounter++, new QualifiedNameCollection(new QualifiedName[] { BrowseNames.ActiveState }));
+            m_desiredEventFields.Add(eventIndexCounter++, new QualifiedNameCollection(new QualifiedName[] { BrowseNames.Message }));
+            m_desiredEventFields.Add(eventIndexCounter++, new QualifiedNameCollection(new QualifiedName[] { BrowseNames.LimitState, BrowseNames.CurrentState }));
+            m_desiredEventFields.Add(eventIndexCounter++, new QualifiedNameCollection(new QualifiedName[] { BrowseNames.LimitState, BrowseNames.LastTransition }));
         }
 
         #region Public Sample Methods
@@ -290,9 +298,51 @@ namespace Quickstarts
         }
 
         /// <summary>
+        /// Call the Start method for Alarming to enable events
+        /// </summary>
+        public void EnableEvents(ISession session)
+        {
+            if (session == null || session.Connected == false)
+            {
+                m_output.WriteLine("Session not connected!");
+                return;
+            }
+
+            try
+            {
+                // Define the UA Method to call
+                // Parent node - Objects\CTT\Alarms
+                // Method node - Objects\CTT\Alarms\Start
+                NodeId objectId = new NodeId("ns=7;s=Alarms");
+                NodeId methodId = new NodeId("ns=7;s=Alarms.Start");
+
+                // Define the method parameters
+                // Input argument requires a Float and an UInt32 value
+                object[] inputArguments = new object[] { (uint)60000 };
+                IList<object> outputArguments = null;
+
+                // Invoke Call service
+                m_output.WriteLine("Calling UAMethod for node {0} ...", methodId);
+                outputArguments = session.Call(objectId, methodId, inputArguments);
+
+                // Display results
+                m_output.WriteLine("Method call returned {0} output argument(s):", outputArguments.Count);
+
+                foreach (var outputArgument in outputArguments)
+                {
+                    m_output.WriteLine("     OutputValue = {0}", outputArgument.ToString());
+                }
+            }
+            catch (Exception ex)
+            {
+                m_output.WriteLine("Method call error: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
         /// Create Subscription and MonitoredItems for DataChanges
         /// </summary>
-        public void SubscribeToDataChanges(ISession session, uint minLifeTime)
+        public void SubscribeToDataChanges(ISession session, uint minLifeTime, bool enableDurableSubscriptions)
         {
             if (session == null || session.Connected == false)
             {
@@ -303,12 +353,21 @@ namespace Quickstarts
             try
             {
                 // Create a subscription for receiving data change notifications
+                int subscriptionPublishingInterval = 1000;
+                int itemSamplingInterval = 1000;
+                uint queueSize = 10;
+
+                if (enableDurableSubscriptions)
+                {
+                    subscriptionPublishingInterval = 30000;
+                    queueSize = 600;
+                }
 
                 // Define Subscription parameters
                 Subscription subscription = new Subscription(session.DefaultSubscription) {
                     DisplayName = "Console ReferenceClient Subscription",
                     PublishingEnabled = true,
-                    PublishingInterval = 1000,
+                    PublishingInterval = subscriptionPublishingInterval,
                     LifetimeCount = 0,
                     MinLifetimeInterval = minLifeTime,
                 };
@@ -319,6 +378,20 @@ namespace Quickstarts
                 subscription.Create();
                 m_output.WriteLine("New Subscription created with SubscriptionId = {0}.", subscription.Id);
 
+                if ( enableDurableSubscriptions )
+                {
+                    uint revisedLifetimeInHours = 0;
+
+                    if (subscription.SetSubscriptionDurable(1, out revisedLifetimeInHours))
+                    {
+                        m_output.WriteLine("Subscription {0} is now durable.", subscription.Id);
+                    }
+                    else
+                    {
+                        m_output.WriteLine("Subscription {0} failed durable call", subscription.Id);
+                    }
+                }
+
                 // Create MonitoredItems for data changes (Reference Server)
 
                 MonitoredItem intMonitoredItem = new MonitoredItem(subscription.DefaultItem);
@@ -326,8 +399,8 @@ namespace Quickstarts
                 intMonitoredItem.StartNodeId = new NodeId("ns=2;s=Scalar_Simulation_Int32");
                 intMonitoredItem.AttributeId = Attributes.Value;
                 intMonitoredItem.DisplayName = "Int32 Variable";
-                intMonitoredItem.SamplingInterval = 1000;
-                intMonitoredItem.QueueSize = 10;
+                intMonitoredItem.SamplingInterval = itemSamplingInterval;
+                intMonitoredItem.QueueSize = queueSize;
                 intMonitoredItem.DiscardOldest = true;
                 intMonitoredItem.Notification += OnMonitoredItemNotification;
 
@@ -338,8 +411,8 @@ namespace Quickstarts
                 floatMonitoredItem.StartNodeId = new NodeId("ns=2;s=Scalar_Simulation_Float");
                 floatMonitoredItem.AttributeId = Attributes.Value;
                 floatMonitoredItem.DisplayName = "Float Variable";
-                floatMonitoredItem.SamplingInterval = 1000;
-                floatMonitoredItem.QueueSize = 10;
+                floatMonitoredItem.SamplingInterval = itemSamplingInterval;
+                floatMonitoredItem.QueueSize = queueSize;
                 floatMonitoredItem.Notification += OnMonitoredItemNotification;
 
                 subscription.AddItem(floatMonitoredItem);
@@ -349,11 +422,53 @@ namespace Quickstarts
                 stringMonitoredItem.StartNodeId = new NodeId("ns=2;s=Scalar_Simulation_String");
                 stringMonitoredItem.AttributeId = Attributes.Value;
                 stringMonitoredItem.DisplayName = "String Variable";
-                stringMonitoredItem.SamplingInterval = 1000;
-                stringMonitoredItem.QueueSize = 10;
+                stringMonitoredItem.SamplingInterval = itemSamplingInterval;
+                stringMonitoredItem.QueueSize = queueSize;
                 stringMonitoredItem.Notification += OnMonitoredItemNotification;
 
                 subscription.AddItem(stringMonitoredItem);
+
+                MonitoredItem eventMonitoredItem = new MonitoredItem(subscription.DefaultItem);
+                eventMonitoredItem.StartNodeId = new NodeId(Opc.Ua.ObjectIds.Server);
+                eventMonitoredItem.AttributeId = Attributes.EventNotifier;
+                eventMonitoredItem.DisplayName = "Event Variable";
+                eventMonitoredItem.SamplingInterval = itemSamplingInterval;
+                eventMonitoredItem.QueueSize = queueSize;
+                eventMonitoredItem.Notification += OnMonitoredItemEventNotification;
+
+                EventFilter filter = new EventFilter();
+
+                SimpleAttributeOperandCollection simpleAttributeOperands = new SimpleAttributeOperandCollection();
+
+                foreach ( QualifiedNameCollection desiredEventField in m_desiredEventFields.Values )
+                {
+                    simpleAttributeOperands.Add(new SimpleAttributeOperand() {
+                        AttributeId = Attributes.Value,
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        BrowsePath = desiredEventField
+                        });
+                }
+                filter.SelectClauses = simpleAttributeOperands;
+
+                ContentFilter whereClause = new ContentFilter();
+                SimpleAttributeOperand existingEventType = new SimpleAttributeOperand() {
+                    AttributeId = Attributes.Value,
+                    TypeDefinitionId = ObjectTypeIds.ExclusiveLevelAlarmType,
+                    BrowsePath = new QualifiedNameCollection( new QualifiedName[] {"EventType"} )
+                };
+                LiteralOperand desiredEventType = new LiteralOperand();
+                desiredEventType.Value = new Variant(new NodeId(Opc.Ua.ObjectTypeIds.ExclusiveLevelAlarmType));
+
+              
+                whereClause.Push(FilterOperator.Equals, new FilterOperand[] { existingEventType, desiredEventType });
+
+                filter.WhereClause = whereClause;
+
+                eventMonitoredItem.Filter = filter;
+                eventMonitoredItem.NodeClass = NodeClass.Object;
+
+
+                subscription.AddItem(eventMonitoredItem);
 
                 // Create the monitored items on Server side
                 subscription.ApplyChanges();
@@ -1012,11 +1127,56 @@ namespace Quickstarts
             {
                 // Log MonitoredItem Notification event
                 MonitoredItemNotification notification = e.NotificationValue as MonitoredItemNotification;
-                m_output.WriteLine("Notification: {0} \"{1}\" and Value = {2}.", notification.Message.SequenceNumber, monitoredItem.ResolvedNodeId, notification.Value);
+                DateTime localTime = notification.Value.SourceTimestamp.ToLocalTime();
+                m_output.WriteLine("Notification: {0} \"{1}\" and Value = {2} at [{3}].",
+                    notification.Message.SequenceNumber,
+                    monitoredItem.ResolvedNodeId,
+                    notification.Value,
+                    localTime.ToLongTimeString());
             }
             catch (Exception ex)
             {
                 m_output.WriteLine("OnMonitoredItemNotification error: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Handle Requested Event notifications from Server
+        /// </summary>
+        private void OnMonitoredItemEventNotification(MonitoredItem monitoredItem, MonitoredItemNotificationEventArgs e)
+        {
+            try
+            {
+                // Log MonitoredItem Notification event
+                EventFieldList notification = e.NotificationValue as EventFieldList;
+
+                m_output.WriteLine("Event Received");
+
+                foreach ( KeyValuePair< int, QualifiedNameCollection> entry in m_desiredEventFields )
+                {
+                    Variant field = notification.EventFields[entry.Key];
+                    if ( field.TypeInfo.BuiltInType != BuiltInType.Null )
+                    {
+                        StringBuilder fieldPath = new StringBuilder();
+
+                        int lastIndex = entry.Value.Count - 1;
+                        for ( int index = 0; index < entry.Value.Count; index++)
+                        {
+                            fieldPath.Append(entry.Value[index].Name);
+                            if ( index < lastIndex )
+                            {
+                                fieldPath.Append(".");
+                            }
+                        }
+
+                        m_output.WriteLine("\tField [{0}] \"{1}\" = [{2}]",
+                            entry.Key.ToString(), fieldPath.ToString(), field.Value );
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                m_output.WriteLine("OnMonitoredItemEventNotification error: {0}", ex.Message);
             }
         }
 
@@ -1082,5 +1242,7 @@ namespace Quickstarts
         private readonly TextWriter m_output;
         private readonly ManualResetEvent m_quitEvent;
         private readonly bool m_verbose;
+        private Dictionary<int, QualifiedNameCollection> m_desiredEventFields = null;
+
     }
 }
