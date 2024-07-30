@@ -227,11 +227,102 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void DataValueQueueSizeChangeRequeuesValues()
         {
+            var queue = new DataChangeMonitoredItemQueue(false);
+
+            queue.SetQueueSize(10, true);
+
+            Assert.That(queue.QueueSize, Is.EqualTo(10));
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
+
+            var statuscode = new ServiceResult(StatusCodes.Good);
+            var dataValue = new DataValue(new Variant(true));
+
+            for (int i = 0; i < 10; i++)
+            {
+                queue.Enqueue(dataValue, statuscode);
+            }
+
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(10));
+
+            queue.SetQueueSize(20, true);
+
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(10));
+            Assert.That(queue.QueueSize, Is.EqualTo(20));
+
+            queue.SetQueueSize(5, true);
+
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(5));
+            Assert.That(queue.QueueSize, Is.EqualTo(5));
+
+            for (int i = 0; i < 5; i++)
+            {
+                bool status = queue.Dequeue(out DataValue result, out ServiceResult resultError);
+
+                Assert.That(status, Is.True);
+                Assert.That(result, Is.EqualTo(dataValue));
+                Assert.That(resultError, Is.EqualTo(statuscode));
+            }
+
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
+
+            bool status2 = queue.Dequeue(out DataValue result2, out ServiceResult resultError2);
+
+            Assert.That(status2, Is.False);
+            Assert.That(result2, Is.Null);
+            Assert.That(resultError2, Is.Null);
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
         }
 
         [Test]
         public void DataValueDecreaseQueueSizeDiscardsOldest()
         {
+            var queue = new DataChangeMonitoredItemQueue(false);
+
+            queue.SetQueueSize(10, true);
+
+            Assert.That(queue.QueueSize, Is.EqualTo(10));
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
+
+            var statuscode = new ServiceResult(StatusCodes.Good);
+            var dataValue = new DataValue(new Variant(true));
+
+            for (int i = 0; i < 5; i++)
+            {
+                queue.Enqueue(dataValue, statuscode);
+            }
+
+            var statuscode2 = new ServiceResult(StatusCodes.Good);
+            var dataValue2 = new DataValue(new Variant(true));
+
+            for (int i = 0; i < 5; i++)
+            {
+                queue.Enqueue(dataValue2, statuscode2);
+            }
+
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(10));
+
+            queue.SetQueueSize(5, true);
+
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(5));
+            Assert.That(queue.QueueSize, Is.EqualTo(5));
+
+            for (int i = 0; i < 5; i++)
+            {
+                bool status = queue.Dequeue(out DataValue result, out ServiceResult resultError);
+
+                Assert.That(status, Is.True);
+                Assert.That(result, Is.EqualTo(dataValue2));
+                Assert.That(resultError, Is.EqualTo(statuscode2));
+            }
+
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
+
+            bool status2 = queue.Dequeue(out DataValue result2, out ServiceResult resultError2);
+
+            Assert.That(status2, Is.False);
+            Assert.That(result2, Is.Null);
+            Assert.That(resultError2, Is.Null);
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
         }
         #endregion
         #region benchmarks
@@ -520,16 +611,163 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void EventQueueSizeChangeRequeuesValues()
         {
+            var queue = new EventMonitoredItemQueue(false);
+
+            queue.SetQueueSize(10, false);
+
+            Assert.That(queue.QueueSize, Is.EqualTo(10));
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
+
+            var value = new EventFieldList {
+                EventFields = new VariantCollection(1) {
+                        new Variant(true)
+                    }
+            };
+
+            for (int i = 0; i < 10; i++)
+            {
+                queue.Enqueue(value);
+            }
+
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(10));
+
+            queue.SetQueueSize(20, false);
+
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(10));
+            Assert.That(queue.QueueSize, Is.EqualTo(20));
+
+            queue.SetQueueSize(5, false);
+
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(5));
+            Assert.That(queue.QueueSize, Is.EqualTo(5));
+
+            for (int i = 0; i < 5; i++)
+            {
+                bool status = queue.Dequeue(out EventFieldList result);
+
+                Assert.That(status, Is.True);
+                Assert.That(result, Is.EqualTo(value));
+            }
+
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
+
+            bool status2 = queue.Dequeue(out EventFieldList result2);
+
+            Assert.That(status2, Is.False);
+            Assert.That(result2, Is.Null);
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
         }
 
         [Test]
         public void EventDecreaseQueueSizeDiscardsOldest()
         {
+            var queue = new EventMonitoredItemQueue(false);
+
+            queue.SetQueueSize(10, false);
+
+            Assert.That(queue.QueueSize, Is.EqualTo(10));
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
+
+            var value = new EventFieldList {
+                EventFields = new VariantCollection(1) {
+                        new Variant(true)
+                    }
+            };
+
+            for (int i = 0; i < 5; i++)
+            {
+                queue.Enqueue(value);
+            }
+
+            var value2 = new EventFieldList {
+                EventFields = new VariantCollection(1) {
+                        new Variant(false)
+                    }
+            };
+
+            for (int i = 0; i < 5; i++)
+            {
+                queue.Enqueue(value2);
+            }
+
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(10));
+
+            queue.SetQueueSize(5, true);
+
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(5));
+            Assert.That(queue.QueueSize, Is.EqualTo(5));
+
+            for (int i = 0; i < 5; i++)
+            {
+                bool status = queue.Dequeue(out EventFieldList result);
+
+                Assert.That(status, Is.True);
+                Assert.That(result, Is.EqualTo(value2));
+            }
+
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
+
+            bool status2 = queue.Dequeue(out EventFieldList result2);
+
+            Assert.That(status2, Is.False);
+            Assert.That(result2, Is.Null);
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
         }
 
         [Test]
         public void EventDecreaseQueueSizeDiscardsNewest()
         {
+            var queue = new EventMonitoredItemQueue(false);
+
+            queue.SetQueueSize(10, false);
+
+            Assert.That(queue.QueueSize, Is.EqualTo(10));
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
+
+            var value = new EventFieldList {
+                EventFields = new VariantCollection(1) {
+                        new Variant(true)
+                    }
+            };
+
+            for (int i = 0; i < 5; i++)
+            {
+                queue.Enqueue(value);
+            }
+
+            var value2 = new EventFieldList {
+                EventFields = new VariantCollection(1) {
+                        new Variant(false)
+                    }
+            };
+
+            for (int i = 0; i < 5; i++)
+            {
+                queue.Enqueue(value2);
+            }
+
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(10));
+
+            queue.SetQueueSize(5, false);
+
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(5));
+            Assert.That(queue.QueueSize, Is.EqualTo(5));
+
+            for (int i = 0; i < 5; i++)
+            {
+                bool status = queue.Dequeue(out EventFieldList result);
+
+                Assert.That(status, Is.True);
+                Assert.That(result, Is.EqualTo(value));
+            }
+
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
+
+            bool status2 = queue.Dequeue(out EventFieldList result2);
+
+            Assert.That(status2, Is.False);
+            Assert.That(result2, Is.Null);
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
         }
 
         #endregion
