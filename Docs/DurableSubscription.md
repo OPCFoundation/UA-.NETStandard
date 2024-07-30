@@ -17,6 +17,7 @@ Typically the following porting steps are necessary:
   - If a custom implementation of `INodeManager` is used, or the Method `CreateMonitoredItems` is overridden, add the new parameter `createDurable`. Pass the value of this parameter to the MonitoredItem constructor. If a custom queue length check if performed for durable subscriptions check against the durable queue length from SererConfiguration.
   - If a custom `IMonitoredItem` implementation is used, implement the `IsDurable` property. Implement a `Dispose` method. Add a `createDurable` paramter to the constructor. 
   - Make the custom `MonitoredItem` use the `IMonitoredItemQueueFactory` from `IServerInternal.MonitoredItemQueueFactory` to get the registerd durable queues instead of using internal queues for events & value changes.
+  - To test custom queues use the unit tests in Server Test Project in the file monitoredItemTests and adapt to use your own queue by providing your `IMonitoredItemQueueFactory` in the constructor.
 
 Extend the ServerConfiguration
   - Set `DurableSubscriptionsEnabled` to true

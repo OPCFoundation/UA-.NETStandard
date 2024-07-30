@@ -80,6 +80,11 @@ namespace Quickstarts.ReferenceServer
             return new MasterNodeManager(server, configuration, null, nodeManagers.ToArray());
         }
 
+        protected override IMonitoredItemQueueFactory CreateMonitoredItemQueueFactory(IServerInternal server, ApplicationConfiguration configuration)
+        {
+            return new DurableMonitoredItemQueueFactory();
+        }
+
         /// <summary>
         /// Loads the non-configurable properties for the application.
         /// </summary>

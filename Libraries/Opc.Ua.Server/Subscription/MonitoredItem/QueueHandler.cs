@@ -32,7 +32,7 @@ using System.Collections.Generic;
 
 namespace Opc.Ua.Server
 {
-    #region QueueHandler
+    #region DataChangeQueueHandler
     /// <summary>
     /// Mangages a data value queue for a data change monitoredItem
     /// </summary>
@@ -47,7 +47,7 @@ namespace Opc.Ua.Server
         /// <param name="discardedValueHandler"></param>
         public DataChangeQueueHandler(uint monitoredItemId, bool createDurable, IMonitoredItemQueueFactory queueFactory, Action discardedValueHandler = null)
         {
-            m_dataValueQueue = queueFactory.CreateDataValueQueue(createDurable);
+            m_dataValueQueue = queueFactory.CreateDataChangeQueue(createDurable);
 
             m_discardedValueHandler = discardedValueHandler;
             m_monitoredItemId = monitoredItemId;

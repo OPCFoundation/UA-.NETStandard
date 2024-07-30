@@ -40,9 +40,9 @@ namespace Opc.Ua.Server
     public class MonitoredItemQueueFactory : IMonitoredItemQueueFactory
     {
         /// <inheritdoc/>
-        public bool SupportsDurableQueues => true;
+        public bool SupportsDurableQueues => false;
         /// <inheritdoc/>
-        public IDataChangeMonitoredItemQueue CreateDataValueQueue(bool createDurable)
+        public IDataChangeMonitoredItemQueue CreateDataChangeQueue(bool createDurable)
         {
             return new DataChangeMonitoredItemQueue(createDurable);
         }
@@ -69,11 +69,11 @@ namespace Opc.Ua.Server
         /// </summary>
         public DataChangeMonitoredItemQueue(bool createDurable)
         {
-            //if (createDurable)
-            //{
-            //    Utils.LogError("DataChangeMonitoredItemQueue does not support durable queues, please provide full implementation of IDurableMonitoredItemQueue using Server.CreateDurableMonitoredItemQueueFactory to supply own factory");
-            //    throw new ServiceResultException(StatusCodes.BadInternalError);
-            //}
+            if (createDurable)
+            {
+                Utils.LogError("DataChangeMonitoredItemQueue does not support durable queues, please provide full implementation of IDurableMonitoredItemQueue using Server.CreateDurableMonitoredItemQueueFactory to supply own factory");
+                throw new ServiceResultException(StatusCodes.BadInternalError);
+            }
 
             m_values = null;
             m_errors = null;
@@ -341,11 +341,11 @@ namespace Opc.Ua.Server
         /// </summary>
         public EventMonitoredItemQueue(bool createDurable)
         {
-            //if (createDurable)
-            //{
-            //    Utils.LogError("EventMonitoredItemQueue does not support durable queues, please provide full implementation of IDurableMonitoredItemQueue using Server.CreateDurableMonitoredItemQueueFactory to supply own factory");
-            //    throw new ServiceResultException(StatusCodes.BadInternalError);
-            //}
+            if (createDurable)
+            {
+                Utils.LogError("EventMonitoredItemQueue does not support durable queues, please provide full implementation of IDurableMonitoredItemQueue using Server.CreateDurableMonitoredItemQueueFactory to supply own factory");
+                throw new ServiceResultException(StatusCodes.BadInternalError);
+            }
             m_events = new List<EventFieldList>();
             m_isDurable = createDurable;
             m_queueSize = 0;
@@ -433,4 +433,5 @@ namespace Opc.Ua.Server
         private readonly bool m_isDurable;
         #endregion
     }
+
 }

@@ -39,7 +39,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates an empty queue for data values.
         /// </summary>
-        IDataChangeMonitoredItemQueue CreateDataValueQueue(bool isDurable);
+        IDataChangeMonitoredItemQueue CreateDataChangeQueue(bool isDurable);
 
         /// <summary>
         /// Creates an empty queue for events.
