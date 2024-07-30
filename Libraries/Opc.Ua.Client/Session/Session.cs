@@ -880,7 +880,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Gets and sets the minimum number of publish requests to be used in the session.
+        /// Gets and sets the maximum number of publish requests to be used in the session.
         /// </summary>
         public int MaxPublishRequestCount
         {
