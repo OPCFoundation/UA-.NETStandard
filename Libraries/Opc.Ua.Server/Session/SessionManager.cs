@@ -631,16 +631,6 @@ namespace Opc.Ua.Server
         }
         #endregion
 
-        #region Protected Methods reading some private attributes
-
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-        protected IServerInternal Server { get { return m_server; } }
-        protected int MaxRequestAge => m_maxRequestAge;
-        protected int MaxBrowseContinuationPoints => m_maxBrowseContinuationPoints;
-        protected int MaxHistoryContinuationPoints => m_maxHistoryContinuationPoints;
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
-        #endregion
-
         #region Private Fields
         private readonly object m_lock = new object();
         private IServerInternal m_server;

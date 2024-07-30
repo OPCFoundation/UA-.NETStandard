@@ -39,6 +39,7 @@ using BenchmarkDotNet.Attributes;
 using Castle.Core.Logging;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.Diagnostics.Tracing.Parsers.MicrosoftWindowsTCPIP;
 using NUnit.Framework;
 using NUnit.Framework.Internal;
 using Opc.Ua.Server;
@@ -119,20 +120,61 @@ namespace Opc.Ua.Client.Tests
 
     public class ServerSessionForTest : Opc.Ua.Server.Session
     {
-        public ServerSessionForTest(OperationContext context, IServerInternal server, X509Certificate2 serverCertificate, NodeId authenticationToken, byte[] clientNonce, byte[] serverNonce, string sessionName, ApplicationDescription clientDescription, string endpointUrl, X509Certificate2 clientCertificate, double sessionTimeout, uint maxResponseMessageSize, double maxRequestAge, int maxBrowseContinuationPoints, int maxHistoryContinuationPoints) : base(context, server, serverCertificate, authenticationToken, clientNonce, serverNonce, sessionName, clientDescription, endpointUrl, clientCertificate, sessionTimeout, maxResponseMessageSize, maxRequestAge, maxBrowseContinuationPoints, maxHistoryContinuationPoints)
+        public ServerSessionForTest(
+            OperationContext context,
+            IServerInternal server,
+            X509Certificate2 serverCertificate,
+            NodeId authenticationToken,
+            byte[] clientNonce,
+            byte[] serverNonce,
+            string sessionName,
+            ApplicationDescription
+            clientDescription,
+            string endpointUrl,
+            X509Certificate2 clientCertificate,
+            double sessionTimeout,
+            uint maxResponseMessageSize,
+            double maxRequestAge,
+            int maxBrowseContinuationPoints,
+            int maxHistoryContinuationPoints
+                ) : base(
+                    context,
+                    server,
+                    serverCertificate,
+                    authenticationToken,
+                    clientNonce,
+                    serverNonce,
+                    sessionName,
+                    clientDescription,
+                    endpointUrl,
+                    clientCertificate,
+                    sessionTimeout,
+                    maxResponseMessageSize,
+                    maxRequestAge,
+                    maxBrowseContinuationPoints,
+                    maxHistoryContinuationPoints
+                    )
         {
         }
 
         public void SetMaxNumberOfContinuationPoints(uint maxNumberOfContinuationPoints)
         {
-            m_maxBrowseContinuationPoints = (int) maxNumberOfContinuationPoints;
+            MaxBrowseContinuationPoints = (int) maxNumberOfContinuationPoints;
         }
     }
 
     public class SessionManagerForTest : Opc.Ua.Server.SessionManager
     {
+        private IServerInternal m_4TestServer;
+        private int m_4TestMaxRequestAge;
+        private int m_4TestMaxBrowseContinuationPoints;
+        private int m_4TestMaxHistoryContinuationPoints;
         public SessionManagerForTest(IServerInternal server, ApplicationConfiguration configuration) : base(server, configuration)
         {
+            m_4TestServer = server;
+            m_4TestMaxRequestAge = configuration.ServerConfiguration.MaxRequestAge;
+            m_4TestMaxBrowseContinuationPoints = configuration.ServerConfiguration.MaxBrowseContinuationPoints;
+            m_4TestMaxHistoryContinuationPoints = configuration.ServerConfiguration.MaxHistoryContinuationPoints;
         }
 
     protected override Opc.Ua.Server.Session CreateSession(
@@ -153,7 +195,7 @@ namespace Opc.Ua.Client.Tests
         {
             ServerSessionForTest session = new ServerSessionForTest(
                 context,
-                Server,
+                m_4TestServer,
                 serverCertificate,
                 sessionCookie,
                 clientNonce,
@@ -164,9 +206,9 @@ namespace Opc.Ua.Client.Tests
                 clientCertificate,
                 sessionTimeout,
                 maxResponseMessageSize,
-                MaxRequestAge,
-                MaxBrowseContinuationPoints,
-                MaxHistoryContinuationPoints);
+                m_4TestMaxRequestAge,
+                m_4TestMaxBrowseContinuationPoints,
+                m_4TestMaxHistoryContinuationPoints);
 
             return (Opc.Ua.Server.Session)session;
         }
