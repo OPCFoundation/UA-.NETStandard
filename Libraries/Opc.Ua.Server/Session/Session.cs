@@ -392,6 +392,11 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// allow derived classes access
+        /// </summary>
+        protected int MaxBrowseContinuationPoints { get => m_maxBrowseContinuationPoints; set => m_maxBrowseContinuationPoints = value; }
+
+        /// <summary>
         /// Validates the request.
         /// </summary>
         public virtual void ValidateRequest(RequestHeader requestHeader, RequestType requestType)
@@ -1174,9 +1179,7 @@ namespace Opc.Ua.Server
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
         private uint m_maxResponseMessageSize;
         private double m_maxRequestAge;
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-        protected int m_maxBrowseContinuationPoints;
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
+        private int m_maxBrowseContinuationPoints;
         private int m_maxHistoryContinuationPoints;
 
         private SessionDiagnosticsDataType m_diagnostics;
