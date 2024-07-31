@@ -3672,8 +3672,8 @@ namespace Opc.Ua.Client
         #region Combined Browse/BrowseNext
 
         /// <summary>
-        /// Execute browse and, if necessary, browse next in one
-        /// service call. Take care of BadNoContinuationPoint and BadInvalidContnuationPoint errors
+        /// Execute browse and, if necessary, browse next in one service call.
+        /// Take care of BadNoContinuationPoint and BadInvalidContnuationPoint errors
         /// </summary>
         /// <param name="requestHeader"></param>
         /// <param name="view"></param>
@@ -3839,7 +3839,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Call browse and, if necessary, browse next (recursively) on input
         /// Release continuation points on all errors other than
-        /// BadNoContinuationPoins and BadContinuationPointInvalid  
+        /// BadNoContinuationPoints and BadContinuationPointInvalid  
         /// </summary>
         /// <param name="view"></param>
         /// <param name="nodeIds"></param>
