@@ -6772,7 +6772,7 @@ namespace Opc.Ua.Client
         private readonly EndpointDescriptionCollection m_discoveryServerEndpoints;
         private readonly StringCollection m_discoveryProfileUris;
         private uint m_ServerMaxContinuationPointsPerBrowse;
-        private bool m_useManagedBrowseInFetchReferences;
+        private bool m_useManagedBrowseInFetchReferences = true;
 
         private class AsyncRequestState
         {
