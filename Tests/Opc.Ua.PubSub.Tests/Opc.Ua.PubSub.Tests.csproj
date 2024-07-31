@@ -15,7 +15,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="NunitXml.TestLogger" Version="3.1.20" />
+    <PackageReference Include="NunitXml.TestLogger" Version="4.0.254" />
     <PackageReference Include="Moq" Version="4.20.70" />
     <PackageReference Include="coverlet.collector" Version="6.0.2">
       <PrivateAssets>all</PrivateAssets>
