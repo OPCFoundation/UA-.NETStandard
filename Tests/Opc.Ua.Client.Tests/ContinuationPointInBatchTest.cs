@@ -34,6 +34,7 @@ using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using Castle.Core.Logging;
@@ -542,6 +543,12 @@ namespace Opc.Ua.Client.Tests
         #region Tests
 
         /// <summary>
+        /// This test is taken from the node cache unit test.
+        /// Instead of the original test, there are now restrctions
+        /// on the maximum number of continuation points supported
+        /// by the server, and the maximum number of nodes allowed
+        /// in a browse service call.
+        /// 
         /// Browse all variables in the objects folder.
         /// </summary>
         [Theory]
@@ -600,6 +607,11 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// This test is taken from the node cache unit test.
+        /// Instead of the original test, there are now restrctions
+        /// on the maximum number of continuation points supported
+        /// by the server, and the maximum number of nodes allowed
+        /// in a browse service call.
         /// Browse all variables in the objects folder.
         /// </summary>
         [Theory]
@@ -1102,9 +1114,61 @@ namespace Opc.Ua.Client.Tests
             }
 
         }
+        #endregion Tests
 
+        #region async tests
 
-            private void WriteMemoryLogToTextOut(List<String> memoryLog, string contextInfo)
+        [Theory, Order(20000)]
+        public async Task ManagedBrowseWithManyContinuationPointsAsync(ManagedBrowseTestDataProvider testData)
+        {
+            CPBatchTestMemoryWriter memoryWriter = new CPBatchTestMemoryWriter();
+            base.ClientFixture.SetTraceOutput(memoryWriter);
+            Session theSession = ((Session)(((TraceableSession)Session).Session));
+
+            ManagedBrowseExpectedResultValues pass1ExpectedResults = new ManagedBrowseExpectedResultValues {
+                InputMaxNumberOfContinuationPoints = testData.MaxNumberOfContinuationPoints,
+                InputMaxNumberOfReferencesPerNode = testData.MaxNumberOfReferencesPerNode,
+                ExpectedNumberOfPasses = testData.ExpectedNumberOfPasses,
+                ExpectedNumberOfBadNoCPSCs = testData.ExpectedNumberOfBadNoCPSCs
+            };
+
+            ManagedBrowseExpectedResultValues pass2ExpectedResults = new ManagedBrowseExpectedResultValues {
+                InputMaxNumberOfContinuationPoints = 0,
+                InputMaxNumberOfReferencesPerNode = 1000,
+                ExpectedNumberOfPasses = 1,
+                ExpectedNumberOfBadNoCPSCs = new List<int>()
+            };
+
+            ReferenceServerForThisUnitTest.Test_MaxBrowseReferencesPerNode =
+                pass1ExpectedResults.InputMaxNumberOfReferencesPerNode;
+
+            ReferenceServerForThisUnitTest.SetMaxNumberOfContinuationPoints(
+                pass1ExpectedResults.InputMaxNumberOfContinuationPoints);
+
+            List<NodeId> nodeIds = getMassFolderNodesToBrowse();
+
+            // browse with test settings
+            (
+                List<ReferenceDescriptionCollection> referenceDescriptionCollectionPass1,
+                IList<ServiceResult> errorsPass1
+                ) =
+
+            await theSession.ManagedBrowseAsync(
+                null, null, nodeIds, 0, BrowseDirection.Forward, ReferenceTypeIds.Organizes, true,
+                0, executeDefensively: false, new CancellationToken()).ConfigureAwait(false);
+
+            Assert.AreEqual(nodeIds.Count, referenceDescriptionCollectionPass1.Count);
+
+            List<String> memoryLogPass1 = memoryWriter.getEntries();
+            WriteMemoryLogToTextOut(memoryLogPass1, "memoryLogPass1");
+            VerifyExpectedResults(memoryLogPass1, pass1ExpectedResults);
+
+            memoryWriter.Close(); memoryWriter.Dispose();
+        }
+#endregion async tests
+
+#region helper methods
+        private void WriteMemoryLogToTextOut(List<String> memoryLog, string contextInfo)
         {           
             if (memoryLog.Count > 0)
             {
@@ -1145,7 +1209,6 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
-        #endregion
         List<NodeId> getMassFolderNodesToBrowse()
         {
             
@@ -1176,7 +1239,7 @@ namespace Opc.Ua.Client.Tests
                 "Variant", "XmlElement"
             };
         }
-        #region Private Methods
+
         private void BrowseFullAddressSpace()
         {
             var requestHeader = new RequestHeader {

@@ -3746,7 +3746,7 @@ namespace Opc.Ua.Client
             BrowseDirection browseDirection,
             NodeId referenceTypeId,
             bool includeSubtypes,
-            uint nodeClassMask,            
+            uint nodeClassMask,
             out List<ReferenceDescriptionCollection> result,
             out List<ServiceResult> errors,
             bool excecuteDefensively = false)
@@ -3899,7 +3899,7 @@ namespace Opc.Ua.Client
         /// <param name="referenceTypeId"></param>
         /// <param name="includeSubtypes"></param>
         /// <param name="nodeClassMask"></param>
-        /// <param name="referenceDescriptions"></param>
+        /// <param name="result"></param>
         /// <param name="finalErrors"></param>
         /// <returns></returns>
         private void BrowseWithBrowseNext(
@@ -3910,13 +3910,11 @@ namespace Opc.Ua.Client
             NodeId referenceTypeId,
             bool includeSubtypes,
             uint nodeClassMask,
-            out List<ReferenceDescriptionCollection> referenceDescriptions,
+            out List<ReferenceDescriptionCollection> result, 
             out IList<ServiceResult> finalErrors)
-        {            
-
-            var result = new List<ReferenceDescriptionCollection>();
-
-            referenceDescriptions = result;
+        {
+            
+            result = new List<ReferenceDescriptionCollection>();
 
             // browse for all references.
             Browse(
