@@ -40,6 +40,7 @@ using BenchmarkDotNet.Attributes;
 using Castle.Core.Logging;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.Diagnostics.Tracing.Parsers.AspNet;
 using Microsoft.Diagnostics.Tracing.Parsers.MicrosoftWindowsTCPIP;
 using NUnit.Framework;
 using NUnit.Framework.Interfaces;
@@ -749,7 +750,7 @@ namespace Opc.Ua.Client.Tests
         /// no attempt to allocate continuation points in parallel from more than one service call.
         /// </summary>
         /// <param name="testData"></param>
-        [Theory, Order(10000)]
+        [Theory, Order(11000)]
         public void ManagedBrowseWithManyContinuationPoints(ManagedBrowseTestDataProvider testData)
         {
             CPBatchTestMemoryWriter memoryWriter = new CPBatchTestMemoryWriter();
@@ -883,7 +884,7 @@ namespace Opc.Ua.Client.Tests
         /// No return value should have the status code BadContinuationPointInvalid, since there is
         /// no attempt to allocate continuation points in parallel from more than one service call.
         /// </summary>
-        [Theory, Order(10100)]
+        [Theory, Order(11100)]
         public void DefensiveManagedBrowseWithManyContinuationPoints(ManagedBrowseTestDataProvider testData)
         {
             CPBatchTestMemoryWriter memoryWriter = new CPBatchTestMemoryWriter();
@@ -1016,7 +1017,7 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         /// <param name="testData"></param>
 
-        [Theory, Order(10200)]
+        [Theory, Order(11200)]
         public void ParallelManagedBrowseWithManyContinuationPoints(ManagedBrowseTestDataProvider testData)
         {
             CPBatchTestMemoryWriter memoryWriter = new CPBatchTestMemoryWriter();
@@ -1118,7 +1119,135 @@ namespace Opc.Ua.Client.Tests
 
         #region async tests
 
-        [Theory, Order(20000)]
+        /// <summary>
+        /// This test is taken from the node cache unit test.
+        /// Instead of the original test, there are now restrctions
+        /// on the maximum number of continuation points supported
+        /// by the server, and the maximum number of nodes allowed
+        /// in a browse service call.
+        /// 
+        /// Browse all variables in the objects folder.
+        /// </summary>
+        [Theory]
+        [Test, Order(20100)]
+        public async Task NodeCache_BrowseAllVariablesAsync(bool UseManagedBrowse, ManagedBrowseTestDataProvider testData)
+        {
+            Session theSession = ((Session)(((TraceableSession)Session).Session));
+            theSession.UseManagedBrowseInFetchReferences = UseManagedBrowse;
+
+            // the ExpectedNumber* parameters are not relevant/correct for this test.
+            ManagedBrowseExpectedResultValues pass1ExpectedResults = new ManagedBrowseExpectedResultValues {
+                InputMaxNumberOfContinuationPoints = testData.MaxNumberOfContinuationPoints,
+                InputMaxNumberOfReferencesPerNode = testData.MaxNumberOfReferencesPerNode,
+                ExpectedNumberOfPasses = testData.ExpectedNumberOfPasses,
+                ExpectedNumberOfBadNoCPSCs = testData.ExpectedNumberOfBadNoCPSCs
+            };
+
+            var result = new List<INode>();
+            var nodesToBrowse = new ExpandedNodeIdCollection {
+                ObjectIds.ObjectsFolder
+            };
+
+            await Session.FetchTypeTreeAsync(ReferenceTypeIds.References, new CancellationToken()).ConfigureAwait(false) ;
+
+            while (nodesToBrowse.Count > 0)
+            {
+                var nextNodesToBrowse = new ExpandedNodeIdCollection();
+                foreach (var node in nodesToBrowse)
+                {
+                    try
+                    {
+                        var organizers = await Session.NodeCache.FindReferencesAsync(
+                            node,
+                            ReferenceTypeIds.HierarchicalReferences,
+                            false,
+                            true, new CancellationToken()).ConfigureAwait(false);
+                        nextNodesToBrowse.AddRange(organizers.Select(n => n.NodeId));
+                        var objectNodes = organizers.Where(n => n is ObjectNode);
+                        var variableNodes = organizers.Where(n => n is VariableNode);
+                        result.AddRange(variableNodes);
+                    }
+                    catch (ServiceResultException sre)
+                    {
+                        if (sre.StatusCode == StatusCodes.BadUserAccessDenied)
+                        {
+                            TestContext.Out.WriteLine($"Access denied: Skip node {node}.");
+                        }
+                    }
+                }
+                nodesToBrowse = new ExpandedNodeIdCollection(nextNodesToBrowse.Distinct());
+                TestContext.Out.WriteLine("Found {0} duplicates", nextNodesToBrowse.Count - nodesToBrowse.Count);
+            }
+
+            TestContext.Out.WriteLine("Found {0} variables", result.Count);
+
+        }
+
+
+        /// <summary>
+        /// This test is taken from the node cache unit test.
+        /// Instead of the original test, there are now restrctions
+        /// on the maximum number of continuation points supported
+        /// by the server, and the maximum number of nodes allowed
+        /// in a browse service call.
+        /// Browse all variables in the objects folder.
+        /// </summary>
+        [Theory]
+        [Test, Order(20200)]
+        public async Task NodeCache_BrowseAllVariables_MultipleNodesAsync(bool UseManagedBrowse, ManagedBrowseTestDataProvider testData)
+        {
+            Session theSession = ((Session)(((TraceableSession)Session).Session));
+            theSession.UseManagedBrowseInFetchReferences = UseManagedBrowse;
+
+            // the ExpectedNumber* parameters are not relevant/correct for this test.
+            ManagedBrowseExpectedResultValues pass1ExpectedResults = new ManagedBrowseExpectedResultValues {
+                InputMaxNumberOfContinuationPoints = testData.MaxNumberOfContinuationPoints,
+                InputMaxNumberOfReferencesPerNode = testData.MaxNumberOfReferencesPerNode,
+                ExpectedNumberOfPasses = testData.ExpectedNumberOfPasses,
+                ExpectedNumberOfBadNoCPSCs = testData.ExpectedNumberOfBadNoCPSCs
+            };
+
+            var result = new List<INode>();
+            var nodesToBrowse = new ExpandedNodeIdCollection {
+                ObjectIds.ObjectsFolder
+            };
+
+            await Session.FetchTypeTreeAsync(ReferenceTypeIds.References, new CancellationToken()).ConfigureAwait(false);
+
+            var referenceTypeIds = new NodeIdCollection() { ReferenceTypeIds.HierarchicalReferences };
+            while (nodesToBrowse.Count > 0)
+            {
+                var nextNodesToBrowse = new ExpandedNodeIdCollection();
+                try
+                {
+                    var organizers = await Session.NodeCache.FindReferencesAsync(
+                        nodesToBrowse,
+                        referenceTypeIds,
+                        false,
+                        true,
+                        new CancellationToken()
+                        ).ConfigureAwait(false);
+                    nextNodesToBrowse.AddRange(organizers.Select(n => n.NodeId));
+                    var objectNodes = organizers.Where(n => n is ObjectNode);
+                    var variableNodes = organizers.Where(n => n is VariableNode);
+                    result.AddRange(variableNodes);
+                }
+                catch (ServiceResultException sre)
+                {
+                    if (sre.StatusCode == StatusCodes.BadUserAccessDenied)
+                    {
+                        TestContext.Out.WriteLine($"Access denied: Skipped node.");
+                    }
+                }
+                nodesToBrowse = new ExpandedNodeIdCollection(nextNodesToBrowse.Distinct());
+                TestContext.Out.WriteLine("Found {0} duplicates", nextNodesToBrowse.Count - nodesToBrowse.Count);
+            }
+
+            TestContext.Out.WriteLine("Found {0} variables", result.Count);
+        }
+
+
+        [Theory, Order(21000)]
         public async Task ManagedBrowseWithManyContinuationPointsAsync(ManagedBrowseTestDataProvider testData)
         {
             CPBatchTestMemoryWriter memoryWriter = new CPBatchTestMemoryWriter();
