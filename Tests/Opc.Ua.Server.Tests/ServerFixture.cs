@@ -108,7 +108,6 @@ namespace Opc.Ua.Server.Tests
                     .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic256)
                     .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic128Rsa15)
                     .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256)
-                    .AddUnsecurePolicyNone(true)
                     .AddSignPolicies()
                     .AddSignAndEncryptPolicies();
             }
