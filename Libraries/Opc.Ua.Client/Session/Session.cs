@@ -294,6 +294,7 @@ namespace Opc.Ua.Client
             m_transferSubscriptionsOnReconnect = false;
             m_reconnecting = false;
             m_reconnectLock = new SemaphoreSlim(1, 1);
+            m_ServerMaxContinuationPointsPerBrowse = 0; 
 
             m_defaultSubscription = new Subscription {
                 DisplayName = "Subscription",
