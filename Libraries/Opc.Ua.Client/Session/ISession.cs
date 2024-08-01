@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -911,6 +912,75 @@ namespace Opc.Ua.Client
             out byte[] revisedContinuationPoint,
             out ReferenceDescriptionCollection references);
         #endregion
+
+        #region ManagedBrowse methods
+
+        /// <summary>
+        /// Execute browse and, if necessary, browse next in one service call.
+        /// Take care of BadNoContinuationPoint and BadInvalidContnuationPoint errors
+        /// </summary>
+        /// <param name="requestHeader"></param>
+        /// <param name="view"></param>
+        /// <param name="nodesToBrowse"></param>
+        /// <param name="maxResultsToReturn"></param>
+        /// <param name="browseDirection"></param>
+        /// <param name="referenceTypeId"></param>
+        /// <param name="includeSubtypes"></param>
+        /// <param name="nodeClassMask"></param>
+        /// <param name="result"></param>
+        /// <param name="errors"></param>
+        /// <param name="excecuteDefensively"></param>
+        void ManagedBrowse(
+            RequestHeader requestHeader,
+            ViewDescription view,
+            IList<NodeId> nodesToBrowse,
+            uint maxResultsToReturn,
+            BrowseDirection browseDirection,
+            NodeId referenceTypeId,
+            bool includeSubtypes,
+            uint nodeClassMask,
+            out List<ReferenceDescriptionCollection> result,
+            out List<ServiceResult> errors,
+            bool excecuteDefensively = false);
+
+#if (CLIENT_ASYNC)
+
+        /// <summary>
+        /// Execute BrowseAsync and, if necessary, BrowseNextAsync, in one service call.
+        /// Take care of BadNoContinuationPoint and BadInvalidContnuationPoint errors
+        /// </summary>
+        /// <param name="requestHeader"></param>
+        /// <param name="view"></param>
+        /// <param name="nodesToBrowse"></param>
+        /// <param name="maxResultsToReturn"></param>
+        /// <param name="browseDirection"></param>
+        /// <param name="referenceTypeId"></param>
+        /// <param name="includeSubtypes"></param>
+        /// <param name="nodeClassMask"></param>
+        /// <param name="executeDefensively"></param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        Task<(
+            List<ReferenceDescriptionCollection>,
+            IList<ServiceResult>
+            )>
+                ManagedBrowseAsync(
+                RequestHeader requestHeader,
+                ViewDescription view,
+                IList<NodeId> nodesToBrowse,
+                uint maxResultsToReturn,
+                BrowseDirection browseDirection,
+                NodeId referenceTypeId,
+                bool includeSubtypes,
+                uint nodeClassMask,
+                bool executeDefensively = false,
+                CancellationToken ct = default
+            );
+
+
+#endif
+        #endregion ManagedBrowse methods
+
 
         #region Call Methods
         /// <summary>

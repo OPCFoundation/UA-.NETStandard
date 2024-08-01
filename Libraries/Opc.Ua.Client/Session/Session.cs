@@ -3722,22 +3722,8 @@ namespace Opc.Ua.Client
 
         #region Combined Browse/BrowseNext
 
-        /// <summary>
-        /// Execute browse and, if necessary, browse next in one service call.
-        /// Take care of BadNoContinuationPoint and BadInvalidContnuationPoint errors
-        /// </summary>
-        /// <param name="requestHeader"></param>
-        /// <param name="view"></param>
-        /// <param name="nodesToBrowse"></param>
-        /// <param name="maxResultsToReturn"></param>
-        /// <param name="browseDirection"></param>
-        /// <param name="referenceTypeId"></param>
-        /// <param name="includeSubtypes"></param>
-        /// <param name="nodeClassMask"></param>
-        /// <param name="excecuteDefensively"></param>
-        /// <param name="result"></param>
-        /// <param name="errors"></param>
-        /// <returns></returns>
+
+        /// <inheritdoc/>
         public void ManagedBrowse(
             RequestHeader requestHeader,
             ViewDescription view,

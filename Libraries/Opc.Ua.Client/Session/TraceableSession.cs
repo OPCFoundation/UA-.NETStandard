@@ -1258,6 +1258,30 @@ namespace Opc.Ua.Client
             }
         }
 
+
+        /// <inheritdoc/>
+        public void ManagedBrowse(RequestHeader requestHeader, ViewDescription view, IList<NodeId> nodesToBrowse, uint maxResultsToReturn, BrowseDirection browseDirection, NodeId referenceTypeId, bool includeSubtypes, uint nodeClassMask, out List<ReferenceDescriptionCollection> result, out List<ServiceResult> errors, bool excecuteDefensively = false)
+        {
+            using (Activity activity = ActivitySource.StartActivity())
+            {
+                m_session.ManagedBrowse(requestHeader, view, nodesToBrowse, maxResultsToReturn, browseDirection, referenceTypeId, includeSubtypes, nodeClassMask, out result, out errors, excecuteDefensively);
+            }
+
+        }
+        
+        /// <inheritdoc/>        
+        public async Task<(
+            List<ReferenceDescriptionCollection>,
+            IList<ServiceResult>
+            )>
+                ManagedBrowseAsync(RequestHeader requestHeader, ViewDescription view, IList<NodeId> nodesToBrowse, uint maxResultsToReturn, BrowseDirection browseDirection, NodeId referenceTypeId, bool includeSubtypes, uint nodeClassMask, bool executeDefensively = false, CancellationToken ct = default)
+        {
+            using (Activity activity = ActivitySource.StartActivity())
+            {
+                return await ManagedBrowseAsync( requestHeader, view, nodesToBrowse, maxResultsToReturn, browseDirection, referenceTypeId, includeSubtypes, nodeClassMask, executeDefensively, ct);
+            }
+        }
+
         /// <inheritdoc/>
         public ResponseHeader TranslateBrowsePathsToNodeIds(RequestHeader requestHeader, BrowsePathCollection browsePaths, out BrowsePathResultCollection results, out DiagnosticInfoCollection diagnosticInfos)
         {

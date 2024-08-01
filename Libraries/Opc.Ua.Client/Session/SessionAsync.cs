@@ -1052,21 +1052,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Combined Browse/BrowseNext
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="requestHeader"></param>
-        /// <param name="view"></param>
-        /// <param name="nodesToBrowse"></param>
-        /// <param name="maxResultsToReturn"></param>
-        /// <param name="browseDirection"></param>
-        /// <param name="referenceTypeId"></param>
-        /// <param name="includeSubtypes"></param>
-        /// <param name="nodeClassMask"></param>
-        /// <param name="executeDefensively"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
+        /// <inheritdoc/>
         public async Task<(
             List<ReferenceDescriptionCollection>,
             IList<ServiceResult>
