@@ -673,6 +673,9 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         [Theory]
         [Test, Order(1000)]
+        [Ignore("This test case ignores the server setting for the maximal number of " +
+            "Continuation Points/nodes per browse request in this setup and will fail " +
+            "with BadTooManyOperations. It's here to demonstrate this fact.")]
         public void NodeCacheFetchNodesConcurrent(bool UseManagedBrowse)
         {
             Session theSession = ((Session)(((TraceableSession)Session).Session));
