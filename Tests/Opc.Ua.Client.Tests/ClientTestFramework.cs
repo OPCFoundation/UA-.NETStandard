@@ -110,7 +110,7 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         /// <param name="writer">The test output writer.</param>
         public async Task OneTimeSetUpAsync(TextWriter writer = null,
-            bool securityNone = true,
+            bool securityNone = false,
             bool enableClientSideTracing = false,
             bool enableServerSideTracing = false,
             bool disableActivityLogging = false
