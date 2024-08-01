@@ -56,6 +56,7 @@ namespace Opc.Ua.Client
     {
         private const int kReconnectTimeout = 15000;
         private const int kMinPublishRequestCountMax = 100;
+        private const int kMaxPublishRequestCountMax = ushort.MaxValue;
         private const int kDefaultPublishRequestCount = 1;
         private const int kKeepAliveGuardBand = 1000;
         private const int kPublishRequestSequenceNumberOutOfOrderThreshold = 10;
@@ -287,6 +288,7 @@ namespace Opc.Ua.Client
             m_keepAliveInterval = 5000;
             m_tooManyPublishRequests = 0;
             m_minPublishRequestCount = kDefaultPublishRequestCount;
+            m_maxPublishRequestCount = kMaxPublishRequestCountMax;
             m_sessionName = "";
             m_deleteSubscriptionsOnClose = true;
             m_transferSubscriptionsOnReconnect = false;
@@ -873,6 +875,29 @@ namespace Opc.Ua.Client
                     {
                         throw new ArgumentOutOfRangeException(nameof(MinPublishRequestCount),
                             $"Minimum publish request count must be between {kDefaultPublishRequestCount} and {kMinPublishRequestCountMax}.");
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets and sets the maximum number of publish requests to be used in the session.
+        /// </summary>
+        public int MaxPublishRequestCount
+        {
+            get => Math.Max(m_minPublishRequestCount, m_maxPublishRequestCount);
+            set
+            {
+                lock (SyncRoot)
+                {
+                    if (value >= kDefaultPublishRequestCount && value <= kMaxPublishRequestCountMax)
+                    {
+                        m_maxPublishRequestCount = value;
+                    }
+                    else
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(MaxPublishRequestCount),
+                            $"Maximum publish request count must be between {kDefaultPublishRequestCount} and {kMaxPublishRequestCountMax}.");
                     }
                 }
             }
@@ -5285,12 +5310,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public void StartPublishing(int timeout, bool fullQueue)
         {
-            int publishCount = GetMinPublishRequestCount(true);
-
-            if (m_tooManyPublishRequests > 0 && publishCount > m_tooManyPublishRequests)
-            {
-                publishCount = Math.Max(m_tooManyPublishRequests, m_minPublishRequestCount);
-            }
+            int publishCount = GetDesiredPublishRequestCount(true);
 
             // refill pipeline. Send at least one publish request if subscriptions are active.
             if (publishCount > 0 && BeginPublish(timeout) != null)
@@ -5580,7 +5600,8 @@ namespace Opc.Ua.Client
         private void QueueBeginPublish()
         {
             int requestCount = GoodPublishRequestCount;
-            int minPublishRequestCount = GetMinPublishRequestCount(false);
+
+            int minPublishRequestCount = GetDesiredPublishRequestCount(false);
 
             if (requestCount < minPublishRequestCount)
             {
@@ -5588,7 +5609,7 @@ namespace Opc.Ua.Client
             }
             else
             {
-                Utils.LogInfo("PUBLISH - Did not send another publish request. GoodPublishRequestCount={0}, MinPublishRequestCount={1}", requestCount, minPublishRequestCount);
+                Utils.LogDebug("PUBLISH - Did not send another publish request. GoodPublishRequestCount={0}, MinPublishRequestCount={1}", requestCount, minPublishRequestCount);
             }
         }
 
@@ -5875,8 +5896,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Find and return matching application description
         /// </summary>
-        /// <param name="endpointDescriptions">The descriptions to search through</param> 
-        /// <param name="match">The description to match</param> 
+        /// <param name="endpointDescriptions">The descriptions to search through</param>
+        /// <param name="match">The description to match</param>
         /// <param name="matchPort">Match criteria includes port</param>
         /// <returns>Matching description or null if no description is matching</returns>
         private EndpointDescription FindMatchingDescription(EndpointDescriptionCollection endpointDescriptions,
@@ -6208,7 +6229,7 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                // Check for outdated sequence numbers. May have been not acked due to a network glitch. 
+                // Check for outdated sequence numbers. May have been not acked due to a network glitch.
                 if (latestSequenceNumberToSend != 0 && availableSequenceNumbers?.Count > 0)
                 {
                     foreach (var sequenceNumber in availableSequenceNumbers)
@@ -6514,12 +6535,14 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Returns the minimum number of active publish request that should be used.
+        /// Returns the desired number of active publish request that should be used.
         /// </summary>
         /// <remarks>
         /// Returns 0 if there are no subscriptions.
         /// </remarks>
-        private int GetMinPublishRequestCount(bool createdOnly)
+        /// <param name="createdOnly">False if call when re-queuing.</param>
+        /// <returns>The number of desired publish requests for the session.</returns>
+        protected virtual int GetDesiredPublishRequestCount(bool createdOnly)
         {
             lock (SyncRoot)
             {
@@ -6527,6 +6550,8 @@ namespace Opc.Ua.Client
                 {
                     return 0;
                 }
+
+                int publishCount;
 
                 if (createdOnly)
                 {
@@ -6543,11 +6568,36 @@ namespace Opc.Ua.Client
                     {
                         return 0;
                     }
-
-                    return Math.Max(count, m_minPublishRequestCount);
+                    publishCount = count;
+                }
+                else
+                {
+                    publishCount = m_subscriptions.Count;
                 }
 
-                return Math.Max(m_subscriptions.Count, m_minPublishRequestCount);
+                //
+                // If a dynamic limit was set because of badTooManyPublishRequest error.
+                // limit the number of publish requests to this value.
+                //
+                if (m_tooManyPublishRequests > 0 && publishCount > m_tooManyPublishRequests)
+                {
+                    publishCount = m_tooManyPublishRequests;
+                }
+
+                //
+                // Limit resulting to a number between min and max request count.
+                // If max is below min, we honor the min publish request count.
+                // See return from MinPublishRequestCount property which the max of both.
+                //
+                if (publishCount > m_maxPublishRequestCount)
+                {
+                    publishCount = m_maxPublishRequestCount;
+                }
+                if (publishCount < m_minPublishRequestCount)
+                {
+                    publishCount = m_minPublishRequestCount;
+                }
+                return publishCount;
             }
         }
 
@@ -6719,6 +6769,7 @@ namespace Opc.Ua.Client
         private bool m_reconnecting;
         private SemaphoreSlim m_reconnectLock;
         private int m_minPublishRequestCount;
+        private int m_maxPublishRequestCount;
         private LinkedList<AsyncRequestState> m_outstandingRequests;
         private readonly EndpointDescriptionCollection m_discoveryServerEndpoints;
         private readonly StringCollection m_discoveryProfileUris;
