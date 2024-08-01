@@ -400,7 +400,8 @@ namespace Opc.Ua.Server.Tests
                     var value = new EventFieldList {
                         EventFields = new VariantCollection(1) {
                         new Variant(true)
-                    }};
+                    }
+                    };
                     queue.Enqueue(value);
                 }
                 for (int v = 0; v < 90; v++)
@@ -781,11 +782,72 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
         }
 
+        [Test]
+        public void EventQueueEventContainedInQueue()
+        {
+            Assert.Fail();
+        }
+
         #endregion
         #region EventQueueHandler
-        
+        [Test]
+        public void EventQueueHandlerOverflow()
+        {
+            var queueHandler = new EventQueueHandler(false, m_factory);
+
+            queueHandler.SetQueueSize(1, false);
+
+            Assert.Fail();
+        }
+
+        [Test]
+        public void EventQueueHandlerEnqueue()
+        {
+            var queueHandler = new EventQueueHandler(false, m_factory);
+
+            queueHandler.SetQueueSize(1, false);
+
+            Assert.Fail();
+        }
+
+        [Test]
+        public void EventQueueHandlerPublish()
+        {
+            var queueHandler = new EventQueueHandler(false, m_factory);
+
+            queueHandler.SetQueueSize(1, false);
+
+            Assert.Fail();
+        }
         #endregion
         #region DataChangeQueueHandler
+
+        [Test]
+        public void DataValueQueueDiscardedValueHandlerInvoked()
+        {
+            var queueHandler = new DataChangeQueueHandler(1, false, m_factory);
+
+
+            Assert.Fail();
+        }
+
+        [Test]
+        public void DataValueQueueSamplingInterval()
+        {
+            var queueHandler = new DataChangeQueueHandler(1, false, m_factory);
+
+
+            Assert.Fail();
+        }
+
+        [Test]
+        public void DataValueQueueOverFlowBit()
+        {
+            var queueHandler = new DataChangeQueueHandler(1, false, m_factory);
+
+
+            Assert.Fail();
+        }
         #endregion
     }
 }

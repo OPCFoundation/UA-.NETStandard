@@ -36,7 +36,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Mangages a data value queue for a data change monitoredItem
     /// </summary>
-    public class DataChangeQueueHandler : IDisposable
+    public class DataChangeQueueHandler : IDataChangeQueueHandler
     {
         /// <summary>
         /// Creates a new Queue
@@ -262,7 +262,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Mangages an event queue for usage by a MonitoredItem
     /// </summary>
-    public class EventQueueHandler : IDisposable
+    public class EventQueueHandler : IEventQueueHandler
     {
         /// <summary>
         /// Creates a new Queue

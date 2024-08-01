@@ -1778,8 +1778,8 @@ namespace Opc.Ua.Server
         private ServiceResult m_lastError;
         private long m_nextSamplingTime;
         private readonly IMonitoredItemQueueFactory m_monitoredItemQueueFactory;
-        private DataChangeQueueHandler m_dataValueQueueHandler;
-        private EventQueueHandler m_eventQueueHandler;
+        private IDataChangeQueueHandler m_dataValueQueueHandler;
+        private IEventQueueHandler m_eventQueueHandler;
         private bool m_readyToPublish;
         private bool m_readyToTrigger;
         private bool m_semanticsChanged;
