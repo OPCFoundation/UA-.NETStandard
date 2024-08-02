@@ -948,7 +948,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
 
-            BrowseDescriptionCollection browseDescription = new BrowseDescriptionCollection();
+            BrowseDescriptionCollection browseDescriptions = new BrowseDescriptionCollection();
             foreach (NodeId nodeToBrowse in nodesToBrowse)
             {
                 BrowseDescription description = new BrowseDescription {
@@ -960,22 +960,22 @@ namespace Opc.Ua.Client
                     ResultMask = (uint)BrowseResultMask.All
                 };
 
-                browseDescription.Add(description);
+                browseDescriptions.Add(description);
             }
 
             BrowseResponse browseResponse = await BrowseAsync(
                 requestHeader,
                 view,
                 maxResultsToReturn,
-                browseDescription,
+                browseDescriptions,
                 ct).ConfigureAwait(false);
 
             ClientBase.ValidateResponse(browseResponse.ResponseHeader);
             BrowseResultCollection results = browseResponse.Results;
             DiagnosticInfoCollection diagnosticInfos = browseResponse.DiagnosticInfos;
 
-            ClientBase.ValidateResponse(results, browseDescription);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, browseDescription);
+            ClientBase.ValidateResponse(results, browseDescriptions);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, browseDescriptions);
 
             int ii = 0;
             var errors = new List<ServiceResult>();
@@ -1058,16 +1058,16 @@ namespace Opc.Ua.Client
             IList<ServiceResult>
             )>
                 ManagedBrowseAsync(
-                RequestHeader requestHeader,
-                ViewDescription view,
-                IList<NodeId> nodesToBrowse,
-                uint maxResultsToReturn,
-                BrowseDirection browseDirection,
-                NodeId referenceTypeId,
-                bool includeSubtypes,
-                uint nodeClassMask,
-                bool executeDefensively = false,
-                CancellationToken ct = default
+                    RequestHeader requestHeader,
+                    ViewDescription view,
+                    IList<NodeId> nodesToBrowse,
+                    uint maxResultsToReturn,
+                    BrowseDirection browseDirection,
+                    NodeId referenceTypeId,
+                    bool includeSubtypes,
+                    uint nodeClassMask,
+                    bool executeDefensively = false,
+                    CancellationToken ct = default
             )
         {
             var result = new List<ReferenceDescriptionCollection>();

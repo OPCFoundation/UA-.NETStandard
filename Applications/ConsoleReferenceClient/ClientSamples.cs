@@ -514,13 +514,33 @@ namespace Quickstarts
         {
             Stopwatch stopWatch = new Stopwatch();
             stopWatch.Start();
+            BrowseDirection browseDirection = BrowseDirection.Forward;
+            NodeId referenceTypeId = ReferenceTypeIds.HierarchicalReferences;
+            bool includeSubtypes = true;
+            uint nodeClassMask = 0;
+
+            if (browseDescription != null)
+            {
+                startingNode = browseDescription.NodeId;
+                browseDirection = browseDescription.BrowseDirection;
+                referenceTypeId = browseDescription.ReferenceTypeId;
+                includeSubtypes = browseDescription.IncludeSubtypes;
+                nodeClassMask = browseDescription.NodeClassMask;
+
+                if (browseDescription.ResultMask != (uint)BrowseResultMask.All)
+                {
+                    Utils.LogWarning($"Setting the BrowseResultMask is not supported by the " +
+                        $"ManagedBrowse method. Using '{BrowseResultMask.All}' instead of " +
+                        $"the mask {browseDescription.ResultMask} for the result mask");
+                }
+            }
 
             List<NodeId> nodesToBrowse = new List<NodeId> {
                 startingNode ?? ObjectIds.RootFolder
             };
 
-            // Browse template
             const int kMaxReferencesPerNode = 1000;
+
             // Browse
             var referenceDescriptions = new Dictionary<ExpandedNodeId, ReferenceDescription>();
 
@@ -537,8 +557,6 @@ namespace Quickstarts
                 Utils.LogInfo("{0}: Browse {1} nodes after {2}ms",
                     searchDepth, nodesToBrowse.Count, stopWatch.ElapsedMilliseconds);
 
-
-
                 bool repeatBrowse = false;
 
                 do
@@ -552,6 +570,9 @@ namespace Quickstarts
                     try
                     {
                         // the resultMask defaults to "all"
+                        // maybe the API should be extended to
+                        // support it. But that will then also be
+                        // necessary for BrowseAsync 
                         (
                             List<ReferenceDescriptionCollection> descriptions,
                             IList<ServiceResult> errors
@@ -560,13 +581,14 @@ namespace Quickstarts
                             null,
                             nodesToBrowse,
                             kMaxReferencesPerNode,
-                            BrowseDirection.Forward,
-                            ReferenceTypeIds.HierarchicalReferences,
+                            browseDirection,
+                            referenceTypeId,
                             true,
-                            0,
+                            nodeClassMask,
                             false,
                             ct
                             ).ConfigureAwait(false);
+
                         allReferenceDescriptions.AddRange(descriptions);
                         newReferenceDescriptions.AddRange(descriptions);
                         allServiceResults.AddRange(errors);
@@ -575,33 +597,27 @@ namespace Quickstarts
                     }
                     catch (ServiceResultException sre)
                     {
-                        if (sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded ||
-                            sre.StatusCode == StatusCodes.BadResponseTooLarge)
-                        {
-                            // try to address by overriding operation limit
-                            maxNodesPerBrowse = maxNodesPerBrowse == 0 ?
-                                (uint)nodesToBrowse.Count / 2 : maxNodesPerBrowse / 2;
-                            repeatBrowse = true;
-                        }
-                        else
-                        {
-                            m_output.WriteLine("Browse error: {0}", sre.Message);
-                            throw;
-                        }
+                        // the maximum number of nodes per browse is
+                        // set in the ManagedBrowse from the configuration
+                        // and cannot be influenced from the outside.
+                        // if that's desired it would be necessary to provide
+                        // an additional parameter to the method.
+                        m_output.WriteLine("Browse error: {0}", sre.Message);
+                        throw;
                     }
                 } while (repeatBrowse);
 
-
                 // Build browse request for next level
                 List<NodeId> nodesForNextManagedBrowse = new List<NodeId>();
-                int duplicates01 = 0;
+                int duplicates = 0;
                 foreach(ReferenceDescriptionCollection referenceCollection in newReferenceDescriptions)
                 {
-                    foreach(ReferenceDescription reference in  referenceCollection)
+                    foreach(ReferenceDescription reference in referenceCollection)
                     {
                         if(!referenceDescriptions.ContainsKey(reference.NodeId))
                         {
                             referenceDescriptions[reference.NodeId] = reference;
+
                             if (!reference.ReferenceTypeId.Equals(ReferenceTypeIds.HasProperty))
                             {
                                 nodesForNextManagedBrowse.Add(ExpandedNodeId.ToNodeId(reference.NodeId, uaClient.Session.NamespaceUris));
@@ -609,31 +625,31 @@ namespace Quickstarts
                         }
                         else
                         {
-                            duplicates01++;
+                            duplicates++;
                         }
                     }
 
                 }
-                if (duplicates01 > 0)
-                {
-                    Utils.LogInfo("Managed Browse Result {0} duplicate nodes were ignored.", duplicates01);
-                }
-                newReferenceDescriptions.Clear();   
+
+                newReferenceDescriptions.Clear();
+
                 nodesToBrowse = nodesForNextManagedBrowse;
+
+                if (duplicates > 0)
+                {
+                    Utils.LogInfo("Managed Browse Result {0} duplicate nodes were ignored.", duplicates);
+                }
+    
+                
 
             }
 
             stopWatch.Stop();
 
-            //var result = new ReferenceDescriptionCollection();
-            //foreach (ReferenceDescriptionCollection collection in allReferenceDescriptions)
-            //{
-            //    result.AddRange(collection);
-            //}
-
-            //result.Sort((x, y) => (x.NodeId.CompareTo(y.NodeId)));
             var result = new ReferenceDescriptionCollection(referenceDescriptions.Values);
+
             result.Sort((x, y) => (x.NodeId.CompareTo(y.NodeId)));
+
             m_output.WriteLine("ManagedBrowseFullAddressSpace found {0} references on server in {1}ms.",
                 result.Count, stopWatch.ElapsedMilliseconds);
 
