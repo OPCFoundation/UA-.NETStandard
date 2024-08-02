@@ -271,7 +271,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                 if (browseall)
                                 {
                                     referenceDescriptions =
-                                        await samples.BrowseFullAddressSpaceAsync(uaClient, ObjectIds.RootFolder).ConfigureAwait(false);
+                                        await samples.BrowseFullAddressSpaceAsync(uaClient, Objects.RootFolder).ConfigureAwait(false);
                                     variableIds = new NodeIdCollection(referenceDescriptions
                                         .Where(r => r.NodeClass == NodeClass.Variable && r.TypeDefinition.NamespaceIndex != 0)
                                         .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, uaClient.Session.NamespaceUris)));
@@ -280,7 +280,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                 if (managedbrowseall)
                                 {
                                     referenceDescriptionsFromManagedBrowse =
-                                        await samples.ManagedBrowseFullAddressSpaceAsync(uaClient, ObjectIds.RootFolder).ConfigureAwait(false);
+                                        await samples.ManagedBrowseFullAddressSpaceAsync(uaClient, Objects.RootFolder).ConfigureAwait(false);
                                     variableIdsManagedBrowse = new NodeIdCollection(referenceDescriptionsFromManagedBrowse
                                         .Where(r => r.NodeClass == NodeClass.Variable && r.TypeDefinition.NamespaceIndex != 0)
                                         .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, uaClient.Session.NamespaceUris)));

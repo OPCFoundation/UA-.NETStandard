@@ -37,7 +37,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
@@ -2401,9 +2400,9 @@ namespace Opc.Ua.Client
                         out descriptions,
                         out IList<ServiceResult> browseNextErrors);
 
-                    continuationPoints = revisedContinuationPoints;
-                    previousResult = nextResult;
-                    previousErrors = nextErrors;
+                        continuationPoints = revisedContinuationPoints;
+                        previousResult = nextResult;
+                        previousErrors = nextErrors;
 
                     for (int ii = 0; ii < descriptions.Count; ii++)
                     {

@@ -238,8 +238,8 @@ namespace Opc.Ua.Client.Tests
             if (!SingleSession)
             {
                 try
-                {                    
-                    Session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);                    
+                {
+                    Session = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {

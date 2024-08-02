@@ -506,6 +506,15 @@ namespace Quickstarts
 
         #region BrowseAddressSpace with ManagedBrowse sample
 
+        /// <summary>
+        /// Browse full address space using the ManagedBrowseMethod, which
+        /// will take care of not sending to many nodes to the server,
+        /// calling BrowseNext and dealing with the status codes
+        /// BadNoContinuationPoint and BadInvalidContinuationPoint.
+        /// </summary>
+        /// <param name="uaClient">The UAClient with a session to use.</param>
+        /// <param name="startingNode">The node where the browse operation starts.</param>
+        /// <param name="browseDescription">An optional BrowseDescription to use.</param>
         public async Task<ReferenceDescriptionCollection> ManagedBrowseFullAddressSpaceAsync(
             IUAClient uaClient,
             NodeId startingNode = null,
