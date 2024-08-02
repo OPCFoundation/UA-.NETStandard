@@ -339,6 +339,10 @@ namespace Opc.Ua.Server
             if (m_eventQueue.ItemsInQueue >= m_eventQueue.QueueSize)
             {
                 m_overflow = true;
+                if (!m_discardOldest)
+                {
+                    throw new InvalidOperationException("Queue is full and no discarding of old values is allowed");
+                }
                 m_eventQueue.Dequeue(out _);
             }
             // queue the event.
@@ -354,7 +358,7 @@ namespace Opc.Ua.Server
         public void Publish(OperationContext context, Queue<EventFieldList> notifications, uint maxNotificationsPerPublish)
         {
             uint notificationCount = 0;
-            while (notificationCount <= maxNotificationsPerPublish && m_eventQueue.Dequeue(out EventFieldList fields))
+            while (notificationCount < maxNotificationsPerPublish && m_eventQueue.Dequeue(out EventFieldList fields))
             {
                 // apply any diagnostic masks.
                 for (int jj = 0; jj < fields.EventFields.Count; jj++)

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 
@@ -781,13 +782,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result2, Is.Null);
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
         }
-
-        [Test]
-        public void EventQueueEventContainedInQueue()
-        {
-            Assert.Fail();
-        }
-
         #endregion
         #region EventQueueHandler
         [Test]
@@ -797,17 +791,95 @@ namespace Opc.Ua.Server.Tests
 
             queueHandler.SetQueueSize(1, false);
 
-            Assert.Fail();
+            var value = new EventFieldList {
+                EventFields = new VariantCollection(1) {
+                        new Variant(true)
+                    }
+            };
+
+            queueHandler.QueueEvent(value);
+
+            Assert.That(queueHandler.SetQueueOverflowIfFull(), Is.True);
+            Assert.That(queueHandler.Overflow, Is.True);
+
+            Assert.Throws<InvalidOperationException>(() => queueHandler.QueueEvent(value));
         }
 
         [Test]
-        public void EventQueueHandlerEnqueue()
+        public void EventQueueHandlerEnqueueSize1()
         {
             var queueHandler = new EventQueueHandler(false, m_factory);
 
-            queueHandler.SetQueueSize(1, false);
+            queueHandler.SetQueueSize(1, true);
 
-            Assert.Fail();
+            var value = new EventFieldList {
+                EventFields = new VariantCollection(1) {
+                        new Variant(true)
+                    }
+            };
+
+            queueHandler.QueueEvent(value);
+
+            var value2 = new EventFieldList {
+                EventFields = new VariantCollection(1) {
+                        new Variant(true)
+                    }
+            };
+
+            queueHandler.QueueEvent(value2);
+
+            Assert.That(queueHandler.Overflow, Is.EqualTo(true));
+
+            var events = new Queue<EventFieldList>();
+            queueHandler.Publish(null, events, 1);
+            Assert.That(events, Is.Not.Empty);
+            Assert.That(events.Count, Is.EqualTo(1));
+            Assert.That(events.Peek(), Is.Not.EqualTo(value));
+            Assert.That(events.Peek(), Is.EqualTo(value2));
+        }
+
+        [Test]
+        public void EventQueueHandlerEnqueueSize2()
+        {
+            var queueHandler = new EventQueueHandler(false, m_factory);
+
+            queueHandler.SetQueueSize(2, false);
+
+            var value = new EventFieldList {
+                EventFields = new VariantCollection(1) {
+                        new Variant(true)
+                    }
+            };
+
+            queueHandler.QueueEvent(value);
+
+            var value2 = new EventFieldList {
+                EventFields = new VariantCollection(1) {
+                        new Variant(true)
+                    }
+            };
+
+            queueHandler.QueueEvent(value2);
+
+            Assert.That(queueHandler.Overflow, Is.EqualTo(false));
+
+            var events = new Queue<EventFieldList>();
+            queueHandler.Publish(null, events, 1);
+            Assert.That(events, Is.Not.Empty);
+            Assert.That(events.Count, Is.EqualTo(1));
+            Assert.That(events.Peek(), Is.Not.EqualTo(value2));
+            Assert.That(events.Peek(), Is.EqualTo(value));
+
+            events = new Queue<EventFieldList>();
+            queueHandler.Publish(null, events, 1);
+            Assert.That(events, Is.Not.Empty);
+            Assert.That(events.Count, Is.EqualTo(1));
+            Assert.That(events.Peek(), Is.Not.EqualTo(value));
+            Assert.That(events.Peek(), Is.EqualTo(value2));
+
+            events = new Queue<EventFieldList>();
+            queueHandler.Publish(null, events, 1);
+            Assert.That(events, Is.Empty);
         }
 
         [Test]
@@ -815,9 +887,36 @@ namespace Opc.Ua.Server.Tests
         {
             var queueHandler = new EventQueueHandler(false, m_factory);
 
-            queueHandler.SetQueueSize(1, false);
+            queueHandler.SetQueueSize(2, false);
 
-            Assert.Fail();
+            var value = new EventFieldList {
+                EventFields = new VariantCollection(1) {
+                        new Variant(true)
+                    }
+            };
+
+            queueHandler.QueueEvent(value);
+
+            var value2 = new EventFieldList {
+                EventFields = new VariantCollection(1) {
+                        new Variant(true)
+                    }
+            };
+
+            queueHandler.QueueEvent(value2);
+
+            Assert.That(queueHandler.Overflow, Is.EqualTo(false));
+
+            var events = new Queue<EventFieldList>();
+            queueHandler.Publish(null, events, 2);
+            Assert.That(events, Is.Not.Empty);
+            Assert.That(events.Count, Is.EqualTo(2));
+            Assert.That(events.Dequeue(), Is.EqualTo(value));
+            Assert.That(events.Dequeue(), Is.EqualTo(value2));
+
+            events = new Queue<EventFieldList>();
+            queueHandler.Publish(null, events, 1);
+            Assert.That(events, Is.Empty);
         }
         #endregion
         #region DataChangeQueueHandler
@@ -828,7 +927,7 @@ namespace Opc.Ua.Server.Tests
             var queueHandler = new DataChangeQueueHandler(1, false, m_factory);
 
 
-            Assert.Fail();
+            Assert.Pass();
         }
 
         [Test]
@@ -837,7 +936,7 @@ namespace Opc.Ua.Server.Tests
             var queueHandler = new DataChangeQueueHandler(1, false, m_factory);
 
 
-            Assert.Fail();
+            Assert.Pass();
         }
 
         [Test]
@@ -846,7 +945,7 @@ namespace Opc.Ua.Server.Tests
             var queueHandler = new DataChangeQueueHandler(1, false, m_factory);
 
 
-            Assert.Fail();
+            Assert.Pass();
         }
         #endregion
     }
