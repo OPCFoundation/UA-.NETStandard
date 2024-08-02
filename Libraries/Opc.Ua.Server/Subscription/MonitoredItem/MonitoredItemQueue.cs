@@ -211,14 +211,6 @@ namespace Opc.Ua.Server
         {
             int length = (int)queueSize;
 
-            if (length < 1)
-            {
-                length = 1;
-            }
-
-            int start = m_start;
-            int end = m_end;
-
             // create new queue.
             DataValue[] values = new DataValue[length];
             ServiceResult[] errors = null;
@@ -237,10 +229,7 @@ namespace Opc.Ua.Server
                 existingValues = new List<DataValue>();
                 existingErrors = new List<ServiceResult>();
 
-                DataValue value = null;
-                ServiceResult error = null;
-
-                while (Dequeue(out value, out error))
+                while (Dequeue(out DataValue value, out ServiceResult error))
                 {
                     existingValues.Add(value);
                     existingErrors.Add(error);

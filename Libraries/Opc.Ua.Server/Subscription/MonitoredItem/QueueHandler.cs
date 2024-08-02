@@ -137,7 +137,6 @@ namespace Opc.Ua.Server
 
             // queue next value.
             Enqueue(value, error);
-            ServerUtils.EventLog.EnqueueValue(value.WrappedValue);
         }
         /// <summary>
         /// Deques the last item
@@ -183,7 +182,7 @@ namespace Opc.Ua.Server
 
                     if (!m_discardOldest)
                     {
-                        ServerUtils.ReportDiscardedValue(null, m_monitoredItemId, value);
+                        ServerUtils.ReportDiscardedValue(null, m_monitoredItemId, m_dataValueQueue.PeekLastValue());
 
                         // overwrite last value
                         m_dataValueQueue.OverwriteLastValue(value, error);

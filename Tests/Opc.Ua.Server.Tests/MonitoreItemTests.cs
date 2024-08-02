@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 
@@ -27,6 +28,7 @@ namespace Opc.Ua.Server.Tests
         }
         #endregion
         #region dataChangeQueue
+
         [Test]
         public void EnqueueDequeueDataValue()
         {
@@ -924,28 +926,143 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void DataValueQueueDiscardedValueHandlerInvoked()
         {
-            var queueHandler = new DataChangeQueueHandler(1, false, m_factory);
+            bool called = false;
+            Action discardedValueHandler = () => { called = true; };
+            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, discardedValueHandler);
+
+            queueHandler.SetQueueSize(1, true, DiagnosticsMasks.All);
 
 
-            Assert.Pass();
+            var statuscode = new ServiceResult(StatusCodes.Good);
+            var dataValue = new DataValue(new Variant(true));
+
+            queueHandler.QueueValue(dataValue, statuscode);
+
+            var statuscode2 = new ServiceResult(StatusCodes.BadAggregateNotSupported);
+            var dataValue2 = new DataValue(new Variant(false));
+
+            queueHandler.QueueValue(dataValue2, statuscode2);
+
+            Assert.That(called, Is.True);
+
+            bool success = queueHandler.PublishSingleValue(out var result, out var resultError);
+
+            Assert.That(success, Is.True);
+            Assert.That(result, Is.EqualTo(dataValue2));
+            Assert.That(result.StatusCode.Overflow, Is.True);
+            Assert.That(resultError.StatusCode.Overflow, Is.True);
         }
 
         [Test]
-        public void DataValueQueueSamplingInterval()
+        public void DataValueQueueDiscardedValueHandlerInvokedNoDiscardOldest()
         {
-            var queueHandler = new DataChangeQueueHandler(1, false, m_factory);
+            bool called = false;
+            Action discardedValueHandler = () => { called = true; };
+            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, discardedValueHandler);
+
+            queueHandler.SetQueueSize(2, false, DiagnosticsMasks.All);
 
 
-            Assert.Pass();
+            var statuscode = new ServiceResult(StatusCodes.Good);
+            var dataValue = new DataValue(new Variant(true));
+
+            queueHandler.QueueValue(dataValue, statuscode);
+            queueHandler.QueueValue(dataValue, statuscode);
+
+            var statuscode2 = new ServiceResult(StatusCodes.Good);
+            var dataValue2 = new DataValue(new Variant(false));
+
+            queueHandler.QueueValue(dataValue2, statuscode2);
+
+            Assert.That(called, Is.True);
+
+            bool success = queueHandler.PublishSingleValue(out var result, out var resultError);
+
+            Assert.That(success, Is.True);
+            Assert.That(result, Is.EqualTo(dataValue));
+            Assert.That(resultError, Is.EqualTo(statuscode));
+
+
+            bool success2 = queueHandler.PublishSingleValue(out var result2, out var resultError2);
+
+            Assert.That(success2, Is.True);
+            Assert.That(result2, Is.EqualTo(dataValue2));
+            Assert.That(result2.StatusCode.Overflow, Is.True);
+            Assert.That(resultError2.StatusCode.Overflow, Is.True);
         }
 
         [Test]
-        public void DataValueQueueOverFlowBit()
+        public void DataValueQueueSamplingIntervalOverwrites()
         {
-            var queueHandler = new DataChangeQueueHandler(1, false, m_factory);
+            bool called = false;
+            Action discardedValueHandler = () => { called = true; };
+
+            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, discardedValueHandler);
+
+            queueHandler.SetQueueSize(3, true, DiagnosticsMasks.All);
+
+            queueHandler.SetSamplingInterval(5000);
 
 
-            Assert.Pass();
+            var statuscode = new ServiceResult(StatusCodes.Good);
+            var dataValue = new DataValue(new Variant(true));
+
+
+            queueHandler.QueueValue(dataValue, statuscode);
+
+
+            var statuscode2 = new ServiceResult(StatusCodes.Good);
+            var dataValue2 = new DataValue(new Variant(false));
+
+
+            queueHandler.QueueValue(dataValue2, statuscode2);
+
+            Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(1));
+            Assert.That(called, Is.True);
+
+            bool success = queueHandler.PublishSingleValue(out var result, out var resultError);
+
+            Assert.That(success, Is.True);
+            Assert.That(result, Is.EqualTo(dataValue2));
+            Assert.That(resultError, Is.EqualTo(statuscode2));
+        }
+
+        [Test]
+        public async Task DataValueQueueSamplingIntervalChangeApplied()
+        {
+            bool called = false;
+            Action discardedValueHandler = () => { called = true; };
+
+            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, discardedValueHandler);
+
+
+            queueHandler.SetQueueSize(3, true, DiagnosticsMasks.All);
+
+            queueHandler.SetSamplingInterval(2);
+
+
+            var statuscode = new ServiceResult(StatusCodes.Good);
+            var dataValue = new DataValue(new Variant(true));
+
+
+            queueHandler.QueueValue(dataValue, statuscode);
+
+
+            var statuscode2 = new ServiceResult(StatusCodes.Good);
+            var dataValue2 = new DataValue(new Variant(false));
+
+            await Task.Delay(5);
+
+            queueHandler.QueueValue(dataValue2, statuscode2);
+
+            Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(2));
+            Assert.That(called, Is.False);
+
+            bool success = queueHandler.PublishSingleValue(out var result, out var resultError);
+
+            Assert.That(success, Is.True);
+            Assert.That(result, Is.EqualTo(dataValue));
+            Assert.That(resultError, Is.EqualTo(statuscode));
         }
         #endregion
     }
