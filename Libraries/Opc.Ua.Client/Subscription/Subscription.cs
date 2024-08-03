@@ -1850,7 +1850,7 @@ namespace Opc.Ua.Client
                 if (m_keepAliveInterval < kMinKeepAliveTimerInterval)
                 {
                     m_keepAliveInterval = (int)(Math.Min(m_publishingInterval * (m_keepAliveCount + 1), Int32.MaxValue));
-                    m_keepAliveInterval = Math.Min(kMinKeepAliveTimerInterval, m_keepAliveInterval);
+                    m_keepAliveInterval = Math.Max(kMinKeepAliveTimerInterval, m_keepAliveInterval);
                 }
 #if NET6_0_OR_GREATER
                 var publishTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(m_keepAliveInterval));
