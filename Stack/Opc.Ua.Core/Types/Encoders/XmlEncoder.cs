@@ -550,7 +550,7 @@ namespace Opc.Ua
         }
 #endif
 
-        private void WriteByteString(string fieldName, byte[] value, int index, int count, bool isArrayElement = false)
+        private void WriteByteString(string fieldName, byte[] value, int index, int count, bool isArrayElement)
         {
             Debug.Assert(value == null || value.Length >= count - index);
             if (BeginField(fieldName, value == null, true, isArrayElement))

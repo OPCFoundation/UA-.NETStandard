@@ -709,7 +709,6 @@ namespace Opc.Ua
             get
             {
                 // must use the XML encoding id if encoding in an XML stream.
-
                 if (m_body is IEncodeable encodeable)
                 {
                     return ExpandedNodeId.ToNodeId(encodeable.XmlEncodingId, m_context.NamespaceUris);
@@ -772,8 +771,7 @@ namespace Opc.Ua
                     Body = decoder.ReadExtensionObjectBody(m_typeId);
 
                     // clear the type id for encodeables.
-
-                    if (m_body is IEncodeable encodeable)
+                    if (m_body is IEncodeable)
                     {
                         m_typeId = ExpandedNodeId.Null;
                     }

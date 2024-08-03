@@ -48,10 +48,10 @@ namespace Opc.Ua.Fuzzing
         public static readonly TestcaseAsset[] SlowAssets = new AssetCollection<TestcaseAsset>(TestUtils.EnumerateTestAssets("Assets", "slow*.*")).ToArray();
 
         [DatapointSource]
-        public static string[] TestcaseEncoderSuffixes = new string[] { ".Binary", ".Json", ".Xml" };
+        public static readonly string[] TestcaseEncoderSuffixes = new string[] { ".Binary", ".Json", ".Xml" };
 
         [DatapointSource]
-        public static FuzzTargetFunction[] FuzzableFunctions = typeof(FuzzableCode).GetMethods(BindingFlags.Static | BindingFlags.Public)
+        public static readonly FuzzTargetFunction[] FuzzableFunctions = typeof(FuzzableCode).GetMethods(BindingFlags.Static | BindingFlags.Public)
             .Where(f => f.GetParameters().Length == 1)
             .Select(f => new FuzzTargetFunction(f)).ToArray();
         #endregion

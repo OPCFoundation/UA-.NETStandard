@@ -51,13 +51,15 @@ namespace Opc.Ua.Buffers.Tests
 
             // Act
             Action act = () => writer.Dispose();
-            var buffer = new byte[1];
+            var buffer = new byte[1] { 0x23 };
 
             var memory = writer.GetMemory(1);
-            memory.Span[0] = 0;
+            memory.Span[0] = 0x12;
             writer.Advance(1);
             writer.Write(buffer);
             var sequence = writer.GetReadOnlySequence();
+            Assert.ByVal(sequence.Length, Is.EqualTo(2));
+            Assert.That(sequence.ToArray(), Is.EqualTo(new byte[] { 0x12, 0x23 }));
 
             // Assert
             Assert.Throws<ArgumentOutOfRangeException>(() => writer.GetMemory(-1));
@@ -66,6 +68,11 @@ namespace Opc.Ua.Buffers.Tests
             Assert.Throws<InvalidOperationException>(() => writer.Advance(2));
 
             act();
+
+            Assert.Throws<ObjectDisposedException>(() => writer.GetReadOnlySequence());
+            Assert.Throws<ObjectDisposedException>(() => writer.GetMemory(1));
+            Assert.Throws<ObjectDisposedException>(() => writer.GetSpan(1));
+            Assert.Throws<ObjectDisposedException>(() => writer.Advance(1));
         }
 
         /// <summary>

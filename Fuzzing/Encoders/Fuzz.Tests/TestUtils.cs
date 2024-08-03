@@ -60,7 +60,7 @@ namespace Opc.Ua.Tests
             return values != null ? new AssetCollection<T>(values) : new AssetCollection<T>();
         }
 
-        public AssetCollection(IEnumerable<string> filelist) : base()
+        public AssetCollection(IEnumerable<string> filelist)
         {
             foreach (var file in filelist)
             {
