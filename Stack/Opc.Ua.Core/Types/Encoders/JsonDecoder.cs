@@ -68,6 +68,7 @@ namespace Opc.Ua
             {
                 throw new ArgumentNullException(nameof(context));
             }
+
             Initialize();
 
             m_context = context;
@@ -138,6 +139,25 @@ namespace Opc.Ua
             }
 
             return m_namespaceMappings[index];
+        }
+
+        private ushort ToServerIndex(string uri)
+        {
+            var index = m_context.ServerUris.GetIndex(uri);
+
+            if (index < 0)
+            {
+                if (!UpdateNamespaceTable)
+                {
+                    return UInt16.MaxValue;
+                }
+                else
+                {
+                    index = m_context.ServerUris.GetIndexOrAppend(uri);
+                }
+            }
+
+            return (ushort)index;
         }
 
         private ushort ToServerIndex(long index)
@@ -1097,14 +1117,38 @@ namespace Opc.Ua
                     {
                         if (index.Value >= 0 || index.Value < UInt16.MaxValue)
                         {
-                            namespaceIndex = (ushort)index.Value;
+                            namespaceIndex = ToNamespaceIndex(index.Value);
                         }
                     }
                 }
 
-                if (value.ContainsKey("ServerUri"))
+                object serverUriToken = null;
+
+                if (ReadField("ServerUri", out serverUriToken))
                 {
-                    serverIndex = ReadUInt32("ServerUri");
+                    var index = serverUriToken as long?;
+
+                    if (index == null)
+                    {
+                        serverIndex = ToServerIndex(serverUriToken as string);
+                    }
+                    else
+                    {
+                        if (index.Value >= 0 || index.Value < UInt32.MaxValue)
+                        {
+                            serverIndex = ToServerIndex(index.Value);
+                        }
+                    }
+                }
+
+                if (namespaceUri != null)
+                {
+                    namespaceIndex = ToNamespaceIndex(namespaceUri);
+
+                    if (UInt16.MaxValue != namespaceIndex)
+                    {
+                        namespaceUri = null;
+                    }
                 }
 
                 if (value.ContainsKey("Id"))
@@ -1243,17 +1287,16 @@ namespace Opc.Ua
 
                     if (index == null)
                     {
-                        // handle non reversible encoding
                         if (namespaceToken is string namespaceUri)
                         {
-                            namespaceIndex = m_context.NamespaceUris.GetIndexOrAppend(namespaceUri);
+                            namespaceIndex = ToNamespaceIndex(namespaceUri);
                         }
                     }
                     else
                     {
                         if (index.Value >= 0 || index.Value < UInt16.MaxValue)
                         {
-                            namespaceIndex = (ushort)index.Value;
+                            namespaceIndex = ToNamespaceIndex(index.Value);
                         }
                     }
                 }
@@ -2549,11 +2592,39 @@ namespace Opc.Ua
             }
             else if (valueRank >= ValueRanks.TwoDimensions)
             {
-                List<object> array;
-                if (!ReadArrayField(fieldName, out array))
+                object token = null;
+
+                if (!ReadField(fieldName, out token))
                 {
                     return null;
                 }
+
+                if (token is Dictionary<string, object> value)
+                {
+                    m_stack.Push(value);
+                    Int32Collection dimensions2 = null;
+
+                    if (value.ContainsKey("Dimensions"))
+                    {
+                        dimensions2 = ReadInt32Array("Dimensions");
+                    }
+                    else
+                    {
+                        dimensions2 = new Int32Collection(valueRank);
+                    }
+
+                    var array2 = ReadArray("Array", 1, builtInType, systemType, encodeableTypeId);
+                    m_stack.Pop();
+
+                    var matrix2 = new Matrix(array2, builtInType, dimensions2.ToArray());
+                    return matrix2.ToArray();
+                }
+
+                if (!(token is List<object> array))
+                {
+                    return null;
+                }
+
                 List<object> elements = new List<object>();
                 List<int> dimensions = new List<int>();
                 if (builtInType == BuiltInType.Enumeration || builtInType == BuiltInType.Variant || builtInType == BuiltInType.Null)

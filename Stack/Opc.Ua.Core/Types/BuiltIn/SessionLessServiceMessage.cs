@@ -40,6 +40,11 @@ namespace Opc.Ua
         public StringTable LocaleIds;
 
         /// <summary>
+        /// The service id for the message.
+        /// </summary>
+        public uint? ServiceId;
+
+        /// <summary>
         /// The message to encode or the decoded message.
         /// </summary>
         public IEncodeable Message;

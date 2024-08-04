@@ -20,12 +20,6 @@ namespace Opc.Ua
     public interface IJsonEncoder : IEncoder
     {
         /// <summary>
-        /// Force the Json encoder to encode namespace URI instead of
-        /// namespace Index in NodeIds.
-        /// </summary>
-        bool ForceNamespaceUri { get; set; }
-
-        /// <summary>
         /// Push the begin of an array on the encoder stack.
         /// </summary>
         /// <param name="fieldName">The name of the array field.</param>
