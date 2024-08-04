@@ -1,6 +1,9 @@
+using System;
+using System.Collections.Generic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Opc.Ua;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace JsonEncoderTests
 {
@@ -10,32 +13,32 @@ namespace JsonEncoderTests
         const string NamespaceUri1 = "http://test.org/UA/Data1/";
         const string NamespaceUri2 = "tag:test.org,2024-07:schema:data:2";
         const string NamespaceUri3 = "urn:test.org:2024-07:schema:data:3";
-        static readonly string[] NamespaceUris = [NamespaceUri1, NamespaceUri2, NamespaceUri3];
+        static readonly string[] NamespaceUris = new string[] { NamespaceUri1, NamespaceUri2, NamespaceUri3 };
 
         const string ServerUri1 = "http://test.org/product/server1/";
         const string ServerUri2 = "tag:test.org,2024-07:product:server:2";
         const string ServerUri3 = "urn:test.org:2024-07:product:server:3";
-        static readonly string[] ServerUris = [ServerUri1, ServerUri2, ServerUri3];
+        static readonly string[] ServerUris = new string[] { ServerUri1, ServerUri2, ServerUri3 };
 
         const uint NumericId1 = 1234;
         const uint NumericId2 = 5678;
         const uint NumericId3 = 9876;
-        static readonly uint[] NumericIds = [NumericId1, NumericId2, NumericId3];
+        static readonly uint[] NumericIds = new uint[] { NumericId1, NumericId2, NumericId3 };
 
         const string StringId1 = @"{""World"": ""Pandora""}";
         const string StringId2 = @"<World>Pandora</World>";
         const string StringId3 = @"http://world.org/Pandora/?alien=blue";
-        static readonly string[] StringIds = [StringId1, StringId2, StringId3];
+        static readonly string[] StringIds = new string[] { StringId1, StringId2, StringId3 };
 
         static readonly Guid GuidId1 = new Guid("73861B2D-EA9A-4B97-ACE6-9A2943EF641E");
         static readonly Guid GuidId2 = new Guid("BCFE58C8-CDC5-444F-B1F8-A12903008BE0");
         static readonly Guid GuidId3 = new Guid("C141B9D1-F1FD-4D15-9918-E37FD697EA1D");
-        static readonly Guid[] GuidIds = [GuidId1, GuidId2, GuidId3];
+        static readonly Guid[] GuidIds = new Guid[] { GuidId1, GuidId2, GuidId3 };
 
         static readonly byte[] OpaqueId1 = System.Convert.FromHexString("138DAA907373409AB6A4A36322063745");
         static readonly byte[] OpaqueId2 = System.Convert.FromHexString("E41047609A9248318EB907991A66B7BEE6B60CB5114828");
         static readonly byte[] OpaqueId3 = System.Convert.FromHexString("FBD8F0DE652A479B");
-        static readonly byte[][] OpaqueIds = [OpaqueId1, OpaqueId2, OpaqueId3];
+        static readonly byte[][] OpaqueIds = new byte[][] { OpaqueId1, OpaqueId2, OpaqueId3 };
 
         private string Escape(string input)
         {
@@ -204,7 +207,7 @@ namespace JsonEncoderTests
         [DataRow(2)]
         public void DecodeCompactAndVerboseNodeId(int index)
         {
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": ""i=2263"",
                     ""D1"": ""nsu={ToString(NamespaceUris, index)};i={ToString(NumericIds, index)}"",
@@ -232,7 +235,7 @@ namespace JsonEncoderTests
         [DataRow(2, true)]
         public void EncodeCompactOrVerboseNodeId(int index, bool useCompact)
         {
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": ""i=2263"",
                     ""D1"": ""nsu={ToString(NamespaceUris, index)};i={ToString(NumericIds, index)}"",
@@ -267,7 +270,7 @@ namespace JsonEncoderTests
         [DataRow(2)]
         public void DecodeCompactAndVerboseExpandedNodeId(int index)
         {
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": ""i=2263"",
                     ""D1"": ""nsu={ToString(NamespaceUris, index)};i={ToString(NumericIds, index)}"",
@@ -299,7 +302,7 @@ namespace JsonEncoderTests
         [DataRow(2, true)]
         public void EncodeCompactOrVerboseExpandedNodeId(int index, bool useCompact)
         {
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": ""i=2263"",
                     ""D1"": ""nsu={ToString(NamespaceUris, index)};i={ToString(NumericIds, index)}"",
@@ -349,7 +352,7 @@ namespace JsonEncoderTests
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
 
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": {{ ""Id"": 2263 }},
                     ""D1"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index))} }},
@@ -383,7 +386,7 @@ namespace JsonEncoderTests
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
 
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": {{ ""Id"": 2263 }},
                     ""D1"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index))} }},
@@ -431,7 +434,7 @@ namespace JsonEncoderTests
             context1.ServerUris.Append(ServerUris[1]);
             context1.ServerUris.Append(ServerUris[2]);
 
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": {{ ""Id"": 2263 }},
                     ""D1"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index))} }},
@@ -477,7 +480,7 @@ namespace JsonEncoderTests
             context1.ServerUris.Append(ServerUris[1]);
             context1.ServerUris.Append(ServerUris[2]);
 
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": {{ ""Id"": 2263 }},
                     ""D1"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index))} }},
@@ -528,7 +531,7 @@ namespace JsonEncoderTests
         [DataRow(2)]
         public void DecodeNonReversibleNodeId(int index)
         {
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": {{ ""Id"": 2263 }},
                     ""D1"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":""{Get(NamespaceUris, index)}"" }},
@@ -558,7 +561,7 @@ namespace JsonEncoderTests
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
 
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": {{ ""Id"": 2263 }},
                     ""D1"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":""{Get(NamespaceUris, index)}"" }},
@@ -606,7 +609,7 @@ namespace JsonEncoderTests
             context1.ServerUris.Append(ServerUris[1]);
             context1.ServerUris.Append(ServerUris[2]);
 
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": {{ ""Id"": 2263 }},
                     ""D1"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":""{Get(NamespaceUris, index)}"" }},
@@ -645,7 +648,7 @@ namespace JsonEncoderTests
             context1.ServerUris.Append(ServerUris[1]);
             context1.ServerUris.Append(ServerUris[2]);
 
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": {{ ""Id"": 2263 }},
                     ""D1"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":""{Get(NamespaceUris, index)}"" }},
@@ -693,7 +696,7 @@ namespace JsonEncoderTests
         [TestMethod]
         public void DecodeCompactAndVerboseQualifiedName()
         {
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": ""ServerStatus"",
                     ""D1"": ""nsu={ToString(NamespaceUris, 0)};N1"",
@@ -722,7 +725,7 @@ namespace JsonEncoderTests
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
 
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": ""ServerStatus"",
                     ""D1"": ""nsu={ToString(NamespaceUris, 0)};N1"",
@@ -763,7 +766,7 @@ namespace JsonEncoderTests
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
 
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": {{ ""Name"": ""ServerStatus"" }},
                     ""D1"": {{ ""Name"": ""N1"", ""Uri"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, 0))} }},
@@ -794,7 +797,7 @@ namespace JsonEncoderTests
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
 
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": {{ ""Name"": ""ServerStatus"" }},
                     ""D1"": {{ ""Name"": ""N1"", ""Uri"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, 0))} }},
@@ -835,7 +838,7 @@ namespace JsonEncoderTests
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
 
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": {{ ""Name"":""ServerStatus"" }},
                     ""D1"": {{ ""Name"": ""N1"", ""Uri"":""{Get(NamespaceUris, 0)}"" }},
@@ -866,7 +869,7 @@ namespace JsonEncoderTests
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
 
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": {{ ""Name"": ""ServerStatus"" }},
                     ""D1"": {{ ""Name"": ""N1"", ""Uri"":""{Get(NamespaceUris, 0)}"" }},
@@ -902,7 +905,7 @@ namespace JsonEncoderTests
         [TestMethod]
         public void DecodeCompactAndVerboseMatrix()
         {
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": {{ ""Dimensions"": [ 2, 3 ], ""Array"": [ 1, 2, 3, 4, 5, 6 ] }},
                     ""D1"": {{ ""Dimensions"": [ 1, 2, 3 ], ""Array"": [ 1, 2, 3, 4, 5, 6 ] }}
@@ -933,7 +936,7 @@ namespace JsonEncoderTests
         [DataRow(true)]
         public void EncodeCompactAndVerboseMatrix(bool useCompact)
         {
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": {{ ""Dimensions"": [ 2, 3 ], ""Array"": [ 1, 2, 3, 4, 5, 6 ] }},
                     ""D1"": {{ ""Dimensions"": [ 1, 2, 3 ], ""Array"": [ 1, 2, 3, 4, 5, 6 ] }}
@@ -958,7 +961,7 @@ namespace JsonEncoderTests
         [TestMethod]
         public void DecodeReversibleMatrix()
         {
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": [[1, 2, 3], [4, 5, 6]],
                     ""D1"": [[[1, 2, 3], [4, 5, 6]]]
@@ -989,7 +992,7 @@ namespace JsonEncoderTests
         [DataRow(true)]
         public void EncodeReversibleAndNonReversibleMatrix(bool useReversible)
         {
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": [[1, 2, 3], [4, 5, 6]],
                     ""D1"": [[[1, 2, 3], [4, 5, 6]]]
@@ -1014,7 +1017,7 @@ namespace JsonEncoderTests
         [TestMethod]
         public void DecodeCompactExtensionObject()
         {
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": {{ 
                         ""TypeId"": ""i=884"",
@@ -1067,7 +1070,7 @@ namespace JsonEncoderTests
         [TestMethod]
         public void EncodeCompactExtensionObject()
         {
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": {{ 
                         ""TypeId"": ""i=884"",
@@ -1128,7 +1131,7 @@ namespace JsonEncoderTests
         [TestMethod]
         public void DecodeVerboseExtensionObject()
         {
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": {{ 
                         ""TypeId"": ""i=884"",
@@ -1182,7 +1185,7 @@ namespace JsonEncoderTests
         [TestMethod]
         public void EncodeVerboseExtensionObject()
         {
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": {{ 
                         ""TypeId"": ""i=884"",
@@ -1245,7 +1248,7 @@ namespace JsonEncoderTests
         [TestMethod]
         public void DecodeReversibleExtensionObject()
         {
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": {{ 
                         ""TypeId"": {{ ""Id"": 884 }},
@@ -1298,7 +1301,7 @@ namespace JsonEncoderTests
         [TestMethod]
         public void EncodeReversibleExtensionObject()
         {
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": {{ 
                         ""TypeId"": {{ ""Id"": 884 }},
@@ -1360,7 +1363,7 @@ namespace JsonEncoderTests
         [TestMethod]
         public void DecodeNonReversibleExtensionObject()
         {
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": {{ ""Low"": 0, ""High"": 9876.5432 }},
                     ""D1"": {{
@@ -1396,7 +1399,7 @@ namespace JsonEncoderTests
         [TestMethod]
         public void EncodeNonReversibleExtensionObject()
         {
-            var data = @$"
+            var data = $@"
                 {{
                     ""D0"": {{ ""Low"": 0, ""High"": 9876.5432 }},
                     ""D1"": {{
