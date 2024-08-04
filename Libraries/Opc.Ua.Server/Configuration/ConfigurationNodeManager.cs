@@ -606,6 +606,7 @@ namespace Opc.Ua.Server
             //No rejected store configured
             if (m_rejectedStorePath == null)
             {
+                certificates = new byte[0][];
                 return StatusCodes.Good;
             }
             using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(m_rejectedStorePath))
