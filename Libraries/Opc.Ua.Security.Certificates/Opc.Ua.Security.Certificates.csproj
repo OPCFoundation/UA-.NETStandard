@@ -18,7 +18,7 @@
   <Choose>
     <When Condition="'$(TargetFramework)' == 'net462'">
       <ItemGroup>
-        <PackageReference Include="BouncyCastle.Cryptography" Version="2.3.1" />
+        <PackageReference Include="BouncyCastle.Cryptography" Version="2.4.0" />
       </ItemGroup>
     </When>
     <When Condition="'$(TargetFramework)' == 'netstandard2.0'">
@@ -30,9 +30,6 @@
       <PropertyGroup>
         <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
       </PropertyGroup>
-      <ItemGroup>
-        <PackageReference Include="System.Security.Cryptography.Cng" Version="5.0.0" />
-      </ItemGroup>
     </Otherwise>
   </Choose>
 

@@ -54,7 +54,7 @@ namespace Opc.Ua.Client
         private const int SubscriptionStateId = 1;
         private const int NotificationId = SubscriptionStateId + 1;
         private const int NotificationReceivedId = NotificationId + 1;
-        private const int PublishStartId = NotificationId + 1;
+        private const int PublishStartId = NotificationReceivedId + 1;
         private const int PublishStopId = PublishStartId + 1;
 
         /// <summary>

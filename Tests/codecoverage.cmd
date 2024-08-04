@@ -8,7 +8,7 @@ set current-path=%~dp0
 rem // remove trailing slash
 set current-path=%current-path:~0,-1%
 set build_root=%current-path%\..
-set framework=net6.0
+set framework=net8.0
 
 cd %build_root%
 

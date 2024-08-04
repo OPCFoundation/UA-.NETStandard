@@ -29,6 +29,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using Opc.Ua;
 
 /// <summary>
@@ -75,6 +76,31 @@ public static partial class FuzzableCode
     }
 
     /// <summary>
+    /// The binary encoder indempotent fuzz target for afl-fuzz.
+    /// </summary>
+    /// <param name="stream">The stdin stream from the afl-fuzz process.</param>
+    public static void AflfuzzBinaryEncoderIndempotent(Stream stream)
+    {
+        IEncodeable encodeable = null;
+        byte[] serialized = null;
+        using (var memoryStream = PrepareArraySegmentStream(stream))
+        {
+            try
+            {
+                encodeable = FuzzBinaryDecoderCore(memoryStream, true);
+                serialized = BinaryEncoder.EncodeMessage(encodeable, messageContext);
+            }
+            catch
+            {
+                return;
+            }
+        }
+
+        // reencode the fuzzed input and see if they are indempotent
+        FuzzBinaryEncoderIndempotentCore(serialized, encodeable);
+    }
+
+    /// <summary>
     /// The binary decoder fuzz target for libfuzzer.
     /// </summary>
     public static void LibfuzzBinaryDecoder(ReadOnlySpan<byte> input)
@@ -86,7 +112,7 @@ public static partial class FuzzableCode
     }
 
     /// <summary>
-    /// The binary encoder fuzz target for afl-fuzz.
+    /// The binary encoder fuzz target for libfuzzer.
     /// </summary>
     public static void LibfuzzBinaryEncoder(ReadOnlySpan<byte> input)
     {
@@ -95,7 +121,7 @@ public static partial class FuzzableCode
         {
             try
             {
-                encodeable = FuzzBinaryDecoderCore(memoryStream);
+                encodeable = FuzzBinaryDecoderCore(memoryStream, true);
             }
             catch
             {
@@ -108,6 +134,30 @@ public static partial class FuzzableCode
         {
             _ = BinaryEncoder.EncodeMessage(encodeable, messageContext);
         }
+    }
+
+    /// <summary>
+    /// The binary encoder indempotent fuzz target for libfuzzer.
+    /// </summary>
+    public static void LibfuzzBinaryEncoderIndempotent(ReadOnlySpan<byte> input)
+    {
+        IEncodeable encodeable = null;
+        byte[] serialized = null;
+        using (var memoryStream = new MemoryStream(input.ToArray()))
+        {
+            try
+            {
+                encodeable = FuzzBinaryDecoderCore(memoryStream, true);
+                serialized = BinaryEncoder.EncodeMessage(encodeable, messageContext);
+            }
+            catch
+            {
+                return;
+            }
+        }
+
+        // reencode the fuzzed input and see if they are indempotent
+        FuzzBinaryEncoderIndempotentCore(serialized, encodeable);
     }
 
     /// <summary>
@@ -134,9 +184,46 @@ public static partial class FuzzableCode
                         return null;
                     }
                     break;
+
+                default:
+                    break;
+
             }
 
             throw;
+
+        }
+    }
+
+    /// <summary>
+    /// The indempotent fuzz target core for the BinaryEncoder.
+    /// </summary>
+    /// <param name="serialized">The indempotent UA binary encoded data.</param>
+    /// <exception cref="Exception"></exception>
+    internal static void FuzzBinaryEncoderIndempotentCore(byte[] serialized, IEncodeable encodeable)
+    {
+        if (serialized == null || encodeable == null) return;
+
+        using (var memoryStream = new MemoryStream(serialized))
+        {
+            IEncodeable encodeable2 = FuzzBinaryDecoderCore(memoryStream, true);
+            byte[] serialized2 = BinaryEncoder.EncodeMessage(encodeable2, messageContext);
+
+            using (var memoryStream2 = new MemoryStream(serialized2))
+            {
+                IEncodeable encodeable3 = FuzzBinaryDecoderCore(memoryStream2, true);
+
+                string encodeableTypeName = encodeable2?.GetType().Name ?? "unknown type";
+                if (serialized2 == null || !serialized.SequenceEqual(serialized2))
+                {
+                    throw new Exception(Utils.Format("Indempotent encoding failed. Type={0}.", encodeableTypeName));
+                }
+
+                if (!Utils.IsEqual(encodeable2, encodeable3))
+                {
+                    throw new Exception(Utils.Format("Indempotent 3rd gen decoding failed. Type={0}.", encodeableTypeName));
+                }
+            }
         }
     }
 }

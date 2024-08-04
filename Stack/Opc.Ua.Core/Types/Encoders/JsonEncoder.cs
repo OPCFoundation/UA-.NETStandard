@@ -1095,7 +1095,20 @@ namespace Opc.Ua
 
                 case IdType.Guid:
                 {
-                    WriteGuid("Id", (Guid)value.Identifier);
+                    if (value.Identifier is Guid guidIdentifier)
+                    {
+                        WriteGuid("Id", guidIdentifier);
+                    }
+                    else if (value.Identifier is Uuid uuidIdentifier)
+                    {
+                        WriteGuid("Id", uuidIdentifier);
+                    }
+                    else
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadEncodingError,
+                            "Invalid Identifier type to encode as Guid NodeId.");
+                    }
                     break;
                 }
 

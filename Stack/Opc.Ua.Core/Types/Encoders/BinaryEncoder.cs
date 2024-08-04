@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -442,18 +443,26 @@ namespace Opc.Ua
                 return;
             }
 
-            byte[] bytes = Encoding.UTF8.GetBytes(value);
-
-            if (m_context.MaxStringLength > 0 && m_context.MaxStringLength < bytes.Length)
+            if (m_context.MaxStringLength > 0 && m_context.MaxStringLength < value.Length)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "MaxStringLength {0} < {1}",
                     m_context.MaxStringLength,
-                    bytes.Length);
+                    value.Length);
             }
 
-            WriteByteString(null, Encoding.UTF8.GetBytes(value));
+            int maxByteCount = Encoding.UTF8.GetMaxByteCount(value.Length);
+            byte[] encodedBytes = ArrayPool<byte>.Shared.Rent(maxByteCount);
+            try
+            {
+                int count = Encoding.UTF8.GetBytes(value, 0, value.Length, encodedBytes, 0);
+                WriteByteString(null, encodedBytes, 0, count);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(encodedBytes);
+            }
         }
 
         /// <summary>
@@ -536,7 +545,7 @@ namespace Opc.Ua
                 return;
             }
 
-            WriteByteString(null, Encoding.UTF8.GetBytes(value.OuterXml));
+            WriteString(fieldName, value.OuterXml);
         }
 
         /// <summary>
@@ -1917,6 +1926,30 @@ namespace Opc.Ua
         #endregion
 
         #region Private Methods
+        /// <summary>
+        /// Writes a byte string to the stream from a given index and length.
+        /// </summary>
+        private void WriteByteString(string fieldName, byte[] value, int index, int count)
+        {
+            if (value == null)
+            {
+                WriteInt32(null, -1);
+                return;
+            }
+
+            if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < count)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxByteStringLength {0} < {1}",
+                    m_context.MaxByteStringLength,
+                    value.Length);
+            }
+
+            WriteInt32(null, count);
+            m_writer.Write(value, index, count);
+        }
+
         /// <summary>
         /// Writes a DiagnosticInfo to the stream.
         /// Ignores InnerDiagnosticInfo field if the nesting level
