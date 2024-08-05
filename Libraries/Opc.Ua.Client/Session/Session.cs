@@ -6355,8 +6355,8 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Creates a request header with additional parameters for the ecc user token security policy.
-        /// Returns null if additional header is not needed.
+        /// Creates a request header with additional parameters
+        /// for the ecc user token security policy, if needed.
         /// </summary>
         private RequestHeader CreateRequestHeaderPerUserTokenPolicy(string identityTokenSecurityPolicyUri, string endpointSecurityPolicyUri)
         {
