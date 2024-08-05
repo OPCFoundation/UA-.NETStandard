@@ -48,7 +48,8 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="identity">The user identity.</param>
         public SystemConfigurationIdentity(IUserIdentity identity)
-        :base(identity, new List<Role> {Role.SecurityAdmin, Role.ConfigureAdmin }){
+        : base(identity, new List<Role> { Role.SecurityAdmin, Role.ConfigureAdmin })
+        {
         }
     }
 
@@ -68,7 +69,7 @@ namespace Opc.Ua.Server
             :
             base(server, configuration)
         {
-            m_rejectedStorePath = configuration.SecurityConfiguration.RejectedCertificateStore.StorePath;
+            m_rejectedStorePath = configuration.SecurityConfiguration.RejectedCertificateStore?.StorePath;
             m_certificateGroups = new List<ServerCertificateGroup>();
             m_configuration = configuration;
             // TODO: configure cert groups in configuration
@@ -231,7 +232,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        
+
 
         /// <summary>
         /// Gets and returns the <see cref="NamespaceMetadataState"/> node associated with the specified NamespaceUri
@@ -602,7 +603,12 @@ namespace Opc.Ua.Server
             ref byte[][] certificates)
         {
             HasApplicationSecureAdminAccess(context);
-
+            //No rejected store configured
+            if (m_rejectedStorePath == null)
+            {
+                certificates = Array.Empty<byte[]>();
+                return StatusCodes.Good;
+            }
             using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(m_rejectedStorePath))
             {
                 X509Certificate2Collection collection = store.Enumerate().Result;
@@ -638,14 +644,14 @@ namespace Opc.Ua.Server
             //TODO support multiple Application Instance Certificates
             if (certificateTypeId != null)
             {
-                certificateTypeIds = new NodeId[1] {certificateTypeId };
+                certificateTypeIds = new NodeId[1] { certificateTypeId };
                 certificates = new byte[1][];
                 certificates[0] = certificateGroup.ApplicationCertificate.Certificate.GetRawCertData();
             }
             else
             {
                 certificateTypeIds = new NodeId[0];
-                certificates = new byte[0][];
+                certificates = Array.Empty<byte[]>();
             }
 
             return ServiceResult.Good;
