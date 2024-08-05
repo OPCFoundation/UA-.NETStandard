@@ -56,9 +56,9 @@ namespace Opc.Ua.Client.Tests
             _clientTest = new ClientTest(Utils.UriSchemeOpcTcp);
         }
 
-        public ClientTestNoSecurity(string uriScheme = Utils.UriSchemeOpcTcp)
+        public ClientTestNoSecurity(string uriScheme)
         {
-            _clientTest = new ClientTest(Utils.UriSchemeOpcTcp);
+            _clientTest = new ClientTest(uriScheme);
         }
 
         #region Test Setup

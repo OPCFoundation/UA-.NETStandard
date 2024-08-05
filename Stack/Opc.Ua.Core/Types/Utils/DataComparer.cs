@@ -956,12 +956,13 @@ namespace Opc.Ua.Test
             if (body is XmlElement xml)
             {
                 XmlQualifiedName xmlName = Opc.Ua.EncodeableFactory.GetXmlName(expectedType);
-                XmlDecoder decoder = new XmlDecoder(xml, context);
-
-                decoder.PushNamespace(xmlName.Namespace);
-                body = decoder.ReadEncodeable(xmlName.Name, expectedType);
-                decoder.PopNamespace();
-                decoder.Close();
+                using (XmlDecoder decoder = new XmlDecoder(xml, context))
+                {
+                    decoder.PushNamespace(xmlName.Namespace);
+                    body = decoder.ReadEncodeable(xmlName.Name, expectedType);
+                    decoder.PopNamespace();
+                    decoder.Close();
+                }
 
                 return (IEncodeable)body;
             }

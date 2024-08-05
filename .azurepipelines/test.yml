@@ -59,6 +59,20 @@ jobs:
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/set-version.ps1
+  - task: DownloadSecureFile@1
+    name: fuzzingartifacts
+    displayName: 'Download Fuzzing artifacts'
+    inputs:
+      secureFile: 'FuzzingArtifacts.zip'
+  - task: ExtractFiles@1
+    displayName: 'Extract Fuzzing artifacts'
+    condition: ne(variables['fuzzingartifacts.secureFilePath'], '')
+    inputs:
+      archiveFilePatterns: '$(Agent.TempDirectory)/FuzzingArtifacts.zip'
+      destinationFolder: ./Fuzzing/Encoders/Fuzz.Tests
+      cleanDestinationFolder: false
+      overwriteExistingFiles: true
+    continueOnError: true
   - task: DotNetCoreCLI@2
     displayName: Restore ${{ parameters.configuration }}
     inputs:
