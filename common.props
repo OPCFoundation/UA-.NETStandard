@@ -17,6 +17,8 @@
     <EnablePackageValidation>true</EnablePackageValidation>
     <!-- to check the package validation on a release build, uncomment here -->
     <!--<PackageValidationBaselineVersion>1.5.374.27</PackageValidationBaselineVersion>-->
+    <!-- to regenerate the compatibility suppression file, uncomment here -->
+    <!--<GenerateCompatibilitySuppressionFile>true</GenerateCompatibilitySuppressionFile>-->
     <NuGetAuditMode>all</NuGetAuditMode>
     <NuGetAudit>true</NuGetAudit>
   </PropertyGroup>

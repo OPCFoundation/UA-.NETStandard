@@ -43,6 +43,11 @@ namespace Opc.Ua
         void SetMappingTables(NamespaceTable namespaceUris, StringTable serverUris);
 
         /// <summary>
+        /// Decodes an object from a buffer.
+        /// </summary>
+        IEncodeable DecodeMessage(Type expectedType);
+
+        /// <summary>
         /// Pushes a namespace onto the namespace stack.
         /// </summary>
         void PushNamespace(string namespaceUri);
