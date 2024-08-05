@@ -154,7 +154,7 @@ namespace Opc.Ua.Client
 
 #if ECC_SUPPORT
         /// <summary>
-        /// The last server ecc ephemeral key received.
+        /// The user identity token policy which was used to create the session.
         /// </summary>
         [DataMember(IsRequired = true, Order = 90)]
         public string UserIdentityTokenPolicy { get; set; }
