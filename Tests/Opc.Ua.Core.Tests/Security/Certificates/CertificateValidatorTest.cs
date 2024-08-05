@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.ConstrainedExecution;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -1233,6 +1234,129 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.NotNull(appConfig);
                 Assert.NotNull(appConfig.CertificateValidator);
             });
+        }
+
+        /// <summary>
+        /// Verify rejected store rotates certificates at 5.
+        /// </summary>
+        [Theory]
+        [TestCase(3,1)]
+        [TestCase(3,2)]
+        [TestCase(3,9)]
+        [TestCase(3,34)]
+        [TestCase(5,1)]
+        [TestCase(5,15)]
+        [TestCase(5,23)]
+        public void VerifyRejectedRotates(int nrOfexistingCerts, int nrOfAddedCerts)
+        {
+            const int kMaxRotate = 5;
+            // verify cert with issuer chain
+            using (var validator = TemporaryCertValidator.Create(true))
+            {
+                var certValidator = validator.Update();
+
+                X509Certificate2Collection existingRejected = new X509Certificate2Collection();
+                X509Certificate2Collection addRejectedChain = new X509Certificate2Collection();
+
+                var app = m_goodApplicationTestSet[0];
+                // create self signed app certs as existing in Rejected folder
+                for (int i = 0; i < nrOfexistingCerts; i++)
+                {
+                    var subject = app.Subject;
+                    var appCert = CertificateFactory.CreateCertificate(
+                        app.ApplicationUri,
+                        app.ApplicationName,
+                        subject,
+                        app.DomainNames)
+                        .CreateForRSA();
+                    existingRejected.Add(appCert);
+                }
+
+                foreach (var cert in existingRejected)
+                {
+                    var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(cert)));
+                    Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
+                }
+                Assert.AreEqual(existingRejected.Count, validator.RejectedStore.Enumerate().GetAwaiter().GetResult().Count);
+
+                // create self signed app certs as chain to add
+                for (int i = 0; i < nrOfAddedCerts; i++)
+                {
+                    var subject = app.Subject;
+                    var appCert = CertificateFactory.CreateCertificate(
+                        app.ApplicationUri,
+                        app.ApplicationName,
+                        subject,
+                        app.DomainNames)
+                        .CreateForRSA();
+                    addRejectedChain.Add(appCert);
+                }
+
+                foreach (var cert in addRejectedChain)
+                {
+                    var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(cert)));
+                    Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
+                }
+
+                var rejectedCerts = validator.RejectedStore.Enumerate().GetAwaiter().GetResult();
+
+                int totalCerts = nrOfexistingCerts + nrOfAddedCerts;
+
+
+                if (totalCerts <= kMaxRotate)
+                {
+                    Assert.AreEqual(totalCerts, rejectedCerts.Count);
+                    foreach (var cer in existingRejected)
+                    {
+                        Assert.IsTrue(rejectedCerts.Contains(cer));
+                    }
+                    foreach (var cer in addRejectedChain)
+                    {
+                        Assert.IsTrue(rejectedCerts.Contains(cer));
+                    }
+                }
+                else if (totalCerts > kMaxRotate)
+                {
+                    Assert.AreEqual(kMaxRotate, rejectedCerts.Count);
+                    int idx = totalCerts - kMaxRotate;
+
+                    if (idx < nrOfexistingCerts)
+                    {
+                        // These should have rotated out
+                        for (int i = 0; i < idx; i++)
+                        {
+                            Assert.IsTrue(!rejectedCerts.Contains(existingRejected[i]));
+                        }
+                        // These should still exist
+                        for (int i = idx; i < nrOfexistingCerts; i++)
+                        {
+                            Assert.IsTrue(rejectedCerts.Contains(existingRejected[i]));
+                        }
+                        for (int i = 0; i < idx; i++)
+                        {
+                            Assert.IsTrue(rejectedCerts.Contains(addRejectedChain[i]));
+                        }
+                    }
+                    else // idx bytes from newly AddedCerts
+                    {
+                        // All existing should have rotated out
+                        for (int i = 0; i < nrOfexistingCerts; i++)
+                        {
+                            Assert.IsTrue(!rejectedCerts.Contains(existingRejected[i]));
+                        }
+                        // These newly added should not exist
+                        for (int i = 0; i < nrOfAddedCerts - kMaxRotate; i++)
+                        {
+                            Assert.IsTrue(!rejectedCerts.Contains(addRejectedChain[i]));
+                        }
+                        // These newly added should exist
+                        for (int i = idx; i < nrOfAddedCerts - idx; i++)
+                        {
+                            Assert.IsTrue(rejectedCerts.Contains(addRejectedChain[i]));
+                        }
+                    }
+                }
+            }
         }
 
         #region tests with missing revocation list when revocation is enforced

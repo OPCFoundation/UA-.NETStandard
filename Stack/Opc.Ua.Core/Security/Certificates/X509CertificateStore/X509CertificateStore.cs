@@ -140,29 +140,26 @@ namespace Opc.Ua
             using (X509Store store = new X509Store(m_storeName, m_storeLocation))
             {
                 store.Open(OpenFlags.ReadWrite);
-                if (!store.Certificates.Contains(certificate))
+                if (certificate.HasPrivateKey && !m_noPrivateKeys)
                 {
-                    if (certificate.HasPrivateKey && !m_noPrivateKeys)
-                    {
-                        // X509Store needs a persisted private key
-                        var persistedCertificate = X509Utils.CreateCopyWithPrivateKey(certificate, true);
-                        store.Add(persistedCertificate);
-                    }
-                    else if (certificate.HasPrivateKey && m_noPrivateKeys)
-                    {
-                        // ensure no private key is added to store
-                        using (var publicKey = new X509Certificate2(certificate.RawData))
-                        {
-                            store.Add(publicKey);
-                        }
-                    }
-                    else
-                    {
-                        store.Add(certificate);
-                    }
-
-                    Utils.LogCertificate("Added certificate to X509Store {0}.", certificate, store.Name);
+                    // X509Store needs a persisted private key
+                    var persistedCertificate = X509Utils.CreateCopyWithPrivateKey(certificate, true);
+                    store.Add(persistedCertificate);
                 }
+                else if (certificate.HasPrivateKey && m_noPrivateKeys)
+                {
+                    // ensure no private key is added to store
+                    using (var publicKey = new X509Certificate2(certificate.RawData))
+                    {
+                        store.Add(publicKey);
+                    }
+                }
+                else
+                {
+                    store.Add(certificate);
+                }
+
+                Utils.LogCertificate("Added certificate to X509Store {0}.", certificate, store.Name);
             }
 
             return Task.CompletedTask;

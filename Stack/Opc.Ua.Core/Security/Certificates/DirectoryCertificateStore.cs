@@ -174,14 +174,6 @@ namespace Opc.Ua
             {
                 byte[] data = null;
 
-                // check for certificate file.
-                Entry entry = Find(certificate.Thumbprint);
-
-                if (entry != null)
-                {
-                    throw new ArgumentException("A certificate with the same thumbprint is already in the store.");
-                }
-
                 bool writePrivateKey = !NoPrivateKeys && certificate.HasPrivateKey;
                 if (writePrivateKey)
                 {
@@ -744,7 +736,7 @@ namespace Opc.Ua
                 bool incompleteSearch = false;
 
                 // check for public keys.
-                foreach (FileInfo file in m_certificateSubdir.GetFiles("*.der"))
+                foreach (FileInfo file in m_certificateSubdir.GetFiles("*.der").OrderBy(f => f.CreationTime))
                 {
                     try
                     {

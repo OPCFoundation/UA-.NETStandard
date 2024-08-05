@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -691,8 +692,60 @@ namespace Opc.Ua
                         ICertificateStore store = m_rejectedCertificateStore.OpenStore();
                         try
                         {
+                            var certs = store.Enumerate().GetAwaiter().GetResult();
+                            int existingCertsCount = certs.Count;
+                            var certsThumbprints = new HashSet<string>(certs.Cast<X509Certificate2>().Select(c => c.Thumbprint));
+
+                            // Do not add existing certificates from the chain
+                            var newChainCerts = certificateChain.Cast<X509Certificate2>().Where(c => !certsThumbprints.Contains(c.Thumbprint)).ToArray();
+                            int newChainCertsCount = newChainCerts.Length;
+                            // Nothing to add
+                            if (newChainCertsCount == 0)
+                            {
+                                Utils.LogTrace("The entire rejected certificate chain is allready present in {0}", m_rejectedCertificateStore);
+                                return;
+                            }
+
+                            X509Certificate2Collection certsToRemove = null;
+                            X509Certificate2Collection certsToAdd = new X509Certificate2Collection();
+
+                            // If newChainCerts is multiple of kMaxRejectedCerts + r
+                            // all the existing certificates need to be cleared and only last kMaxRejectedCerts will be added
+                            if (newChainCertsCount >= kMaxRejectedCerts)
+                            {
+                                certsToRemove = certs;
+
+                                int startIdx = newChainCertsCount - kMaxRejectedCerts;
+                                for (int i = startIdx; i < newChainCertsCount; i++)
+                                {
+                                    certsToAdd.Add(newChainCerts[i]);
+                                }
+                            }
+                            else
+                            {
+                                certs.AddRange(newChainCerts);
+
+                                int startIdx = certs.Count - kMaxRejectedCerts;
+
+                                if (startIdx > 0)
+                                {
+                                    if (startIdx <= existingCertsCount)
+                                    {
+                                        certsToRemove = new X509Certificate2Collection();
+                                        for (int i = 0; i < startIdx; i++)
+                                        {
+                                            certsToRemove.Add(certs[i]);
+                                        }
+                                    }
+                                }
+                                for (int i = 0; i < newChainCertsCount; i++)
+                                {
+                                    certsToAdd.Add(newChainCerts[i]);
+                                }
+                            }
+
                             bool leafCertificate = true;
-                            foreach (var certificate in certificateChain)
+                            foreach (var certificate in certsToAdd)
                             {
                                 try
                                 {
@@ -709,6 +762,16 @@ namespace Opc.Ua
                                     Utils.LogCertificate(aex.Message, certificate);
                                 }
                             }
+
+                            if (certsToRemove != null)
+                            {
+                                // Remove the older identified certificates
+                                foreach (var certificate in certsToRemove)
+                                {
+                                    store.Delete(certificate.Thumbprint);
+                                }
+                            }
+                            var newcerts = store.Enumerate().GetAwaiter().GetResult();
                         }
                         finally
                         {
@@ -1780,6 +1843,10 @@ namespace Opc.Ua
         private ushort m_minimumCertificateKeySize;
         private bool m_useValidatedCertificates;
         #endregion
+
+        #region Constants
+        private const int kMaxRejectedCerts = 5;
+        #endregion 
     }
 
     #region CertificateValidationEventArgs Class
