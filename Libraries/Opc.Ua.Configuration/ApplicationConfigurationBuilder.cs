@@ -1202,6 +1202,5 @@ namespace Opc.Ua.Configuration
         #region Private Fields
         private bool m_typeSelected;
         #endregion
-        
     }
 }
