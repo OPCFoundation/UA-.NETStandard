@@ -448,6 +448,7 @@ namespace Opc.Ua.Server
                     {
                         // verify cert with issuer chain
                         CertificateValidator certValidator = new CertificateValidator();
+// TODO: why?
                         certValidator.MinimumCertificateKeySize = 1024;
                         CertificateTrustList issuerStore = new CertificateTrustList();
                         CertificateIdentifierCollection issuerCollection = new CertificateIdentifierCollection();
