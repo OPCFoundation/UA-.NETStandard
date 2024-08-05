@@ -921,7 +921,7 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Execute browse and, if necessary, browse next in one service call.
-        /// Take care of BadNoContinuationPoint and BadInvalidContnuationPoint errors
+        /// Takes care of BadNoContinuationPoint and BadInvalidContnuationPoint status codes.
         /// </summary>
         /// <param name="requestHeader"></param>
         /// <param name="view"></param>
@@ -933,7 +933,7 @@ namespace Opc.Ua.Client
         /// <param name="nodeClassMask"></param>
         /// <param name="result"></param>
         /// <param name="errors"></param>
-        /// <param name="excecuteDefensively"></param>
+        /// <param name="excecuteDefensively">Browse is called with at most maxContinuationPoints nodes. So one Browse service call alone cannot allocate more continuation points than the server can provide (concurrent service calls still can do that)</param>
         void ManagedBrowse(
             RequestHeader requestHeader,
             ViewDescription view,
@@ -951,7 +951,7 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Execute BrowseAsync and, if necessary, BrowseNextAsync, in one service call.
-        /// Take care of BadNoContinuationPoint and BadInvalidContnuationPoint errors
+        /// Takes care of BadNoContinuationPoint and BadInvalidContnuationPoint status codes.
         /// </summary>
         /// <param name="requestHeader"></param>
         /// <param name="view"></param>
@@ -961,7 +961,7 @@ namespace Opc.Ua.Client
         /// <param name="referenceTypeId"></param>
         /// <param name="includeSubtypes"></param>
         /// <param name="nodeClassMask"></param>
-        /// <param name="executeDefensively"></param>
+        /// <param name="executeDefensively">Browse is called with at most maxContinuationPoints nodes. So one Browse service call alone cannot allocate more continuation points than the server can provide (concurrent service calls still can do that)</param>
         /// <param name="ct"></param>
         /// <returns></returns>
         Task<(
