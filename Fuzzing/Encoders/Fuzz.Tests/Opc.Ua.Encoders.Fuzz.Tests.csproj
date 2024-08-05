@@ -1,0 +1,75 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
+    <AssemblyName>Opc.Ua.Encoders.Fuzz.Tests</AssemblyName>
+    <RootNamespace>Encoders.Fuzz.Tests</RootNamespace>
+    <GenerateProgramFile>false</GenerateProgramFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Fuzz\FuzzableCode.cs" Link="FuzzableCode.cs" />
+    <Compile Include="..\Fuzz\FuzzableCode.BinaryDecoder.cs" Link="FuzzableCode.BinaryDecoder.cs" />
+    <Compile Include="..\Fuzz\FuzzableCode.JsonDecoder.cs" Link="FuzzableCode.JsonDecoder.cs" />
+    <Compile Include="..\Fuzz\FuzzableCode.XmlDecoder.cs" Link="FuzzableCode.XmlDecoder.cs" />
+    <Compile Include="..\..\common\Fuzz\FuzzMethods.cs" Link="FuzzMethods.cs" />
+    <Compile Include="..\..\common\Fuzz.Tools\Testcases.cs" Link="Testcases.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
+    <PackageReference Include="NUnit" Version="4.1.0" />
+    <PackageReference Include="NUnit.Console" Version="3.17.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.5.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector" Version="6.0.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="SharpFuzz" Version="2.1.1" />
+    <PackageReference Include="BenchmarkDotNet" Version="0.13.12" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\..\Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\..\Tests\Common\Main.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\Fuzz\Testcases.Binary\**\*.*">
+      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+    </None>
+    <None Include="..\Fuzz\Testcases.Json\**\*.*">
+      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+    </None>
+    <None Include="..\Fuzz\Testcases.Xml\**\*.*">
+      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="..\Fuzz\Testcases.Binary\**\*.*">
+      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="..\Fuzz\Testcases.Json\**\*.*">
+      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="..\Fuzz\Testcases.Xml\**\*.*">
+      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Assets\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

@@ -37,11 +37,25 @@ jobs:
   - task: NuGetToolInstaller@1
     inputs:
       versionSpec: '>=5.8.x'
+  - task: DownloadSecureFile@1
+    name: fuzzingartifacts
+    displayName: 'Download Fuzzing artifacts'
+    inputs:
+      secureFile: 'FuzzingArtifacts.zip'
   - task: PowerShell@2
     displayName: Versioning
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/set-version.ps1
+  - task: ExtractFiles@1
+    displayName: 'Extract Fuzzing artifacts'
+    condition: ne(variables['fuzzingartifacts.secureFilePath'], '')
+    inputs:
+      archiveFilePatterns: '$(Agent.TempDirectory)/FuzzingArtifacts.zip'
+      destinationFolder: ./Fuzzing/Encoders/Fuzz.Tests
+      cleanDestinationFolder: false
+      overwriteExistingFiles: true
+    continueOnError: true
   - task: DotNetCoreCLI@2
     displayName: Restore ${{ parameters.framework }}
     inputs:
@@ -77,13 +91,10 @@ jobs:
 
     displayName: Create Code Coverage Report
     continueOnError: true
-  - task: PublishCodeCoverageResults@1
+  - task: PublishCodeCoverageResults@2
     displayName: 'Publish code coverage'
     inputs:
-      codeCoverageTool: Cobertura
       summaryFileLocation: '$(Build.SourcesDirectory)/CodeCoverage/Cobertura.xml'
-      reportDirectory: '$(Build.SourcesDirectory)/CodeCoverage'
-
     continueOnError: true
   - script: |
       bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r $REPORT_LOCATION --commit-uuid $COMMIT_UUID
