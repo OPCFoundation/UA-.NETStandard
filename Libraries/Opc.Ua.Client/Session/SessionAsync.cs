@@ -109,7 +109,7 @@ namespace Opc.Ua.Client
 
             // create a nonce.
             uint length = (uint)m_configuration.SecurityConfiguration.NonceLength;
-            byte[] clientNonce = Utils.Nonce.CreateNonce(length);
+            byte[] clientNonce = Nonce.CreateRandomNonceData(length);
 
             // send the application instance certificate for the client.
             BuildCertificateData(out byte[] clientCertificateData, out byte[] clientCertificateChainData);
@@ -125,6 +125,9 @@ namespace Opc.Ua.Client
             {
                 sessionTimeout = (uint)m_configuration.ClientConfiguration.DefaultSessionTimeout;
             }
+
+            // select the security policy for the user token.
+            RequestHeader requestHeader = CreateRequestHeaderPerUserTokenPolicy(identityPolicy.SecurityPolicyUri, m_endpoint.Description.SecurityPolicyUri);
 
             bool successCreateSession = false;
             CreateSessionResponse response = null;
@@ -159,7 +162,7 @@ namespace Opc.Ua.Client
             if (!successCreateSession)
             {
                 response = await base.CreateSessionAsync(
-                        null,
+                        requestHeader,
                         clientDescription,
                         m_endpoint.Description.Server.ApplicationUri,
                         m_endpoint.EndpointUrl.ToString(),
@@ -205,6 +208,9 @@ namespace Opc.Ua.Client
 
                 HandleSignedSoftwareCertificates(serverSoftwareCertificates);
 
+                //  process additional header
+                ProcessResponseAdditionalHeader(response.ResponseHeader, serverCertificate);
+
                 // create the client signature.
                 byte[] dataToSign = Utils.Append(serverCertificate != null ? serverCertificate.RawData : null, serverNonce);
                 SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, securityPolicyUri, dataToSign);
@@ -232,7 +238,19 @@ namespace Opc.Ua.Client
                 SignatureData userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
 
                 // encrypt token.
+                //identityToken.Encrypt(serverCertificate, serverNonce, securityPolicyUri);
+#if ECC_SUPPORT 
+                identityToken.Encrypt(
+                    serverCertificate,
+                    serverNonce,
+                    m_userTokenSecurityPolicyUri,
+                    m_eccServerEphemeralKey,
+                    m_instanceCertificate,
+                    m_instanceCertificateChain,
+                    m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
+#else
                 identityToken.Encrypt(serverCertificate, serverNonce, securityPolicyUri);
+#endif
 
                 // send the software certificates assigned to the client.
                 SignedSoftwareCertificateCollection clientSoftwareCertificates = GetSoftwareCertificates();
@@ -252,6 +270,9 @@ namespace Opc.Ua.Client
                     new ExtensionObject(identityToken),
                     userTokenSignature,
                     ct).ConfigureAwait(false);
+
+                //  process additional header
+                ProcessResponseAdditionalHeader(activateResponse.ResponseHeader, serverCertificate);
 
                 serverNonce = activateResponse.ServerNonce;
                 StatusCodeCollection certificateResults = activateResponse.Results;

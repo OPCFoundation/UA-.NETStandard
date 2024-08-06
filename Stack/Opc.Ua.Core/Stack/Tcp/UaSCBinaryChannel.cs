@@ -24,7 +24,6 @@ namespace Opc.Ua.Bindings
     public partial class UaSCUaBinaryChannel : IMessageSink, IDisposable
     {
         #region Constructors
-
         /// <summary>
         /// Attaches the object to an existing socket.
         /// </summary>
@@ -35,10 +34,10 @@ namespace Opc.Ua.Bindings
             X509Certificate2 serverCertificate,
             EndpointDescriptionCollection endpoints,
             MessageSecurityMode securityMode,
-            string securityPolicyUri)
-        :
-            this(contextId, bufferManager, quotas, serverCertificate, null, endpoints, securityMode, securityPolicyUri)
-        { }
+            string securityPolicyUri) :
+            this(contextId, bufferManager, quotas, null, serverCertificate, endpoints, securityMode, securityPolicyUri)
+        {
+        }
 
         /// <summary>
         /// Attaches the object to an existing socket.
@@ -47,12 +46,28 @@ namespace Opc.Ua.Bindings
             string contextId,
             BufferManager bufferManager,
             ChannelQuotas quotas,
+            CertificateTypesProvider serverCertificateTypesProvider,
+            EndpointDescriptionCollection endpoints,
+            MessageSecurityMode securityMode,
+            string securityPolicyUri) :
+            this(contextId, bufferManager, quotas, serverCertificateTypesProvider, null, endpoints, securityMode, securityPolicyUri)
+        {
+        }
+
+        /// <summary>
+        /// Attaches the object to an existing socket.
+        /// </summary>
+        private UaSCUaBinaryChannel(
+            string contextId,
+            BufferManager bufferManager,
+            ChannelQuotas quotas,
+            CertificateTypesProvider serverCertificateTypesProvider,
             X509Certificate2 serverCertificate,
-            X509Certificate2Collection serverCertificateChain,
             EndpointDescriptionCollection endpoints,
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
+
             if (bufferManager == null) throw new ArgumentNullException(nameof(bufferManager));
             if (quotas == null) throw new ArgumentNullException(nameof(quotas));
 
@@ -70,8 +85,12 @@ namespace Opc.Ua.Bindings
                 securityPolicyUri = SecurityPolicies.None;
             }
 
-            if (securityMode != MessageSecurityMode.None)
+            X509Certificate2Collection serverCertificateChain = null;
+            if (serverCertificateTypesProvider != null &&
+                securityMode != MessageSecurityMode.None)
             {
+                serverCertificate = serverCertificateTypesProvider.GetInstanceCertificate(securityPolicyUri);
+
                 if (serverCertificate == null) throw new ArgumentNullException(nameof(serverCertificate));
 
                 if (serverCertificate.RawData.Length > TcpMessageLimits.MaxCertificateSize)
@@ -80,6 +99,8 @@ namespace Opc.Ua.Bindings
                         Utils.Format("The DER encoded certificate may not be more than {0} bytes.", TcpMessageLimits.MaxCertificateSize),
                             nameof(serverCertificate));
                 }
+
+                serverCertificateChain = serverCertificateTypesProvider.LoadCertificateChainAsync(serverCertificate).GetAwaiter().GetResult();
             }
 
             if (Encoding.UTF8.GetByteCount(securityPolicyUri) > TcpMessageLimits.MaxSecurityPolicyUriSize)
@@ -91,6 +112,7 @@ namespace Opc.Ua.Bindings
 
             m_bufferManager = bufferManager;
             m_quotas = quotas;
+            m_serverCertificateTypesProvider = serverCertificateTypesProvider;
             m_serverCertificate = serverCertificate;
             m_serverCertificateChain = serverCertificateChain;
             m_endpoints = endpoints;
@@ -131,6 +153,7 @@ namespace Opc.Ua.Bindings
             m_maxResponseChunkCount = CalculateChunkCount(m_maxResponseMessageSize, TcpMessageLimits.MinBufferSize);
 
             CalculateSymmetricKeySizes();
+
         }
         #endregion
 
@@ -150,7 +173,19 @@ namespace Opc.Ua.Bindings
         {
             if (disposing)
             {
-                // nothing to do.
+#if ECC_SUPPORT
+                if (m_localNonce != null)
+                {
+                    m_localNonce.Dispose();
+                    m_localNonce = null;
+                }
+
+                if (m_remoteNonce != null)
+                {
+                    m_remoteNonce.Dispose();
+                    m_remoteNonce = null;
+                }
+#endif
             }
         }
         #endregion
@@ -221,7 +256,39 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected uint GetNewSequenceNumber()
         {
-            return Utils.IncrementIdentifier(ref m_sequenceNumber);
+            long origValue = 0;
+            long updatedSeqNumber = 0;
+            do
+            {
+                origValue = updatedSeqNumber = Interlocked.Read(ref m_sequenceNumber);
+                // LegacySequenceNumbers are TRUE for non ECC profiles
+                // https://reference.opcfoundation.org/Core/Part6/v105/docs/6.7.2.4
+                if (!EccUtils.IsEccPolicy(SecurityPolicyUri))
+                {
+                    // First number after wrap around shall be less than 1024
+                    if (origValue == kMaxValueLegacyTrue)
+                    {
+                        updatedSeqNumber = -1;
+                    }
+                    updatedSeqNumber++;
+                    m_localSequenceNumber = (uint)(origValue == kMaxValueLegacyTrue ? kMaxValueLegacyTrue : updatedSeqNumber - 1);
+                }
+                else
+                {
+                    // First number after wrap around shall be 0
+                    if (origValue == kMaxValueLegacyFalse)
+                    {
+                        updatedSeqNumber = -1;
+                    }
+                    updatedSeqNumber++;
+                    m_localSequenceNumber = (uint)(origValue == kMaxValueLegacyTrue ? kMaxValueLegacyTrue : updatedSeqNumber - 1);
+
+                }
+                if (Interlocked.CompareExchange(ref m_sequenceNumber, updatedSeqNumber, origValue) == origValue)
+                {
+                    return (uint)updatedSeqNumber;
+                }
+            }while (true);
         }
 
         /// <summary>
@@ -882,6 +949,7 @@ namespace Opc.Ua.Bindings
         private uint m_channelId;
         private string m_globalChannelId;
         private long m_sequenceNumber;
+        private uint m_localSequenceNumber;
         private uint m_remoteSequenceNumber;
         private bool m_sequenceRollover;
         private uint m_partialRequestId;
@@ -890,6 +958,11 @@ namespace Opc.Ua.Bindings
         private TcpChannelStateEventHandler m_StateChanged;
 
         private int m_lastActiveTickCount;
+        #endregion
+
+        #region Constants
+        private const uint kMaxValueLegacyTrue = TcpMessageLimits.MinSequenceNumber;
+        private const uint kMaxValueLegacyFalse = UInt32.MaxValue;
         #endregion
     }
 
