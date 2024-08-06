@@ -300,7 +300,7 @@ namespace Quickstarts
         /// <summary>
         /// Call the Start method for Alarming to enable events
         /// </summary>
-        public void EnableEvents(ISession session)
+        public void EnableEvents(ISession session, uint timeToRun )
         {
             if (session == null || session.Connected == false)
             {
@@ -318,7 +318,7 @@ namespace Quickstarts
 
                 // Define the method parameters
                 // Input argument requires a Float and an UInt32 value
-                object[] inputArguments = new object[] { (uint)60000 };
+                object[] inputArguments = new object[] { timeToRun };
                 IList<object> outputArguments = null;
 
                 // Invoke Call service
@@ -376,7 +376,8 @@ namespace Quickstarts
 
                 // Create the subscription on Server side
                 subscription.Create();
-                m_output.WriteLine("New Subscription created with SubscriptionId = {0}.", subscription.Id);
+                m_output.WriteLine("New Subscription created with SubscriptionId = {0}, Sampling Interval {1}, Publishing Interval {2}.",
+                    subscription.Id, itemSamplingInterval, subscriptionPublishingInterval );
 
                 if ( enableDurableSubscriptions )
                 {
@@ -1150,8 +1151,6 @@ namespace Quickstarts
                 // Log MonitoredItem Notification event
                 EventFieldList notification = e.NotificationValue as EventFieldList;
 
-                m_output.WriteLine("Event Received");
-
                 foreach ( KeyValuePair< int, QualifiedNameCollection> entry in m_desiredEventFields )
                 {
                     Variant field = notification.EventFields[entry.Key];
@@ -1169,8 +1168,33 @@ namespace Quickstarts
                             }
                         }
 
+                        string fieldName = fieldPath.ToString();
+                        if (fieldName.Equals("Time"))
+                        {
+                            try
+                            {
+                                DateTime currentTime = (DateTime)field.Value;
+                                TimeSpan timeSpan = currentTime - m_lastEventTime;
+                                m_lastEventTime = currentTime;
+                                m_processedEvents++;
+                                string timeBetweenEvents = "";
+                                if (m_processedEvents > 1)
+                                {
+                                    timeBetweenEvents = ", time since last event = " + timeSpan.Seconds.ToString() + " seconds";
+                                }
+
+                                m_output.WriteLine("Event Received - total count = {0}{1}",
+                                    m_processedEvents.ToString(),
+                                    timeBetweenEvents);
+                            }
+                            catch (Exception ex)
+                            {
+                                m_output.WriteLine("Unexpected error retrieving Event Time Field Value: {0}", ex.Message);
+                            }
+                        }
+
                         m_output.WriteLine("\tField [{0}] \"{1}\" = [{2}]",
-                            entry.Key.ToString(), fieldPath.ToString(), field.Value );
+                            entry.Key.ToString(), fieldName, field.Value);
                     }
                 }
             }
@@ -1243,6 +1267,8 @@ namespace Quickstarts
         private readonly ManualResetEvent m_quitEvent;
         private readonly bool m_verbose;
         private Dictionary<int, QualifiedNameCollection> m_desiredEventFields = null;
+        private int m_processedEvents = 0;
+        private DateTime m_lastEventTime = DateTime.Now;
 
     }
 }

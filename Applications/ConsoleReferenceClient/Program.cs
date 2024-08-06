@@ -189,8 +189,6 @@ namespace Quickstarts.ConsoleReferenceClient
                 var quitCTS = new CancellationTokenSource();
                 var quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
 
-                bool enableEvents = true;
-
                 // connect to a server until application stops
                 bool quit = false;
                 DateTime start = DateTime.UtcNow;
@@ -373,11 +371,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                 samples.WriteNodes(uaClient.Session);
                                 samples.Browse(uaClient.Session);
                                 samples.CallMethod(uaClient.Session);
-                                if ( enableEvents )
-                                {
-                                    samples.EnableEvents(uaClient.Session);
-                                    enableEvents = false;
-                                }
+                                samples.EnableEvents(uaClient.Session, (uint)quitTimeout);
                                 samples.SubscribeToDataChanges(uaClient.Session, 120_000, enableDurableSubscriptions);
 
                                 output.WriteLine("Waiting...");
