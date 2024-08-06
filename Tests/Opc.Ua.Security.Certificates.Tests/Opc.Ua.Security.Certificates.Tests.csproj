@@ -10,13 +10,13 @@
   <Choose>
     <When Condition="'$(TargetFramework)' == 'net462'">
     </When>
-    <When Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <When Condition="'$(TargetFramework)' == 'netcoreapp2.1'">
     </When>
     <Otherwise>
       <PropertyGroup Condition="'$(DisableECCTests)' != 'true'">
         <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
       </PropertyGroup>
-      <ItemGroup Condition="'$(TargetFramework)' != 'net48'">
+      <ItemGroup Condition="'$(TargetFramework)' == 'netcoreapp3.1'">
         <PackageReference Include="System.Security.Cryptography.Cng" Version="5.0.0" />
       </ItemGroup>
     </Otherwise>
@@ -25,8 +25,8 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.10.0" />
     <PackageReference Include="NUnit" Version="4.1.0" />
-    <PackageReference Include="NUnit.Console" Version="3.17.0" />
-    <PackageReference Include="NUnit3TestAdapter" Version="4.5.0">
+    <PackageReference Include="NUnit.Console" Version="3.18.1" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>

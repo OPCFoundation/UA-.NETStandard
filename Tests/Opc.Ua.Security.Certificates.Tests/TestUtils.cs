@@ -33,7 +33,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
-using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
@@ -61,7 +60,7 @@ namespace Opc.Ua.Tests
             return values != null ? new AssetCollection<T>(values) : new AssetCollection<T>();
         }
 
-        public AssetCollection(IEnumerable<string> filelist) : base()
+        public AssetCollection(IEnumerable<string> filelist)
         {
             foreach (var file in filelist)
             {
