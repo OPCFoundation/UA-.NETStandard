@@ -1275,11 +1275,11 @@ namespace Opc.Ua
         /// <param name="reader">The stream to read.</param>
         public void LoadFromXml(ISystemContext context, XmlReader reader)
         {
-            ServiceMessageContext messageContext = new ServiceMessageContext();
-
-            messageContext.NamespaceUris = context.NamespaceUris;
-            messageContext.ServerUris = context.ServerUris;
-            messageContext.Factory = context.EncodeableFactory;
+            ServiceMessageContext messageContext = new ServiceMessageContext {
+                NamespaceUris = context.NamespaceUris,
+                ServerUris = context.ServerUris,
+                Factory = context.EncodeableFactory
+            };
 
             reader.MoveToContent();
 
@@ -1298,31 +1298,32 @@ namespace Opc.Ua
             this.SymbolicName = symbolicName.Name;
             this.BrowseName = new QualifiedName(symbolicName.Name, (ushort)namespaceIndex);
 
-            XmlDecoder decoder = new XmlDecoder(null, reader, messageContext);
-
-            // check if a namespace table was provided.
-            NamespaceTable namespaceUris = new NamespaceTable();
-
-            if (!decoder.LoadStringTable("NamespaceUris", "NamespaceUri", namespaceUris))
+            using (XmlDecoder decoder = new XmlDecoder(null, reader, messageContext))
             {
-                namespaceUris = null;
+                // check if a namespace table was provided.
+                NamespaceTable namespaceUris = new NamespaceTable();
+
+                if (!decoder.LoadStringTable("NamespaceUris", "NamespaceUri", namespaceUris))
+                {
+                    namespaceUris = null;
+                }
+
+                // check if a server uri table was provided.
+                StringTable serverUris = new StringTable();
+
+                if (!decoder.LoadStringTable("ServerUris", "ServerUri", serverUris))
+                {
+                    serverUris = null;
+                }
+
+                // setup the mappings to use during decoding.
+                decoder.SetMappingTables(namespaceUris, serverUris);
+
+                // update the node and children.
+                Update(context, decoder);
+                UpdateReferences(context, decoder);
+                UpdateChildren(context, decoder);
             }
-
-            // check if a server uri table was provided.
-            StringTable serverUris = new StringTable();
-
-            if (!decoder.LoadStringTable("ServerUris", "ServerUri", serverUris))
-            {
-                serverUris = null;
-            }
-
-            // setup the mappings to use during decoding.
-            decoder.SetMappingTables(namespaceUris, serverUris);
-
-            // update the node and children.
-            Update(context, decoder);
-            UpdateReferences(context, decoder);
-            UpdateChildren(context, decoder);
         }
 
         /// <summary>

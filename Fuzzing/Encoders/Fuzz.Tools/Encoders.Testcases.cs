@@ -109,18 +109,33 @@ public static partial class Testcases
         pathTarget = workPath + pathSuffix + Path.DirectorySeparatorChar;
         foreach (var messageEncoder in MessageEncoders)
         {
-            string message;
+            string xml;
             using (var encoder = new XmlEncoder(MessageContext))
             {
                 encoder.SetMappingTables(MessageContext.NamespaceUris, MessageContext.ServerUris);
                 messageEncoder(encoder);
-                message = encoder.CloseAndReturnText();
+                xml = encoder.CloseAndReturnText();
             }
 
             // Test the fuzz targets with the message.
+            byte[] message = Encoding.UTF8.GetBytes(xml);
+            using (var stream = new MemoryStream(message))
+            {
+                FuzzableCode.AflfuzzXmlDecoder(stream);
+            }
+            using (var stream = new MemoryStream(message))
+            {
+                FuzzableCode.AflfuzzXmlEncoder(stream);
+            }
+            using (var stream = new MemoryStream(message))
+            {
+                FuzzableCode.FuzzXmlDecoderCore(stream, true);
+            }
+            FuzzableCode.LibfuzzXmlDecoder(message);
+            FuzzableCode.LibfuzzXmlEncoder(message);
 
             string fileName = Path.Combine(pathTarget, $"{messageEncoder.Method.Name}.xml".ToLowerInvariant());
-            File.WriteAllBytes(fileName, Encoding.UTF8.GetBytes(message));
+            File.WriteAllBytes(fileName, Encoding.UTF8.GetBytes(xml));
         }
     }
 }

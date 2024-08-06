@@ -30,6 +30,8 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Xml;
+using Newtonsoft.Json;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
@@ -287,6 +289,121 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 new Variant(new Int32[] { 2, 3, 10 }, new TypeInfo(BuiltInType.Enumeration, 1))
             };
             EncodeDecodeDataValue(encoderType, BuiltInType.Variant, MemoryStreamType.ArraySegmentStream, variant);
+        }
+
+        [Test]
+        [Category("WriteByteString")]
+        public void BinaryEncoder_WriteByteString()
+        {
+            using (var stream = new MemoryStream())
+            {
+                using (IEncoder encoder = new BinaryEncoder(stream, new ServiceMessageContext(), true))
+                {
+                    encoder.WriteByteString("ByteString1", new byte[] { 0, 1, 2, 3, 4, 5 }, 1, 3);
+#if NET5_0_OR_GREATER
+                    var span = new ReadOnlySpan<byte>(new byte[] { 0, 1, 2, 3, 4, 5 }, 1, 3);
+                    var nullspan = new ReadOnlySpan<byte>(null);
+                    encoder.WriteByteString("ByteString2", span);
+                    encoder.WriteByteString("ByteString3", nullspan);
+#endif
+                    encoder.WriteByteString("ByteString4", null);
+                    encoder.WriteByteString("ByteString5", null, 1, 2);
+                }
+                stream.Position = 0;
+                using (var decoder = new BinaryDecoder(stream, new ServiceMessageContext()))
+                {
+                    var result = decoder.ReadByteString("ByteString1");
+                    Assert.AreEqual(new byte[] { 1, 2, 3 }, result);
+#if NET5_0_OR_GREATER
+                    result = decoder.ReadByteString("ByteString2");
+                    Assert.AreEqual(new byte[] { 1, 2, 3 }, result);
+                    result = decoder.ReadByteString("ByteString3");
+                    Assert.AreEqual(null, result);
+#endif
+                    result = decoder.ReadByteString("ByteString4");
+                    Assert.AreEqual(null, result);
+                    result = decoder.ReadByteString("ByteString5");
+                    Assert.AreEqual(null, result);
+                }
+            }
+        }
+
+        [Test]
+        [Category("WriteByteString")]
+        public void XmlEncoder_WriteByteString()
+        {
+            using (var stream = new MemoryStream())
+            {
+                XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
+                using (XmlWriter writer = XmlWriter.Create(stream, settings))
+                using (IEncoder encoder = new XmlEncoder(new XmlQualifiedName("ByteStrings", Namespaces.OpcUaXsd), writer, new ServiceMessageContext()))
+                {
+                    encoder.WriteByteString("ByteString1", new byte[] { 0, 1, 2, 3, 4, 5 }, 1, 3);
+#if NET5_0_OR_GREATER
+                    var span = new ReadOnlySpan<byte>(new byte[] { 0, 1, 2, 3, 4, 5 }, 1, 3);
+                    var nullspan = new ReadOnlySpan<byte>(null);
+                    encoder.WriteByteString("ByteString2", span);
+                    encoder.WriteByteString("ByteString3", nullspan);
+#endif
+                    encoder.WriteByteString("ByteString4", null);
+                    encoder.WriteByteString("ByteString5", null, 1, 2);
+                }
+                stream.Position = 0;
+                using (XmlReader reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
+                using (var decoder = new XmlDecoder(null, reader, new ServiceMessageContext()))
+                {
+                    var result = decoder.ReadByteString("ByteString1");
+                    Assert.AreEqual(new byte[] { 1, 2, 3 }, result);
+#if NET5_0_OR_GREATER
+                    result = decoder.ReadByteString("ByteString2");
+                    Assert.AreEqual(new byte[] { 1, 2, 3 }, result);
+                    result = decoder.ReadByteString("ByteString3");
+                    Assert.AreEqual(null, result);
+#endif
+                    result = decoder.ReadByteString("ByteString4");
+                    Assert.AreEqual(null, result);
+                    result = decoder.ReadByteString("ByteString5");
+                    Assert.AreEqual(null, result);
+                }
+            }
+        }
+
+        [Test]
+        [Category("WriteByteString")]
+        public void JsonEncoder_WriteByteString()
+        {
+            using (var stream = new MemoryStream())
+            {
+                using (IEncoder encoder = new JsonEncoder(new ServiceMessageContext(), true, false, stream, true))
+                {
+                    encoder.WriteByteString("ByteString1", new byte[] { 0, 1, 2, 3, 4, 5 }, 1, 3);
+#if NET5_0_OR_GREATER
+                    var span = new ReadOnlySpan<byte>(new byte[] { 0, 1, 2, 3, 4, 5 }, 1, 3);
+                    var nullspan = new ReadOnlySpan<byte>(null);
+                    encoder.WriteByteString("ByteString2", span);
+                    encoder.WriteByteString("ByteString3", nullspan);
+#endif
+                    encoder.WriteByteString("ByteString4", null);
+                    encoder.WriteByteString("ByteString5", null, 1, 2);
+                }
+                stream.Position = 0;
+                var jsonTextReader = new JsonTextReader(new StreamReader(stream));
+                using (var decoder = new JsonDecoder(null, jsonTextReader, new ServiceMessageContext()))
+                {
+                    var result = decoder.ReadByteString("ByteString1");
+                    Assert.AreEqual(new byte[] { 1, 2, 3 }, result);
+#if NET5_0_OR_GREATER
+                    result = decoder.ReadByteString("ByteString2");
+                    Assert.AreEqual(new byte[] { 1, 2, 3 }, result);
+                    result = decoder.ReadByteString("ByteString3");
+                    Assert.AreEqual(null, result);
+#endif
+                    result = decoder.ReadByteString("ByteString4");
+                    Assert.AreEqual(null, result);
+                    result = decoder.ReadByteString("ByteString5");
+                    Assert.AreEqual(null, result);
+                }
+            }
         }
 
         /// <summary>
