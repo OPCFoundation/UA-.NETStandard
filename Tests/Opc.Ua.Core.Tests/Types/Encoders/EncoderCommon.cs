@@ -468,7 +468,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     return new BinaryEncoder(stream, context, true);
                 case EncodingType.Xml:
                     Assume.That(useReversibleEncoding, "Xml encoding only supports reversible option.");
-                    var xmlWriter = XmlWriter.Create(stream);
+                    var xmlWriter = XmlWriter.Create(stream, Utils.DefaultXmlWriterSettings());
                     return new XmlEncoder(systemType, xmlWriter, context);
                 case EncodingType.Json:
                     return new JsonEncoder(context, useReversibleEncoding, topLevelIsArray, stream, true) {
