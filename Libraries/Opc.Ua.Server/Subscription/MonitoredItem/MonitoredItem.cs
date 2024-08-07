@@ -970,7 +970,7 @@ namespace Opc.Ua.Server
                 }
 
                 //Check for duplicates and discard
-                if (!m_eventQueueHandler.IsEventContainedInQueue(instance))
+                if (m_eventQueueHandler.IsEventContainedInQueue(instance))
                 {
                     return;
                 }
