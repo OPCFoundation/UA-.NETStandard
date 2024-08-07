@@ -1095,8 +1095,8 @@ namespace Opc.Ua.Server
                        "CertificateUpdateRequestedAuditEvent",
                        "en-US",
                        "CertificateUpdateRequestedAuditEvent.");
-                
-                
+
+
 
                 e.Initialize(
                    systemContext,
@@ -1374,7 +1374,7 @@ namespace Opc.Ua.Server
                 }
                 if (exception is ServiceResultException sre)
                 {
-                    statusCode = sre.InnerResult.StatusCode;
+                    statusCode = sre.InnerResult?.StatusCode ?? StatusCodes.Uncertain;
                 }
 
                 ISystemContext systemContext = server.DefaultAuditContext;

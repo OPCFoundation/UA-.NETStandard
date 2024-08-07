@@ -767,6 +767,8 @@ namespace Opc.Ua.Server
                 if (array1 != null)
                 {
                     array1.OnSimpleReadValue = OnReadDiagnosticsArray;
+                    // Hook the OnReadUserRolePermissions callback to control which user roles can access the services on this node
+                    array1.OnReadUserRolePermissions = OnReadUserRolePermissions;
                 }
 
                 // set up handler for session security diagnostics array.
@@ -777,6 +779,8 @@ namespace Opc.Ua.Server
                 if (array2 != null)
                 {
                     array2.OnSimpleReadValue = OnReadDiagnosticsArray;
+                    // Hook the OnReadUserRolePermissions callback to control which user roles can access the services on this node
+                    array2.OnReadUserRolePermissions = OnReadUserRolePermissions;
                 }
 
                 // set up handler for subscription security diagnostics array.
@@ -1390,20 +1394,20 @@ namespace Opc.Ua.Server
             NodeState node,
             ref RolePermissionTypeCollection value)
         {
-            bool admitUser;
+            bool adminUser;
 
             if ((node.NodeId == VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary) ||
                  (node.NodeId == VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray))
             {
-                admitUser = HasApplicationSecureAdminAccess(context);
+                adminUser = HasApplicationSecureAdminAccess(context);
             }
             else
             {
-                admitUser = (node.NodeId == context.SessionId) ||
+                adminUser = (node.NodeId == context.SessionId) ||
                             HasApplicationSecureAdminAccess(context);
             }
 
-            if (admitUser)
+            if (adminUser)
             {
                 var rolePermissionTypes = from roleId in m_kWellKnownRoles
                                           select new RolePermissionType() {

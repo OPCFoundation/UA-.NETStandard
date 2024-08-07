@@ -84,9 +84,9 @@ namespace Opc.Ua.Tests
     /// </summary>
     public static class TestUtils
     {
-        public static string[] EnumerateTestAssets(string searchPattern)
+        public static string[] EnumerateTestAssets(string folder, string searchPattern)
         {
-            var assetsPath = Utils.GetAbsoluteDirectoryPath("Assets", true, false, false);
+            var assetsPath = Utils.GetAbsoluteDirectoryPath(folder, true, false, false);
             if (assetsPath != null)
             {
                 return Directory.EnumerateFiles(assetsPath, searchPattern).ToArray();

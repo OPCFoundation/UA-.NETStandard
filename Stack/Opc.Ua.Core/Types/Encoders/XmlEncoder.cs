@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -64,7 +65,7 @@ namespace Opc.Ua
             if (writer == null)
             {
                 m_destination = new StringBuilder();
-                m_writer = XmlWriter.Create(m_destination);
+                m_writer = XmlWriter.Create(m_destination, Utils.DefaultXmlWriterSettings());
             }
             else
             {
@@ -303,16 +304,10 @@ namespace Opc.Ua
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
 
-            // convert the namespace uri to an index.
-            NodeId typeId = ExpandedNodeId.ToNodeId(message.TypeId, m_context.NamespaceUris);
-
             PushNamespace(Namespaces.OpcUaXsd);
 
-            // write the type id.
-            WriteNodeId("TypeId", typeId);
-
             // write the message.
-            WriteEncodeable("Body", message, message.GetType());
+            WriteEncodeable(message.GetType().Name, message, message.GetType());
 
             PopNamespace();
         }
@@ -524,12 +519,24 @@ namespace Opc.Ua
         /// </summary>
         public void WriteByteString(string fieldName, byte[] value)
         {
-            WriteByteString(fieldName, value, false);
+            WriteByteString(fieldName, value, 0, value?.Length ?? 0, false);
         }
 
-        private void WriteByteString(string fieldName, byte[] value, bool isArrayElement = false)
+        /// <summary>
+        /// Writes a byte string to the stream with a given index and count.
+        /// </summary>
+        public void WriteByteString(string fieldName, byte[] value, int index, int count)
         {
-            if (BeginField(fieldName, value == null, true, isArrayElement))
+            WriteByteString(fieldName, value, index, count, false);
+        }
+
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+        /// <summary>
+        /// Writes a byte string to the stream.
+        /// </summary>
+        public void WriteByteString(string fieldName, ReadOnlySpan<byte> value)
+        {
+            if (BeginField(fieldName, value == null, true, false))
             {
                 // check the length.
                 if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < value.Length)
@@ -538,6 +545,23 @@ namespace Opc.Ua
                 }
 
                 m_writer.WriteValue(Convert.ToBase64String(value, Base64FormattingOptions.InsertLineBreaks));
+                EndField(fieldName);
+            }
+        }
+#endif
+
+        private void WriteByteString(string fieldName, byte[] value, int index, int count, bool isArrayElement)
+        {
+            Debug.Assert(value == null || value.Length >= count - index);
+            if (BeginField(fieldName, value == null, true, isArrayElement))
+            {
+                // check the length.
+                if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                m_writer.WriteValue(Convert.ToBase64String(value, index, count, Base64FormattingOptions.InsertLineBreaks));
                 EndField(fieldName);
             }
         }
@@ -1369,7 +1393,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteByteString("ByteString", values[ii], true);
+                        WriteByteString("ByteString", values[ii], 0, values[ii]?.Length ?? 0, true);
                     }
                 }
 
