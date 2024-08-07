@@ -264,6 +264,8 @@ namespace Opc.Ua
             get { return m_disableHiResClock; }
             set { m_disableHiResClock = value; }
         }
+
+
         #endregion
 
         #region Private Fields
@@ -1490,6 +1492,10 @@ namespace Opc.Ua
             m_maxTrustListSize = 0;
             m_multicastDnsEnabled = false;
             m_auditingEnabled = false;
+            m_DurableSubscriptionsEnabled = false;
+            m_maxDurableNotificationQueueSize = 200000; //default value in deprecated Conformance Unit Subscription Durable StorageLevel High
+            m_maxDurableEventQueueSize = 200000; //default value in deprecated Conformance Unit Subscription Durable StorageLevel High
+            m_maxDurableSubscriptionLifetime = 360000000;
         }
 
         /// <summary>
@@ -1923,6 +1929,50 @@ namespace Opc.Ua
             get { return m_auditingEnabled; }
             set { m_auditingEnabled = value; }
         }
+
+        /// <summary>
+        /// Enable / disable support for durable subscriptions
+        /// </summary>
+        /// <value><c>true</c> if durable subscriptions are enabled; otherwise, <c>false</c>.</value>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 38)]
+        public bool DurableSubscriptionsEnabled
+        {
+            get { return m_DurableSubscriptionsEnabled; }
+            set { m_DurableSubscriptionsEnabled = value; }
+        }
+
+        /// <summary>
+        /// The maximum number of notifications saved in the durable queue for each monitored item.
+        /// </summary>
+        /// <value>The maximum size of the durable notification queue.</value>
+        [DataMember(IsRequired = false, Order = 39)]
+        public int MaxDurableNotificationQueueSize
+        {
+            get { return m_maxDurableNotificationQueueSize; }
+            set { m_maxDurableNotificationQueueSize = value; }
+        }
+
+        /// <summary>
+        /// The max size of the durable event queue.
+        /// </summary>
+        /// <value>The max size of the durable event queue.</value>
+        [DataMember(IsRequired = false, Order = 40)]
+        public int MaxDurableEventQueueSize
+        {
+            get { return m_maxDurableEventQueueSize; }
+            set { m_maxDurableEventQueueSize = value; }
+        }
+
+        /// <summary>
+        /// How long the durable subscriptions will remain open without a publish from the client.
+        /// </summary>
+        /// <value>The maximum durable subscription lifetime.</value>
+        [DataMember(IsRequired = false, Order = 41)]
+        public ulong MaxDurableSubscriptionLifetime
+        {
+            get { return m_maxDurableSubscriptionLifetime; }
+            set { m_maxDurableSubscriptionLifetime = value; }
+        }
         #endregion
 
         #region Private Members
@@ -1961,6 +2011,10 @@ namespace Opc.Ua
         private ReverseConnectServerConfiguration m_reverseConnect;
         private OperationLimits m_operationLimits;
         private bool m_auditingEnabled;
+        private bool m_DurableSubscriptionsEnabled;
+        private int m_maxDurableNotificationQueueSize;
+        private int m_maxDurableEventQueueSize;
+        private ulong m_maxDurableSubscriptionLifetime;
         #endregion
     }
     #endregion

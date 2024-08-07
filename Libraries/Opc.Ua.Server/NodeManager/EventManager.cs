@@ -44,13 +44,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a new instance of a sampling group.
         /// </summary>
-        public EventManager(IServerInternal server, uint maxQueueSize)
+        public EventManager(IServerInternal server, uint maxQueueSize, uint maxDurableQueueSize)
         {
             if (server == null) throw new ArgumentNullException(nameof(server));
 
             m_server = server;
             m_monitoredItems = new Dictionary<uint,IEventMonitoredItem>();
             m_maxEventQueueSize = maxQueueSize;
+            m_maxDurableEventQueueSize = maxDurableQueueSize;
         }
         #endregion
 
@@ -123,7 +124,8 @@ namespace Opc.Ua.Server
                 timestampsToReturn,
                 0,
                 itemToCreate,
-                filter);
+                filter,
+                false);
         }
 
         /// <summary>
@@ -138,7 +140,8 @@ namespace Opc.Ua.Server
             TimestampsToReturn         timestampsToReturn,
             double                     publishingInterval,
             MonitoredItemCreateRequest itemToCreate,
-            EventFilter                filter)
+            EventFilter                filter,
+            bool                       createDurable)
         {
             lock (m_lock)
             {
@@ -153,9 +156,14 @@ namespace Opc.Ua.Server
                 // limit the queue size.
                 uint queueSize = itemToCreate.RequestedParameters.QueueSize;
 
-                if (queueSize > m_maxEventQueueSize)
+                if (queueSize > m_maxEventQueueSize && !createDurable)
                 {
                     queueSize = m_maxEventQueueSize;
+                }
+
+                if (queueSize > m_maxDurableEventQueueSize && createDurable)
+                {
+                    queueSize = m_maxDurableEventQueueSize;
                 }
 
                 // create the monitored item.
@@ -176,7 +184,8 @@ namespace Opc.Ua.Server
                     samplingInterval,
                     queueSize,
                     itemToCreate.RequestedParameters.DiscardOldest,
-                    MinimumSamplingIntervals.Continuous);
+                    MinimumSamplingIntervals.Continuous,
+                    createDurable);
 
                 // save the monitored item.
                 m_monitoredItems.Add(monitoredItemId, monitoredItem);
@@ -206,9 +215,14 @@ namespace Opc.Ua.Server
                 // limit the queue size.
                 uint queueSize = itemToModify.RequestedParameters.QueueSize;
 
-                if (queueSize > m_maxEventQueueSize)
+                if (queueSize > m_maxEventQueueSize && !monitoredItem.IsDurable)
                 {
                     queueSize = m_maxEventQueueSize;
+                }
+
+                if (queueSize > m_maxDurableEventQueueSize && monitoredItem.IsDurable)
+                {
+                    queueSize = m_maxDurableEventQueueSize;
                 }
 
                 // modify the attributes.
@@ -253,6 +267,7 @@ namespace Opc.Ua.Server
         private IServerInternal m_server;
         private Dictionary<uint, IEventMonitoredItem> m_monitoredItems;
         private uint m_maxEventQueueSize;
+        private uint m_maxDurableEventQueueSize;
         #endregion
     }
 }
