@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-//#define Enable_Durable_Subscriptions
-
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -90,6 +88,8 @@ namespace Quickstarts.ConsoleReferenceClient
             string reverseConnectUrlString = null;
             bool leakChannels = false;
             bool forever = false;
+            bool enableDurableSubscriptions = false;
+
 
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                 usage,
@@ -115,6 +115,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 { "rc|reverseconnect=", "Connect using the reverse connect endpoint. (e.g. rc=opc.tcp://localhost:65300)", (string url) => reverseConnectUrlString = url},
                 { "forever", "run inner connect/disconnect loop forever", f => { if (f != null) forever = true; } },
                 { "leakchannels", "Leave a channel leak open when disconnecting a session.", l => { if (l != null) leakChannels = true; } },
+                { "ds|durablesubscription", "SetDurableSubscription example", ds => { if (ds != null) enableDurableSubscriptions = true; } },
             };
 
             ReverseConnectManager reverseConnectManager = null;
@@ -358,13 +359,11 @@ namespace Quickstarts.ConsoleReferenceClient
                             }
                             else
                             {
-                                bool enableDurableSubscriptions = false;
                                 int quitTimeout = 30_000;
-
-#if Enable_Durable_Subscriptions
-                                enableDurableSubscriptions = true;
-                                quitTimeout = 300_000;
-#endif
+                                if ( enableDurableSubscriptions )
+                                {
+                                    quitTimeout = 300_000;
+                                }
 
                                 // Run tests for available methods on reference server.
                                 samples.ReadNodes(uaClient.Session);
