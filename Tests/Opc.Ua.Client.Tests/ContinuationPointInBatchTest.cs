@@ -558,6 +558,7 @@ namespace Opc.Ua.Client.Tests
         {
             Session theSession = ((Session)(((TraceableSession)Session).Session));
             theSession.UseManagedBrowseInFetchReferences = UseManagedBrowse;
+            theSession.NodeCache.Clear();
 
             // the ExpectedNumber* parameters are not relevant/correct for this test.
             ManagedBrowseExpectedResultValues pass1ExpectedResults = new ManagedBrowseExpectedResultValues {
@@ -621,6 +622,7 @@ namespace Opc.Ua.Client.Tests
         {
             Session theSession = ((Session)(((TraceableSession)Session).Session));
             theSession.UseManagedBrowseInFetchReferences = UseManagedBrowse;
+            theSession.NodeCache.Clear();
 
             // the ExpectedNumber* parameters are not relevant/correct for this test.
             ManagedBrowseExpectedResultValues pass1ExpectedResults = new ManagedBrowseExpectedResultValues {
@@ -629,6 +631,12 @@ namespace Opc.Ua.Client.Tests
                 ExpectedNumberOfPasses = testData.ExpectedNumberOfPasses,
                 ExpectedNumberOfBadNoCPSCs = testData.ExpectedNumberOfBadNoCPSCs
             };
+
+            ReferenceServerForThisUnitTest.Test_MaxBrowseReferencesPerNode =
+                pass1ExpectedResults.InputMaxNumberOfReferencesPerNode;
+
+            ReferenceServerForThisUnitTest.SetMaxNumberOfContinuationPoints(
+                pass1ExpectedResults.InputMaxNumberOfContinuationPoints);
 
             var result = new List<INode>();
             var nodesToBrowse = new ExpandedNodeIdCollection {
@@ -718,6 +726,12 @@ namespace Opc.Ua.Client.Tests
                 MaxNumberOfReferencesPerNode = 10,
                 ExpectedNumberOfPasses = 2,
                 ExpectedNumberOfBadNoCPSCs = new List<int> { 5, 1 }
+            };
+            yield return new ManagedBrowseTestDataProvider {
+                MaxNumberOfContinuationPoints = 20,
+                MaxNumberOfReferencesPerNode = 50,
+                ExpectedNumberOfPasses = 1,
+                ExpectedNumberOfBadNoCPSCs = new List<int> ()
             };
             yield return new ManagedBrowseTestDataProvider {
                 MaxNumberOfContinuationPoints = 5,
@@ -1137,6 +1151,7 @@ namespace Opc.Ua.Client.Tests
         {
             Session theSession = ((Session)(((TraceableSession)Session).Session));
             theSession.UseManagedBrowseInFetchReferences = UseManagedBrowse;
+            theSession.NodeCache.Clear();
 
             // the ExpectedNumber* parameters are not relevant/correct for this test.
             ManagedBrowseExpectedResultValues pass1ExpectedResults = new ManagedBrowseExpectedResultValues {
@@ -1145,6 +1160,12 @@ namespace Opc.Ua.Client.Tests
                 ExpectedNumberOfPasses = testData.ExpectedNumberOfPasses,
                 ExpectedNumberOfBadNoCPSCs = testData.ExpectedNumberOfBadNoCPSCs
             };
+
+            ReferenceServerForThisUnitTest.Test_MaxBrowseReferencesPerNode =
+                pass1ExpectedResults.InputMaxNumberOfReferencesPerNode;
+
+            ReferenceServerForThisUnitTest.SetMaxNumberOfContinuationPoints(
+                pass1ExpectedResults.InputMaxNumberOfContinuationPoints);
 
             var result = new List<INode>();
             var nodesToBrowse = new ExpandedNodeIdCollection {
@@ -1201,6 +1222,7 @@ namespace Opc.Ua.Client.Tests
         {
             Session theSession = ((Session)(((TraceableSession)Session).Session));
             theSession.UseManagedBrowseInFetchReferences = UseManagedBrowse;
+            theSession.NodeCache.Clear();   
 
             // the ExpectedNumber* parameters are not relevant/correct for this test.
             ManagedBrowseExpectedResultValues pass1ExpectedResults = new ManagedBrowseExpectedResultValues {
@@ -1209,6 +1231,12 @@ namespace Opc.Ua.Client.Tests
                 ExpectedNumberOfPasses = testData.ExpectedNumberOfPasses,
                 ExpectedNumberOfBadNoCPSCs = testData.ExpectedNumberOfBadNoCPSCs
             };
+
+            ReferenceServerForThisUnitTest.Test_MaxBrowseReferencesPerNode =
+                pass1ExpectedResults.InputMaxNumberOfReferencesPerNode;
+
+            ReferenceServerForThisUnitTest.SetMaxNumberOfContinuationPoints(
+                pass1ExpectedResults.InputMaxNumberOfContinuationPoints);
 
             var result = new List<INode>();
             var nodesToBrowse = new ExpandedNodeIdCollection {

@@ -1280,8 +1280,7 @@ namespace Opc.Ua.Client
         public async Task<(
             List<ReferenceDescriptionCollection>,
             IList<ServiceResult>
-            )>
-                ManagedBrowseAsync(RequestHeader requestHeader, ViewDescription view, IList<NodeId> nodesToBrowse, uint maxResultsToReturn, BrowseDirection browseDirection, NodeId referenceTypeId, bool includeSubtypes, uint nodeClassMask, bool executeDefensively = false, CancellationToken ct = default)
+            )> ManagedBrowseAsync(RequestHeader requestHeader, ViewDescription view, IList<NodeId> nodesToBrowse, uint maxResultsToReturn, BrowseDirection browseDirection, NodeId referenceTypeId, bool includeSubtypes, uint nodeClassMask, bool executeDefensively = false, CancellationToken ct = default)
         {
             using (Activity activity = ActivitySource.StartActivity())
             {

@@ -3903,16 +3903,6 @@ namespace Opc.Ua.Client
         /// Release continuation points on all errors other than
         /// BadNoContinuationPoints and BadContinuationPointInvalid  
         /// </summary>
-        /// <param name="view"></param>
-        /// <param name="nodeIds"></param>
-        /// <param name="maxResultsToReturn"></param>
-        /// <param name="browseDirection"></param>
-        /// <param name="referenceTypeId"></param>
-        /// <param name="includeSubtypes"></param>
-        /// <param name="nodeClassMask"></param>
-        /// <param name="result"></param>
-        /// <param name="finalErrors"></param>
-        /// <returns></returns>
         private void BrowseWithBrowseNext(
             ViewDescription view,
             List<NodeId> nodeIds,
