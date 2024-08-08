@@ -153,7 +153,7 @@ namespace Opc.Ua.Security.Certificates
             }
             else
             {
-                throw new NotSupportedException($"Signing RSA with hash {hashAlgorithm.Name} is not supported. ");
+                throw new CryptographicException($"Signing RSA with hash {hashAlgorithm.Name} is not supported. ");
             }
         }
 
@@ -181,7 +181,7 @@ namespace Opc.Ua.Security.Certificates
             }
             else
             {
-                throw new NotSupportedException($"Signing ECDsa with hash {hashAlgorithm.Name} is not supported. ");
+                throw new CryptographicException($"Signing ECDsa with hash {hashAlgorithm.Name} is not supported. ");
             }
         }
 
@@ -206,7 +206,7 @@ namespace Opc.Ua.Security.Certificates
                 case Oids.RsaPkcs1Sha512:
                     return HashAlgorithmName.SHA512;
             }
-            throw new NotSupportedException($"Hash algorithm {oid} is not supported. ");
+            throw new CryptographicException($"Hash algorithm {oid} is not supported. ");
         }
 
     }
