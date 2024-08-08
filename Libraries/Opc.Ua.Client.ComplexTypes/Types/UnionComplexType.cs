@@ -95,7 +95,7 @@ namespace Opc.Ua.Client.ComplexTypes
             encoder.PushNamespace(XmlNamespace);
 
             string fieldName = null;
-            if (encoder.UseReversibleEncoding)
+            if (encoder.UseCompactEncoding)
             {
                 encoder.WriteUInt32("SwitchField", m_switchField);
                 fieldName = "Value";
@@ -116,7 +116,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 EncodeProperty(encoder, fieldName, unionProperty);
             }
-            else if (!encoder.UseReversibleEncoding)
+            else if (!encoder.UseCompactEncoding)
             {
                 encoder.WriteString(null, "null");
             }

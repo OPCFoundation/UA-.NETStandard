@@ -483,6 +483,110 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Parses a string containing a QualifiedName with the syntax n:qname
+        /// </summary>
+        /// <param name="context">The QualifiedName value as a string.</param>
+        /// <param name="text">The QualifiedName value as a string.</param>
+        /// <param name="updateTables">Whether the NamespaceTable should be updated with the NamespaceUri.</param>
+        /// <exception cref="ServiceResultException">Thrown under a variety of circumstances, each time with a specific message.</exception>
+        public static QualifiedName Parse(IServiceMessageContext context, string text, bool updateTables)
+        {
+            // check for null.
+            if (String.IsNullOrEmpty(text))
+            {
+                return QualifiedName.Null;
+            }
+
+            var originalText = text;
+            int namespaceIndex = 0;
+
+            if (text.StartsWith("nsu=", StringComparison.Ordinal))
+            {
+                int index = text.IndexOf(';', 4);
+
+                if (index < 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"Invalid QualifiedName ({originalText}).");
+                }
+
+                var namespaceUri = Utils.UnescapeUri(text.Substring(4, index-4));
+                namespaceIndex = (updateTables) ? context.NamespaceUris.GetIndexOrAppend(namespaceUri) : context.NamespaceUris.GetIndex(namespaceUri);
+
+                if (namespaceIndex < 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"No mapping to NamespaceIndex for NamespaceUri ({namespaceUri}).");
+                }
+
+                text = text.Substring(index + 1);
+            }
+            else
+            {
+                int index = text.IndexOf(':');
+
+                if (index > 0)
+                {
+                    if (UInt16.TryParse(text.Substring(0, index), out ushort nsIndex))
+                    {
+                        namespaceIndex = nsIndex;
+                    }
+                    else
+                    {
+                        throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"Invalid QualifiedName ({originalText}).");
+                    }
+                }
+
+                text = text.Substring(index + 1);
+            }
+
+            return new QualifiedName(text, (ushort)namespaceIndex);
+        }
+
+        /// <summary>
+        /// Formats a QualifiedName as a string.
+        /// </summary>
+        /// <param name="context">The current context.</param>
+        /// <param name="useNamespaceUri">The NamespaceUri is used instead of the NamespaceIndex.</param>
+        /// <returns>The formatted identifier.</returns>
+        public string Format(IServiceMessageContext context, bool useNamespaceUri = false)
+        {
+            if (String.IsNullOrEmpty(m_name))
+            {
+                return null;
+            }
+
+            var buffer = new StringBuilder();
+
+            if (m_namespaceIndex > 0)
+            {
+                if (useNamespaceUri)
+                {
+                    var namespaceUri = context.NamespaceUris.GetString(m_namespaceIndex);
+
+                    if (!String.IsNullOrEmpty(namespaceUri))
+                    {
+                        buffer.Append("nsu=");
+                        buffer.Append(Utils.EscapeUri(namespaceUri));
+                        buffer.Append(';');
+                    }
+                    else
+                    {
+                        buffer.Append(m_namespaceIndex);
+                        buffer.Append(':');
+                    }
+                }
+                else
+                {
+                    buffer.Append(m_namespaceIndex);
+                    buffer.Append(':');
+                }
+            }
+
+            buffer.Append(m_name);
+
+            return buffer.ToString();
+        }
+
+        /// <summary>
         /// Returns true if the value is null.
         /// </summary>
         /// <param name="value">The qualified name to check</param>

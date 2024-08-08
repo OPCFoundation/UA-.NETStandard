@@ -20,12 +20,6 @@ namespace Opc.Ua
     public interface IJsonEncoder : IEncoder
     {
         /// <summary>
-        /// Force the Json encoder to encode namespace URI instead of
-        /// namespace Index in NodeIds.
-        /// </summary>
-        bool ForceNamespaceUri { get; set; }
-
-        /// <summary>
         /// Push the begin of an array on the encoder stack.
         /// </summary>
         /// <param name="fieldName">The name of the array field.</param>
@@ -51,6 +45,6 @@ namespace Opc.Ua
         /// Call an IEncoder action where the reversible encoding is applied
         /// before the call to the Action and restored before return.
         /// </summary>
-        void UsingReversibleEncoding<T>(Action<string, T> action, string fieldName, T value, bool useReversibleEncoding);
+        void UsingCompactEncoding<T>(Action<string, T> action, string fieldName, T value, bool useCompactEncoding);
     }
 }
