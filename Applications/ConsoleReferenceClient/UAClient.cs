@@ -130,6 +130,35 @@ namespace Quickstarts
 
         #region Public Methods
         /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="serverUrl"></param>
+        /// <param name="useSecurity"></param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        public async Task<bool> ReconnectAndTransfer(string serverUrl, bool useSecurity = true, CancellationToken ct = default)
+        {
+            bool success = false;
+            SubscriptionCollection subscriptions = new SubscriptionCollection(m_session.Subscriptions);
+            m_session = null;
+            if (await ConnectAsync(serverUrl, useSecurity, ct))
+            {
+                if (subscriptions != null && m_session != null)
+                {
+                    m_output.WriteLine("Transferring " + subscriptions.Count.ToString() +
+                        " subscriptions from old session to new session...");
+                    success = m_session.TransferSubscriptions(subscriptions, true);
+                    if (success)
+                    {
+                        m_output.WriteLine("Subscriptions transferred.");
+                    }
+                }
+            }
+
+            return success;
+        }
+
+        /// <summary>
         /// Creates a session with the UA server
         /// </summary>
         public async Task<bool> ConnectAsync(string serverUrl, bool useSecurity = true, CancellationToken ct = default)
