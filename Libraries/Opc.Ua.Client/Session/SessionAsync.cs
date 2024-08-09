@@ -1333,7 +1333,6 @@ namespace Opc.Ua.Client
                 finalErrors.Add(errorReference.reference);
             }
 
-
             return (result, finalErrors);
         }
 
@@ -1395,35 +1394,11 @@ namespace Opc.Ua.Client
             NodeId nodeId,
             CancellationToken ct = default)
         {
-            ReferenceDescriptionCollection results = new ReferenceDescriptionCollection();
-            if (m_useManagedBrowseInFetchReferences)
-            {
-                (
-                    List<ReferenceDescriptionCollection> descriptions,
-                    _
-                    ) =
-                    await ManagedBrowseAsync(
-                        null,
-                        null,
-                        new[] { nodeId },
-                        0,
-                        BrowseDirection.Both,
-                        null,
-                        true,
-                        0,
-                        false,
-                        ct).ConfigureAwait(false);
-                results = descriptions[0];
-            }
-            else
-            {
-                // browse for all references.                
-                (
-                    _,
-                    ByteStringCollection continuationPoint,
-                    IList<ReferenceDescriptionCollection> descriptions,
-                    _
-                ) = await BrowseAsync(
+            (
+                List<ReferenceDescriptionCollection> descriptions,
+                _
+            ) =
+                await ManagedBrowseAsync(
                     null,
                     null,
                     new[] { nodeId },
@@ -1432,34 +1407,9 @@ namespace Opc.Ua.Client
                     null,
                     true,
                     0,
+                    false,
                     ct).ConfigureAwait(false);
-
-                if (descriptions.Count > 0)
-                {
-                    results.AddRange(descriptions[0]);
-
-                    // process any continuation point.
-                    while (continuationPoint != null && continuationPoint.Count > 0 & continuationPoint[0] != null)
-                    {
-                        (
-                            _,
-                            ByteStringCollection revisedContinuationPoint,
-                            IList<ReferenceDescriptionCollection> additionalDescriptions,
-                            _
-                        ) = await BrowseNextAsync(
-                            null,
-                            continuationPoint,
-                            false,
-                            ct).ConfigureAwait(false);
-
-                        continuationPoint = revisedContinuationPoint;
-
-                        if (additionalDescriptions.Count > 0)
-                            results.AddRange(additionalDescriptions[0]);
-                    }
-                }                
-            }
-            return results;
+            return descriptions[0];
         }
 
         /// <inheritdoc/>
@@ -1467,8 +1417,6 @@ namespace Opc.Ua.Client
             IList<NodeId> nodeIds,
             CancellationToken ct = default)
         {            
-            if (m_useManagedBrowseInFetchReferences)
-            {
                 (
                     IList<ReferenceDescriptionCollection> descriptions,
                     IList<ServiceResult> errors
@@ -1486,76 +1434,6 @@ namespace Opc.Ua.Client
                     ct
                     ).ConfigureAwait(false);
                 return (descriptions, errors);
-            }
-            else
-            {
-                var result = new List<ReferenceDescriptionCollection>();
-                // browse for all references.
-                (
-                    _,
-                    ByteStringCollection continuationPoints,
-                    IList<ReferenceDescriptionCollection> descriptions,
-                    IList<ServiceResult> errors
-                ) = await BrowseAsync(
-                    null,
-                    null,
-                    nodeIds,
-                    0,
-                    BrowseDirection.Both,
-                    null,
-                    true,
-                    0,
-                    ct).ConfigureAwait(false);
-
-                result.AddRange(descriptions);
-
-                // process any continuation point.
-                List<ReferenceDescriptionCollection> previousResult = result;
-                IList<ServiceResult> previousErrors = errors;
-                while (HasAnyContinuationPoint(continuationPoints))
-                {
-                    var nextContinuationPoints = new ByteStringCollection();
-                    var nextResult = new List<ReferenceDescriptionCollection>();
-                    var nextErrors = new List<ServiceResult>();
-
-                    for (int ii = 0; ii < continuationPoints.Count; ii++)
-                    {
-                        byte[] cp = continuationPoints[ii];
-                        if (cp != null)
-                        {
-                            nextContinuationPoints.Add(cp);
-                            nextResult.Add(previousResult[ii]);
-                            nextErrors.Add(previousErrors[ii]);
-                        }
-                    }
-
-                    (
-                        _,
-                        ByteStringCollection revisedContinuationPoints,
-                        IList<ReferenceDescriptionCollection> nextDescriptions,
-                        IList<ServiceResult> browseNextErrors
-                    ) = await BrowseNextAsync(
-                        null,
-                        nextContinuationPoints,
-                        false,
-                        ct).ConfigureAwait(false);
-
-                    continuationPoints = revisedContinuationPoints;
-                    previousResult = nextResult;
-                    previousErrors = nextErrors;
-
-                    for (int ii = 0; ii < nextDescriptions.Count; ii++)
-                    {
-                        nextResult[ii].AddRange(nextDescriptions[ii]);
-                        if (StatusCode.IsBad(browseNextErrors[ii].StatusCode))
-                        {
-                            nextErrors[ii] = browseNextErrors[ii];
-                        }
-                    }
-                }
-                return (result, errors);
-            }
-           
         }
         #endregion
 

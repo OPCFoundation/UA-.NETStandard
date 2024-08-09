@@ -554,10 +554,9 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         [Theory]
         [Test, Order(100)]
-        public void MBNodeCache_BrowseAllVariables(bool UseManagedBrowse, ManagedBrowseTestDataProvider testData)
+        public void MBNodeCache_BrowseAllVariables(ManagedBrowseTestDataProvider testData)
         {
             Session theSession = ((Session)(((TraceableSession)Session).Session));
-            theSession.UseManagedBrowseInFetchReferences = UseManagedBrowse;
             theSession.NodeCache.Clear();
 
             // the ExpectedNumber* parameters are not relevant/correct for this test.
@@ -618,10 +617,9 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         [Theory]
         [Test, Order(200)]
-        public void MBNodeCache_BrowseAllVariables_MultipleNodes(bool UseManagedBrowse, ManagedBrowseTestDataProvider testData)
+        public void MBNodeCache_BrowseAllVariables_MultipleNodes(ManagedBrowseTestDataProvider testData)
         {
             Session theSession = ((Session)(((TraceableSession)Session).Session));
-            theSession.UseManagedBrowseInFetchReferences = UseManagedBrowse;
             theSession.NodeCache.Clear();
 
             // the ExpectedNumber* parameters are not relevant/correct for this test.
@@ -684,10 +682,9 @@ namespace Opc.Ua.Client.Tests
         [Ignore("This test case ignores the server setting for the maximal number of " +
             "Continuation Points/nodes per browse request in this setup and will fail " +
             "with BadTooManyOperations. It's here to demonstrate this fact.")]
-        public void MBNodeCacheFetchNodesConcurrent(bool UseManagedBrowse)
+        public void MBNodeCacheFetchNodesConcurrent()
         {
             Session theSession = ((Session)(((TraceableSession)Session).Session));
-            theSession.UseManagedBrowseInFetchReferences = UseManagedBrowse;
 
             if (ReferenceDescriptions == null)
             {
@@ -773,7 +770,7 @@ namespace Opc.Ua.Client.Tests
             CPBatchTestMemoryWriter memoryWriter = new CPBatchTestMemoryWriter();
             base.ClientFixture.SetTraceOutput(memoryWriter);
             Session theSession = ((Session)(((TraceableSession)Session).Session));
-
+            theSession.FetchOperationLimits();
             ManagedBrowseExpectedResultValues pass1ExpectedResults = new ManagedBrowseExpectedResultValues {
                 InputMaxNumberOfContinuationPoints = testData.MaxNumberOfContinuationPoints,
                 InputMaxNumberOfReferencesPerNode = testData.MaxNumberOfReferencesPerNode,
@@ -1147,10 +1144,9 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         [Theory]
         [Test, Order(20100)]
-        public async Task MBNodeCache_BrowseAllVariablesAsync(bool UseManagedBrowse, ManagedBrowseTestDataProvider testData)
+        public async Task MBNodeCache_BrowseAllVariablesAsync(ManagedBrowseTestDataProvider testData)
         {
-            Session theSession = ((Session)(((TraceableSession)Session).Session));
-            theSession.UseManagedBrowseInFetchReferences = UseManagedBrowse;
+            Session theSession = ((Session)(((TraceableSession)Session).Session));           
             theSession.NodeCache.Clear();
 
             // the ExpectedNumber* parameters are not relevant/correct for this test.
@@ -1218,10 +1214,9 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         [Theory]
         [Test, Order(20200)]
-        public async Task MBNodeCache_BrowseAllVariables_MultipleNodesAsync(bool UseManagedBrowse, ManagedBrowseTestDataProvider testData)
+        public async Task MBNodeCache_BrowseAllVariables_MultipleNodesAsync(ManagedBrowseTestDataProvider testData)
         {
             Session theSession = ((Session)(((TraceableSession)Session).Session));
-            theSession.UseManagedBrowseInFetchReferences = UseManagedBrowse;
             theSession.NodeCache.Clear();   
 
             // the ExpectedNumber* parameters are not relevant/correct for this test.
