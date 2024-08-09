@@ -363,7 +363,6 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Adjust the Log level for the tracer
         /// </summary>
-        /// <param name="logLevel"></param>
         public void SetTraceOutputLevel(LogLevel logLevel = LogLevel.Debug)
         {
             if(m_traceLogger != null)

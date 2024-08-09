@@ -1275,7 +1275,7 @@ namespace Opc.Ua.Client
             }
 
         }
-        
+
         /// <inheritdoc/>        
         public async Task<(
             List<ReferenceDescriptionCollection>,
@@ -1284,7 +1284,7 @@ namespace Opc.Ua.Client
         {
             using (Activity activity = ActivitySource.StartActivity())
             {
-                return await m_session.ManagedBrowseAsync( requestHeader, view, nodesToBrowse, maxResultsToReturn, browseDirection, referenceTypeId, includeSubtypes, nodeClassMask, executeDefensively, ct);
+                return await m_session.ManagedBrowseAsync(requestHeader, view, nodesToBrowse, maxResultsToReturn, browseDirection, referenceTypeId, includeSubtypes, nodeClassMask, executeDefensively, ct);
             }
         }
 

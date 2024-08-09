@@ -672,42 +672,6 @@ namespace Opc.Ua.Client.Tests
             TestContext.Out.WriteLine("Found {0} variables", result.Count);
         }
 
-        /// <summary>
-        /// Test concurrent access of FetchNodes.
-        /// This test fails. The test is running the browse/browse next itself, and creates
-        /// too many continuation points (the server responds with BadTooManyOperations).
-        /// </summary>
-        [Theory]
-        [Test, Order(1000)]
-        [Ignore("This test case ignores the server setting for the maximal number of " +
-            "Continuation Points/nodes per browse request in this setup and will fail " +
-            "with BadTooManyOperations. It's here to demonstrate this fact.")]
-        public void MBNodeCacheFetchNodesConcurrent()
-        {
-            Session theSession = ((Session)(((TraceableSession)Session).Session));
-
-            if (ReferenceDescriptions == null)
-            {
-                BrowseFullAddressSpace();
-            }
-
-            Random random = new Random(62541);
-            var testSet = ReferenceDescriptions.OrderBy(o => random.Next()).Take(kTestSetSize).Select(r => r.NodeId).ToList();
-            var taskList = new List<Task>();
-
-            // test concurrent access of FetchNodes
-            for (int i = 0; i < 10; i++)
-            {
-                Task t = Task.Run(
-                    () => {
-                        IList<Node> nodeCollection = Session.NodeCache.FetchNodes(testSet);
-                    }
-                    );
-                taskList.Add(t);
-            }
-            Task.WaitAll(taskList.ToArray());
-        }
-
 
         [DatapointSource]
         public IEnumerable<ManagedBrowseTestDataProvider> ManagedBrowseTestDataValues()
@@ -1354,11 +1318,11 @@ namespace Opc.Ua.Client.Tests
                 string msg = s.Substring(s.IndexOf("ManagedBrowse"));
                 // create error message from expected results
                 String expectedString =  String.Format(
-                    "ManagedBrowse: in pass {0}, {1} {2} occured with a status code {3}",
+                    "ManagedBrowse: in pass {0}, {1} {2} occured with a status code {3}.",
                     pass,
                     expectedResults.ExpectedNumberOfBadNoCPSCs[pass],
                     expectedResults.ExpectedNumberOfBadNoCPSCs[pass] == 1 ? "error" :
-                    "errors", "BadNoContinuationPoints.");
+                    "errors", nameof(StatusCodes.BadNoContinuationPoints));
                 Assert.IsTrue(msg.Equals(expectedString));
                 pass++;
             }
