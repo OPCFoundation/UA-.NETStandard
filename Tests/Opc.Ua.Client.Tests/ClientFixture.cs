@@ -31,6 +31,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server.Tests;
@@ -356,6 +357,17 @@ namespace Opc.Ua.Client.Tests
             else
             {
                 m_traceLogger.SetWriter(writer);
+            }
+        }
+
+        /// <summary>
+        /// Adjust the Log level for the tracer
+        /// </summary>
+        public void SetTraceOutputLevel(LogLevel logLevel = LogLevel.Debug)
+        {
+            if(m_traceLogger != null)
+            {
+                m_traceLogger.MinimumLogLevel = logLevel;
             }
         }
 

@@ -948,7 +948,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
 
-            BrowseDescriptionCollection browseDescription = new BrowseDescriptionCollection();
+            BrowseDescriptionCollection browseDescriptions = new BrowseDescriptionCollection();
             foreach (NodeId nodeToBrowse in nodesToBrowse)
             {
                 BrowseDescription description = new BrowseDescription {
@@ -960,22 +960,22 @@ namespace Opc.Ua.Client
                     ResultMask = (uint)BrowseResultMask.All
                 };
 
-                browseDescription.Add(description);
+                browseDescriptions.Add(description);
             }
 
             BrowseResponse browseResponse = await BrowseAsync(
                 requestHeader,
                 view,
                 maxResultsToReturn,
-                browseDescription,
+                browseDescriptions,
                 ct).ConfigureAwait(false);
 
             ClientBase.ValidateResponse(browseResponse.ResponseHeader);
             BrowseResultCollection results = browseResponse.Results;
             DiagnosticInfoCollection diagnosticInfos = browseResponse.DiagnosticInfos;
 
-            ClientBase.ValidateResponse(results, browseDescription);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, browseDescription);
+            ClientBase.ValidateResponse(results, browseDescriptions);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, browseDescriptions);
 
             int ii = 0;
             var errors = new List<ServiceResult>();
@@ -1051,6 +1051,293 @@ namespace Opc.Ua.Client
         }
         #endregion
 
+        #region Combined Browse/BrowseNext
+        /// <inheritdoc/>
+        public async Task<(
+            List<ReferenceDescriptionCollection>,
+            IList<ServiceResult>
+            )>
+                ManagedBrowseAsync(
+                    RequestHeader requestHeader,
+                    ViewDescription view,
+                    IList<NodeId> nodesToBrowse,
+                    uint maxResultsToReturn,
+                    BrowseDirection browseDirection,
+                    NodeId referenceTypeId,
+                    bool includeSubtypes,
+                    uint nodeClassMask,
+                    bool executeDefensively = false,
+                    CancellationToken ct = default
+            )
+        {
+            var result = new List<ReferenceDescriptionCollection>();
+            var errors = new List<ServiceResult>();
+
+            // first attempt for implementation: create the references for the output in advance.
+            // optimize later, when everything works fine.
+            for (int i = 0; i < nodesToBrowse.Count; i++)
+            {
+                result.Add(new ReferenceDescriptionCollection());
+                errors.Add(new ServiceResult(StatusCodes.Good));
+            }
+            try
+            {
+                // in the first pass, we browse all nodes from the input.
+                // Some nodes may need to be browsed again, these are then fed into the next pass.
+                List<NodeId> nodesToBrowseForPass = new List<NodeId>();
+                nodesToBrowseForPass.AddRange(nodesToBrowse);
+
+                List<ReferenceDescriptionCollection> resultForPass = new List<ReferenceDescriptionCollection>();
+                resultForPass.AddRange(result);
+
+                List<ServiceResult> errorsForPass = new List<ServiceResult>();
+                errorsForPass.AddRange(errors);
+
+                int passCount = 0;
+
+                do
+                {
+                    int badNoCPErrorsPerPass = 0;
+                    int badCPInvalidErrorsPerPass = 0;
+                    int otherErrorsPerPass = 0;
+                    uint maxNodesPerBrowse = OperationLimits.MaxNodesPerBrowse;
+
+                    if (executeDefensively && ServerMaxContinuationPointsPerBrowse > 0)
+                    {
+                        maxNodesPerBrowse = ServerMaxContinuationPointsPerBrowse < maxNodesPerBrowse ? ServerMaxContinuationPointsPerBrowse : maxNodesPerBrowse;
+                    }
+
+                    // split input into batches
+                    int batchCount = 0;
+
+                    List<NodeId> nodesToBrowseForNextPass = new List<NodeId>();
+                    List<ReferenceDescriptionCollection> referenceDescriptionsForNextPass = new List<ReferenceDescriptionCollection>();
+                    List<ServiceResult> errorsForNextPass = new List<ServiceResult>();
+
+                    // loop over the batches
+                    foreach (var nodesToBrowseBatch in ((List<NodeId>)nodesToBrowseForPass).Batch<NodeId, List<NodeId>>(maxNodesPerBrowse))
+                    {
+                        int batchOffset = batchCount * (int)maxNodesPerBrowse;
+
+                        (
+                            List<ReferenceDescriptionCollection> resultForBatch,
+                            IList<ServiceResult> errorsForBatch
+                        )
+                        =
+                        await BrowseWithBrowseNextAsync(
+                                view,
+                                nodesToBrowseBatch,
+                                maxResultsToReturn,
+                                browseDirection,
+                                referenceTypeId,
+                                includeSubtypes,
+                                nodeClassMask
+                            ).ConfigureAwait(false);
+
+                        for (int ii = 0; ii < nodesToBrowseBatch.Count; ii++)
+                        {
+                            if (errorsForBatch[ii].StatusCode == StatusCodes.BadNoContinuationPoints ||
+                                errorsForBatch[ii].StatusCode == StatusCodes.BadContinuationPointInvalid)
+                            {
+                                nodesToBrowseForNextPass.Add(nodesToBrowseForPass[batchOffset + ii]);
+                                referenceDescriptionsForNextPass.Add(resultForPass[batchOffset + ii]);
+                                errorsForNextPass.Add(errorsForPass[batchOffset + ii]);
+                            }
+
+                            resultForPass[batchOffset + ii].Clear();
+                            resultForPass[batchOffset + ii].AddRange(resultForBatch[ii]);
+                            errorsForPass[batchOffset + ii] = errorsForBatch[ii];
+
+                        }
+                        int badNoCp = errorsForBatch.Count(x => x.StatusCode == StatusCodes.BadNoContinuationPoints);
+                        int badCpI = errorsForBatch.Count(x => x.StatusCode == StatusCodes.BadContinuationPointInvalid);
+                        int bad = errorsForBatch.Count(x => StatusCode.IsBad(x.StatusCode));
+                        badNoCPErrorsPerPass += badNoCp;
+                        badCPInvalidErrorsPerPass += badCpI;
+                        otherErrorsPerPass += bad - badNoCp - badCpI;
+
+                        batchCount++;
+                    }
+
+                    resultForPass = new List<ReferenceDescriptionCollection>();
+                    resultForPass.AddRange(referenceDescriptionsForNextPass);
+                    referenceDescriptionsForNextPass.Clear();
+
+                    errorsForPass = new List<ServiceResult>();
+                    errorsForPass.AddRange(errorsForNextPass);
+                    errorsForNextPass.Clear();
+
+                    nodesToBrowseForPass = new List<NodeId>();
+                    nodesToBrowseForPass.AddRange(nodesToBrowseForNextPass);
+                    nodesToBrowseForNextPass.Clear();
+
+                    String aggregatedErrorMessage = "ManagedBrowse: in pass {0}, {1} {2} occured with a status code {3}";
+
+                    if (badCPInvalidErrorsPerPass > 0)
+                    {
+                        Utils.LogInfo(aggregatedErrorMessage, passCount, badCPInvalidErrorsPerPass,
+                            badCPInvalidErrorsPerPass == 1 ? "error" : "errors", "BadContinuationPointInvalid.");
+                    }
+                    if (badNoCPErrorsPerPass > 0)
+                    {
+                        Utils.LogInfo(aggregatedErrorMessage, passCount, badNoCPErrorsPerPass,
+                            badNoCPErrorsPerPass == 1 ? "error" : "errors", "BadNoContinuationPoints.");
+                    }
+                    if (otherErrorsPerPass > 0)
+                    {
+                        Utils.LogInfo(aggregatedErrorMessage, passCount, otherErrorsPerPass,
+                            otherErrorsPerPass == 1 ? "error" : "errors", "different from BadNoContinuationPoints or BadContinuationPointInvalid.");
+                    }
+                    if (otherErrorsPerPass == 0 && badCPInvalidErrorsPerPass == 0 && badNoCPErrorsPerPass == 0)
+                    {
+                        Utils.LogTrace("MangedBrowse completed with no errors.");
+                    }
+
+                    passCount++;
+
+                } while (nodesToBrowseForPass.Count > 0);
+            }
+            catch (Exception ex)
+            {
+                Utils.LogError(ex, "ManagedBrowse failed");
+            }
+
+            return (result, errors);
+        }
+
+
+        /// <summary>
+        /// Call the browse service asynchronously and call browse next,
+        /// if applicable, immediately afterwards. Observe proper treatment
+        /// of specific service results, specifically
+        /// BadNoContinuationPoint and BadContinuationPointInvalid
+        /// </summary>
+        /// <param name="view"></param>
+        /// <param name="nodeIds"></param>
+        /// <param name="maxResultsToReturn"></param>
+        /// <param name="browseDirection"></param>
+        /// <param name="referenceTypeId"></param>
+        /// <param name="includeSubtypes"></param>
+        /// <param name="nodeClassMask"></param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        private async Task<(
+            List<ReferenceDescriptionCollection>,
+            IList<ServiceResult>
+            )>
+            BrowseWithBrowseNextAsync(
+            ViewDescription view,
+            List<NodeId> nodeIds,
+            uint maxResultsToReturn,
+            BrowseDirection browseDirection,
+            NodeId referenceTypeId,
+            bool includeSubtypes,
+            uint nodeClassMask,
+            CancellationToken ct = default
+            )
+        {
+            var result = new List<ReferenceDescriptionCollection>();
+
+            (
+                _,
+                ByteStringCollection continuationPoints,
+                IList<ReferenceDescriptionCollection> referenceDescriptions,
+                IList<ServiceResult> errors
+            ) =
+            await BrowseAsync(
+                null,
+                view,
+                nodeIds,
+                maxResultsToReturn,
+                browseDirection,
+                referenceTypeId,
+                includeSubtypes,
+                nodeClassMask,
+                ct).ConfigureAwait(false);
+
+
+            result.AddRange(referenceDescriptions);
+
+            // process any continuation point.
+            var previousResults = result;
+            var errorAnchors = new List<ReferenceWrapper<ServiceResult>>();
+            var previousErrors = new List<ReferenceWrapper<ServiceResult>>();
+            foreach (var error in errors)
+            {
+                previousErrors.Add(new ReferenceWrapper<ServiceResult> { reference = error });
+                errorAnchors.Add(previousErrors.Last());
+            }
+
+            byte[] nullByte = new byte[16];
+
+            var nextContinuationPoints = new ByteStringCollection();
+            var nextResults = new List<ReferenceDescriptionCollection>();
+            var nextErrors = new List<ReferenceWrapper<ServiceResult>>();
+
+            for (int ii = 0; ii < nodeIds.Count; ii++)
+            {
+                if (continuationPoints[ii] != null && !Utils.IsEqual(continuationPoints[ii], nullByte))
+                {
+                    if (!StatusCode.IsBad(previousErrors[ii].reference.StatusCode))
+                    {
+                        nextContinuationPoints.Add(continuationPoints[ii]);
+                        nextResults.Add(previousResults[ii]);
+                        nextErrors.Add(previousErrors[ii]);
+                    }
+                    // ToDo: status code is bad and continuation point is not null
+                }
+            }
+            while (nextContinuationPoints.Count > 0)
+            {
+
+                (
+                    _,
+                    ByteStringCollection revisedContinuationPoints,
+                    IList<ReferenceDescriptionCollection> browseNextResults,
+                    IList<ServiceResult> browseNextErrors
+                ) = await BrowseNextAsync(
+                    null,
+                    nextContinuationPoints,
+                    false,
+                    ct
+                    ).ConfigureAwait(false);
+
+
+                for (int ii = 0; ii < browseNextResults.Count; ii++)
+                {
+                    nextResults[ii].AddRange(browseNextResults[ii]);
+                    nextErrors[ii].reference = browseNextErrors[ii];
+                }
+
+                previousResults = nextResults;
+                previousErrors = nextErrors;
+
+                nextResults = new List<ReferenceDescriptionCollection>();
+                nextErrors = new List<ReferenceWrapper<ServiceResult>>();
+                nextContinuationPoints = new ByteStringCollection();
+
+                for (int ii = 0; ii < revisedContinuationPoints.Count; ii++)
+                {
+                    if (revisedContinuationPoints[ii] != null && !Utils.IsEqual(revisedContinuationPoints[ii], nullByte))
+                    {
+                        nextContinuationPoints.Add(revisedContinuationPoints[ii]);
+                        nextResults.Add(previousResults[ii]);
+                        nextErrors.Add(previousErrors[ii]);
+                    }
+                }
+
+            }
+            var finalErrors = new List<ServiceResult>();
+            foreach (var errorReference in errorAnchors)
+            {
+                finalErrors.Add(errorReference.reference);
+            }
+
+            return (result, finalErrors);
+        }
+
+        #endregion 
+
         #region Call Methods
         /// <inheritdoc/>
         public async Task<IList<object>> CallAsync(NodeId objectId, NodeId methodId, CancellationToken ct = default, params object[] args)
@@ -1107,124 +1394,46 @@ namespace Opc.Ua.Client
             NodeId nodeId,
             CancellationToken ct = default)
         {
-            // browse for all references.
-
-            ReferenceDescriptionCollection results = new ReferenceDescriptionCollection();
             (
-                _,
-                ByteStringCollection continuationPoint,
-                IList<ReferenceDescriptionCollection> descriptions,
+                List<ReferenceDescriptionCollection> descriptions,
                 _
-            ) = await BrowseAsync(
-                null,
-                null,
-                new[] { nodeId },
-                0,
-                BrowseDirection.Both,
-                null,
-                true,
-                0,
-                ct).ConfigureAwait(false);
-
-            if (descriptions.Count > 0)
-            {
-                results.AddRange(descriptions[0]);
-
-                // process any continuation point.
-                while (continuationPoint != null && continuationPoint.Count > 0 & continuationPoint[0] != null)
-                {
-                    (
-                        _,
-                        ByteStringCollection revisedContinuationPoint,
-                        IList<ReferenceDescriptionCollection> additionalDescriptions,
-                        _
-                    ) = await BrowseNextAsync(
-                        null,
-                        continuationPoint,
-                        false,
-                        ct).ConfigureAwait(false);
-
-                    continuationPoint = revisedContinuationPoint;
-
-                    if (additionalDescriptions.Count > 0)
-                        results.AddRange(additionalDescriptions[0]);
-                }
-            }
-            return results;
+            ) =
+                await ManagedBrowseAsync(
+                    null,
+                    null,
+                    new[] { nodeId },
+                    0,
+                    BrowseDirection.Both,
+                    null,
+                    true,
+                    0,
+                    false,
+                    ct).ConfigureAwait(false);
+            return descriptions[0];
         }
 
         /// <inheritdoc/>
         public async Task<(IList<ReferenceDescriptionCollection>, IList<ServiceResult>)> FetchReferencesAsync(
             IList<NodeId> nodeIds,
             CancellationToken ct = default)
-        {
-            var result = new List<ReferenceDescriptionCollection>();
-
-            // browse for all references.
-            (
-                _,
-                ByteStringCollection continuationPoints,
-                IList<ReferenceDescriptionCollection> descriptions,
-                IList<ServiceResult> errors
-            ) = await BrowseAsync(
-                null,
-                null,
-                nodeIds,
-                0,
-                BrowseDirection.Both,
-                null,
-                true,
-                0,
-                ct).ConfigureAwait(false);
-
-            result.AddRange(descriptions);
-
-            // process any continuation point.
-            List<ReferenceDescriptionCollection> previousResult = result;
-            IList<ServiceResult> previousErrors = errors;
-            while (HasAnyContinuationPoint(continuationPoints))
-            {
-                var nextContinuationPoints = new ByteStringCollection();
-                var nextResult = new List<ReferenceDescriptionCollection>();
-                var nextErrors = new List<ServiceResult>();
-
-                for (int ii = 0; ii < continuationPoints.Count; ii++)
-                {
-                    byte[] cp = continuationPoints[ii];
-                    if (cp != null)
-                    {
-                        nextContinuationPoints.Add(cp);
-                        nextResult.Add(previousResult[ii]);
-                        nextErrors.Add(previousErrors[ii]);
-                    }
-                }
-
+        {            
                 (
-                    _,
-                    ByteStringCollection revisedContinuationPoints,
-                    IList<ReferenceDescriptionCollection> nextDescriptions,
-                    IList<ServiceResult> browseNextErrors
-                ) = await BrowseNextAsync(
+                    IList<ReferenceDescriptionCollection> descriptions,
+                    IList<ServiceResult> errors
+                    ) = 
+                await ManagedBrowseAsync(
                     null,
-                    nextContinuationPoints,
+                    null,
+                    nodeIds,
+                    0,
+                    BrowseDirection.Both,
+                    null,
+                    true,
+                    0,
                     false,
-                    ct).ConfigureAwait(false);
-
-                continuationPoints = revisedContinuationPoints;
-                previousResult = nextResult;
-                previousErrors = nextErrors;
-
-                for (int ii = 0; ii < nextDescriptions.Count; ii++)
-                {
-                    nextResult[ii].AddRange(nextDescriptions[ii]);
-                    if (StatusCode.IsBad(browseNextErrors[ii].StatusCode))
-                    {
-                        nextErrors[ii] = browseNextErrors[ii];
-                    }
-                }
-            }
-
-            return (result, errors);
+                    ct
+                    ).ConfigureAwait(false);
+                return (descriptions, errors);
         }
         #endregion
 

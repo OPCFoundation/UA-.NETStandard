@@ -392,6 +392,11 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// allow derived classes access
+        /// </summary>
+        protected int MaxBrowseContinuationPoints { get => m_maxBrowseContinuationPoints; set => m_maxBrowseContinuationPoints = value; }
+
+        /// <summary>
         /// Validates the request.
         /// </summary>
         public virtual void ValidateRequest(RequestHeader requestHeader, RequestType requestType)

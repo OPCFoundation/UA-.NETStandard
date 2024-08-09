@@ -76,6 +76,7 @@ namespace Quickstarts.ConsoleReferenceClient
             bool appLog = false;
             bool renewCertificate = false;
             bool loadTypes = false;
+            bool managedbrowseall = false;
             bool browseall = false;
             bool fetchall = false;
             bool jsonvalues = false;
@@ -105,6 +106,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 { "t|timeout=", "timeout in seconds to exit application", (int t) => timeout = t * 1000 },
                 { "logfile=", "custom file name for log output", l => { if (l != null) { logFile = l; } } },
                 { "lt|loadtypes", "Load custom types", lt => { if (lt != null) loadTypes = true; } },
+                { "m|managedbrowseall", "Browse all references using the MangedBrowseAsync method", m => { if (m != null) managedbrowseall = true; } },
                 { "b|browseall", "Browse all references", b => { if (b != null) browseall = true; } },
                 { "f|fetchall", "Fetch all nodes", f => { if (f != null) fetchall = true; } },
                 { "j|json", "Output all Values as JSON", j => { if (j != null) jsonvalues = true; } },
@@ -259,10 +261,13 @@ namespace Quickstarts.ConsoleReferenceClient
                                 var complexTypeSystem = await samples.LoadTypeSystemAsync(uaClient.Session).ConfigureAwait(false);
                             }
 
-                            if (browseall || fetchall || jsonvalues)
+                            if (browseall || fetchall || jsonvalues || managedbrowseall)
                             {
                                 NodeIdCollection variableIds = null;
+                                NodeIdCollection variableIdsManagedBrowse = null;
                                 ReferenceDescriptionCollection referenceDescriptions = null;
+                                ReferenceDescriptionCollection referenceDescriptionsFromManagedBrowse = null;
+
                                 if (browseall)
                                 {
                                     referenceDescriptions =
@@ -270,6 +275,22 @@ namespace Quickstarts.ConsoleReferenceClient
                                     variableIds = new NodeIdCollection(referenceDescriptions
                                         .Where(r => r.NodeClass == NodeClass.Variable && r.TypeDefinition.NamespaceIndex != 0)
                                         .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, uaClient.Session.NamespaceUris)));
+                                }
+
+                                if (managedbrowseall)
+                                {
+                                    referenceDescriptionsFromManagedBrowse =
+                                        await samples.ManagedBrowseFullAddressSpaceAsync(uaClient, Objects.RootFolder).ConfigureAwait(false);
+                                    variableIdsManagedBrowse = new NodeIdCollection(referenceDescriptionsFromManagedBrowse
+                                        .Where(r => r.NodeClass == NodeClass.Variable && r.TypeDefinition.NamespaceIndex != 0)
+                                        .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, uaClient.Session.NamespaceUris)));
+                                }
+
+                                // treat managedBrowseall result like browseall results if the latter is missing
+                                if (!browseall && managedbrowseall)
+                                {
+                                    referenceDescriptions = referenceDescriptionsFromManagedBrowse;
+                                    browseall = managedbrowseall;
                                 }
 
                                 IList<INode> allNodes = null;
