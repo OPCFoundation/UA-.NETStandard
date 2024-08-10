@@ -114,7 +114,7 @@
     <When  Condition="'$(VisualStudioVersion)' == '17.0'">
       <PropertyGroup>
         <AnalysisLevel>preview-all</AnalysisLevel>
-        <AppTargetFrameworks>net8.0;net48</AppTargetFrameworks>
+        <AppTargetFrameworks>net8.0;net6.0;net48</AppTargetFrameworks>
         <AppTargetFramework>net8.0</AppTargetFramework>
         <TestsTargetFrameworks>net48;net8.0</TestsTargetFrameworks>
         <LibTargetFrameworks>net472;net48;netstandard2.0;netstandard2.1;net6.0;net8.0</LibTargetFrameworks>
