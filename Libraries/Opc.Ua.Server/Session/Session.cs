@@ -103,7 +103,17 @@ namespace Opc.Ua.Server
             m_identity = new UserIdentity();
 
             // initialize diagnostics.
-            m_diagnostics = new SessionDiagnosticsDataType();
+            DateTime now = DateTime.UtcNow;
+            m_diagnostics = new SessionDiagnosticsDataType {
+                SessionId = null,
+                SessionName = sessionName,
+                ClientDescription = clientDescription,
+                ServerUri = null,
+                EndpointUrl = endpointUrl,
+                ActualSessionTimeout = sessionTimeout,
+                ClientConnectionTime = now,
+                ClientLastContactTime = now,
+            };
 
             m_diagnostics.SessionId = null;
             m_diagnostics.SessionName = sessionName;
@@ -149,14 +159,12 @@ namespace Opc.Ua.Server
             m_diagnostics.UnregisterNodesCount = new ServiceCounterDataType();
 
             // initialize security diagnostics.
-            m_securityDiagnostics = new SessionSecurityDiagnosticsDataType();
-
-            m_securityDiagnostics.SessionId = m_sessionId;
-            m_securityDiagnostics.ClientUserIdOfSession = m_identity.DisplayName;
-            m_securityDiagnostics.AuthenticationMechanism = m_identity.TokenType.ToString();
-            m_securityDiagnostics.Encoding = context.ChannelContext.MessageEncoding.ToString();
-
-            m_securityDiagnostics.ClientUserIdHistory = new StringCollection();
+            m_securityDiagnostics = new SessionSecurityDiagnosticsDataType {
+                SessionId = m_sessionId,
+                ClientUserIdOfSession = m_identity.DisplayName,
+                AuthenticationMechanism = m_identity.TokenType.ToString(),
+                Encoding = context.ChannelContext.MessageEncoding.ToString(),
+            };
             m_securityDiagnostics.ClientUserIdHistory.Add(m_identity.DisplayName);
 
             EndpointDescription description = context.ChannelContext.EndpointDescription;
