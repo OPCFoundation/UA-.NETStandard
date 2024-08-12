@@ -243,51 +243,63 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             object expected
             )
         {
-            string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
-            Type type = TypeInfo.GetSystemType(builtInType, -1);
-            TestContext.Out.WriteLine(encodeInfo);
-            TestContext.Out.WriteLine("Expected:");
-            TestContext.Out.WriteLine(expected);
-
-            byte[] buffer;
-            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+            object result = null;
+            try
             {
-                using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, type))
+                string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
+                Type type = TypeInfo.GetSystemType(builtInType, -1);
+                TestContext.Out.WriteLine(encodeInfo);
+
+                byte[] buffer;
+                using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
                 {
-                    Encode(encoder, builtInType, builtInType.ToString(), expected);
+                    using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, type))
+                    {
+                        Encode(encoder, builtInType, builtInType.ToString(), expected);
+                    }
+                    buffer = encoderStream.ToArray();
                 }
-                buffer = encoderStream.ToArray();
-            }
 
-            string formatted;
-            switch (encoderType)
-            {
-                case EncodingType.Json:
-                    formatted = PrettifyAndValidateJson(buffer);
-                    break;
-                case EncodingType.Xml:
-                    formatted = PrettifyAndValidateXml(buffer);
-                    break;
-                default:
-                    formatted = Encoding.UTF8.GetString(buffer);
-                    break;
-            }
+                string formatted;
+                switch (encoderType)
+                {
+                    case EncodingType.Json:
+                        formatted = PrettifyAndValidateJson(buffer);
+                        break;
+                    case EncodingType.Xml:
+                        formatted = PrettifyAndValidateXml(buffer);
+                        break;
+                    default:
+                        formatted = Encoding.UTF8.GetString(buffer);
+                        break;
+                }
 
-            object result;
-            using (var decoderStream = new MemoryStream(buffer))
-            using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type))
-            {
-                result = Decode(decoder, builtInType, builtInType.ToString(), type);
+                using (var decoderStream = new MemoryStream(buffer))
+                using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type))
+                {
+                    result = Decode(decoder, builtInType, builtInType.ToString(), type);
+                }
+                
+                expected = AdjustExpectedBoundaryValues(encoderType, builtInType, expected);
+                if (BuiltInType.DateTime == builtInType)
+                {
+                    expected = Utils.ToOpcUaUniversalTime((DateTime)expected);
+                }
+                Assert.AreEqual(expected, result, encodeInfo);
+                Assert.IsTrue(Opc.Ua.Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
             }
-            TestContext.Out.WriteLine("Result:");
-            TestContext.Out.WriteLine(result);
-            expected = AdjustExpectedBoundaryValues(encoderType, builtInType, expected);
-            if (BuiltInType.DateTime == builtInType)
+            catch
             {
-                expected = Utils.ToOpcUaUniversalTime((DateTime)expected);
+                // only print infos if test fails, to reduce log output 
+                TestContext.Out.WriteLine("Expected:");
+                TestContext.Out.WriteLine(expected);
+                if (result != null)
+                {
+                    TestContext.Out.WriteLine("Result:");
+                    TestContext.Out.WriteLine(result);
+                }
+                throw;
             }
-            Assert.AreEqual(expected, result, encodeInfo);
-            Assert.IsTrue(Opc.Ua.Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
         }
 
         /// <summary>
@@ -303,55 +315,68 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             bool includeDefaults
             )
         {
-            string encodeInfo = $"Encoder: Json Type:{builtInType} Reversible: {useReversibleEncoding}";
-            TestContext.Out.WriteLine(encodeInfo);
-            TestContext.Out.WriteLine("Data:");
-            TestContext.Out.WriteLine(data);
-            TestContext.Out.WriteLine("Expected:");
-            if (!String.IsNullOrEmpty(expected))
+            string formattedResult = null;
+            try
             {
-                expected = $"{{\"{builtInType}\":" + expected + "}";
-            }
-            else
-            {
-                expected = "{}";
-            }
-            var formattedExpected = PrettifyAndValidateJson(expected);
-            TestContext.Out.WriteLine(formattedExpected);
-
-            bool isNumber = TypeInfo.IsNumericType(builtInType) || builtInType == BuiltInType.Boolean;
-            bool includeDefaultValues = !isNumber ? includeDefaults : false;
-            bool includeDefaultNumbers = isNumber ? includeDefaults : true;
-
-            byte[] buffer;
-            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
-            {
-                using (IEncoder encoder = CreateEncoder(EncodingType.Json, Context, encoderStream, typeof(DataValue),
-                    useReversibleEncoding, topLevelIsArray, includeDefaultValues, includeDefaultNumbers))
+                string encodeInfo = $"Encoder: Json Type:{builtInType} Reversible: {useReversibleEncoding}";
+                TestContext.Out.WriteLine(encodeInfo);
+                if (!String.IsNullOrEmpty(expected))
                 {
-                    //encoder.SetMappingTables(_nameSpaceUris, _serverUris);
-                    Encode(encoder, builtInType, builtInType.ToString(), data);
+                    expected = $"{{\"{builtInType}\":" + expected + "}";
                 }
-                buffer = encoderStream.ToArray();
-            }
+                else
+                {
+                    expected = "{}";
+                }
 
-            TestContext.Out.WriteLine("Result:");
-            var result = Encoding.UTF8.GetString(buffer);
-            var formattedResult = PrettifyAndValidateJson(result);
-            var jsonLoadSettings = new JsonLoadSettings() {
-                CommentHandling = CommentHandling.Ignore,
-                LineInfoHandling = LineInfoHandling.Ignore
-            };
-            var resultParsed = JObject.Parse(result, jsonLoadSettings);
-            var expectedParsed = JObject.Parse(expected, jsonLoadSettings);
-            var areEqual = JToken.DeepEquals(expectedParsed, resultParsed);
-            Assert.IsTrue(areEqual, encodeInfo);
+                bool isNumber = TypeInfo.IsNumericType(builtInType) || builtInType == BuiltInType.Boolean;
+                bool includeDefaultValues = !isNumber ? includeDefaults : false;
+                bool includeDefaultNumbers = isNumber ? includeDefaults : true;
+
+                byte[] buffer;
+                using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+                {
+                    using (IEncoder encoder = CreateEncoder(EncodingType.Json, Context, encoderStream, typeof(DataValue),
+                        useReversibleEncoding, topLevelIsArray, includeDefaultValues, includeDefaultNumbers))
+                    {
+                        //encoder.SetMappingTables(_nameSpaceUris, _serverUris);
+                        Encode(encoder, builtInType, builtInType.ToString(), data);
+                    }
+                    buffer = encoderStream.ToArray();
+                }
+
+                TestContext.Out.WriteLine("Result:");
+                var result = Encoding.UTF8.GetString(buffer);
+                formattedResult = PrettifyAndValidateJson(result);
+                var jsonLoadSettings = new JsonLoadSettings() {
+                    CommentHandling = CommentHandling.Ignore,
+                    LineInfoHandling = LineInfoHandling.Ignore
+                };
+                var resultParsed = JObject.Parse(result, jsonLoadSettings);
+                var expectedParsed = JObject.Parse(expected, jsonLoadSettings);
+                var areEqual = JToken.DeepEquals(expectedParsed, resultParsed);
+                Assert.IsTrue(areEqual, encodeInfo);
+            }
+            catch
+            {
+                TestContext.Out.WriteLine("Data:");
+                TestContext.Out.WriteLine(data);
+                TestContext.Out.WriteLine("Expected:");
+                var formattedExpected = PrettifyAndValidateJson(expected);
+                TestContext.Out.WriteLine(formattedExpected);
+                if (string.IsNullOrEmpty(formattedResult))
+                {
+                    TestContext.Out.WriteLine("Result:");
+                    TestContext.Out.WriteLine(formattedResult);
+                }
+                throw;
+            }
         }
 
         /// <summary>
         /// Format and validate a XML document string.
         /// </summary>
-        protected string PrettifyAndValidateXml(byte[] xml)
+        protected string PrettifyAndValidateXml(byte[] xml, bool outputFormatted = false)
         {
             try
             {
@@ -373,7 +398,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         document.Save(xmlWriter);
                     }
                     string formattedXml = stringBuilder.ToString();
-                    TestContext.Out.WriteLine(formattedXml);
+                    if (outputFormatted)
+                    {
+                        TestContext.Out.WriteLine(formattedXml);
+                    }
                     return formattedXml;
                 }
             }
@@ -396,7 +424,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// <summary>
         /// Format and validate a JSON string.
         /// </summary>
-        protected string PrettifyAndValidateJson(string json)
+        protected string PrettifyAndValidateJson(string json, bool outputFormatted = false)
         {
             try
             {
@@ -412,7 +440,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     {
                         jsonWriter.WriteToken(jsonReader);
                         string formattedJson = stringWriter.ToString();
-                        TestContext.Out.WriteLine(formattedJson);
+                        if (outputFormatted)
+                        {
+                            TestContext.Out.WriteLine(formattedJson);
+                        }
                         return formattedJson;
                     }
                 }

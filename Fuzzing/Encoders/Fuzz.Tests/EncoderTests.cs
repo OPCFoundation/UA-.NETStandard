@@ -39,6 +39,7 @@ namespace Opc.Ua.Fuzzing
 {
 
     [TestFixture]
+    [Category("Fuzzing")]
     public class EncoderTests
     {
         #region DataPointSources

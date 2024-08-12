@@ -121,7 +121,8 @@ namespace Opc.Ua.Server.Tests
             IServerTestServices services,
             RequestHeader requestHeader,
             OperationLimits operationLimits = null,
-            BrowseDescription browseDescription = null)
+            BrowseDescription browseDescription = null,
+            bool outputResult = false)
         {
             operationLimits = operationLimits ?? new OperationLimits();
             requestHeader.Timestamp = DateTime.UtcNow;
@@ -254,9 +255,12 @@ namespace Opc.Ua.Server.Tests
             referenceDescriptions.Sort((x, y) => (x.NodeId.CompareTo(y.NodeId)));
 
             TestContext.Out.WriteLine("Found {0} references on server.", referenceDescriptions.Count);
-            foreach (var reference in referenceDescriptions)
+            if (outputResult)
             {
-                TestContext.Out.WriteLine("NodeId {0} {1} {2}", reference.NodeId, reference.NodeClass, reference.BrowseName);
+                foreach (var reference in referenceDescriptions)
+                {
+                    TestContext.Out.WriteLine("NodeId {0} {1} {2}", reference.NodeId, reference.NodeClass, reference.BrowseName);
+                }
             }
             return referenceDescriptions;
         }
