@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if ECC_SUPPORT
+#if ECC_SUPPORT && !NETFRAMEWORK
 #define SPAN_SUPPORT
 #endif
 
