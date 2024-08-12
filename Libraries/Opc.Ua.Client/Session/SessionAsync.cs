@@ -638,12 +638,17 @@ namespace Opc.Ua.Client
                     .GetValue(null))
                     );
 
+                // add the server capability MaxContinuationPointPerBrowse. Add further capabilities
+                // later (when support form them will be implemented and in a more generic fashion)
+                nodeIds.Add(VariableIds.Server_ServerCapabilities_MaxBrowseContinuationPoints);
+                int maxBrowseContinuationPointIndex = nodeIds.Count - 1;
+
                 (DataValueCollection values, IList<ServiceResult> errors) = await ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
 
                 OperationLimits configOperationLimits = m_configuration?.ClientConfiguration?.OperationLimits ?? new OperationLimits();
                 var operationLimits = new OperationLimits();
 
-                for (int ii = 0; ii < nodeIds.Count; ii++)
+                for (int ii = 0; ii < operationLimitsProperties.Count; ii++)
                 {
                     PropertyInfo property = typeof(OperationLimits).GetProperty(operationLimitsProperties[ii]);
                     uint value = (uint)property.GetValue(configOperationLimits);
@@ -663,6 +668,11 @@ namespace Opc.Ua.Client
                 }
 
                 OperationLimits = operationLimits;
+                if (values[maxBrowseContinuationPointIndex].Value != null
+                    && ServiceResult.IsNotBad(errors[maxBrowseContinuationPointIndex]))
+                {
+                    ServerMaxContinuationPointsPerBrowse = (UInt16)values[maxBrowseContinuationPointIndex].Value;
+                }
             }
             catch (Exception ex)
             {

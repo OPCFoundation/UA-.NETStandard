@@ -1638,12 +1638,17 @@ namespace Opc.Ua.Client
                     .GetValue(null))
                     );
 
+                // add the server capability MaxContinuationPointPerBrowse. Add further capabilities
+                // later (when support form them will be implemented and in a more generic fashion)
+                nodeIds.Add(VariableIds.Server_ServerCapabilities_MaxBrowseContinuationPoints);
+                int maxBrowseContinuationPointIndex = nodeIds.Count - 1;
+
                 ReadValues(nodeIds, Enumerable.Repeat(typeof(uint), nodeIds.Count).ToList(), out var values, out var errors);
 
                 var configOperationLimits = m_configuration?.ClientConfiguration?.OperationLimits ?? new OperationLimits();
                 var operationLimits = new OperationLimits();
 
-                for (int ii = 0; ii < nodeIds.Count; ii++)
+                for (int ii = 0; ii < operationLimitsProperties.Count; ii++)
                 {
                     var property = typeof(OperationLimits).GetProperty(operationLimitsProperties[ii]);
                     uint value = (uint)property.GetValue(configOperationLimits);
@@ -1661,6 +1666,12 @@ namespace Opc.Ua.Client
                 }
 
                 OperationLimits = operationLimits;
+                if (values[maxBrowseContinuationPointIndex] != null
+                    && ServiceResult.IsNotBad(errors[maxBrowseContinuationPointIndex]))
+                {
+                    ServerMaxContinuationPointsPerBrowse = (UInt16)values[maxBrowseContinuationPointIndex];
+                }
+
             }
             catch (Exception ex)
             {
@@ -1673,33 +1684,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Fetch the server capabilities, as far as needed:
-        /// MaxContinuationPointsPerBrowse
-        /// </summary>
-        public void FetchServerCapabilities()
-        {
-            try
-            {   var nodeIdCollection = new NodeIdCollection();
-                var nodeId = VariableIds.ServerType_ServerCapabilities_MaxBrowseContinuationPoints;
-                nodeIdCollection.Add(nodeId);
-                IList<Type> types = new List<Type>();
-                types.Add(typeof(UInt16));
 
-                ReadValues(nodeIdCollection, types, out var values, out var errors);
-
-                if (values[0] != null && ServiceResult.IsNotBad(errors[0]))
-                {
-                    ServerMaxContinuationPointsPerBrowse = (UInt16)values[0];
-                }
-
-            }
-            catch(Exception ex)
-            {
-                Utils.LogError(ex, "Failed to read the Server Capabilities from the server. Using defaults.");
-                ServerMaxContinuationPointsPerBrowse = 0;
-            }
-        }
 
 
         /// <inheritdoc/>
@@ -2551,9 +2536,6 @@ namespace Opc.Ua.Client
 
                 // fetch operation limits
                 FetchOperationLimits();
-
-                // fetch those server capabilities which are evaluated
-                FetchServerCapabilities();
 
                 // start keep alive thread.
                 StartKeepAliveTimer();
