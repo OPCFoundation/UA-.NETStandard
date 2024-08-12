@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#if ECC_SUPPORT
+#define SPAN_SUPPORT
+#endif
+
 using System;
 using System.IO;
 using System.Text;
@@ -300,7 +304,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 using (IEncoder encoder = new BinaryEncoder(stream, new ServiceMessageContext(), true))
                 {
                     encoder.WriteByteString("ByteString1", new byte[] { 0, 1, 2, 3, 4, 5 }, 1, 3);
-#if NET5_0_OR_GREATER
+#if SPAN_SUPPORT
                     var span = new ReadOnlySpan<byte>(new byte[] { 0, 1, 2, 3, 4, 5 }, 1, 3);
                     var nullspan = new ReadOnlySpan<byte>(null);
                     encoder.WriteByteString("ByteString2", span);
@@ -314,7 +318,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     var result = decoder.ReadByteString("ByteString1");
                     Assert.AreEqual(new byte[] { 1, 2, 3 }, result);
-#if NET5_0_OR_GREATER
+#if SPAN_SUPPORT
                     result = decoder.ReadByteString("ByteString2");
                     Assert.AreEqual(new byte[] { 1, 2, 3 }, result);
                     result = decoder.ReadByteString("ByteString3");
@@ -339,7 +343,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 using (IEncoder encoder = new XmlEncoder(new XmlQualifiedName("ByteStrings", Namespaces.OpcUaXsd), writer, new ServiceMessageContext()))
                 {
                     encoder.WriteByteString("ByteString1", new byte[] { 0, 1, 2, 3, 4, 5 }, 1, 3);
-#if NET5_0_OR_GREATER
+#if SPAN_SUPPORT
                     var span = new ReadOnlySpan<byte>(new byte[] { 0, 1, 2, 3, 4, 5 }, 1, 3);
                     var nullspan = new ReadOnlySpan<byte>(null);
                     encoder.WriteByteString("ByteString2", span);
@@ -354,7 +358,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     var result = decoder.ReadByteString("ByteString1");
                     Assert.AreEqual(new byte[] { 1, 2, 3 }, result);
-#if NET5_0_OR_GREATER
+#if SPAN_SUPPORT
                     result = decoder.ReadByteString("ByteString2");
                     Assert.AreEqual(new byte[] { 1, 2, 3 }, result);
                     result = decoder.ReadByteString("ByteString3");
@@ -377,7 +381,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 using (IEncoder encoder = new JsonEncoder(new ServiceMessageContext(), true, false, stream, true))
                 {
                     encoder.WriteByteString("ByteString1", new byte[] { 0, 1, 2, 3, 4, 5 }, 1, 3);
-#if NET5_0_OR_GREATER
+#if SPAN_SUPPORT
                     var span = new ReadOnlySpan<byte>(new byte[] { 0, 1, 2, 3, 4, 5 }, 1, 3);
                     var nullspan = new ReadOnlySpan<byte>(null);
                     encoder.WriteByteString("ByteString2", span);
@@ -392,7 +396,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     var result = decoder.ReadByteString("ByteString1");
                     Assert.AreEqual(new byte[] { 1, 2, 3 }, result);
-#if NET5_0_OR_GREATER
+#if SPAN_SUPPORT
                     result = decoder.ReadByteString("ByteString2");
                     Assert.AreEqual(new byte[] { 1, 2, 3 }, result);
                     result = decoder.ReadByteString("ByteString3");
@@ -807,5 +811,4 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         #region Private Fields
         #endregion
     }
-
 }
