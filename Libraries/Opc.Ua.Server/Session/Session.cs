@@ -115,49 +115,6 @@ namespace Opc.Ua.Server
                 ClientLastContactTime = now,
             };
 
-            m_diagnostics.SessionId = null;
-            m_diagnostics.SessionName = sessionName;
-            m_diagnostics.ClientDescription = clientDescription;
-            m_diagnostics.ServerUri = null;
-            m_diagnostics.EndpointUrl = endpointUrl;
-            m_diagnostics.LocaleIds = new StringCollection();
-            m_diagnostics.ActualSessionTimeout = sessionTimeout;
-            m_diagnostics.ClientConnectionTime = DateTime.UtcNow;
-            m_diagnostics.ClientLastContactTime = DateTime.UtcNow;
-            m_diagnostics.CurrentSubscriptionsCount = 0;
-            m_diagnostics.CurrentMonitoredItemsCount = 0;
-            m_diagnostics.CurrentPublishRequestsInQueue = 0;
-            m_diagnostics.TotalRequestCount = new ServiceCounterDataType();
-            m_diagnostics.UnauthorizedRequestCount = 0;
-            m_diagnostics.ReadCount = new ServiceCounterDataType();
-            m_diagnostics.HistoryReadCount = new ServiceCounterDataType();
-            m_diagnostics.WriteCount = new ServiceCounterDataType();
-            m_diagnostics.HistoryUpdateCount = new ServiceCounterDataType();
-            m_diagnostics.CallCount = new ServiceCounterDataType();
-            m_diagnostics.CreateMonitoredItemsCount = new ServiceCounterDataType();
-            m_diagnostics.ModifyMonitoredItemsCount = new ServiceCounterDataType();
-            m_diagnostics.SetMonitoringModeCount = new ServiceCounterDataType();
-            m_diagnostics.SetTriggeringCount = new ServiceCounterDataType();
-            m_diagnostics.DeleteMonitoredItemsCount = new ServiceCounterDataType();
-            m_diagnostics.CreateSubscriptionCount = new ServiceCounterDataType();
-            m_diagnostics.ModifySubscriptionCount = new ServiceCounterDataType();
-            m_diagnostics.SetPublishingModeCount = new ServiceCounterDataType();
-            m_diagnostics.PublishCount = new ServiceCounterDataType();
-            m_diagnostics.RepublishCount = new ServiceCounterDataType();
-            m_diagnostics.TransferSubscriptionsCount = new ServiceCounterDataType();
-            m_diagnostics.DeleteSubscriptionsCount = new ServiceCounterDataType();
-            m_diagnostics.AddNodesCount = new ServiceCounterDataType();
-            m_diagnostics.AddReferencesCount = new ServiceCounterDataType();
-            m_diagnostics.DeleteNodesCount = new ServiceCounterDataType();
-            m_diagnostics.DeleteReferencesCount = new ServiceCounterDataType();
-            m_diagnostics.BrowseCount = new ServiceCounterDataType();
-            m_diagnostics.BrowseNextCount = new ServiceCounterDataType();
-            m_diagnostics.TranslateBrowsePathsToNodeIdsCount = new ServiceCounterDataType();
-            m_diagnostics.QueryFirstCount = new ServiceCounterDataType();
-            m_diagnostics.QueryNextCount = new ServiceCounterDataType();
-            m_diagnostics.RegisterNodesCount = new ServiceCounterDataType();
-            m_diagnostics.UnregisterNodesCount = new ServiceCounterDataType();
-
             // initialize security diagnostics.
             m_securityDiagnostics = new SessionSecurityDiagnosticsDataType {
                 SessionId = m_sessionId,
