@@ -1215,6 +1215,13 @@ namespace Opc.Ua.Client
             return (result, errors);
         }
 
+        /// <summary>
+        /// Used to pass on references to the Service results in the loop in ManagedBrowseAsync.
+        /// </summary>
+        private class ReferenceWrapper<T>
+        {
+            public T reference { get; set; }
+        }
 
         /// <summary>
         /// Call the browse service asynchronously and call browse next,
