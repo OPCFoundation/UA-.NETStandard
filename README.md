@@ -29,14 +29,29 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 * Sessions and Subscriptions.
 * A [PubSub](Docs/PubSub.md) library with samples.
 
-#### **New in 1.5.374.70
+### Key Features and Updates in OPC UA 1.05
+
+- **Security Enhancements**: Improved encryption and authentication mechanisms.
+- **CRL Support**: Added Certificate Revocation List support for X509Store on Windows.
+- **Performance Improvements**: Faster binary encoding and decoding, reducing memory usage and latency.
+- **Role-Based Management**: Support for WellKnownRoles and RoleBasedUserManagement [WellKnownRoles & RoleBasedUserManagement](Docs/RoleBasedUserManagement.md).
+- **Improved Logging**: Enhanced logging with `ILogger` and `EventSource`.
+
+#### Breaking Changes and Heads-Up when upgrading from 1.04 to 1.05
+
+- **Mandatory Hostname Validation**: Enforced strict hostname validation in server certificates. Ensure server certificates match the hostname/IP used by clients.
+- **Thread Safety and Locking**: Improved thread safety and reduced locking in secure channel operations.
+- **Audit and Redaction**: New interfaces for auditing and redacting sensitive information.
+
+
+#### **New in 1.05.374.70**
 * CRL Support for the X509Store on Windows
 
 #### **New in 1.05.373**
 * 1.05 Nodeset
 * Support for [WellKnownRoles & RoleBasedUserManagement](Docs/RoleBasedUserManagement.md).
 
-#### **New in 1.4.368**
+#### **New in 1.04.368**
 * Improved support for [Logging](Docs/Logging.md) with `ILogger` and `EventSource`. 
 * Support for custom certificate stores with refactored `ICertificateStore` and `CertificateStoreType` interface.
 * Client and Server support for [TransferSubscriptions](Docs/TransferSubscription.md).
