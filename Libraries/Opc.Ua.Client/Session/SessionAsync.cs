@@ -1159,44 +1159,39 @@ namespace Opc.Ua.Client
                             errorsForPass[batchOffset + ii] = errorsForBatch[ii];
 
                         }
-                        int badNoCp = errorsForBatch.Count(x => x.StatusCode == StatusCodes.BadNoContinuationPoints);
-                        int badCpI = errorsForBatch.Count(x => x.StatusCode == StatusCodes.BadContinuationPointInvalid);
-                        int bad = errorsForBatch.Count(x => StatusCode.IsBad(x.StatusCode));
-                        badNoCPErrorsPerPass += badNoCp;
-                        badCPInvalidErrorsPerPass += badCpI;
-                        otherErrorsPerPass += bad - badNoCp - badCpI;
 
                         batchCount++;
                     }
 
-                    resultForPass = new List<ReferenceDescriptionCollection>();
-                    resultForPass.AddRange(referenceDescriptionsForNextPass);
-                    referenceDescriptionsForNextPass.Clear();
+                    badCPInvalidErrorsPerPass = errorsForPass.Count(x => x.StatusCode == StatusCodes.BadContinuationPointInvalid);
+                    badNoCPErrorsPerPass = errorsForPass.Count(x => x.StatusCode == StatusCodes.BadNoContinuationPoints);
+                    otherErrorsPerPass = errorsForPass.Count(x => StatusCode.IsBad(x.StatusCode)) - badNoCPErrorsPerPass - badCPInvalidErrorsPerPass;
 
-                    errorsForPass = new List<ServiceResult>();
-                    errorsForPass.AddRange(errorsForNextPass);
-                    errorsForNextPass.Clear();
+                    resultForPass = referenceDescriptionsForNextPass;
+                    referenceDescriptionsForNextPass = new List<ReferenceDescriptionCollection>();
 
-                    nodesToBrowseForPass = new List<NodeId>();
-                    nodesToBrowseForPass.AddRange(nodesToBrowseForNextPass);
-                    nodesToBrowseForNextPass.Clear();
+                    errorsForPass = errorsForNextPass;
+                    errorsForNextPass = new List<ServiceResult>();
 
-                    String aggregatedErrorMessage = "ManagedBrowse: in pass {0}, {1} {2} occured with a status code {3}";
+                    nodesToBrowseForPass = nodesToBrowseForNextPass;
+                    nodesToBrowseForNextPass = new List<NodeId>();
+
+                    String aggregatedErrorMessage = "ManagedBrowse: in pass {0}, {1} {2} occured with a status code {3}.";
 
                     if (badCPInvalidErrorsPerPass > 0)
                     {
                         Utils.LogInfo(aggregatedErrorMessage, passCount, badCPInvalidErrorsPerPass,
-                            badCPInvalidErrorsPerPass == 1 ? "error" : "errors", "BadContinuationPointInvalid.");
+                            badCPInvalidErrorsPerPass == 1 ? "error" : "errors", nameof(StatusCodes.BadContinuationPointInvalid));
                     }
                     if (badNoCPErrorsPerPass > 0)
                     {
                         Utils.LogInfo(aggregatedErrorMessage, passCount, badNoCPErrorsPerPass,
-                            badNoCPErrorsPerPass == 1 ? "error" : "errors", "BadNoContinuationPoints.");
+                            badNoCPErrorsPerPass == 1 ? "error" : "errors", nameof(StatusCodes.BadNoContinuationPoints));
                     }
                     if (otherErrorsPerPass > 0)
                     {
                         Utils.LogInfo(aggregatedErrorMessage, passCount, otherErrorsPerPass,
-                            otherErrorsPerPass == 1 ? "error" : "errors", "different from BadNoContinuationPoints or BadContinuationPointInvalid.");
+                            otherErrorsPerPass == 1 ? "error" : "errors", $"different from {nameof(StatusCodes.BadNoContinuationPoints)} or {nameof(StatusCodes.BadContinuationPointInvalid)}");
                     }
                     if (otherErrorsPerPass == 0 && badCPInvalidErrorsPerPass == 0 && badNoCPErrorsPerPass == 0)
                     {
