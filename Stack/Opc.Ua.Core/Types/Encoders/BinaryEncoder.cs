@@ -467,8 +467,9 @@ namespace Opc.Ua
                 int count = Encoding.UTF8.GetBytes(value, encodedBytes);
                 WriteByteString(null, encodedBytes.Slice(0, count));
             }
+            else
 #if NET5_0_OR_GREATER
-            else if (maxByteCount > maxByteCountPerBuffer)
+            if (maxByteCount > maxByteCountPerBuffer)
             {
                 using (var bufferWriter = new ArrayPoolBufferWriter<byte>(minByteCountPerBuffer, maxByteCountPerBuffer))
                 {
