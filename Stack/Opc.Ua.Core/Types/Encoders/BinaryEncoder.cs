@@ -476,9 +476,9 @@ namespace Opc.Ua
                     WriteByteString(null, bufferWriter.GetReadOnlySequence());
                 }
             }
+#endif
+#endif
             else
-#endif
-#endif
             {
                 byte[] encodedBytes = ArrayPool<byte>.Shared.Rent(maxByteCount);
                 try
