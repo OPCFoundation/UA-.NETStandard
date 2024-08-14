@@ -1330,9 +1330,12 @@ namespace Opc.Ua.Client
                 {
                     if (revisedContinuationPoints[ii] != null)
                     {
-                        nextContinuationPoints.Add(revisedContinuationPoints[ii]);
-                        nextResults.Add(previousResults[ii]);
-                        nextErrors.Add(previousErrors[ii]);
+                        if (!StatusCode.IsBad(browseNextErrors[ii].StatusCode))
+                        {
+                            nextContinuationPoints.Add(revisedContinuationPoints[ii]);
+                            nextResults.Add(previousResults[ii]);
+                            nextErrors.Add(previousErrors[ii]);
+                        }
                     }
                 }
 
