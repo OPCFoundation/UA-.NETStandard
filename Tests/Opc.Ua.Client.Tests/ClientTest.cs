@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
@@ -1550,6 +1551,265 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(buildInfo.BuildNumber, values[5].Value);
             Assert.AreEqual(buildInfo.BuildDate, values[6].Value);
         }
+
+        /// <summary>
+        /// Happy SetSubscriptionDurable
+        /// </summary>
+        [Test, Order(11000)]
+        public void SetSubscriptionDurable_Success()
+        {
+            uint expectedRevised = 5;
+
+            List<object> outputParameters = new List<object>();
+            outputParameters.Add(expectedRevised);
+
+            Moq.Mock<ISession> sessionMock = new Mock<ISession>();
+
+            sessionMock.Setup(mock => mock.Call(
+                It.IsAny<NodeId>(),
+                It.IsAny<NodeId>(),
+                It.IsAny<uint>(),
+                It.IsAny<uint>()
+                ))
+                .Returns(outputParameters);
+
+            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+
+            if ( subscription.SetSubscriptionDurable(1, out uint revised) )
+            {
+                Assert.AreEqual(expectedRevised, revised);
+            }
+            else
+            {
+                Assert.Fail( "Unexpected Error in SetSubscriptionDurable" );
+            }
+        }
+
+        /// <summary>
+        /// SetSubscriptionDurable Typical Failure 
+        /// </summary>
+        [Test, Order(11010)]
+        public void SetSubscriptionDurable_Exception()
+        {
+            Moq.Mock<ISession> sessionMock = new Mock<ISession>();
+
+            sessionMock.Setup(mock => mock.Call(
+                It.IsAny<NodeId>(),
+                It.IsAny<NodeId>(),
+                It.IsAny<uint>(),
+                It.IsAny<uint>()
+                ))
+                .Throws(new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid));
+
+            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+
+            Assert.IsFalse(subscription.SetSubscriptionDurable(1, out uint revised));
+        }
+
+        /// <summary>
+        /// SetSubscriptionDurable No Output Parameters
+        /// Not an expected case
+        /// </summary>
+        [Test, Order(11020)]
+        public void SetSubscriptionDurable_NoOutputParameters()
+        {
+            List<object> outputParameters = new List<object>();
+
+            Moq.Mock<ISession> sessionMock = new Mock<ISession>();
+
+            sessionMock.Setup(mock => mock.Call(
+                It.IsAny<NodeId>(),
+                It.IsAny<NodeId>(),
+                It.IsAny<uint>(),
+                It.IsAny<uint>()
+                ))
+                .Returns(outputParameters);
+
+            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+
+            Assert.IsFalse(subscription.SetSubscriptionDurable(1, out uint revised));
+        }
+
+        /// <summary>
+        /// SetSubscriptionDurable No Output Parameters
+        /// Not an expected case
+        /// </summary>
+        [Test, Order(11030)]
+        public void SetSubscriptionDurable_NullOutputParameters()
+        {
+            List<object> outputParameters = null;
+
+            Moq.Mock<ISession> sessionMock = new Mock<ISession>();
+
+            sessionMock.Setup(mock => mock.Call(
+                It.IsAny<NodeId>(),
+                It.IsAny<NodeId>(),
+                It.IsAny<uint>(),
+                It.IsAny<uint>()
+                ))
+                .Returns(outputParameters);
+
+            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+
+            Assert.IsFalse(subscription.SetSubscriptionDurable(1, out uint revised));
+        }
+
+        /// <summary>
+        /// SetSubscriptionDurable with in invalid number of Output Parameters
+        /// Not an expected case
+        /// </summary>
+        [Test, Order(11040)]
+        public void SetSubscriptionDurable_TooManyOutputParameters()
+        {
+            uint expectedRevised = 5;
+
+            List<object> outputParameters = new List<object>();
+            outputParameters.Add(expectedRevised);
+            outputParameters.Add(expectedRevised);
+
+            Moq.Mock<ISession> sessionMock = new Mock<ISession>();
+
+            sessionMock.Setup(mock => mock.Call(
+                It.IsAny<NodeId>(),
+                It.IsAny<NodeId>(),
+                It.IsAny<uint>(),
+                It.IsAny<uint>()
+                ))
+                .Returns(outputParameters);
+
+            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+
+            Assert.IsFalse(subscription.SetSubscriptionDurable(1, out uint revised));
+        }
+
+        /// <summary>
+        /// GetMonitoredItems Success Case
+        /// </summary>
+        [Test, Order(11100)]
+        public void GetMonitoredItems_Success()
+        {
+            List<object> outputParameters = new List<object>();
+            outputParameters.Add(new uint[] { 1, 2, 3, 4, 5 });
+            outputParameters.Add(new uint[] { 6, 7, 8, 9, 10 });
+
+            Moq.Mock<ISession> sessionMock = new Mock<ISession>();
+
+            sessionMock.Setup(mock => mock.Call(
+                It.IsAny<NodeId>(),
+                It.IsAny<NodeId>(),
+                It.IsAny<uint>()
+                ))
+                .Returns(outputParameters);
+
+            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+
+            UInt32Collection serverHandles;
+            UInt32Collection clientHandles;
+            Assert.IsTrue(subscription.GetMonitoredItems(out serverHandles, out clientHandles));
+            Assert.AreEqual(5, serverHandles.Count);
+            Assert.AreEqual(5, clientHandles.Count);
+        }
+
+        /// <summary>
+        /// GetMonitoredItems Error Case
+        /// </summary>
+        [Test, Order(11110)]
+        public void GetMonitoredItems_Exception()
+        {
+            Moq.Mock<ISession> sessionMock = new Mock<ISession>();
+
+            sessionMock.Setup(mock => mock.Call(
+                It.IsAny<NodeId>(),
+                It.IsAny<NodeId>(),
+                It.IsAny<uint>()
+                ))
+                .Throws(new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid));
+
+            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+
+            Assert.IsFalse(subscription.GetMonitoredItems(
+                out UInt32Collection serverHandles,
+                out UInt32Collection clientHandles));
+        }
+
+        /// <summary>
+        /// GetMonitoredItems No Output Parameters
+        /// Not an expected case
+        /// </summary>
+        [Test, Order(11120)]
+        public void GetMonitoredItems_NoOutputParameters()
+        {
+            List<object> outputParameters = new List<object>();
+
+            Moq.Mock<ISession> sessionMock = new Mock<ISession>();
+
+            sessionMock.Setup(mock => mock.Call(
+                It.IsAny<NodeId>(),
+                It.IsAny<NodeId>(),
+                It.IsAny<uint>()
+                ))
+                .Returns(outputParameters);
+
+            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+
+            Assert.IsFalse(subscription.GetMonitoredItems(
+                out UInt32Collection serverHandles,
+                out UInt32Collection clientHandles));
+        }
+
+        /// <summary>
+        /// GetMonitoredItems Null Output Parameters
+        /// Not an expected case
+        /// </summary>
+        [Test, Order(11130)]
+        public void GetMonitoredItems_NullOutputParameters()
+        {
+            List<object> outputParameters = null;
+
+            Moq.Mock<ISession> sessionMock = new Mock<ISession>();
+
+            sessionMock.Setup(mock => mock.Call(
+                It.IsAny<NodeId>(),
+                It.IsAny<NodeId>(),
+                It.IsAny<uint>()
+                ))
+                .Returns(outputParameters);
+
+            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+
+            Assert.IsFalse(subscription.GetMonitoredItems(
+                out UInt32Collection serverHandles,
+                out UInt32Collection clientHandles));
+        }
+
+        /// <summary>
+        /// GetMonitoredItems invalid number of Output Parameters
+        /// Not an expected case
+        /// </summary>
+        [Test, Order(11140)]
+        public void GetMonitoredItems_TooManyOutputParameters()
+        {
+            List<object> outputParameters = new List<object>();
+            outputParameters.Add(new uint[] { 1, 2, 3, 4, 5 });
+            outputParameters.Add(new uint[] { 6, 7, 8, 9, 10 });
+            outputParameters.Add(new uint[] { 11, 12, 13, 14, 15 });
+
+            Moq.Mock<ISession> sessionMock = new Mock<ISession>();
+
+            sessionMock.Setup(mock => mock.Call(
+                It.IsAny<NodeId>(),
+                It.IsAny<NodeId>(),
+                It.IsAny<uint>()
+                ))
+                .Returns(outputParameters);
+
+            Subscription subscription = MockOutSubscriptionSession(sessionMock);
+
+            Assert.IsFalse(subscription.GetMonitoredItems(
+                out UInt32Collection serverHandles,
+                out UInt32Collection clientHandles));
+        }
+
         #endregion
 
         #region Benchmarks
@@ -1572,6 +1832,19 @@ namespace Opc.Ua.Client.Tests
                 Assert.NotZero(clientLimit);
             }
         }
+
+        private Subscription MockOutSubscriptionSession( Moq.Mock<ISession> sessionMock )
+        {
+            Subscription subscription = new Subscription();
+            Type subscriptionType = subscription.GetType();
+            System.Reflection.FieldInfo sessionFieldInfo = subscriptionType.GetField("m_session",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+            Assert.IsNotNull(sessionFieldInfo);
+            sessionFieldInfo.SetValue(subscription, sessionMock.Object);
+            return subscription;
+        }
+
         #endregion
     }
 }
