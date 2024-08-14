@@ -1280,15 +1280,13 @@ namespace Opc.Ua.Client
                 errorAnchors.Add(previousErrors.Last());
             }
 
-            byte[] nullByte = new byte[16];
-
             var nextContinuationPoints = new ByteStringCollection();
             var nextResults = new List<ReferenceDescriptionCollection>();
             var nextErrors = new List<ReferenceWrapper<ServiceResult>>();
 
             for (int ii = 0; ii < nodeIds.Count; ii++)
             {
-                if (continuationPoints[ii] != null && !Utils.IsEqual(continuationPoints[ii], nullByte))
+                if (continuationPoints[ii] != null)
                 {
                     if (!StatusCode.IsBad(previousErrors[ii].reference.StatusCode))
                     {
@@ -1330,7 +1328,7 @@ namespace Opc.Ua.Client
 
                 for (int ii = 0; ii < revisedContinuationPoints.Count; ii++)
                 {
-                    if (revisedContinuationPoints[ii] != null && !Utils.IsEqual(revisedContinuationPoints[ii], nullByte))
+                    if (revisedContinuationPoints[ii] != null)
                     {
                         nextContinuationPoints.Add(revisedContinuationPoints[ii]);
                         nextResults.Add(previousResults[ii]);

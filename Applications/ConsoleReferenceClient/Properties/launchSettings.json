@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "ConsoleReferenceClient": {
-      "commandName": "Project",
-      "commandLineArgs": "opc.tcp://W-PF38410Q:48010 -nsec -mb"
-    }
-  }
-}

@@ -105,12 +105,6 @@ namespace Opc.Ua.Client.Tests
             return entries;
         }
 
-        new public void Dispose()
-        {
-            Dispose(true);
-            base.Dispose();
-        }
-
         protected override void Dispose(bool disposing)
         {
             try
