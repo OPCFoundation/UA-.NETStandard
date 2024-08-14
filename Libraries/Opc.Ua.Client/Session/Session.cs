@@ -2248,16 +2248,17 @@ namespace Opc.Ua.Client
         public ReferenceDescriptionCollection FetchReferences(NodeId nodeId)
         {
             ManagedBrowse(
-                null, // RequestHeader
-                null, // View
-                new List<NodeId>() { nodeId },//nodesToBrowse
-                0,//maxResultsToReturn
-                BrowseDirection.Both, //BrowseDirection
-                null, //ReferenceTypeId
-                true, //includeSubtypes
-                0, //NodeClassMask
+                requestHeader: null,
+                view: null,
+                nodesToBrowse: new List<NodeId>() { nodeId },
+                maxResultsToReturn: 0,
+                browseDirection: BrowseDirection.Both,
+                referenceTypeId: null,
+                includeSubtypes: true,
+                nodeClassMask: 0,
                 out List<ReferenceDescriptionCollection> descriptionsList,
-                out var errors, false);
+                out var errors,
+                excecuteDefensively: false);
             return descriptionsList[0];
         }
 
@@ -2268,16 +2269,17 @@ namespace Opc.Ua.Client
             out IList<ServiceResult> errors)
         {
             ManagedBrowse(
-                null, // RequestHeader
-                null, // View
-                nodeIds,//nodesToBrowse
-                0,//maxResultsToReturn
-                BrowseDirection.Both, //BrowseDirection
-                null, //ReferenceTypeId
-                true, //includeSubtypes
-                0, //NodeClassMask
+                requestHeader: null,
+                view: null,
+                nodesToBrowse: nodeIds,
+                maxResultsToReturn: 0,
+                browseDirection: BrowseDirection.Both,
+                referenceTypeId: null,
+                includeSubtypes: true,
+                nodeClassMask: 0,
                 out var result,
-                out var errors01, false);
+                out var errors01,
+                excecuteDefensively: false);
 
             errors = errors01;
             referenceDescriptions = result;
