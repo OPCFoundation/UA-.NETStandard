@@ -413,7 +413,6 @@ namespace Opc.Ua.Client.Tests
         }
     }
 
-
     /// <summary>
     /// Client tests.
     /// </summary>
@@ -425,7 +424,34 @@ namespace Opc.Ua.Client.Tests
 
     public class ContinuationPointInBatchTest : ClientTestFramework
     {
-        private const int kTestSetSize = 100;
+        [DatapointSource]
+        public IEnumerable<ManagedBrowseTestDataProvider> ManagedBrowseTestDataValues()
+        {
+            yield return new ManagedBrowseTestDataProvider {
+                MaxNumberOfContinuationPoints = 2,
+                MaxNumberOfReferencesPerNode = 10,
+                ExpectedNumberOfPasses = 5,
+                ExpectedNumberOfBadNoCPSCs = new List<int> { 15, 9, 5, 3, 1 }
+            };
+            yield return new ManagedBrowseTestDataProvider {
+                MaxNumberOfContinuationPoints = 4,
+                MaxNumberOfReferencesPerNode = 10,
+                ExpectedNumberOfPasses = 2,
+                ExpectedNumberOfBadNoCPSCs = new List<int> { 5, 1 }
+            };
+            yield return new ManagedBrowseTestDataProvider {
+                MaxNumberOfContinuationPoints = 20,
+                MaxNumberOfReferencesPerNode = 50,
+                ExpectedNumberOfPasses = 1,
+                ExpectedNumberOfBadNoCPSCs = new List<int>()
+            };
+            yield return new ManagedBrowseTestDataProvider {
+                MaxNumberOfContinuationPoints = 5,
+                MaxNumberOfReferencesPerNode = 10,
+                ExpectedNumberOfPasses = 1,
+                ExpectedNumberOfBadNoCPSCs = new List<int>()
+            };
+        }        
 
         public ReferenceServerForThisUnitTest ReferenceServerForThisUnitTest { get; set; }
         public ServerFixture<ReferenceServerForThisUnitTest> ServerFixtureForThisUnitTest { get; set; }
@@ -487,8 +513,7 @@ namespace Opc.Ua.Client.Tests
         {            
             SupportsExternalServerUrl = true;
             // create a new session for every test
-            SingleSession = false;
-            //return base.OneTimeSetUpAsync(myWriter, false, true, false, true);
+            SingleSession = false;            
             return base.OneTimeSetUpAsync(null, false, false, false, true);
         }
 
@@ -552,8 +577,7 @@ namespace Opc.Ua.Client.Tests
         /// 
         /// Browse all variables in the objects folder.
         /// </summary>
-        [Theory]
-        [Test, Order(100)]
+        [Theory, Order(100)]
         public void MBNodeCache_BrowseAllVariables(ManagedBrowseTestDataProvider testData)
         {
             Session theSession = ((Session)(((TraceableSession)Session).Session));
@@ -615,8 +639,7 @@ namespace Opc.Ua.Client.Tests
         /// in a browse service call.
         /// Browse all variables in the objects folder.
         /// </summary>
-        [Theory]
-        [Test, Order(200)]
+        [Theory, Order(110)]
         public void MBNodeCache_BrowseAllVariables_MultipleNodes(ManagedBrowseTestDataProvider testData)
         {
             Session theSession = ((Session)(((TraceableSession)Session).Session));
@@ -674,36 +697,6 @@ namespace Opc.Ua.Client.Tests
             TestContext.Out.WriteLine("Found {0} variables", result.Count);
         }
 
-
-        [DatapointSource]
-        public IEnumerable<ManagedBrowseTestDataProvider> ManagedBrowseTestDataValues()
-        {
-            yield return new ManagedBrowseTestDataProvider {
-                MaxNumberOfContinuationPoints = 2,
-                MaxNumberOfReferencesPerNode = 10,
-                ExpectedNumberOfPasses = 5,
-                ExpectedNumberOfBadNoCPSCs = new List<int> { 15, 9, 5, 3, 1 }
-            };
-            yield return new ManagedBrowseTestDataProvider {
-                MaxNumberOfContinuationPoints = 4,
-                MaxNumberOfReferencesPerNode = 10,
-                ExpectedNumberOfPasses = 2,
-                ExpectedNumberOfBadNoCPSCs = new List<int> { 5, 1 }
-            };
-            yield return new ManagedBrowseTestDataProvider {
-                MaxNumberOfContinuationPoints = 20,
-                MaxNumberOfReferencesPerNode = 50,
-                ExpectedNumberOfPasses = 1,
-                ExpectedNumberOfBadNoCPSCs = new List<int> ()
-            };
-            yield return new ManagedBrowseTestDataProvider {
-                MaxNumberOfContinuationPoints = 5,
-                MaxNumberOfReferencesPerNode = 10,
-                ExpectedNumberOfPasses = 1,
-                ExpectedNumberOfBadNoCPSCs = new List<int> ()
-            };
-        }
-
         /// <summary>
         /// For each entry in the datapoint source, the test browses some folders in the reference
         /// server which have 100 subnodes each (see method getMassFolderNodesToBrowse())
@@ -730,7 +723,7 @@ namespace Opc.Ua.Client.Tests
         /// no attempt to allocate continuation points in parallel from more than one service call.
         /// </summary>
         /// <param name="testData"></param>
-        [Theory, Order(11000)]
+        [Theory, Order(200)]
         public void ManagedBrowseWithManyContinuationPoints(ManagedBrowseTestDataProvider testData)
         {
             CPBatchTestMemoryWriter memoryWriter = new CPBatchTestMemoryWriter();
@@ -869,7 +862,7 @@ namespace Opc.Ua.Client.Tests
         /// No return value should have the status code BadContinuationPointInvalid, since there is
         /// no attempt to allocate continuation points in parallel from more than one service call.
         /// </summary>
-        [Theory, Order(11100)]
+        [Theory, Order(210)]
         public void DefensiveManagedBrowseWithManyContinuationPoints(ManagedBrowseTestDataProvider testData)
         {
             CPBatchTestMemoryWriter memoryWriter = new CPBatchTestMemoryWriter();
@@ -1002,7 +995,7 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         /// <param name="testData"></param>
 
-        [Theory, Order(11200)]
+        [Theory, Order(300)]
         public void ParallelManagedBrowseWithManyContinuationPoints(ManagedBrowseTestDataProvider testData)
         {
             CPBatchTestMemoryWriter memoryWriter = new CPBatchTestMemoryWriter();
@@ -1118,8 +1111,7 @@ namespace Opc.Ua.Client.Tests
         /// 
         /// Browse all variables in the objects folder.
         /// </summary>
-        [Theory]
-        [Test, Order(20100)]
+        [Theory, Order(400)]
         public async Task MBNodeCache_BrowseAllVariablesAsync(ManagedBrowseTestDataProvider testData)
         {
             Session theSession = ((Session)(((TraceableSession)Session).Session));           
@@ -1190,8 +1182,7 @@ namespace Opc.Ua.Client.Tests
         /// in a browse service call.
         /// Browse all variables in the objects folder.
         /// </summary>
-        [Theory]
-        [Test, Order(20200)]
+        [Theory, Order(410)]
         public async Task MBNodeCache_BrowseAllVariables_MultipleNodesAsync(ManagedBrowseTestDataProvider testData)
         {
             Session theSession = ((Session)(((TraceableSession)Session).Session));
@@ -1253,7 +1244,7 @@ namespace Opc.Ua.Client.Tests
         }
 
 
-        [Theory, Order(21000)]
+        [Theory, Order(420)]
         public async Task ManagedBrowseWithManyContinuationPointsAsync(ManagedBrowseTestDataProvider testData)
         {
             CPBatchTestMemoryWriter memoryWriter = new CPBatchTestMemoryWriter();

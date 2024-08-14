@@ -1248,7 +1248,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default
             )
         {
-            var result = new List<ReferenceDescriptionCollection>();
+            var result = new List<ReferenceDescriptionCollection>(nodeIds.Count);
 
             (
                 _,
@@ -1339,7 +1339,7 @@ namespace Opc.Ua.Client
                 }
 
             }
-            var finalErrors = new List<ServiceResult>();
+            var finalErrors = new List<ServiceResult>(errorAnchors.Count);
             foreach (var errorReference in errorAnchors)
             {
                 finalErrors.Add(errorReference.reference);
