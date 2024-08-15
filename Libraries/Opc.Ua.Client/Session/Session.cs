@@ -904,14 +904,20 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// The server capability MaxContinuationPointsPerBrowse
+        /// Read from the Server capability MaxContinuationPointsPerBrowse when the Operation Limits are fetched
         /// </summary>
         public uint ServerMaxContinuationPointsPerBrowse
         {
             get => m_ServerMaxContinuationPointsPerBrowse;
             set => m_ServerMaxContinuationPointsPerBrowse = value;
         }
-
+        
+        /// <inheritdoc/>
+        public ContinuationPointReservationPolicy ContinuationPointReservationPolicy
+        {
+            get => m_continuationPointReservationPolicy;
+            set => m_continuationPointReservationPolicy = value;
+        }
         #endregion
 
         #region Public Static Methods
@@ -2257,8 +2263,8 @@ namespace Opc.Ua.Client
                 includeSubtypes: true,
                 nodeClassMask: 0,
                 out List<ReferenceDescriptionCollection> descriptionsList,
-                out var errors,
-                excecuteDefensively: false);
+                out var errors
+                );
             return descriptionsList[0];
         }
 
@@ -2278,8 +2284,8 @@ namespace Opc.Ua.Client
                 includeSubtypes: true,
                 nodeClassMask: 0,
                 out var result,
-                out var errors01,
-                excecuteDefensively: false);
+                out var errors01
+                );
 
             errors = errors01;
             referenceDescriptions = result;
@@ -3624,8 +3630,8 @@ namespace Opc.Ua.Client
             bool includeSubtypes,
             uint nodeClassMask,
             out List<ReferenceDescriptionCollection> result,
-            out List<ServiceResult> errors,
-            bool excecuteDefensively = false)
+            out List<ServiceResult> errors
+            )
         {
 
             var task = Task.Run(() =>
@@ -3637,8 +3643,7 @@ namespace Opc.Ua.Client
                     browseDirection,
                     referenceTypeId,
                     includeSubtypes,
-                    nodeClassMask,
-                    excecuteDefensively
+                    nodeClassMask
                     ).GetAwaiter().GetResult()
                 );
 
@@ -6439,7 +6444,9 @@ namespace Opc.Ua.Client
         private LinkedList<AsyncRequestState> m_outstandingRequests;
         private readonly EndpointDescriptionCollection m_discoveryServerEndpoints;
         private readonly StringCollection m_discoveryProfileUris;
-        private uint m_ServerMaxContinuationPointsPerBrowse;
+        private uint m_ServerMaxContinuationPointsPerBrowse = 0;
+        private ContinuationPointReservationPolicy m_continuationPointReservationPolicy
+            = ContinuationPointReservationPolicy.Balanced;
 
         private class AsyncRequestState
         {

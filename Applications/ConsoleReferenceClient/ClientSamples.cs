@@ -594,7 +594,6 @@ namespace Quickstarts
                             referenceTypeId,
                             true,
                             nodeClassMask,
-                            false,
                             ct
                             ).ConfigureAwait(false);
 

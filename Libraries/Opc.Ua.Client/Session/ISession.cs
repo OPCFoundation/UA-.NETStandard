@@ -300,6 +300,12 @@ namespace Opc.Ua.Client
         /// Whether the endpoint Url domain is checked in the certificate.
         /// </summary>
         bool CheckDomain { get; }
+
+        /// <summary>
+        /// gets or set the policy which is used to prevent the allocation of too many
+        /// Continuation Points in the ManagedBrowse(Async) methods
+        /// </summary>
+        ContinuationPointReservationPolicy ContinuationPointReservationPolicy { get; set; }
         #endregion
 
         #region Delegates and Events
@@ -919,21 +925,11 @@ namespace Opc.Ua.Client
 
         #region ManagedBrowse methods
 
+
         /// <summary>
         /// Execute browse and, if necessary, browse next in one service call.
         /// Takes care of BadNoContinuationPoint and BadInvalidContnuationPoint status codes.
         /// </summary>
-        /// <param name="requestHeader"></param>
-        /// <param name="view"></param>
-        /// <param name="nodesToBrowse"></param>
-        /// <param name="maxResultsToReturn"></param>
-        /// <param name="browseDirection"></param>
-        /// <param name="referenceTypeId"></param>
-        /// <param name="includeSubtypes"></param>
-        /// <param name="nodeClassMask"></param>
-        /// <param name="result"></param>
-        /// <param name="errors"></param>
-        /// <param name="excecuteDefensively">Browse is called with at most maxContinuationPoints nodes. So one Browse service call alone cannot allocate more continuation points than the server can provide (concurrent service calls still can do that)</param>
         void ManagedBrowse(
             RequestHeader requestHeader,
             ViewDescription view,
@@ -944,26 +940,15 @@ namespace Opc.Ua.Client
             bool includeSubtypes,
             uint nodeClassMask,
             out List<ReferenceDescriptionCollection> result,
-            out List<ServiceResult> errors,
-            bool excecuteDefensively = false);
+            out List<ServiceResult> errors
+            );
 
 #if (CLIENT_ASYNC)
 
         /// <summary>
         /// Execute BrowseAsync and, if necessary, BrowseNextAsync, in one service call.
-        /// Takes care of BadNoContinuationPoint and BadInvalidContnuationPoint status codes.
+        /// Takes care of BadNoContinuationPoint and BadInvalidContinuationPoint status codes.
         /// </summary>
-        /// <param name="requestHeader"></param>
-        /// <param name="view"></param>
-        /// <param name="nodesToBrowse"></param>
-        /// <param name="maxResultsToReturn"></param>
-        /// <param name="browseDirection"></param>
-        /// <param name="referenceTypeId"></param>
-        /// <param name="includeSubtypes"></param>
-        /// <param name="nodeClassMask"></param>
-        /// <param name="executeDefensively">Browse is called with at most maxContinuationPoints nodes. So one Browse service call alone cannot allocate more continuation points than the server can provide (concurrent service calls still can do that)</param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
         Task<(
             List<ReferenceDescriptionCollection>,
             IList<ServiceResult>
@@ -977,7 +962,6 @@ namespace Opc.Ua.Client
                 NodeId referenceTypeId,
                 bool includeSubtypes,
                 uint nodeClassMask,
-                bool executeDefensively = false,
                 CancellationToken ct = default
             );
 
@@ -1042,5 +1026,31 @@ namespace Opc.Ua.Client
         Task<(bool, IList<ServiceResult>)> ResendDataAsync(IEnumerable<Subscription> subscriptions, CancellationToken ct = default);
 #endif
         #endregion
+    }
+
+    /// <summary>
+    /// controls how the client treats continuation points
+    /// if the server has restrictions on their number
+    /// As of now only used for browse/browse next in the
+    /// ManagedBrowse method.
+    /// </summary>
+    public enum ContinuationPointReservationPolicy
+    {
+        /// <summary>
+        /// Restrict the number of nodes which are browsed in a
+        /// single service call to the maximum number of
+        /// continuation points the server can allocae
+        /// (if set to a value different from 0)
+        /// </summary>
+        Balanced,
+
+        /// <summary>
+        /// Ignore how many Continuation Points are in use already.
+        /// Rebrowse nodes for which BadNoContinuationPoint or
+        /// BadInvalidContinuationPoint was raised. Can be used
+        /// whenever the server has no restrictions no the maximum
+        /// number of continuation points
+        /// </summary>
+        Optimistic
     }
 }

@@ -287,6 +287,13 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public bool CheckDomain => m_session.CheckDomain;
+        
+        /// <inheritdoc/>
+        public ContinuationPointReservationPolicy ContinuationPointReservationPolicy
+        {
+            get => m_session.ContinuationPointReservationPolicy;
+            set => m_session.ContinuationPointReservationPolicy = value;
+        }
 
         /// <inheritdoc/>
         public override bool Equals(object obj)
@@ -1267,11 +1274,11 @@ namespace Opc.Ua.Client
 
 
         /// <inheritdoc/>
-        public void ManagedBrowse(RequestHeader requestHeader, ViewDescription view, IList<NodeId> nodesToBrowse, uint maxResultsToReturn, BrowseDirection browseDirection, NodeId referenceTypeId, bool includeSubtypes, uint nodeClassMask, out List<ReferenceDescriptionCollection> result, out List<ServiceResult> errors, bool excecuteDefensively = false)
+        public void ManagedBrowse(RequestHeader requestHeader, ViewDescription view, IList<NodeId> nodesToBrowse, uint maxResultsToReturn, BrowseDirection browseDirection, NodeId referenceTypeId, bool includeSubtypes, uint nodeClassMask, out List<ReferenceDescriptionCollection> result, out List<ServiceResult> errors)
         {
             using (Activity activity = ActivitySource.StartActivity())
             {
-                m_session.ManagedBrowse(requestHeader, view, nodesToBrowse, maxResultsToReturn, browseDirection, referenceTypeId, includeSubtypes, nodeClassMask, out result, out errors, excecuteDefensively);
+                m_session.ManagedBrowse(requestHeader, view, nodesToBrowse, maxResultsToReturn, browseDirection, referenceTypeId, includeSubtypes, nodeClassMask, out result, out errors);
             }
 
         }
@@ -1280,11 +1287,11 @@ namespace Opc.Ua.Client
         public async Task<(
             List<ReferenceDescriptionCollection>,
             IList<ServiceResult>
-            )> ManagedBrowseAsync(RequestHeader requestHeader, ViewDescription view, IList<NodeId> nodesToBrowse, uint maxResultsToReturn, BrowseDirection browseDirection, NodeId referenceTypeId, bool includeSubtypes, uint nodeClassMask, bool executeDefensively = false, CancellationToken ct = default)
+            )> ManagedBrowseAsync(RequestHeader requestHeader, ViewDescription view, IList<NodeId> nodesToBrowse, uint maxResultsToReturn, BrowseDirection browseDirection, NodeId referenceTypeId, bool includeSubtypes, uint nodeClassMask, CancellationToken ct = default)
         {
             using (Activity activity = ActivitySource.StartActivity())
             {
-                return await m_session.ManagedBrowseAsync(requestHeader, view, nodesToBrowse, maxResultsToReturn, browseDirection, referenceTypeId, includeSubtypes, nodeClassMask, executeDefensively, ct);
+                return await m_session.ManagedBrowseAsync(requestHeader, view, nodesToBrowse, maxResultsToReturn, browseDirection, referenceTypeId, includeSubtypes, nodeClassMask, ct);
             }
         }
 
