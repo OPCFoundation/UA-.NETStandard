@@ -32,7 +32,7 @@ namespace Opc.Ua
         private static readonly NodeIdComparer s_comparer = new NodeIdComparer();
 
         /// <summary>
-        /// Creates an empty dictionary with capacity.
+        /// Creates an empty dictionary.
         /// </summary>
         public NodeIdDictionary() : base(s_comparer)
         {
