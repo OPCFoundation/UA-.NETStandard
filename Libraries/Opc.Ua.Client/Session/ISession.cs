@@ -305,7 +305,7 @@ namespace Opc.Ua.Client
         /// gets or set the policy which is used to prevent the allocation of too many
         /// Continuation Points in the ManagedBrowse(Async) methods
         /// </summary>
-        ContinuationPointPolicy ContinuationPointReservationPolicy { get; set; }
+        ContinuationPointPolicy ContinuationPointPolicy { get; set; }
         #endregion
 
         #region Delegates and Events

@@ -914,7 +914,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public ContinuationPointPolicy ContinuationPointReservationPolicy
+        public ContinuationPointPolicy ContinuationPointPolicy
         {
             get => m_continuationPointPolicy;
             set => m_continuationPointPolicy = value;

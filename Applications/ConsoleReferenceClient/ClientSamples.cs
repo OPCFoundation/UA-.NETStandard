@@ -521,8 +521,8 @@ namespace Quickstarts
             BrowseDescription browseDescription = null,
             CancellationToken ct = default)
         {
-            ContinuationPointPolicy policyBackup = uaClient.Session.ContinuationPointReservationPolicy;
-            uaClient.Session.ContinuationPointReservationPolicy = ContinuationPointPolicy.Default;
+            ContinuationPointPolicy policyBackup = uaClient.Session.ContinuationPointPolicy;
+            uaClient.Session.ContinuationPointPolicy = ContinuationPointPolicy.Default;
 
             Stopwatch stopWatch = new Stopwatch();
             stopWatch.Start();
@@ -672,7 +672,7 @@ namespace Quickstarts
                 }
             }
 
-            uaClient.Session.ContinuationPointReservationPolicy = policyBackup;
+            uaClient.Session.ContinuationPointPolicy = policyBackup;
 
             return result;
         }

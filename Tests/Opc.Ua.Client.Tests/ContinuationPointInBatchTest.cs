@@ -577,7 +577,7 @@ namespace Opc.Ua.Client.Tests
             Session theSession = ((Session)(((TraceableSession)Session).Session));
             theSession.NodeCache.Clear();
 
-            theSession.ContinuationPointReservationPolicy = ContinuationPointPolicy.Default; 
+            theSession.ContinuationPointPolicy = ContinuationPointPolicy.Default; 
 
             // the ExpectedNumber* parameters are not relevant/correct for this test.
             ManagedBrowseExpectedResultValues pass1ExpectedResults = new ManagedBrowseExpectedResultValues {
@@ -642,7 +642,7 @@ namespace Opc.Ua.Client.Tests
             Session theSession = ((Session)(((TraceableSession)Session).Session));
             theSession.NodeCache.Clear();
 
-            theSession.ContinuationPointReservationPolicy = policy;
+            theSession.ContinuationPointPolicy = policy;
 
             // the ExpectedNumber* parameters are not relevant/correct for this test.
             ManagedBrowseExpectedResultValues pass1ExpectedResults = new ManagedBrowseExpectedResultValues {
@@ -730,7 +730,7 @@ namespace Opc.Ua.Client.Tests
             Session theSession = ((Session)(((TraceableSession)Session).Session));
             theSession.FetchOperationLimits();
 
-            theSession.ContinuationPointReservationPolicy = ContinuationPointPolicy.Default;
+            theSession.ContinuationPointPolicy = ContinuationPointPolicy.Default;
 
 
             ManagedBrowseExpectedResultValues pass1ExpectedResults = new ManagedBrowseExpectedResultValues {
@@ -872,7 +872,7 @@ namespace Opc.Ua.Client.Tests
             base.ClientFixture.SetTraceOutput(memoryWriter);
             Session theSession = ((Session)(((TraceableSession)Session).Session));
 
-            theSession.ContinuationPointReservationPolicy = ContinuationPointPolicy.Balanced;
+            theSession.ContinuationPointPolicy = ContinuationPointPolicy.Balanced;
 
             ManagedBrowseExpectedResultValues pass1ExpectedResults = new ManagedBrowseExpectedResultValues {
                 InputMaxNumberOfContinuationPoints = testData.MaxNumberOfContinuationPoints,
@@ -932,7 +932,7 @@ namespace Opc.Ua.Client.Tests
             theSession.ServerMaxContinuationPointsPerBrowse
                 = pass2ExpectedResults.InputMaxNumberOfContinuationPoints;
 
-            theSession.ContinuationPointReservationPolicy =
+            theSession.ContinuationPointPolicy =
                 ContinuationPointPolicy.Balanced;
 
             theSession.ManagedBrowse(
@@ -1012,7 +1012,7 @@ namespace Opc.Ua.Client.Tests
             base.ClientFixture.SetTraceOutput(memoryWriter);
             Session theSession = ((Session)(((TraceableSession)Session).Session));
 
-            theSession.ContinuationPointReservationPolicy = policy;
+            theSession.ContinuationPointPolicy = policy;
 
 
             ManagedBrowseExpectedResultValues pass1ExpectedResults = new ManagedBrowseExpectedResultValues {
@@ -1130,7 +1130,7 @@ namespace Opc.Ua.Client.Tests
             Session theSession = ((Session)(((TraceableSession)Session).Session));           
             theSession.NodeCache.Clear();
 
-            theSession.ContinuationPointReservationPolicy = ContinuationPointPolicy.Default;
+            theSession.ContinuationPointPolicy = ContinuationPointPolicy.Default;
 
             // the ExpectedNumber* parameters are not relevant/correct for this test.
             ManagedBrowseExpectedResultValues pass1ExpectedResults = new ManagedBrowseExpectedResultValues {
@@ -1204,7 +1204,7 @@ namespace Opc.Ua.Client.Tests
             Session theSession = ((Session)(((TraceableSession)Session).Session));
             theSession.NodeCache.Clear();
 
-            theSession.ContinuationPointReservationPolicy = policy;
+            theSession.ContinuationPointPolicy = policy;
 
             // the ExpectedNumber* parameters are not relevant/correct for this test.
             ManagedBrowseExpectedResultValues pass1ExpectedResults = new ManagedBrowseExpectedResultValues {
@@ -1269,7 +1269,7 @@ namespace Opc.Ua.Client.Tests
             base.ClientFixture.SetTraceOutput(memoryWriter);
             Session theSession = ((Session)(((TraceableSession)Session).Session));
 
-            theSession.ContinuationPointReservationPolicy = ContinuationPointPolicy.Default;
+            theSession.ContinuationPointPolicy = ContinuationPointPolicy.Default;
 
             ManagedBrowseExpectedResultValues pass1ExpectedResults = new ManagedBrowseExpectedResultValues {
                 InputMaxNumberOfContinuationPoints = testData.MaxNumberOfContinuationPoints,
