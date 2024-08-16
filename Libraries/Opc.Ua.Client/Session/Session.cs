@@ -128,6 +128,7 @@ namespace Opc.Ua.Client
             m_sessionTimeout = template.m_sessionTimeout;
             m_maxRequestMessageSize = template.m_maxRequestMessageSize;
             m_minPublishRequestCount = template.m_minPublishRequestCount;
+            m_maxPublishRequestCount = template.m_maxPublishRequestCount;
             m_preferredLocales = template.PreferredLocales;
             m_sessionName = template.SessionName;
             m_handle = template.Handle;
