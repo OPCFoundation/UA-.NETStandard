@@ -289,7 +289,7 @@ namespace Opc.Ua.Client
         public bool CheckDomain => m_session.CheckDomain;
         
         /// <inheritdoc/>
-        public ContinuationPointReservationPolicy ContinuationPointReservationPolicy
+        public ContinuationPointPolicy ContinuationPointReservationPolicy
         {
             get => m_session.ContinuationPointReservationPolicy;
             set => m_session.ContinuationPointReservationPolicy = value;

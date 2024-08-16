@@ -305,7 +305,7 @@ namespace Opc.Ua.Client
         /// gets or set the policy which is used to prevent the allocation of too many
         /// Continuation Points in the ManagedBrowse(Async) methods
         /// </summary>
-        ContinuationPointReservationPolicy ContinuationPointReservationPolicy { get; set; }
+        ContinuationPointPolicy ContinuationPointReservationPolicy { get; set; }
         #endregion
 
         #region Delegates and Events
@@ -1034,16 +1034,8 @@ namespace Opc.Ua.Client
     /// As of now only used for browse/browse next in the
     /// ManagedBrowse method.
     /// </summary>
-    public enum ContinuationPointReservationPolicy
+    public enum ContinuationPointPolicy
     {
-        /// <summary>
-        /// Restrict the number of nodes which are browsed in a
-        /// single service call to the maximum number of
-        /// continuation points the server can allocae
-        /// (if set to a value different from 0)
-        /// </summary>
-        Balanced,
-
         /// <summary>
         /// Ignore how many Continuation Points are in use already.
         /// Rebrowse nodes for which BadNoContinuationPoint or
@@ -1051,6 +1043,16 @@ namespace Opc.Ua.Client
         /// whenever the server has no restrictions no the maximum
         /// number of continuation points
         /// </summary>
-        Optimistic
+        Default,
+
+        /// <summary>
+        /// Restrict the number of nodes which are browsed in a
+        /// single service call to the maximum number of
+        /// continuation points the server can allocae
+        /// (if set to a value different from 0)
+        /// </summary>
+        Balanced
+
+
     }
 }

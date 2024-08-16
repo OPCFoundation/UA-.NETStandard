@@ -134,6 +134,7 @@ namespace Opc.Ua.Client
             m_identity = template.Identity;
             m_keepAliveInterval = template.KeepAliveInterval;
             m_checkDomain = template.m_checkDomain;
+            m_continuationPointPolicy = template.m_continuationPointPolicy;
             if (template.OperationTimeout > 0)
             {
                 OperationTimeout = template.OperationTimeout;
@@ -913,10 +914,10 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public ContinuationPointReservationPolicy ContinuationPointReservationPolicy
+        public ContinuationPointPolicy ContinuationPointReservationPolicy
         {
-            get => m_continuationPointReservationPolicy;
-            set => m_continuationPointReservationPolicy = value;
+            get => m_continuationPointPolicy;
+            set => m_continuationPointPolicy = value;
         }
         #endregion
 
@@ -6439,8 +6440,8 @@ namespace Opc.Ua.Client
         private readonly EndpointDescriptionCollection m_discoveryServerEndpoints;
         private readonly StringCollection m_discoveryProfileUris;
         private uint m_ServerMaxContinuationPointsPerBrowse = 0;
-        private ContinuationPointReservationPolicy m_continuationPointReservationPolicy
-            = ContinuationPointReservationPolicy.Balanced;
+        private ContinuationPointPolicy m_continuationPointPolicy
+            = ContinuationPointPolicy.Default;
 
         private class AsyncRequestState
         {
