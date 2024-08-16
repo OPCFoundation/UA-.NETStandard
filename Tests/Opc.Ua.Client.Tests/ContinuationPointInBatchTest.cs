@@ -1041,11 +1041,11 @@ namespace Opc.Ua.Client.Tests
             List<NodeId> nodeIds1 = nodeIds.GetRange(0, nodeIds.Count / 2);
             List<NodeId> nodeIds2 = nodeIds.Skip(nodeIds.Count / 2).ToList();
 
-            List<ReferenceDescriptionCollection> referenceDescriptionCollectionsPass1 = new List<ReferenceDescriptionCollection>();
-            List<ReferenceDescriptionCollection> referenceDescriptionCollectionsPass2 = new List<ReferenceDescriptionCollection>();
+            IList<ReferenceDescriptionCollection> referenceDescriptionCollectionsPass1 = new List<ReferenceDescriptionCollection>();
+            IList<ReferenceDescriptionCollection> referenceDescriptionCollectionsPass2 = new List<ReferenceDescriptionCollection>();
 
-            List<ServiceResult> errorsPass1 = new List<ServiceResult>();
-            List<ServiceResult> errorsPass2 = new List<ServiceResult>();
+            IList<ServiceResult> errorsPass1 = new List<ServiceResult>();
+            IList<ServiceResult> errorsPass2 = new List<ServiceResult>();
 
             Parallel.Invoke(
                 () => theSession.ManagedBrowse(
@@ -1068,8 +1068,8 @@ namespace Opc.Ua.Client.Tests
             memoryWriter = new CPBatchTestMemoryWriter();
             base.ClientFixture.SetTraceOutput(memoryWriter);
 
-            referenceDescriptionCollectionsPass1.AddRange(referenceDescriptionCollectionsPass2);
-            errorsPass1.AddRange(errorsPass2);
+            ((List<ReferenceDescriptionCollection>)referenceDescriptionCollectionsPass1).AddRange(referenceDescriptionCollectionsPass2);
+            ((List<ServiceResult>)errorsPass1).AddRange(errorsPass2);
 
             // finally browse again with a simple browse service call.
             // reset server quotas first:
@@ -1296,7 +1296,7 @@ namespace Opc.Ua.Client.Tests
             List<NodeId> nodeIds = getMassFolderNodesToBrowse();
             // browse with test settings
             (
-                List<ReferenceDescriptionCollection> referenceDescriptionCollectionPass1,
+                IList<ReferenceDescriptionCollection> referenceDescriptionCollectionPass1,
                 IList<ServiceResult> errorsPass1
                 ) =
 
