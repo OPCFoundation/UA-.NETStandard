@@ -1017,7 +1017,7 @@ namespace Opc.Ua.Client
             ResponseHeader responseHeader,
             ByteStringCollection revisedContinuationPoints,
             IList<ReferenceDescriptionCollection> referencesList,
-            List<ServiceResult> errors
+            IList<ServiceResult> errors
             )> BrowseNextAsync(
             RequestHeader requestHeader,
             ByteStringCollection continuationPoints,
@@ -1064,7 +1064,7 @@ namespace Opc.Ua.Client
         #region Combined Browse/BrowseNext
         /// <inheritdoc/>
         public async Task<(
-            List<ReferenceDescriptionCollection>,
+            IList<ReferenceDescriptionCollection>,
             IList<ServiceResult>
             )>
                 ManagedBrowseAsync(
@@ -1129,7 +1129,7 @@ namespace Opc.Ua.Client
                         int batchOffset = batchCount * (int)maxNodesPerBrowse;
 
                         (
-                            List<ReferenceDescriptionCollection> resultForBatch,
+                            IList<ReferenceDescriptionCollection> resultForBatch,
                             IList<ServiceResult> errorsForBatch
                         )
                         =
@@ -1225,7 +1225,7 @@ namespace Opc.Ua.Client
         /// BadNoContinuationPoint and BadContinuationPointInvalid
         /// </summary>
         private async Task<(
-            List<ReferenceDescriptionCollection>,
+            IList<ReferenceDescriptionCollection>,
             IList<ServiceResult>
             )>
             BrowseWithBrowseNextAsync(
@@ -1405,13 +1405,13 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             (
-                List<ReferenceDescriptionCollection> descriptions,
+                IList<ReferenceDescriptionCollection> descriptions,
                 _
             ) =
                 await ManagedBrowseAsync(
                     null,
                     null,
-                    new[] { nodeId },
+                    new NodeId[] { nodeId },
                     0,
                     BrowseDirection.Both,
                     null,
@@ -1422,27 +1422,20 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<(IList<ReferenceDescriptionCollection>, IList<ServiceResult>)> FetchReferencesAsync(
+        public Task<(IList<ReferenceDescriptionCollection>, IList<ServiceResult>)> FetchReferencesAsync(
             IList<NodeId> nodeIds,
             CancellationToken ct = default)
-        {            
-                (
-                    IList<ReferenceDescriptionCollection> descriptions,
-                    IList<ServiceResult> errors
-                    ) = 
-                await ManagedBrowseAsync(
-                    null,
-                    null,
-                    nodeIds,
-                    0,
-                    BrowseDirection.Both,
-                    null,
-                    true,
-                    0,
-                    ct
-                    ).ConfigureAwait(false);
-                return (descriptions, errors);
-        }
+            => ManagedBrowseAsync(
+                null,
+                null,
+                nodeIds,
+                0,
+                BrowseDirection.Both,
+                null,
+                true,
+                0,
+                ct
+                );
         #endregion
 
         #region Recreate Async Methods

@@ -616,7 +616,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Finds the NodeIds for the components for an instance.
         /// </summary>
-        void FindComponentIds(NodeId instanceId, IList<string> componentPaths, out NodeIdCollection componentIds, out List<ServiceResult> errors);
+        void FindComponentIds(NodeId instanceId, IList<string> componentPaths, out NodeIdCollection componentIds, out IList<ServiceResult> errors);
 
         /// <summary>
         /// Reads the values for a set of variables.
@@ -625,7 +625,7 @@ namespace Opc.Ua.Client
         /// <param name="expectedTypes">The expected types.</param>
         /// <param name="values">The list of returned values.</param>
         /// <param name="errors">The list of returned errors.</param>
-        void ReadValues(IList<NodeId> variableIds, IList<Type> expectedTypes, out List<object> values, out List<ServiceResult> errors);
+        void ReadValues(IList<NodeId> variableIds, IList<Type> expectedTypes, out IList<object> values, out IList<ServiceResult> errors);
 
         /// <summary>
         /// Reads the display name for a set of Nodes.
@@ -939,8 +939,8 @@ namespace Opc.Ua.Client
             NodeId referenceTypeId,
             bool includeSubtypes,
             uint nodeClassMask,
-            out List<ReferenceDescriptionCollection> result,
-            out List<ServiceResult> errors
+            out IList<ReferenceDescriptionCollection> result,
+            out IList<ServiceResult> errors
             );
 
 #if (CLIENT_ASYNC)
@@ -950,7 +950,7 @@ namespace Opc.Ua.Client
         /// Takes care of BadNoContinuationPoint and BadInvalidContinuationPoint status codes.
         /// </summary>
         Task<(
-            List<ReferenceDescriptionCollection>,
+            IList<ReferenceDescriptionCollection>,
             IList<ServiceResult>
             )>
                 ManagedBrowseAsync(

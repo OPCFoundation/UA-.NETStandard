@@ -645,7 +645,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public void FindComponentIds(NodeId instanceId, IList<string> componentPaths, out NodeIdCollection componentIds, out List<ServiceResult> errors)
+        public void FindComponentIds(NodeId instanceId, IList<string> componentPaths, out NodeIdCollection componentIds, out IList<ServiceResult> errors)
         {
             using (Activity activity = ActivitySource.StartActivity())
             {
@@ -654,7 +654,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public void ReadValues(IList<NodeId> variableIds, IList<Type> expectedTypes, out List<object> values, out List<ServiceResult> errors)
+        public void ReadValues(IList<NodeId> variableIds, IList<Type> expectedTypes, out IList<object> values, out IList<ServiceResult> errors)
         {
             using (Activity activity = ActivitySource.StartActivity())
             {
@@ -1274,7 +1274,7 @@ namespace Opc.Ua.Client
 
 
         /// <inheritdoc/>
-        public void ManagedBrowse(RequestHeader requestHeader, ViewDescription view, IList<NodeId> nodesToBrowse, uint maxResultsToReturn, BrowseDirection browseDirection, NodeId referenceTypeId, bool includeSubtypes, uint nodeClassMask, out List<ReferenceDescriptionCollection> result, out List<ServiceResult> errors)
+        public void ManagedBrowse(RequestHeader requestHeader, ViewDescription view, IList<NodeId> nodesToBrowse, uint maxResultsToReturn, BrowseDirection browseDirection, NodeId referenceTypeId, bool includeSubtypes, uint nodeClassMask, out IList<ReferenceDescriptionCollection> result, out IList<ServiceResult> errors)
         {
             using (Activity activity = ActivitySource.StartActivity())
             {
@@ -1285,7 +1285,7 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>        
         public async Task<(
-            List<ReferenceDescriptionCollection>,
+            IList<ReferenceDescriptionCollection>,
             IList<ServiceResult>
             )> ManagedBrowseAsync(RequestHeader requestHeader, ViewDescription view, IList<NodeId> nodesToBrowse, uint maxResultsToReturn, BrowseDirection browseDirection, NodeId referenceTypeId, bool includeSubtypes, uint nodeClassMask, CancellationToken ct = default)
         {

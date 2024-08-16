@@ -293,7 +293,7 @@ namespace Opc.Ua.Client
             m_transferSubscriptionsOnReconnect = false;
             m_reconnecting = false;
             m_reconnectLock = new SemaphoreSlim(1, 1);
-            m_ServerMaxContinuationPointsPerBrowse = 0; 
+            m_ServerMaxContinuationPointsPerBrowse = 0;
 
             m_defaultSubscription = new Subscription {
                 DisplayName = "Subscription",
@@ -911,7 +911,7 @@ namespace Opc.Ua.Client
             get => m_ServerMaxContinuationPointsPerBrowse;
             set => m_ServerMaxContinuationPointsPerBrowse = value;
         }
-        
+
         /// <inheritdoc/>
         public ContinuationPointReservationPolicy ContinuationPointReservationPolicy
         {
@@ -2262,7 +2262,7 @@ namespace Opc.Ua.Client
                 referenceTypeId: null,
                 includeSubtypes: true,
                 nodeClassMask: 0,
-                out List<ReferenceDescriptionCollection> descriptionsList,
+                out IList<ReferenceDescriptionCollection> descriptionsList,
                 out var errors
                 );
             return descriptionsList[0];
@@ -2704,7 +2704,7 @@ namespace Opc.Ua.Client
             NodeId instanceId,
             IList<string> componentPaths,
             out NodeIdCollection componentIds,
-            out List<ServiceResult> errors)
+            out IList<ServiceResult> errors)
         {
             componentIds = new NodeIdCollection();
             errors = new List<ServiceResult>();
@@ -2810,8 +2810,8 @@ namespace Opc.Ua.Client
         public void ReadValues(
             IList<NodeId> variableIds,
             IList<Type> expectedTypes,
-            out List<object> values,
-            out List<ServiceResult> errors)
+            out IList<object> values,
+            out IList<ServiceResult> errors)
         {
             values = new List<object>();
             errors = new List<ServiceResult>();
@@ -3629,26 +3629,20 @@ namespace Opc.Ua.Client
             NodeId referenceTypeId,
             bool includeSubtypes,
             uint nodeClassMask,
-            out List<ReferenceDescriptionCollection> result,
-            out List<ServiceResult> errors
+            out IList<ReferenceDescriptionCollection> result,
+            out IList<ServiceResult> errors
             )
         {
-
-            var task = Task.Run(() =>
-                 ManagedBrowseAsync(
-                    requestHeader,
-                    view,
-                    nodesToBrowse,
-                    maxResultsToReturn,
-                    browseDirection,
-                    referenceTypeId,
-                    includeSubtypes,
-                    nodeClassMask
-                    ).GetAwaiter().GetResult()
-                );
-
-            (result, errors) = ((List<ReferenceDescriptionCollection>, List<ServiceResult>))task.Result;
-
+            (result, errors) = ManagedBrowseAsync(
+                requestHeader,
+                view,
+                nodesToBrowse,
+                maxResultsToReturn,
+                browseDirection,
+                referenceTypeId,
+                includeSubtypes,
+                nodeClassMask
+                ).GetAwaiter().GetResult();
         }
 
         #endregion

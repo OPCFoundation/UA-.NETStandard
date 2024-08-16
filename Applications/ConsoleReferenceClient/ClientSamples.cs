@@ -586,9 +586,9 @@ namespace Quickstarts
                         // support it. But that will then also be
                         // necessary for BrowseAsync 
                         (
-                            List<ReferenceDescriptionCollection> descriptions,
+                            IList<ReferenceDescriptionCollection> descriptions,
                             IList<ServiceResult> errors
-                            ) = await uaClient.Session.ManagedBrowseAsync(
+                        ) = await uaClient.Session.ManagedBrowseAsync(
                             null,
                             null,
                             nodesToBrowse,
@@ -604,7 +604,7 @@ namespace Quickstarts
                         newReferenceDescriptions.AddRange(descriptions);
                         allServiceResults.AddRange(errors);
 
-        
+
                     }
                     catch (ServiceResultException sre)
                     {
@@ -621,11 +621,11 @@ namespace Quickstarts
                 // Build browse request for next level
                 List<NodeId> nodesForNextManagedBrowse = new List<NodeId>();
                 int duplicates = 0;
-                foreach(ReferenceDescriptionCollection referenceCollection in newReferenceDescriptions)
+                foreach (ReferenceDescriptionCollection referenceCollection in newReferenceDescriptions)
                 {
-                    foreach(ReferenceDescription reference in referenceCollection)
+                    foreach (ReferenceDescription reference in referenceCollection)
                     {
-                        if(!referenceDescriptions.ContainsKey(reference.NodeId))
+                        if (!referenceDescriptions.ContainsKey(reference.NodeId))
                         {
                             referenceDescriptions[reference.NodeId] = reference;
 
@@ -650,8 +650,8 @@ namespace Quickstarts
                 {
                     Utils.LogInfo("Managed Browse Result {0} duplicate nodes were ignored.", duplicates);
                 }
-    
-                
+
+
 
             }
 
@@ -676,20 +676,20 @@ namespace Quickstarts
 
             return result;
         }
-            #endregion
+        #endregion
 
-            #region BrowseAddressSpace sample
-            /// <summary>
-            /// Browse full address space.
-            /// </summary>
-            /// <param name="uaClient">The UAClient with a session to use.</param>
-            /// <param name="startingNode">The node where the browse operation starts.</param>
-            /// <param name="browseDescription">An optional BrowseDescription to use.</param>
-            public async Task<ReferenceDescriptionCollection> BrowseFullAddressSpaceAsync(
-            IUAClient uaClient,
-            NodeId startingNode = null,
-            BrowseDescription browseDescription = null,
-            CancellationToken ct = default)
+        #region BrowseAddressSpace sample
+        /// <summary>
+        /// Browse full address space.
+        /// </summary>
+        /// <param name="uaClient">The UAClient with a session to use.</param>
+        /// <param name="startingNode">The node where the browse operation starts.</param>
+        /// <param name="browseDescription">An optional BrowseDescription to use.</param>
+        public async Task<ReferenceDescriptionCollection> BrowseFullAddressSpaceAsync(
+        IUAClient uaClient,
+        NodeId startingNode = null,
+        BrowseDescription browseDescription = null,
+        CancellationToken ct = default)
         {
             Stopwatch stopWatch = new Stopwatch();
             stopWatch.Start();

@@ -7,7 +7,7 @@
     <PackageId>ConsoleReferenceClient</PackageId>
     <Company>OPC Foundation</Company>
     <Description>.NET Console Reference Client</Description>
-    <Copyright>Copyright © 2004-2022 OPC Foundation, Inc</Copyright>
+    <Copyright>Copyright © 2004-2024 OPC Foundation, Inc</Copyright>
     <RootNamespace>Quickstarts.ConsoleReferenceClient</RootNamespace>
   </PropertyGroup>
 
