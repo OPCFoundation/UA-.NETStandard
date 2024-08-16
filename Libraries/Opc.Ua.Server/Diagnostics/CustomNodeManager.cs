@@ -929,10 +929,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         public virtual object GetManagerHandle(NodeId nodeId)
         {
-            lock (Lock)
-            {
-                return GetManagerHandle(m_systemContext, nodeId, null);
-            }
+            return GetManagerHandle(m_systemContext, nodeId, null);
         }
 
         /// <summary>
@@ -945,20 +942,17 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            if (m_predefinedNodes != null)
+            NodeState node = null;
+
+            if (m_predefinedNodes?.TryGetValue(nodeId, out node) == true)
             {
-                NodeState node = null;
+                NodeHandle handle = new NodeHandle();
 
-                if (m_predefinedNodes.TryGetValue(nodeId, out node))
-                {
-                    NodeHandle handle = new NodeHandle();
+                handle.NodeId = nodeId;
+                handle.Node = node;
+                handle.Validated = true;
 
-                    handle.NodeId = nodeId;
-                    handle.Node = node;
-                    handle.Validated = true;
-
-                    return handle;
-                }
+                return handle;
             }
 
             return null;
@@ -3809,7 +3803,7 @@ namespace Opc.Ua.Server
                 eventTypeId = baseEventState.EventType?.Value;
                 sourceNodeId = baseEventState.SourceNode?.Value;
             }
-            
+
             OperationContext operationContext = new OperationContext(monitoredItem);
 
             // validate the event type id permissions as specified
