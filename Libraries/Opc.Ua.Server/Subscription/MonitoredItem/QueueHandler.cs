@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Opc.Ua.Server
 {
@@ -146,8 +147,6 @@ namespace Opc.Ua.Server
         /// <returns></returns>
         public bool PublishSingleValue(out DataValue value, out ServiceResult error)
         {
-            value = null;
-            error = null;
             if (m_dataValueQueue.Dequeue(out value, out error))
             {
                 ServerUtils.EventLog.DequeueValue(value.WrappedValue, value.StatusCode);
@@ -169,40 +168,45 @@ namespace Opc.Ua.Server
                 return;
             }
 
-
             // check if the latest value has initial dummy data
-            if (m_dataValueQueue.PeekLastValue()?.StatusCode != StatusCodes.BadWaitingForInitialData)
+            if (m_dataValueQueue.PeekLastValue()?.StatusCode == StatusCodes.BadWaitingForInitialData)
             {
-                // check if queue is full.
-                if (m_dataValueQueue.ItemsInQueue == m_dataValueQueue.QueueSize)
+                // overwrite the last value
+                m_dataValueQueue.OverwriteLastValue(value, error);
+
+                return;
+            }
+
+            // check if queue is full.
+            if (m_dataValueQueue.ItemsInQueue == m_dataValueQueue.QueueSize)
+            {
+                m_discardedValueHandler?.Invoke();
+
+                SetOverflowBit(ref value, ref error);
+
+                if (!m_discardOldest)
                 {
-                    m_discardedValueHandler?.Invoke();
+                    ServerUtils.ReportDiscardedValue(null, m_monitoredItemId, m_dataValueQueue.PeekLastValue());
 
-                    SetOverflowBit(ref value, ref error);
+                    // overwrite last value
+                    m_dataValueQueue.OverwriteLastValue(value, error);
 
-                    if (!m_discardOldest)
-                    {
-                        ServerUtils.ReportDiscardedValue(null, m_monitoredItemId, m_dataValueQueue.PeekLastValue());
+                    return;
+                }
 
-                        // overwrite last value
-                        m_dataValueQueue.OverwriteLastValue(value, error);
-
-                        return;
-                    }
-
-                    // remove oldest value.
-                    m_dataValueQueue.Dequeue(out var discardedValue, out _);
+                // remove oldest value.
+                if (m_dataValueQueue.Dequeue(out DataValue discardedValue, out _))
+                {
                     ServerUtils.ReportDiscardedValue(null, m_monitoredItemId, discardedValue);
                 }
                 else
                 {
-                    ServerUtils.EventLog.EnqueueValue(value.WrappedValue);
+                    throw new ServiceResultException(StatusCodes.BadInternalError, "Error queueing DataChange. DataChange Queue was full but it was not possible to discard the oldest value.");
                 }
             }
             else
             {
-                // overwrite the last value
-                m_dataValueQueue.OverwriteLastValue(value, error);
+                ServerUtils.EventLog.EnqueueValue(value.WrappedValue);
             }
 
             m_dataValueQueue.Enqueue(value, error);
@@ -359,14 +363,11 @@ namespace Opc.Ua.Server
             uint notificationCount = 0;
             while (notificationCount < maxNotificationsPerPublish && m_eventQueue.Dequeue(out EventFieldList fields))
             {
-                // apply any diagnostic masks.
-                for (int jj = 0; jj < fields.EventFields.Count; jj++)
+                foreach (Variant field in fields.EventFields)
                 {
-                    object value = fields.EventFields[jj].Value;
-
-                    if (value is StatusResult result)
+                    if (field.Value is StatusResult statusResult)
                     {
-                        result.ApplyDiagnosticMasks(context.DiagnosticsMask, context.StringTable);
+                        statusResult.ApplyDiagnosticMasks(context.DiagnosticsMask, context.StringTable);
                     }
                 }
 

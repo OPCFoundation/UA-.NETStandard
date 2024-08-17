@@ -53,8 +53,7 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// Provides a durable queue for data changes and events that can handle a queue size of several thousand elements.
-    /// T defines if the queue is for events or for DataValues
+    /// Provides an optionally durable queue for data changes used by <see cref="DataChangeQueueHandler"/> and created by <see cref="IMonitoredItemQueueFactory"/>.
     /// </summary>
     public interface IDataChangeMonitoredItemQueue : IDisposable
     {
@@ -110,8 +109,7 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// Provides a durable queue for data changes and events that can handle a queue size of several thousand elements.
-    /// T defines if the queue is for events or for DataValues
+    /// Provides an optionally durable queue for events used by <see cref="EventQueueHandler"/> and created by <see cref="IMonitoredItemQueueFactory"/>.
     /// </summary>
     public interface IEventMonitoredItemQueue : IDisposable
     {
@@ -139,6 +137,7 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Checks the last 1k queue entries if the event is already in there
+        /// used to detect duplicate instances of the same event being reported via multiple paths.
         /// </summary>
         /// <param name="instance">the event to chack for duplicates</param>
         /// <returns>true if event already in queue</returns>

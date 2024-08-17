@@ -63,11 +63,9 @@ namespace Opc.Ua.Server
         void QueueValue(DataValue value, ServiceResult error);
 
         /// <summary>
-        /// Deques the last item
+        /// Dequeues the last item
         /// </summary>
-        /// <param name="value"></param>
-        /// <param name="error"></param>
-        /// <returns></returns>
+        /// <returns>true if an item was dequeued</returns>
         bool PublishSingleValue(out DataValue value, out ServiceResult error);
     }
     #endregion

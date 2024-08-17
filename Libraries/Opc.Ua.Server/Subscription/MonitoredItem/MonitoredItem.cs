@@ -468,9 +468,9 @@ namespace Opc.Ua.Server
                         return m_eventQueueHandler.ItemsInQueue;
                     }
 
-                    if (m_dataValueQueueHandler != null)
+                    if (m_dataChangeQueueHandler != null)
                     {
-                        return m_dataValueQueueHandler.ItemsInQueue;
+                        return m_dataChangeQueueHandler.ItemsInQueue;
                     }
 
                     return 0;
@@ -874,7 +874,7 @@ namespace Opc.Ua.Server
         {
             if (m_queueSize > 1)
             {
-                m_dataValueQueueHandler.QueueValue(value, error);
+                m_dataChangeQueueHandler.QueueValue(value, error);
             }
 
             if (m_lastValue != null)
@@ -1209,13 +1209,13 @@ namespace Opc.Ua.Server
                 m_readyToPublish = false;
 
                 // check if queueing enabled.
-                if (m_dataValueQueueHandler != null && (!m_resendData || m_dataValueQueueHandler.ItemsInQueue != 0))
+                if (m_dataChangeQueueHandler != null && (!m_resendData || m_dataChangeQueueHandler.ItemsInQueue != 0))
                 {
                     DataValue value = null;
                     ServiceResult error = null;
 
                     uint notificationCount = 0;
-                    while (notificationCount < maxNotificationsPerPublish && m_dataValueQueueHandler.PublishSingleValue(out value, out error))
+                    while (notificationCount < maxNotificationsPerPublish && m_dataChangeQueueHandler.PublishSingleValue(out value, out error))
                     {
                         Publish(context, notifications, diagnostics, value, error);
 
@@ -1223,7 +1223,7 @@ namespace Opc.Ua.Server
 
                         if (m_resendData)
                         {
-                            m_readyToPublish = m_dataValueQueueHandler.ItemsInQueue > 0;
+                            m_readyToPublish = m_dataChangeQueueHandler.ItemsInQueue > 0;
                             break;
                         }
                     }
@@ -1667,8 +1667,8 @@ namespace Opc.Ua.Server
                 {
                     m_eventQueueHandler?.Dispose();
                     m_eventQueueHandler = null;
-                    m_dataValueQueueHandler?.Dispose();
-                    m_dataValueQueueHandler = null;
+                    m_dataChangeQueueHandler?.Dispose();
+                    m_dataChangeQueueHandler = null;
                     break;
                 }
 
@@ -1694,8 +1694,8 @@ namespace Opc.Ua.Server
                     {
                         if (m_queueSize <= 1)
                         {
-                            Utils.SilentDispose(m_dataValueQueueHandler);
-                            m_dataValueQueueHandler = null;
+                            Utils.SilentDispose(m_dataChangeQueueHandler);
+                            m_dataChangeQueueHandler = null;
                             Utils.SilentDispose(m_eventQueueHandler);
                             m_eventQueueHandler = null;
                             break; // queueing is disabled
@@ -1703,18 +1703,18 @@ namespace Opc.Ua.Server
 
                         bool queueLastValue = false;
 
-                        if (m_dataValueQueueHandler == null)
+                        if (m_dataChangeQueueHandler == null)
                         {
-                            m_dataValueQueueHandler = new DataChangeQueueHandler(Id, IsDurable, m_monitoredItemQueueFactory, QueueOverflowHandler);
+                            m_dataChangeQueueHandler = new DataChangeQueueHandler(Id, IsDurable, m_monitoredItemQueueFactory, QueueOverflowHandler);
                             queueLastValue = true;
                         }
 
-                        m_dataValueQueueHandler.SetQueueSize(m_queueSize, m_discardOldest, m_diagnosticsMasks);
-                        m_dataValueQueueHandler.SetSamplingInterval(m_samplingInterval);
+                        m_dataChangeQueueHandler.SetQueueSize(m_queueSize, m_discardOldest, m_diagnosticsMasks);
+                        m_dataChangeQueueHandler.SetSamplingInterval(m_samplingInterval);
 
                         if (queueLastValue && m_lastValue != null)
                         {
-                            m_dataValueQueueHandler.QueueValue(m_lastValue, m_lastError);
+                            m_dataChangeQueueHandler.QueueValue(m_lastValue, m_lastError);
                         }
                     }
                     else // create event queue.
@@ -1742,7 +1742,7 @@ namespace Opc.Ua.Server
         /// Disposes the durable monitoredItemQueue
         public void Dispose()
         {
-            Utils.SilentDispose(m_dataValueQueueHandler);
+            Utils.SilentDispose(m_dataChangeQueueHandler);
             Utils.SilentDispose(m_eventQueueHandler);
         }
 
@@ -1778,7 +1778,7 @@ namespace Opc.Ua.Server
         private ServiceResult m_lastError;
         private long m_nextSamplingTime;
         private readonly IMonitoredItemQueueFactory m_monitoredItemQueueFactory;
-        private IDataChangeQueueHandler m_dataValueQueueHandler;
+        private IDataChangeQueueHandler m_dataChangeQueueHandler;
         private IEventQueueHandler m_eventQueueHandler;
         private bool m_readyToPublish;
         private bool m_readyToTrigger;

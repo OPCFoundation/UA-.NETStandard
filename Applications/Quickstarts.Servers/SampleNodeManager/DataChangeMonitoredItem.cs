@@ -732,7 +732,7 @@ namespace Opc.Ua.Sample
                     ServiceResult error = null;
 
                     uint notificationCount = 0;
-                    while (notificationCount <= maxNotificationsPerPublish && m_queue.PublishSingleValue(out value, out error))
+                    while (notificationCount < maxNotificationsPerPublish && m_queue.PublishSingleValue(out value, out error))
                     {
                         Publish(context, value, error, notifications, diagnostics);
                         notificationCount++;

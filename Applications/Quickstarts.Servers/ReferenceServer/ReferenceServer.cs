@@ -82,7 +82,11 @@ namespace Quickstarts.ReferenceServer
 
         protected override IMonitoredItemQueueFactory CreateMonitoredItemQueueFactory(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new DurableMonitoredItemQueueFactory();
+            if (configuration?.ServerConfiguration?.DurableSubscriptionsEnabled == true)
+            {
+                return new DurableMonitoredItemQueueFactory();
+            }
+            return new MonitoredItemQueueFactory();
         }
 
         /// <summary>

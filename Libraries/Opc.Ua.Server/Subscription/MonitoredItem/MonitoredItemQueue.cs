@@ -131,7 +131,7 @@ namespace Opc.Ua.Server
         /// <param name="error">The error to queue.</param>
         public void Enqueue(DataValue value, ServiceResult error)
         {
-            if (m_values == null)
+            if (m_values == null || m_values.Length == 0)
             {
                 throw new InvalidOperationException("Cannot enqueue Value. Queue size not set.");
             }
@@ -139,7 +139,7 @@ namespace Opc.Ua.Server
             //check for full queue
             if (ItemsInQueue == m_values.Length)
             {
-                Dequeue(out _, out _);
+                _ = Dequeue(out _, out _);
             }
 
             // check for empty queue.
@@ -185,9 +185,9 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void OverwriteLastValue(DataValue value, ServiceResult error)
         {
-            if (m_values == null)
+            if (ItemsInQueue == 0)
             {
-                throw new InvalidOperationException("Cannot write Value. Queue size not set.");
+                throw new InvalidOperationException("Cannot overwrite Value. Queue is empty.");
             }
 
             int last = m_end - 1;
@@ -374,8 +374,7 @@ namespace Opc.Ua.Server
         {
             if (m_events.Count == m_queueSize && !Dequeue(out var _))
             {
-                //Queue is full, but no deque possible
-                return;
+                throw new ServiceResultException(StatusCodes.BadInternalError, "Error queueing Event. Evemt Queue was full but it was not possible to discard the oldest Event");
             }
             m_events.Add(value);
         }
@@ -383,10 +382,11 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public bool IsEventContainedInQueue(IFilterTarget instance)
         {
-            // check for duplicate instances being reported via multiple paths.
-            for (int ii = 0; ii < m_events.Count; ii++)
+            int maxCount = m_events.Count > 1000 ? 1000 : m_events.Count;
+
+            for (int i = 0; i < maxCount; i++)
             {
-                if (m_events[ii] is EventFieldList processedEvent)
+                if (m_events[i] is EventFieldList processedEvent)
                 {
                     if (ReferenceEquals(instance, processedEvent.Handle))
                     {

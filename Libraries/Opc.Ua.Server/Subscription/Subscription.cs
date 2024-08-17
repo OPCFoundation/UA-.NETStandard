@@ -269,13 +269,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// True if the subscription is set to durable and supports long lifetime and queue size
         /// </summary>
-        public bool IsDurable
-        {
-            get
-            {
-                return m_isDurable;
-            }
-        }
+        public bool IsDurable => m_isDurable;
 
         /// <summary>
         /// Gets the lock that must be acquired before accessing the contents of the Diagnostics property.
