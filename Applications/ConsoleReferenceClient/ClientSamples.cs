@@ -686,10 +686,10 @@ namespace Quickstarts
         /// <param name="startingNode">The node where the browse operation starts.</param>
         /// <param name="browseDescription">An optional BrowseDescription to use.</param>
         public async Task<ReferenceDescriptionCollection> BrowseFullAddressSpaceAsync(
-        IUAClient uaClient,
-        NodeId startingNode = null,
-        BrowseDescription browseDescription = null,
-        CancellationToken ct = default)
+            IUAClient uaClient,
+            NodeId startingNode = null,
+            BrowseDescription browseDescription = null,
+            CancellationToken ct = default)
         {
             Stopwatch stopWatch = new Stopwatch();
             stopWatch.Start();

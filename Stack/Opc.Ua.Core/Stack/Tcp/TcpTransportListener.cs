@@ -635,11 +635,9 @@ namespace Opc.Ua.Bindings
                 Utils.LogInfo("TCPLISTENER: {0} channels scheduled for IdleCleanup.", channels.Count);
                 foreach (var channel in channels)
                 {
-                    lock (m_lock)
-                    {
-                        channel.IdleCleanup();
-                    }
+                    channel.IdleCleanup();
                 }
+                Utils.LogInfo("TCPLISTENER: {0} channels finished IdleCleanup.", channels.Count);
             }
         }
         #endregion

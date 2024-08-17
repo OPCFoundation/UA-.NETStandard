@@ -1180,17 +1180,17 @@ namespace Opc.Ua.Client
 
                     if (badCPInvalidErrorsPerPass > 0)
                     {
-                        Utils.LogInfo(aggregatedErrorMessage, passCount, badCPInvalidErrorsPerPass,
+                        Utils.LogTrace(aggregatedErrorMessage, passCount, badCPInvalidErrorsPerPass,
                             badCPInvalidErrorsPerPass == 1 ? "error" : "errors", nameof(StatusCodes.BadContinuationPointInvalid));
                     }
                     if (badNoCPErrorsPerPass > 0)
                     {
-                        Utils.LogInfo(aggregatedErrorMessage, passCount, badNoCPErrorsPerPass,
+                        Utils.LogTrace(aggregatedErrorMessage, passCount, badNoCPErrorsPerPass,
                             badNoCPErrorsPerPass == 1 ? "error" : "errors", nameof(StatusCodes.BadNoContinuationPoints));
                     }
                     if (otherErrorsPerPass > 0)
                     {
-                        Utils.LogInfo(aggregatedErrorMessage, passCount, otherErrorsPerPass,
+                        Utils.LogTrace(aggregatedErrorMessage, passCount, otherErrorsPerPass,
                             otherErrorsPerPass == 1 ? "error" : "errors", $"different from {nameof(StatusCodes.BadNoContinuationPoints)} or {nameof(StatusCodes.BadContinuationPointInvalid)}");
                     }
                     if (otherErrorsPerPass == 0 && badCPInvalidErrorsPerPass == 0 && badNoCPErrorsPerPass == 0)

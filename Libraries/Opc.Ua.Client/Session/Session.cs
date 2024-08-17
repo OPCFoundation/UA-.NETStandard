@@ -128,6 +128,7 @@ namespace Opc.Ua.Client
             m_sessionTimeout = template.m_sessionTimeout;
             m_maxRequestMessageSize = template.m_maxRequestMessageSize;
             m_minPublishRequestCount = template.m_minPublishRequestCount;
+            m_maxPublishRequestCount = template.m_maxPublishRequestCount;
             m_preferredLocales = template.PreferredLocales;
             m_sessionName = template.SessionName;
             m_handle = template.Handle;
@@ -294,7 +295,7 @@ namespace Opc.Ua.Client
             m_transferSubscriptionsOnReconnect = false;
             m_reconnecting = false;
             m_reconnectLock = new SemaphoreSlim(1, 1);
-            m_ServerMaxContinuationPointsPerBrowse = 0;
+            m_serverMaxContinuationPointsPerBrowse = 0;
 
             m_defaultSubscription = new Subscription {
                 DisplayName = "Subscription",
@@ -909,8 +910,8 @@ namespace Opc.Ua.Client
         /// </summary>
         public uint ServerMaxContinuationPointsPerBrowse
         {
-            get => m_ServerMaxContinuationPointsPerBrowse;
-            set => m_ServerMaxContinuationPointsPerBrowse = value;
+            get => m_serverMaxContinuationPointsPerBrowse;
+            set => m_serverMaxContinuationPointsPerBrowse = value;
         }
 
         /// <inheritdoc/>
@@ -6439,7 +6440,7 @@ namespace Opc.Ua.Client
         private LinkedList<AsyncRequestState> m_outstandingRequests;
         private readonly EndpointDescriptionCollection m_discoveryServerEndpoints;
         private readonly StringCollection m_discoveryProfileUris;
-        private uint m_ServerMaxContinuationPointsPerBrowse = 0;
+        private uint m_serverMaxContinuationPointsPerBrowse = 0;
         private ContinuationPointPolicy m_continuationPointPolicy
             = ContinuationPointPolicy.Default;
 
