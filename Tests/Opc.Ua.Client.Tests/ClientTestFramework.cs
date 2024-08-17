@@ -35,6 +35,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
@@ -208,7 +209,7 @@ namespace Opc.Ua.Client.Tests
 
             ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
             ReferenceServer.TokenValidator = this.TokenValidator;
-            ServerFixturePort =ServerFixture.Port;
+            ServerFixturePort = ServerFixture.Port;
         }
 
         /// <summary>
@@ -249,10 +250,12 @@ namespace Opc.Ua.Client.Tests
             if (ServerFixture == null)
             {
                 ClientFixture.SetTraceOutput(TestContext.Out);
+                ClientFixture.SetTraceOutputLevel(LogLevel.Trace);
             }
             else
             {
                 ServerFixture.SetTraceOutput(TestContext.Out);
+                ServerFixture.SetTraceOutputLevel(LogLevel.Trace);
             }
         }
 

@@ -31,19 +31,12 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
-using Castle.Core.Logging;
-using Microsoft.AspNetCore.Hosting.Server;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.Diagnostics.Tracing.Parsers.AspNet;
-using Microsoft.Diagnostics.Tracing.Parsers.MicrosoftWindowsTCPIP;
 using NUnit.Framework;
-using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Tests;
@@ -85,8 +78,8 @@ namespace Opc.Ua.Client.Tests
             m_writer.AutoFlush = true;
         }
         public override void Write(char value)
-        {                        
-                m_writer.Write(value);                        
+        {
+            m_writer.Write(value);
         }
 
         public List<String> getEntries()
@@ -111,7 +104,8 @@ namespace Opc.Ua.Client.Tests
             {
                 m_writer?.Dispose();
                 m_stream?.Dispose();
-            } catch { }
+            }
+            catch { }
         }
     };
 
@@ -156,7 +150,7 @@ namespace Opc.Ua.Client.Tests
 
         public void SetMaxNumberOfContinuationPoints(uint maxNumberOfContinuationPoints)
         {
-            MaxBrowseContinuationPoints = (int) maxNumberOfContinuationPoints;
+            MaxBrowseContinuationPoints = (int)maxNumberOfContinuationPoints;
         }
     }
 
@@ -174,21 +168,21 @@ namespace Opc.Ua.Client.Tests
             m_4TestMaxHistoryContinuationPoints = configuration.ServerConfiguration.MaxHistoryContinuationPoints;
         }
 
-    protected override Opc.Ua.Server.Session CreateSession(
-        OperationContext context,
-        IServerInternal server,
-        X509Certificate2 serverCertificate,
-        NodeId sessionCookie,
-        byte[] clientNonce,
-        byte[] serverNonce,
-        string sessionName,
-        ApplicationDescription clientDescription,
-        string endpointUrl,
-        X509Certificate2 clientCertificate,
-        double sessionTimeout,
-        uint maxResponseMessageSize,
-        int maxRequestAge, // TBD - Remove unused parameter.
-        int maxContinuationPoints) // TBD - Remove unused parameter.
+        protected override Opc.Ua.Server.Session CreateSession(
+            OperationContext context,
+            IServerInternal server,
+            X509Certificate2 serverCertificate,
+            NodeId sessionCookie,
+            byte[] clientNonce,
+            byte[] serverNonce,
+            string sessionName,
+            ApplicationDescription clientDescription,
+            string endpointUrl,
+            X509Certificate2 clientCertificate,
+            double sessionTimeout,
+            uint maxResponseMessageSize,
+            int maxRequestAge, // TBD - Remove unused parameter.
+            int maxContinuationPoints) // TBD - Remove unused parameter.
         {
             ServerSessionForTest session = new ServerSessionForTest(
                 context,
@@ -212,7 +206,7 @@ namespace Opc.Ua.Client.Tests
     }
 
     public class MasterNodeManagerForThisUnitTest : MasterNodeManager
-    {        
+    {
         public MasterNodeManagerForThisUnitTest(IServerInternal server, ApplicationConfiguration configuration, string dynamicNamespaceUri, params INodeManager[] additionalManagers) : base(server, configuration, dynamicNamespaceUri, additionalManagers)
         {
         }
@@ -337,13 +331,13 @@ namespace Opc.Ua.Client.Tests
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
         }
 
-        
+
     }
 
     public class ReferenceServerForThisUnitTest : ReferenceServer
     {
         public uint Test_MaxBrowseReferencesPerNode { get; set; } = 10u;
-        private MasterNodeManager MasterNodeManagerReference {  get; set; }
+        private MasterNodeManager MasterNodeManagerReference { get; set; }
         private SessionManagerForTest SessionManagerForTest { get; set; }
 
         public override ResponseHeader Browse(
@@ -378,7 +372,7 @@ namespace Opc.Ua.Client.Tests
                 }
                 catch { }
             }
-            
+
         }
 
         protected override MasterNodeManager CreateMasterNodeManager(IServerInternal server, ApplicationConfiguration configuration)
@@ -445,7 +439,7 @@ namespace Opc.Ua.Client.Tests
                 ExpectedNumberOfPasses = 1,
                 ExpectedNumberOfBadNoCPSCs = new List<int>()
             };
-        }        
+        }
 
         public ReferenceServerForThisUnitTest ReferenceServerForThisUnitTest { get; set; }
         public ServerFixture<ReferenceServerForThisUnitTest> ServerFixtureForThisUnitTest { get; set; }
@@ -458,7 +452,7 @@ namespace Opc.Ua.Client.Tests
         {
             TextWriter localWriter = enableTracing ? writer : null;
             {
-                
+
                 // start Ref server                                
                 ServerFixtureForThisUnitTest = new ServerFixture<ReferenceServerForThisUnitTest>(enableTracing, disableActivityLogging) {
                     UriScheme = UriScheme,
@@ -468,7 +462,7 @@ namespace Opc.Ua.Client.Tests
                     OperationLimits = true
                 };
             }
-            
+
             if (writer != null && enableTracing)
             {
                 ServerFixtureForThisUnitTest.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
@@ -477,7 +471,7 @@ namespace Opc.Ua.Client.Tests
             await ServerFixtureForThisUnitTest.LoadConfiguration(PkiRoot).ConfigureAwait(false);
             ServerFixtureForThisUnitTest.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
             ServerFixtureForThisUnitTest.Config.TransportQuotas.MaxByteStringLength =
-            ServerFixtureForThisUnitTest.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;            
+            ServerFixtureForThisUnitTest.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
 
             ServerFixtureForThisUnitTest.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName));
             ServerFixtureForThisUnitTest.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate));
@@ -493,8 +487,8 @@ namespace Opc.Ua.Client.Tests
             ServerFixturePort = ServerFixtureForThisUnitTest.Port;
         }
         public ContinuationPointInBatchTest(string uriScheme = Utils.UriSchemeOpcTcp) :
-            base(uriScheme)       
-        { }       
+            base(uriScheme)
+        { }
 
         public ContinuationPointInBatchTest() { }
 
@@ -504,10 +498,10 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         [OneTimeSetUp]
         public new Task OneTimeSetUp()
-        {            
+        {
             SupportsExternalServerUrl = true;
             // create a new session for every test
-            SingleSession = false;            
+            SingleSession = false;
             return base.OneTimeSetUpAsync(null, false, false, false, true);
         }
 
@@ -535,7 +529,7 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         [TearDown]
         public new Task TearDown()
-        {             
+        {
             return base.TearDown();
         }
         #endregion
@@ -577,7 +571,7 @@ namespace Opc.Ua.Client.Tests
             Session theSession = ((Session)(((TraceableSession)Session).Session));
             theSession.NodeCache.Clear();
 
-            theSession.ContinuationPointPolicy = ContinuationPointPolicy.Default; 
+            theSession.ContinuationPointPolicy = ContinuationPointPolicy.Default;
 
             // the ExpectedNumber* parameters are not relevant/correct for this test.
             ManagedBrowseExpectedResultValues pass1ExpectedResults = new ManagedBrowseExpectedResultValues {
@@ -737,7 +731,7 @@ namespace Opc.Ua.Client.Tests
                 InputMaxNumberOfContinuationPoints = testData.MaxNumberOfContinuationPoints,
                 InputMaxNumberOfReferencesPerNode = testData.MaxNumberOfReferencesPerNode,
                 ExpectedNumberOfPasses = testData.ExpectedNumberOfPasses,
-                ExpectedNumberOfBadNoCPSCs = testData.ExpectedNumberOfBadNoCPSCs        
+                ExpectedNumberOfBadNoCPSCs = testData.ExpectedNumberOfBadNoCPSCs
             };
 
             ManagedBrowseExpectedResultValues pass2ExpectedResults = new ManagedBrowseExpectedResultValues {
@@ -748,14 +742,14 @@ namespace Opc.Ua.Client.Tests
             };
 
             ReferenceServerForThisUnitTest.Test_MaxBrowseReferencesPerNode =
-                pass1ExpectedResults.InputMaxNumberOfReferencesPerNode; 
+                pass1ExpectedResults.InputMaxNumberOfReferencesPerNode;
 
             ReferenceServerForThisUnitTest.SetMaxNumberOfContinuationPoints(
                 pass1ExpectedResults.InputMaxNumberOfContinuationPoints);
             theSession.ServerMaxContinuationPointsPerBrowse =
                 pass1ExpectedResults.InputMaxNumberOfContinuationPoints;
 
-            List<NodeId> nodeIds = getMassFolderNodesToBrowse();            
+            List<NodeId> nodeIds = getMassFolderNodesToBrowse();
 
             // browse with test settings
             theSession.ManagedBrowse(
@@ -793,7 +787,7 @@ namespace Opc.Ua.Client.Tests
             theSession.ManagedBrowse(
                 null, null, nodeIds, 0, BrowseDirection.Forward, ReferenceTypeIds.Organizes, true, 0,
                 out var referenceDescriptionsPass2, out var errorsPass2);
-            Assert.AreEqual(nodeIds.Count, referenceDescriptionsPass2.Count);            
+            Assert.AreEqual(nodeIds.Count, referenceDescriptionsPass2.Count);
 
             List<String> memoryLogPass2 = memoryWriter.getEntries();
             WriteMemoryLogToTextOut(memoryLogPass2, "memoryLogPass2");
@@ -814,7 +808,7 @@ namespace Opc.Ua.Client.Tests
                 ReferenceTypeIds.Organizes, true, 0,
                 out var continuationPoints2ndBrowse,
                 out var referenceDescriptionCollections2ndBrowse,
-                out var errors2ndBrowse );
+                out var errors2ndBrowse);
 
 
             Random random = new Random();
@@ -827,7 +821,7 @@ namespace Opc.Ua.Client.Tests
                 String randomNodeName =
                     referenceDescriptionCollection[random.Next(0, referenceDescriptionCollection.Count - 1)].DisplayName.Text;
                 String suffix = getSuffixesForMassFolders()[index];
-                Assert.IsTrue(randomNodeName.StartsWith(suffix));                
+                Assert.IsTrue(randomNodeName.StartsWith(suffix));
 
                 int ii = random.Next(0, referenceDescriptionCollection.Count - 1);
 
@@ -898,7 +892,7 @@ namespace Opc.Ua.Client.Tests
 
             List<NodeId> nodeIds = getMassFolderNodesToBrowse();
 
-            
+
             // browse with test settings
             theSession.ManagedBrowse(
                 null, null, nodeIds, 0, BrowseDirection.Forward, ReferenceTypeIds.Organizes, true, 0,
@@ -928,7 +922,7 @@ namespace Opc.Ua.Client.Tests
                 pass2ExpectedResults.InputMaxNumberOfReferencesPerNode;
 
             ReferenceServerForThisUnitTest.SetMaxNumberOfContinuationPoints(
-                pass2ExpectedResults.InputMaxNumberOfContinuationPoints);           
+                pass2ExpectedResults.InputMaxNumberOfContinuationPoints);
             theSession.ServerMaxContinuationPointsPerBrowse
                 = pass2ExpectedResults.InputMaxNumberOfContinuationPoints;
 
@@ -1127,7 +1121,7 @@ namespace Opc.Ua.Client.Tests
         [Theory, Order(400)]
         public async Task MBNodeCache_BrowseAllVariablesAsync(ManagedBrowseTestDataProvider testData)
         {
-            Session theSession = ((Session)(((TraceableSession)Session).Session));           
+            Session theSession = ((Session)(((TraceableSession)Session).Session));
             theSession.NodeCache.Clear();
 
             theSession.ContinuationPointPolicy = ContinuationPointPolicy.Default;
@@ -1153,7 +1147,7 @@ namespace Opc.Ua.Client.Tests
                 ObjectIds.ObjectsFolder
             };
 
-            await Session.FetchTypeTreeAsync(ReferenceTypeIds.References, new CancellationToken()).ConfigureAwait(false) ;
+            await Session.FetchTypeTreeAsync(ReferenceTypeIds.References, new CancellationToken()).ConfigureAwait(false);
 
             while (nodesToBrowse.Count > 0)
             {
@@ -1302,7 +1296,7 @@ namespace Opc.Ua.Client.Tests
 
             await theSession.ManagedBrowseAsync(
                 null, null, nodeIds, 0, BrowseDirection.Forward, ReferenceTypeIds.Organizes, true,
-                0,  new CancellationToken()).ConfigureAwait(false);
+                0, new CancellationToken()).ConfigureAwait(false);
 
             Assert.AreEqual(nodeIds.Count, referenceDescriptionCollectionPass1.Count);
 
@@ -1312,15 +1306,15 @@ namespace Opc.Ua.Client.Tests
 
             memoryWriter.Close(); memoryWriter.Dispose();
         }
-#endregion async tests
+        #endregion async tests
 
-#region helper methods
+        #region helper methods
         private void WriteMemoryLogToTextOut(List<String> memoryLog, string contextInfo)
         {
             Session theSession = ((Session)(((TraceableSession)Session).Session));
 
             TestContext.WriteLine($"Note: the clients ServerMaxContinuationPointsPerBrowse was set to {theSession.ServerMaxContinuationPointsPerBrowse}");
-            
+
             if (memoryLog.Count > 0)
             {
                 TestContext.WriteLine($"<!-- begin: output from memory log from context {contextInfo} -->");
@@ -1333,23 +1327,23 @@ namespace Opc.Ua.Client.Tests
             else
             {
                 TestContext.WriteLine($"<!-- memory log from context {contextInfo} is empty -->");
-            }            
-         }
+            }
+        }
 
         private void VerifyExpectedResults(List<string> memoryLogPass,
             ManagedBrowseExpectedResultValues expectedResults)
         {
             List<string> messagesWithBadNoCPSC = memoryLogPass.Where(x => x.Contains("BadNoContinuationPoints")).ToList();
 
-            Assert.IsTrue (messagesWithBadNoCPSC.Count == expectedResults.ExpectedNumberOfBadNoCPSCs.Count);
+            Assert.IsTrue(messagesWithBadNoCPSC.Count == expectedResults.ExpectedNumberOfBadNoCPSCs.Count);
 
-            int pass = 0;            
+            int pass = 0;
             foreach (String s in messagesWithBadNoCPSC)
             {
                 // get the part of the error message after the time stamp:
                 string msg = s.Substring(s.IndexOf("ManagedBrowse"));
                 // create error message from expected results
-                String expectedString =  String.Format(
+                String expectedString = String.Format(
                     "ManagedBrowse: in pass {0}, {1} {2} occured with a status code {3}.",
                     pass,
                     expectedResults.ExpectedNumberOfBadNoCPSCs[pass],
@@ -1362,20 +1356,20 @@ namespace Opc.Ua.Client.Tests
 
         List<NodeId> getMassFolderNodesToBrowse()
         {
-            
+
             String MassFolderPrefix = "Scalar_Simulation_Mass_";
 
             List<String> nodesToBrowse = new List<String>();
-            foreach(string suffix in getSuffixesForMassFolders())
+            foreach (string suffix in getSuffixesForMassFolders())
             {
-                nodesToBrowse.Add(MassFolderPrefix+suffix);
+                nodesToBrowse.Add(MassFolderPrefix + suffix);
             }
 
             int nsi = Session.NamespaceUris.GetIndex("http://opcfoundation.org/Quickstarts/ReferenceServer");
             List<NodeId> result = new List<NodeId>();
             foreach (String nodeString in nodesToBrowse)
             {
-                result.Add(new NodeId(nodeString, (ushort)nsi));                
+                result.Add(new NodeId(nodeString, (ushort)nsi));
             }
             return result;
         }
