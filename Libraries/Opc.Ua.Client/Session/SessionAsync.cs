@@ -1075,12 +1075,13 @@ namespace Opc.Ua.Client
                     BrowseDirection browseDirection,
                     NodeId referenceTypeId,
                     bool includeSubtypes,
-                    uint nodeClassMask,                   
+                    uint nodeClassMask,
                     CancellationToken ct = default
             )
         {
-            var result = new List<ReferenceDescriptionCollection>();
-            var errors = new List<ServiceResult>();
+            int count = nodesToBrowse.Count;
+            var result = new List<ReferenceDescriptionCollection>(count);
+            var errors = new List<ServiceResult>(count);
 
             // first attempt for implementation: create the references for the output in advance.
             // optimize later, when everything works fine.
@@ -1089,17 +1090,18 @@ namespace Opc.Ua.Client
                 result.Add(new ReferenceDescriptionCollection());
                 errors.Add(new ServiceResult(StatusCodes.Good));
             }
+
             try
             {
                 // in the first pass, we browse all nodes from the input.
                 // Some nodes may need to be browsed again, these are then fed into the next pass.
-                List<NodeId> nodesToBrowseForPass = new List<NodeId>();
+                List<NodeId> nodesToBrowseForPass = new List<NodeId>(count);
                 nodesToBrowseForPass.AddRange(nodesToBrowse);
 
-                List<ReferenceDescriptionCollection> resultForPass = new List<ReferenceDescriptionCollection>();
+                List<ReferenceDescriptionCollection> resultForPass = new List<ReferenceDescriptionCollection>(count);
                 resultForPass.AddRange(result);
 
-                List<ServiceResult> errorsForPass = new List<ServiceResult>();
+                List<ServiceResult> errorsForPass = new List<ServiceResult>(count);
                 errorsForPass.AddRange(errors);
 
                 int passCount = 0;
@@ -1180,17 +1182,17 @@ namespace Opc.Ua.Client
 
                     if (badCPInvalidErrorsPerPass > 0)
                     {
-                        Utils.LogTrace(aggregatedErrorMessage, passCount, badCPInvalidErrorsPerPass,
+                        Utils.LogDebug(aggregatedErrorMessage, passCount, badCPInvalidErrorsPerPass,
                             badCPInvalidErrorsPerPass == 1 ? "error" : "errors", nameof(StatusCodes.BadContinuationPointInvalid));
                     }
                     if (badNoCPErrorsPerPass > 0)
                     {
-                        Utils.LogTrace(aggregatedErrorMessage, passCount, badNoCPErrorsPerPass,
+                        Utils.LogDebug(aggregatedErrorMessage, passCount, badNoCPErrorsPerPass,
                             badNoCPErrorsPerPass == 1 ? "error" : "errors", nameof(StatusCodes.BadNoContinuationPoints));
                     }
                     if (otherErrorsPerPass > 0)
                     {
-                        Utils.LogTrace(aggregatedErrorMessage, passCount, otherErrorsPerPass,
+                        Utils.LogDebug(aggregatedErrorMessage, passCount, otherErrorsPerPass,
                             otherErrorsPerPass == 1 ? "error" : "errors", $"different from {nameof(StatusCodes.BadNoContinuationPoints)} or {nameof(StatusCodes.BadContinuationPointInvalid)}");
                     }
                     if (otherErrorsPerPass == 0 && badCPInvalidErrorsPerPass == 0 && badNoCPErrorsPerPass == 0)
@@ -1240,7 +1242,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default
             )
         {
-            if(requestHeader != null )
+            if (requestHeader != null)
             {
                 requestHeader.RequestHandle = 0;
             }
@@ -1296,6 +1298,10 @@ namespace Opc.Ua.Client
             }
             while (nextContinuationPoints.Count > 0)
             {
+                if (requestHeader != null)
+                {
+                    requestHeader.RequestHandle = 0;
+                }
 
                 (
                     _,
@@ -1303,12 +1309,11 @@ namespace Opc.Ua.Client
                     IList<ReferenceDescriptionCollection> browseNextResults,
                     IList<ServiceResult> browseNextErrors
                 ) = await BrowseNextAsync(
-                    null,
+                    requestHeader,
                     nextContinuationPoints,
                     false,
                     ct
                     ).ConfigureAwait(false);
-
 
                 for (int ii = 0; ii < browseNextResults.Count; ii++)
                 {
@@ -1479,7 +1484,7 @@ namespace Opc.Ua.Client
             catch (Exception e)
             {
                 session.Dispose();
-                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", sessionTemplate.SessionName);
+                ThrowCouldNotRecreateSessionException(e, sessionTemplate.m_sessionName);
             }
 
             return session;
@@ -1527,7 +1532,7 @@ namespace Opc.Ua.Client
             catch (Exception e)
             {
                 session.Dispose();
-                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", sessionTemplate.m_sessionName);
+                ThrowCouldNotRecreateSessionException(e, sessionTemplate.m_sessionName);
             }
 
             return session;
@@ -1573,7 +1578,7 @@ namespace Opc.Ua.Client
             catch (Exception e)
             {
                 session.Dispose();
-                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", sessionTemplate.m_sessionName);
+                ThrowCouldNotRecreateSessionException(e, sessionTemplate.m_sessionName);
             }
 
             return session;
