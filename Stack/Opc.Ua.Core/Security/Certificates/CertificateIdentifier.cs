@@ -763,6 +763,12 @@ namespace Opc.Ua
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
+
+        /// <inheritdoc/>
+        public Task AddRejected(X509Certificate2 certificate, int maxCertificates)
+        {
+            return Task.CompletedTask;
+        }
         #endregion
     }
     #endregion

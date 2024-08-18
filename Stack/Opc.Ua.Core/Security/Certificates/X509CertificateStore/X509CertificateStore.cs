@@ -398,6 +398,12 @@ namespace Opc.Ua
             }
         }
 
+        /// <inheritdoc/>
+        public Task AddRejected(X509Certificate2 certificate, int maxCertificates)
+        {
+            return Task.CompletedTask;
+        }
+
         private bool m_noPrivateKeys;
         private string m_storeName;
         private string m_storePath;

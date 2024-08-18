@@ -211,6 +211,57 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public Task AddRejected(X509Certificate2 certificate, int maxCertificates)
+        {
+            if (certificate == null) throw new ArgumentNullException(nameof(certificate));
+
+            lock (m_lock)
+            {
+                DateTime now = DateTime.UtcNow;
+
+                // refresh the directories.
+                if (m_certificateSubdir != null)
+                {
+                    m_certificateSubdir.Refresh();
+                }
+
+                // build file name.
+                string fileName = GetFileName(certificate);
+
+                // check if store exists.
+                if (!m_certificateSubdir.Exists)
+                {
+                    WriteFile(certificate.RawData, fileName, false);
+                    return Task.CompletedTask;
+                }
+
+                WriteFile(certificate.RawData, fileName, false);
+
+                // remove outdated certificates.
+                int entries = 0;
+                foreach (FileInfo file in m_certificateSubdir.GetFiles("*.der").OrderBy(fileInfo => fileInfo.LastWriteTime))
+                {
+                    entries++;
+                    if (entries > maxCertificates)
+                    {
+                        try
+                        {
+                            // try to delete 
+                            File.Delete(file.FullName);
+                        }
+                        catch
+                        {
+                        }
+                    }
+                }
+ 
+                m_lastDirectoryCheck = DateTime.MinValue;
+            }
+
+            return Task.CompletedTask;
+        }
+
+        /// <inheritdoc/>
         public async Task<bool> Delete(string thumbprint)
         {
             const int kRetries = 5;

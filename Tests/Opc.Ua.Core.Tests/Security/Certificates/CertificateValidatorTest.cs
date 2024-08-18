@@ -304,6 +304,52 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
+        /// Verify self signed app certs throw by default.
+        /// </summary>
+        [Test]
+        public async Task VerifyRejectedCertsDoNotOverflowStore()
+        {
+            // number of rejected certs is hardcoded to 5
+            const int kNumberOfRejectCertsHistory = 5;
+
+            // add all certs to issuer store, make sure validation fails.
+            using (var validator = TemporaryCertValidator.Create(true))
+            {
+                foreach (var cert in m_appSelfSignedCerts)
+                {
+                    await validator.IssuerStore.Add(cert).ConfigureAwait(false);
+                }
+                Assert.AreEqual(m_appSelfSignedCerts.Count, validator.IssuerStore.Enumerate().Result.Count);
+                var certValidator = validator.Update();
+                foreach (var cert in m_appCerts)
+                {
+                    var certs = new X509Certificate2Collection(cert);
+                    certs.AddRange(m_caChain);
+                    var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(certs));
+                    Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
+                }
+
+                foreach (var cert in m_notYetValidAppCerts)
+                {
+                    var certs = new X509Certificate2Collection(cert);
+                    certs.AddRange(m_caChain);
+                    var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(certs));
+                    Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
+                }
+
+                Assert.AreEqual(m_caChain.Length + kNumberOfRejectCertsHistory + 1, validator.RejectedStore.Enumerate().Result.Count);
+
+                foreach (var cert in m_appSelfSignedCerts)
+                {
+                    var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2Collection(cert)));
+                    Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
+                }
+
+                Assert.AreEqual(kNumberOfRejectCertsHistory + 1, validator.RejectedStore.Enumerate().Result.Count);
+            }
+        }
+
+        /// <summary>
         /// Verify self signed app certs are trusted.
         /// </summary>
         [Test]

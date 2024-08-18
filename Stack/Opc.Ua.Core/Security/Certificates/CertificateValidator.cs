@@ -679,6 +679,8 @@ namespace Opc.Ua
         /// </summary>
         private void SaveCertificates(X509Certificate2Collection certificateChain)
         {
+            // number of rejected certificates for history 
+            const int kMaxRejectedCertificates  = 5;
             try
             {
                 m_semaphore.Wait();
@@ -696,7 +698,8 @@ namespace Opc.Ua
                             {
                                 try
                                 {
-                                    store.Add(certificate).GetAwaiter().GetResult();
+                                    // number of certs for history + current chain size
+                                    store.AddRejected(certificate, certificateChain.Count + kMaxRejectedCertificates).GetAwaiter().GetResult();
                                     if (!leafCertificate)
                                     {
                                         Utils.LogCertificate("Saved issuer certificate: ", certificate);
