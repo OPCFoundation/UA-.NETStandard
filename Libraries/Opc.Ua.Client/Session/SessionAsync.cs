@@ -1180,22 +1180,22 @@ namespace Opc.Ua.Client
 
                     if (badCPInvalidErrorsPerPass > 0)
                     {
-                        Utils.LogTrace(aggregatedErrorMessage, passCount, badCPInvalidErrorsPerPass,
+                        Utils.LogDebug(aggregatedErrorMessage, passCount, badCPInvalidErrorsPerPass,
                             badCPInvalidErrorsPerPass == 1 ? "error" : "errors", nameof(StatusCodes.BadContinuationPointInvalid));
                     }
                     if (badNoCPErrorsPerPass > 0)
                     {
-                        Utils.LogTrace(aggregatedErrorMessage, passCount, badNoCPErrorsPerPass,
+                        Utils.LogDebug(aggregatedErrorMessage, passCount, badNoCPErrorsPerPass,
                             badNoCPErrorsPerPass == 1 ? "error" : "errors", nameof(StatusCodes.BadNoContinuationPoints));
                     }
                     if (otherErrorsPerPass > 0)
                     {
-                        Utils.LogTrace(aggregatedErrorMessage, passCount, otherErrorsPerPass,
+                        Utils.LogDebug(aggregatedErrorMessage, passCount, otherErrorsPerPass,
                             otherErrorsPerPass == 1 ? "error" : "errors", $"different from {nameof(StatusCodes.BadNoContinuationPoints)} or {nameof(StatusCodes.BadContinuationPointInvalid)}");
                     }
                     if (otherErrorsPerPass == 0 && badCPInvalidErrorsPerPass == 0 && badNoCPErrorsPerPass == 0)
                     {
-                        Utils.LogTrace("MangedBrowse completed with no errors.");
+                        Utils.LogTrace("ManagedBrowse completed with no errors.");
                     }
 
                     passCount++;
@@ -1240,7 +1240,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default
             )
         {
-            if(requestHeader != null )
+            if (requestHeader != null)
             {
                 requestHeader.RequestHandle = 0;
             }
@@ -1479,7 +1479,7 @@ namespace Opc.Ua.Client
             catch (Exception e)
             {
                 session.Dispose();
-                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", sessionTemplate.SessionName);
+                ThrowCouldNotRecreateSessionException(e, sessionTemplate.m_sessionName);
             }
 
             return session;
@@ -1527,7 +1527,7 @@ namespace Opc.Ua.Client
             catch (Exception e)
             {
                 session.Dispose();
-                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", sessionTemplate.m_sessionName);
+                ThrowCouldNotRecreateSessionException(e, sessionTemplate.m_sessionName);
             }
 
             return session;
@@ -1573,7 +1573,7 @@ namespace Opc.Ua.Client
             catch (Exception e)
             {
                 session.Dispose();
-                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", sessionTemplate.m_sessionName);
+                ThrowCouldNotRecreateSessionException(e, sessionTemplate.m_sessionName);
             }
 
             return session;
