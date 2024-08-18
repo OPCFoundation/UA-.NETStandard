@@ -360,8 +360,9 @@ namespace Opc.Ua.Bindings
 
                     // read requested buffer sizes.
                     protocolVersion = decoder.ReadUInt32(null);
-                    receiveBufferSize = decoder.ReadUInt32(null);
+                    // note: swapped the send and receive buffer size read to reflect the server view
                     sendBufferSize = decoder.ReadUInt32(null);
+                    receiveBufferSize = decoder.ReadUInt32(null);
                     maxMessageSize = decoder.ReadUInt32(null);
                     maxChunkCount = decoder.ReadUInt32(null);
 
@@ -394,26 +395,12 @@ namespace Opc.Ua.Bindings
                 }
 
                 // update receive buffer size.
-                if (receiveBufferSize < ReceiveBufferSize)
-                {
-                    ReceiveBufferSize = (int)receiveBufferSize;
-                }
-
-                if (ReceiveBufferSize < TcpMessageLimits.MinBufferSize)
-                {
-                    ReceiveBufferSize = TcpMessageLimits.MinBufferSize;
-                }
+                ReceiveBufferSize = Math.Min(ReceiveBufferSize, (int)receiveBufferSize);
+                ReceiveBufferSize = Math.Min(Math.Max(ReceiveBufferSize, TcpMessageLimits.MinBufferSize), TcpMessageLimits.MaxBufferSize);
 
                 // update send buffer size.
-                if (sendBufferSize < SendBufferSize)
-                {
-                    SendBufferSize = (int)sendBufferSize;
-                }
-
-                if (SendBufferSize < TcpMessageLimits.MinBufferSize)
-                {
-                    SendBufferSize = TcpMessageLimits.MinBufferSize;
-                }
+                SendBufferSize = Math.Min(SendBufferSize, (int)sendBufferSize);
+                SendBufferSize = Math.Min(Math.Max(SendBufferSize, TcpMessageLimits.MinBufferSize), TcpMessageLimits.MaxBufferSize);
 
                 // update the max message size.
                 if (maxMessageSize > 0 && maxMessageSize < MaxResponseMessageSize)
