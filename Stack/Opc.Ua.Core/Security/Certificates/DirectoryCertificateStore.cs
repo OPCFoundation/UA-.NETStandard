@@ -217,8 +217,6 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                DateTime now = DateTime.UtcNow;
-
                 // refresh the directories.
                 if (m_certificateSubdir != null)
                 {

@@ -304,7 +304,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
-        /// Verify self signed app certs throw by default.
+        /// Verify untrusted app certs do not overflow the rejected store.
         /// </summary>
         [Test]
         public async Task VerifyRejectedCertsDoNotOverflowStore()
