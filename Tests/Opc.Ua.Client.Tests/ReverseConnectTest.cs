@@ -195,7 +195,7 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(endpoint);
 
             // connect
-            var session = await sessionFactory.CreateAsync(config, connection, endpoint, false, false, "Reverse Connect Client",
+            var session = await sessionFactory.CreateAsync(config, connection, endpoint, false, false, true, "Reverse Connect Client",
                                MaxTimeout, new UserIdentity(new AnonymousIdentityToken()), null).ConfigureAwait(false);
             Assert.NotNull(session);
 
@@ -216,7 +216,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory, Order(301)]
-        public async Task ReverseConnect2(bool updateBeforeConnect, bool checkDomain, ISessionFactory sessionFactory)
+        public async Task ReverseConnect2(bool updateBeforeConnect, bool checkDomain, bool checkApplicationUri, ISessionFactory sessionFactory)
         {
             string securityPolicy = SecurityPolicies.Basic256Sha256;
 
@@ -234,7 +234,7 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(endpoint);
 
             // connect
-            var session = await sessionFactory.CreateAsync(config, ClientFixture.ReverseConnectManager, endpoint, updateBeforeConnect, checkDomain, "Reverse Connect Client",
+            var session = await sessionFactory.CreateAsync(config, ClientFixture.ReverseConnectManager, endpoint, updateBeforeConnect, checkDomain, checkApplicationUri, "Reverse Connect Client",
                 MaxTimeout, new UserIdentity(new AnonymousIdentityToken()), null).ConfigureAwait(false);
 
             Assert.NotNull(session);

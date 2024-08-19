@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -59,7 +59,7 @@ namespace Opc.Ua.Gds.Client
             Configuration = configuration;
             EndpointUrl = endpointUrl;
             m_sessionFactory = sessionFactory ?? DefaultSessionFactory.Instance;
-            // preset admin 
+            // preset admin
             AdminCredentials = adminUserIdentity;
         }
         #endregion
@@ -287,6 +287,7 @@ namespace Opc.Ua.Gds.Client
                 endpoint,
                 false,
                 false,
+                true,
                 Configuration.ApplicationName,
                 60000,
                 AdminCredentials,
@@ -297,7 +298,7 @@ namespace Opc.Ua.Gds.Client
             Session.SessionClosing += Session_SessionClosing;
             Session.KeepAlive += Session_KeepAlive;
             Session.KeepAlive += KeepAlive;
-            // TODO: implement, suppress warning/error 
+            // TODO: implement, suppress warning/error
             if (ServerStatusChanged != null) { }
 
             if (Session.Factory.GetSystemType(Opc.Ua.Gds.DataTypeIds.ApplicationRecordDataType) == null)
@@ -421,12 +422,12 @@ namespace Opc.Ua.Gds.Client
         {
             DateTime lastCounterResetTime;
             return QueryServers(
-                startingRecordId, 
-                maxRecordsToReturn, 
-                applicationName, 
-                applicationUri, 
-                productUri, 
-                serverCapabilities, 
+                startingRecordId,
+                maxRecordsToReturn,
+                applicationName,
+                applicationUri,
+                productUri,
+                serverCapabilities,
                 out lastCounterResetTime);
         }
 

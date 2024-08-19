@@ -302,6 +302,11 @@ namespace Opc.Ua.Client
         bool CheckDomain { get; }
 
         /// <summary>
+        /// Whether the application uri specified in EndpointDescription is checked match to the certificate application uri.
+        /// </summary>
+        bool CheckApplicationUri { get; }
+
+        /// <summary>
         /// gets or set the policy which is used to prevent the allocation of too many
         /// Continuation Points in the ManagedBrowse(Async) methods
         /// </summary>
@@ -598,7 +603,8 @@ namespace Opc.Ua.Client
         /// <param name="identity">The user identity.</param>
         /// <param name="preferredLocales">The list of preferred locales.</param>
         /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
-        void Open(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain);
+        /// <param name="checkApplicationUri">If set to <c>true</c> then will be checked application uri matching to certiticate</param>
+        void Open(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain, bool checkApplicationUri);
 
         /// <summary>
         /// Updates the preferred locales used for the session.
@@ -659,8 +665,9 @@ namespace Opc.Ua.Client
         /// <param name="identity">The user identity.</param>
         /// <param name="preferredLocales">The list of preferred locales.</param>
         /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="checkApplicationUri">If set to <c>true</c> then will be checked application uri matching to certiticate</param>
         /// <param name="ct">The cancellation token.</param>
-        Task OpenAsync(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain, CancellationToken ct);
+        Task OpenAsync(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain, bool checkApplicationUri, CancellationToken ct);
 
         /// <summary>
         /// Reads the values for the node attributes and returns a node object collection.

@@ -135,6 +135,7 @@ namespace Opc.Ua.Client
             m_identity = template.Identity;
             m_keepAliveInterval = template.KeepAliveInterval;
             m_checkDomain = template.m_checkDomain;
+            m_checkApplicationUri = template.m_checkApplicationUri;
             m_continuationPointPolicy = template.m_continuationPointPolicy;
             if (template.OperationTimeout > 0)
             {
@@ -718,6 +719,14 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Whether the application uri specified in EndpointDescription is checked match to the certificate application uri.
+        /// </summary>
+        public bool CheckApplicationUri
+        {
+            get { return m_checkApplicationUri; }
+        }
+
+        /// <summary>
         /// Gets or Sets the default subscription for the session.
         /// </summary>
         public Subscription DefaultSubscription
@@ -945,7 +954,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             CancellationToken ct = default)
         {
-            return Create(configuration, endpoint, updateBeforeConnect, false, sessionName, sessionTimeout, identity, preferredLocales, ct);
+            return Create(configuration, endpoint, updateBeforeConnect, false, true, sessionName, sessionTimeout, identity, preferredLocales, ct);
         }
 
         /// <summary>
@@ -955,6 +964,7 @@ namespace Opc.Ua.Client
         /// <param name="endpoint">The endpoint for the server.</param>
         /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
         /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="checkApplicationUri">checkApplicationUri</param>
         /// <param name="sessionName">The name to assign to the session.</param>
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="identity">The user identity to associate with the session.</param>
@@ -966,13 +976,14 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
             bool checkDomain,
+            bool checkApplicationUri,
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
             CancellationToken ct = default)
         {
-            return Create(configuration, (ITransportWaitingConnection)null, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, identity, preferredLocales, ct);
+            return Create(configuration, (ITransportWaitingConnection)null, endpoint, updateBeforeConnect, checkDomain, checkApplicationUri, sessionName, sessionTimeout, identity, preferredLocales, ct);
         }
 
         /// <summary>
@@ -1113,6 +1124,7 @@ namespace Opc.Ua.Client
         /// <param name="endpoint">The endpoint for the server.</param>
         /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
         /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="checkApplicationUri">If set to <c>true</c> then will be checked application uri matching to certiticate</param>
         /// <param name="sessionName">The name to assign to the session.</param>
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="identity">The user identity to associate with the session.</param>
@@ -1125,13 +1137,14 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
             bool checkDomain,
+            bool checkApplicationUri,
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
             CancellationToken ct = default)
         {
-            return Create(DefaultSessionFactory.Instance, configuration, connection, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, identity, preferredLocales, ct);
+            return Create(DefaultSessionFactory.Instance, configuration, connection, endpoint, updateBeforeConnect, checkDomain, checkApplicationUri, sessionName, sessionTimeout, identity, preferredLocales, ct);
         }
 
         /// <summary>
@@ -1143,6 +1156,7 @@ namespace Opc.Ua.Client
         /// <param name="endpoint">The endpoint for the server.</param>
         /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
         /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="checkApplicationUri">If set to <c>true</c> then will be checked application uri matching to certiticate</param>
         /// <param name="sessionName">The name to assign to the session.</param>
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="identity">The user identity to associate with the session.</param>
@@ -1156,6 +1170,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
             bool checkDomain,
+            bool checkApplicationUri,
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
@@ -1171,7 +1186,7 @@ namespace Opc.Ua.Client
             // create the session.
             try
             {
-                await session.OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, ct).ConfigureAwait(false);
+                await session.OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, checkApplicationUri, ct).ConfigureAwait(false);
             }
             catch (Exception)
             {
@@ -1190,6 +1205,7 @@ namespace Opc.Ua.Client
         /// <param name="endpoint">The endpoint for the server.</param>
         /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
         /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="checkApplicationUri">checkApplicationUri</param>
         /// <param name="sessionName">The name to assign to the session.</param>
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="userIdentity">The user identity to associate with the session.</param>
@@ -1202,6 +1218,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
             bool checkDomain,
+            bool checkApplicationUri,
             string sessionName,
             uint sessionTimeout,
             IUserIdentity userIdentity,
@@ -1209,7 +1226,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default
             )
         {
-            return Create(DefaultSessionFactory.Instance, configuration, reverseConnectManager, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales, ct);
+            return Create(DefaultSessionFactory.Instance, configuration, reverseConnectManager, endpoint, updateBeforeConnect, checkDomain, checkApplicationUri, sessionName, sessionTimeout, userIdentity, preferredLocales, ct);
         }
 
         /// <summary>
@@ -1221,6 +1238,7 @@ namespace Opc.Ua.Client
         /// <param name="endpoint">The endpoint for the server.</param>
         /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
         /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="checkApplicationUri">checkApplicationUri</param>
         /// <param name="sessionName">The name to assign to the session.</param>
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="userIdentity">The user identity to associate with the session.</param>
@@ -1234,6 +1252,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
             bool checkDomain,
+            bool checkApplicationUri,
             string sessionName,
             uint sessionTimeout,
             IUserIdentity userIdentity,
@@ -1243,7 +1262,7 @@ namespace Opc.Ua.Client
         {
             if (reverseConnectManager == null)
             {
-                return await Create(sessionInstantiator, configuration, (ITransportWaitingConnection)null, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales, ct).ConfigureAwait(false);
+                return await Create(sessionInstantiator, configuration, (ITransportWaitingConnection)null, endpoint, updateBeforeConnect, checkDomain, checkApplicationUri, sessionName, sessionTimeout, userIdentity, preferredLocales, ct).ConfigureAwait(false);
             }
 
             ITransportWaitingConnection connection = null;
@@ -1273,6 +1292,7 @@ namespace Opc.Ua.Client
                 endpoint,
                 false,
                 checkDomain,
+                checkApplicationUri,
                 sessionName,
                 sessionTimeout,
                 userIdentity,
@@ -1311,7 +1331,8 @@ namespace Opc.Ua.Client
                     (uint)template.SessionTimeout,
                     template.Identity,
                     template.PreferredLocales,
-                    template.m_checkDomain);
+                    template.m_checkDomain,
+                    template.m_checkApplicationUri);
 
                 session.RecreateSubscriptions(template.Subscriptions);
             }
@@ -1357,7 +1378,8 @@ namespace Opc.Ua.Client
                     (uint)template.m_sessionTimeout,
                     template.m_identity,
                     template.m_preferredLocales,
-                    template.m_checkDomain);
+                    template.m_checkDomain,
+                    template.m_checkApplicationUri);
 
                 session.RecreateSubscriptions(template.Subscriptions);
             }
@@ -1392,7 +1414,8 @@ namespace Opc.Ua.Client
                     (uint)template.m_sessionTimeout,
                     template.m_identity,
                     template.m_preferredLocales,
-                    template.m_checkDomain);
+                    template.m_checkDomain,
+                    template.m_checkApplicationUri);
 
                 // create the subscriptions.
                 foreach (Subscription subscription in session.Subscriptions)
@@ -2309,7 +2332,7 @@ namespace Opc.Ua.Client
             IUserIdentity identity,
             IList<string> preferredLocales)
         {
-            Open(sessionName, sessionTimeout, identity, preferredLocales, true);
+            Open(sessionName, sessionTimeout, identity, preferredLocales, true, true);
         }
 
         /// <inheritdoc/>
@@ -2319,7 +2342,8 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            bool checkDomain)
+            bool checkDomain,
+            bool checkApplicationUri)
         {
             OpenValidateIdentity(ref identity, out var identityToken, out var identityPolicy, out string securityPolicyUri, out bool requireEncryption);
 
@@ -2336,7 +2360,7 @@ namespace Opc.Ua.Client
                     serverCertificate = serverCertificateChain[0];
                 }
 
-                if (requireEncryption)
+                if (requireEncryption && checkApplicationUri)
                 {
                     ValidateServerCertificateApplicationUri(serverCertificate);
                     if (checkDomain)
@@ -6385,6 +6409,11 @@ namespace Opc.Ua.Client
         /// If set to<c>true</c> then the domain in the certificate must match the endpoint used.
         /// </summary>
         protected bool m_checkDomain;
+
+        /// <summary>
+        /// If set to <c>true</c> then will be checked application uri matching to certiticate
+        /// </summary>
+        protected bool m_checkApplicationUri;
 
         /// <summary>
         /// The name assigned to the session.

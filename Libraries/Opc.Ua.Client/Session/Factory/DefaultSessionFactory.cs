@@ -64,7 +64,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             CancellationToken ct = default)
         {
-            return CreateAsync(configuration, endpoint, updateBeforeConnect, false, sessionName, sessionTimeout, identity, preferredLocales, ct);
+            return CreateAsync(configuration, endpoint, updateBeforeConnect, false, true, sessionName, sessionTimeout, identity, preferredLocales, ct);
         }
 
         /// <inheritdoc/>
@@ -73,6 +73,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
             bool checkDomain,
+            bool checkApplicationUri,
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
@@ -80,7 +81,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             return await Session.Create(this, configuration, (ITransportWaitingConnection)null, endpoint,
-                updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
+                updateBeforeConnect, checkDomain, checkApplicationUri, sessionName, sessionTimeout,
                 identity, preferredLocales, ct).ConfigureAwait(false);
         }
 
@@ -91,6 +92,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
             bool checkDomain,
+            bool checkApplicationUri,
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
@@ -98,7 +100,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             return await Session.Create(this, configuration, connection, endpoint,
-                updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
+                updateBeforeConnect, checkDomain, checkApplicationUri, sessionName, sessionTimeout,
                 identity, preferredLocales, ct
                 ).ConfigureAwait(false);
         }
@@ -110,6 +112,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
             bool checkDomain,
+            bool checkApplicationUri,
             string sessionName,
             uint sessionTimeout,
             IUserIdentity userIdentity,
@@ -120,7 +123,7 @@ namespace Opc.Ua.Client
             if (reverseConnectManager == null)
             {
                 return await this.CreateAsync(configuration, endpoint, updateBeforeConnect,
-                    checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales, ct).ConfigureAwait(false);
+                    checkDomain, checkApplicationUri, sessionName, sessionTimeout, userIdentity, preferredLocales, ct).ConfigureAwait(false);
             }
 
             ITransportWaitingConnection connection;
@@ -149,6 +152,7 @@ namespace Opc.Ua.Client
                 endpoint,
                 false,
                 checkDomain,
+                checkApplicationUri,
                 sessionName,
                 sessionTimeout,
                 userIdentity,

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -68,6 +68,7 @@ namespace Opc.Ua.Client
         /// <param name="endpoint">The endpoint for the server.</param>
         /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
         /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="checkApplicationUri">If set to <c>true</c> then the application uri in endpoint must match certificate application uri</param>
         /// <param name="sessionName">The name to assign to the session.</param>
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="identity">The user identity to associate with the session.</param>
@@ -79,6 +80,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
             bool checkDomain,
+            bool checkApplicationUri,
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
@@ -107,7 +109,7 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="configuration">The application configuration.</param>
         /// <param name="connection">The client endpoint for the reverse connect.</param>
-        /// <param name="endpoint">A configured endpoint to connect to.</param> 
+        /// <param name="endpoint">A configured endpoint to connect to.</param>
         /// <param name="updateBeforeConnect">Update configuration based on server prior connect.</param>
         /// <param name="checkDomain">Check that the certificate specifies a valid domain (computer) name.</param>
         /// <param name="ct">The cancellation token.</param>
@@ -128,6 +130,7 @@ namespace Opc.Ua.Client
         /// <param name="endpoint">The endpoint for the server.</param>
         /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
         /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="checkApplicationUri">If set to <c>true</c> then the application uri in endpoint must match certificate application uri</param>
         /// <param name="sessionName">The name to assign to the session.</param>
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="identity">The user identity to associate with the session.</param>
@@ -140,6 +143,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
             bool checkDomain,
+            bool checkApplicationUri,
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
@@ -154,6 +158,7 @@ namespace Opc.Ua.Client
         /// <param name="endpoint">The endpoint for the server.</param>
         /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
         /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="checkApplicationUri">If set to <c>true</c> then the application uri in endpoint must match certificate application uri</param>
         /// <param name="sessionName">The name to assign to the session.</param>
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="userIdentity">The user identity to associate with the session.</param>
@@ -166,6 +171,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
             bool checkDomain,
+            bool checkApplicationUri,
             string sessionName,
             uint sessionTimeout,
             IUserIdentity userIdentity,

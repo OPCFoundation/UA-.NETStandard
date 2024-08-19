@@ -64,7 +64,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             CancellationToken ct)
         {
-            return OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, true, ct);
+            return OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, true, true, ct);
         }
 
         /// <inheritdoc/>
@@ -74,6 +74,7 @@ namespace Opc.Ua.Client
             IUserIdentity identity,
             IList<string> preferredLocales,
             bool checkDomain,
+            bool checkApplicationUri,
             CancellationToken ct)
         {
             OpenValidateIdentity(ref identity, out var identityToken, out var identityPolicy, out string securityPolicyUri, out bool requireEncryption);
@@ -93,7 +94,11 @@ namespace Opc.Ua.Client
 
                 if (requireEncryption)
                 {
-                    ValidateServerCertificateApplicationUri(serverCertificate);
+                    if (checkApplicationUri)
+                    {
+                        ValidateServerCertificateApplicationUri(serverCertificate);
+                    }
+
                     if (checkDomain)
                     {
                         await m_configuration.CertificateValidator.ValidateAsync(serverCertificateChain, m_endpoint, ct).ConfigureAwait(false);
@@ -1075,7 +1080,7 @@ namespace Opc.Ua.Client
                     BrowseDirection browseDirection,
                     NodeId referenceTypeId,
                     bool includeSubtypes,
-                    uint nodeClassMask,                   
+                    uint nodeClassMask,
                     CancellationToken ct = default
             )
         {
@@ -1240,7 +1245,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default
             )
         {
-            if(requestHeader != null )
+            if (requestHeader != null)
             {
                 requestHeader.RequestHandle = 0;
             }
@@ -1346,7 +1351,7 @@ namespace Opc.Ua.Client
             return (result, finalErrors);
         }
 
-        #endregion 
+        #endregion
 
         #region Call Methods
         /// <inheritdoc/>
@@ -1472,6 +1477,7 @@ namespace Opc.Ua.Client
                     sessionTemplate.Identity,
                     sessionTemplate.PreferredLocales,
                     sessionTemplate.m_checkDomain,
+                    sessionTemplate.m_checkApplicationUri,
                     ct).ConfigureAwait(false);
 
                 await session.RecreateSubscriptionsAsync(sessionTemplate.Subscriptions, ct).ConfigureAwait(false);
@@ -1520,6 +1526,7 @@ namespace Opc.Ua.Client
                     sessionTemplate.m_identity,
                     sessionTemplate.m_preferredLocales,
                     sessionTemplate.m_checkDomain,
+                    sessionTemplate.m_checkApplicationUri,
                     ct).ConfigureAwait(false);
 
                 await session.RecreateSubscriptionsAsync(sessionTemplate.Subscriptions, ct).ConfigureAwait(false);
@@ -1562,6 +1569,7 @@ namespace Opc.Ua.Client
                     sessionTemplate.m_identity,
                     sessionTemplate.m_preferredLocales,
                     sessionTemplate.m_checkDomain,
+                    sessionTemplate.m_checkApplicationUri,
                     ct).ConfigureAwait(false);
 
                 // create the subscriptions.

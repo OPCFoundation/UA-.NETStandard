@@ -287,7 +287,10 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public bool CheckDomain => m_session.CheckDomain;
-        
+
+        /// <inheritdoc/>
+        public bool CheckApplicationUri => m_session.CheckApplicationUri;
+
         /// <inheritdoc/>
         public ContinuationPointPolicy ContinuationPointPolicy
         {
@@ -618,11 +621,11 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public void Open(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain)
+        public void Open(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain, bool checkApplicationUri)
         {
             using (Activity activity = ActivitySource.StartActivity())
             {
-                m_session.Open(sessionName, sessionTimeout, identity, preferredLocales, checkDomain);
+                m_session.Open(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, checkApplicationUri);
             }
         }
 
@@ -690,11 +693,11 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task OpenAsync(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain, CancellationToken ct)
+        public async Task OpenAsync(string sessionName, uint sessionTimeout, IUserIdentity identity, IList<string> preferredLocales, bool checkDomain, bool checkApplicationUri, CancellationToken ct)
         {
             using (Activity activity = ActivitySource.StartActivity())
             {
-                await m_session.OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, ct).ConfigureAwait(false);
+                await m_session.OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, checkApplicationUri, ct).ConfigureAwait(false);
             }
         }
 
@@ -1283,7 +1286,7 @@ namespace Opc.Ua.Client
 
         }
 
-        /// <inheritdoc/>        
+        /// <inheritdoc/>
         public async Task<(
             IList<ReferenceDescriptionCollection>,
             IList<ServiceResult>
