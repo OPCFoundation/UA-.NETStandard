@@ -504,6 +504,180 @@ namespace Quickstarts
         }
         #endregion
 
+        #region BrowseAddressSpace with ManagedBrowse sample
+
+        /// <summary>
+        /// Browse full address space using the ManagedBrowseMethod, which
+        /// will take care of not sending to many nodes to the server,
+        /// calling BrowseNext and dealing with the status codes
+        /// BadNoContinuationPoint and BadInvalidContinuationPoint.
+        /// </summary>
+        /// <param name="uaClient">The UAClient with a session to use.</param>
+        /// <param name="startingNode">The node where the browse operation starts.</param>
+        /// <param name="browseDescription">An optional BrowseDescription to use.</param>
+        public async Task<ReferenceDescriptionCollection> ManagedBrowseFullAddressSpaceAsync(
+            IUAClient uaClient,
+            NodeId startingNode = null,
+            BrowseDescription browseDescription = null,
+            CancellationToken ct = default)
+        {
+            ContinuationPointPolicy policyBackup = uaClient.Session.ContinuationPointPolicy;
+            uaClient.Session.ContinuationPointPolicy = ContinuationPointPolicy.Default;
+
+            Stopwatch stopWatch = new Stopwatch();
+            stopWatch.Start();
+            BrowseDirection browseDirection = BrowseDirection.Forward;
+            NodeId referenceTypeId = ReferenceTypeIds.HierarchicalReferences;
+            bool includeSubtypes = true;
+            uint nodeClassMask = 0;
+
+            if (browseDescription != null)
+            {
+                startingNode = browseDescription.NodeId;
+                browseDirection = browseDescription.BrowseDirection;
+                referenceTypeId = browseDescription.ReferenceTypeId;
+                includeSubtypes = browseDescription.IncludeSubtypes;
+                nodeClassMask = browseDescription.NodeClassMask;
+
+                if (browseDescription.ResultMask != (uint)BrowseResultMask.All)
+                {
+                    Utils.LogWarning($"Setting the BrowseResultMask is not supported by the " +
+                        $"ManagedBrowse method. Using '{BrowseResultMask.All}' instead of " +
+                        $"the mask {browseDescription.ResultMask} for the result mask");
+                }
+            }
+
+            List<NodeId> nodesToBrowse = new List<NodeId> {
+                startingNode ?? ObjectIds.RootFolder
+            };
+
+            const int kMaxReferencesPerNode = 1000;
+
+            // Browse
+            var referenceDescriptions = new Dictionary<ExpandedNodeId, ReferenceDescription>();
+
+            int searchDepth = 0;
+            uint maxNodesPerBrowse = uaClient.Session.OperationLimits.MaxNodesPerBrowse;
+
+            List<ReferenceDescriptionCollection> allReferenceDescriptions = new List<ReferenceDescriptionCollection>();
+            List<ReferenceDescriptionCollection> newReferenceDescriptions = new List<ReferenceDescriptionCollection>();
+            List<ServiceResult> allServiceResults = new List<ServiceResult>();
+
+            while (nodesToBrowse.Any() && searchDepth < kMaxSearchDepth)
+            {
+                searchDepth++;
+                Utils.LogInfo("{0}: Browse {1} nodes after {2}ms",
+                    searchDepth, nodesToBrowse.Count, stopWatch.ElapsedMilliseconds);
+
+                bool repeatBrowse = false;
+
+                do
+                {
+                    if (m_quitEvent?.WaitOne(0) == true)
+                    {
+                        m_output.WriteLine("Browse aborted.");
+                        break;
+                    }
+
+                    try
+                    {
+                        // the resultMask defaults to "all"
+                        // maybe the API should be extended to
+                        // support it. But that will then also be
+                        // necessary for BrowseAsync 
+                        (
+                            IList<ReferenceDescriptionCollection> descriptions,
+                            IList<ServiceResult> errors
+                        ) = await uaClient.Session.ManagedBrowseAsync(
+                            null,
+                            null,
+                            nodesToBrowse,
+                            kMaxReferencesPerNode,
+                            browseDirection,
+                            referenceTypeId,
+                            true,
+                            nodeClassMask,
+                            ct
+                            ).ConfigureAwait(false);
+
+                        allReferenceDescriptions.AddRange(descriptions);
+                        newReferenceDescriptions.AddRange(descriptions);
+                        allServiceResults.AddRange(errors);
+
+
+                    }
+                    catch (ServiceResultException sre)
+                    {
+                        // the maximum number of nodes per browse is
+                        // set in the ManagedBrowse from the configuration
+                        // and cannot be influenced from the outside.
+                        // if that's desired it would be necessary to provide
+                        // an additional parameter to the method.
+                        m_output.WriteLine("Browse error: {0}", sre.Message);
+                        throw;
+                    }
+                } while (repeatBrowse);
+
+                // Build browse request for next level
+                List<NodeId> nodesForNextManagedBrowse = new List<NodeId>();
+                int duplicates = 0;
+                foreach (ReferenceDescriptionCollection referenceCollection in newReferenceDescriptions)
+                {
+                    foreach (ReferenceDescription reference in referenceCollection)
+                    {
+                        if (!referenceDescriptions.ContainsKey(reference.NodeId))
+                        {
+                            referenceDescriptions[reference.NodeId] = reference;
+
+                            if (!reference.ReferenceTypeId.Equals(ReferenceTypeIds.HasProperty))
+                            {
+                                nodesForNextManagedBrowse.Add(ExpandedNodeId.ToNodeId(reference.NodeId, uaClient.Session.NamespaceUris));
+                            }
+                        }
+                        else
+                        {
+                            duplicates++;
+                        }
+                    }
+
+                }
+
+                newReferenceDescriptions.Clear();
+
+                nodesToBrowse = nodesForNextManagedBrowse;
+
+                if (duplicates > 0)
+                {
+                    Utils.LogInfo("Managed Browse Result {0} duplicate nodes were ignored.", duplicates);
+                }
+
+
+
+            }
+
+            stopWatch.Stop();
+
+            var result = new ReferenceDescriptionCollection(referenceDescriptions.Values);
+
+            result.Sort((x, y) => (x.NodeId.CompareTo(y.NodeId)));
+
+            m_output.WriteLine("ManagedBrowseFullAddressSpace found {0} references on server in {1}ms.",
+                result.Count, stopWatch.ElapsedMilliseconds);
+
+            if (m_verbose)
+            {
+                foreach (var reference in result)
+                {
+                    m_output.WriteLine("NodeId {0} {1} {2}", reference.NodeId, reference.NodeClass, reference.BrowseName);
+                }
+            }
+
+            uaClient.Session.ContinuationPointPolicy = policyBackup;
+
+            return result;
+        }
+        #endregion
+
         #region BrowseAddressSpace sample
         /// <summary>
         /// Browse full address space.

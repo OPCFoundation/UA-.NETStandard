@@ -300,6 +300,12 @@ namespace Opc.Ua.Client
         /// Whether the endpoint Url domain is checked in the certificate.
         /// </summary>
         bool CheckDomain { get; }
+
+        /// <summary>
+        /// gets or set the policy which is used to prevent the allocation of too many
+        /// Continuation Points in the ManagedBrowse(Async) methods
+        /// </summary>
+        ContinuationPointPolicy ContinuationPointPolicy { get; set; }
         #endregion
 
         #region Delegates and Events
@@ -610,7 +616,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Finds the NodeIds for the components for an instance.
         /// </summary>
-        void FindComponentIds(NodeId instanceId, IList<string> componentPaths, out NodeIdCollection componentIds, out List<ServiceResult> errors);
+        void FindComponentIds(NodeId instanceId, IList<string> componentPaths, out NodeIdCollection componentIds, out IList<ServiceResult> errors);
 
         /// <summary>
         /// Reads the values for a set of variables.
@@ -619,7 +625,7 @@ namespace Opc.Ua.Client
         /// <param name="expectedTypes">The expected types.</param>
         /// <param name="values">The list of returned values.</param>
         /// <param name="errors">The list of returned errors.</param>
-        void ReadValues(IList<NodeId> variableIds, IList<Type> expectedTypes, out List<object> values, out List<ServiceResult> errors);
+        void ReadValues(IList<NodeId> variableIds, IList<Type> expectedTypes, out IList<object> values, out IList<ServiceResult> errors);
 
         /// <summary>
         /// Reads the display name for a set of Nodes.
@@ -917,6 +923,53 @@ namespace Opc.Ua.Client
             out ReferenceDescriptionCollection references);
         #endregion
 
+        #region ManagedBrowse methods
+
+
+        /// <summary>
+        /// Execute browse and, if necessary, browse next in one service call.
+        /// Takes care of BadNoContinuationPoint and BadInvalidContnuationPoint status codes.
+        /// </summary>
+        void ManagedBrowse(
+            RequestHeader requestHeader,
+            ViewDescription view,
+            IList<NodeId> nodesToBrowse,
+            uint maxResultsToReturn,
+            BrowseDirection browseDirection,
+            NodeId referenceTypeId,
+            bool includeSubtypes,
+            uint nodeClassMask,
+            out IList<ReferenceDescriptionCollection> result,
+            out IList<ServiceResult> errors
+            );
+
+#if (CLIENT_ASYNC)
+
+        /// <summary>
+        /// Execute BrowseAsync and, if necessary, BrowseNextAsync, in one service call.
+        /// Takes care of BadNoContinuationPoint and BadInvalidContinuationPoint status codes.
+        /// </summary>
+        Task<(
+            IList<ReferenceDescriptionCollection>,
+            IList<ServiceResult>
+            )>
+                ManagedBrowseAsync(
+                RequestHeader requestHeader,
+                ViewDescription view,
+                IList<NodeId> nodesToBrowse,
+                uint maxResultsToReturn,
+                BrowseDirection browseDirection,
+                NodeId referenceTypeId,
+                bool includeSubtypes,
+                uint nodeClassMask,
+                CancellationToken ct = default
+            );
+
+
+#endif
+        #endregion ManagedBrowse methods
+
+
         #region Call Methods
         /// <summary>
         /// Calls the specified method and returns the output arguments.
@@ -973,5 +1026,33 @@ namespace Opc.Ua.Client
         Task<(bool, IList<ServiceResult>)> ResendDataAsync(IEnumerable<Subscription> subscriptions, CancellationToken ct = default);
 #endif
         #endregion
+    }
+
+    /// <summary>
+    /// controls how the client treats continuation points
+    /// if the server has restrictions on their number
+    /// As of now only used for browse/browse next in the
+    /// ManagedBrowse method.
+    /// </summary>
+    public enum ContinuationPointPolicy
+    {
+        /// <summary>
+        /// Ignore how many Continuation Points are in use already.
+        /// Rebrowse nodes for which BadNoContinuationPoint or
+        /// BadInvalidContinuationPoint was raised. Can be used
+        /// whenever the server has no restrictions no the maximum
+        /// number of continuation points
+        /// </summary>
+        Default,
+
+        /// <summary>
+        /// Restrict the number of nodes which are browsed in a
+        /// single service call to the maximum number of
+        /// continuation points the server can allocae
+        /// (if set to a value different from 0)
+        /// </summary>
+        Balanced
+
+
     }
 }

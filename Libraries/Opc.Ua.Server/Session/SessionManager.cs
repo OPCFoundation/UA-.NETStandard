@@ -621,6 +621,7 @@ namespace Opc.Ua.Server
         private int m_maxSessionTimeout;
         private int m_maxSessionCount;
         private int m_maxRequestAge;
+
         private int m_maxBrowseContinuationPoints;
         private int m_maxHistoryContinuationPoints;
         private int m_minNonceLength;

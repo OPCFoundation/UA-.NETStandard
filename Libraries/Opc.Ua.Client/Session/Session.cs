@@ -135,6 +135,7 @@ namespace Opc.Ua.Client
             m_identity = template.Identity;
             m_keepAliveInterval = template.KeepAliveInterval;
             m_checkDomain = template.m_checkDomain;
+            m_continuationPointPolicy = template.m_continuationPointPolicy;
             if (template.OperationTimeout > 0)
             {
                 OperationTimeout = template.OperationTimeout;
@@ -294,6 +295,7 @@ namespace Opc.Ua.Client
             m_transferSubscriptionsOnReconnect = false;
             m_reconnecting = false;
             m_reconnectLock = new SemaphoreSlim(1, 1);
+            m_serverMaxContinuationPointsPerBrowse = 0;
 
             m_defaultSubscription = new Subscription {
                 DisplayName = "Subscription",
@@ -901,6 +903,22 @@ namespace Opc.Ua.Client
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Read from the Server capability MaxContinuationPointsPerBrowse when the Operation Limits are fetched
+        /// </summary>
+        public uint ServerMaxContinuationPointsPerBrowse
+        {
+            get => m_serverMaxContinuationPointsPerBrowse;
+            set => m_serverMaxContinuationPointsPerBrowse = value;
+        }
+
+        /// <inheritdoc/>
+        public ContinuationPointPolicy ContinuationPointPolicy
+        {
+            get => m_continuationPointPolicy;
+            set => m_continuationPointPolicy = value;
         }
         #endregion
 
@@ -1628,12 +1646,17 @@ namespace Opc.Ua.Client
                     .GetValue(null))
                     );
 
+                // add the server capability MaxContinuationPointPerBrowse. Add further capabilities
+                // later (when support form them will be implemented and in a more generic fashion)
+                nodeIds.Add(VariableIds.Server_ServerCapabilities_MaxBrowseContinuationPoints);
+                int maxBrowseContinuationPointIndex = nodeIds.Count - 1;
+
                 ReadValues(nodeIds, Enumerable.Repeat(typeof(uint), nodeIds.Count).ToList(), out var values, out var errors);
 
                 var configOperationLimits = m_configuration?.ClientConfiguration?.OperationLimits ?? new OperationLimits();
                 var operationLimits = new OperationLimits();
 
-                for (int ii = 0; ii < nodeIds.Count; ii++)
+                for (int ii = 0; ii < operationLimitsProperties.Count; ii++)
                 {
                     var property = typeof(OperationLimits).GetProperty(operationLimitsProperties[ii]);
                     uint value = (uint)property.GetValue(configOperationLimits);
@@ -1651,6 +1674,12 @@ namespace Opc.Ua.Client
                 }
 
                 OperationLimits = operationLimits;
+                if (values[maxBrowseContinuationPointIndex] != null
+                    && ServiceResult.IsNotBad(errors[maxBrowseContinuationPointIndex]))
+                {
+                    ServerMaxContinuationPointsPerBrowse = (UInt16)values[maxBrowseContinuationPointIndex];
+                }
+
             }
             catch (Exception ex)
             {
@@ -1662,6 +1691,9 @@ namespace Opc.Ua.Client
                 }
             }
         }
+
+
+
 
         /// <inheritdoc/>
         public void FetchTypeTree(ExpandedNodeId typeId)
@@ -2223,41 +2255,19 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ReferenceDescriptionCollection FetchReferences(NodeId nodeId)
         {
-            // browse for all references.
-            byte[] continuationPoint;
-            ReferenceDescriptionCollection descriptions;
-
-            Browse(
-                null,
-                null,
-                nodeId,
-                0,
-                BrowseDirection.Both,
-                null,
-                true,
-                0,
-                out continuationPoint,
-                out descriptions);
-
-            // process any continuation point.
-            while (continuationPoint != null)
-            {
-                byte[] revisedContinuationPoint;
-                ReferenceDescriptionCollection additionalDescriptions;
-
-                BrowseNext(
-                    null,
-                    false,
-                    continuationPoint,
-                    out revisedContinuationPoint,
-                    out additionalDescriptions);
-
-                continuationPoint = revisedContinuationPoint;
-
-                descriptions.AddRange(additionalDescriptions);
-            }
-
-            return descriptions;
+            ManagedBrowse(
+                requestHeader: null,
+                view: null,
+                nodesToBrowse: new List<NodeId>() { nodeId },
+                maxResultsToReturn: 0,
+                browseDirection: BrowseDirection.Both,
+                referenceTypeId: null,
+                includeSubtypes: true,
+                nodeClassMask: 0,
+                out IList<ReferenceDescriptionCollection> descriptionsList,
+                out var errors
+                );
+            return descriptionsList[0];
         }
 
         /// <inheritdoc/>
@@ -2266,67 +2276,22 @@ namespace Opc.Ua.Client
             out IList<ReferenceDescriptionCollection> referenceDescriptions,
             out IList<ServiceResult> errors)
         {
-            var result = new List<ReferenceDescriptionCollection>();
+            ManagedBrowse(
+                requestHeader: null,
+                view: null,
+                nodesToBrowse: nodeIds,
+                maxResultsToReturn: 0,
+                browseDirection: BrowseDirection.Both,
+                referenceTypeId: null,
+                includeSubtypes: true,
+                nodeClassMask: 0,
+                out var result,
+                out var errors01
+                );
 
-            // browse for all references.
-            Browse(
-                null,
-                null,
-                nodeIds,
-                0,
-                BrowseDirection.Both,
-                null,
-                true,
-                0,
-                out ByteStringCollection continuationPoints,
-                out IList<ReferenceDescriptionCollection> descriptions,
-                out errors);
-
-            result.AddRange(descriptions);
-
-            // process any continuation point.
-            var previousResult = result;
-            var previousErrors = errors;
-            while (HasAnyContinuationPoint(continuationPoints))
-            {
-                var nextContinuationPoints = new ByteStringCollection();
-                var nextResult = new List<ReferenceDescriptionCollection>();
-                var nextErrors = new List<ServiceResult>();
-
-                for (int ii = 0; ii < continuationPoints.Count; ii++)
-                {
-                    var cp = continuationPoints[ii];
-                    if (cp != null)
-                    {
-                        nextContinuationPoints.Add(cp);
-                        nextResult.Add(previousResult[ii]);
-                        nextErrors.Add(previousErrors[ii]);
-                    }
-                }
-
-                BrowseNext(
-                    null,
-                    false,
-                    nextContinuationPoints,
-                    out ByteStringCollection revisedContinuationPoints,
-                    out descriptions,
-                    out IList<ServiceResult> browseNextErrors);
-
-                continuationPoints = revisedContinuationPoints;
-                previousResult = nextResult;
-                previousErrors = nextErrors;
-
-                for (int ii = 0; ii < descriptions.Count; ii++)
-                {
-                    nextResult[ii].AddRange(descriptions[ii]);
-                    if (StatusCode.IsBad(browseNextErrors[ii].StatusCode))
-                    {
-                        nextErrors[ii] = browseNextErrors[ii];
-                    }
-                }
-            }
-
+            errors = errors01;
             referenceDescriptions = result;
+            return;
         }
 
         /// <inheritdoc/>
@@ -2741,7 +2706,7 @@ namespace Opc.Ua.Client
             NodeId instanceId,
             IList<string> componentPaths,
             out NodeIdCollection componentIds,
-            out List<ServiceResult> errors)
+            out IList<ServiceResult> errors)
         {
             componentIds = new NodeIdCollection();
             errors = new List<ServiceResult>();
@@ -2847,8 +2812,8 @@ namespace Opc.Ua.Client
         public void ReadValues(
             IList<NodeId> variableIds,
             IList<Type> expectedTypes,
-            out List<object> values,
-            out List<ServiceResult> errors)
+            out IList<object> values,
+            out IList<ServiceResult> errors)
         {
             values = new List<object>();
             errors = new List<ServiceResult>();
@@ -3410,7 +3375,7 @@ namespace Opc.Ua.Client
             out IList<ServiceResult> errors)
         {
 
-            BrowseDescriptionCollection browseDescription = new BrowseDescriptionCollection();
+            BrowseDescriptionCollection browseDescriptions = new BrowseDescriptionCollection();
             foreach (var nodeToBrowse in nodesToBrowse)
             {
                 BrowseDescription description = new BrowseDescription {
@@ -3422,19 +3387,19 @@ namespace Opc.Ua.Client
                     ResultMask = (uint)BrowseResultMask.All
                 };
 
-                browseDescription.Add(description);
+                browseDescriptions.Add(description);
             }
 
             ResponseHeader responseHeader = Browse(
                 requestHeader,
                 view,
                 maxResultsToReturn,
-                browseDescription,
+                browseDescriptions,
                 out BrowseResultCollection results,
                 out DiagnosticInfoCollection diagnosticInfos);
 
-            ClientBase.ValidateResponse(results, browseDescription);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, browseDescription);
+            ClientBase.ValidateResponse(results, browseDescriptions);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, browseDescriptions);
 
             int ii = 0;
             errors = new List<ServiceResult>();
@@ -3652,6 +3617,38 @@ namespace Opc.Ua.Client
             return responseHeader;
         }
         #endregion
+
+        #region Combined Browse/BrowseNext
+
+
+        /// <inheritdoc/>
+        public void ManagedBrowse(
+            RequestHeader requestHeader,
+            ViewDescription view,
+            IList<NodeId> nodesToBrowse,
+            uint maxResultsToReturn,
+            BrowseDirection browseDirection,
+            NodeId referenceTypeId,
+            bool includeSubtypes,
+            uint nodeClassMask,
+            out IList<ReferenceDescriptionCollection> result,
+            out IList<ServiceResult> errors
+            )
+        {
+            (result, errors) = ManagedBrowseAsync(
+                requestHeader,
+                view,
+                nodesToBrowse,
+                maxResultsToReturn,
+                browseDirection,
+                referenceTypeId,
+                includeSubtypes,
+                nodeClassMask
+                ).GetAwaiter().GetResult();
+        }
+
+        #endregion
+
 
         #region Call Methods
         /// <inheritdoc/>
@@ -6443,6 +6440,9 @@ namespace Opc.Ua.Client
         private LinkedList<AsyncRequestState> m_outstandingRequests;
         private readonly EndpointDescriptionCollection m_discoveryServerEndpoints;
         private readonly StringCollection m_discoveryProfileUris;
+        private uint m_serverMaxContinuationPointsPerBrowse = 0;
+        private ContinuationPointPolicy m_continuationPointPolicy
+            = ContinuationPointPolicy.Default;
 
         private class AsyncRequestState
         {

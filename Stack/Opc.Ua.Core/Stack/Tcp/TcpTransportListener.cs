@@ -634,6 +634,7 @@ namespace Opc.Ua.Bindings
                 {
                     channel.IdleCleanup();
                 }
+                Utils.LogInfo("TCPLISTENER: {0} channels finished IdleCleanup.", channels.Count);
             }
         }
         #endregion
