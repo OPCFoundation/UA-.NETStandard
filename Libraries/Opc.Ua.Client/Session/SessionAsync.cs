@@ -1291,19 +1291,21 @@ namespace Opc.Ua.Client
                         nextResults.Add(previousResults[ii]);
                         nextErrors.Add(previousErrors[ii]);
                     }
-                    // ToDo: status code is bad and continuation point is not null
                 }
             }
             while (nextContinuationPoints.Count > 0)
             {
-
+                if (requestHeader != null)
+                {
+                    requestHeader.RequestHandle = 0;
+                }
                 (
                     _,
                     ByteStringCollection revisedContinuationPoints,
                     IList<ReferenceDescriptionCollection> browseNextResults,
                     IList<ServiceResult> browseNextErrors
                 ) = await BrowseNextAsync(
-                    null,
+                    requestHeader,
                     nextContinuationPoints,
                     false,
                     ct
