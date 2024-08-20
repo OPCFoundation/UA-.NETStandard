@@ -627,14 +627,6 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            // foreach (var channel in channels)
-            {
-                // if (!m_channels.TryRemove(channel.Id, out _))
-                {
-                    // Utils.LogError("TCPLISTENER: Failed to remove channel {0} from active channels.", channel.Id);
-                }
-            }
-
             if (channels.Count > 0)
             {
                 Utils.LogInfo("TCPLISTENER: {0} channels scheduled for IdleCleanup.", channels.Count);
