@@ -165,6 +165,11 @@ namespace Opc.Ua.Bindings
         public const int MessageTypeAndSize = 8;
 
         /// <summary>
+        /// The minimum send or receive buffer size for an ECC security profile.
+        /// </summary>
+        public const int ECCMinBufferSize = 1024;
+
+        /// <summary>
         /// The minimum send or receive buffer size.
         /// </summary>
         public const int MinBufferSize = 8192;

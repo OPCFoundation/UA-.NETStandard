@@ -1880,7 +1880,7 @@ namespace Opc.Ua.Client
             }
 
             // find the dictionary for the description.
-            IList<INode> references = this.NodeCache.FindReferences(dataTypeSystem, ReferenceTypeIds.HasComponent, false, false);
+            IList<INode> references = await this.NodeCache.FindReferencesAsync(dataTypeSystem, ReferenceTypeIds.HasComponent, false, false).ConfigureAwait(false);
 
             if (references.Count == 0)
             {
@@ -1891,8 +1891,8 @@ namespace Opc.Ua.Client
             var referenceNodeIds = references.Select(r => r.NodeId).ToList();
 
             // find namespace properties
-            var namespaceNodes = this.NodeCache.FindReferences(referenceNodeIds, new NodeIdCollection { ReferenceTypeIds.HasProperty }, false, false)
-                .Where(n => n.BrowseName == BrowseNames.NamespaceUri).ToList();
+            var namespaceReferences = await this.NodeCache.FindReferencesAsync(referenceNodeIds, new NodeIdCollection { ReferenceTypeIds.HasProperty }, false, false).ConfigureAwait(false);
+            var namespaceNodes = namespaceReferences.Where(n => n.BrowseName == BrowseNames.NamespaceUri).ToList();
             var namespaceNodeIds = namespaceNodes.Select(n => ExpandedNodeId.ToNodeId(n.NodeId, this.NamespaceUris)).ToList();
 
             // read all schema definitions
