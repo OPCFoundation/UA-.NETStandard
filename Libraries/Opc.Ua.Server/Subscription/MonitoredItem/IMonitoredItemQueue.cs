@@ -73,11 +73,11 @@ namespace Opc.Ua.Server
         int ItemsInQueue { get; }
 
         /// <summary>
-        /// Sets the queue size.
+        /// Resets thew queue, sets the new queue size initializes an empty queue (caller handles existing entries).
         /// </summary>
         /// <param name="queueSize">The new queue size.</param>
         /// <param name="queueErrors">Specifies wether errors should be queued.</param>
-        void SetQueueSize(uint queueSize, bool queueErrors);
+        void ResetQueue(uint queueSize, bool queueErrors);
 
         /// <summary>
         /// Adds the value to the queue.
@@ -129,7 +129,7 @@ namespace Opc.Ua.Server
         int ItemsInQueue { get; }
 
         /// <summary>
-        /// Sets the queue size.
+        /// Sets the queue size. If the queue contained entries before strip the existing
         /// </summary>
         /// <param name="queueSize">The new queue size.</param>
         /// <param name="discardOldest">if true remove oldest entries from the queue when the queue size decreases, else remove newest</param>

@@ -42,7 +42,7 @@ namespace Opc.Ua.Server.Tests
             Assert.Throws<InvalidOperationException>(() => queue.OverwriteLastValue(new DataValue(), null));
             Assert.Throws<InvalidOperationException>(() => queue.Enqueue(new DataValue(), null));
 
-            queue.SetQueueSize(2, true);
+            queue.ResetQueue(2, true);
 
             Assert.That(queue.QueueSize, Is.EqualTo(2));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
@@ -94,7 +94,7 @@ namespace Opc.Ua.Server.Tests
         {
             var queue = m_factory.CreateDataChangeQueue(false);
 
-            queue.SetQueueSize(2, true);
+            queue.ResetQueue(2, true);
 
             var statuscode = new ServiceResult(StatusCodes.Good);
             var dataValue = new DataValue(new Variant(true));
@@ -161,7 +161,7 @@ namespace Opc.Ua.Server.Tests
         {
             var queue = m_factory.CreateDataChangeQueue(false);
 
-            queue.SetQueueSize(1, false);
+            queue.ResetQueue(1, false);
 
             Assert.That(queue.QueueSize, Is.EqualTo(1));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
@@ -205,7 +205,7 @@ namespace Opc.Ua.Server.Tests
         {
             var queue = m_factory.CreateDataChangeQueue(false);
 
-            queue.SetQueueSize(10, true);
+            queue.ResetQueue(10, true);
 
             Assert.That(queue.QueueSize, Is.EqualTo(10));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
@@ -227,107 +227,6 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(status, Is.True);
                 Assert.That(result, Is.EqualTo(dataValue));
                 Assert.That(resultError, Is.EqualTo(statuscode));
-            }
-
-            Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
-
-            bool status2 = queue.Dequeue(out DataValue result2, out ServiceResult resultError2);
-
-            Assert.That(status2, Is.False);
-            Assert.That(result2, Is.Null);
-            Assert.That(resultError2, Is.Null);
-            Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
-        }
-
-        [Test]
-        public void DataValueQueueSizeChangeRequeuesValues()
-        {
-            var queue = m_factory.CreateDataChangeQueue(false);
-
-            queue.SetQueueSize(10, true);
-
-            Assert.That(queue.QueueSize, Is.EqualTo(10));
-            Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
-
-            var statuscode = new ServiceResult(StatusCodes.Good);
-            var dataValue = new DataValue(new Variant(true));
-
-            for (int i = 0; i < 10; i++)
-            {
-                queue.Enqueue(dataValue, statuscode);
-            }
-
-            Assert.That(queue.ItemsInQueue, Is.EqualTo(10));
-
-            queue.SetQueueSize(20, true);
-
-            Assert.That(queue.ItemsInQueue, Is.EqualTo(10));
-            Assert.That(queue.QueueSize, Is.EqualTo(20));
-
-            queue.SetQueueSize(5, true);
-
-            Assert.That(queue.ItemsInQueue, Is.EqualTo(5));
-            Assert.That(queue.QueueSize, Is.EqualTo(5));
-
-            for (int i = 0; i < 5; i++)
-            {
-                bool status = queue.Dequeue(out DataValue result, out ServiceResult resultError);
-
-                Assert.That(status, Is.True);
-                Assert.That(result, Is.EqualTo(dataValue));
-                Assert.That(resultError, Is.EqualTo(statuscode));
-            }
-
-            Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
-
-            bool status2 = queue.Dequeue(out DataValue result2, out ServiceResult resultError2);
-
-            Assert.That(status2, Is.False);
-            Assert.That(result2, Is.Null);
-            Assert.That(resultError2, Is.Null);
-            Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
-        }
-
-        [Test]
-        public void DataValueDecreaseQueueSizeDiscardsOldest()
-        {
-            var queue = m_factory.CreateDataChangeQueue(false);
-
-            queue.SetQueueSize(10, true);
-
-            Assert.That(queue.QueueSize, Is.EqualTo(10));
-            Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
-
-            var statuscode = new ServiceResult(StatusCodes.Good);
-            var dataValue = new DataValue(new Variant(true));
-
-            for (int i = 0; i < 5; i++)
-            {
-                queue.Enqueue(dataValue, statuscode);
-            }
-
-            var statuscode2 = new ServiceResult(StatusCodes.Good);
-            var dataValue2 = new DataValue(new Variant(true));
-
-            for (int i = 0; i < 5; i++)
-            {
-                queue.Enqueue(dataValue2, statuscode2);
-            }
-
-            Assert.That(queue.ItemsInQueue, Is.EqualTo(10));
-
-            queue.SetQueueSize(5, true);
-
-            Assert.That(queue.ItemsInQueue, Is.EqualTo(5));
-            Assert.That(queue.QueueSize, Is.EqualTo(5));
-
-            for (int i = 0; i < 5; i++)
-            {
-                bool status = queue.Dequeue(out DataValue result, out ServiceResult resultError);
-
-                Assert.That(status, Is.True);
-                Assert.That(result, Is.EqualTo(dataValue2));
-                Assert.That(resultError, Is.EqualTo(statuscode2));
             }
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
@@ -345,7 +244,7 @@ namespace Opc.Ua.Server.Tests
         public void QueueDequeueValues()
         {
             var queue = m_factory.CreateDataChangeQueue(false);
-            queue.SetQueueSize(1000, false);
+            queue.ResetQueue(1000, false);
 
             for (int j = 0; j < 10_000; j++)
             {
@@ -358,7 +257,7 @@ namespace Opc.Ua.Server.Tests
         public void QueueDequeueValuesWithOverflow()
         {
             var queue = m_factory.CreateDataChangeQueue(false);
-            queue.SetQueueSize(100, false);
+            queue.ResetQueue(100, false);
 
             for (int j = 0; j < 100; j++)
             {
@@ -1063,6 +962,112 @@ namespace Opc.Ua.Server.Tests
             Assert.That(success, Is.True);
             Assert.That(result, Is.EqualTo(dataValue));
             Assert.That(resultError, Is.EqualTo(statuscode));
+        }
+
+        [Test]
+        public void DataValueQueueSizeChangeRequeuesValues()
+        {
+            bool called = false;
+            Action discardedValueHandler = () => { called = true; };
+
+            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, discardedValueHandler);
+
+            queueHandler.SetQueueSize(10, true, DiagnosticsMasks.All);
+
+
+            Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(0));
+
+            var statuscode = new ServiceResult(StatusCodes.Good);
+            var dataValue = new DataValue(new Variant(true));
+
+            for (int i = 0; i < 10; i++)
+            {
+                queueHandler.QueueValue(dataValue, statuscode);
+            }
+
+            Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(10));
+
+            queueHandler.SetQueueSize(20, true, DiagnosticsMasks.All);
+
+            Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(10));
+
+            queueHandler.SetQueueSize(5, true, DiagnosticsMasks.All);
+
+            Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(5));
+            Assert.That(called, Is.True);
+
+            for (int i = 0; i < 5; i++)
+            {
+                bool status = queueHandler.PublishSingleValue(out DataValue result, out ServiceResult resultError);
+
+                Assert.That(status, Is.True);
+                Assert.That(result, Is.EqualTo(dataValue));
+                Assert.That(resultError, Is.EqualTo(statuscode).Or.Property(nameof(result.StatusCode)).Property(nameof(result.StatusCode.Overflow)).True);
+            }
+
+            Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(0));
+
+            bool status2 = queueHandler.PublishSingleValue(out DataValue result2, out ServiceResult resultError2);
+
+            Assert.That(status2, Is.False);
+            Assert.That(result2, Is.Null);
+            Assert.That(resultError2, Is.Null);
+            Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void DataValueDecreaseQueueSizeDiscardsOldest()
+        {
+            bool called = false;
+            Action discardedValueHandler = () => { called = true; };
+
+            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, discardedValueHandler);
+
+            queueHandler.SetQueueSize(10, true, DiagnosticsMasks.All);
+
+            Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(0));
+
+            var statuscode = new ServiceResult(StatusCodes.Good);
+            var dataValue = new DataValue(new Variant(true));
+
+            for (int i = 0; i < 5; i++)
+            {
+                queueHandler.QueueValue(dataValue, statuscode);
+            }
+
+            var statuscode2 = new ServiceResult(StatusCodes.Good);
+            var dataValue2 = new DataValue(new Variant(true));
+
+            for (int i = 0; i < 5; i++)
+            {
+                queueHandler.QueueValue(dataValue2, statuscode2);
+            }
+
+            Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(10));
+
+            queueHandler.SetQueueSize(5, true, DiagnosticsMasks.All);
+
+
+            Assert.That(called, Is.True);
+            Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(5));
+
+            for (int i = 0; i < 5; i++)
+            {
+                bool status = queueHandler.PublishSingleValue(out DataValue result, out ServiceResult resultError);
+
+                Assert.That(status, Is.True);
+                Assert.That(result, Is.EqualTo(dataValue2));
+                Assert.That(resultError, Is.EqualTo(statuscode).Or.Property(nameof(result.StatusCode)).Property(nameof(result.StatusCode.Overflow)).True);
+            }
+
+            Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(0));
+
+            bool status2 = queueHandler.PublishSingleValue(out DataValue result2, out ServiceResult resultError2);
+
+            Assert.That(status2, Is.False);
+            Assert.That(result2, Is.Null);
+            Assert.That(resultError2, Is.Null);
+            Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(0));
         }
         #endregion
     }

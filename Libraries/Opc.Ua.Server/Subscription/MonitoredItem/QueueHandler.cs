@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Opc.Ua.Server
 {
@@ -66,10 +65,35 @@ namespace Opc.Ua.Server
         public void SetQueueSize(uint queueSize, bool discardOldest, DiagnosticsMasks diagnosticsMasks)
         {
             bool queueErrors = (diagnosticsMasks & DiagnosticsMasks.OperationAll) != 0;
-            m_dataValueQueue.SetQueueSize(queueSize, queueErrors);
 
-            // update internals.
             m_discardOldest = discardOldest;
+
+            // copy existing values.
+            List<DataValue> existingValues = null;
+            List<ServiceResult> existingErrors = null;
+
+            if (ItemsInQueue > 0)
+            {
+                existingValues = new List<DataValue>((int)queueSize);
+                existingErrors = new List<ServiceResult>((int)queueSize);
+
+                while (m_dataValueQueue.Dequeue(out DataValue value, out ServiceResult error))
+                {
+                    existingValues.Add(value);
+                    existingErrors.Add(error);
+                }
+            }
+
+            m_dataValueQueue.ResetQueue(queueSize, queueErrors);
+
+            // requeue the data.
+            if (existingValues != null)
+            {
+                for (int ii = 0; ii < existingValues.Count; ii++)
+                {
+                    Enqueue(existingValues[ii], existingErrors[ii]);
+                }
+            }
         }
         /// <summary>
         /// Set the sampling interval of the queue
@@ -201,7 +225,7 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    throw new ServiceResultException(StatusCodes.BadInternalError, "Error queueing DataChange. DataChange Queue was full but it was not possible to discard the oldest value.");
+                    throw new ServiceResultException(StatusCodes.BadInternalError, "Error queueing DataValue. DataValueQueue was full but it was not possible to discard the oldest value.");
                 }
             }
             else

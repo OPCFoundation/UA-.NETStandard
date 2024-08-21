@@ -79,7 +79,7 @@ namespace Opc.Ua.Server
             m_errors = null;
             m_start = -1;
             m_end = -1;
-            m_isDurable = createDurable;
+            IsDurable = createDurable;
         }
 
         #region Public Methods
@@ -121,7 +121,7 @@ namespace Opc.Ua.Server
             }
         }
         /// <inheritdoc/>
-        public bool IsDurable => m_isDurable;
+        public virtual bool IsDurable { get; }
 
 
         /// <summary>
@@ -207,7 +207,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public void SetQueueSize(uint queueSize, bool queueErrors)
+        public void ResetQueue(uint queueSize, bool queueErrors)
         {
             int length = (int)queueSize;
 
@@ -219,37 +219,11 @@ namespace Opc.Ua.Server
             {
                 errors = new ServiceResult[length];
             }
-
-            // copy existing values.
-            List<DataValue> existingValues = null;
-            List<ServiceResult> existingErrors = null;
-
-            if (m_start >= 0)
-            {
-                existingValues = new List<DataValue>();
-                existingErrors = new List<ServiceResult>();
-
-                while (Dequeue(out DataValue value, out ServiceResult error))
-                {
-                    existingValues.Add(value);
-                    existingErrors.Add(error);
-                }
-            }
-
             // update internals.
             m_values = values;
             m_errors = errors;
             m_start = -1;
             m_end = 0;
-
-            // requeue the data.
-            if (existingValues != null)
-            {
-                for (int ii = 0; ii < existingValues.Count; ii++)
-                {
-                    Enqueue(existingValues[ii], existingErrors[ii]);
-                }
-            }
         }
 
         /// <inheritdoc/>
@@ -312,7 +286,6 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
-        private readonly bool m_isDurable;
         private DataValue[] m_values;
         private ServiceResult[] m_errors;
         private int m_start;
@@ -336,16 +309,16 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadInternalError);
             }
             m_events = new List<EventFieldList>();
-            m_isDurable = createDurable;
-            m_queueSize = 0;
+            IsDurable = createDurable;
+            QueueSize = 0;
         }
 
         #region Public Methods
         /// <inheritdoc/>
-        public bool IsDurable => m_isDurable;
+        public virtual bool IsDurable { get; }
 
         /// <inheritdoc/>
-        public uint QueueSize => m_queueSize;
+        public uint QueueSize { get; private set; }
 
         /// <inheritdoc/>
         public int ItemsInQueue => m_events.Count;
@@ -372,7 +345,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void Enqueue(EventFieldList value)
         {
-            if (m_events.Count == m_queueSize && !Dequeue(out var _))
+            if (m_events.Count == QueueSize && !Dequeue(out var _))
             {
                 throw new ServiceResultException(StatusCodes.BadInternalError, "Error queueing Event. Evemt Queue was full but it was not possible to discard the oldest Event");
             }
@@ -400,9 +373,9 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void SetQueueSize(uint queueSize, bool discardOldest)
         {
-            m_queueSize = queueSize;
+            QueueSize = queueSize;
 
-            if (m_events.Count > m_queueSize)
+            if (m_events.Count > QueueSize)
             {
                 if (discardOldest)
                 {
@@ -417,9 +390,7 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
-        private uint m_queueSize;
         private readonly List<EventFieldList> m_events;
-        private readonly bool m_isDurable;
         #endregion
     }
 

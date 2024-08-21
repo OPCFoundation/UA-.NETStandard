@@ -44,7 +44,8 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public IDataChangeMonitoredItemQueue CreateDataChangeQueue(bool createDurable)
         {
-            return new DurableDataChangeMonitoredItemQueue(createDurable);
+            //return new DurableDataChangeMonitoredItemQueue(createDurable);
+            return new DurableDataChangeMonitoredItemQueueWithArray(createDurable);
         }
 
         /// <inheritdoc/>
@@ -59,103 +60,36 @@ namespace Opc.Ua.Server
             //only needed for managed resources
         }
     }
-    
 
-    /// <summary>
-    /// Provides a queue for events.
-    /// </summary>
-    public class DurableEventMonitoredItemQueue : IEventMonitoredItemQueue
+    public class DurableEventMonitoredItemQueue : EventMonitoredItemQueue
     {
         /// <summary>
         /// Creates an empty queue.
         /// </summary>
-        public DurableEventMonitoredItemQueue(bool createDurable)
+        public DurableEventMonitoredItemQueue(bool createDurable) : base(false)
         {
-            m_events = new List<EventFieldList>();
-            m_isDurable = createDurable;
-            m_queueSize = 0;
+            IsDurable = createDurable;
         }
 
         #region Public Methods
         /// <inheritdoc/>
-        public bool IsDurable => m_isDurable;
-
-        /// <inheritdoc/>
-        public uint QueueSize => m_queueSize;
-
-        /// <inheritdoc/>
-        public int ItemsInQueue => m_events.Count;
-
-        /// <inheritdoc/>
-        public bool Dequeue(out EventFieldList value)
-        {
-            value = null;
-            if (m_events.Any())
-            {
-                value = m_events.First();
-                m_events.RemoveAt(0);
-                return true;
-            }
-            return false;
-        }
-
-        /// <inheritdoc/>
-        public void Dispose()
-        {
-            //Only needed for unmanaged resources
-        }
-
-        /// <inheritdoc/>
-        public void Enqueue(EventFieldList value)
-        {
-            if (m_events.Count == m_queueSize && !Dequeue(out var _))
-            {
-                //Queue is full, but no deque possible
-                return;
-            }
-            m_events.Add(value);
-        }
-
-        /// <inheritdoc/>
-        public bool IsEventContainedInQueue(IFilterTarget instance)
-        {
-            // check for duplicate instances being reported via multiple paths.
-            for (int ii = 0; ii < m_events.Count; ii++)
-            {
-                if (m_events[ii] is EventFieldList processedEvent)
-                {
-                    if (ReferenceEquals(instance, processedEvent.Handle))
-                    {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
-
-        /// <inheritdoc/>
-        public void SetQueueSize(uint queueSize, bool discardOldest)
-        {
-            m_queueSize = queueSize;
-
-            if (m_events.Count > m_queueSize)
-            {
-                if (discardOldest)
-                {
-                    m_events.RemoveRange(0, m_events.Count - (int)queueSize);
-                }
-                else
-                {
-                    m_events.RemoveRange((int)queueSize, m_events.Count - (int)queueSize);
-                }
-            }
-        }
+        public override bool IsDurable { get; }
         #endregion
+    }
 
-        #region Private Fields
-        private uint m_queueSize;
-        private readonly List<EventFieldList> m_events;
-        private readonly bool m_isDurable;
+    public class DurableDataChangeMonitoredItemQueueWithArray : DataChangeMonitoredItemQueue
+    {
+        /// <summary>
+        /// Creates an empty queue.
+        /// </summary>
+        public DurableDataChangeMonitoredItemQueueWithArray(bool createDurable) : base(false)
+        {
+            IsDurable = createDurable;
+        }
+
+        #region Public Methods
+        /// <inheritdoc/>
+        public override bool IsDurable { get; }
         #endregion
     }
 
@@ -235,9 +169,9 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void OverwriteLastValue(DataValue value, ServiceResult error)
         {
-            if (m_queueSize == 0)
+            if (ItemsInQueue == 0)
             {
-                throw new InvalidOperationException("Cannot write Value. Queue size not set.");
+                throw new InvalidOperationException("Cannot overwrite Value. Queue is empty.");
             }
             if (m_values.Count != 0)
             {
@@ -258,22 +192,13 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public void SetQueueSize(uint queueSize, bool queueErrors)
+        public void ResetQueue(uint queueSize, bool queueErrors)
         {
             m_queueErrors = queueErrors;
             m_queueSize = queueSize;
 
-            if (m_values.Count > m_queueSize)
-            {
-                m_values.RemoveRange(0, m_values.Count - (int)queueSize);
-
-                m_errors.RemoveRange(0, m_errors.Count - (int)queueSize);
-            }
-
-            if (!m_queueErrors)
-            {
-                m_errors.Clear();
-            }
+            m_values = new List<DataValue>();
+            m_errors = new List<ServiceResult>();
         }
 
         /// <inheritdoc/>
@@ -310,8 +235,8 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
-        private readonly List<DataValue> m_values;
-        private readonly List<ServiceResult> m_errors;
+        private List<DataValue> m_values;
+        private List<ServiceResult> m_errors;
         private uint m_queueSize;
         private bool m_queueErrors;
         private readonly bool m_isDurable;
