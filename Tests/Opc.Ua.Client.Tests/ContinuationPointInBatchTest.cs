@@ -55,12 +55,17 @@ namespace Opc.Ua.Client.Tests
 
     }
 
-    public class ManagedBrowseTestDataProvider
+    public class ManagedBrowseTestDataProvider : IFormattable
     {
         public uint MaxNumberOfContinuationPoints { get; set; } = 0;
         public uint MaxNumberOfReferencesPerNode { get; set; } = 0;
         public int ExpectedNumberOfPasses { get; set; } = 0;
         public List<int> ExpectedNumberOfBadNoCPSCs { get; set; }
+
+        public string ToString(string format, IFormatProvider formatProvider)
+        {
+            return $"{MaxNumberOfContinuationPoints}:{MaxNumberOfReferencesPerNode}";
+        }
     }
 
 

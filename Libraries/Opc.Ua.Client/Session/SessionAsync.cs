@@ -1119,7 +1119,7 @@ namespace Opc.Ua.Client
                     }
 
                     // split input into batches
-                    int batchCount = 0;
+                    int batchOffset = 0;
 
                     List<NodeId> nodesToBrowseForNextPass = new List<NodeId>();
                     List<ReferenceDescriptionCollection> referenceDescriptionsForNextPass = new List<ReferenceDescriptionCollection>();
@@ -1128,7 +1128,7 @@ namespace Opc.Ua.Client
                     // loop over the batches
                     foreach (var nodesToBrowseBatch in ((List<NodeId>)nodesToBrowseForPass).Batch<NodeId, List<NodeId>>(maxNodesPerBrowse))
                     {
-                        int batchOffset = batchCount * (int)maxNodesPerBrowse;
+                        int nodesToBrowseBatchCount = nodesToBrowseBatch.Count;
 
                         (
                             IList<ReferenceDescriptionCollection> resultForBatch,
@@ -1146,28 +1146,44 @@ namespace Opc.Ua.Client
                                 nodeClassMask
                             ).ConfigureAwait(false);
 
-                        for (int ii = 0; ii < nodesToBrowseBatch.Count; ii++)
+                        int resultOffset = batchOffset;
+                        for (int ii = 0; ii < nodesToBrowseBatchCount; ii++)
                         {
-                            if (errorsForBatch[ii].StatusCode == StatusCodes.BadNoContinuationPoints ||
-                                errorsForBatch[ii].StatusCode == StatusCodes.BadContinuationPointInvalid)
+                            var statusCode = errorsForBatch[ii].StatusCode;
+                            if (StatusCode.IsBad(statusCode))
                             {
-                                nodesToBrowseForNextPass.Add(nodesToBrowseForPass[batchOffset + ii]);
-                                referenceDescriptionsForNextPass.Add(resultForPass[batchOffset + ii]);
-                                errorsForNextPass.Add(errorsForPass[batchOffset + ii]);
+                                bool addToNextPass = false;
+                                if (statusCode == StatusCodes.BadNoContinuationPoints)
+                                {
+                                    addToNextPass = true;
+                                    badNoCPErrorsPerPass++;
+                                }
+                                else if (statusCode == StatusCodes.BadContinuationPointInvalid)
+                                {
+                                    addToNextPass = true;
+                                    badCPInvalidErrorsPerPass++;
+                                }
+                                else
+                                {
+                                    otherErrorsPerPass++;
+                                }
+
+                                if (addToNextPass)
+                                {
+                                    nodesToBrowseForNextPass.Add(nodesToBrowseForPass[resultOffset]);
+                                    referenceDescriptionsForNextPass.Add(resultForPass[resultOffset]);
+                                    errorsForNextPass.Add(errorsForPass[resultOffset]);
+                                }
                             }
 
-                            resultForPass[batchOffset + ii].Clear();
-                            resultForPass[batchOffset + ii].AddRange(resultForBatch[ii]);
-                            errorsForPass[batchOffset + ii] = errorsForBatch[ii];
-
+                            resultForPass[resultOffset].Clear();
+                            resultForPass[resultOffset].AddRange(resultForBatch[ii]);
+                            errorsForPass[resultOffset] = errorsForBatch[ii];
+                            resultOffset++;
                         }
 
-                        batchCount++;
+                        batchOffset += nodesToBrowseBatchCount;
                     }
-
-                    badCPInvalidErrorsPerPass = errorsForPass.Count(x => x.StatusCode == StatusCodes.BadContinuationPointInvalid);
-                    badNoCPErrorsPerPass = errorsForPass.Count(x => x.StatusCode == StatusCodes.BadNoContinuationPoints);
-                    otherErrorsPerPass = errorsForPass.Count(x => StatusCode.IsBad(x.StatusCode)) - badNoCPErrorsPerPass - badCPInvalidErrorsPerPass;
 
                     resultForPass = referenceDescriptionsForNextPass;
                     referenceDescriptionsForNextPass = new List<ReferenceDescriptionCollection>();
@@ -1178,7 +1194,7 @@ namespace Opc.Ua.Client
                     nodesToBrowseForPass = nodesToBrowseForNextPass;
                     nodesToBrowseForNextPass = new List<NodeId>();
 
-                    String aggregatedErrorMessage = "ManagedBrowse: in pass {0}, {1} {2} occured with a status code {3}.";
+                    string aggregatedErrorMessage = "ManagedBrowse: in pass {0}, {1} {2} occured with a status code {3}.";
 
                     if (badCPInvalidErrorsPerPass > 0)
                     {
@@ -1266,7 +1282,6 @@ namespace Opc.Ua.Client
                 nodeClassMask,
                 ct).ConfigureAwait(false);
 
-
             result.AddRange(referenceDescriptions);
 
             // process any continuation point.
@@ -1298,13 +1313,18 @@ namespace Opc.Ua.Client
             }
             while (nextContinuationPoints.Count > 0)
             {
+                if (requestHeader != null)
+                {
+                    requestHeader.RequestHandle = 0;
+                }
+
                 (
                     _,
                     ByteStringCollection revisedContinuationPoints,
                     IList<ReferenceDescriptionCollection> browseNextResults,
                     IList<ServiceResult> browseNextErrors
                 ) = await BrowseNextAsync(
-                    null,
+                    requestHeader,
                     nextContinuationPoints,
                     false,
                     ct
@@ -1346,7 +1366,7 @@ namespace Opc.Ua.Client
             return (result, finalErrors);
         }
 
-        #endregion 
+        #endregion
 
         #region Call Methods
         /// <inheritdoc/>
