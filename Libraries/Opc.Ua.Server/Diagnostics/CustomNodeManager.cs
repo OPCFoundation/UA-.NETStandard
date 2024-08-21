@@ -3656,18 +3656,10 @@ namespace Opc.Ua.Server
                 samplingInterval = 365 * 24 * 3600 * 1000.0;
             }
 
+
+
             // put an upper limit on queue size.
-            uint queueSize = itemToCreate.RequestedParameters.QueueSize;
-
-            if (queueSize > m_maxQueueSize && !createDurable)
-            {
-                queueSize = m_maxQueueSize;
-            }
-
-            if (queueSize > m_maxDurableQueueSize && createDurable)
-            {
-                queueSize = m_maxDurableQueueSize;
-            }
+            uint revisedQueueSize = CalculateRevisedQueueSize(monitoredItem.IsDurable, itemToCreate.RequestedParameters.QueueSize);
 
             // validate the monitoring filter.
             Range euRange = null;
@@ -3678,7 +3670,7 @@ namespace Opc.Ua.Server
                 handle,
                 itemToCreate.ItemToMonitor.AttributeId,
                 samplingInterval,
-                queueSize,
+                revisedQueueSize,
                 parameters.Filter,
                 out filterToUse,
                 out euRange,
@@ -3705,7 +3697,7 @@ namespace Opc.Ua.Server
                 filterToUse,
                 euRange,
                 samplingInterval,
-                queueSize,
+                revisedQueueSize,
                 itemToCreate.RequestedParameters.DiscardOldest,
                 0,
                 createDurable);
@@ -4132,17 +4124,7 @@ namespace Opc.Ua.Server
             }
 
             // put an upper limit on queue size.
-            uint queueSize = itemToModify.RequestedParameters.QueueSize;
-
-            if (queueSize > m_maxQueueSize && !monitoredItem.IsDurable)
-            {
-                queueSize = m_maxQueueSize;
-            }
-
-            if (queueSize > m_maxDurableQueueSize && monitoredItem.IsDurable)
-            {
-                queueSize = m_maxDurableQueueSize;
-            }
+            uint revisedQueueSize = CalculateRevisedQueueSize(monitoredItem.IsDurable, itemToModify.RequestedParameters.QueueSize);
 
             // validate the monitoring filter.
             Range euRange = null;
@@ -4153,7 +4135,7 @@ namespace Opc.Ua.Server
                 handle,
                 datachangeItem.AttributeId,
                 samplingInterval,
-                queueSize,
+                revisedQueueSize,
                 parameters.Filter,
                 out filterToUse,
                 out euRange,
@@ -4173,7 +4155,7 @@ namespace Opc.Ua.Server
                 filterToUse,
                 euRange,
                 samplingInterval,
-                queueSize,
+                revisedQueueSize,
                 itemToModify.RequestedParameters.DiscardOldest);
 
             // report change.
@@ -4183,6 +4165,22 @@ namespace Opc.Ua.Server
             }
 
             return error;
+        }
+
+        //calculates a revised queue size based on the application confiugration limits
+        private uint CalculateRevisedQueueSize(bool isDurable, uint queueSize)
+        {
+            if (queueSize > m_maxQueueSize && !isDurable)
+            {
+                queueSize = m_maxQueueSize;
+            }
+
+            if (queueSize > m_maxDurableQueueSize && isDurable)
+            {
+                queueSize = m_maxDurableQueueSize;
+            }
+
+            return queueSize;
         }
 
         /// <summary>

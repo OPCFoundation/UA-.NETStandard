@@ -168,17 +168,7 @@ namespace Opc.Ua.Server
             }
 
             // calculate queue size.
-            uint queueSize = itemToCreate.RequestedParameters.QueueSize;
-
-            if (queueSize > m_maxQueueSize && !createDurable)
-            {
-                queueSize = m_maxQueueSize;
-            }
-
-            if (queueSize > m_maxDurableQueueSize && createDurable)
-            {
-                queueSize = m_maxDurableQueueSize;
-            }
+            uint revisedQueueSize = CalculateRevisedQueueSize(createDurable, itemToCreate.RequestedParameters.QueueSize);
 
             // get filter.
             MonitoringFilter filter = null;
@@ -191,18 +181,18 @@ namespace Opc.Ua.Server
             // update limits for event filters.
             if (filter is EventFilter)
             {
-                if (queueSize == 0)
+                if (revisedQueueSize == 0)
                 {
-                    queueSize = Int32.MaxValue;
+                    revisedQueueSize = Int32.MaxValue;
                 }
 
                 samplingInterval = 0;
             }
 
             // check if the queue size was not specified.
-            if (queueSize == 0)
+            if (revisedQueueSize == 0)
             {
-                queueSize = 1;
+                revisedQueueSize = 1;
             }
 
             // create monitored item.
@@ -222,7 +212,7 @@ namespace Opc.Ua.Server
                 filter,
                 range,
                 samplingInterval,
-                queueSize,
+                revisedQueueSize,
                 itemToCreate.RequestedParameters.DiscardOldest,
                 samplingInterval,
                 createDurable);
@@ -232,6 +222,22 @@ namespace Opc.Ua.Server
 
             // return item.
             return monitoredItem;
+        }
+
+        //calculates a revised queue size based on the application confiugration limits
+        private uint CalculateRevisedQueueSize(bool isDurable, uint queueSize)
+        {
+            if (queueSize > m_maxQueueSize && !isDurable)
+            {
+                queueSize = m_maxQueueSize;
+            }
+
+            if (queueSize > m_maxDurableQueueSize && isDurable)
+            {
+                queueSize = m_maxDurableQueueSize;
+            }
+
+            return queueSize;
         }
 
         /// <summary>
@@ -326,21 +332,11 @@ namespace Opc.Ua.Server
             }
 
             // calculate queue size.
-            uint queueSize = itemToModify.RequestedParameters.QueueSize;
+            uint revisedQueueSize = CalculateRevisedQueueSize(monitoredItem.IsDurable, itemToModify.RequestedParameters.QueueSize);
 
-            if (queueSize == 0)
+            if (revisedQueueSize == 0)
             {
-                queueSize = monitoredItem.QueueSize;
-            }
-
-            if (queueSize > m_maxQueueSize && !monitoredItem.IsDurable)
-            {
-                queueSize = m_maxQueueSize;
-            }
-
-            if (queueSize > m_maxDurableQueueSize && monitoredItem.IsDurable)
-            {
-                queueSize = m_maxDurableQueueSize;
+                revisedQueueSize = monitoredItem.QueueSize;
             }
 
 
@@ -367,7 +363,7 @@ namespace Opc.Ua.Server
                 filter,
                 range,
                 samplingInterval,
-                queueSize,
+                revisedQueueSize,
                 itemToModify.RequestedParameters.DiscardOldest);
 
             // state of item did not change if an error returned here.

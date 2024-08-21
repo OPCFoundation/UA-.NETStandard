@@ -1665,9 +1665,9 @@ namespace Opc.Ua.Server
                 default:
                 case MonitoringMode.Disabled:
                 {
-                    m_eventQueueHandler?.Dispose();
+                    Utils.SilentDispose(m_eventQueueHandler);
                     m_eventQueueHandler = null;
-                    m_dataChangeQueueHandler?.Dispose();
+                    Utils.SilentDispose(m_dataChangeQueueHandler);
                     m_dataChangeQueueHandler = null;
                     break;
                 }
@@ -1696,8 +1696,6 @@ namespace Opc.Ua.Server
                         {
                             Utils.SilentDispose(m_dataChangeQueueHandler);
                             m_dataChangeQueueHandler = null;
-                            Utils.SilentDispose(m_eventQueueHandler);
-                            m_eventQueueHandler = null;
                             break; // queueing is disabled
                         }
 
