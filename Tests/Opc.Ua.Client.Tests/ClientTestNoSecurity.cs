@@ -47,8 +47,9 @@ namespace Opc.Ua.Client.Tests
 
         public static readonly object[] FixtureArgs = {
             new object [] { Utils.UriSchemeOpcTcp},
-            new object [] { Utils.UriSchemeHttps},
-            new object [] { Utils.UriSchemeOpcHttps},
+            // https protocol security None is not supported
+            // new object [] { Utils.UriSchemeHttps},
+            // new object [] { Utils.UriSchemeOpcHttps},
         };
 
         public ClientTestNoSecurity()

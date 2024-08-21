@@ -231,6 +231,12 @@ namespace Opc.Ua.Client
             IList<NodeId> dictionaryIds,
             CancellationToken ct = default)
         {
+            var result = new Dictionary<NodeId, byte[]>();
+            if (dictionaryIds.Count == 0)
+            {
+                return result;
+            }
+
             ReadValueIdCollection itemsToRead = new ReadValueIdCollection();
             foreach (var nodeId in dictionaryIds)
             {
@@ -268,8 +274,6 @@ namespace Opc.Ua.Client
 #endif
             ClientBase.ValidateResponse(values, itemsToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
-
-            var result = new Dictionary<NodeId, byte[]>();
 
             int ii = 0;
             foreach (var nodeId in dictionaryIds)
