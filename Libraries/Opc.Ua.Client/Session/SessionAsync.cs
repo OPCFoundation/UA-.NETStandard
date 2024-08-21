@@ -1075,12 +1075,13 @@ namespace Opc.Ua.Client
                     BrowseDirection browseDirection,
                     NodeId referenceTypeId,
                     bool includeSubtypes,
-                    uint nodeClassMask,                   
+                    uint nodeClassMask,
                     CancellationToken ct = default
             )
         {
-            var result = new List<ReferenceDescriptionCollection>();
-            var errors = new List<ServiceResult>();
+            int count = nodesToBrowse.Count;
+            var result = new List<ReferenceDescriptionCollection>(count);
+            var errors = new List<ServiceResult>(count);
 
             // first attempt for implementation: create the references for the output in advance.
             // optimize later, when everything works fine.
@@ -1089,17 +1090,18 @@ namespace Opc.Ua.Client
                 result.Add(new ReferenceDescriptionCollection());
                 errors.Add(new ServiceResult(StatusCodes.Good));
             }
+
             try
             {
                 // in the first pass, we browse all nodes from the input.
                 // Some nodes may need to be browsed again, these are then fed into the next pass.
-                List<NodeId> nodesToBrowseForPass = new List<NodeId>();
+                List<NodeId> nodesToBrowseForPass = new List<NodeId>(count);
                 nodesToBrowseForPass.AddRange(nodesToBrowse);
 
-                List<ReferenceDescriptionCollection> resultForPass = new List<ReferenceDescriptionCollection>();
+                List<ReferenceDescriptionCollection> resultForPass = new List<ReferenceDescriptionCollection>(count);
                 resultForPass.AddRange(result);
 
-                List<ServiceResult> errorsForPass = new List<ServiceResult>();
+                List<ServiceResult> errorsForPass = new List<ServiceResult>(count);
                 errorsForPass.AddRange(errors);
 
                 int passCount = 0;
@@ -1117,7 +1119,7 @@ namespace Opc.Ua.Client
                     }
 
                     // split input into batches
-                    int batchCount = 0;
+                    int batchOffset = 0;
 
                     List<NodeId> nodesToBrowseForNextPass = new List<NodeId>();
                     List<ReferenceDescriptionCollection> referenceDescriptionsForNextPass = new List<ReferenceDescriptionCollection>();
@@ -1126,7 +1128,7 @@ namespace Opc.Ua.Client
                     // loop over the batches
                     foreach (var nodesToBrowseBatch in ((List<NodeId>)nodesToBrowseForPass).Batch<NodeId, List<NodeId>>(maxNodesPerBrowse))
                     {
-                        int batchOffset = batchCount * (int)maxNodesPerBrowse;
+                        int nodesToBrowseBatchCount = nodesToBrowseBatch.Count;
 
                         (
                             IList<ReferenceDescriptionCollection> resultForBatch,
@@ -1144,28 +1146,44 @@ namespace Opc.Ua.Client
                                 nodeClassMask
                             ).ConfigureAwait(false);
 
-                        for (int ii = 0; ii < nodesToBrowseBatch.Count; ii++)
+                        int resultOffset = batchOffset;
+                        for (int ii = 0; ii < nodesToBrowseBatchCount; ii++)
                         {
-                            if (errorsForBatch[ii].StatusCode == StatusCodes.BadNoContinuationPoints ||
-                                errorsForBatch[ii].StatusCode == StatusCodes.BadContinuationPointInvalid)
+                            var statusCode = errorsForBatch[ii].StatusCode;
+                            if (StatusCode.IsBad(statusCode))
                             {
-                                nodesToBrowseForNextPass.Add(nodesToBrowseForPass[batchOffset + ii]);
-                                referenceDescriptionsForNextPass.Add(resultForPass[batchOffset + ii]);
-                                errorsForNextPass.Add(errorsForPass[batchOffset + ii]);
+                                bool addToNextPass = false;
+                                if (statusCode == StatusCodes.BadNoContinuationPoints)
+                                {
+                                    addToNextPass = true;
+                                    badNoCPErrorsPerPass++;
+                                }
+                                else if (statusCode == StatusCodes.BadContinuationPointInvalid)
+                                {
+                                    addToNextPass = true;
+                                    badCPInvalidErrorsPerPass++;
+                                }
+                                else
+                                {
+                                    otherErrorsPerPass++;
+                                }
+
+                                if (addToNextPass)
+                                {
+                                    nodesToBrowseForNextPass.Add(nodesToBrowseForPass[resultOffset]);
+                                    referenceDescriptionsForNextPass.Add(resultForPass[resultOffset]);
+                                    errorsForNextPass.Add(errorsForPass[resultOffset]);
+                                }
                             }
 
-                            resultForPass[batchOffset + ii].Clear();
-                            resultForPass[batchOffset + ii].AddRange(resultForBatch[ii]);
-                            errorsForPass[batchOffset + ii] = errorsForBatch[ii];
-
+                            resultForPass[resultOffset].Clear();
+                            resultForPass[resultOffset].AddRange(resultForBatch[ii]);
+                            errorsForPass[resultOffset] = errorsForBatch[ii];
+                            resultOffset++;
                         }
 
-                        batchCount++;
+                        batchOffset += nodesToBrowseBatchCount;
                     }
-
-                    badCPInvalidErrorsPerPass = errorsForPass.Count(x => x.StatusCode == StatusCodes.BadContinuationPointInvalid);
-                    badNoCPErrorsPerPass = errorsForPass.Count(x => x.StatusCode == StatusCodes.BadNoContinuationPoints);
-                    otherErrorsPerPass = errorsForPass.Count(x => StatusCode.IsBad(x.StatusCode)) - badNoCPErrorsPerPass - badCPInvalidErrorsPerPass;
 
                     resultForPass = referenceDescriptionsForNextPass;
                     referenceDescriptionsForNextPass = new List<ReferenceDescriptionCollection>();
@@ -1176,26 +1194,26 @@ namespace Opc.Ua.Client
                     nodesToBrowseForPass = nodesToBrowseForNextPass;
                     nodesToBrowseForNextPass = new List<NodeId>();
 
-                    String aggregatedErrorMessage = "ManagedBrowse: in pass {0}, {1} {2} occured with a status code {3}.";
+                    string aggregatedErrorMessage = "ManagedBrowse: in pass {0}, {1} {2} occured with a status code {3}.";
 
                     if (badCPInvalidErrorsPerPass > 0)
                     {
-                        Utils.LogTrace(aggregatedErrorMessage, passCount, badCPInvalidErrorsPerPass,
+                        Utils.LogDebug(aggregatedErrorMessage, passCount, badCPInvalidErrorsPerPass,
                             badCPInvalidErrorsPerPass == 1 ? "error" : "errors", nameof(StatusCodes.BadContinuationPointInvalid));
                     }
                     if (badNoCPErrorsPerPass > 0)
                     {
-                        Utils.LogTrace(aggregatedErrorMessage, passCount, badNoCPErrorsPerPass,
+                        Utils.LogDebug(aggregatedErrorMessage, passCount, badNoCPErrorsPerPass,
                             badNoCPErrorsPerPass == 1 ? "error" : "errors", nameof(StatusCodes.BadNoContinuationPoints));
                     }
                     if (otherErrorsPerPass > 0)
                     {
-                        Utils.LogTrace(aggregatedErrorMessage, passCount, otherErrorsPerPass,
+                        Utils.LogDebug(aggregatedErrorMessage, passCount, otherErrorsPerPass,
                             otherErrorsPerPass == 1 ? "error" : "errors", $"different from {nameof(StatusCodes.BadNoContinuationPoints)} or {nameof(StatusCodes.BadContinuationPointInvalid)}");
                     }
                     if (otherErrorsPerPass == 0 && badCPInvalidErrorsPerPass == 0 && badNoCPErrorsPerPass == 0)
                     {
-                        Utils.LogTrace("MangedBrowse completed with no errors.");
+                        Utils.LogTrace("ManagedBrowse completed with no errors.");
                     }
 
                     passCount++;
@@ -1240,7 +1258,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default
             )
         {
-            if(requestHeader != null )
+            if (requestHeader != null)
             {
                 requestHeader.RequestHandle = 0;
             }
@@ -1263,7 +1281,6 @@ namespace Opc.Ua.Client
                 includeSubtypes,
                 nodeClassMask,
                 ct).ConfigureAwait(false);
-
 
             result.AddRange(referenceDescriptions);
 
@@ -1296,6 +1313,10 @@ namespace Opc.Ua.Client
             }
             while (nextContinuationPoints.Count > 0)
             {
+                if (requestHeader != null)
+                {
+                    requestHeader.RequestHandle = 0;
+                }
 
                 (
                     _,
@@ -1303,12 +1324,11 @@ namespace Opc.Ua.Client
                     IList<ReferenceDescriptionCollection> browseNextResults,
                     IList<ServiceResult> browseNextErrors
                 ) = await BrowseNextAsync(
-                    null,
+                    requestHeader,
                     nextContinuationPoints,
                     false,
                     ct
                     ).ConfigureAwait(false);
-
 
                 for (int ii = 0; ii < browseNextResults.Count; ii++)
                 {
@@ -1346,7 +1366,7 @@ namespace Opc.Ua.Client
             return (result, finalErrors);
         }
 
-        #endregion 
+        #endregion
 
         #region Call Methods
         /// <inheritdoc/>
@@ -1479,7 +1499,7 @@ namespace Opc.Ua.Client
             catch (Exception e)
             {
                 session.Dispose();
-                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", sessionTemplate.SessionName);
+                ThrowCouldNotRecreateSessionException(e, sessionTemplate.m_sessionName);
             }
 
             return session;
@@ -1527,7 +1547,7 @@ namespace Opc.Ua.Client
             catch (Exception e)
             {
                 session.Dispose();
-                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", sessionTemplate.m_sessionName);
+                ThrowCouldNotRecreateSessionException(e, sessionTemplate.m_sessionName);
             }
 
             return session;
@@ -1573,7 +1593,7 @@ namespace Opc.Ua.Client
             catch (Exception e)
             {
                 session.Dispose();
-                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", sessionTemplate.m_sessionName);
+                ThrowCouldNotRecreateSessionException(e, sessionTemplate.m_sessionName);
             }
 
             return session;
