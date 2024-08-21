@@ -821,11 +821,11 @@ namespace Opc.Ua.Client.Tests
 
         [Theory, Order(810)]
         [Explicit]
-        public Task TransferSubscriptionSync(TransferType transferType, bool sendInitialValues, bool sequentialPublishing, bool asyncTransfer)
+        public Task TransferSubscriptionSync(TransferType transferType, bool sendInitialValues, bool sequentialPublishing)
             => InternalTransferSubscriptionAsync(transferType, sendInitialValues, sequentialPublishing, false);
 
         [Theory, Order(811)]
-        public Task TransferSubscriptionOnlyAsync(TransferType transferType, bool sendInitialValues, bool sequentialPublishing, bool asyncTransfer)
+        public Task TransferSubscriptionOnlyAsync(TransferType transferType, bool sendInitialValues, bool sequentialPublishing)
             => InternalTransferSubscriptionAsync(transferType, sendInitialValues, sequentialPublishing, true);
 
         public async Task InternalTransferSubscriptionAsync(TransferType transferType, bool sendInitialValues, bool sequentialPublishing, bool asyncTransfer)
