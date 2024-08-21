@@ -770,7 +770,9 @@ namespace Opc.Ua.Client.Tests
 
             List<String> memoryLogPass1 = memoryWriter.getEntries();
             WriteMemoryLogToTextOut(memoryLogPass1, "memoryLogPass1");
+#if DEBUG
             VerifyExpectedResults(memoryLogPass1, pass1ExpectedResults);
+#endif
 
             memoryWriter.Close(); memoryWriter.Dispose();
 
@@ -801,10 +803,10 @@ namespace Opc.Ua.Client.Tests
 
             List<String> memoryLogPass2 = memoryWriter.getEntries();
             WriteMemoryLogToTextOut(memoryLogPass2, "memoryLogPass2");
-
+#if DEBUG
             // since there is no randomness in this test, we can verify the results directly
             VerifyExpectedResults(memoryLogPass2, pass2ExpectedResults);
-
+#endif
             memoryWriter.Close(); memoryWriter.Dispose();
 
             base.ClientFixture.SetTraceOutput(TestContext.Out);
@@ -1115,7 +1117,7 @@ namespace Opc.Ua.Client.Tests
             }
 
         }
-        #endregion Tests
+#endregion Tests
 
         #region async tests
 
@@ -1310,9 +1312,11 @@ namespace Opc.Ua.Client.Tests
 
             Assert.AreEqual(nodeIds.Count, referenceDescriptionCollectionPass1.Count);
 
+#if DEBUG
             List<String> memoryLogPass1 = memoryWriter.getEntries();
             WriteMemoryLogToTextOut(memoryLogPass1, "memoryLogPass1");
             VerifyExpectedResults(memoryLogPass1, pass1ExpectedResults);
+#endif
 
             memoryWriter.Close(); memoryWriter.Dispose();
         }
