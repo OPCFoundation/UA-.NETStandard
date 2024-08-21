@@ -411,12 +411,17 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     [TestFixture, Category("Client"), Category("ManagedBrowseWithBrowseNext")]
     [SetCulture("en-us"), SetUICulture("en-us")]
-    [TestFixtureSource(nameof(FixtureArgs))]
+    [TestFixtureSource(nameof(CPFixtureArgs))]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
 
     public class ContinuationPointInBatchTest : ClientTestFramework
     {
+
+        public static readonly object[] CPFixtureArgs = {
+            new object [] { Utils.UriSchemeOpcTcp}
+        };
+
         [DatapointSource]
         public IEnumerable<ManagedBrowseTestDataProvider> ManagedBrowseTestDataValues()
         {
