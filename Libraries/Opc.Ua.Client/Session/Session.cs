@@ -4398,7 +4398,7 @@ namespace Opc.Ua.Client
 
                     value = attributes[Attributes.EventNotifier];
 
-                    if (value == null)
+                    if (value == null || value.Value is null)
                     {
                         throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Object does not support the EventNotifier attribute.");
                     }
