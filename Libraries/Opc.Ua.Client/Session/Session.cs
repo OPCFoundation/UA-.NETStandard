@@ -4366,7 +4366,12 @@ namespace Opc.Ua.Client
                                 attributeId == Attributes.RolePermissions ||
                                 attributeId == Attributes.UserRolePermissions ||
                                 attributeId == Attributes.UserWriteMask ||
-                                attributeId == Attributes.WriteMask)
+                                attributeId == Attributes.WriteMask ||
+                                attributeId == Attributes.AccessLevelEx ||
+                                attributeId == Attributes.ArrayDimensions ||
+                                attributeId == Attributes.DataTypeDefinition ||
+                                attributeId == Attributes.InverseName ||
+                                attributeId == Attributes.MinimumSamplingInterval)
                             {
                                 continue;
                             }
