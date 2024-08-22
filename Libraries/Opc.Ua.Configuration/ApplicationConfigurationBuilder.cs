@@ -857,7 +857,7 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderServerOptions SetMaxdurableNotificationQueueSize(int maxDurableNotificationQueueSize)
+        public IApplicationConfigurationBuilderServerOptions SetMaxDurableNotificationQueueSize(int maxDurableNotificationQueueSize)
         {
             ApplicationConfiguration.ServerConfiguration.MaxDurableNotificationQueueSize = maxDurableNotificationQueueSize;
             return this;

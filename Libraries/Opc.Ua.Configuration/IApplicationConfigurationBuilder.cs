@@ -270,7 +270,7 @@ namespace Opc.Ua.Configuration
         IApplicationConfigurationBuilderServerOptions SetDurableSubscriptionsEnabled(bool durableSubscriptionsEnabled);
 
         /// <inheritdoc cref="ServerConfiguration.MaxDurableNotificationQueueSize"/>
-        IApplicationConfigurationBuilderServerOptions SetMaxdurableNotificationQueueSize(int maxDurableNotificationQueueSize);
+        IApplicationConfigurationBuilderServerOptions SetMaxDurableNotificationQueueSize(int maxDurableNotificationQueueSize);
 
         /// <inheritdoc cref="ServerConfiguration.MaxDurableEventQueueSize"/>
         IApplicationConfigurationBuilderServerOptions SetMaxDurableEventQueueSize(int maxDurableEventQueueSize);

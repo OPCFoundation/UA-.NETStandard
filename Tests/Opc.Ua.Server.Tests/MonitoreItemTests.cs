@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
@@ -10,25 +11,28 @@ namespace Opc.Ua.Server.Tests
     /// Test MonitoredItem
     /// </summary>
     [TestFixture, Category("MonitoredItem")]
+    [TestFixtureSource(nameof(FixtureArgs))]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [Parallelizable]
     [MemoryDiagnoser]
     public class MonitoreItemTests
     {
-        private IMonitoredItemQueueFactory m_factory;
-        #region Benchmark Setup
+        #region Setup
         /// <summary>
-        /// Set up a Reference Server a session
+        /// Queue Factories to run the test with
         /// </summary>
-        [OneTimeSetUp]
-        [GlobalSetup]
-        public void GlobalSetup()
+        public static readonly object[] FixtureArgs = {
+            new object [] { new MonitoredItemQueueFactory()},
+            new object [] { new DurableMonitoredItemQueueFactory() }
+        };
+        public MonitoreItemTests(IMonitoredItemQueueFactory factory)
         {
-            m_factory = new MonitoredItemQueueFactory();
+            m_factory = factory;
         }
+
+        private readonly IMonitoredItemQueueFactory m_factory;
         #endregion
         #region dataChangeQueue
-
         [Test]
         public void EnqueueDequeueDataValue()
         {
@@ -480,6 +484,54 @@ namespace Opc.Ua.Server.Tests
             Assert.That(status2, Is.False);
             Assert.That(result2, Is.Null);
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void EventQueueIsEventContainedInQueue()
+        {
+            var queue = m_factory.CreateEventQueue(false);
+
+            queue.SetQueueSize(2, false);
+
+            Assert.That(queue.QueueSize, Is.EqualTo(2));
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
+
+            var value = new EventFieldList {
+                EventFields = new VariantCollection(1) {
+                        new Variant(true)
+                    },
+                Handle = new AuditSessionEventState(null)
+            };
+
+            queue.Enqueue(value);
+
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
+            var value2 = new EventFieldList {
+                EventFields = new VariantCollection(1) {
+                        new Variant(false)
+                    },
+                Handle = new AuditUrlMismatchEventState(null)
+            };
+
+            bool result = queue.IsEventContainedInQueue((IFilterTarget)value.Handle);
+
+            Assert.That(result, Is.True);
+
+            bool result2 = queue.IsEventContainedInQueue((IFilterTarget)value2.Handle);
+
+            Assert.That(result2, Is.False);
+
+            queue.Enqueue(value2);
+
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(2));
+
+            bool result3 = queue.IsEventContainedInQueue((IFilterTarget)value.Handle);
+
+            Assert.That(result3, Is.True);
+
+            bool result4 = queue.IsEventContainedInQueue((IFilterTarget)value2.Handle);
+
+            Assert.That(result4, Is.True);
         }
 
         [Test]
@@ -1069,6 +1121,62 @@ namespace Opc.Ua.Server.Tests
             Assert.That(resultError2, Is.Null);
             Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(0));
         }
+
+        [Test]
+        public void DataValueInitialDataOverWritesLastValue()
+        {
+            bool called = false;
+            Action discardedValueHandler = () => { called = true; };
+
+            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, discardedValueHandler);
+
+            queueHandler.SetQueueSize(10, true, DiagnosticsMasks.All);
+
+            Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(0));
+
+            var dataValue = new DataValue(new Variant(true)) { StatusCode = StatusCodes.BadWaitingForInitialData };
+
+            for (int i = 0; i < 5; i++)
+            {
+                queueHandler.QueueValue(dataValue, null);
+            }
+
+            var statuscode2 = new ServiceResult(StatusCodes.Good);
+            var dataValue2 = new DataValue(new Variant(true));
+
+            queueHandler.QueueValue(dataValue2, statuscode2);
+
+
+            Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(1));
+
+
+            Assert.That(called, Is.False);
+
+            bool status = queueHandler.PublishSingleValue(out DataValue result, out ServiceResult resultError);
+
+            Assert.That(status, Is.True);
+            Assert.That(result, Is.EqualTo(dataValue2));
+        }
         #endregion
+
+        [Test]
+        public void FactorySupportsDurable()
+        {
+            if (m_factory.SupportsDurableQueues)
+            {
+                var dataChangeQueue = m_factory.CreateDataChangeQueue(true);
+
+                Assert.That(dataChangeQueue.IsDurable, Is.True);
+
+                var eventQueue = m_factory.CreateEventQueue(true);
+
+                Assert.That(eventQueue.IsDurable, Is.True);
+            }
+            else
+            {
+                Assert.Throws<ArgumentException>(() => m_factory.CreateDataChangeQueue(true));
+                Assert.Throws<ArgumentException>(() => m_factory.CreateEventQueue(true));
+            }
+        }
     }
 }
