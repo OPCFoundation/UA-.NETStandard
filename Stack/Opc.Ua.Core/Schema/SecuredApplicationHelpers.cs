@@ -390,7 +390,7 @@ namespace Opc.Ua.Security
             {
                 case SecurityPolicies.Basic128Rsa15:
                 {
-                    Utils.LogWarning("Security level Basic 128 Rsa 15 requested as Security Policy {policy} - Not Recommended.", policyUri);
+                    Utils.LogWarning("Deprecated Security Policy Basic128Rsa15 requested - Not rcommended.");
                     result = 2;
                     break;
                 }
