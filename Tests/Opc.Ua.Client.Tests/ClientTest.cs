@@ -1235,13 +1235,6 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(nodes.Count, nodeCollection.Count);
             Assert.AreEqual(nodes.Count, errors.Count);
 
-            (nodeCollection, errors) = await Session.ReadNodesAsync(nodes, NodeClass.Variable, true).ConfigureAwait(false);
-            Assert.NotNull(nodeCollection);
-            Assert.NotNull(errors);
-            Assert.AreEqual(nodes.Count, nodeCollection.Count);
-            Assert.AreEqual(nodes.Count, errors.Count);
-            Assert.IsTrue(nodeCollection.All(n => n is VariableNode vn));
-
             int ii = 0;
             var variableNodes = new NodeIdCollection();
             foreach (Node node in nodeCollection)

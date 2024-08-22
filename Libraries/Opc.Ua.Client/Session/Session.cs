@@ -4358,15 +4358,6 @@ namespace Opc.Ua.Client
                             continue;
                         }
 
-                        // ignore errors with attributes, which were not in 1.03 
-                        if (values[ii].StatusCode == StatusCodes.BadNodeIdUnknown)
-                        {
-                            if (attributeId == Attributes.AccessLevelEx)
-                            {
-                                continue;
-                            }
-                        }
-
                         // ignore errors on optional attributes
                         if (StatusCode.IsBad(values[ii].StatusCode))
                         {
@@ -4375,7 +4366,12 @@ namespace Opc.Ua.Client
                                 attributeId == Attributes.RolePermissions ||
                                 attributeId == Attributes.UserRolePermissions ||
                                 attributeId == Attributes.UserWriteMask ||
-                                attributeId == Attributes.WriteMask)
+                                attributeId == Attributes.WriteMask ||
+                                attributeId == Attributes.AccessLevelEx ||
+                                attributeId == Attributes.ArrayDimensions ||
+                                attributeId == Attributes.DataTypeDefinition ||
+                                attributeId == Attributes.InverseName ||
+                                attributeId == Attributes.MinimumSamplingInterval)
                             {
                                 continue;
                             }
