@@ -4366,7 +4366,8 @@ namespace Opc.Ua.Client
                                 attributeId == Attributes.RolePermissions ||
                                 attributeId == Attributes.UserRolePermissions ||
                                 attributeId == Attributes.UserWriteMask ||
-                                attributeId == Attributes.WriteMask)
+                                attributeId == Attributes.WriteMask ||
+                                attributeId == Attributes.AccessLevelEx)
                             {
                                 continue;
                             }
@@ -4501,10 +4502,9 @@ namespace Opc.Ua.Client
                         variableNode.MinimumSamplingInterval = Convert.ToDouble(attributes[Attributes.MinimumSamplingInterval].Value, CultureInfo.InvariantCulture);
                     }
 
-                    // AccessLevelEx Attribute
-                    value = attributes[Attributes.AccessLevelEx];
-
-                    if (value != null)
+                    // AccessLevelEx Attribute (optional, since it is missing in 1.03)
+                    if (attributes.TryGetValue(Attributes.AccessLevelEx, out value) &&
+                        value != null)
                     {
                         variableNode.AccessLevelEx = (uint)value.GetValue(typeof(uint));
                     }
