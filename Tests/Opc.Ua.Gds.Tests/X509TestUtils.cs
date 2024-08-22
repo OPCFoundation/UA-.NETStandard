@@ -156,7 +156,7 @@ namespace Opc.Ua.Gds.Tests
                 Assert.True(domainNames.Contains(domainName, StringComparer.OrdinalIgnoreCase));
             }
             Assert.True(subjectAlternateName.Uris.Count == 1);
-            var applicationUri = X509Utils.GetApplicationUriFromCertificate(signedCert);
+            var applicationUri = X509Utils.GetApplicationUrisFromCertificate(signedCert).FirstOrDefault();
             Assert.True(testApp.ApplicationRecord.ApplicationUri == applicationUri);
         }
     }
