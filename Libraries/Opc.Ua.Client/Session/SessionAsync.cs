@@ -1308,7 +1308,6 @@ namespace Opc.Ua.Client
                         nextResults.Add(previousResults[ii]);
                         nextErrors.Add(previousErrors[ii]);
                     }
-                    // ToDo: status code is bad and continuation point is not null
                 }
             }
             while (nextContinuationPoints.Count > 0)
