@@ -2416,24 +2416,24 @@ namespace Opc.Ua.Client
             if (!successCreateSession)
             {
                 base.CreateSession(
-                        null,
-                        clientDescription,
-                        m_endpoint.Description.Server.ApplicationUri,
-                        m_endpoint.EndpointUrl.ToString(),
-                        sessionName,
-                        clientNonce,
-                        clientCertificateChainData != null ? clientCertificateChainData : clientCertificateData,
-                        sessionTimeout,
-                        (uint)MessageContext.MaxMessageSize,
-                        out sessionId,
-                        out sessionCookie,
-                        out m_sessionTimeout,
-                        out serverNonce,
-                        out serverCertificateData,
-                        out serverEndpoints,
-                        out serverSoftwareCertificates,
-                        out serverSignature,
-                        out m_maxRequestMessageSize);
+                    null,
+                    clientDescription,
+                    m_endpoint.Description.Server.ApplicationUri,
+                    m_endpoint.EndpointUrl.ToString(),
+                    sessionName,
+                    clientNonce,
+                    clientCertificateChainData != null ? clientCertificateChainData : clientCertificateData,
+                    sessionTimeout,
+                    (uint)MessageContext.MaxMessageSize,
+                    out sessionId,
+                    out sessionCookie,
+                    out m_sessionTimeout,
+                    out serverNonce,
+                    out serverCertificateData,
+                    out serverEndpoints,
+                    out serverSoftwareCertificates,
+                    out serverSignature,
+                    out m_maxRequestMessageSize);
             }
 
             // save session id.
@@ -5361,24 +5361,23 @@ namespace Opc.Ua.Client
         /// with the applicationUri of the server description before the validation.
         /// </summary>
         private static void ValidateServerCertificateApplicationUri(ConfiguredEndpoint endpoint, X509Certificate2 serverCertificate)
-            X509Certificate2 serverCertificate)
         {
             if (serverCertificate != null)
             {
                 var applicationUri = endpoint?.Description?.Server?.ApplicationUri;
 
                 // check that an ApplicatioUri is specified for the Endpoint
-            if (string.IsNullOrEmpty(applicationUri))
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadSecurityChecksFailed,
+                if (string.IsNullOrEmpty(applicationUri))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityChecksFailed,
                         "Server did not return an ApplicationUri in the EndpointDescription.");
-            }
+                }
 
                 bool noMatch = true;
                 var certificateApplicationUris = X509Utils.GetApplicationUrisFromCertificate(serverCertificate);
                 foreach (var certificateApplicationUri in certificateApplicationUris)
-            {
+                {
                     if (string.Equals(certificateApplicationUri, applicationUri, StringComparison.Ordinal))
                     {
                         noMatch = false;
@@ -5388,11 +5387,11 @@ namespace Opc.Ua.Client
 
                 if (noMatch)
                 {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadSecurityChecksFailed,
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityChecksFailed,
                         "Server did not return the ApplicationUri in the EndpointDescription that is used in the server certificate.");
+                }
             }
-        }
         }
 
         private void BuildCertificateData(out byte[] clientCertificateData, out byte[] clientCertificateChainData)
