@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
+using System.Linq;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
+using Microsoft.AspNetCore.Hosting.Server;
+using Moq;
 using NUnit.Framework;
 
 namespace Opc.Ua.Server.Tests
@@ -92,6 +94,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(resultError3, Is.Null);
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
         }
+
+
 
         [Test]
         public void DataValueOverflow()
@@ -1178,5 +1182,132 @@ namespace Opc.Ua.Server.Tests
                 Assert.Throws<ArgumentException>(() => m_factory.CreateEventQueue(true));
             }
         }
+
+        #region MonitoredItemDurable
+        [Test]
+        public void CreateDurableMI()
+        {
+            if (m_factory.SupportsDurableQueues)
+            {
+                MonitoredItem monitoredItem = CreateDurableMonitoredItem();
+                Assert.That(monitoredItem, Is.Not.Null);
+                Assert.That(monitoredItem.IsDurable, Is.True);
+                Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
+
+                var statuscode = new ServiceResult(StatusCodes.Good);
+                var dataValue = new DataValue(new Variant(true));
+
+                monitoredItem.QueueValue(dataValue, statuscode);
+
+                Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(1));
+
+                var result = new Queue<MonitoredItemNotification>();
+                var result2 = new Queue<DiagnosticInfo>();
+                monitoredItem.Publish(new OperationContext(monitoredItem), result, result2, 1);
+
+                Assert.That(result, Is.Not.Empty);
+                Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
+                MonitoredItemNotification publishResult = result.FirstOrDefault();
+                Assert.That(publishResult?.Value, Is.EqualTo(dataValue));
+                DiagnosticInfo publishErrorResult = result2.FirstOrDefault();
+                Assert.That(publishErrorResult.InnerStatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            }
+            else
+            {
+                Assert.Throws<ServiceResultException>(() => CreateDurableMonitoredItem());
+            }
+        }
+
+        [Test]
+        public void CreateDurableEventMI()
+        {
+            if (!m_factory.SupportsDurableQueues)
+            {
+                Assert.Ignore("Test only works with durable queues");
+            }
+            MonitoredItem monitoredItem = CreateDurableMonitoredItem(true);
+            Assert.That(monitoredItem, Is.Not.Null);
+            Assert.That(monitoredItem.IsDurable, Is.True);
+            Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
+
+            monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
+
+            Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(1));
+
+
+            var result = new Queue<EventFieldList>();
+            monitoredItem.Publish(new OperationContext(monitoredItem), result, 1);
+
+            Assert.That(result, Is.Not.Empty);
+            Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
+            EventFieldList publishResult = result.FirstOrDefault();
+            Assert.That(publishResult, Is.Not.Null);
+            Assert.That(publishResult.Handle, Is.AssignableTo(typeof(AuditUrlMismatchEventState)));
+        }
+
+        [Test]
+        public void CreateDurableMIQueueNoQueue()
+        {
+            if (!m_factory.SupportsDurableQueues)
+            {
+                Assert.Ignore("Test only works with durable queues");
+            }
+
+            MonitoredItem monitoredItem = CreateDurableMonitoredItem(false, 0);
+
+            Assert.That(monitoredItem.QueueSize, Is.EqualTo(1));
+
+            var statuscode = new ServiceResult(StatusCodes.Good);
+            var dataValue = new DataValue(new Variant(true));
+
+            monitoredItem.QueueValue(dataValue, statuscode);
+
+
+            var result = new Queue<MonitoredItemNotification>();
+            var result2 = new Queue<DiagnosticInfo>();
+            monitoredItem.Publish(new OperationContext(monitoredItem), result, result2, 1);
+
+            Assert.That(result, Is.Not.Empty);
+            MonitoredItemNotification publishResult = result.FirstOrDefault();
+            Assert.That(publishResult?.Value, Is.EqualTo(dataValue));
+            DiagnosticInfo publishErrorResult = result2.FirstOrDefault();
+            Assert.That(publishErrorResult.InnerStatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+        }
+        #endregion
+
+        #region private methods
+        private MonitoredItem CreateDurableMonitoredItem(bool events = false, uint queueSize = 10)
+        {
+            MonitoringFilter filter = events ? new EventFilter() : new MonitoringFilter();
+
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.MonitoredItemQueueFactory).Returns(m_factory);
+            serverMock.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
+            serverMock.Setup(s => s.TypeTree).Returns(new TypeTable(new NamespaceTable()));
+
+            var nodeMangerMock = new Mock<INodeManager>();
+
+            return new MonitoredItem(
+                serverMock.Object,
+                nodeMangerMock.Object,
+                null,
+                1,
+                2,
+                new ReadValueId(),
+                DiagnosticsMasks.All,
+                TimestampsToReturn.Server,
+                MonitoringMode.Reporting,
+                3,
+                filter,
+                filter,
+                null,
+                1000.0,
+                queueSize,
+                true,
+                1000,
+                true
+                );
+        }
+        #endregion
     }
 }

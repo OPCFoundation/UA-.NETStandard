@@ -45,7 +45,7 @@ namespace Opc.Ua.Server
         public IDataChangeMonitoredItemQueue CreateDataChangeQueue(bool createDurable)
         {
             //return new DurableDataChangeMonitoredItemQueue(createDurable);
-            return new DurableDataChangeMonitoredItemQueueWithArray(createDurable);
+            return new DurableDataChangeMonitoredItemQueue(createDurable);
         }
 
         /// <inheritdoc/>
@@ -77,12 +77,12 @@ namespace Opc.Ua.Server
         #endregion
     }
 
-    public class DurableDataChangeMonitoredItemQueueWithArray : DataChangeMonitoredItemQueue
+    public class DurableDataChangeMonitoredItemQueue : DataChangeMonitoredItemQueue
     {
         /// <summary>
         /// Creates an empty queue.
         /// </summary>
-        public DurableDataChangeMonitoredItemQueueWithArray(bool createDurable) : base(false)
+        public DurableDataChangeMonitoredItemQueue(bool createDurable) : base(false)
         {
             IsDurable = createDurable;
         }
@@ -93,153 +93,4 @@ namespace Opc.Ua.Server
         #endregion
     }
 
-    /// <summary>
-    /// Provides a queue for data changes.
-    /// </summary>
-    public class DurableDataChangeMonitoredItemQueue : IDataChangeMonitoredItemQueue
-    {
-        /// <summary>
-        /// Creates an empty queue.
-        /// </summary>
-        public DurableDataChangeMonitoredItemQueue(bool createDurable)
-        {
-            m_values = new List<DataValue>();
-            m_errors = new List<ServiceResult>();
-            m_queueSize = 0;
-            m_isDurable = createDurable;
-            m_queueErrors = false;
-        }
-
-        #region Public Methods
-
-        /// <summary>
-        /// Gets the current queue size.
-        /// </summary>
-        public uint QueueSize
-        {
-            get
-            {
-                return m_queueSize;
-            }
-        }
-
-        /// <summary>
-        /// Gets number of elements actually contained in value queue.
-        /// </summary>
-        public int ItemsInQueue
-        {
-            get
-            {
-                return m_values.Count;
-            }
-        }
-        /// <inheritdoc/>
-        public bool IsDurable => m_isDurable;
-
-
-        /// <summary>
-        /// Adds the value to the queue.
-        /// </summary>
-        /// <param name="value">The value to queue.</param>
-        /// <param name="error">The error to queue.</param>
-        public void Enqueue(DataValue value, ServiceResult error)
-        {
-            if (m_queueSize == 0)
-            {
-                throw new InvalidOperationException("Cannot enqueue Value. Queue size not set.");
-            }
-            if (m_values.Count == m_queueSize && !Dequeue(out _, out _))
-            {
-                //Queue is full, but no deque possible
-                return;
-            }
-            m_values.Add(value);
-
-            if (m_queueErrors)
-            {
-                m_errors.Add(error);
-            }
-        }
-        /// <inheritdoc/>
-        public void Dispose()
-        {
-            //only needed for unmanaged resources
-        }
-
-        /// <inheritdoc/>
-        public void OverwriteLastValue(DataValue value, ServiceResult error)
-        {
-            if (ItemsInQueue == 0)
-            {
-                throw new InvalidOperationException("Cannot overwrite Value. Queue is empty.");
-            }
-            if (m_values.Count != 0)
-            {
-                m_values.Remove(m_values.Last());
-
-                if (m_queueErrors && m_errors.Count != 0)
-                {
-                    m_errors.Remove(m_errors.Last());
-                }
-            }
-
-            m_values.Add(value);
-
-            if (m_queueErrors)
-            {
-                m_errors.Add(error);
-            }
-        }
-
-        /// <inheritdoc/>
-        public void ResetQueue(uint queueSize, bool queueErrors)
-        {
-            m_queueErrors = queueErrors;
-            m_queueSize = queueSize;
-
-            m_values = new List<DataValue>();
-            m_errors = new List<ServiceResult>();
-        }
-
-        /// <inheritdoc/>
-        public DataValue PeekLastValue()
-        {
-            if (m_values.Count == 0)
-            {
-                return null;
-            }
-
-            return m_values.Last();
-        }
-
-        /// <inheritdoc/>
-        public bool Dequeue(out DataValue value, out ServiceResult error)
-        {
-            value = null;
-            error = null;
-            if (m_values.Any())
-            {
-                value = m_values.First();
-                m_values.RemoveAt(0);
-
-                if (m_queueErrors && m_errors.Any())
-                {
-                    error = m_errors.First();
-                    m_errors.RemoveAt(0);
-                }
-                return true;
-            }
-            return false;
-        }
-
-        #endregion
-
-        #region Private Fields
-        private List<DataValue> m_values;
-        private List<ServiceResult> m_errors;
-        private uint m_queueSize;
-        private bool m_queueErrors;
-        private readonly bool m_isDurable;
-        #endregion
-    }
 }
