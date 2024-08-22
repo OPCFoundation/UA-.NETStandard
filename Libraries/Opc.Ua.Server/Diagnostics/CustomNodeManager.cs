@@ -3659,7 +3659,7 @@ namespace Opc.Ua.Server
 
 
             // put an upper limit on queue size.
-            uint revisedQueueSize = CalculateRevisedQueueSize(monitoredItem.IsDurable, itemToCreate.RequestedParameters.QueueSize);
+            uint revisedQueueSize = CalculateRevisedQueueSize(createDurable, itemToCreate.RequestedParameters.QueueSize);
 
             // validate the monitoring filter.
             Range euRange = null;
