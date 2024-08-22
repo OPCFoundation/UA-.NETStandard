@@ -126,6 +126,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificate">The certificate.</param>
         /// <returns>The application URI.</returns>
+        [Obsolete("Use GetApplicationUrisFromCertificate instead. The certificate may contain more than one Uri.")]
         public static string GetApplicationUriFromCertificate(X509Certificate2 certificate)
         {
             // extract the alternate domains from the subject alternate name extension.
@@ -138,6 +139,25 @@ namespace Opc.Ua
             }
 
             return string.Empty;
+        }
+
+        /// <summary>
+        /// Extracts the application URIs specified in the certificate.
+        /// </summary>
+        /// <param name="certificate">The certificate.</param>
+        /// <returns>The application URIs.</returns>
+        public static IReadOnlyList<string> GetApplicationUrisFromCertificate(X509Certificate2 certificate)
+        {
+            // extract the alternate domains from the subject alternate name extension.
+            X509SubjectAltNameExtension alternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
+
+            // get the application uris.
+            if (alternateName != null && alternateName.Uris != null)
+            {
+                return alternateName.Uris;
+            }
+
+            return new List<string>();
         }
 
         /// <summary>

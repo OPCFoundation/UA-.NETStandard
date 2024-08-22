@@ -380,23 +380,33 @@ namespace Opc.Ua.Server
 
                         if (context.SecurityPolicyUri != SecurityPolicies.None)
                         {
-                            string certificateApplicationUri = X509Utils.GetApplicationUriFromCertificate(parsedClientCertificate);
-
-                            // verify if applicationUri from ApplicationDescription matches the applicationUri in the client certificate.
-                            if (!String.IsNullOrEmpty(certificateApplicationUri) &&
-                                !String.IsNullOrEmpty(clientDescription.ApplicationUri) &&
-                                certificateApplicationUri != clientDescription.ApplicationUri)
+                            // verify if applicationUri from ApplicationDescription matches the applicationUris in the client certificate.
+                            if (!String.IsNullOrEmpty(clientDescription.ApplicationUri))
                             {
-                                // report the AuditCertificateDataMismatch event for invalid uri
-                                ServerInternal?.ReportAuditCertificateDataMismatchEvent(parsedClientCertificate, null, clientDescription.ApplicationUri, StatusCodes.BadCertificateUriInvalid);
+                                bool noMatch = true;
+                                var certificateApplicationUris = X509Utils.GetApplicationUrisFromCertificate(parsedClientCertificate);
+                                foreach (var certificateApplicationUri in certificateApplicationUris)
+                                {
+                                    if (!String.IsNullOrEmpty(certificateApplicationUri) && certificateApplicationUri == clientDescription.ApplicationUri)
+                                    {
+                                        noMatch = false;
+                                        break;
+                                    }
+                                }
 
-                                throw ServiceResultException.Create(
-                                    StatusCodes.BadCertificateUriInvalid,
-                                    "The URI specified in the ApplicationDescription {0} does not match the URI in the Certificate: {1}.",
-                                    clientDescription.ApplicationUri, certificateApplicationUri);
+                                if (noMatch)
+                                {
+                                    // report the AuditCertificateDataMismatch event for invalid uri
+                                    ServerInternal?.ReportAuditCertificateDataMismatchEvent(parsedClientCertificate, null, clientDescription.ApplicationUri, StatusCodes.BadCertificateUriInvalid);
+
+                                    throw ServiceResultException.Create(
+                                        StatusCodes.BadCertificateUriInvalid,
+                                        "The URI specified in the ApplicationDescription {0} does not match the URIs in the Certificate.",
+                                        clientDescription.ApplicationUri);
+                                }
+
+                                CertificateValidator.Validate(clientCertificateChain);
                             }
-
-                            CertificateValidator.Validate(clientCertificateChain);
                         }
                     }
                     catch (Exception e)
@@ -2327,7 +2337,7 @@ namespace Opc.Ua.Server
                                 {
                                     client.RegisterServer(requestHeader, m_registrationInfo);
                                 }
-                                
+
                                 m_registeredWithDiscoveryServer = m_registrationInfo.IsOnline;
                                 return true;
                             }
@@ -3082,7 +3092,7 @@ namespace Opc.Ua.Server
             // attempt graceful shutdown the server.
             try
             {
-                
+
                 if (m_maxRegistrationInterval > 0 && m_registeredWithDiscoveryServer)
                 {
                     // unregister from Discovery Server if registered before

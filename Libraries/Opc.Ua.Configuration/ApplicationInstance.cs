@@ -672,7 +672,7 @@ namespace Opc.Ua.Configuration
             }
 
             // check uri.
-            string applicationUri = X509Utils.GetApplicationUriFromCertificate(certificate);
+            string applicationUri = X509Utils.GetApplicationUrisFromCertificate(certificate).FirstOrDefault();
 
             if (String.IsNullOrEmpty(applicationUri))
             {

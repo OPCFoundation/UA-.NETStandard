@@ -2338,7 +2338,6 @@ namespace Opc.Ua.Client
 
                 if (requireEncryption)
                 {
-                    ValidateServerCertificateApplicationUri(serverCertificate);
                     if (checkDomain)
                     {
                         m_configuration.CertificateValidator.Validate(serverCertificateChain, m_endpoint);
@@ -2455,6 +2454,8 @@ namespace Opc.Ua.Client
                 ValidateServerCertificateData(serverCertificateData);
 
                 ValidateServerEndpoints(serverEndpoints);
+
+                ValidateServerCertificateApplicationUri(m_endpoint, serverCertificate);
 
                 ValidateServerSignature(serverCertificate, serverSignature, clientCertificateData, clientCertificateChainData, clientNonce);
 
@@ -5352,27 +5353,46 @@ namespace Opc.Ua.Client
                     !String.IsNullOrEmpty(identityPolicy.SecurityPolicyUri);
             }
         }
+
         /// <summary>
-        /// Validates the ServerCertificate ApplicationUri to match the ApplicationUri of the Endpoint for an open call (Spec Part 4 5.4.1)
+        /// Validates the ServerCertificate ApplicationUri to match the ApplicationUri
+        /// of the Endpoint (Spec Part 4 5.4.1) returned by the CreateSessionResponse.
+        /// Ensure the endpoint was matched in <see cref="ValidateServerEndpoints"/>
+        /// with the applicationUri of the server description before the validation.
         /// </summary>
-        private void ValidateServerCertificateApplicationUri(
+        private static void ValidateServerCertificateApplicationUri(ConfiguredEndpoint endpoint, X509Certificate2 serverCertificate)
             X509Certificate2 serverCertificate)
         {
-            var applicationUri = m_endpoint?.Description?.Server?.ApplicationUri;
-            //check is only neccessary if the ApplicatioUri is specified for the Endpoint
+            if (serverCertificate != null)
+            {
+                var applicationUri = endpoint?.Description?.Server?.ApplicationUri;
+
+                // check that an ApplicatioUri is specified for the Endpoint
             if (string.IsNullOrEmpty(applicationUri))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    "No ApplicationUri is specified for the server in the EndpointDescription.");
+                        "Server did not return an ApplicationUri in the EndpointDescription.");
             }
-            string certificateApplicationUri = X509Utils.GetApplicationUriFromCertificate(serverCertificate);
-            if (!string.Equals(certificateApplicationUri, applicationUri, StringComparison.Ordinal))
+
+                bool noMatch = true;
+                var certificateApplicationUris = X509Utils.GetApplicationUrisFromCertificate(serverCertificate);
+                foreach (var certificateApplicationUri in certificateApplicationUris)
             {
+                    if (string.Equals(certificateApplicationUri, applicationUri, StringComparison.Ordinal))
+                    {
+                        noMatch = false;
+                        break;
+                    }
+                }
+
+                if (noMatch)
+                {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    "Server did not return a Certificate matching the ApplicationUri specified in the EndpointDescription.");
+                        "Server did not return the ApplicationUri in the EndpointDescription that is used in the server certificate.");
             }
+        }
         }
 
         private void BuildCertificateData(out byte[] clientCertificateData, out byte[] clientCertificateChainData)
@@ -5538,7 +5558,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            // find the matching description (TBD - check domains against certificate).
+            // find the matching description (TBD - check domains and application URI against certificate).
             bool found = false;
 
             var foundDescription = FindMatchingDescription(serverEndpoints, m_endpoint.Description, true);
