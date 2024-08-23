@@ -398,8 +398,24 @@ namespace Opc.Ua.Server
         /// </remarks>
         public virtual void CloseSession(NodeId sessionId)
         {
-            // find the session and try to remove it.
-            if (m_sessions.TryRemove(sessionId, out Session session) && session != null)
+            Session session = null;
+
+            // thread safe search for the session.
+            foreach (KeyValuePair<NodeId, Session> current in m_sessions)
+            {
+                if (current.Value.Id == sessionId)
+                {
+                    if (!m_sessions.TryRemove(current.Key, out session))
+                    {
+                        // found but was already removed
+                        return;
+                    }
+                    break;
+                }
+            }
+
+            // close the session if removed.
+            if (session != null)
             {
                 // raise session related event.
                 RaiseSessionEvent(session, SessionEventReason.Closing);
