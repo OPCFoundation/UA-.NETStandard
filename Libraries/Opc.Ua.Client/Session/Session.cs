@@ -5370,12 +5370,20 @@ namespace Opc.Ua.Client
                 if (string.IsNullOrEmpty(applicationUri))
                 {
                     throw ServiceResultException.Create(
-                        StatusCodes.BadSecurityChecksFailed,
+                        StatusCodes.BadCertificateUriInvalid,
                         "Server did not return an ApplicationUri in the EndpointDescription.");
                 }
 
-                bool noMatch = true;
                 var certificateApplicationUris = X509Utils.GetApplicationUrisFromCertificate(serverCertificate);
+                if (certificateApplicationUris.Count == 0)
+                {
+                    throw ServiceResultException.Create(
+                            StatusCodes.BadCertificateUriInvalid,
+                            "The Server Certificate ({1}) does not contain an applicationUri.",
+                            serverCertificate.Subject);
+                }
+
+                bool noMatch = true;
                 foreach (var certificateApplicationUri in certificateApplicationUris)
                 {
                     if (string.Equals(certificateApplicationUri, applicationUri, StringComparison.Ordinal))
@@ -5388,8 +5396,9 @@ namespace Opc.Ua.Client
                 if (noMatch)
                 {
                     throw ServiceResultException.Create(
-                        StatusCodes.BadSecurityChecksFailed,
-                        "Server did not return the ApplicationUri in the EndpointDescription that is used in the server certificate.");
+                        StatusCodes.BadCertificateUriInvalid,
+                        "The Application in the EndpointDescription ({0}) is not in the Server Certificate ({1}).",
+                        applicationUri, serverCertificate.Subject);
                 }
             }
         }
