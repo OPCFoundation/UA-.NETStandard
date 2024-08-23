@@ -387,7 +387,8 @@ namespace Opc.Ua.Server
                                 var certificateApplicationUris = X509Utils.GetApplicationUrisFromCertificate(parsedClientCertificate);
                                 foreach (var certificateApplicationUri in certificateApplicationUris)
                                 {
-                                    if (!String.IsNullOrEmpty(certificateApplicationUri) && certificateApplicationUri == clientDescription.ApplicationUri)
+                                    if (!String.IsNullOrEmpty(certificateApplicationUri) &&
+                                        certificateApplicationUri == clientDescription.ApplicationUri)
                                     {
                                         noMatch = false;
                                         break;

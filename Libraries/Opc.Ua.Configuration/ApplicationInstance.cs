@@ -671,21 +671,36 @@ namespace Opc.Ua.Configuration
                 }
             }
 
-            // check uri.
-            string applicationUri = X509Utils.GetApplicationUrisFromCertificate(certificate).FirstOrDefault();
+            // default application uri
+            string applicationUri = configuration.ApplicationUri;
 
-            if (String.IsNullOrEmpty(applicationUri))
+            // check certificate Uri and find a match
+            var applicationUris = X509Utils.GetApplicationUrisFromCertificate(certificate);
+            bool foundMatch = false;
+            foreach (var appUri in applicationUris)
             {
-                string message = "The Application URI could not be read from the certificate. Use certificate anyway?";
+                if (configuration.ApplicationUri.Equals(appUri, StringComparison.Ordinal))
+                {
+                    foundMatch = true;
+                    break;
+                }
+            }
+
+            if (!foundMatch && applicationUris.Count > 0)
+            {
+                foundMatch = true;
+                applicationUri = applicationUris[0];
+                Utils.LogInfo("Updating the ApplicationUri: {0} --> {1}", configuration.ApplicationUri, applicationUris[0]);
+                configuration.ApplicationUri = applicationUri;
+            }
+
+            if (!foundMatch)
+            {
+                string message = "The Application URI could not be found in the certificate. Use certificate anyway?";
                 if (!await ApplicationInstance.ApproveMessageAsync(message, silent).ConfigureAwait(false))
                 {
                     return false;
                 }
-            }
-            else if (!configuration.ApplicationUri.Equals(applicationUri, StringComparison.Ordinal))
-            {
-                Utils.LogInfo("Updated the ApplicationUri: {0} --> {1}", configuration.ApplicationUri, applicationUri);
-                configuration.ApplicationUri = applicationUri;
             }
 
             Utils.LogInfo("Using the ApplicationUri: {0}", applicationUri);
