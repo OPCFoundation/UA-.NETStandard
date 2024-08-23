@@ -2338,7 +2338,6 @@ namespace Opc.Ua.Client
 
                 if (requireEncryption)
                 {
-                    ValidateServerCertificateApplicationUri(serverCertificate);
                     if (checkDomain)
                     {
                         m_configuration.CertificateValidator.Validate(serverCertificateChain, m_endpoint);
@@ -2417,24 +2416,24 @@ namespace Opc.Ua.Client
             if (!successCreateSession)
             {
                 base.CreateSession(
-                        null,
-                        clientDescription,
-                        m_endpoint.Description.Server.ApplicationUri,
-                        m_endpoint.EndpointUrl.ToString(),
-                        sessionName,
-                        clientNonce,
-                        clientCertificateChainData != null ? clientCertificateChainData : clientCertificateData,
-                        sessionTimeout,
-                        (uint)MessageContext.MaxMessageSize,
-                        out sessionId,
-                        out sessionCookie,
-                        out m_sessionTimeout,
-                        out serverNonce,
-                        out serverCertificateData,
-                        out serverEndpoints,
-                        out serverSoftwareCertificates,
-                        out serverSignature,
-                        out m_maxRequestMessageSize);
+                    null,
+                    clientDescription,
+                    m_endpoint.Description.Server.ApplicationUri,
+                    m_endpoint.EndpointUrl.ToString(),
+                    sessionName,
+                    clientNonce,
+                    clientCertificateChainData != null ? clientCertificateChainData : clientCertificateData,
+                    sessionTimeout,
+                    (uint)MessageContext.MaxMessageSize,
+                    out sessionId,
+                    out sessionCookie,
+                    out m_sessionTimeout,
+                    out serverNonce,
+                    out serverCertificateData,
+                    out serverEndpoints,
+                    out serverSoftwareCertificates,
+                    out serverSignature,
+                    out m_maxRequestMessageSize);
             }
 
             // save session id.
@@ -2455,6 +2454,8 @@ namespace Opc.Ua.Client
                 ValidateServerCertificateData(serverCertificateData);
 
                 ValidateServerEndpoints(serverEndpoints);
+
+                ValidateServerCertificateApplicationUri(m_endpoint, serverCertificate);
 
                 ValidateServerSignature(serverCertificate, serverSignature, clientCertificateData, clientCertificateChainData, clientNonce);
 
@@ -5357,26 +5358,53 @@ namespace Opc.Ua.Client
                     !String.IsNullOrEmpty(identityPolicy.SecurityPolicyUri);
             }
         }
+
         /// <summary>
-        /// Validates the ServerCertificate ApplicationUri to match the ApplicationUri of the Endpoint for an open call (Spec Part 4 5.4.1)
+        /// Validates the ServerCertificate ApplicationUri to match the ApplicationUri
+        /// of the Endpoint (Spec Part 4 5.4.1) returned by the CreateSessionResponse.
+        /// Ensure the endpoint was matched in <see cref="ValidateServerEndpoints"/>
+        /// with the applicationUri of the server description before the validation.
         /// </summary>
-        private void ValidateServerCertificateApplicationUri(
-            X509Certificate2 serverCertificate)
+        private static void ValidateServerCertificateApplicationUri(ConfiguredEndpoint endpoint, X509Certificate2 serverCertificate)
         {
-            var applicationUri = m_endpoint?.Description?.Server?.ApplicationUri;
-            //check is only neccessary if the ApplicatioUri is specified for the Endpoint
-            if (string.IsNullOrEmpty(applicationUri))
+            if (serverCertificate != null)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadSecurityChecksFailed,
-                    "No ApplicationUri is specified for the server in the EndpointDescription.");
-            }
-            string certificateApplicationUri = X509Utils.GetApplicationUriFromCertificate(serverCertificate);
-            if (!string.Equals(certificateApplicationUri, applicationUri, StringComparison.Ordinal))
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadSecurityChecksFailed,
-                    "Server did not return a Certificate matching the ApplicationUri specified in the EndpointDescription.");
+                var applicationUri = endpoint?.Description?.Server?.ApplicationUri;
+
+                // check that an ApplicatioUri is specified for the Endpoint
+                if (string.IsNullOrEmpty(applicationUri))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadCertificateUriInvalid,
+                        "Server did not return an ApplicationUri in the EndpointDescription.");
+                }
+
+                var certificateApplicationUris = X509Utils.GetApplicationUrisFromCertificate(serverCertificate);
+                if (certificateApplicationUris.Count == 0)
+                {
+                    throw ServiceResultException.Create(
+                            StatusCodes.BadCertificateUriInvalid,
+                            "The Server Certificate ({1}) does not contain an applicationUri.",
+                            serverCertificate.Subject);
+                }
+
+                bool noMatch = true;
+                foreach (var certificateApplicationUri in certificateApplicationUris)
+                {
+                    if (string.Equals(certificateApplicationUri, applicationUri, StringComparison.Ordinal))
+                    {
+                        noMatch = false;
+                        break;
+                    }
+                }
+
+                if (noMatch)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadCertificateUriInvalid,
+                        "The Application in the EndpointDescription ({0}) is not in the Server Certificate ({1}).",
+                        applicationUri, serverCertificate.Subject);
+                }
             }
         }
 
@@ -5543,7 +5571,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            // find the matching description (TBD - check domains against certificate).
+            // find the matching description (TBD - check domains and application URI against certificate).
             bool found = false;
 
             var foundDescription = FindMatchingDescription(serverEndpoints, m_endpoint.Description, true);

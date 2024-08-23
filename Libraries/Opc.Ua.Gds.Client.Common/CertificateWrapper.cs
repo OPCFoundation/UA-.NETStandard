@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Security.Certificates;
@@ -213,7 +214,7 @@ namespace Opc.Ua.Gds.Client
                 {
                     try
                     {
-                        return X509Utils.GetApplicationUriFromCertificate(Certificate);
+                        return X509Utils.GetApplicationUrisFromCertificate(Certificate).FirstOrDefault();
                     }
                     catch (Exception e)
                     {

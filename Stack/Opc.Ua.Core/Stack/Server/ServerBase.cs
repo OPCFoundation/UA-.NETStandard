@@ -1405,7 +1405,7 @@ namespace Opc.Ua
             // assign a unique identifier if none specified.
             if (String.IsNullOrEmpty(configuration.ApplicationUri))
             {
-                configuration.ApplicationUri = X509Utils.GetApplicationUriFromCertificate(InstanceCertificate);
+                configuration.ApplicationUri = X509Utils.GetApplicationUrisFromCertificate(InstanceCertificate).FirstOrDefault();
 
                 if (String.IsNullOrEmpty(configuration.ApplicationUri))
                 {

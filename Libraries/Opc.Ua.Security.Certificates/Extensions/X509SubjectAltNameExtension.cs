@@ -118,7 +118,23 @@ namespace Opc.Ua.Security.Certificates
         {
             Oid = new Oid(SubjectAltName2Oid, kFriendlyName);
             Critical = false;
-            Initialize(applicationUri, domainNames);
+            Initialize(new string[] { applicationUri }, domainNames);
+            RawData = Encode();
+            m_decoded = true;
+        }
+
+        /// <summary>
+        /// Build the Subject Alternative name extension (for OPC UA application certs).
+        /// </summary>
+        /// <param name="applicationUris">The application Uri</param>
+        /// <param name="domainNames">The domain names. DNS Hostnames, IPv4 or IPv6 addresses</param>
+        public X509SubjectAltNameExtension(
+            IEnumerable<string> applicationUris,
+            IEnumerable<string> domainNames)
+        {
+            Oid = new Oid(SubjectAltName2Oid, kFriendlyName);
+            Critical = false;
+            Initialize(applicationUris, domainNames);
             RawData = Encode();
             m_decoded = true;
         }
@@ -402,14 +418,17 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Initialize the Subject Alternative name extension.
         /// </summary>
-        /// <param name="applicationUri">The application Uri</param>
+        /// <param name="applicationUris">The application Uris</param>
         /// <param name="generalNames">The general names. DNS Hostnames, IPv4 or IPv6 addresses</param>
-        private void Initialize(string applicationUri, IEnumerable<string> generalNames)
+        private void Initialize(IEnumerable<string> applicationUris, IEnumerable<string> generalNames)
         {
             var uris = new List<string>();
             var domainNames = new List<string>();
             var ipAddresses = new List<string>();
-            uris.Add(applicationUri);
+            foreach (string applicationUri in applicationUris)
+            {
+                uris.Add(applicationUri);
+            }
             foreach (string generalName in generalNames)
             {
                 switch (Uri.CheckHostName(generalName))
