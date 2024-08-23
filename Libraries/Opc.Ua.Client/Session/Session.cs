@@ -1318,7 +1318,7 @@ namespace Opc.Ua.Client
             catch (Exception e)
             {
                 session.Dispose();
-                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", template.SessionName);
+                ThrowCouldNotRecreateSessionException(e, template.SessionName);
             }
 
             return session;
@@ -1364,7 +1364,7 @@ namespace Opc.Ua.Client
             catch (Exception e)
             {
                 session.Dispose();
-                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", template.m_sessionName);
+                ThrowCouldNotRecreateSessionException(e, template.m_sessionName);
             }
 
             return session;
@@ -1403,7 +1403,7 @@ namespace Opc.Ua.Client
             catch (Exception e)
             {
                 session.Dispose();
-                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", template.m_sessionName);
+                ThrowCouldNotRecreateSessionException(e, template.m_sessionName);
             }
 
             return session;
@@ -4366,7 +4366,12 @@ namespace Opc.Ua.Client
                                 attributeId == Attributes.RolePermissions ||
                                 attributeId == Attributes.UserRolePermissions ||
                                 attributeId == Attributes.UserWriteMask ||
-                                attributeId == Attributes.WriteMask)
+                                attributeId == Attributes.WriteMask ||
+                                attributeId == Attributes.AccessLevelEx ||
+                                attributeId == Attributes.ArrayDimensions ||
+                                attributeId == Attributes.DataTypeDefinition ||
+                                attributeId == Attributes.InverseName ||
+                                attributeId == Attributes.MinimumSamplingInterval)
                             {
                                 continue;
                             }
@@ -5261,6 +5266,14 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Private Methods
+        /// <summary>
+        /// Helper to throw a recreate session exception.
+        /// </summary>
+        private static void ThrowCouldNotRecreateSessionException(Exception e, string sessionName)
+        {
+            throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session {0}:{1}", sessionName, e.Message);
+        }
+
         /// <summary>
         /// Queues a publish request if there are not enough outstanding requests.
         /// </summary>
