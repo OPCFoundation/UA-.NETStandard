@@ -917,7 +917,10 @@ namespace Opc.Ua.Server
         /// </remarks>
         public virtual object GetManagerHandle(NodeId nodeId)
         {
-            return GetManagerHandle(m_systemContext, nodeId, null);
+            lock (m_lock)
+            {
+                return GetManagerHandle(m_systemContext, nodeId, null);
+            }
         }
 
         /// <summary>
