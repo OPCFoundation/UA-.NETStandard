@@ -84,11 +84,13 @@ namespace Opc.Ua.Bindings
 
                     if (m_channels != null)
                     {
-                        foreach (var channel in m_channels.Values)
-                        {
-                            Utils.SilentDispose(channel);
-                        }
+                        var channels = m_channels.ToArray();
+                        m_channels.Clear();
                         m_channels = null;
+                        foreach (var channelKeyValue in channels)
+                        {
+                            Utils.SilentDispose(channelKeyValue.Value);
+                        }
                     }
                 }
             }
@@ -157,7 +159,7 @@ namespace Opc.Ua.Bindings
             m_serverCertificateChain = settings.ServerCertificateChain;
 
             m_bufferManager = new BufferManager("Server", m_quotas.MaxBufferSize);
-            m_channels = new Dictionary<uint, TcpListenerChannel>();
+            m_channels = new ConcurrentDictionary<uint, TcpListenerChannel>();
             m_reverseConnectListener = settings.ReverseConnectListener;
             m_maxChannelCount = settings.MaxChannelCount;
 
@@ -239,12 +241,14 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void ChannelClosed(uint channelId)
         {
-            lock (m_lock)
+            if (m_channels?.TryRemove(channelId, out _) == true)
             {
-                m_channels?.Remove(channelId);
+                Utils.LogInfo("ChannelId {0}: closed", channelId);
             }
-
-            Utils.LogInfo("ChannelId {0}: closed", channelId);
+            else
+            {
+                Utils.LogInfo("ChannelId {0}: closed channel not found", channelId);
+            }
         }
 
         /// <summary>
@@ -291,9 +295,9 @@ namespace Opc.Ua.Bindings
             {
                 channel.EndReverseConnect(result);
 
-                lock (m_lock)
+                if (!m_channels.TryAdd(channel.Id, channel))
                 {
-                    m_channels.Add(channel.Id, channel);
+                    throw new ServiceResultException(StatusCodes.BadInternalError);
                 }
 
                 if (m_callback != null)
@@ -444,12 +448,11 @@ namespace Opc.Ua.Bindings
         {
             bool accepted = false;
             TcpListenerChannel channel = null;
-            lock (m_lock)
+
+            // remove it so it does not get cleaned up as an inactive connection.
+            if (m_channels?.TryRemove(channelId, out channel) != true)
             {
-                if (m_channels?.TryGetValue(channelId, out channel) != true)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadTcpSecureChannelUnknown, "Could not find secure channel request.");
-                }
+                throw ServiceResultException.Create(StatusCodes.BadTcpSecureChannelUnknown, "Could not find secure channel request.");
             }
 
             // notify the application.
@@ -460,13 +463,10 @@ namespace Opc.Ua.Bindings
                 accepted = args.Accepted;
             }
 
-            if (accepted)
+            if (!accepted)
             {
-                lock (m_lock)
-                {
-                    // remove it so it does not get cleaned up as an inactive connection.
-                    m_channels?.Remove(channelId);
-                }
+                // add back in for other connection attempt.
+                m_channels?.TryAdd(channelId, channel);
             }
 
             return accepted;
@@ -578,7 +578,7 @@ namespace Opc.Ua.Bindings
                             channel.Attach(channelId, e.AcceptSocket);
 
                             // save the channel for shutdown and reconnects.
-                            m_channels.Add(channelId, channel);
+                            m_channels.TryAdd(channelId, channel);
                         }
                         catch (Exception ex)
                         {
@@ -618,15 +618,12 @@ namespace Opc.Ua.Bindings
         {
             List<TcpListenerChannel> channels;
 
-            lock (m_lock)
+            channels = new List<TcpListenerChannel>();
+            foreach (var chEntry in m_channels)
             {
-                channels = new List<TcpListenerChannel>();
-                foreach (var chEntry in m_channels)
+                if (chEntry.Value.ElapsedSinceLastActiveTime > m_quotas.ChannelLifetime)
                 {
-                    if (chEntry.Value.ElapsedSinceLastActiveTime > m_quotas.ChannelLifetime)
-                    {
-                        channels.Add(chEntry.Value);
-                    }
+                    channels.Add(chEntry.Value);
                 }
             }
 
@@ -812,7 +809,7 @@ namespace Opc.Ua.Bindings
         private uint m_lastChannelId;
         private Socket m_listeningSocket;
         private Socket m_listeningSocketIPv6;
-        private Dictionary<uint, TcpListenerChannel> m_channels;
+        private ConcurrentDictionary<uint, TcpListenerChannel> m_channels;
         private ITransportListenerCallback m_callback;
         private bool m_reverseConnectListener;
         private int m_inactivityDetectPeriod;
