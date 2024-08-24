@@ -2338,7 +2338,8 @@ namespace Opc.Ua.Client
 
                 if (requireEncryption)
                 {
-                    ValidateServerCertificateApplicationUri(serverCertificate);
+                    // validation skipped until IOP isses are resolved.
+                    // ValidateServerCertificateApplicationUri(serverCertificate);
                     if (checkDomain)
                     {
                         m_configuration.CertificateValidator.Validate(serverCertificateChain, m_endpoint);
