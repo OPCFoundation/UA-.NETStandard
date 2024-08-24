@@ -66,7 +66,7 @@ namespace Opc.Ua.Server
         /// Dequeues the last item
         /// </summary>
         /// <returns>true if an item was dequeued</returns>
-        bool PublishSingleValue(out DataValue value, out ServiceResult error);
+        bool PublishSingleValue(out DataValue value, out ServiceResult error, bool noEventLog = false);
     }
     #endregion
 

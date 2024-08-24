@@ -95,6 +95,11 @@ namespace Opc.Ua.Server
         bool Dequeue(out DataValue value, out ServiceResult error);
 
         /// <summary>
+        /// returns the the oldest value in the queue without dequeueing. Null if queue is empty
+        /// </summary>
+        DataValue PeekOldestValue();
+
+        /// <summary>
         /// Replace the last (newest) value in the queue with the provided Value. Used when values are provided faster than the sampling interval
         /// </summary>
         /// <param name="value">The value to queue.</param>

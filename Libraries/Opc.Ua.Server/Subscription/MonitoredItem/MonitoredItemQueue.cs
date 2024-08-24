@@ -283,6 +283,18 @@ namespace Opc.Ua.Server
             return true;
         }
 
+        /// <inheritdoc/>
+        public DataValue PeekOldestValue()
+        {
+            // check for empty queue.
+            if (m_start < 0)
+            {
+                return null;
+            }
+
+            return m_values[m_start];
+        }
+
         #endregion
 
         #region Private Fields

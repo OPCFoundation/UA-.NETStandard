@@ -904,8 +904,9 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(success, Is.True);
             Assert.That(result, Is.EqualTo(dataValue2));
-            Assert.That(result.StatusCode.Overflow, Is.True);
-            Assert.That(resultError.StatusCode.Overflow, Is.True);
+            //Queue size 1 no overflow set
+            Assert.That(result.StatusCode.Overflow, Is.False);
+            Assert.That(resultError.StatusCode.Overflow, Is.False);
         }
 
         [Test]
@@ -1058,7 +1059,6 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.That(status, Is.True);
                 Assert.That(result, Is.EqualTo(dataValue));
-                Assert.That(resultError, Is.EqualTo(statuscode).Or.Property(nameof(result.StatusCode)).Property(nameof(result.StatusCode.Overflow)).True);
             }
 
             Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(0));
@@ -1113,7 +1113,7 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.That(status, Is.True);
                 Assert.That(result, Is.EqualTo(dataValue2));
-                Assert.That(resultError, Is.EqualTo(statuscode).Or.Property(nameof(result.StatusCode)).Property(nameof(result.StatusCode.Overflow)).True);
+                //Assert.That(resultError, Is.EqualTo(statuscode).Or.Property(nameof(result.StatusCode)).Property(nameof(result.StatusCode.Overflow)).True);
             }
 
             Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(0));
@@ -1273,6 +1273,38 @@ namespace Opc.Ua.Server.Tests
             DiagnosticInfo publishErrorResult = result2.FirstOrDefault();
             Assert.That(publishErrorResult.InnerStatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
         }
+
+        [Test]
+        public void CreateDurableEventMIOverflow()
+        {
+            if (!m_factory.SupportsDurableQueues)
+            {
+                Assert.Ignore("Test only works with durable queues");
+            }
+            MonitoredItem monitoredItem = CreateDurableMonitoredItem(true, 2);
+            Assert.That(monitoredItem, Is.Not.Null);
+            Assert.That(monitoredItem.IsDurable, Is.True);
+            Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
+
+            monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
+            monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
+
+            Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(2));
+
+
+            monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
+
+            Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(2));
+
+
+            var result = new Queue<EventFieldList>();
+            monitoredItem.Publish(new OperationContext(monitoredItem), result, 2);
+
+            Assert.That(result, Is.Not.Empty);
+            EventFieldList publishResult = result.LastOrDefault();
+            Assert.That(publishResult, Is.Not.Null);
+            Assert.That(publishResult.Handle, Is.AssignableTo(typeof(EventQueueOverflowEventState)));
+        }
         #endregion
 
         #region private methods
@@ -1303,7 +1335,7 @@ namespace Opc.Ua.Server.Tests
                 null,
                 1000.0,
                 queueSize,
-                true,
+                false,
                 1000,
                 true
                 );

@@ -52,6 +52,7 @@ namespace Opc.Ua.Server
             m_discardedValueHandler = discardedValueHandler;
             m_monitoredItemId = monitoredItemId;
             m_discardOldest = false;
+            m_overflow = null;
             m_nextSampleTime = 0;
             m_samplingInterval = 0;
         }
@@ -77,7 +78,7 @@ namespace Opc.Ua.Server
                 existingValues = new List<DataValue>((int)queueSize);
                 existingErrors = new List<ServiceResult>((int)queueSize);
 
-                while (m_dataValueQueue.Dequeue(out DataValue value, out ServiceResult error))
+                while (PublishSingleValue(out DataValue value, out ServiceResult error, true))
                 {
                     existingValues.Add(value);
                     existingErrors.Add(error);
@@ -85,6 +86,8 @@ namespace Opc.Ua.Server
             }
 
             m_dataValueQueue.ResetQueue(queueSize, queueErrors);
+
+            m_overflow = null;
 
             // requeue the data.
             if (existingValues != null)
@@ -166,14 +169,20 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Deques the last item
         /// </summary>
-        /// <param name="value"></param>
-        /// <param name="error"></param>
-        /// <returns></returns>
-        public bool PublishSingleValue(out DataValue value, out ServiceResult error)
+        public bool PublishSingleValue(out DataValue value, out ServiceResult error, bool noEventLog = false)
         {
             if (m_dataValueQueue.Dequeue(out value, out error))
             {
-                ServerUtils.EventLog.DequeueValue(value.WrappedValue, value.StatusCode);
+                if (m_overflow != null && m_overflow == value)
+                {
+                    SetOverflowBit(ref value, ref error);
+                    m_overflow = null;
+                }
+
+                if (!noEventLog)
+                {
+                    ServerUtils.EventLog.DequeueValue(value.WrappedValue, value.StatusCode);
+                }
 
                 return true;
             }
@@ -206,18 +215,18 @@ namespace Opc.Ua.Server
             {
                 m_discardedValueHandler?.Invoke();
 
-                SetOverflowBit(ref value, ref error);
-
                 if (!m_discardOldest)
                 {
                     ServerUtils.ReportDiscardedValue(null, m_monitoredItemId, m_dataValueQueue.PeekLastValue());
+
+                    //set overflow bit in newest value
+                    m_overflow = value;
 
                     // overwrite last value
                     m_dataValueQueue.OverwriteLastValue(value, error);
 
                     return;
                 }
-
                 // remove oldest value.
                 if (m_dataValueQueue.Dequeue(out DataValue discardedValue, out _))
                 {
@@ -227,6 +236,8 @@ namespace Opc.Ua.Server
                 {
                     throw new ServiceResultException(StatusCodes.BadInternalError, "Error queueing DataValue. DataValueQueue was full but it was not possible to discard the oldest value.");
                 }
+                //set overflow bit in oldest value
+                m_overflow = m_dataValueQueue.PeekOldestValue();
             }
             else
             {
@@ -282,6 +293,7 @@ namespace Opc.Ua.Server
         private long m_nextSampleTime;
         private long m_samplingInterval;
         private readonly Action m_discardedValueHandler;
+        private DataValue m_overflow;
     }
     #endregion
 

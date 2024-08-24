@@ -1125,7 +1125,7 @@ namespace Opc.Ua.Server
 
                         // fetch the event fields.
                         overflowEvent = GetEventFields(
-                            new FilterContext(m_server.NamespaceUris, m_server.TypeTree, Session.PreferredLocales),
+                            new FilterContext(m_server.NamespaceUris, m_server.TypeTree, Session?.PreferredLocales),
                             m_filterToUse as EventFilter,
                             e);
                     }
