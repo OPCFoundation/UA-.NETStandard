@@ -42,6 +42,8 @@ namespace Opc.Ua.Client
     [KnownType(typeof(AggregateFilter))]
     public class MonitoredItem : ICloneable
     {
+        private static readonly TimeSpan s_time_epsilon = TimeSpan.FromMilliseconds(500);
+
         #region Constructors
         /// <summary>
         /// Initializes a new instance of the <see cref="MonitoredItem"/> class.
@@ -626,7 +628,7 @@ namespace Opc.Ua.Client
                         {
                             if (validateTimestamp)
                             {
-                                var now = DateTime.UtcNow;
+                                var now = DateTime.UtcNow.Add(s_time_epsilon);
 
                                 // validate the ServerTimestamp of the notification.
                                 if (datachange.Value.ServerTimestamp > now)

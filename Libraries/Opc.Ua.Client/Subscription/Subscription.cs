@@ -103,11 +103,16 @@ namespace Opc.Ua.Client
                 }
 
                 // copy the list of monitored items.
+                var clonedMonitoredItems = new List<MonitoredItem>();
                 foreach (MonitoredItem monitoredItem in template.MonitoredItems)
                 {
                     MonitoredItem clone = monitoredItem.CloneMonitoredItem(copyEventHandlers, true);
                     clone.DisplayName = monitoredItem.DisplayName;
-                    AddItem(clone);
+                    clonedMonitoredItems.Add(clone);
+                }
+                if (clonedMonitoredItems.Count > 0)
+                {
+                    AddItems(clonedMonitoredItems);
                 }
             }
         }
@@ -517,11 +522,7 @@ namespace Opc.Ua.Client
                 lock (m_cache)
                 {
                     m_monitoredItems.Clear();
-
-                    foreach (MonitoredItem monitoredItem in value)
-                    {
-                        AddItem(monitoredItem);
-                    }
+                    AddItems(value);
                 }
             }
         }
