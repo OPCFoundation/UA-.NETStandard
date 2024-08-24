@@ -855,6 +855,12 @@ namespace Opc.Ua.Server
                 // check for monitored items that are ready to publish.
                 LinkedListNode<IMonitoredItem> current = m_itemsToPublish.First;
 
+                //the two lines below fail CTT, but should in theory be able to avoid discarding notifications in a scenario with big durable queues
+                //uint maxNoficationsPerMonitoredItem = (uint)(m_maxNotificationsPerPublish == 0 ? uint.MaxValue : (m_maxNotificationsPerPublish * (ulong)m_maxMessageCount / (ulong)m_itemsToPublish.Count));
+                //maxNoficationsPerMonitoredItem = maxNoficationsPerMonitoredItem == 0 ? 1 : maxNoficationsPerMonitoredItem;
+
+                uint maxNoficationsPerMonitoredItem = m_maxNotificationsPerPublish == 0 ? uint.MaxValue : m_maxNotificationsPerPublish * 3;
+
                 while (current != null)
                 {
                     LinkedListNode<IMonitoredItem> next = current.Next;
@@ -862,11 +868,11 @@ namespace Opc.Ua.Server
 
                     if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                     {
-                        ((IDataChangeMonitoredItem)monitoredItem).Publish(context, datachanges, datachangeDiagnostics, m_maxNotificationsPerPublish);
+                        ((IDataChangeMonitoredItem)monitoredItem).Publish(context, datachanges, datachangeDiagnostics, maxNoficationsPerMonitoredItem);
                     }
                     else
                     {
-                        ((IEventMonitoredItem)monitoredItem).Publish(context, events, m_maxNotificationsPerPublish);
+                        ((IEventMonitoredItem)monitoredItem).Publish(context, events, maxNoficationsPerMonitoredItem);
                     }
 
                     // add back to list to check.
