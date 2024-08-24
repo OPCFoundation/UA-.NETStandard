@@ -77,7 +77,7 @@ namespace Opc.Ua.Sample
         /// Constructs a new instance.
         /// </summary>
         public DataChangeMonitoredItem(
-            IServerInternal server,
+            IMonitoredItemQueueFactory monitoredItemQueueFactory,
             MonitoredNode source,
             uint id,
             uint attributeId,
@@ -95,7 +95,7 @@ namespace Opc.Ua.Sample
             bool alwaysReportUpdates)
         {
             m_source = source;
-            m_monitoredItemQueueFactory = server.MonitoredItemQueueFactory;
+            m_monitoredItemQueueFactory = monitoredItemQueueFactory;
             m_id = id;
             m_attributeId = attributeId;
             m_indexRange = indexRange;

@@ -2296,7 +2296,7 @@ namespace Opc.Ua.Server
                 if (!m_supportsDurable)
                 {
                     Utils.LogError("SetSubscriptionDurable requested for subscription with id {0}, but no IMonitoredItemQueueFactory that supports durable queues was registered", m_id);
-                    return StatusCodes.BadInternalError;
+                    return StatusCodes.BadNotSupported;
                 }
 
                 m_isDurable = true;

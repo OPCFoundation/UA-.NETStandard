@@ -28,37 +28,9 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using Newtonsoft.Json.Linq;
 
 namespace Opc.Ua.Server
 {
-    /// <summary>
-    /// A factory for <see cref="IDataChangeMonitoredItemQueue"> and </see> <see cref="IEventMonitoredItemQueue"/>
-    /// </summary>
-    public class MonitoredItemQueueFactory : IMonitoredItemQueueFactory
-    {
-        /// <inheritdoc/>
-        public bool SupportsDurableQueues => false;
-        /// <inheritdoc/>
-        public IDataChangeMonitoredItemQueue CreateDataChangeQueue(bool createDurable)
-        {
-            return new DataChangeMonitoredItemQueue(createDurable);
-        }
-
-        /// <inheritdoc/>
-        public IEventMonitoredItemQueue CreateEventQueue(bool createDurable)
-        {
-            return new EventMonitoredItemQueue(createDurable);
-        }
-
-        /// <inheritdoc/>
-        public void Dispose()
-        {
-            //only needed for managed resources
-        }
-    }
     /// <summary>
     /// Provides a queue for data changes.
     /// </summary>
@@ -304,106 +276,4 @@ namespace Opc.Ua.Server
         private int m_end;
         #endregion
     }
-
-    /// <summary>
-    /// Provides a queue for events.
-    /// </summary>
-    public class EventMonitoredItemQueue : IEventMonitoredItemQueue
-    {
-        /// <summary>
-        /// Creates an empty queue.
-        /// </summary>
-        public EventMonitoredItemQueue(bool createDurable)
-        {
-            if (createDurable)
-            {
-                Utils.LogError("EventMonitoredItemQueue does not support durable queues, please provide full implementation of IDurableMonitoredItemQueue using Server.CreateDurableMonitoredItemQueueFactory to supply own factory");
-                throw new ArgumentException("DataChangeMonitoredItemQueue does not support durable Queues", nameof(createDurable));
-            }
-            m_events = new List<EventFieldList>();
-            IsDurable = createDurable;
-            QueueSize = 0;
-        }
-
-        #region Public Methods
-        /// <inheritdoc/>
-        public virtual bool IsDurable { get; }
-
-        /// <inheritdoc/>
-        public uint QueueSize { get; private set; }
-
-        /// <inheritdoc/>
-        public int ItemsInQueue => m_events.Count;
-
-        /// <inheritdoc/>
-        public bool Dequeue(out EventFieldList value)
-        {
-            value = null;
-            if (m_events.Any())
-            {
-                value = m_events.First();
-                m_events.RemoveAt(0);
-                return true;
-            }
-            return false;
-        }
-
-        /// <inheritdoc/>
-        public void Dispose()
-        {
-            //Only needed for unmanaged resources
-        }
-
-        /// <inheritdoc/>
-        public void Enqueue(EventFieldList value)
-        {
-            if (m_events.Count == QueueSize && !Dequeue(out var _))
-            {
-                throw new ServiceResultException(StatusCodes.BadInternalError, "Error queueing Event. Evemt Queue was full but it was not possible to discard the oldest Event");
-            }
-            m_events.Add(value);
-        }
-
-        /// <inheritdoc/>
-        public bool IsEventContainedInQueue(IFilterTarget instance)
-        {
-            int maxCount = m_events.Count > 1000 ? 1000 : m_events.Count;
-
-            for (int i = 0; i < maxCount; i++)
-            {
-                if (m_events[i] is EventFieldList processedEvent)
-                {
-                    if (ReferenceEquals(instance, processedEvent.Handle))
-                    {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
-
-        /// <inheritdoc/>
-        public void SetQueueSize(uint queueSize, bool discardOldest)
-        {
-            QueueSize = queueSize;
-
-            if (m_events.Count > QueueSize)
-            {
-                if (discardOldest)
-                {
-                    m_events.RemoveRange(0, m_events.Count - (int)queueSize);
-                }
-                else
-                {
-                    m_events.RemoveRange((int)queueSize, m_events.Count - (int)queueSize);
-                }
-            }
-        }
-        #endregion
-
-        #region Private Fields
-        private readonly List<EventFieldList> m_events;
-        #endregion
-    }
-
 }

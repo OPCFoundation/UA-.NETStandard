@@ -138,7 +138,7 @@ namespace Opc.Ua.Sample
             bool alwaysReportUpdates)
         {
             DataChangeMonitoredItem monitoredItem = new DataChangeMonitoredItem(
-                Server,
+                Server.MonitoredItemQueueFactory,
                 this,
                 monitoredItemId,
                 attributeId,
