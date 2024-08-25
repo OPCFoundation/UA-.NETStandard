@@ -5634,6 +5634,9 @@ namespace Opc.Ua.Client
         {
             Utils.LogInfo("Session RECONNECT {0} starting.", SessionId);
 
+            //update endpoint before reconnect
+            m_endpoint.UpdateFromServer();
+
             // create the client signature.
             byte[] dataToSign = Utils.Append(m_serverCertificate != null ? m_serverCertificate.RawData : null, m_serverNonce);
             EndpointDescription endpoint = m_endpoint.Description;

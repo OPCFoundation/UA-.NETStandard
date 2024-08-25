@@ -805,6 +805,27 @@ namespace Opc.Ua
                 }
             }
 
+            foreach (EndpointDescription endpointDescription in m_endpoints.Where(endpoint => RequireEncryption(endpoint)))
+            {
+                // check if complete chain should be sent.
+                if (Configuration.SecurityConfiguration.SendCertificateChain &&
+                    InstanceCertificateChain != null &&
+                    InstanceCertificateChain.Count > 1)
+                {
+                    var serverCertificateChain = new List<byte>();
+
+                    foreach (X509Certificate2 certificate in InstanceCertificateChain)
+                    {
+                        serverCertificateChain.AddRange(certificate.RawData);
+                    }
+                    endpointDescription.ServerCertificate = serverCertificateChain.ToArray();
+                }
+                else
+                {
+                    endpointDescription.ServerCertificate = InstanceCertificate.RawData;
+                }
+            }
+
             foreach (var listener in TransportListeners)
             {
                 listener.CertificateUpdate(e.CertificateValidator, InstanceCertificate, InstanceCertificateChain);
