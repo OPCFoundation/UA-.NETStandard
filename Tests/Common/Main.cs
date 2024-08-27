@@ -28,8 +28,23 @@
  * ======================================================================*/
 
 using System;
+using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Running;
+using BenchmarkDotNet.Validators;
+
+[assembly: Config(typeof(BenchmarksDefaultConfig))]
+
+class BenchmarksDefaultConfig : ManualConfig
+{
+    public BenchmarksDefaultConfig()
+    {
+        AddJob(Job.Dry);
+        AddLogger(BenchmarkDotNet.Loggers.ConsoleLogger.Default);
+        AddValidator(JitOptimizationsValidator.DontFailOnError);
+    }
+}
 
 static class Program
 {
