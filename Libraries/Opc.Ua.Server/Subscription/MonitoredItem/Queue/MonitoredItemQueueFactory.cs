@@ -27,8 +27,30 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Server
 {
+    /// <summary>
+    /// Used to create <see cref="IDataChangeMonitoredItemQueue"/> / <see cref="IEventMonitoredItemQueue"/> and dispose unmanaged resources on server shutdown
+    /// </summary>
+    public interface IMonitoredItemQueueFactory : IDisposable
+    {
+        /// <summary>
+        /// Creates an empty queue for data values.
+        /// </summary>
+        IDataChangeMonitoredItemQueue CreateDataChangeQueue(bool isDurable);
+
+        /// <summary>
+        /// Creates an empty queue for events.
+        /// </summary>
+        IEventMonitoredItemQueue CreateEventQueue(bool isDurable);
+
+        /// <summary>
+        /// If true durable queues can be created by the factory, if false only regular queues with small queue sizes are returned
+        /// </summary>
+        bool SupportsDurableQueues { get; }
+    }
     /// <summary>
     /// A factory for <see cref="IDataChangeMonitoredItemQueue"> and </see> <see cref="IEventMonitoredItemQueue"/>
     /// </summary>

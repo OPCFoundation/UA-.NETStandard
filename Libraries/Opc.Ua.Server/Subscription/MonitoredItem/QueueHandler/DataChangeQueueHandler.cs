@@ -35,6 +35,41 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Mangages a data value queue for a data change monitoredItem
     /// </summary>
+    public interface IDataChangeQueueHandler : IDisposable
+    {
+        /// <summary>
+        /// Sets the queue size.
+        /// </summary>
+        /// <param name="queueSize">The new queue size.</param>
+        /// <param name="discardOldest">Whether to discard the oldest values if the queue overflows.</param>
+        /// <param name="diagnosticsMasks">Specifies which diagnostics which should be kept in the queue.</param>
+        void SetQueueSize(uint queueSize, bool discardOldest, DiagnosticsMasks diagnosticsMasks);
+
+        /// <summary>
+        /// Set the sampling interval of the queue
+        /// </summary>
+        /// <param name="samplingInterval">the sampling interval</param>
+        void SetSamplingInterval(double samplingInterval);
+        /// <summary>
+        /// Number of DataValues in the queue
+        /// </summary>
+        int ItemsInQueue { get; }
+        /// <summary>
+        /// Queues a value
+        /// </summary>
+        /// <param name="value">the dataValue</param>
+        /// <param name="error">the error</param>
+        void QueueValue(DataValue value, ServiceResult error);
+
+        /// <summary>
+        /// Dequeues the last item
+        /// </summary>
+        /// <returns>true if an item was dequeued</returns>
+        bool PublishSingleValue(out DataValue value, out ServiceResult error, bool noEventLog = false);
+    }
+    /// <summary>
+    /// Mangages a data value queue for a data change monitoredItem
+    /// </summary>
     public class DataChangeQueueHandler : IDataChangeQueueHandler
     {
         /// <summary>
