@@ -277,7 +277,6 @@ namespace Opc.Ua.Bindings
                 }
 
                 // get reason for cleanup.
-
                 if (!(state is ServiceResult reason))
                 {
                     reason = new ServiceResult(StatusCodes.BadTimeout);

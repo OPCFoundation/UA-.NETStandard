@@ -198,10 +198,7 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                lock (m_lock)
-                {
-                    return m_channelId;
-                }
+                return m_channelId;
             }
         }
 
@@ -212,10 +209,7 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                lock (m_lock)
-                {
-                    return m_globalChannelId;
-                }
+                return m_globalChannelId;
             }
         }
 

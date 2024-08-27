@@ -102,10 +102,6 @@ namespace Opc.Ua.Server
                 }
             }
 
-            // create the table of monitored items.
-            // these are items created by clients when they subscribe to data or events.
-            m_monitoredItems = new Dictionary<uint, IDataChangeMonitoredItem>();
-
             // create the table of monitored nodes.
             // these are created by the node manager whenever a client subscribe to an attribute of the node.
             m_monitoredNodes = new Dictionary<NodeId, MonitoredNode2>();
@@ -235,14 +231,6 @@ namespace Opc.Ua.Server
         protected List<NodeState> RootNotifiers
         {
             get { return m_rootNotifiers; }
-        }
-
-        /// <summary>
-        /// Gets the table of monitored items.
-        /// </summary>
-        protected Dictionary<uint, IDataChangeMonitoredItem> MonitoredItems
-        {
-            get { return m_monitoredItems; }
         }
 
         /// <summary>
@@ -929,7 +917,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         public virtual object GetManagerHandle(NodeId nodeId)
         {
-            lock (Lock)
+            lock (m_lock)
             {
                 return GetManagerHandle(m_systemContext, nodeId, null);
             }
@@ -945,20 +933,17 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            if (m_predefinedNodes != null)
+            NodeState node = null;
+
+            if (m_predefinedNodes?.TryGetValue(nodeId, out node) == true)
             {
-                NodeState node = null;
+                NodeHandle handle = new NodeHandle();
 
-                if (m_predefinedNodes.TryGetValue(nodeId, out node))
-                {
-                    NodeHandle handle = new NodeHandle();
+                handle.NodeId = nodeId;
+                handle.Node = node;
+                handle.Validated = true;
 
-                    handle.NodeId = nodeId;
-                    handle.Node = node;
-                    handle.Validated = true;
-
-                    return handle;
-                }
+                return handle;
             }
 
             return null;
@@ -3706,7 +3691,6 @@ namespace Opc.Ua.Server
             monitoredItem = datachangeItem;
 
             // save the monitored item.
-            m_monitoredItems.Add(monitoredItemId, datachangeItem);
             monitoredNode.Add(datachangeItem);
 
             // report change.
@@ -3809,7 +3793,7 @@ namespace Opc.Ua.Server
                 eventTypeId = baseEventState.EventType?.Value;
                 sourceNodeId = baseEventState.SourceNode?.Value;
             }
-            
+
             OperationContext operationContext = new OperationContext(monitoredItem);
 
             // validate the event type id permissions as specified
@@ -4258,9 +4242,6 @@ namespace Opc.Ua.Server
                     MonitoredNodes.Remove(handle.NodeId);
                 }
             }
-
-            // remove the monitored item.
-            m_monitoredItems.Remove(monitoredItem.Id);
 
             // report change.
             OnMonitoredItemDeleted(context, handle, datachangeItem);
@@ -4777,7 +4758,6 @@ namespace Opc.Ua.Server
         private ServerSystemContext m_systemContext;
         private string[] m_namespaceUris;
         private ushort[] m_namespaceIndexes;
-        private Dictionary<uint, IDataChangeMonitoredItem> m_monitoredItems;
         private Dictionary<NodeId, MonitoredNode2> m_monitoredNodes;
         private Dictionary<NodeId, CacheEntry> m_componentCache;
         private NodeIdDictionary<NodeState> m_predefinedNodes;

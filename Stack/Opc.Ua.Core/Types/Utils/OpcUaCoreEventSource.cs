@@ -184,8 +184,8 @@ namespace Opc.Ua
         {
             if (IsEnabled())
             {
-                EventName = EventName ?? "";
-                FormattedMessage = FormattedMessage ?? "";
+                EventName = EventName ?? string.Empty;
+                FormattedMessage = FormattedMessage ?? string.Empty;
                 WriteEvent(id, eventId, EventName, FormattedMessage);
             }
         }

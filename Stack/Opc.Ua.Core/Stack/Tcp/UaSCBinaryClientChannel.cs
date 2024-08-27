@@ -431,10 +431,41 @@ namespace Opc.Ua.Bindings
                 ReadAndVerifyMessageTypeAndSize(decoder, TcpMessageType.Acknowledge, messageChunk.Count);
 
                 uint protocolVersion = decoder.ReadUInt32(null);
-                SendBufferSize = (int)decoder.ReadUInt32(null);
-                ReceiveBufferSize = (int)decoder.ReadUInt32(null);
-                int maxMessageSize = (int)decoder.ReadUInt32(null);
-                int maxChunkCount = (int)decoder.ReadUInt32(null);
+                // note: decode of send and receive buffer size are swapped here to reflect the view of the client
+                uint sendBufferSize = decoder.ReadUInt32(null);
+                uint receiveBufferSize = decoder.ReadUInt32(null);
+                uint maxMessageSize = decoder.ReadUInt32(null);
+                uint maxChunkCount = decoder.ReadUInt32(null);
+
+                // returned buffer sizes shall not be larger than requested sizes
+                if (sendBufferSize > SendBufferSize)
+                {
+                    m_handshakeOperation.Fault(StatusCodes.BadTcpNotEnoughResources, "Returned client send buffer size is larger than requested size ({0}>{1} bytes).", sendBufferSize, SendBufferSize);
+                    return false;
+                }
+
+                if (receiveBufferSize > ReceiveBufferSize)
+                {
+                    m_handshakeOperation.Fault(StatusCodes.BadTcpNotEnoughResources, "Returned client receive buffer size is larger than requested size ({0}>{1} bytes).", receiveBufferSize, ReceiveBufferSize);
+                    return false;
+                }
+
+                // validate buffer sizes.
+                if (receiveBufferSize < TcpMessageLimits.MinBufferSize || receiveBufferSize > TcpMessageLimits.MaxBufferSize)
+                {
+                    m_handshakeOperation.Fault(StatusCodes.BadTcpNotEnoughResources, "Client receive buffer size is out of valid range ({0} bytes).", receiveBufferSize);
+                    return false;
+                }
+
+                if (sendBufferSize < TcpMessageLimits.MinBufferSize || sendBufferSize > TcpMessageLimits.MaxBufferSize)
+                {
+                    m_handshakeOperation.Fault(StatusCodes.BadTcpNotEnoughResources, "Client send buffer size is out of valid range ({0} bytes).", sendBufferSize);
+                    return false;
+                }
+
+                // assign new values once ensured that sizes are within bounds
+                SendBufferSize = (int)sendBufferSize;
+                ReceiveBufferSize = (int)receiveBufferSize;
 
                 // update the max message size.
                 if (maxMessageSize > 0 && maxMessageSize < MaxRequestMessageSize)
@@ -457,19 +488,7 @@ namespace Opc.Ua.Bindings
                 decoder.Close();
             }
 
-            // valdiate buffer sizes.
-            if (ReceiveBufferSize < TcpMessageLimits.MinBufferSize)
-            {
-                m_handshakeOperation.Fault(StatusCodes.BadTcpNotEnoughResources, "Server receive buffer size is too small ({0} bytes).", ReceiveBufferSize);
-                return false;
-            }
-
-            if (SendBufferSize < TcpMessageLimits.MinBufferSize)
-            {
-                m_handshakeOperation.Fault(StatusCodes.BadTcpNotEnoughResources, "Server send buffer size is too small ({0} bytes).", SendBufferSize);
-                return false;
-            }
-
+ 
             // ready to open the channel.
             State = TcpChannelState.Opening;
 

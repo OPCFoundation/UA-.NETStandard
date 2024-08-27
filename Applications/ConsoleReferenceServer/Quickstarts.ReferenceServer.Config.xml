@@ -179,7 +179,7 @@
         <SecurityMode>None_1</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</SecurityPolicyUri>
       </ServerSecurityPolicy>
-      <!-- deprecated security policies for reference only -->
+      <!-- deprecated security policies for reference only 
       <ServerSecurityPolicy>
         <SecurityMode>Sign_2</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
@@ -196,7 +196,7 @@
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
       </ServerSecurityPolicy>
-      <!-- -->
+      -->
     </SecurityPolicies>
 
     <MinRequestThreadCount>5</MinRequestThreadCount>

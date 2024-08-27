@@ -1057,7 +1057,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             var clientTestServices = new ClientTestServices(session);
-            ReferenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(clientTestServices, requestHeader, operationLimits ? OperationLimits : null);
+            ReferenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(clientTestServices, requestHeader, operationLimits ? OperationLimits : null, outputResult: true);
 
             if (securityPolicy != null)
             {

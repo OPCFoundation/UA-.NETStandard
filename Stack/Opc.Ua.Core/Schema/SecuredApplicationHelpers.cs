@@ -388,10 +388,18 @@ namespace Opc.Ua.Security
             byte result = 0;
             switch (policyUri)
             {
-                case SecurityPolicies.Basic128Rsa15: result = 2; break;
-                case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve448:
-                case SecurityPolicies.Basic256: result = 4; break;
+                case SecurityPolicies.Basic128Rsa15:
+                {
+                    Utils.LogWarning("Deprecated Security Policy Basic128Rsa15 requested - Not rcommended.");
+                    result = 2;
+                    break;
+                }
+                case SecurityPolicies.Basic256:
+                {
+                    Utils.LogWarning("Deprecated Security Policy Basic256 requested - Not rcommended.");
+                    result = 4;
+                    break;
+                }
                 case SecurityPolicies.Basic256Sha256: result = 6; break;
                 case SecurityPolicies.Aes128_Sha256_RsaOaep: result = 8; break;
                 case SecurityPolicies.Aes256_Sha256_RsaPss: result = 10; break;

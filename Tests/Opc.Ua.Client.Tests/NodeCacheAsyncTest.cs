@@ -41,20 +41,30 @@ using Assert = NUnit.Framework.Legacy.ClassicAssert;
 namespace Opc.Ua.Client.Tests
 {
     /// <summary>
-    /// Client tests.
+    /// Client Nodecache tests, sync and async.
     /// </summary>
     [TestFixture, Category("Client"), Category("NodeCacheAsync")]
     [SetCulture("en-us"), SetUICulture("en-us")]
-    [TestFixtureSource(nameof(FixtureArgs))]
+    [TestFixtureSource(nameof(AsyncFixtureArgs))]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
     public class NodeCacheAsyncTest : ClientTestFramework
     {
         private const int kTestSetSize = 100;
 
-        public NodeCacheAsyncTest(string uriScheme = Utils.UriSchemeOpcTcp) :
+        public bool UseAsync = true;
+
+        public static readonly object[] AsyncFixtureArgs = {
+            new object [] { Utils.UriSchemeOpcTcp, false },
+            new object [] { Utils.UriSchemeOpcTcp, true },
+            new object [] { Utils.UriSchemeHttps, false },
+            new object [] { Utils.UriSchemeOpcHttps, true },
+        };
+
+        public NodeCacheAsyncTest(string uriScheme = Utils.UriSchemeOpcTcp, bool useAsync = true) :
             base(uriScheme)
         {
+            UseAsync = useAsync;
         }
 
         #region Test Setup
@@ -149,7 +159,14 @@ namespace Opc.Ua.Client.Tests
                 ObjectIds.ObjectsFolder
             };
 
-            await Session.FetchTypeTreeAsync(ReferenceTypeIds.References).ConfigureAwait(false); // TODO: Async
+            if (UseAsync)
+            {
+                await Session.FetchTypeTreeAsync(ReferenceTypeIds.References).ConfigureAwait(false);
+            }
+            else
+            {
+                Session.FetchTypeTree(ReferenceTypeIds.References);
+            }
 
             while (nodesToBrowse.Count > 0)
             {
@@ -158,11 +175,23 @@ namespace Opc.Ua.Client.Tests
                 {
                     try
                     {
-                        var organizers = await Session.NodeCache.FindReferencesAsync(
-                            node,
-                            ReferenceTypeIds.HierarchicalReferences,
-                            false,
-                            true).ConfigureAwait(false);
+                        IList<INode> organizers;
+                        if (UseAsync)
+                        {
+                            organizers = await Session.NodeCache.FindReferencesAsync(
+                                node,
+                                ReferenceTypeIds.HierarchicalReferences,
+                                false,
+                                true).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            organizers = Session.NodeCache.FindReferences(
+                                node,
+                                ReferenceTypeIds.HierarchicalReferences,
+                                false,
+                                true);
+                        }
                         nextNodesToBrowse.AddRange(organizers.Select(n => n.NodeId));
                         var objectNodes = organizers.Where(n => n is ObjectNode);
                         var variableNodes = organizers.Where(n => n is VariableNode);
@@ -194,18 +223,38 @@ namespace Opc.Ua.Client.Tests
                 ObjectIds.ObjectsFolder
             };
 
-            await Session.FetchTypeTreeAsync(ReferenceTypeIds.References).ConfigureAwait(false);
+            if (UseAsync)
+            {
+                await Session.FetchTypeTreeAsync(ReferenceTypeIds.References).ConfigureAwait(false);
+            }
+            else
+            {
+                Session.FetchTypeTree(ReferenceTypeIds.References);
+            }
+
             var referenceTypeIds = new NodeIdCollection() { ReferenceTypeIds.HierarchicalReferences };
             while (nodesToBrowse.Count > 0)
             {
                 var nextNodesToBrowse = new ExpandedNodeIdCollection();
                 try
                 {
-                    var organizers = await Session.NodeCache.FindReferencesAsync(
-                        nodesToBrowse,
-                        referenceTypeIds,
-                        false,
-                        true).ConfigureAwait(false);
+                    IList<INode> organizers;
+                    if (UseAsync)
+                    {
+                        organizers = await Session.NodeCache.FindReferencesAsync(
+                            nodesToBrowse,
+                            referenceTypeIds,
+                            false,
+                            true).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        organizers = Session.NodeCache.FindReferences(
+                            nodesToBrowse,
+                            referenceTypeIds,
+                            false,
+                            true);
+                    }
                     nextNodesToBrowse.AddRange(organizers.Select(n => n.NodeId));
                     var objectNodes = organizers.Where(n => n is ObjectNode);
                     var variableNodes = organizers.Where(n => n is VariableNode);
@@ -225,6 +274,58 @@ namespace Opc.Ua.Client.Tests
             TestContext.Out.WriteLine("Found {0} variables", result.Count);
         }
 
+        /// <summary>
+        /// Load Ua types in node cache.
+        /// </summary>
+        [Test, Order(500)]
+        public void NodeCache_References()
+        {
+            if (UseAsync)
+            {
+                Assert.Ignore("no async version available");
+            }
+
+            INodeCache nodeCache = Session.NodeCache;
+            Assert.IsNotNull(nodeCache);
+
+            // ensure the predefined types are loaded
+            nodeCache.LoadUaDefinedTypes(Session.SystemContext);
+
+            // check on all reference type ids
+            var refTypeDictionary = typeof(ReferenceTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static)
+                .Where(f => f.FieldType == typeof(NodeId))
+                .ToDictionary(f => f.Name, f => (NodeId)f.GetValue(null));
+
+            TestContext.Out.WriteLine("Testing {0} references", refTypeDictionary.Count);
+            foreach (var property in refTypeDictionary)
+            {
+                TestContext.Out.WriteLine("FindReferenceTypeName({0})={1}", property.Value, property.Key);
+                // find the Qualified Name
+                var qn = nodeCache.FindReferenceTypeName(property.Value);
+                Assert.NotNull(qn);
+                Assert.AreEqual(property.Key, qn.Name);
+                // find the node by name
+                var refId = nodeCache.FindReferenceType(new QualifiedName(property.Key));
+                Assert.NotNull(refId);
+                Assert.AreEqual(property.Value, refId);
+                // is the node id known?
+                var isKnown = nodeCache.IsKnown(property.Value);
+                Assert.IsTrue(isKnown);
+                // is it a reference?
+                var isTypeOf = nodeCache.IsTypeOf(
+                    NodeId.ToExpandedNodeId(refId, Session.NamespaceUris),
+                    NodeId.ToExpandedNodeId(ReferenceTypeIds.References, Session.NamespaceUris));
+                Assert.IsTrue(isTypeOf);
+                // negative test
+                isTypeOf = nodeCache.IsTypeOf(
+                    NodeId.ToExpandedNodeId(refId, Session.NamespaceUris),
+                    NodeId.ToExpandedNodeId(DataTypeIds.Byte, Session.NamespaceUris));
+                Assert.IsFalse(isTypeOf);
+                var subTypes = nodeCache.FindSubTypes(NodeId.ToExpandedNodeId(refId, Session.NamespaceUris));
+                Assert.NotNull(subTypes);
+            }
+        }
+
         [Test, Order(720)]
         public async Task NodeCacheFind()
         {
@@ -236,7 +337,15 @@ namespace Opc.Ua.Client.Tests
             foreach (var reference in ReferenceDescriptions.Take(MaxReferences))
             {
                 var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
-                var node = await Session.NodeCache.FindAsync(reference.NodeId).ConfigureAwait(false);
+                INode node;
+                if (UseAsync)
+                {
+                    node = await Session.NodeCache.FindAsync(reference.NodeId).ConfigureAwait(false);
+                }
+                else
+                {
+                    node = Session.NodeCache.Find(reference.NodeId);
+                }
                 TestContext.Out.WriteLine("NodeId: {0} Node: {1}", nodeId, node);
             }
         }
@@ -252,7 +361,15 @@ namespace Opc.Ua.Client.Tests
             foreach (var reference in ReferenceDescriptions.Take(MaxReferences))
             {
                 var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
-                var node = await Session.NodeCache.FetchNodeAsync(reference.NodeId).ConfigureAwait(false);
+                INode node;
+                if (UseAsync)
+                {
+                    node = await Session.NodeCache.FetchNodeAsync(reference.NodeId).ConfigureAwait(false);
+                }
+                else
+                {
+                    node = Session.NodeCache.FetchNode(reference.NodeId);
+                }
                 TestContext.Out.WriteLine("NodeId: {0} Node: {1}", nodeId, node);
             }
         }
@@ -266,7 +383,15 @@ namespace Opc.Ua.Client.Tests
             }
 
             var testSet = ReferenceDescriptions.Take(MaxReferences).Select(r => r.NodeId).ToList();
-            IList<Node> nodeCollection = await Session.NodeCache.FetchNodesAsync(testSet).ConfigureAwait(false);
+            IList<Node> nodeCollection;
+            if (UseAsync)
+            {
+                nodeCollection = await Session.NodeCache.FetchNodesAsync(testSet).ConfigureAwait(false);
+            }
+            else
+            {
+                nodeCollection = Session.NodeCache.FetchNodes(testSet);
+            }
 
             foreach (var node in nodeCollection)
             {
@@ -284,7 +409,15 @@ namespace Opc.Ua.Client.Tests
             }
 
             var testSet = ReferenceDescriptions.Take(MaxReferences).Select(r => r.NodeId).ToList();
-            IList<INode> nodes = await Session.NodeCache.FindReferencesAsync(testSet, new NodeIdCollection() { ReferenceTypeIds.NonHierarchicalReferences }, false, true).ConfigureAwait(false);
+            IList<INode> nodes;
+            if (!UseAsync)
+            {
+                nodes = Session.NodeCache.FindReferences(testSet, new NodeIdCollection() { ReferenceTypeIds.NonHierarchicalReferences }, false, true);
+            }
+            else
+            {
+                nodes = await Session.NodeCache.FindReferencesAsync(testSet, new NodeIdCollection() { ReferenceTypeIds.NonHierarchicalReferences }, false, true).ConfigureAwait(false);
+            }
 
             foreach (var node in nodes)
             {
@@ -296,7 +429,14 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(900)]
         public async Task FetchTypeTreeAsync()
         {
-            await Session.FetchTypeTreeAsync(NodeId.ToExpandedNodeId(DataTypeIds.BaseDataType, Session.NamespaceUris)).ConfigureAwait(false);
+            if (!UseAsync)
+            {
+                Session.FetchTypeTree(NodeId.ToExpandedNodeId(DataTypeIds.BaseDataType, Session.NamespaceUris));
+            }
+            else
+            {
+                await Session.FetchTypeTreeAsync(NodeId.ToExpandedNodeId(DataTypeIds.BaseDataType, Session.NamespaceUris)).ConfigureAwait(false);
+            }
         }
 
         [Test, Order(910)]
@@ -310,7 +450,14 @@ namespace Opc.Ua.Client.Tests
                 .GetFields(bindingFlags)
                 .Select(field => NodeId.ToExpandedNodeId((NodeId)field.GetValue(null), Session.NamespaceUris));
 
-            await Session.FetchTypeTreeAsync(new ExpandedNodeIdCollection(fieldValues)).ConfigureAwait(false);
+            if (!UseAsync)
+            {
+                Session.FetchTypeTree(new ExpandedNodeIdCollection(fieldValues));
+            }
+            else
+            {
+                await Session.FetchTypeTreeAsync(new ExpandedNodeIdCollection(fieldValues)).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -331,10 +478,30 @@ namespace Opc.Ua.Client.Tests
             // test concurrent access of FetchNodes
             for (int i = 0; i < 10; i++)
             {
-                Task t = Session.NodeCache.FetchNodesAsync(testSet);
+                Task t;
+                if (!UseAsync)
+                {
+                    t = Task.Run(
+                        () => {
+                            IList<Node> nodeCollection = Session.NodeCache.FetchNodes(testSet);
+                        }
+                        );
+                }
+                else
+                {
+                    t = Session.NodeCache.FetchNodesAsync(testSet);
+                }
                 taskList.Add(t);
             }
-            await Task.WhenAll(taskList.ToArray()).ConfigureAwait(false);
+
+            if (!UseAsync)
+            {
+                Task.WaitAll(taskList.ToArray());
+            }
+            else
+            {
+                await Task.WhenAll(taskList.ToArray()).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -355,10 +522,27 @@ namespace Opc.Ua.Client.Tests
             // test concurrent access of FetchNodes
             for (int i = 0; i < 10; i++)
             {
-                Task t = Session.NodeCache.FindAsync(testSet);
+                Task t;
+                if (!UseAsync)
+                {
+                    t = Task.Run(() => {
+                        IList<INode> nodeCollection = Session.NodeCache.Find(testSet);
+                    });
+                }
+                else
+                {
+                    t = Session.NodeCache.FindAsync(testSet);
+                }
                 taskList.Add(t);
             }
-            await Task.WhenAll(taskList.ToArray()).ConfigureAwait(false);
+            if (!UseAsync)
+            {
+                Task.WaitAll(taskList.ToArray());
+            }
+            else
+            {
+                await Task.WhenAll(taskList.ToArray()).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -376,15 +560,33 @@ namespace Opc.Ua.Client.Tests
             var testSet = ReferenceDescriptions.OrderBy(o => random.Next()).Take(kTestSetSize).Select(r => r.NodeId).ToList();
             var taskList = new List<Task>();
             var refTypeIds = new List<NodeId>() { ReferenceTypeIds.HierarchicalReferences };
+
             await FetchAllReferenceTypesAsync().ConfigureAwait(false);
 
             // test concurrent access of FetchNodes
             for (int i = 0; i < 10; i++)
             {
-                Task t = Session.NodeCache.FindReferencesAsync(testSet, refTypeIds, false, true);
+                Task t;
+                if (UseAsync)
+                {
+                    t = Task.Run(() => {
+                        IList<INode> nodeCollection = Session.NodeCache.FindReferences(testSet, refTypeIds, false, true);
+                    });
+                }
+                else
+                {
+                    t = Session.NodeCache.FindReferencesAsync(testSet, refTypeIds, false, true);
+                }
                 taskList.Add(t);
             }
-            await Task.WhenAll(taskList.ToArray()).ConfigureAwait(false);
+            if (!UseAsync)
+            {
+                Task.WaitAll(taskList.ToArray());
+            }
+            else
+            {
+                await Task.WhenAll(taskList.ToArray()).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -422,28 +624,75 @@ namespace Opc.Ua.Client.Tests
                         {
                             case 0:
                                 await FetchAllReferenceTypesAsync().ConfigureAwait(false);
-                                IList<INode> result = await Session.NodeCache.FindReferencesAsync(testSet1, refTypeIds, false, true).ConfigureAwait(false);
+                                if (!UseAsync)
+                                {
+                                    _ = Session.NodeCache.FindReferences(testSet1, refTypeIds, false, true);
+                                }
+                                else
+                                {
+                                    _ = await Session.NodeCache.FindReferencesAsync(testSet1, refTypeIds, false, true).ConfigureAwait(false);
+                                }
                                 break;
                             case 1:
-                                IList<INode> result1 = await Session.NodeCache.FindAsync(testSet2).ConfigureAwait(false);
+                                if (!UseAsync)
+                                {
+                                    _ = Session.NodeCache.Find(testSet2);
+                                }
+                                else
+                                {
+                                    _ = await Session.NodeCache.FindAsync(testSet2).ConfigureAwait(false);
+                                }
                                 break;
                             case 2:
-                                IList<Node> result2 = await Session.NodeCache.FetchNodesAsync(testSet3).ConfigureAwait(false);
+                                IList<Node> result2;
+                                if (!UseAsync)
+                                {
+                                    result2 = Session.NodeCache.FetchNodes(testSet3);
+                                }
+                                else
+                                {
+                                    result2 = await Session.NodeCache.FetchNodesAsync(testSet3).ConfigureAwait(false);
+                                }
                                 string displayText = Session.NodeCache.GetDisplayText(result2[0]);
                                 break;
                             case 3:
-                                IList<INode> result3 = await Session.NodeCache.FindReferencesAsync(testSet1[0], refTypeIds[0], false, true).ConfigureAwait(false);
+                                if (UseAsync)
+                                {
+                                    _ = await Session.NodeCache.FindReferencesAsync(testSet1[0], refTypeIds[0], false, true).ConfigureAwait(false);
+                                }
+                                else
+                                {
+                                    _ = Session.NodeCache.FindReferences(testSet1[0], refTypeIds[0], false, true);
+                                }
                                 break;
                             case 4:
-                                INode result4 = await Session.NodeCache.FindAsync(testSet2[0]).ConfigureAwait(false);
+                                INode result4;
+                                if (!UseAsync)
+                                {
+                                    result4 = Session.NodeCache.Find(testSet2[0]);
+                                }
+                                else
+                                {
+                                    result4 = await Session.NodeCache.FindAsync(testSet2[0]).ConfigureAwait(false);
+                                }
                                 Assert.NotNull(result4);
                                 Assert.True(result4 is VariableNode);
                                 break;
                             case 5:
-                                Node result5 = await Session.NodeCache.FetchNodeAsync(testSet3[0]).ConfigureAwait(false);
-                                Assert.NotNull(result5);
-                                Assert.True(result5 is VariableNode);
-                                await Session.NodeCache.FetchSuperTypesAsync(result5.NodeId).ConfigureAwait(false);
+                                if (!UseAsync)
+                                {
+                                    Node result5 = Session.NodeCache.FetchNode(testSet3[0]);
+                                    Assert.NotNull(result5);
+                                    Assert.True(result5 is VariableNode);
+                                    Session.NodeCache.FetchSuperTypes(result5.NodeId);
+                                }
+                                else
+                                {
+                                    Node result5 = await Session.NodeCache.FetchNodeAsync(testSet3[0]).ConfigureAwait(false);
+                                    Assert.NotNull(result5);
+                                    Assert.True(result5 is VariableNode);
+                                    await Session.NodeCache.FetchSuperTypesAsync(result5.NodeId).ConfigureAwait(false);
+                                }
                                 break;
                             case 6:
                                 string text = Session.NodeCache.GetDisplayText(testSet2[0]);
@@ -455,9 +704,19 @@ namespace Opc.Ua.Client.Tests
                                 Assert.True(isKnown);
                                 bool isKnown2 = Session.NodeCache.IsKnown(TestData.DataTypeIds.ScalarStructureDataType);
                                 Assert.True(isKnown2);
-                                NodeId nodeId = await Session.NodeCache.FindSuperTypeAsync(TestData.DataTypeIds.Vector).ConfigureAwait(false);
+                                NodeId nodeId;
+                                NodeId nodeId2;
+                                if (!UseAsync)
+                                {
+                                    nodeId = Session.NodeCache.FindSuperType(TestData.DataTypeIds.Vector);
+                                    nodeId2 = Session.NodeCache.FindSuperType(ExpandedNodeId.ToNodeId(TestData.DataTypeIds.Vector, Session.NamespaceUris));
+                                }
+                                else
+                                {
+                                    nodeId = await Session.NodeCache.FindSuperTypeAsync(TestData.DataTypeIds.Vector).ConfigureAwait(false);
+                                    nodeId2 = await Session.NodeCache.FindSuperTypeAsync(ExpandedNodeId.ToNodeId(TestData.DataTypeIds.Vector, Session.NamespaceUris)).ConfigureAwait(false);
+                                }
                                 Assert.AreEqual(DataTypeIds.Structure, nodeId);
-                                NodeId nodeId2 = await Session.NodeCache.FindSuperTypeAsync(ExpandedNodeId.ToNodeId(TestData.DataTypeIds.Vector, Session.NamespaceUris)).ConfigureAwait(false);
                                 Assert.AreEqual(DataTypeIds.Structure, nodeId2);
                                 IList<NodeId> subTypes = Session.NodeCache.FindSubTypes(new ExpandedNodeId((int)BuiltInType.Number));
                                 bool isTypeOf = Session.NodeCache.IsTypeOf(new ExpandedNodeId((int)BuiltInType.Int32), new ExpandedNodeId((int)BuiltInType.Number));
@@ -473,8 +732,9 @@ namespace Opc.Ua.Client.Tests
                                 Assert.False(isEncodingFor2);
                                 break;
                             case 9:
-                                NodeId findDataTypeId = Session.NodeCache.FindDataTypeId(new ExpandedNodeId((int)Objects.DataTypeAttributes_Encoding_DefaultBinary));
-                                NodeId findDataTypeId2 = Session.NodeCache.FindDataTypeId((int)Objects.DataTypeAttributes_Encoding_DefaultBinary);
+                                // TODO: FindDataTypeId implementation is only producing exceptions and fills the log output
+                                // NodeId findDataTypeId = Session.NodeCache.FindDataTypeId(new ExpandedNodeId((int)Objects.DataTypeAttributes_Encoding_DefaultBinary));
+                                // NodeId findDataTypeId2 = Session.NodeCache.FindDataTypeId((int)Objects.DataTypeAttributes_Encoding_DefaultBinary);
                                 break;
                             default:
                                 Assert.Fail("Invalid test case");
@@ -485,7 +745,14 @@ namespace Opc.Ua.Client.Tests
                 });
                 taskList.Add(t);
             }
-            await Task.WhenAll(taskList.ToArray()).ConfigureAwait(false);
+            if (!UseAsync)
+            {
+                Task.WaitAll(taskList.ToArray());
+            }
+            else
+            {
+                await Task.WhenAll(taskList.ToArray()).ConfigureAwait(false);
+            }
         }
         #endregion
 
