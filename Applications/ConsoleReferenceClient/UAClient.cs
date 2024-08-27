@@ -130,13 +130,9 @@ namespace Quickstarts
 
         #region Public Methods
         /// <summary>
-        /// 
+        /// Do a Durable Subscription Transfer
         /// </summary>
-        /// <param name="serverUrl"></param>
-        /// <param name="useSecurity"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        public async Task<bool> ReconnectAndTransfer(string serverUrl, bool useSecurity = true, CancellationToken ct = default)
+        public async Task<bool> DurableSubscriptionTransfer(string serverUrl, bool useSecurity = true, CancellationToken ct = default)
         {
             bool success = false;
             SubscriptionCollection subscriptions = new SubscriptionCollection(m_session.Subscriptions);

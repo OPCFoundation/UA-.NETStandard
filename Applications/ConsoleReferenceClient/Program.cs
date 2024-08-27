@@ -419,7 +419,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                         if (waitCounters == restartSessionTime)
                                         {
                                             output.WriteLine("Restarting Session at " + DateTime.Now.ToLongTimeString());
-                                            await uaClient.ReconnectAndTransfer(
+                                            await uaClient.DurableSubscriptionTransfer(
                                                 serverUrl.ToString(),
                                                 useSecurity: !noSecurity,
                                                 quitCTS.Token);

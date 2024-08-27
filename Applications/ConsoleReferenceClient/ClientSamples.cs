@@ -385,7 +385,8 @@ namespace Quickstarts
 
                     if (subscription.SetSubscriptionDurable(1, out revisedLifetimeInHours))
                     {
-                        m_output.WriteLine("Subscription {0} is now durable.", subscription.Id);
+                        m_output.WriteLine("Subscription {0} is now durable, Revised Lifetime {1} in hours.",
+                            subscription.Id, revisedLifetimeInHours);
                     }
                     else
                     {
