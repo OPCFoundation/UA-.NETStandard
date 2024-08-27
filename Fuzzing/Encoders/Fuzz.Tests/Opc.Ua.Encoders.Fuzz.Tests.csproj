@@ -32,7 +32,7 @@
     </PackageReference>
     <PackageReference Include="SharpFuzz" Version="2.1.1" />
     <PackageReference Include="BenchmarkDotNet.TestAdapter" Version="0.13.12" />
-    <PackageReference Include="BenchmarkDotNet" Version="0.13.2" />
+    <PackageReference Include="BenchmarkDotNet" Version="0.13.12" />
   </ItemGroup>
 
   <ItemGroup>

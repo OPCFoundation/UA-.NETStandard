@@ -11,6 +11,8 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="NUnit" Version="4.1.0" />
     <PackageReference Include="NUnit.Console" Version="3.18.1" />
+    <PackageReference Include="BenchmarkDotNet.TestAdapter" Version="0.13.12" />
+    <PackageReference Include="BenchmarkDotNet" Version="0.13.12" />
     <PackageReference Include="NUnit3TestAdapter" Version="4.6.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
