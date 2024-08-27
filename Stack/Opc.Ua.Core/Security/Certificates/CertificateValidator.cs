@@ -680,7 +680,7 @@ namespace Opc.Ua
         private void SaveCertificates(X509Certificate2Collection certificateChain)
         {
             // number of rejected certificates for history 
-            const int kMaxRejectedCertificates  = 5;
+            const int kMaxRejectedCertificates = 5;
             try
             {
                 m_semaphore.Wait();
@@ -693,25 +693,8 @@ namespace Opc.Ua
                         ICertificateStore store = m_rejectedCertificateStore.OpenStore();
                         try
                         {
-                            bool leafCertificate = true;
-                            foreach (var certificate in certificateChain)
-                            {
-                                try
-                                {
-                                    // number of certs for history + current chain size
-                                    store.AddRejected(certificate, certificateChain.Count + kMaxRejectedCertificates).GetAwaiter().GetResult();
-                                    if (!leafCertificate)
-                                    {
-                                        Utils.LogCertificate("Saved issuer certificate: ", certificate);
-                                    }
-                                    leafCertificate = false;
-                                }
-                                catch (ArgumentException aex)
-                                {
-                                    // just notify why the certificate cannot be added
-                                    Utils.LogCertificate(aex.Message, certificate);
-                                }
-                            }
+                            // number of certs for history + current chain
+                            store.AddRejected(certificateChain, kMaxRejectedCertificates).GetAwaiter().GetResult();
                         }
                         finally
                         {

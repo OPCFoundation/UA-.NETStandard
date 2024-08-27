@@ -765,7 +765,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task AddRejected(X509Certificate2 certificate, int maxCertificates)
+        public Task AddRejected(X509Certificate2Collection certificates, int maxCertificates)
         {
             return Task.CompletedTask;
         }

@@ -60,11 +60,11 @@ namespace Opc.Ua
         Task Add(X509Certificate2 certificate, string password = null);
 
         /// <summary>
-        /// Adds a rejected certificate to the store.
+        /// Adds a rejected certificate chain to the store.
         /// </summary>
-        /// <param name="certificate">The certificate.</param>
+        /// <param name="certificates">The certificate collection.</param>
         /// <param name="maxCertificates">The max number of rejected certificates to keep in the store.</param>
-        Task AddRejected(X509Certificate2 certificate, int maxCertificates);
+        Task AddRejected(X509Certificate2Collection certificates, int maxCertificates);
 
         /// <summary>
         /// Deletes a certificate from the store.

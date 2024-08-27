@@ -211,10 +211,12 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task AddRejected(X509Certificate2 certificate, int maxCertificates)
+        public Task AddRejected(X509Certificate2Collection certificates, int maxCertificates)
         {
-            if (certificate == null) throw new ArgumentNullException(nameof(certificate));
+            if (certificates == null) throw new ArgumentNullException(nameof(certificates));
 
+            // limit to 2 x maxCertificates after pass (new+old).
+            maxCertificates += Math.Min(certificates.Count, maxCertificates);
             lock (m_lock)
             {
                 // refresh the directories.
@@ -223,17 +225,21 @@ namespace Opc.Ua
                     m_certificateSubdir.Refresh();
                 }
 
-                // build file name.
-                string fileName = GetFileName(certificate);
-
-                // check if store exists.
-                if (!m_certificateSubdir.Exists)
+                int count = 0;
+                foreach (var certificate in certificates)
                 {
-                    WriteFile(certificate.RawData, fileName, false);
-                    return Task.CompletedTask;
-                }
+                    // build file name.
+                    string fileName = GetFileName(certificate);
 
-                WriteFile(certificate.RawData, fileName, false);
+                    // store is created if it does not exist
+                    WriteFile(certificate.RawData, fileName, false, true);
+
+                    // limit the number of certificates added per call.
+                    if (++count >= maxCertificates)
+                    {
+                        break;
+                    }
+                }
 
                 // remove outdated certificates.
                 int entries = 0;
@@ -252,7 +258,7 @@ namespace Opc.Ua
                         }
                     }
                 }
- 
+
                 m_lastDirectoryCheck = DateTime.MinValue;
             }
 
@@ -918,7 +924,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes the data to a file.
         /// </summary>
-        private void WriteFile(byte[] data, string fileName, bool includePrivateKey)
+        private void WriteFile(byte[] data, string fileName, bool includePrivateKey, bool allowOverride = false)
         {
             var filePath = new StringBuilder();
 
@@ -961,7 +967,8 @@ namespace Opc.Ua
             }
 
             // write file.
-            var writer = new BinaryWriter(fileInfo.Open(FileMode.Create));
+            var fileMode = allowOverride ? FileMode.OpenOrCreate : FileMode.Create;
+            var writer = new BinaryWriter(fileInfo.Open(fileMode, FileAccess.Write));
             try
             {
                 writer.Write(data);
