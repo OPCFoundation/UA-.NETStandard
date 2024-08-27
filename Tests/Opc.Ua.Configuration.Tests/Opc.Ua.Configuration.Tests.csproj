@@ -8,7 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.10.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="NUnit" Version="4.1.0" />
     <PackageReference Include="NUnit.Console" Version="3.18.1" />
     <PackageReference Include="NUnit3TestAdapter" Version="4.6.0">
@@ -19,7 +20,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="BenchmarkDotNet" Version="0.14.0" />
+    <PackageReference Include="BenchmarkDotNet" Version="0.13.2" />
     <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
     <PackageReference Include="System.Private.Uri" Version="4.3.2" />
   </ItemGroup>
