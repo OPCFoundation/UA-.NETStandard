@@ -287,6 +287,13 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public bool CheckDomain => m_session.CheckDomain;
+        
+        /// <inheritdoc/>
+        public ContinuationPointPolicy ContinuationPointPolicy
+        {
+            get => m_session.ContinuationPointPolicy;
+            set => m_session.ContinuationPointPolicy = value;
+        }
 
         /// <inheritdoc/>
         public override bool Equals(object obj)
@@ -638,7 +645,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public void FindComponentIds(NodeId instanceId, IList<string> componentPaths, out NodeIdCollection componentIds, out List<ServiceResult> errors)
+        public void FindComponentIds(NodeId instanceId, IList<string> componentPaths, out NodeIdCollection componentIds, out IList<ServiceResult> errors)
         {
             using (Activity activity = ActivitySource.StartActivity())
             {
@@ -647,7 +654,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public void ReadValues(IList<NodeId> variableIds, IList<Type> expectedTypes, out List<object> values, out List<ServiceResult> errors)
+        public void ReadValues(IList<NodeId> variableIds, IList<Type> expectedTypes, out IList<object> values, out IList<ServiceResult> errors)
         {
             using (Activity activity = ActivitySource.StartActivity())
             {
@@ -1262,6 +1269,29 @@ namespace Opc.Ua.Client
             using (Activity activity = ActivitySource.StartActivity())
             {
                 return await m_session.BrowseNextAsync(requestHeader, releaseContinuationPoints, continuationPoints, ct).ConfigureAwait(false);
+            }
+        }
+
+
+        /// <inheritdoc/>
+        public void ManagedBrowse(RequestHeader requestHeader, ViewDescription view, IList<NodeId> nodesToBrowse, uint maxResultsToReturn, BrowseDirection browseDirection, NodeId referenceTypeId, bool includeSubtypes, uint nodeClassMask, out IList<ReferenceDescriptionCollection> result, out IList<ServiceResult> errors)
+        {
+            using (Activity activity = ActivitySource.StartActivity())
+            {
+                m_session.ManagedBrowse(requestHeader, view, nodesToBrowse, maxResultsToReturn, browseDirection, referenceTypeId, includeSubtypes, nodeClassMask, out result, out errors);
+            }
+
+        }
+
+        /// <inheritdoc/>        
+        public async Task<(
+            IList<ReferenceDescriptionCollection>,
+            IList<ServiceResult>
+            )> ManagedBrowseAsync(RequestHeader requestHeader, ViewDescription view, IList<NodeId> nodesToBrowse, uint maxResultsToReturn, BrowseDirection browseDirection, NodeId referenceTypeId, bool includeSubtypes, uint nodeClassMask, CancellationToken ct = default)
+        {
+            using (Activity activity = ActivitySource.StartActivity())
+            {
+                return await m_session.ManagedBrowseAsync(requestHeader, view, nodesToBrowse, maxResultsToReturn, browseDirection, referenceTypeId, includeSubtypes, nodeClassMask, ct);
             }
         }
 

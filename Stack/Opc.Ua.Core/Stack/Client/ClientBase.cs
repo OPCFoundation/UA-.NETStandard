@@ -114,8 +114,8 @@ namespace Opc.Ua
                     {
                         return channel;
                     }
+                    throw new ServiceResultException(StatusCodes.BadSecureChannelClosed, "Channel has been disposed.");
                 }
-
                 throw new ServiceResultException(StatusCodes.BadSecureChannelClosed, "Channel has been closed.");
             }
 
