@@ -242,8 +242,8 @@ namespace Opc.Ua.Configuration.Tests
             => m_innerStore.LoadPrivateKey(thumbprint, subjectName, password);
 
         /// <inheritdoc/>
-        public Task AddRejected(X509Certificate2 certificate, int maxCertificates)
-            => m_innerStore.AddRejected(certificate, maxCertificates);
+        public Task AddRejected(X509Certificate2Collection certificates, int maxCertificates)
+            => m_innerStore.AddRejected(certificates, maxCertificates);
 
         public static int InstancesCreated => s_instancesCreated;
 
