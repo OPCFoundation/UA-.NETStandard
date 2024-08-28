@@ -1,7 +1,7 @@
 /* ========================================================================
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
- * OPC Foundation MIT License 1.00
+ * OPC Foundation MIT License 1.00 
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
