@@ -346,6 +346,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
 
                 Assert.AreEqual(kNumberOfRejectCertsHistory + 1, validator.RejectedStore.Enumerate().Result.Count);
+
+                // override with the same content
+                foreach (var cert in m_appSelfSignedCerts)
+                {
+                    var serviceResultException = Assert.ThrowsAsync<ServiceResultException>(async () => await certValidator.ValidateAsync(new X509Certificate2Collection(cert), CancellationToken.None).ConfigureAwait(false));
+                    Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
+                }
+
+                Assert.AreEqual(kNumberOfRejectCertsHistory + 1, validator.RejectedStore.Enumerate().Result.Count);
             }
         }
 

@@ -216,7 +216,7 @@ namespace Opc.Ua
             if (certificates == null) throw new ArgumentNullException(nameof(certificates));
 
             // limit to 2 x maxCertificates after pass (new+old).
-            maxCertificates += Math.Min(certificates.Count, maxCertificates);
+            int totalCertificates = maxCertificates + Math.Min(certificates.Count, maxCertificates);
             lock (m_lock)
             {
                 // refresh the directories.
@@ -246,7 +246,7 @@ namespace Opc.Ua
                 foreach (FileInfo file in m_certificateSubdir.GetFiles("*.der").OrderBy(fileInfo => fileInfo.LastWriteTime))
                 {
                     entries++;
-                    if (entries > maxCertificates)
+                    if (entries > totalCertificates)
                     {
                         try
                         {
