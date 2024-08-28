@@ -562,7 +562,7 @@ namespace Opc.Ua
                     certificate, se.Result.StatusCode);
 
                 // save the chain in rejected store to allow to add certs to a trusted or issuer store
-                SaveCertificates(chain);
+                Task.Run(async () => await SaveCertificatesAsync(chain).ConfigureAwait(false));
 
                 LogInnerServiceResults(LogLevel.Error, se.Result.InnerResult);
                 throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
@@ -626,7 +626,7 @@ namespace Opc.Ua
                 LogInnerServiceResults(LogLevel.Error, se.Result.InnerResult);
 
                 // save the chain in rejected store to allow to add cert to a trusted or issuer store
-                SaveCertificates(chain);
+                Task.Run(async () => await SaveCertificatesAsync(chain).ConfigureAwait(false));
 
                 throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
             }
@@ -669,42 +669,46 @@ namespace Opc.Ua
         /// <summary>
         /// Saves the certificate in the rejected certificate store.
         /// </summary>
-        private void SaveCertificate(X509Certificate2 certificate)
+        private Task SaveCertificateAsync(X509Certificate2 certificate)
         {
-            SaveCertificates(new X509Certificate2Collection { certificate });
+            return SaveCertificatesAsync(new X509Certificate2Collection { certificate });
         }
 
         /// <summary>
         /// Saves the certificate chain in the rejected certificate store.
         /// </summary>
-        private void SaveCertificates(X509Certificate2Collection certificateChain)
+        private async Task SaveCertificatesAsync(X509Certificate2Collection certificateChain)
         {
             // number of rejected certificates for history 
             const int kMaxRejectedCertificates = 5;
+
+            var rejectedCertificateStore = m_rejectedCertificateStore;
+            if (rejectedCertificateStore == null)
+            {
+                return;
+            }
+
             try
             {
-                m_semaphore.Wait();
+                await m_semaphore.WaitAsync().ConfigureAwait(false);
 
-                if (m_rejectedCertificateStore != null)
+                Utils.LogTrace("Writing rejected certificate chain to: {0}", m_rejectedCertificateStore);
+                try
                 {
-                    Utils.LogTrace("Writing rejected certificate chain to: {0}", m_rejectedCertificateStore);
+                    ICertificateStore store = m_rejectedCertificateStore.OpenStore();
                     try
                     {
-                        ICertificateStore store = m_rejectedCertificateStore.OpenStore();
-                        try
-                        {
-                            // number of certs for history + current chain
-                            store.AddRejected(certificateChain, kMaxRejectedCertificates).GetAwaiter().GetResult();
-                        }
-                        finally
-                        {
-                            store.Close();
-                        }
+                        // number of certs for history + current chain
+                        await store.AddRejected(certificateChain, kMaxRejectedCertificates).ConfigureAwait(false);
                     }
-                    catch (Exception e)
+                    finally
                     {
-                        Utils.LogError(e, "Could not write certificate to directory: {0}", m_rejectedCertificateStore);
+                        store.Close();
                     }
+                }
+                catch (Exception e)
+                {
+                    Utils.LogError(e, "Could not write certificate to directory: {0}", m_rejectedCertificateStore);
                 }
             }
             finally
@@ -1474,7 +1478,7 @@ namespace Opc.Ua
                         // write the invalid certificate to rejected store if specified.
                         Utils.LogCertificate(LogLevel.Error, "Certificate rejected. Reason={0}.",
                             serverCertificate, Redact.Create(serviceResult));
-                        SaveCertificate(serverCertificate);
+                        Task.Run(async () => await SaveCertificateAsync(serverCertificate).ConfigureAwait(false));
                     }
 
                     throw serviceResult;
