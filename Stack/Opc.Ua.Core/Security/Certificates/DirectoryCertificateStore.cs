@@ -20,6 +20,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Redaction;
+using System.Threading;
 
 namespace Opc.Ua
 {
@@ -212,61 +213,66 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task AddRejected(X509Certificate2Collection certificates, int maxCertificates)
+        public async Task AddRejected(X509Certificate2Collection certificates, int maxCertificates)
         {
+            const int kRetries = 5;
+
             if (certificates == null) throw new ArgumentNullException(nameof(certificates));
 
             // limit to 2 x maxCertificates after pass (new+old).
             int totalCertificates = maxCertificates + Math.Min(certificates.Count, maxCertificates);
-            lock (m_lock)
+
+            int entries = 0;
+            foreach (var certificate in certificates)
             {
-                int entries = 0;
-                foreach (var certificate in certificates)
+                // limit the number of certificates added per call.
+                if (maxCertificates != 0 && entries >= maxCertificates)
                 {
-                    // limit the number of certificates added per call.
-                    if (maxCertificates != 0 && entries >= maxCertificates)
-                    {
-                        break;
-                    }
-                    // build file name.
-                    string fileName = GetFileName(certificate);
+                    break;
+                }
+                // build file name.
+                string fileName = GetFileName(certificate);
 
-                    // store is created if it does not exist
-                    WriteFile(certificate.RawData, fileName, false, true);
+                // store is created if it does not exist
+                WriteFile(certificate.RawData, fileName, false, true);
 
+                entries++;
+            }
+
+            // refresh the directory.
+            m_certificateSubdir?.Refresh();
+
+            // remove outdated certificates.
+            if (maxCertificates != 0)
+            {
+                entries = 0;
+                foreach (FileInfo file in m_certificateSubdir.GetFiles(kCertSearchString).OrderByDescending(fileInfo => fileInfo.LastWriteTime))
+                {
                     entries++;
-                }
-
-                // refresh the directory.
-                if (m_certificateSubdir != null)
-                {
-                    m_certificateSubdir.Refresh();
-                }
-
-                // remove outdated certificates.
-                if (maxCertificates != 0)
-                {
-                    entries = 0;
-                    foreach (FileInfo file in m_certificateSubdir.GetFiles(kCertSearchString).OrderByDescending(fileInfo => fileInfo.LastWriteTime))
+                    if (entries > totalCertificates)
                     {
-                        entries++;
-                        if (entries > totalCertificates)
+                        int retries = kRetries;
+                        do
                         {
                             try
                             {
                                 // try to delete 
                                 File.Delete(file.FullName);
+                                retries = 0;
                             }
                             catch
                             {
+                                retries--;
+                                await Task.Delay(10).ConfigureAwait(false);
                             }
                         }
+                        while (retries > 0);
                     }
                 }
-                m_lastDirectoryCheck = DateTime.MinValue;
             }
 
-            return Task.CompletedTask;
+            m_lastDirectoryCheck = DateTime.MinValue;
+            m_certificateSubdir?.Refresh();
         }
 
         /// <inheritdoc/>
