@@ -736,15 +736,10 @@ namespace Opc.Ua
                 {
                     Utils.LogTrace("Writing rejected certificate chain to: {0}", rejectedCertificateStore);
 
-                    ICertificateStore store = rejectedCertificateStore.OpenStore();
-                    try
+                    using (ICertificateStore store = rejectedCertificateStore.OpenStore())
                     {
                         // number of certs for history + current chain
                         await store.AddRejected(certificateChain, m_maxRejectedCertificates).ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        store.Close();
                     }
                 }
                 finally
