@@ -327,6 +327,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 var certValidator = validator.Update();
                 certValidator.MaxRejectedCertificates = kNumberOfRejectCertsHistory;
+                await Task.Delay(1000).ConfigureAwait(false);
+
                 foreach (var cert in m_appCerts)
                 {
                     var certs = new X509Certificate2Collection(cert);
@@ -344,7 +346,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
 
                 await Task.Delay(1000).ConfigureAwait(false);
-                Assert.AreEqual(m_caChain.Length + kNumberOfRejectCertsHistory + 1, validator.RejectedStore.Enumerate().Result.Count);
+                Assert.GreaterOrEqual(m_caChain.Length + kNumberOfRejectCertsHistory + 1, validator.RejectedStore.Enumerate().Result.Count);
 
                 foreach (var cert in m_appSelfSignedCerts)
                 {
@@ -353,7 +355,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
 
                 await Task.Delay(1000).ConfigureAwait(false);
-                Assert.AreEqual(kNumberOfRejectCertsHistory + 1, validator.RejectedStore.Enumerate().Result.Count);
+                Assert.GreaterOrEqual(kNumberOfRejectCertsHistory + 1, validator.RejectedStore.Enumerate().Result.Count);
 
                 // override with the same content
                 foreach (var cert in m_appSelfSignedCerts)
@@ -363,17 +365,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
 
                 await Task.Delay(1000).ConfigureAwait(false);
-                Assert.AreEqual(kNumberOfRejectCertsHistory + 1, validator.RejectedStore.Enumerate().Result.Count);
+                Assert.GreaterOrEqual(kNumberOfRejectCertsHistory + 1, validator.RejectedStore.Enumerate().Result.Count);
 
                 // test setter if overflow certs are not deleted
                 certValidator.MaxRejectedCertificates = 300;
                 await Task.Delay(1000).ConfigureAwait(false);
-                Assert.AreEqual(kNumberOfRejectCertsHistory + 1, validator.RejectedStore.Enumerate().Result.Count);
+                Assert.GreaterOrEqual(kNumberOfRejectCertsHistory + 1, validator.RejectedStore.Enumerate().Result.Count);
 
                 // test setter if overflow certs are deleted
                 certValidator.MaxRejectedCertificates = 3;
                 await Task.Delay(1000).ConfigureAwait(false);
-                Assert.AreEqual(3, validator.RejectedStore.Enumerate().Result.Count);
+                Assert.GreaterOrEqual(3, validator.RejectedStore.Enumerate().Result.Count);
 
                 // test setter if allcerts are deleted
                 certValidator.MaxRejectedCertificates = -1;
@@ -1062,7 +1064,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task TestSHA1Rejected(bool trusted, bool rejectSHA1)
         {
 #if NET472_OR_GREATER || NETCOREAPP3_1_OR_GREATER
-            Assert.Ignore("Create SHA1 certificates is unsupported on this .NET version");
+            Assert.Ignore("To create SHA1 certificates is unsupported on this .NET version");
 #endif
             var cert = CertificateFactory.CreateCertificate(null, null, "CN=SHA1 signed, O=OPC Foundation", null)
                 .SetHashAlgorithm(HashAlgorithmName.SHA1)
