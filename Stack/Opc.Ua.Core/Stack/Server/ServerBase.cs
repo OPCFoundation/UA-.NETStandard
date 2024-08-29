@@ -779,6 +779,39 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Sets the Server Certificate in an Endpoint description if the description requires encryption
+        /// </summary>
+        /// <param name="description">the endpoint Description to set the server certificate</param>
+        /// <param name="sendCertificateChain">true if the certificate chain shall be sent</param>
+        /// <param name="instanceCertificate">the instance certificate</param>
+        /// <param name="instanceCertificateChain">the instance certificate chain</param>
+        public static void SetServerCertificateInEndpointDescription(EndpointDescription description,
+            bool sendCertificateChain,
+            X509Certificate2 instanceCertificate,
+            X509Certificate2Collection instanceCertificateChain)
+        {
+            if (RequireEncryption(description))
+            {
+                description.ServerCertificate = instanceCertificate.RawData;
+
+                // check if complete chain should be sent.
+                if (sendCertificateChain &&
+                    instanceCertificateChain != null &&
+                    instanceCertificateChain.Count > 1)
+                {
+                    List<byte> serverCertificateChain = new List<byte>();
+
+                    for (int i = 0; i < instanceCertificateChain.Count; i++)
+                    {
+                        serverCertificateChain.AddRange(instanceCertificateChain[i].RawData);
+                    }
+
+                    description.ServerCertificate = serverCertificateChain.ToArray();
+                }
+            }
+        }
+
+        /// <summary>
         /// Called after the application certificate update.
         /// </summary>
         protected virtual void OnCertificateUpdate(object sender, CertificateUpdateEventArgs e)
@@ -805,25 +838,13 @@ namespace Opc.Ua
                 }
             }
 
-            foreach (EndpointDescription endpointDescription in m_endpoints.Where(endpoint => RequireEncryption(endpoint)))
+            //update certificate in the endpoint descriptions
+            foreach (EndpointDescription endpointDescription in m_endpoints)
             {
-                // check if complete chain should be sent.
-                if (Configuration.SecurityConfiguration.SendCertificateChain &&
-                    InstanceCertificateChain != null &&
-                    InstanceCertificateChain.Count > 1)
-                {
-                    var serverCertificateChain = new List<byte>();
-
-                    foreach (X509Certificate2 certificate in InstanceCertificateChain)
-                    {
-                        serverCertificateChain.AddRange(certificate.RawData);
-                    }
-                    endpointDescription.ServerCertificate = serverCertificateChain.ToArray();
-                }
-                else
-                {
-                    endpointDescription.ServerCertificate = InstanceCertificate.RawData;
-                }
+                SetServerCertificateInEndpointDescription(endpointDescription,
+                    Configuration.SecurityConfiguration.SendCertificateChain,
+                    InstanceCertificate,
+                    InstanceCertificateChain);
             }
 
             foreach (var listener in TransportListeners)
