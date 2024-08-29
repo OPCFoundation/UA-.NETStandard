@@ -734,9 +734,9 @@ namespace Opc.Ua
 
                 try
                 {
-                    Utils.LogTrace("Writing rejected certificate chain to: {0}", m_rejectedCertificateStore);
+                    Utils.LogTrace("Writing rejected certificate chain to: {0}", rejectedCertificateStore);
 
-                    ICertificateStore store = m_rejectedCertificateStore.OpenStore();
+                    ICertificateStore store = rejectedCertificateStore.OpenStore();
                     try
                     {
                         // number of certs for history + current chain
@@ -754,7 +754,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.LogTrace("Could not write certificate to directory: {0} Error:{1}", m_rejectedCertificateStore, e.Message);
+                Utils.LogTrace("Could not write certificate to directory: {0} Error:{1}", rejectedCertificateStore, e.Message);
             }
         }
 
