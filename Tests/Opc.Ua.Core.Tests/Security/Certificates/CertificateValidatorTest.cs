@@ -311,6 +311,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Verify untrusted app certs do not overflow the rejected store.
         /// </summary>
         [Test]
+        [NonParallelizable]
         public async Task VerifyRejectedCertsDoNotOverflowStore()
         {
             // test number of rejected certs 
@@ -327,69 +328,76 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 var certValidator = validator.Update();
                 certValidator.MaxRejectedCertificates = kNumberOfRejectCertsHistory;
-                await Task.Delay(1000).ConfigureAwait(false);
-
-                foreach (var cert in m_appCerts)
+                try
                 {
-                    var certs = new X509Certificate2Collection(cert);
-                    certs.AddRange(m_caChain);
-                    var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(certs));
-                    Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
-                }
+                    await Task.Delay(1000).ConfigureAwait(false);
 
-                foreach (var cert in m_notYetValidAppCerts)
+                    foreach (var cert in m_appCerts)
+                    {
+                        var certs = new X509Certificate2Collection(cert);
+                        certs.AddRange(m_caChain);
+                        var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(certs));
+                        Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
+                    }
+
+                    foreach (var cert in m_notYetValidAppCerts)
+                    {
+                        var certs = new X509Certificate2Collection(cert);
+                        certs.AddRange(m_caChain);
+                        var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(certs));
+                        Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
+                    }
+
+                    await Task.Delay(1000).ConfigureAwait(false);
+                    Assert.GreaterOrEqual(m_caChain.Length + kNumberOfRejectCertsHistory + 1, validator.RejectedStore.Enumerate().Result.Count);
+
+                    foreach (var cert in m_appSelfSignedCerts)
+                    {
+                        var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2Collection(cert)));
+                        Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
+                    }
+
+                    await Task.Delay(1000).ConfigureAwait(false);
+                    Assert.GreaterOrEqual(kNumberOfRejectCertsHistory + 1, validator.RejectedStore.Enumerate().Result.Count);
+
+                    // override with the same content
+                    foreach (var cert in m_appSelfSignedCerts)
+                    {
+                        var serviceResultException = Assert.ThrowsAsync<ServiceResultException>(async () => await certValidator.ValidateAsync(new X509Certificate2Collection(cert), CancellationToken.None).ConfigureAwait(false));
+                        Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
+                    }
+
+                    await Task.Delay(1000).ConfigureAwait(false);
+                    Assert.GreaterOrEqual(kNumberOfRejectCertsHistory + 1, validator.RejectedStore.Enumerate().Result.Count);
+
+                    // test setter if overflow certs are not deleted
+                    certValidator.MaxRejectedCertificates = 300;
+                    await Task.Delay(1000).ConfigureAwait(false);
+                    Assert.GreaterOrEqual(kNumberOfRejectCertsHistory + 1, validator.RejectedStore.Enumerate().Result.Count);
+
+                    // test setter if overflow certs are deleted
+                    certValidator.MaxRejectedCertificates = 3;
+                    await Task.Delay(1000).ConfigureAwait(false);
+                    Assert.GreaterOrEqual(3, validator.RejectedStore.Enumerate().Result.Count);
+
+                    // test setter if allcerts are deleted
+                    certValidator.MaxRejectedCertificates = -1;
+                    await Task.Delay(1000).ConfigureAwait(false);
+                    Assert.AreEqual(0, validator.RejectedStore.Enumerate().Result.Count);
+
+                    // ensure no certs are added to the rejected store
+                    foreach (var cert in m_appSelfSignedCerts)
+                    {
+                        var serviceResultException = Assert.ThrowsAsync<ServiceResultException>(async () => await certValidator.ValidateAsync(new X509Certificate2Collection(cert), CancellationToken.None).ConfigureAwait(false));
+                        Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
+                    }
+                    await Task.Delay(1000).ConfigureAwait(false);
+                    Assert.AreEqual(0, validator.RejectedStore.Enumerate().Result.Count);
+                }
+                finally
                 {
-                    var certs = new X509Certificate2Collection(cert);
-                    certs.AddRange(m_caChain);
-                    var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(certs));
-                    Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
+                    certValidator.MaxRejectedCertificates = kNumberOfRejectCertsHistory;
                 }
-
-                await Task.Delay(1000).ConfigureAwait(false);
-                Assert.GreaterOrEqual(m_caChain.Length + kNumberOfRejectCertsHistory + 1, validator.RejectedStore.Enumerate().Result.Count);
-
-                foreach (var cert in m_appSelfSignedCerts)
-                {
-                    var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2Collection(cert)));
-                    Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
-                }
-
-                await Task.Delay(1000).ConfigureAwait(false);
-                Assert.GreaterOrEqual(kNumberOfRejectCertsHistory + 1, validator.RejectedStore.Enumerate().Result.Count);
-
-                // override with the same content
-                foreach (var cert in m_appSelfSignedCerts)
-                {
-                    var serviceResultException = Assert.ThrowsAsync<ServiceResultException>(async () => await certValidator.ValidateAsync(new X509Certificate2Collection(cert), CancellationToken.None).ConfigureAwait(false));
-                    Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
-                }
-
-                await Task.Delay(1000).ConfigureAwait(false);
-                Assert.GreaterOrEqual(kNumberOfRejectCertsHistory + 1, validator.RejectedStore.Enumerate().Result.Count);
-
-                // test setter if overflow certs are not deleted
-                certValidator.MaxRejectedCertificates = 300;
-                await Task.Delay(1000).ConfigureAwait(false);
-                Assert.GreaterOrEqual(kNumberOfRejectCertsHistory + 1, validator.RejectedStore.Enumerate().Result.Count);
-
-                // test setter if overflow certs are deleted
-                certValidator.MaxRejectedCertificates = 3;
-                await Task.Delay(1000).ConfigureAwait(false);
-                Assert.GreaterOrEqual(3, validator.RejectedStore.Enumerate().Result.Count);
-
-                // test setter if allcerts are deleted
-                certValidator.MaxRejectedCertificates = -1;
-                await Task.Delay(1000).ConfigureAwait(false);
-                Assert.AreEqual(0, validator.RejectedStore.Enumerate().Result.Count);
-
-                // ensure no certs are added to the rejected store
-                foreach (var cert in m_appSelfSignedCerts)
-                {
-                    var serviceResultException = Assert.ThrowsAsync<ServiceResultException>(async () => await certValidator.ValidateAsync(new X509Certificate2Collection(cert), CancellationToken.None).ConfigureAwait(false));
-                    Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
-                }
-                await Task.Delay(1000).ConfigureAwait(false);
-                Assert.AreEqual(0, validator.RejectedStore.Enumerate().Result.Count);
             }
         }
 
