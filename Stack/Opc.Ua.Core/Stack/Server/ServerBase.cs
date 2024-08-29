@@ -785,7 +785,8 @@ namespace Opc.Ua
         /// <param name="sendCertificateChain">true if the certificate chain shall be sent</param>
         /// <param name="instanceCertificate">the instance certificate</param>
         /// <param name="instanceCertificateChain">the instance certificate chain</param>
-        public static void SetServerCertificateInEndpointDescription(EndpointDescription description,
+        public static void SetServerCertificateInEndpointDescription(
+            EndpointDescription description,
             bool sendCertificateChain,
             X509Certificate2 instanceCertificate,
             X509Certificate2Collection instanceCertificateChain)
@@ -841,7 +842,8 @@ namespace Opc.Ua
             //update certificate in the endpoint descriptions
             foreach (EndpointDescription endpointDescription in m_endpoints)
             {
-                SetServerCertificateInEndpointDescription(endpointDescription,
+                SetServerCertificateInEndpointDescription(
+                    endpointDescription,
                     Configuration.SecurityConfiguration.SendCertificateChain,
                     InstanceCertificate,
                     InstanceCertificateChain);

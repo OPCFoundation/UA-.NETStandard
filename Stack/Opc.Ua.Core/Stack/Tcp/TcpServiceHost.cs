@@ -96,7 +96,8 @@ namespace Opc.Ua.Bindings
                         description.UserIdentityTokens = serverBase.GetUserTokenPolicies(configuration, description);
                         description.TransportProfileUri = Profiles.UaTcpTransport;
 
-                        ServerBase.SetServerCertificateInEndpointDescription(description,
+                        ServerBase.SetServerCertificateInEndpointDescription(
+                            description,
                             configuration.SecurityConfiguration.SendCertificateChain,
                             instanceCertificate,
                             instanceCertificateChain);
