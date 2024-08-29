@@ -452,6 +452,16 @@ namespace Opc.Ua.Configuration
         IApplicationConfigurationBuilderCreate
     {
         /// <summary>
+        /// The number of rejected certificates to keep in the store.
+        /// </summary>
+        /// <param name="maxRejectedCertificates">
+        /// The number of certificates to keep in the rejected store before it is updated.
+        /// <see langword="0"/> to keep all rejected certificates.
+        /// A negative number to keep no history.
+        /// </param>
+        IApplicationConfigurationBuilderSecurityOptions SetMaxRejectedCertificates(int maxRejectedCertificates);
+
+        /// <summary>
         /// Whether an unknown application certificate should be accepted
         /// once all other security checks passed.
         /// </summary>

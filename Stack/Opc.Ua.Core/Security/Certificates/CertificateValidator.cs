@@ -30,6 +30,9 @@ namespace Opc.Ua
     /// </summary>
     public class CertificateValidator : ICertificateValidator
     {
+        // default number of rejected certificates for history 
+        const int kDefaultMaxRejectedCertificates = 5;
+
         #region Constructors
         /// <summary>
         /// The default constructor.
@@ -43,6 +46,7 @@ namespace Opc.Ua
             m_rejectUnknownRevocationStatus = false;
             m_minimumCertificateKeySize = CertificateFactory.DefaultKeySize;
             m_useValidatedCertificates = false;
+            m_maxRejectedCertificates = kDefaultMaxRejectedCertificates;
         }
         #endregion
 
@@ -218,6 +222,10 @@ namespace Opc.Ua
                 if ((m_protectFlags & ProtectFlags.UseValidatedCertificates) == 0)
                 {
                     m_useValidatedCertificates = configuration.UseValidatedCertificates;
+                }
+                if ((m_protectFlags & ProtectFlags.MaxRejectedCertificates) == 0)
+                {
+                    m_maxRejectedCertificates = configuration.MaxRejectedCertificates;
                 }
             }
             finally
@@ -413,6 +421,37 @@ namespace Opc.Ua
                     {
                         m_useValidatedCertificates = value;
                         InternalResetValidatedCertificates();
+                    }
+                }
+                finally
+                {
+                    m_semaphore.Release();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Limits the number of certificates which are kept
+        /// in the history before more rejected certificates are added.
+        /// A negative value means no history is kept.
+        /// A value of 0 means all history is kept.
+        /// </summary>
+        public int MaxRejectedCertificates
+        {
+            get => m_maxRejectedCertificates;
+            set
+            {
+                try
+                {
+                    m_semaphore.Wait();
+
+                    m_protectFlags |= ProtectFlags.MaxRejectedCertificates;
+                    if (m_maxRejectedCertificates != value)
+                    {
+                        m_maxRejectedCertificates = value;
+
+                        // update the rejected store
+                        Task.Run(async () => await SaveCertificatesAsync(new X509Certificate2Collection()).ConfigureAwait(false));
                     }
                 }
                 finally
@@ -669,18 +708,19 @@ namespace Opc.Ua
         /// <summary>
         /// Saves the certificate in the rejected certificate store.
         /// </summary>
-        private Task SaveCertificateAsync(X509Certificate2 certificate)
+        private Task SaveCertificateAsync(X509Certificate2 certificate, CancellationToken ct = default)
         {
-            return SaveCertificatesAsync(new X509Certificate2Collection { certificate });
+            return SaveCertificatesAsync(new X509Certificate2Collection { certificate }, ct);
         }
 
         /// <summary>
         /// Saves the certificate chain in the rejected certificate store.
+        /// Times out after 5 seconds waiting to gracefully reduce high CPU load.
         /// </summary>
-        private async Task SaveCertificatesAsync(X509Certificate2Collection certificateChain)
+        private async Task SaveCertificatesAsync(X509Certificate2Collection certificateChain, CancellationToken ct = default)
         {
-            // number of rejected certificates for history 
-            const int kMaxRejectedCertificates = 5;
+            // max time to wait for semaphore
+            const int kSaveCertificatesTimeout = 5000;
 
             var rejectedCertificateStore = m_rejectedCertificateStore;
             if (rejectedCertificateStore == null)
@@ -690,30 +730,31 @@ namespace Opc.Ua
 
             try
             {
-                await m_semaphore.WaitAsync().ConfigureAwait(false);
+                await m_semaphore.WaitAsync(kSaveCertificatesTimeout, ct).ConfigureAwait(false);
 
-                Utils.LogTrace("Writing rejected certificate chain to: {0}", m_rejectedCertificateStore);
                 try
                 {
+                    Utils.LogTrace("Writing rejected certificate chain to: {0}", m_rejectedCertificateStore);
+
                     ICertificateStore store = m_rejectedCertificateStore.OpenStore();
                     try
                     {
                         // number of certs for history + current chain
-                        await store.AddRejected(certificateChain, kMaxRejectedCertificates).ConfigureAwait(false);
+                        await store.AddRejected(certificateChain, m_maxRejectedCertificates).ConfigureAwait(false);
                     }
                     finally
                     {
                         store.Close();
                     }
                 }
-                catch (Exception e)
+                finally
                 {
-                    Utils.LogError(e, "Could not write certificate to directory: {0}", m_rejectedCertificateStore);
+                    m_semaphore.Release();
                 }
             }
-            finally
+            catch (Exception e)
             {
-                m_semaphore.Release();
+                Utils.LogTrace("Could not write certificate to directory: {0} Error:{1}", m_rejectedCertificateStore, e.Message);
             }
         }
 
@@ -1747,7 +1788,8 @@ namespace Opc.Ua
             RejectSHA1SignedCertificates = 2,
             RejectUnknownRevocationStatus = 4,
             MinimumCertificateKeySize = 8,
-            UseValidatedCertificates = 16
+            UseValidatedCertificates = 16,
+            MaxRejectedCertificates = 32
         };
         #endregion
 
@@ -1769,6 +1811,7 @@ namespace Opc.Ua
         private bool m_rejectUnknownRevocationStatus;
         private ushort m_minimumCertificateKeySize;
         private bool m_useValidatedCertificates;
+        private int m_maxRejectedCertificates;
         #endregion
     }
 

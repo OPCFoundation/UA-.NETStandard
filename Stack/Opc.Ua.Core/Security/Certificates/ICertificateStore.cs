@@ -63,7 +63,8 @@ namespace Opc.Ua
         /// Adds a rejected certificate chain to the store.
         /// </summary>
         /// <param name="certificates">The certificate collection.</param>
-        /// <param name="maxCertificates">The max number of rejected certificates to keep in the store.</param>
+        /// <param name="maxCertificates">The max number of rejected certificates to keep in the store.
+        /// A negative number keeps no history, 0 is unlimited.</param>
         Task AddRejected(X509Certificate2Collection certificates, int maxCertificates);
 
         /// <summary>

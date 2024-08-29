@@ -36,6 +36,7 @@ namespace Opc.Ua
         private const string kCrlExtension = ".crl";
         private const string kPemExtension = ".pem";
         private const string kPfxExtension = ".pfx";
+        private const string kCertSearchString = "*.der";
 
         #region Constructors
         /// <summary>
@@ -219,46 +220,49 @@ namespace Opc.Ua
             int totalCertificates = maxCertificates + Math.Min(certificates.Count, maxCertificates);
             lock (m_lock)
             {
-                // refresh the directories.
-                if (m_certificateSubdir != null)
-                {
-                    m_certificateSubdir.Refresh();
-                }
-
-                int count = 0;
+                int entries = 0;
                 foreach (var certificate in certificates)
                 {
+                    // limit the number of certificates added per call.
+                    if (maxCertificates != 0 && entries >= maxCertificates)
+                    {
+                        break;
+                    }
                     // build file name.
                     string fileName = GetFileName(certificate);
 
                     // store is created if it does not exist
                     WriteFile(certificate.RawData, fileName, false, true);
 
-                    // limit the number of certificates added per call.
-                    if (++count >= maxCertificates)
-                    {
-                        break;
-                    }
+                    entries++;
+                }
+
+                // refresh the directory.
+                if (m_certificateSubdir != null)
+                {
+                    m_certificateSubdir.Refresh();
                 }
 
                 // remove outdated certificates.
-                int entries = 0;
-                foreach (FileInfo file in m_certificateSubdir.GetFiles("*.der").OrderBy(fileInfo => fileInfo.LastWriteTime))
+                if (maxCertificates != 0)
                 {
-                    entries++;
-                    if (entries > totalCertificates)
+                    entries = 0;
+                    foreach (FileInfo file in m_certificateSubdir.GetFiles(kCertSearchString).OrderByDescending(fileInfo => fileInfo.LastWriteTime))
                     {
-                        try
+                        entries++;
+                        if (entries > totalCertificates)
                         {
-                            // try to delete 
-                            File.Delete(file.FullName);
-                        }
-                        catch
-                        {
+                            try
+                            {
+                                // try to delete 
+                                File.Delete(file.FullName);
+                            }
+                            catch
+                            {
+                            }
                         }
                     }
                 }
-
                 m_lastDirectoryCheck = DateTime.MinValue;
             }
 
@@ -799,7 +803,7 @@ namespace Opc.Ua
                 bool incompleteSearch = false;
 
                 // check for public keys.
-                foreach (FileInfo file in m_certificateSubdir.GetFiles("*.der"))
+                foreach (FileInfo file in m_certificateSubdir.GetFiles(kCertSearchString))
                 {
                     try
                     {
