@@ -219,37 +219,17 @@ namespace Opc.Ua
 
             if (certificates == null) throw new ArgumentNullException(nameof(certificates));
 
-            // limit to 2 x maxCertificates after pass (new+old).
-            int totalCertificates = maxCertificates + Math.Min(certificates.Count, maxCertificates);
-
-            int entries = 0;
-            foreach (var certificate in certificates)
-            {
-                // limit the number of certificates added per call.
-                if (maxCertificates != 0 && entries >= maxCertificates)
-                {
-                    break;
-                }
-                // build file name.
-                string fileName = GetFileName(certificate);
-
-                // store is created if it does not exist
-                WriteFile(certificate.RawData, fileName, false, true);
-
-                entries++;
-            }
-
             // refresh the directory.
             m_certificateSubdir?.Refresh();
 
             // remove outdated certificates.
-            if (maxCertificates != 0)
+            int entries = 0;
+            if (maxCertificates != 0 && m_certificateSubdir.Exists)
             {
-                entries = 0;
                 foreach (FileInfo file in m_certificateSubdir.GetFiles(kCertSearchString).OrderByDescending(fileInfo => fileInfo.LastWriteTime))
                 {
                     entries++;
-                    if (entries > totalCertificates)
+                    if (entries > maxCertificates)
                     {
                         int retries = kRetries;
                         do
@@ -271,8 +251,33 @@ namespace Opc.Ua
                 }
             }
 
-            m_lastDirectoryCheck = DateTime.MinValue;
-            m_certificateSubdir?.Refresh();
+            lock (m_lock)
+            {
+                m_lastDirectoryCheck = DateTime.MinValue;
+            }
+
+            // write after delete, written files sometimes show up in GetFiles delayed
+            entries = 0;
+            foreach (var certificate in certificates)
+            {
+                // limit the number of certificates added per call.
+                if (maxCertificates != 0 && entries >= maxCertificates)
+                {
+                    break;
+                }
+                // build file name.
+                string fileName = GetFileName(certificate);
+
+                // store is created if it does not exist
+                WriteFile(certificate.RawData, fileName, false, true);
+
+                entries++;
+            }
+
+            lock (m_lock)
+            {
+                m_lastDirectoryCheck = DateTime.MinValue;
+            }
         }
 
         /// <inheritdoc/>
@@ -779,10 +784,7 @@ namespace Opc.Ua
                 DateTime now = DateTime.UtcNow;
 
                 // refresh the directories.
-                if (m_certificateSubdir != null)
-                {
-                    m_certificateSubdir.Refresh();
-                }
+                m_certificateSubdir?.Refresh();
 
                 if (!NoPrivateKeys)
                 {
