@@ -1384,11 +1384,9 @@ namespace Opc.Ua.Client
             m_serverCertificate = serverCertificate != null ? new X509Certificate2(serverCertificate) : null;
             m_identity = sessionConfiguration.Identity;
             m_checkDomain = sessionConfiguration.CheckDomain;
-            m_serverNonce = sessionConfiguration.ServerNonce;
-# if ECC_SUPPORT
+            m_serverNonce = sessionConfiguration.ServerNonce.Data;
             m_userTokenSecurityPolicyUri = sessionConfiguration.UserIdentityTokenPolicy;
             m_eccServerEphemeralKey = sessionConfiguration.ServerEccEphemeralKey;
-# endif
             SessionCreated(sessionConfiguration.SessionId, sessionConfiguration.AuthenticationToken);
 
             return true;
@@ -1397,11 +1395,10 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public SessionConfiguration SaveSessionConfiguration(Stream stream = null)
         {
-#if ECC_SUPPORT
-            var sessionConfiguration = new SessionConfiguration(this, m_serverNonce, m_userTokenSecurityPolicyUri, m_eccServerEphemeralKey, AuthenticationToken);
-#else
-            var sessionConfiguration = new SessionConfiguration(this, m_serverNonce, AuthenticationToken);
-#endif
+
+            Nonce serverNonce = Nonce.CreateNonce(m_endpoint.Description?.SecurityPolicyUri, m_serverNonce);
+           
+            var sessionConfiguration = new SessionConfiguration(this, serverNonce, m_userTokenSecurityPolicyUri, m_eccServerEphemeralKey, AuthenticationToken);
 
             if (stream != null)
             {

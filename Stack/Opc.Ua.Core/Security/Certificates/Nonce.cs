@@ -581,16 +581,18 @@ namespace Opc.Ua
             var curveName = info.GetString("CurveName");
 
 #if ECC_SUPPORT
-            var ecParams = new ECParameters {
-                Curve = ECCurve.CreateFromFriendlyName(curveName),
-                Q = new ECPoint {
-                    X = (byte[])info.GetValue("QX", typeof(byte[])),
-                    Y = (byte[])info.GetValue("QY", typeof(byte[])),
-                }
-            };
-            m_ecdh = ECDiffieHellman.Create(ecParams);
+            if (curveName != null)
+            {
+                var ecParams = new ECParameters {
+                    Curve = ECCurve.CreateFromFriendlyName(curveName),
+                    Q = new ECPoint {
+                        X = (byte[])info.GetValue("QX", typeof(byte[])),
+                        Y = (byte[])info.GetValue("QY", typeof(byte[])),
+                    }
+                };
+                m_ecdh = ECDiffieHellman.Create(ecParams);
+            }
 #endif
-
             Data = (byte[])info.GetValue("Data", typeof(byte[]));
         }
         #endregion
@@ -659,11 +661,14 @@ namespace Opc.Ua
                 info.AddValue("QX", ecParams.Q.X);
                 info.AddValue("QY", ecParams.Q.Y);
             }
-#endif
-            if (Data != null)
+            else
             {
-                info.AddValue("Data", Data);
+                info.AddValue("CurveName", null);
+                info.AddValue("QX", null);
+                info.AddValue("QY", null);
             }
+#endif
+            info.AddValue("Data", Data);
         }
 
 #endregion

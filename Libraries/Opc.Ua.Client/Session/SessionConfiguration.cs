@@ -45,18 +45,14 @@ namespace Opc.Ua.Client
     [KnownType(typeof(X509IdentityToken))]
     [KnownType(typeof(IssuedIdentityToken))]
     [KnownType(typeof(UserIdentity))]
-#if ECC_SUPPORT
-    [KnownType(typeof(ECParameters))]
-#endif
     public class SessionConfiguration
     {
-#if ECC_SUPPORT
         /// <summary>
         /// Creates a session configuration
         /// </summary>
         public SessionConfiguration(
             ISession session,
-            byte[] serverNonce,
+            Nonce serverNonce,
             string userIdentityTokenPolicy,
             Nonce eccServerEphemeralKey,
             NodeId authenthicationToken)
@@ -72,22 +68,15 @@ namespace Opc.Ua.Client
             ServerEccEphemeralKey = eccServerEphemeralKey;
             UserIdentityTokenPolicy = userIdentityTokenPolicy;
         }
-#else
+
         /// <summary>
         /// Creates a session configuration
         /// </summary>
+        [Obsolete("Use SessionConfiguration(ISession session, Nonce serverNonce, string userIdentityTokenPolicy, Nonce eccServerEphemeralKey,    NodeId authenthicationToken)")]
         public SessionConfiguration(ISession session, byte[] serverNonce, NodeId authenthicationToken)
+            :this(session, Nonce.CreateNonce("RSA-only", serverNonce), null, null, authenthicationToken)
         {
-            Timestamp = DateTime.UtcNow;
-            SessionName = session.SessionName;
-            SessionId = session.SessionId;
-            AuthenticationToken = authenthicationToken;
-            Identity = session.Identity;
-            ConfiguredEndpoint = session.ConfiguredEndpoint;
-            CheckDomain = session.CheckDomain;
-            ServerNonce = serverNonce;
         }
-#endif
 
         /// <summary>
         /// Creates the session configuration from a stream.
@@ -150,9 +139,8 @@ namespace Opc.Ua.Client
         /// The last server nonce received.
         /// </summary>
         [DataMember(IsRequired = true, Order = 80)]
-        public byte[] ServerNonce { get; set; }
+        public Nonce ServerNonce { get; set; }
 
-#if ECC_SUPPORT
         /// <summary>
         /// The user identity token policy which was used to create the session.
         /// </summary>
@@ -164,7 +152,6 @@ namespace Opc.Ua.Client
         /// </summary>
         [DataMember(IsRequired = false, Order = 100)]
         public Nonce ServerEccEphemeralKey { get; set; }
-#endif
 
     }
 }
