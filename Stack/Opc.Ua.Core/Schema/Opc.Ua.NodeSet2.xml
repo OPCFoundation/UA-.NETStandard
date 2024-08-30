@@ -111,7 +111,7 @@
   <UADataType NodeId="i=27" BrowseName="Integer" IsAbstract="true">
     <DisplayName>Integer</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part6/5.2.2/#5.2.2.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.2.9/#12.2.9.5</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=26</Reference>
     </References>
@@ -127,7 +127,7 @@
   <UADataType NodeId="i=29" BrowseName="Enumeration" IsAbstract="true">
     <DisplayName>Enumeration</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part22/5.3.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.2.5</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -136,7 +136,7 @@
   <UADataType NodeId="i=1" BrowseName="Boolean">
     <DisplayName>Boolean</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part6/5.2.2/#5.2.2.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.2.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -224,7 +224,7 @@
   <UADataType NodeId="i=12" BrowseName="String">
     <DisplayName>String</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part6/5.2.2/#5.2.2.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.2.11</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -232,7 +232,7 @@
   <UADataType NodeId="i=13" BrowseName="DateTime">
     <DisplayName>DateTime</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part6/5.1.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.2.4</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -240,7 +240,7 @@
   <UADataType NodeId="i=14" BrowseName="Guid">
     <DisplayName>Guid</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part6/5.1.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.2.6</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -248,7 +248,7 @@
   <UADataType NodeId="i=15" BrowseName="ByteString">
     <DisplayName>ByteString</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part6/5.1.5</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.2.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -256,7 +256,7 @@
   <UADataType NodeId="i=16" BrowseName="XmlElement">
     <DisplayName>XmlElement</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part6/5.2.2/#5.2.2.8</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.2.13</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -264,7 +264,7 @@
   <UADataType NodeId="i=17" BrowseName="NodeId">
     <DisplayName>NodeId</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part6/5.2.2/#5.2.2.9</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.2.8</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -272,7 +272,7 @@
   <UADataType NodeId="i=18" BrowseName="ExpandedNodeId">
     <DisplayName>ExpandedNodeId</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part6/5.2.2/#5.2.2.10</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.3.9</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -280,7 +280,7 @@
   <UADataType NodeId="i=19" BrowseName="StatusCode">
     <DisplayName>StatusCode</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part6/5.2.2/#5.2.2.11</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.3.14</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -288,7 +288,7 @@
   <UADataType NodeId="i=20" BrowseName="QualifiedName">
     <DisplayName>QualifiedName</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part6/5.2.2/#5.2.2.13</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.2.10</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -296,7 +296,7 @@
   <UADataType NodeId="i=21" BrowseName="LocalizedText">
     <DisplayName>LocalizedText</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part6/5.2.2/#5.2.2.14</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.2.7</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -304,7 +304,7 @@
   <UADataType NodeId="i=22" BrowseName="Structure" IsAbstract="true">
     <DisplayName>Structure</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part22/5.3.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.2.12</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -312,7 +312,7 @@
   <UADataType NodeId="i=23" BrowseName="DataValue">
     <DisplayName>DataValue</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part6/5.2.2/#5.2.2.17</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.3.5</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -320,7 +320,7 @@
   <UADataType NodeId="i=25" BrowseName="DiagnosticInfo">
     <DisplayName>DiagnosticInfo</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part6/5.2.2/#5.2.2.12</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.3.8</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -336,7 +336,7 @@
   <UADataType NodeId="i=50" BrowseName="Decimal">
     <DisplayName>Decimal</DisplayName>
     <Category>Base Info Decimal DataType</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part6/5.1.10</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.2.9/#12.2.9.1</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=26</Reference>
     </References>
@@ -344,7 +344,7 @@
   <UAReferenceType NodeId="i=31" BrowseName="References" IsAbstract="true" Symmetric="true">
     <DisplayName>References</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part11/5.3.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/11.1</Documentation>
     <References />
   </UAReferenceType>
   <UAReferenceType NodeId="i=32" BrowseName="NonHierarchicalReferences" IsAbstract="true" Symmetric="true">
@@ -845,7 +845,7 @@
     <DisplayName>Types</DisplayName>
     <Description>The browse entry point when looking for types in the server address space.</Description>
     <Category>Base Info Core Types Folders</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part14/9.1.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/8.2.5</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">i=84</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
@@ -35383,7 +35383,7 @@ Auditing Method Output</Category>
   <UADataType NodeId="i=15534" BrowseName="DataTypeSchemaHeader" IsAbstract="true">
     <DisplayName>DataTypeSchemaHeader</DisplayName>
     <Category>Base Info UaBinary File</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part14/6.2.3/#6.2.3.2.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.31</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -59105,7 +59105,7 @@ Auditing Method Output</Category>
   <UADataType NodeId="i=97" BrowseName="DataTypeDefinition" IsAbstract="true">
     <DisplayName>DataTypeDefinition</DisplayName>
     <Category>Address Space DataTypeDefinition Attribute</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part6/F.12</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.2.12/#12.2.12.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -59376,7 +59376,7 @@ Auditing Method Output</Category>
   <UADataType NodeId="i=308" BrowseName="ApplicationDescription">
     <DisplayName>ApplicationDescription</DisplayName>
     <Category>Base Info ServerType</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part14/7.2.4/#7.2.4.6.5</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.3.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -59612,7 +59612,7 @@ Auditing Method Output</Category>
   <UADataType NodeId="i=316" BrowseName="UserIdentityToken" IsAbstract="true">
     <DisplayName>UserIdentityToken</DisplayName>
     <Category>Auditing Connections</Category>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part6/6.7.8</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part5/12.3.15</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -60848,7 +60848,7 @@ Auditing Method Output</Category>
   </UADataType>
   <UADataType NodeId="i=948" BrowseName="AggregateConfiguration">
     <DisplayName>AggregateConfiguration</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part11/6.5.4/#6.5.4.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part4/7.22.4</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
