@@ -239,8 +239,6 @@ namespace Opc.Ua.Client
                 SignatureData userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
 
                 // encrypt token.
-                //identityToken.Encrypt(serverCertificate, serverNonce, securityPolicyUri);
-#if ECC_SUPPORT 
                 identityToken.Encrypt(
                     serverCertificate,
                     serverNonce,
@@ -249,9 +247,6 @@ namespace Opc.Ua.Client
                     m_instanceCertificate,
                     m_instanceCertificateChain,
                     m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
-#else
-                identityToken.Encrypt(serverCertificate, serverNonce, securityPolicyUri);
-#endif
 
                 // send the software certificates assigned to the client.
                 SignedSoftwareCertificateCollection clientSoftwareCertificates = GetSoftwareCertificates();

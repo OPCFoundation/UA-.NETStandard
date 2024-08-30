@@ -2456,7 +2456,6 @@ namespace Opc.Ua.Client
                 SignatureData userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
 
                 // encrypt token.
-#if ECC_SUPPORT
                 identityToken.Encrypt(
                     serverCertificate,
                     serverNonce,
@@ -2465,9 +2464,7 @@ namespace Opc.Ua.Client
                     m_instanceCertificate,
                     m_instanceCertificateChain,
                     m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
-#else
-                identityToken.Encrypt(serverCertificate, serverNonce, securityPolicyUri);
-#endif
+
                 // send the software certificates assigned to the client.
                 SignedSoftwareCertificateCollection clientSoftwareCertificates = GetSoftwareCertificates();
 
@@ -2641,8 +2638,6 @@ namespace Opc.Ua.Client
             userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
 
             // encrypt token.
-#if ECC_SUPPORT
-            // TODO: build helper function
             identityToken.Encrypt(
                 m_serverCertificate,
                 serverNonce,
@@ -2651,9 +2646,7 @@ namespace Opc.Ua.Client
                 m_instanceCertificate,
                 m_instanceCertificateChain,
                 m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
-#else
-            identityToken.Encrypt(m_serverCertificate, serverNonce, securityPolicyUri);
-#endif
+
             // send the software certificates assigned to the client.
             SignedSoftwareCertificateCollection clientSoftwareCertificates = GetSoftwareCertificates();
 
@@ -5679,7 +5672,6 @@ namespace Opc.Ua.Client
             SignatureData userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
 
             // encrypt token.
-#if ECC_SUPPORT
             identityToken.Encrypt(
                 m_serverCertificate,
                 m_serverNonce,
@@ -5688,9 +5680,6 @@ namespace Opc.Ua.Client
                 m_instanceCertificate,
                 m_instanceCertificateChain,
                 m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
-#else
-            identityToken.Encrypt(m_serverCertificate, m_serverNonce, securityPolicyUri);
-#endif
 
             // send the software certificates assigned to the client.
             SignedSoftwareCertificateCollection clientSoftwareCertificates = GetSoftwareCertificates();
@@ -6481,9 +6470,8 @@ namespace Opc.Ua.Client
                                 StatusCodes.BadDecodingError,
                                 "Could not verify signature on ECDHKey. User authentication not possible.");
                         }
-#if ECC_SUPPORT
+
                         m_eccServerEphemeralKey = Nonce.CreateNonce(m_userTokenSecurityPolicyUri, key.PublicKey);
-#endif
                     }
                 }
             }
@@ -6579,9 +6567,7 @@ namespace Opc.Ua.Client
         private int m_maxPublishRequestCount;
         private LinkedList<AsyncRequestState> m_outstandingRequests;
         private string m_userTokenSecurityPolicyUri;
-#if ECC_SUPPORT
         private Nonce m_eccServerEphemeralKey;
-#endif
         private readonly EndpointDescriptionCollection m_discoveryServerEndpoints;
         private readonly StringCollection m_discoveryProfileUris;
         private uint m_serverMaxContinuationPointsPerBrowse = 0;
