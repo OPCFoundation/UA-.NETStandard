@@ -1430,7 +1430,7 @@ namespace Opc.Ua
                     hashCode.AddBytes((byte[])m_identifier);
 #else
                     byte[] identifier = (byte[])m_identifier;
-                    foreach (var id in identifier)
+                    foreach (byte id in identifier)
                     {
                         hashCode.Add(id);
                     }
@@ -1990,4 +1990,43 @@ namespace Opc.Ua
         /// </summary>
         public ushort[] ServerMappings { get; set; }
     }
+    #region NodeIdComparer Class
+    /// <summary>
+    /// Helper which implements a NodeId IEqualityComparer for Linq queries.
+    /// </summary>
+    public class NodeIdComparer : IEqualityComparer<NodeId>
+    {
+        /// <inheritdoc/>
+        public bool Equals(NodeId x, NodeId y)
+        {
+            if (ReferenceEquals(x, y))
+            {
+                return true;
+            }
+
+            if (ReferenceEquals(x, null) || ReferenceEquals(y, null))
+            {
+                return false;
+            }
+
+            if (x == y)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <inheritdoc/>
+        public int GetHashCode(NodeId nodeId)
+        {
+            if (ReferenceEquals(nodeId, null))
+            {
+                return 0;
+            }
+
+            return nodeId.GetHashCode();
+        }
+    }
+    #endregion
 }

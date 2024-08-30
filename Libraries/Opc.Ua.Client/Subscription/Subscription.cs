@@ -103,11 +103,16 @@ namespace Opc.Ua.Client
                 }
 
                 // copy the list of monitored items.
+                var clonedMonitoredItems = new List<MonitoredItem>();
                 foreach (MonitoredItem monitoredItem in template.MonitoredItems)
                 {
                     MonitoredItem clone = monitoredItem.CloneMonitoredItem(copyEventHandlers, true);
                     clone.DisplayName = monitoredItem.DisplayName;
-                    AddItem(clone);
+                    clonedMonitoredItems.Add(clone);
+                }
+                if (clonedMonitoredItems.Count > 0)
+                {
+                    AddItems(clonedMonitoredItems);
                 }
             }
         }
@@ -517,11 +522,7 @@ namespace Opc.Ua.Client
                 lock (m_cache)
                 {
                     m_monitoredItems.Clear();
-
-                    foreach (MonitoredItem monitoredItem in value)
-                    {
-                        AddItem(monitoredItem);
-                    }
+                    AddItems(value);
                 }
             }
         }
@@ -869,12 +870,13 @@ namespace Opc.Ua.Client
                     return false;
                 }
 
-                if (serverHandles.Count != m_monitoredItems.Count ||
-                    clientHandles.Count != m_monitoredItems.Count)
+                int monitoredItemsCount = m_monitoredItems.Count;
+                if (serverHandles.Count != monitoredItemsCount ||
+                    clientHandles.Count != monitoredItemsCount)
                 {
                     // invalid state
                     Utils.LogError("SubscriptionId {0}: Number of Monitored Items on client and server do not match after transfer {1}!={2}",
-                        Id, serverHandles.Count, m_monitoredItems.Count);
+                        Id, serverHandles.Count, monitoredItemsCount);
                     return false;
                 }
 
@@ -947,12 +949,13 @@ namespace Opc.Ua.Client
                     return false;
                 }
 
-                if (serverHandles.Count != m_monitoredItems.Count ||
-                    clientHandles.Count != m_monitoredItems.Count)
+                int monitoredItemsCount = m_monitoredItems.Count;
+                if (serverHandles.Count != monitoredItemsCount ||
+                    clientHandles.Count != monitoredItemsCount)
                 {
                     // invalid state
                     Utils.LogError("SubscriptionId {0}: Number of Monitored Items on client and server do not match after transfer {1}!={2}",
-                        Id, serverHandles.Count, m_monitoredItems.Count);
+                        Id, serverHandles.Count, monitoredItemsCount);
                     return false;
                 }
 
@@ -1531,7 +1534,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Adds an item to the subscription.
+        /// Adds items to the subscription.
         /// </summary>
         public void AddItems(IEnumerable<MonitoredItem> monitoredItems)
         {
@@ -1586,7 +1589,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Removes an item from the subscription.
+        /// Removes items from the subscription.
         /// </summary>
         public void RemoveItems(IEnumerable<MonitoredItem> monitoredItems)
         {

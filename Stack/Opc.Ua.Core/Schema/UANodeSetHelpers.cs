@@ -544,10 +544,12 @@ namespace Opc.Ua.Export
 
                     if (o.Value != null)
                     {
-                        XmlDecoder decoder = CreateDecoder(context, o.Value);
-                        TypeInfo typeInfo = null;
-                        value.Value = decoder.ReadVariantContents(out typeInfo);
-                        decoder.Close();
+                        using (XmlDecoder decoder = CreateDecoder(context, o.Value))
+                        {
+                            TypeInfo typeInfo = null;
+                            value.Value = decoder.ReadVariantContents(out typeInfo);
+                            decoder.Close();
+                        }
                     }
 
                     importedNode = value;
@@ -594,10 +596,12 @@ namespace Opc.Ua.Export
 
                     if (o.Value != null)
                     {
-                        XmlDecoder decoder = CreateDecoder(context, o.Value);
-                        TypeInfo typeInfo = null;
-                        value.Value = decoder.ReadVariantContents(out typeInfo);
-                        decoder.Close();
+                        using (XmlDecoder decoder = CreateDecoder(context, o.Value))
+                        {
+                            TypeInfo typeInfo = null;
+                            value.Value = decoder.ReadVariantContents(out typeInfo);
+                            decoder.Close();
+                        }
                     }
 
                     importedNode = value;

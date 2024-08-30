@@ -10,12 +10,44 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+// define USE_LEGACY_IMPLEMENTATION to use the original implementation
+// #define USE_LEGACY_IMPLEMENTATION
+
+// benchmarks revealed that the use of a standard Dictionary<NodeId> class
+// with efficent hash code implementations is up to 10xfaster than
+// the original implementation using multiple SortedDictionary instances
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
 
 namespace Opc.Ua
 {
+#if !USE_LEGACY_IMPLEMENTATION
+    /// <summary>
+    /// A dictionary designed to provide efficient lookups for objects identified by a NodeId
+    /// </summary>
+    public class NodeIdDictionary<T> : Dictionary<NodeId, T>
+    {
+        private static readonly NodeIdComparer s_comparer = new NodeIdComparer();
+
+        /// <summary>
+        /// Creates an empty dictionary.
+        /// </summary>
+        public NodeIdDictionary() : base(s_comparer)
+        {
+        }
+
+        /// <summary>
+        /// Creates an empty dictionary with capacity.
+        /// </summary>
+        public NodeIdDictionary(int capacity) : base(capacity, s_comparer)
+        {
+        }
+    }
+
+#else // USE_LEGACY_IMPLEMENTATION
+
     /// <summary>
     /// A dictionary designed to provide efficient lookups for objects identified by a NodeId
     /// </summary>
@@ -1066,4 +1098,5 @@ namespace Opc.Ua
         private ulong m_version;
         #endregion
     }
+#endif
 }

@@ -2499,7 +2499,7 @@ namespace Opc.Ua
 
             // serialize value.
             StringBuilder buffer = new StringBuilder();
-            using (XmlWriter writer = XmlWriter.Create(buffer))
+            using (XmlWriter writer = XmlWriter.Create(buffer, DefaultXmlWriterSettings()))
             {
                 if (value != null)
                 {

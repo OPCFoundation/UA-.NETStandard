@@ -815,7 +815,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Updates the diagnostics return parameter.
         /// </summary>
-        private void UpdateDiagnostics(
+        protected void UpdateDiagnostics(
             OperationContext context,
             bool diagnosticsExist,
             ref DiagnosticInfoCollection diagnosticInfos)
@@ -1371,7 +1371,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns the set of references that meet the filter criteria.
         /// </summary>
-        private ServiceResult Browse(
+        protected ServiceResult Browse(
             OperationContext context,
             ViewDescription view,
             uint maxReferencesPerNode,
