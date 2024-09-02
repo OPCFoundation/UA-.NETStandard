@@ -31,12 +31,19 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
             Assert.IsTrue(instancesCreatedWhileLoadingConfig > 0);
             var trustedIssuers = appConfig.SecurityConfiguration.TrustedIssuerCertificates;
-            ICertificateStore trustedIssuersStore = trustedIssuers.OpenStore();
-            trustedIssuersStore.Close();
-            int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
-            Assert.IsTrue(instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore);
-            CertificateStoreIdentifier.OpenStore(TestCertStore.StoreTypePrefix + @"CurrentUser\Disallowed");
-            Assert.IsTrue(instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
+            using (var trustedIssuersStore = trustedIssuers.OpenStore())
+            {
+                trustedIssuersStore.Close();
+                int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
+                Assert.IsTrue(instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore);
+
+                var certificateStoreIdentifier = new CertificateStoreIdentifier(TestCertStore.StoreTypePrefix + @"CurrentUser\Disallowed");
+                using (var store = certificateStoreIdentifier.OpenStore())
+                {
+
+                    Assert.IsTrue(instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
+                }
+            }
         }
         #endregion Test Methods
     }
@@ -93,6 +100,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         /// <inheritdoc/>
         public string StorePath => m_innerStore.StorePath;
+
+        /// <inheritdoc/>
+        public bool NoPrivateKeys => m_innerStore.NoPrivateKeys;
 
         /// <inheritdoc/>
         public Task Add(X509Certificate2 certificate, string password = null)

@@ -2881,7 +2881,6 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_lock = new object();
             m_trustedCertificates = new CertificateIdentifierCollection();
         }
 
@@ -2897,7 +2896,8 @@ namespace Opc.Ua
         /// The list of trusted certificates.
         /// </summary>
         /// <value>
-        /// The list of trusted certificates is set when TrustedCertificates is not a null value, otherwise new CertificateIdentifierCollection is set.
+        /// The list of trusted certificates is set when TrustedCertificates is not a null value,
+        /// otherwise new CertificateIdentifierCollection is set.
         /// </value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 3)]
         public CertificateIdentifierCollection TrustedCertificates

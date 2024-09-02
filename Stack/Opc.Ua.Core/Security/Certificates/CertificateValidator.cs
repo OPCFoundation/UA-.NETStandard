@@ -141,14 +141,11 @@ namespace Opc.Ua
 
             m_trustedCertificateStore = null;
             m_trustedCertificateList = null;
-
             if (trustedStore != null)
             {
-                m_trustedCertificateStore = new CertificateStoreIdentifier();
-
-                m_trustedCertificateStore.StoreType = trustedStore.StoreType;
-                m_trustedCertificateStore.StorePath = trustedStore.StorePath;
-                m_trustedCertificateStore.ValidationOptions = trustedStore.ValidationOptions;
+                m_trustedCertificateStore = new CertificateStoreIdentifier(trustedStore.StorePath) {
+                    ValidationOptions = trustedStore.ValidationOptions
+                };
 
                 if (trustedStore.TrustedCertificates != null)
                 {
@@ -159,14 +156,11 @@ namespace Opc.Ua
 
             m_issuerCertificateStore = null;
             m_issuerCertificateList = null;
-
             if (issuerStore != null)
             {
-                m_issuerCertificateStore = new CertificateStoreIdentifier();
-
-                m_issuerCertificateStore.StoreType = issuerStore.StoreType;
-                m_issuerCertificateStore.StorePath = issuerStore.StorePath;
-                m_issuerCertificateStore.ValidationOptions = issuerStore.ValidationOptions;
+                m_issuerCertificateStore = new CertificateStoreIdentifier(issuerStore.StorePath) {
+                    ValidationOptions = issuerStore.ValidationOptions
+                };
 
                 if (issuerStore.TrustedCertificates != null)
                 {
@@ -176,7 +170,6 @@ namespace Opc.Ua
             }
 
             m_rejectedCertificateStore = null;
-
             if (rejectedCertificateStore != null)
             {
                 m_rejectedCertificateStore = (CertificateStoreIdentifier)rejectedCertificateStore.MemberwiseClone();
@@ -736,10 +729,15 @@ namespace Opc.Ua
                 {
                     Utils.LogTrace("Writing rejected certificate chain to: {0}", rejectedCertificateStore);
 
-                    using (ICertificateStore store = rejectedCertificateStore.OpenStore())
+                    ICertificateStore store = rejectedCertificateStore.OpenStore();
+                    try
                     {
                         // number of certs for history + current chain
                         await store.AddRejected(certificateChain, m_maxRejectedCertificates).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        store.Close();
                     }
                 }
                 finally
@@ -779,22 +777,24 @@ namespace Opc.Ua
             if (m_trustedCertificateStore != null)
             {
                 ICertificateStore store = m_trustedCertificateStore.OpenStore();
-
-                try
+                if (store != null)
                 {
-                    X509Certificate2Collection trusted = await store.FindByThumbprint(certificate.Thumbprint).ConfigureAwait(false);
-
-                    for (int ii = 0; ii < trusted.Count; ii++)
+                    try
                     {
-                        if (Utils.IsEqual(trusted[ii].RawData, certificate.RawData))
+                        X509Certificate2Collection trusted = await store.FindByThumbprint(certificate.Thumbprint).ConfigureAwait(false);
+
+                        for (int ii = 0; ii < trusted.Count; ii++)
                         {
-                            return new CertificateIdentifier(trusted[ii], m_trustedCertificateStore.ValidationOptions);
+                            if (Utils.IsEqual(trusted[ii].RawData, certificate.RawData))
+                            {
+                                return new CertificateIdentifier(trusted[ii], m_trustedCertificateStore.ValidationOptions);
+                            }
                         }
                     }
-                }
-                finally
-                {
-                    store.Close();
+                    finally
+                    {
+                        store.Close();
+                    }
                 }
             }
 

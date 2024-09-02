@@ -109,8 +109,11 @@ namespace Opc.Ua.Configuration.Tests
 
             int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
             Assert.IsTrue(instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore);
-            CertificateStoreIdentifier.OpenStore(TestCertStore.StoreTypePrefix + trustedUserStorePath);
-            Assert.IsTrue(instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
+            var certificateStoreIdentifier = new CertificateStoreIdentifier(TestCertStore.StoreTypePrefix + trustedUserStorePath);
+            using (var store = certificateStoreIdentifier.OpenStore())
+            {
+                Assert.IsTrue(instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
+            }
         }
         #endregion Test Methods
 
@@ -185,6 +188,9 @@ namespace Opc.Ua.Configuration.Tests
 
         /// <inheritdoc/>
         public string StorePath => m_innerStore.StorePath;
+
+        /// <inheritdoc/>
+        public bool NoPrivateKeys => m_innerStore.NoPrivateKeys;
 
         /// <inheritdoc/>
         public Task Add(X509Certificate2 certificate, string password = null)

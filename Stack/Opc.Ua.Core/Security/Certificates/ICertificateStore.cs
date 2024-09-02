@@ -48,6 +48,14 @@ namespace Opc.Ua
         string StorePath { get; }
 
         /// <summary>
+        /// Gets a value indicating whether any private keys are found in the store.
+        /// </summary>
+        /// <value>
+        ///   <c>true</c> if [no private keys]; otherwise, <c>false</c>.
+        /// </value>
+        bool NoPrivateKeys { get; }
+
+        /// <summary>
         /// Enumerates the certificates in the store.
         /// </summary>
         Task<X509Certificate2Collection> Enumerate();

@@ -123,6 +123,9 @@ namespace Opc.Ua
         public string StorePath => m_storePath;
 
         /// <inheritdoc/>
+        public bool NoPrivateKeys => m_noPrivateKeys;
+
+        /// <inheritdoc/>
         public Task<X509Certificate2Collection> Enumerate()
         {
             using (X509Store store = new X509Store(m_storeName, m_storeLocation))
