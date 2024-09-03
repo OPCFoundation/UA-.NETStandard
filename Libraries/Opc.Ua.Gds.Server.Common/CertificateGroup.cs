@@ -106,7 +106,7 @@ namespace Opc.Ua.Gds.Server
             }
             finally
             {
-                store.Close();
+                store?.Close();
             }
 
             if (Certificate == null)
@@ -479,7 +479,13 @@ namespace Opc.Ua.Gds.Server
         {
             ICertificateStore authorityStore = AuthoritiesStore.OpenStore();
             ICertificateStore trustedOrIssuerStore = trustedOrIssuerStoreIdentifier.OpenStore();
+            try
             {
+                if (authorityStore == null || trustedOrIssuerStore == null)
+                {
+                    throw new ServiceResultException("Unable to update authority certificate in stores");
+                }
+
                 X509Certificate2Collection certificates = await authorityStore.Enumerate().ConfigureAwait(false);
                 foreach (var certificate in certificates)
                 {
@@ -510,6 +516,11 @@ namespace Opc.Ua.Gds.Server
                         }
                     }
                 }
+            }
+            finally
+            {
+                authorityStore?.Close();
+                trustedOrIssuerStore?.Close();
             }
         }
 

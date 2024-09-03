@@ -893,17 +893,20 @@ namespace Opc.Ua.Configuration
                 if (!string.IsNullOrEmpty(thumbprint))
                 {
                     ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore();
-                    try
+                    if (store != null)
                     {
-                        bool deleted = await store.Delete(thumbprint).ConfigureAwait(false);
-                        if (deleted)
+                        try
                         {
-                            Utils.LogInfo(TraceMasks.Security, "Application Instance Certificate [{0}] deleted from trusted store.", thumbprint);
+                            bool deleted = await store.Delete(thumbprint).ConfigureAwait(false);
+                            if (deleted)
+                            {
+                                Utils.LogInfo(TraceMasks.Security, "Application Instance Certificate [{0}] deleted from trusted store.", thumbprint);
+                            }
                         }
-                    }
-                    finally
-                    {
-                        store.Close();
+                        finally
+                        {
+                            store.Close();
+                        }
                     }
                 }
             }

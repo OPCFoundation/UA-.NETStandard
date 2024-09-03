@@ -677,13 +677,16 @@ namespace Opc.Ua.Gds.Server
 
                 //add GDS Issuer Cert Store Certificates to the Chain validation for consistent behaviour on all Platforms
                 ICertificateStore store = m_configuration.SecurityConfiguration.TrustedIssuerCertificates.OpenStore();
-                try
+                if (store != null)
                 {
-                    chain.ChainPolicy.ExtraStore.AddRange(store.Enumerate().GetAwaiter().GetResult());
-                }
-                finally
-                {
-                    store.Close();
+                    try
+                    {
+                        chain.ChainPolicy.ExtraStore.AddRange(store.Enumerate().GetAwaiter().GetResult());
+                    }
+                    finally
+                    {
+                        store.Close();
+                    }
                 }
 
                 using (var x509 = new X509Certificate2(certificate))
@@ -805,7 +808,7 @@ namespace Opc.Ua.Gds.Server
 
             return ServiceResult.Good;
         }
-       
+
         private ServiceResult CheckHttpsDomain(ApplicationRecordDataType application, string commonName)
         {
             if (application.ApplicationType == ApplicationType.Client)
@@ -1313,7 +1316,7 @@ namespace Opc.Ua.Gds.Server
             var certificateStoreIdentifier = new CertificateStoreIdentifier(m_globalDiscoveryServerConfiguration.ApplicationCertificatesStorePath);
             using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
             {
-                store.Add(certificate).Wait();
+                store?.Add(certificate).Wait();
             }
 
             m_database.SetApplicationCertificate(applicationId, m_certTypeMap[certificateGroup.CertificateType], signedCertificate);
@@ -1514,7 +1517,7 @@ namespace Opc.Ua.Gds.Server
             handle.Validated = true;
             return handle.Node;
         }
-#endregion
+        #endregion
 
         #region Overridden Methods
         #endregion

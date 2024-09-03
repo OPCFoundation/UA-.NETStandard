@@ -295,8 +295,7 @@ namespace Opc.Ua
                 }
 
                 entries = 0;
-
-                foreach (Entry entry in m_certificates.Values.OrderByDescending(e => e.LastWriteTimeUtc).ToList())
+                foreach (Entry entry in m_certificates.Values.OrderByDescending(e => e.LastWriteTimeUtc))
                 {
                     if (++entries > maxCertificates)
                     {

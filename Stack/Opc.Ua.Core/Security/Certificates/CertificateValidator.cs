@@ -434,22 +434,26 @@ namespace Opc.Ua
             get => m_maxRejectedCertificates;
             set
             {
+                m_semaphore.Wait();
+                bool updateStore = false;
                 try
                 {
-                    m_semaphore.Wait();
-
                     m_protectFlags |= ProtectFlags.MaxRejectedCertificates;
                     if (m_maxRejectedCertificates != value)
                     {
                         m_maxRejectedCertificates = value;
-
-                        // update the rejected store
-                        Task.Run(async () => await SaveCertificatesAsync(new X509Certificate2Collection()).ConfigureAwait(false));
+                        updateStore = true;
                     }
                 }
                 finally
                 {
                     m_semaphore.Release();
+                }
+
+                if (updateStore)
+                {
+                    // update the rejected store
+                    Task.Run(async () => await SaveCertificatesAsync(new X509Certificate2Collection()).ConfigureAwait(false));
                 }
             }
         }
