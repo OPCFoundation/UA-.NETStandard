@@ -39,10 +39,9 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 
 #### Breaking Changes and Heads-Up when upgrading from 1.04 to 1.05
 
-- **Mandatory Hostname Validation**: Enforced strict hostname validation in server certificates. Ensure server certificates match the hostname/IP used by clients.
+- A few features are still missing to fully comply for 1.05 (e.g. ECC support), but certification for V1.04 is still possible with the 1.05 release.
 - **Thread Safety and Locking**: Improved thread safety and reduced locking in secure channel operations.
 - **Audit and Redaction**: New interfaces for auditing and redacting sensitive information.
-
 
 #### **New in 1.05.374.70**
 * CRL Support for the X509Store on Windows
