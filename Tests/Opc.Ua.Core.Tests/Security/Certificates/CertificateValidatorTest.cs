@@ -301,7 +301,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUntrusted, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
                     }
 
-                    Thread.Sleep(1000);
+                    await Task.Delay(1000).ConfigureAwait(false);
                     Assert.AreEqual(m_appSelfSignedCerts.Count, validator.RejectedStore.Enumerate().Result.Count);
                 }
             }
@@ -383,7 +383,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     certValidator.MaxRejectedCertificates = 3;
                     await Task.Delay(1000).ConfigureAwait(false);
                     certificates = await validator.RejectedStore.Enumerate().ConfigureAwait(false);
-                    Assert.LessOrEqual(3, certificates.Count);
+                    Assert.GreaterOrEqual(3, certificates.Count);
 
                     // test setter if allcerts are deleted
                     certValidator.MaxRejectedCertificates = -1;
