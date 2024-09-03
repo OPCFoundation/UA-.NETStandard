@@ -1836,7 +1836,7 @@ namespace Opc.Ua
         public string ApplicationErrorMsg
         {
             get => m_applicationErrorMsg;
-            set { m_applicationErrorMsg = value; }
+            set => m_applicationErrorMsg = value;
         }
         #endregion
 
