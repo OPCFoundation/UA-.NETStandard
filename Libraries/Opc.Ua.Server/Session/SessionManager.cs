@@ -34,6 +34,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Globalization;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
+using System.Linq;
 
 namespace Opc.Ua.Server
 {
@@ -88,16 +89,19 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
+                // stop the monitoring thread.
+                m_shutdownEvent.Set();
+
                 // create snapshot of all sessions
-                var sessions = m_sessions.ToArray();
+                var sessions = m_sessions.Values;
                 m_sessions.Clear();
 
-                foreach (var sessionKeyValue in sessions)
+                foreach (var session in sessions)
                 {
-                    Utils.SilentDispose(sessionKeyValue.Value);
+                    Utils.SilentDispose(session);
                 }
 
-                m_shutdownEvent.Set();
+                m_shutdownEvent.Dispose();
             }
         }
         #endregion
@@ -128,12 +132,12 @@ namespace Opc.Ua.Server
             m_shutdownEvent.Set();
 
             // dispose of session objects using a snapshot.
-            var sessions = m_sessions.ToArray();
+            var sessions = m_sessions.Values;
             m_sessions.Clear();
 
-            foreach (var sessionKeyValue in sessions)
+            foreach (var session in sessions)
             {
-                Utils.SilentDispose(sessionKeyValue.Value);
+                Utils.SilentDispose(session);
             }
         }
 
@@ -160,14 +164,14 @@ namespace Opc.Ua.Server
 
             Session session = null;
 
+            // check session count, do not block if overloaded already.
+            if (m_maxSessionCount > 0 && m_sessions.Count >= m_maxSessionCount)
+            {
+                throw new ServiceResultException(StatusCodes.BadTooManySessions);
+            }
+
             lock (m_lock)
             {
-                // check session count.
-                if (m_maxSessionCount > 0 && m_sessions.Count >= m_maxSessionCount)
-                {
-                    throw new ServiceResultException(StatusCodes.BadTooManySessions);
-                }
-
                 // check for same Nonce in another session
                 if (clientNonce != null)
                 {
@@ -273,7 +277,7 @@ namespace Opc.Ua.Server
             UserTokenPolicy userTokenPolicy = null;
 
             // fast path no lock
-            if (!m_sessions.TryGetValue(authenticationToken, out _))
+            if (!m_sessions.ContainsKey(authenticationToken))
             {
                 throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
             }
@@ -773,14 +777,14 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public IList<Session> GetSessions()
+        public IReadOnlyList<Session> GetSessions()
         {
-            lock (m_lock)
-            {
-                return new List<Session>(m_sessions.Values);
-            }
+            // thread safe snapshot
+            return m_sessions.Values.ToList();
         }
 
+        /// <inheritdoc/>
+        public int SessionCount => m_sessions.Count;
 
         /// <inheritdoc/>
         public Session GetSession(NodeId authenticationToken)
@@ -836,8 +840,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns all of the sessions known to the session manager.
         /// </summary>
-        /// <returns>A list of the sessions.</returns>
-        IList<Session> GetSessions();
+        /// <returns>A read only list of the sessions.</returns>
+        IReadOnlyList<Session> GetSessions();
+
+        /// <summary>
+        /// The number of sessions currently active.
+        /// </summary>
+        int SessionCount { get; }
 
         /// <summary>
         /// Find and return a session specified by authentication token

@@ -19,6 +19,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 
 namespace Opc.Ua
@@ -27,7 +28,7 @@ namespace Opc.Ua
     /// <summary>
     /// A dictionary designed to provide efficient lookups for objects identified by a NodeId
     /// </summary>
-    public class NodeIdDictionary<T> : Dictionary<NodeId, T>
+    public sealed class NodeIdDictionary<T> : ConcurrentDictionary<NodeId, T>
     {
         private static readonly NodeIdComparer s_comparer = new NodeIdComparer();
 
@@ -41,8 +42,25 @@ namespace Opc.Ua
         /// <summary>
         /// Creates an empty dictionary with capacity.
         /// </summary>
-        public NodeIdDictionary(int capacity) : base(capacity, s_comparer)
+        public NodeIdDictionary(int capacity) : base(Environment.ProcessorCount, capacity, s_comparer)
         {
+        }
+
+        // helpers for the legacy implementation
+
+        /// <inheritdoc cref="IDictionary.Add"/>
+        public void Add(NodeId key, T value)
+        {
+            if (!base.TryAdd(key, value))
+            {
+                throw new ArgumentException("An element with the same key already exists.");
+            }
+        }
+
+        /// <inheritdoc cref="IDictionary.Remove"/>
+        public void Remove(NodeId key)
+        {
+            base.TryRemove(key, out _);
         }
     }
 

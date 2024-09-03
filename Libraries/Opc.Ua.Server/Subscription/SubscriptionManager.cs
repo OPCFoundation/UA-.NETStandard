@@ -32,6 +32,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Globalization;
 using System.Threading.Tasks;
+using System.Collections.Concurrent;
+using System.Linq;
 
 namespace Opc.Ua.Server
 {
@@ -63,9 +65,9 @@ namespace Opc.Ua.Server
             m_maxPublishRequestCount = configuration.ServerConfiguration.MaxPublishRequestCount;
             m_maxSubscriptionCount = configuration.ServerConfiguration.MaxSubscriptionCount;
 
-            m_subscriptions = new Dictionary<uint, Subscription>();
-            m_publishQueues = new Dictionary<NodeId, SessionPublishQueue>();
-            m_statusMessages = new Dictionary<NodeId, Queue<StatusMessage>>();
+            m_subscriptions = new ConcurrentDictionary<uint, Subscription>();
+            m_publishQueues = new NodeIdDictionary<SessionPublishQueue>();
+            m_statusMessages = new NodeIdDictionary<Queue<StatusMessage>>();
             m_lastSubscriptionId = BitConverter.ToInt64(Utils.Nonce.CreateNonce(sizeof(long)), 0);
 
             // create a event to signal shutdown.
@@ -94,17 +96,11 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                List<Subscription> subscriptions = null;
-                List<SessionPublishQueue> publishQueues = null;
+                var publishQueues = m_publishQueues.Values;
+                m_publishQueues.Clear();
 
-                lock (m_lock)
-                {
-                    publishQueues = new List<SessionPublishQueue>(m_publishQueues.Values);
-                    m_publishQueues.Clear();
-
-                    subscriptions = new List<Subscription>(m_subscriptions.Values);
-                    m_subscriptions.Clear();
-                }
+                var subscriptions = m_subscriptions.Values;
+                m_subscriptions.Clear();
 
                 foreach (SessionPublishQueue publishQueue in publishQueues)
                 {
@@ -115,7 +111,6 @@ namespace Opc.Ua.Server
                 {
                     Utils.SilentDispose(subscription);
                 }
-
             }
         }
         #endregion
@@ -169,16 +164,9 @@ namespace Opc.Ua.Server
         /// Returns all of the subscriptions known to the subscription manager.
         /// </summary>
         /// <returns>A list of the subscriptions.</returns>
-        public IList<Subscription> GetSubscriptions()
+        public IReadOnlyList<Subscription> GetSubscriptions()
         {
-            List<Subscription> subscriptions = new List<Subscription>();
-
-            lock (m_lock)
-            {
-                subscriptions.AddRange(m_subscriptions.Values);
-            }
-
-            return subscriptions;
+            return m_subscriptions.Values.ToList();
         }
 
         /// <summary>
@@ -272,12 +260,12 @@ namespace Opc.Ua.Server
         {
             // close the publish queue for the session.
             SessionPublishQueue queue = null;
-            IList<Subscription> subscriptionsToDelete = null;
+            IReadOnlyList<Subscription> subscriptionsToDelete = null;
             uint publishingIntervalCount = 0;
 
             lock (m_lock)
             {
-                if (m_publishQueues.TryGetValue(sessionId, out queue))
+                if (m_publishQueues.TryRemove(sessionId, out queue))
                 {
                     m_publishQueues.Remove(sessionId);
                     subscriptionsToDelete = queue.Close();
@@ -285,23 +273,16 @@ namespace Opc.Ua.Server
                     // remove the subscriptions.
                     if (deleteSubscriptions && subscriptionsToDelete != null)
                     {
-                        for (int ii = 0; ii < subscriptionsToDelete.Count; ii++)
+                        foreach (var subscriptionToDelete in subscriptionsToDelete)
                         {
-                            m_subscriptions.Remove(subscriptionsToDelete[ii].Id);
+                            m_subscriptions.TryRemove(subscriptionToDelete.Id, out _);
                         }
                     }
                 }
             }
 
-            //remove the expired subscription status change notifications for this session
-            lock (m_statusMessagesLock)
-            {
-                Queue<StatusMessage> statusQueue = null;
-                if (m_statusMessages.TryGetValue(sessionId, out statusQueue))
-                {
-                    m_statusMessages.Remove(sessionId);
-                }
-            }
+            // remove the expired subscription status change notifications for this session
+            m_statusMessages.TryRemove(sessionId, out _);
 
             // process all subscriptions in the queue.
             if (subscriptionsToDelete != null)
@@ -511,7 +492,7 @@ namespace Opc.Ua.Server
                 }
 
                 // remove subscription.
-                m_subscriptions.Remove(subscriptionId);
+                m_subscriptions.TryRemove(subscriptionId, out _);
             }
 
             if (subscription != null)
@@ -611,12 +592,9 @@ namespace Opc.Ua.Server
             out uint revisedLifetimeCount,
             out uint revisedMaxKeepAliveCount)
         {
-            lock (m_lock)
+            if (m_subscriptions.Count >= m_maxSubscriptionCount)
             {
-                if (m_subscriptions.Count >= m_maxSubscriptionCount)
-                {
-                    throw new ServiceResultException(StatusCodes.BadTooManySubscriptions);
-                }
+                throw new ServiceResultException(StatusCodes.BadTooManySubscriptions);
             }
 
             subscriptionId = 0;
@@ -659,30 +637,23 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 // save subscription.
-                m_subscriptions.Add(subscriptionId, subscription);
+                if (!m_subscriptions.TryAdd(subscriptionId, subscription))
+                {
+                    throw new ServiceResultException(StatusCodes.BadUnexpectedError);
+                }
 
                 // create/update publish queue.
                 SessionPublishQueue queue = null;
 
-                if (!m_publishQueues.TryGetValue(session.Id, out queue))
-                {
-                    m_publishQueues[session.Id] = queue = new SessionPublishQueue(m_server, session, m_maxPublishRequestCount);
-                }
-
+                queue = m_publishQueues.GetOrAdd(session.Id, (value) => new SessionPublishQueue(m_server, session, m_maxPublishRequestCount));
                 queue.Add(subscription);
 
                 // get the count for the diagnostics.
                 publishingIntervalCount = GetPublishingIntervalCount();
             }
 
-            lock (m_statusMessagesLock)
-            {
-                Queue<StatusMessage> messagesQueue = null;
-                if (!m_statusMessages.TryGetValue(session.Id, out messagesQueue))
-                {
-                    m_statusMessages[session.Id] = new Queue<StatusMessage>();
-                }
-            }
+            // add queue if necessary
+            var messagesQueue = m_statusMessages.GetOrAdd(session.Id, (key) =>  new Queue<StatusMessage>());
 
             lock (m_server.DiagnosticsWriteLock)
             {
@@ -790,11 +761,12 @@ namespace Opc.Ua.Server
                 out acknowledgeDiagnosticInfos);
 
             // update diagnostics.
-            if (context.Session != null)
+            var session = context.Session;
+            if (session != null)
             {
-                lock (context.Session.DiagnosticsLock)
+                lock (session.DiagnosticsLock)
                 {
-                    SessionDiagnosticsDataType diagnostics = context.Session.SessionDiagnostics;
+                    SessionDiagnosticsDataType diagnostics = session.SessionDiagnostics;
                     diagnostics.CurrentPublishRequestsInQueue++;
                 }
             }
@@ -861,12 +833,9 @@ namespace Opc.Ua.Server
             // get publish queue for session.
             SessionPublishQueue queue = null;
 
-            lock (m_lock)
+            if (!m_publishQueues.TryGetValue(context.Session.Id, out queue))
             {
-                if (!m_publishQueues.TryGetValue(context.Session.Id, out queue))
-                {
-                    throw new ServiceResultException(StatusCodes.BadSessionClosed);
-                }
+                throw new ServiceResultException(StatusCodes.BadSessionClosed);
             }
 
             uint subscriptionId = 0;
@@ -2061,10 +2030,10 @@ namespace Opc.Ua.Server
         private uint m_maxNotificationsPerPublish;
         private int m_maxPublishRequestCount;
         private int m_maxSubscriptionCount;
-        private Dictionary<uint, Subscription> m_subscriptions;
+        private ConcurrentDictionary<uint, Subscription> m_subscriptions;
         private List<Subscription> m_abandonedSubscriptions;
-        private Dictionary<NodeId, Queue<StatusMessage>> m_statusMessages;
-        private Dictionary<NodeId, SessionPublishQueue> m_publishQueues;
+        private NodeIdDictionary<Queue<StatusMessage>> m_statusMessages;
+        private NodeIdDictionary<SessionPublishQueue> m_publishQueues;
         private ManualResetEvent m_shutdownEvent;
         private Queue<ConditionRefreshTask> m_conditionRefreshQueue;
         private ManualResetEvent m_conditionRefreshEvent;
@@ -2099,7 +2068,7 @@ namespace Opc.Ua.Server
         /// Returns all of the subscriptions known to the subscription manager.
         /// </summary>
         /// <returns>A list of the subscriptions.</returns>
-        IList<Subscription> GetSubscriptions();
+        IReadOnlyList<Subscription> GetSubscriptions();
     }
 
     /// <summary>

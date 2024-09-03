@@ -107,7 +107,7 @@ namespace Opc.Ua.Server
         /// Clears the queues because the session is closing.
         /// </summary>
         /// <returns>The list of subscriptions in the queue.</returns>
-        public IList<Subscription> Close()
+        public IReadOnlyList<Subscription> Close()
         {
             lock (m_lock)
             {
@@ -518,15 +518,15 @@ namespace Opc.Ua.Server
         /// Completes the publish.
         /// </summary>
         /// <param name="requeue">if set to <c>true</c> the request must be requeued.</param>
-        /// <param name="operation">The asynchronous operation.</param>
+        /// <param name="requestHandle">The asynchronous operation request handle.</param>
         /// <param name="calldata">The calldata.</param>
         /// <returns></returns>
         public Subscription CompletePublish(
             bool requeue,
-            AsyncPublishOperation operation,
+            uint requestHandle,
             object calldata)
         {
-            Utils.LogTrace("PUBLISH: #{0} Completing", operation.RequestHandle, requeue);
+            Utils.LogTrace("PUBLISH: #{0} Completing", requestHandle, requeue);
 
             QueuedRequest request = (QueuedRequest)calldata;
 
@@ -545,7 +545,7 @@ namespace Opc.Ua.Server
             // must reassign subscription on error.
             if (ServiceResult.IsBad(request.Error))
             {
-                Utils.LogTrace("PUBLISH: #{0} Reassigned ERROR({1})", operation.RequestHandle, request.Error);
+                Utils.LogTrace("PUBLISH: #{0} Reassigned ERROR({1})", requestHandle, request.Error);
 
                 if (request.Subscription != null)
                 {

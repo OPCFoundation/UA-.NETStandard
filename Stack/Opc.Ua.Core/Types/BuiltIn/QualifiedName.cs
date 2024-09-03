@@ -41,7 +41,7 @@ namespace Opc.Ua
     /// <br/></para>
     /// </remarks>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class QualifiedName : ICloneable, IFormattable, IComparable
+    public class QualifiedName : ICloneable, IFormattable, IComparable, IEqualityComparer<QualifiedName>, IEquatable<QualifiedName>
     {
         #region Constructors
         /// <summary>
@@ -136,7 +136,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        #region IComparable Members
+        #region IComparable and IEqualityComparer Members
         /// <summary>
         /// Compares two QualifiedNames.
         /// </summary>
@@ -148,12 +148,12 @@ namespace Opc.Ua
         /// </returns>
         public int CompareTo(object obj)
         {
-            if (Object.ReferenceEquals(obj, null))
+            if (ReferenceEquals(obj, null))
             {
                 return -1;
             }
 
-            if (Object.ReferenceEquals(this, obj))
+            if (ReferenceEquals(this, obj))
             {
                 return 0;
             }
@@ -172,9 +172,61 @@ namespace Opc.Ua
 
             if (m_name != null)
             {
-                return String.CompareOrdinal(m_name, qname.m_name);
+                return string.CompareOrdinal(m_name, qname.m_name);
             }
 
+            return qname.m_name == null ? 0 : -1;
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(QualifiedName other)
+        {
+            if (ReferenceEquals(this, other))
+            {
+                return true;
+            }
+
+            if (ReferenceEquals(other, null))
+            {
+                return false;
+            }
+
+            if (other.m_namespaceIndex != m_namespaceIndex)
+            {
+                return false;
+            }
+
+            if (m_name != null)
+            {
+                return string.CompareOrdinal(m_name, other.m_name) == 0;
+            }
+
+            return other.m_name == null;
+        }
+
+        /// <inheritdoc/>
+        public bool Equals(QualifiedName x, QualifiedName y)
+        {
+            if (ReferenceEquals(x, y))
+            {
+                return true;
+            }
+
+            if (!ReferenceEquals(x, null))
+            {
+                return x.CompareTo(y) == 0;
+            }
+
+            return false;
+        }
+
+        /// <inheritdoc/>
+        public int GetHashCode(QualifiedName obj)
+        {
+            if (!ReferenceEquals(obj, null))
+            {
+                return obj.GetHashCode();
+            }
             return 0;
         }
 
@@ -186,7 +238,7 @@ namespace Opc.Ua
         /// <returns>The result of the operator.</returns>
         public static bool operator >(QualifiedName value1, QualifiedName value2)
         {
-            if (!Object.ReferenceEquals(value1, null))
+            if (!ReferenceEquals(value1, null))
             {
                 return value1.CompareTo(value2) > 0;
             }
@@ -202,7 +254,7 @@ namespace Opc.Ua
         /// <returns>The result of the operator.</returns>
         public static bool operator <(QualifiedName value1, QualifiedName value2)
         {
-            if (!Object.ReferenceEquals(value1, null))
+            if (!ReferenceEquals(value1, null))
             {
                 return value1.CompareTo(value2) < 0;
             }
@@ -237,12 +289,12 @@ namespace Opc.Ua
         /// <param name="obj">The object to compare to this/me</param>
         public override bool Equals(object obj)
         {
-            if (Object.ReferenceEquals(obj, null))
+            if (ReferenceEquals(obj, null))
             {
                 return false;
             }
 
-            if (Object.ReferenceEquals(this, obj))
+            if (ReferenceEquals(this, obj))
             {
                 return true;
             }
@@ -272,12 +324,12 @@ namespace Opc.Ua
         /// <param name="value2">The second value to compare</param>
         public static bool operator ==(QualifiedName value1, QualifiedName value2)
         {
-            if (!Object.ReferenceEquals(value1, null))
+            if (!ReferenceEquals(value1, null))
             {
                 return value1.Equals(value2);
             }
 
-            return Object.ReferenceEquals(value2, null);
+            return ReferenceEquals(value2, null);
         }
 
         /// <summary>
@@ -290,12 +342,12 @@ namespace Opc.Ua
         /// <param name="value2">The second value to compare</param>
         public static bool operator !=(QualifiedName value1, QualifiedName value2)
         {
-            if (!Object.ReferenceEquals(value1, null))
+            if (!ReferenceEquals(value1, null))
             {
                 return !value1.Equals(value2);
             }
 
-            return !Object.ReferenceEquals(value2, null);
+            return !ReferenceEquals(value2, null);
         }
 
         /// <summary>
@@ -388,7 +440,7 @@ namespace Opc.Ua
             // check for null.
             if (String.IsNullOrEmpty(name))
             {
-                return QualifiedName.Null;
+                return Null;
             }
 
             // return a name using the default namespace.
@@ -449,7 +501,7 @@ namespace Opc.Ua
             // check for null.
             if (String.IsNullOrEmpty(text))
             {
-                return QualifiedName.Null;
+                return Null;
             }
 
             // extract local namespace index. 
