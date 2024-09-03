@@ -65,6 +65,8 @@
     <MaxArrayLength>65535</MaxArrayLength>
     <MaxMessageSize>4194304</MaxMessageSize>
     <MaxBufferSize>65535</MaxBufferSize>
+    <MaxEncodingNestingLevels>200</MaxEncodingNestingLevels>
+    <MaxDecoderRecoveries>5</MaxDecoderRecoveries>
     <ChannelLifetime>300000</ChannelLifetime>
     <SecurityTokenLifetime>3600000</SecurityTokenLifetime>
   </TransportQuotas>
