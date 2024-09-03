@@ -304,7 +304,7 @@ namespace Quickstarts
             try
             {
                 // check for events from discarded sessions.
-                if (!m_session.Equals(session))
+                if (m_session == null || !m_session.Equals(session))
                 {
                     return;
                 }

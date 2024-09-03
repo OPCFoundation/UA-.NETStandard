@@ -381,31 +381,40 @@ namespace Quickstarts.ConsoleReferenceClient
                             }
                             else
                             {
-                                int quitTimeout = 30_000;
+                                int quitTimeout = 65_000;
                                 if (enableDurableSubscriptions)
                                 {
-                                    quitTimeout = 300_000;
+                                    quitTimeout = 150_000;
                                 }
 
+                                NodeId sessionNodeId = uaClient.Session.SessionId;
                                 // Run tests for available methods on reference server.
                                 samples.ReadNodes(uaClient.Session);
                                 samples.WriteNodes(uaClient.Session);
                                 samples.Browse(uaClient.Session);
                                 samples.CallMethod(uaClient.Session);
                                 samples.EnableEvents(uaClient.Session, (uint)quitTimeout);
-                                samples.SubscribeToDataChanges(uaClient.Session, 120_000, enableDurableSubscriptions);
+                                bool isDurable = samples.SubscribeToDataChanges(
+                                    uaClient.Session, 60_000, enableDurableSubscriptions);
+                                if ( isDurable )
+                                {
+                                    // Need to control the reconnect
+                                    uaClient.ReconnectPeriod = 200_000;
+                                }
 
                                 output.WriteLine("Waiting...");
 
                                 // Wait for some DataChange notifications from MonitoredItems
                                 int waitCounters = 0;
-                                int closeSessionTime = uaClient.ReconnectPeriod * 35;
-                                int restartSessionTime = uaClient.ReconnectPeriod * 65;
-                                while (!quit && waitCounters < quitTimeout)
+                                int checkForWaitTime = 1000;
+                                int closeSessionTime = checkForWaitTime * 35;
+                                int restartSessionTime = checkForWaitTime * 65;
+                                bool stopNotQuit = false;
+                                while (!quit && !stopNotQuit && waitCounters < quitTimeout)
                                 {
-                                    quit = quitEvent.WaitOne(uaClient.ReconnectPeriod);
-                                    waitCounters += uaClient.ReconnectPeriod;
-                                    if (enableDurableSubscriptions)
+                                    quit = quitEvent.WaitOne(checkForWaitTime);
+                                    waitCounters += checkForWaitTime;
+                                    if (isDurable)
                                     {
                                         if (waitCounters == closeSessionTime)
                                         {
