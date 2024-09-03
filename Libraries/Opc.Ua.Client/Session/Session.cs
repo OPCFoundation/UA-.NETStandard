@@ -1692,9 +1692,6 @@ namespace Opc.Ua.Client
             }
         }
 
-
-
-
         /// <inheritdoc/>
         public void FetchTypeTree(ExpandedNodeId typeId)
         {
@@ -4404,7 +4401,7 @@ namespace Opc.Ua.Client
 
                     value = attributes[Attributes.EventNotifier];
 
-                    if (value == null || value.Value is null)
+                    if (value == null)
                     {
                         throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Object does not support the EventNotifier attribute.");
                     }
