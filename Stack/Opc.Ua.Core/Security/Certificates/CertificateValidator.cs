@@ -30,6 +30,9 @@ namespace Opc.Ua
     /// </summary>
     public class CertificateValidator : ICertificateValidator
     {
+        // default number of rejected certificates for history 
+        const int kDefaultMaxRejectedCertificates = 5;
+
         #region Constructors
         /// <summary>
         /// The default constructor.
@@ -43,6 +46,7 @@ namespace Opc.Ua
             m_rejectUnknownRevocationStatus = false;
             m_minimumCertificateKeySize = CertificateFactory.DefaultKeySize;
             m_useValidatedCertificates = false;
+            m_maxRejectedCertificates = kDefaultMaxRejectedCertificates;
         }
         #endregion
 
@@ -137,14 +141,11 @@ namespace Opc.Ua
 
             m_trustedCertificateStore = null;
             m_trustedCertificateList = null;
-
             if (trustedStore != null)
             {
-                m_trustedCertificateStore = new CertificateStoreIdentifier();
-
-                m_trustedCertificateStore.StoreType = trustedStore.StoreType;
-                m_trustedCertificateStore.StorePath = trustedStore.StorePath;
-                m_trustedCertificateStore.ValidationOptions = trustedStore.ValidationOptions;
+                m_trustedCertificateStore = new CertificateStoreIdentifier(trustedStore.StorePath) {
+                    ValidationOptions = trustedStore.ValidationOptions
+                };
 
                 if (trustedStore.TrustedCertificates != null)
                 {
@@ -155,14 +156,11 @@ namespace Opc.Ua
 
             m_issuerCertificateStore = null;
             m_issuerCertificateList = null;
-
             if (issuerStore != null)
             {
-                m_issuerCertificateStore = new CertificateStoreIdentifier();
-
-                m_issuerCertificateStore.StoreType = issuerStore.StoreType;
-                m_issuerCertificateStore.StorePath = issuerStore.StorePath;
-                m_issuerCertificateStore.ValidationOptions = issuerStore.ValidationOptions;
+                m_issuerCertificateStore = new CertificateStoreIdentifier(issuerStore.StorePath) {
+                    ValidationOptions = issuerStore.ValidationOptions
+                };
 
                 if (issuerStore.TrustedCertificates != null)
                 {
@@ -172,7 +170,6 @@ namespace Opc.Ua
             }
 
             m_rejectedCertificateStore = null;
-
             if (rejectedCertificateStore != null)
             {
                 m_rejectedCertificateStore = (CertificateStoreIdentifier)rejectedCertificateStore.MemberwiseClone();
@@ -218,6 +215,10 @@ namespace Opc.Ua
                 if ((m_protectFlags & ProtectFlags.UseValidatedCertificates) == 0)
                 {
                     m_useValidatedCertificates = configuration.UseValidatedCertificates;
+                }
+                if ((m_protectFlags & ProtectFlags.MaxRejectedCertificates) == 0)
+                {
+                    m_maxRejectedCertificates = configuration.MaxRejectedCertificates;
                 }
             }
             finally
@@ -423,6 +424,41 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Limits the number of certificates which are kept
+        /// in the history before more rejected certificates are added.
+        /// A negative value means no history is kept.
+        /// A value of 0 means all history is kept.
+        /// </summary>
+        public int MaxRejectedCertificates
+        {
+            get => m_maxRejectedCertificates;
+            set
+            {
+                m_semaphore.Wait();
+                bool updateStore = false;
+                try
+                {
+                    m_protectFlags |= ProtectFlags.MaxRejectedCertificates;
+                    if (m_maxRejectedCertificates != value)
+                    {
+                        m_maxRejectedCertificates = value;
+                        updateStore = true;
+                    }
+                }
+                finally
+                {
+                    m_semaphore.Release();
+                }
+
+                if (updateStore)
+                {
+                    // update the rejected store
+                    Task.Run(async () => await SaveCertificatesAsync(new X509Certificate2Collection()).ConfigureAwait(false));
+                }
+            }
+        }
+
+        /// <summary>
         /// Validates the specified certificate against the trust list.
         /// </summary>
         /// <param name="certificate">The certificate.</param>
@@ -562,7 +598,7 @@ namespace Opc.Ua
                     certificate, se.Result.StatusCode);
 
                 // save the chain in rejected store to allow to add certs to a trusted or issuer store
-                SaveCertificates(chain);
+                Task.Run(async () => await SaveCertificatesAsync(chain).ConfigureAwait(false));
 
                 LogInnerServiceResults(LogLevel.Error, se.Result.InnerResult);
                 throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
@@ -626,7 +662,7 @@ namespace Opc.Ua
                 LogInnerServiceResults(LogLevel.Error, se.Result.InnerResult);
 
                 // save the chain in rejected store to allow to add cert to a trusted or issuer store
-                SaveCertificates(chain);
+                Task.Run(async () => await SaveCertificatesAsync(chain).ConfigureAwait(false));
 
                 throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
             }
@@ -669,61 +705,53 @@ namespace Opc.Ua
         /// <summary>
         /// Saves the certificate in the rejected certificate store.
         /// </summary>
-        private void SaveCertificate(X509Certificate2 certificate)
+        private Task SaveCertificateAsync(X509Certificate2 certificate, CancellationToken ct = default)
         {
-            SaveCertificates(new X509Certificate2Collection { certificate });
+            return SaveCertificatesAsync(new X509Certificate2Collection { certificate }, ct);
         }
 
         /// <summary>
         /// Saves the certificate chain in the rejected certificate store.
+        /// Times out after 5 seconds waiting to gracefully reduce high CPU load.
         /// </summary>
-        private void SaveCertificates(X509Certificate2Collection certificateChain)
+        private async Task SaveCertificatesAsync(X509Certificate2Collection certificateChain, CancellationToken ct = default)
         {
+            // max time to wait for semaphore
+            const int kSaveCertificatesTimeout = 5000;
+
+            var rejectedCertificateStore = m_rejectedCertificateStore;
+            if (rejectedCertificateStore == null)
+            {
+                return;
+            }
+
             try
             {
-                m_semaphore.Wait();
+                await m_semaphore.WaitAsync(kSaveCertificatesTimeout, ct).ConfigureAwait(false);
 
-                if (m_rejectedCertificateStore != null)
+                try
                 {
-                    Utils.LogTrace("Writing rejected certificate chain to: {0}", m_rejectedCertificateStore);
+                    Utils.LogTrace("Writing rejected certificate chain to: {0}", rejectedCertificateStore);
+
+                    ICertificateStore store = rejectedCertificateStore.OpenStore();
                     try
                     {
-                        ICertificateStore store = m_rejectedCertificateStore.OpenStore();
-                        try
-                        {
-                            bool leafCertificate = true;
-                            foreach (var certificate in certificateChain)
-                            {
-                                try
-                                {
-                                    store.Add(certificate).GetAwaiter().GetResult();
-                                    if (!leafCertificate)
-                                    {
-                                        Utils.LogCertificate("Saved issuer certificate: ", certificate);
-                                    }
-                                    leafCertificate = false;
-                                }
-                                catch (ArgumentException aex)
-                                {
-                                    // just notify why the certificate cannot be added
-                                    Utils.LogCertificate(aex.Message, certificate);
-                                }
-                            }
-                        }
-                        finally
-                        {
-                            store.Close();
-                        }
+                        // number of certs for history + current chain
+                        await store.AddRejected(certificateChain, m_maxRejectedCertificates).ConfigureAwait(false);
                     }
-                    catch (Exception e)
+                    finally
                     {
-                        Utils.LogError(e, "Could not write certificate to directory: {0}", m_rejectedCertificateStore);
+                        store.Close();
                     }
                 }
+                finally
+                {
+                    m_semaphore.Release();
+                }
             }
-            finally
+            catch (Exception e)
             {
-                m_semaphore.Release();
+                Utils.LogTrace("Could not write certificate to directory: {0} Error:{1}", rejectedCertificateStore, e.Message);
             }
         }
 
@@ -753,22 +781,24 @@ namespace Opc.Ua
             if (m_trustedCertificateStore != null)
             {
                 ICertificateStore store = m_trustedCertificateStore.OpenStore();
-
-                try
+                if (store != null)
                 {
-                    X509Certificate2Collection trusted = await store.FindByThumbprint(certificate.Thumbprint).ConfigureAwait(false);
-
-                    for (int ii = 0; ii < trusted.Count; ii++)
+                    try
                     {
-                        if (Utils.IsEqual(trusted[ii].RawData, certificate.RawData))
+                        X509Certificate2Collection trusted = await store.FindByThumbprint(certificate.Thumbprint).ConfigureAwait(false);
+
+                        for (int ii = 0; ii < trusted.Count; ii++)
                         {
-                            return new CertificateIdentifier(trusted[ii], m_trustedCertificateStore.ValidationOptions);
+                            if (Utils.IsEqual(trusted[ii].RawData, certificate.RawData))
+                            {
+                                return new CertificateIdentifier(trusted[ii], m_trustedCertificateStore.ValidationOptions);
+                            }
                         }
                     }
-                }
-                finally
-                {
-                    store.Close();
+                    finally
+                    {
+                        store.Close();
+                    }
                 }
             }
 
@@ -1488,7 +1518,7 @@ namespace Opc.Ua
                         // write the invalid certificate to rejected store if specified.
                         Utils.LogCertificate(LogLevel.Error, "Certificate rejected. Reason={0}.",
                             serverCertificate, Redact.Create(serviceResult));
-                        SaveCertificate(serverCertificate);
+                        Task.Run(async () => await SaveCertificateAsync(serverCertificate).ConfigureAwait(false));
                     }
 
                     throw serviceResult;
@@ -1757,7 +1787,8 @@ namespace Opc.Ua
             RejectSHA1SignedCertificates = 2,
             RejectUnknownRevocationStatus = 4,
             MinimumCertificateKeySize = 8,
-            UseValidatedCertificates = 16
+            UseValidatedCertificates = 16,
+            MaxRejectedCertificates = 32
         };
         #endregion
 
@@ -1779,6 +1810,7 @@ namespace Opc.Ua
         private bool m_rejectUnknownRevocationStatus;
         private ushort m_minimumCertificateKeySize;
         private bool m_useValidatedCertificates;
+        private int m_maxRejectedCertificates;
         #endregion
     }
 
