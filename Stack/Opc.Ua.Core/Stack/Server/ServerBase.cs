@@ -800,11 +800,17 @@ namespace Opc.Ua
                     instanceCertificateChain != null &&
                     instanceCertificateChain.Count > 1)
                 {
-                    List<byte> serverCertificateChain = new List<byte>();
-
-                    for (int i = 0; i < instanceCertificateChain.Count; i++)
+                    int totalSize = 0;
+                    foreach (var cert in instanceCertificateChain)
                     {
-                        serverCertificateChain.AddRange(instanceCertificateChain[i].RawData);
+                        totalSize += cert.RawData.Length;
+                    }
+                    byte[] serverCertificateChain = new byte[totalSize];
+                    int offset = 0;
+                    foreach (var cert in instanceCertificateChain)
+                    {
+                        Array.Copy(cert.RawData, 0, serverCertificateChain, offset, cert.RawData.Length);
+                        offset += cert.RawData.Length;
                     }
 
                     description.ServerCertificate = serverCertificateChain.ToArray();
