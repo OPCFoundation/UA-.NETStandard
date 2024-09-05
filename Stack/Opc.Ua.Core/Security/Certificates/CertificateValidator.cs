@@ -117,10 +117,10 @@ namespace Opc.Ua
             CertificateTrustList trustedStore,
             CertificateStoreIdentifier rejectedCertificateStore)
         {
+            m_semaphore.Wait();
+
             try
             {
-                m_semaphore.Wait();
-
                 InternalUpdate(issuerStore, trustedStore, rejectedCertificateStore);
             }
             finally
@@ -186,10 +186,10 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(configuration));
             }
 
+            await m_semaphore.WaitAsync().ConfigureAwait(false);
+
             try
             {
-                await m_semaphore.WaitAsync().ConfigureAwait(false);
-
                 InternalUpdate(
                     configuration.TrustedIssuerCertificates,
                     configuration.TrustedPeerCertificates,
@@ -237,10 +237,10 @@ namespace Opc.Ua
         /// </summary>
         public virtual async Task UpdateCertificate(SecurityConfiguration securityConfiguration)
         {
+            await m_semaphore.WaitAsync().ConfigureAwait(false);
+
             try
             {
-                await m_semaphore.WaitAsync().ConfigureAwait(false);
-
                 securityConfiguration.ApplicationCertificate.Certificate = null;
 
                 await securityConfiguration.ApplicationCertificate.LoadPrivateKeyEx(
@@ -268,10 +268,10 @@ namespace Opc.Ua
         /// </summary>
         public void ResetValidatedCertificates()
         {
+            m_semaphore.Wait();
+
             try
             {
-                m_semaphore.Wait();
-
                 InternalResetValidatedCertificates();
             }
             finally
@@ -301,10 +301,10 @@ namespace Opc.Ua
             get => m_autoAcceptUntrustedCertificates;
             set
             {
+                m_semaphore.Wait();
+
                 try
                 {
-                    m_semaphore.Wait();
-
                     m_protectFlags |= ProtectFlags.AutoAcceptUntrustedCertificates;
                     if (m_autoAcceptUntrustedCertificates != value)
                     {
@@ -327,10 +327,10 @@ namespace Opc.Ua
             get => m_rejectSHA1SignedCertificates;
             set
             {
+                m_semaphore.Wait();
+
                 try
                 {
-                    m_semaphore.Wait();
-
                     m_protectFlags |= ProtectFlags.RejectSHA1SignedCertificates;
                     if (m_rejectSHA1SignedCertificates != value)
                     {
@@ -353,10 +353,10 @@ namespace Opc.Ua
             get => m_rejectUnknownRevocationStatus;
             set
             {
+                m_semaphore.Wait();
+
                 try
                 {
-                    m_semaphore.Wait();
-
                     m_protectFlags |= ProtectFlags.RejectUnknownRevocationStatus;
                     if (m_rejectUnknownRevocationStatus != value)
                     {
@@ -379,10 +379,10 @@ namespace Opc.Ua
             get => m_minimumCertificateKeySize;
             set
             {
+                m_semaphore.Wait();
+
                 try
                 {
-                    m_semaphore.Wait();
-
                     m_protectFlags |= ProtectFlags.MinimumCertificateKeySize;
                     if (m_minimumCertificateKeySize != value)
                     {
@@ -405,10 +405,10 @@ namespace Opc.Ua
             get => m_useValidatedCertificates;
             set
             {
+                m_semaphore.Wait();
+
                 try
                 {
-                    m_semaphore.Wait();
-
                     m_protectFlags |= ProtectFlags.UseValidatedCertificates;
                     if (m_useValidatedCertificates != value)
                     {
@@ -547,10 +547,10 @@ namespace Opc.Ua
 
             try
             {
+                m_semaphore.Wait();
+
                 try
                 {
-                    m_semaphore.Wait();
-
                     InternalValidateAsync(chain, endpoint).GetAwaiter().GetResult();
 
                     // add to list of validated certificates.
@@ -569,10 +569,10 @@ namespace Opc.Ua
             }
 
             // add to list of peers.
+            m_semaphore.Wait();
+
             try
             {
-                m_semaphore.Wait();
-
                 Utils.LogCertificate(LogLevel.Warning, "Validation errors suppressed: ", certificate);
                 m_validatedCertificates[certificate.Thumbprint] = new X509Certificate2(certificate.RawData);
             }
@@ -600,7 +600,7 @@ namespace Opc.Ua
                 // save the chain in rejected store to allow to add certs to a trusted or issuer store
                 Task.Run(async () => await SaveCertificatesAsync(chain).ConfigureAwait(false));
 
-                LogInnerServiceResults(LogLevel.Error, se.Result.InnerResult);
+                LogInnerServiceResults(LogLevel.Information, se.Result.InnerResult);
                 throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
             }
 
@@ -830,7 +830,7 @@ namespace Opc.Ua
             }
 
             // check for serial number match.
-            if (!String.IsNullOrEmpty(serialNumber))
+            if (!string.IsNullOrEmpty(serialNumber))
             {
                 if (certificate.SerialNumber != serialNumber)
                 {
@@ -840,7 +840,7 @@ namespace Opc.Ua
             }
 
             // check for authority key id match.
-            if (!String.IsNullOrEmpty(authorityKeyId))
+            if (!string.IsNullOrEmpty(authorityKeyId))
             {
                 X509SubjectKeyIdentifierExtension subjectKeyId = X509Extensions.FindExtension<X509SubjectKeyIdentifierExtension>(certificate);
 
@@ -1736,7 +1736,7 @@ namespace Opc.Ua
                 bool isLocalHost = false;
                 if (endpointUrl.HostNameType == UriHostNameType.Dns)
                 {
-                    if (String.Equals(dnsHostName, "localhost", StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(dnsHostName, "localhost", StringComparison.OrdinalIgnoreCase))
                     {
                         isLocalHost = true;
                     }
@@ -1763,8 +1763,8 @@ namespace Opc.Ua
 
                 for (int ii = 0; ii < domains.Count; ii++)
                 {
-                    if (String.Equals(hostname, domains[ii], StringComparison.OrdinalIgnoreCase) ||
-                        String.Equals(dnsHostName, domains[ii], StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(hostname, domains[ii], StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(dnsHostName, domains[ii], StringComparison.OrdinalIgnoreCase))
                     {
                         domainFound = true;
                         break;
