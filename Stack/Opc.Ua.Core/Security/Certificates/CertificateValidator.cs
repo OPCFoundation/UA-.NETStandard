@@ -727,7 +727,11 @@ namespace Opc.Ua
 
             try
             {
-                await m_semaphore.WaitAsync(kSaveCertificatesTimeout, ct).ConfigureAwait(false);
+                if (!await m_semaphore.WaitAsync(kSaveCertificatesTimeout, ct).ConfigureAwait(false))
+                {
+                    Utils.LogTrace("SaveCertificatesAsync: Timed out waiting, skip job to reduce CPU load.");
+                    return;
+                }
 
                 try
                 {
