@@ -42,7 +42,8 @@ namespace Opc.Ua.PubSub
         private readonly object m_lock = new object();
 
         private double m_interval = kMinInterval;
-        private DateTime m_nextPublishTime = DateTime.MinValue;
+        private double m_nextPublishTick = 0;
+
         // event used to cancel run
         private CancellationTokenSource m_cancellationToken = new CancellationTokenSource();
 
@@ -156,28 +157,29 @@ namespace Opc.Ua.PubSub
         {
             do
             {
-                int sleepCycle = 0;
-                DateTime now = DateTime.UtcNow;
-                DateTime nextPublishTime = DateTime.MinValue;
-
-                lock (m_lock)
+                if (m_cancellationToken.IsCancellationRequested)
                 {
-                    sleepCycle = Convert.ToInt32(m_interval);
-
-                    nextPublishTime = m_nextPublishTime;
+                    break;
                 }
 
-                if (nextPublishTime > now)
+                double sleepCycle = m_interval;
+                long nowTick = HiResClock.Ticks;
+                double nextPublishTick = 0;
+
+                lock(m_lock)
                 {
-                    sleepCycle = (int)Math.Min((nextPublishTime - now).TotalMilliseconds, sleepCycle);
-                    sleepCycle = (int)Math.Max(kMinInterval, sleepCycle);
+                    nextPublishTick = m_nextPublishTick;
+                }
+
+                if (nextPublishTick > nowTick)
+                {
                     await Task.Delay(TimeSpan.FromMilliseconds(sleepCycle), m_cancellationToken.Token).ConfigureAwait(false);
                 }
 
                 lock (m_lock)
                 {
-                    var nextCycle = Convert.ToInt32(m_interval);
-                    m_nextPublishTime = DateTime.UtcNow.AddMilliseconds(nextCycle);
+                    var nextCycle = (long)m_interval * HiResClock.TicksPerMillisecond;
+                    m_nextPublishTick += HiResClock.Ticks + nextCycle;
 
                     if (IntervalAction != null && CanExecuteFunc != null && CanExecuteFunc())
                     {
