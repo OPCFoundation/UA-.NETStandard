@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
   <metadata>
     <id>OPCFoundation.NetStandard.Opc.Ua.Symbols</id>
-    <version>1.04.372.0</version>
+    <version>1.05.374.0</version>
     <title>OPC UA .Net Standard Library Symbols</title>
     <description>This package contains the OPC UA reference implementation debug version and is targeting the .NET Standard Library.</description>
     <authors>OPC Foundation</authors>
@@ -11,11 +11,10 @@
     <icon>images/logo.jpg</icon>
     <license type="file">licenses/LICENSE.txt</license>
     <!-- deprecated <PackageLicenseUrl>https://opcfoundation.org/license/source/1.11/index.html</PackageLicenseUrl>-->
-    <tags>OPCFoundation OPC-UA netstandard ios linux dotnet net netcore uwp</tags>
+    <tags>OPCFoundation OPC-UA netstandard ios linux dotnet net netcore</tags>
     <dependencies>
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core.Debug" version="$version$"/>
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Security.Certificates.Debug" version="$version$"/>
-      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Bindings.Https.Debug" version="$version$"/>
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Configuration.Debug" version="$version$"/>
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Client.Debug" version="$version$"/>
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Server.Debug" version="$version$"/>
