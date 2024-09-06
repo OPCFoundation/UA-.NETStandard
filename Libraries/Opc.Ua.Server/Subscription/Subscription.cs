@@ -896,6 +896,13 @@ namespace Opc.Ua.Server
                         // add to list of messages to send.
                         messages.Add(message);
 
+                        //stop fetching messages from monitored items when message queue is full to avoid discards
+                        // use m_maxMessageCount - 1 to put remaining values into the last allowed message
+                        if (messages.Count >= m_maxMessageCount - 1)
+                        {
+                            break;
+                        }
+
                         lock (DiagnosticsWriteLock)
                         {
                             m_diagnostics.DataChangeNotificationsCount += (uint)dataChangeCount;
