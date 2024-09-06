@@ -17,6 +17,8 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Xml;
+using Opc.Ua.Bindings;
+using Opc.Ua.Buffers;
 
 namespace Opc.Ua
 {
@@ -453,15 +455,42 @@ namespace Opc.Ua
             }
 
             int maxByteCount = Encoding.UTF8.GetMaxByteCount(value.Length);
-            byte[] encodedBytes = ArrayPool<byte>.Shared.Rent(maxByteCount);
-            try
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
+            const int minByteCountPerBuffer = 256;
+            const int maxByteCountPerBuffer = 8192;
+#endif
+            const int maxStackAllocByteCount = 128;
+            if (maxByteCount <= maxStackAllocByteCount)
             {
-                int count = Encoding.UTF8.GetBytes(value, 0, value.Length, encodedBytes, 0);
-                WriteByteString(null, encodedBytes, 0, count);
+                Span<byte> encodedBytes = stackalloc byte[maxByteCount];
+                int count = Encoding.UTF8.GetBytes(value, encodedBytes);
+                WriteByteString(null, encodedBytes.Slice(0, count));
             }
-            finally
+            else
+#if NET5_0_OR_GREATER
+            if (maxByteCount > maxByteCountPerBuffer)
             {
-                ArrayPool<byte>.Shared.Return(encodedBytes);
+                using (var bufferWriter = new ArrayPoolBufferWriter<byte>(minByteCountPerBuffer, maxByteCountPerBuffer))
+                {
+                    long count = Encoding.UTF8.GetBytes(value.AsSpan(), bufferWriter);
+                    WriteByteString(null, bufferWriter.GetReadOnlySequence());
+                }
+            }
+            else
+#endif
+#endif
+            {
+                byte[] encodedBytes = ArrayPool<byte>.Shared.Rent(maxByteCount);
+                try
+                {
+                    int count = Encoding.UTF8.GetBytes(value, 0, value.Length, encodedBytes, 0);
+                    WriteByteString(null, encodedBytes, 0, count);
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(encodedBytes);
+                }
             }
         }
 
@@ -521,6 +550,45 @@ namespace Opc.Ua
                 return;
             }
 
+            WriteByteString(fieldName, value, 0, value.Length);
+        }
+
+        /// <summary>
+        /// Writes a byte string to the stream from a given index and length.
+        /// </summary>
+        public void WriteByteString(string fieldName, byte[] value, int index, int count)
+        {
+            if (value == null)
+            {
+                WriteInt32(null, -1);
+                return;
+            }
+
+            if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < count)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxByteStringLength {0} < {1}",
+                    m_context.MaxByteStringLength,
+                    count);
+            }
+
+            WriteInt32(null, count);
+            m_writer.Write(value, index, count);
+        }
+
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+        /// <summary>
+        /// Writes a byte string to the stream.
+        /// </summary>
+        public void WriteByteString(string fieldName, ReadOnlySpan<byte> value)
+        {
+            if (value == null)
+            {
+                WriteInt32(null, -1);
+                return;
+            }
+
             if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < value.Length)
             {
                 throw ServiceResultException.Create(
@@ -533,6 +601,7 @@ namespace Opc.Ua
             WriteInt32(null, value.Length);
             m_writer.Write(value);
         }
+#endif
 
         /// <summary>
         /// Writes an XmlElement to the stream.
@@ -1926,18 +1995,19 @@ namespace Opc.Ua
         #endregion
 
         #region Private Methods
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
         /// <summary>
-        /// Writes a byte string to the stream from a given index and length.
+        /// Writes a byte string encoded in a ReadOnlySequence to the stream.
         /// </summary>
-        private void WriteByteString(string fieldName, byte[] value, int index, int count)
+        private void WriteByteString(string fieldName, ReadOnlySequence<byte> value)
         {
-            if (value == null)
+            if (value.IsEmpty)
             {
                 WriteInt32(null, -1);
                 return;
             }
 
-            if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < count)
+            if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < value.Length)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
@@ -1946,9 +2016,13 @@ namespace Opc.Ua
                     value.Length);
             }
 
-            WriteInt32(null, count);
-            m_writer.Write(value, index, count);
+            WriteInt32(null, (int)value.Length);
+            foreach (var segment in value)
+            {
+                m_writer.Write(segment.Span);
+            }
         }
+#endif
 
         /// <summary>
         /// Writes a DiagnosticInfo to the stream.

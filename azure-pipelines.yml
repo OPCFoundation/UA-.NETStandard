@@ -70,27 +70,28 @@ stages:
       framework: net6.0
       agents: '@{ windows = "windows-2022"; linux="ubuntu-22.04"; mac = "macOS-12"}'
       jobnamesuffix: net60
+      customtestarget: net6.0
 - stage: testreleasepr
   dependsOn: []
-  displayName: 'Fast .NET 6.0 PR Test'
+  displayName: 'Fast .NET 8.0 PR Test'
   condition: and(eq(variables.FullBuild, 'False'), eq(variables.ScheduledBuild, 'False'))
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
-      framework: net6.0
+      framework: net8.0
       agents: '@{ windows = "windows-2022"; linux="ubuntu-20.04"}'
-      jobnamesuffix: net60pr
+      jobnamesuffix: net80pr
 - stage: testdebug
   dependsOn: [build]
-  displayName: 'Test .NET 6.0 Debug'
+  displayName: 'Test .NET 8.0 Debug'
   condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
-      framework: net6.0
+      framework: net8.0
       configuration: Debug
-      jobnamesuffix: net60debug
+      jobnamesuffix: net80debug
 - stage: testnet80
   dependsOn: [build]
   displayName: 'Test .NET 8.0'
@@ -101,7 +102,6 @@ stages:
       framework: net8.0
       configuration: Release
       jobnamesuffix: net80
-      customtestarget: net8.0
 - stage: testnet462
   dependsOn: [build]
   displayName: 'Test .NET 4.6.2'
@@ -159,5 +159,4 @@ stages:
       configuration: Release
       poolImage: 'ubuntu-22.04'
       framework: net8.0
-      jobnamesuffix: net60cc
-      customtestarget: net8.0
+      jobnamesuffix: net80cc

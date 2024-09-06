@@ -48,7 +48,8 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="identity">The user identity.</param>
         public SystemConfigurationIdentity(IUserIdentity identity)
-        :base(identity, new List<Role> {Role.SecurityAdmin, Role.ConfigureAdmin }){
+        : base(identity, new List<Role> { Role.SecurityAdmin, Role.ConfigureAdmin })
+        {
         }
     }
 
@@ -68,7 +69,11 @@ namespace Opc.Ua.Server
             :
             base(server, configuration)
         {
-            m_rejectedStorePath = configuration.SecurityConfiguration.RejectedCertificateStore.StorePath;
+            string rejectedStorePath = configuration.SecurityConfiguration.RejectedCertificateStore?.StorePath;
+            if (!string.IsNullOrEmpty(rejectedStorePath))
+            {
+                m_rejectedStore = new CertificateStoreIdentifier(rejectedStorePath);
+            }
             m_certificateGroups = new List<ServerCertificateGroup>();
             m_configuration = configuration;
             // TODO: configure cert groups in configuration
@@ -77,8 +82,8 @@ namespace Opc.Ua.Server
                 BrowseName = Opc.Ua.BrowseNames.DefaultApplicationGroup,
                 CertificateTypes = new NodeId[] { ObjectTypeIds.RsaSha256ApplicationCertificateType },
                 ApplicationCertificate = configuration.SecurityConfiguration.ApplicationCertificate,
-                IssuerStorePath = configuration.SecurityConfiguration.TrustedIssuerCertificates.StorePath,
-                TrustedStorePath = configuration.SecurityConfiguration.TrustedPeerCertificates.StorePath
+                IssuerStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.TrustedIssuerCertificates.StorePath),
+                TrustedStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.TrustedPeerCertificates.StorePath)
             };
             m_certificateGroups.Add(defaultApplicationGroup);
         }
@@ -215,8 +220,8 @@ namespace Opc.Ua.Server
                     certGroup.CertificateTypes;
                 certGroup.Node.TrustList.Handle = new TrustList(
                     certGroup.Node.TrustList,
-                    certGroup.TrustedStorePath,
-                    certGroup.IssuerStorePath,
+                    certGroup.TrustedStore,
+                    certGroup.IssuerStore,
                     new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
                     new TrustList.SecureAccess(HasApplicationSecureAdminAccess));
                 certGroup.Node.ClearChangeMasks(systemContext, true);
@@ -231,7 +236,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        
+
 
         /// <summary>
         /// Gets and returns the <see cref="NamespaceMetadataState"/> node associated with the specified NamespaceUri
@@ -305,7 +310,7 @@ namespace Opc.Ua.Server
         /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
         public void HasApplicationSecureAdminAccess(ISystemContext context)
         {
-            HasApplicationSecureAdminAccess(context, "");
+            HasApplicationSecureAdminAccess(context, null);
         }
 
 
@@ -316,7 +321,7 @@ namespace Opc.Ua.Server
         /// <param name="_"></param>
         /// <exception cref="ServiceResultException"/>
         /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
-        public void HasApplicationSecureAdminAccess(ISystemContext context, string _)
+        public void HasApplicationSecureAdminAccess(ISystemContext context, CertificateStoreIdentifier _)
         {
             OperationContext operationContext = (context as SystemContext)?.OperationContext as OperationContext;
             if (operationContext != null)
@@ -485,7 +490,9 @@ namespace Opc.Ua.Server
                             updateCertificate.CertificateWithPrivateKey.Dispose();
                             updateCertificate.CertificateWithPrivateKey = certOnly;
                         }
-                        using (ICertificateStore issuerStore = CertificateStoreIdentifier.OpenStore(certificateGroup.IssuerStorePath))
+
+                        ICertificateStore issuerStore = certificateGroup.IssuerStore.OpenStore();
+                        try
                         {
                             foreach (var issuer in updateCertificate.IssuerCollection)
                             {
@@ -499,6 +506,10 @@ namespace Opc.Ua.Server
                                     // ignore error if issuer cert already exists
                                 }
                             }
+                        }
+                        finally
+                        {
+                            issuerStore?.Close();
                         }
 
                         Server.ReportCertificateUpdatedAuditEvent(context, objectId, method, inputArguments, certificateGroupId, certificateTypeId);
@@ -603,8 +614,15 @@ namespace Opc.Ua.Server
         {
             HasApplicationSecureAdminAccess(context);
 
-            using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(m_rejectedStorePath))
+            // No rejected store configured
+            if (m_rejectedStore == null)
             {
+                certificates = Array.Empty<byte[]>();
+                return StatusCodes.Good;
+            }
+
+            ICertificateStore store = m_rejectedStore.OpenStore();
+            try {
                 X509Certificate2Collection collection = store.Enumerate().Result;
                 List<byte[]> rawList = new List<byte[]>();
                 foreach (var cert in collection)
@@ -612,6 +630,10 @@ namespace Opc.Ua.Server
                     rawList.Add(cert.RawData);
                 }
                 certificates = rawList.ToArray();
+            }
+            finally
+            {
+                store?.Close();
             }
 
             return StatusCodes.Good;
@@ -638,14 +660,14 @@ namespace Opc.Ua.Server
             //TODO support multiple Application Instance Certificates
             if (certificateTypeId != null)
             {
-                certificateTypeIds = new NodeId[1] {certificateTypeId };
+                certificateTypeIds = new NodeId[1] { certificateTypeId };
                 certificates = new byte[1][];
                 certificates[0] = certificateGroup.ApplicationCertificate.Certificate.GetRawCertData();
             }
             else
             {
                 certificateTypeIds = new NodeId[0];
-                certificates = new byte[0][];
+                certificates = Array.Empty<byte[]>();
             }
 
             return ServiceResult.Good;
@@ -794,15 +816,15 @@ namespace Opc.Ua.Server
             public CertificateGroupState Node;
             public NodeId[] CertificateTypes;
             public CertificateIdentifier ApplicationCertificate;
-            public string IssuerStorePath;
-            public string TrustedStorePath;
+            public CertificateStoreIdentifier IssuerStore;
+            public CertificateStoreIdentifier TrustedStore;
             public UpdateCertificateData UpdateCertificate;
         }
 
         private ServerConfigurationState m_serverConfigurationNode;
         private ApplicationConfiguration m_configuration;
         private IList<ServerCertificateGroup> m_certificateGroups;
-        private readonly string m_rejectedStorePath;
+        private CertificateStoreIdentifier m_rejectedStore;
         private Dictionary<string, NamespaceMetadataState> m_namespaceMetadataStates = new Dictionary<string, NamespaceMetadataState>();
         #endregion
     }

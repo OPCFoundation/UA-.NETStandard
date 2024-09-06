@@ -289,7 +289,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 var certBlob = byteServerCertificateChain.ToArray();
 
-                var singleBlob = AsnUtils.ParseX509Blob(certBlob);
+                byte[] singleBlob = AsnUtils.ParseX509Blob(certBlob).ToArray();
                 Assert.NotNull(singleBlob);
                 var certX = new X509Certificate2(singleBlob);
                 Assert.NotNull(certX);

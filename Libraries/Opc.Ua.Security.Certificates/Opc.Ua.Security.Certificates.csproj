@@ -30,9 +30,6 @@
       <PropertyGroup>
         <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
       </PropertyGroup>
-      <ItemGroup>
-        <PackageReference Include="System.Security.Cryptography.Cng" Version="5.0.0" />
-      </ItemGroup>
     </Otherwise>
   </Choose>
 

@@ -29,14 +29,28 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 * Sessions and Subscriptions.
 * A [PubSub](Docs/PubSub.md) library with samples.
 
-#### **New in 1.05.xxx**
+### Key Features and Updates in OPC UA 1.05
+
+- **Security Enhancements**: Improved encryption and authentication mechanisms.
+- **CRL Support**: Added Certificate Revocation List support for X509Store on Windows.
+- **Performance Improvements**: Faster binary encoding and decoding, reducing memory usage and latency.
+- **Role-Based Management**: Support for WellKnownRoles and RoleBasedUserManagement [WellKnownRoles & RoleBasedUserManagement](Docs/RoleBasedUserManagement.md).
+- **Improved Logging**: Enhanced logging with `ILogger` and `EventSource`.
+
+#### Breaking Changes and Heads-Up when upgrading from 1.04 to 1.05
+
+- A few features are still missing to fully comply for 1.05 (e.g. ECC support), but certification for V1.04 is still possible with the 1.05 release.
+- **Thread Safety and Locking**: Improved thread safety and reduced locking in secure channel operations.
+- **Audit and Redaction**: New interfaces for auditing and redacting sensitive information.
+
+#### **New in 1.05.374.70**
 * CRL Support for the X509Store on Windows
 
 #### **New in 1.05.373**
 * 1.05 Nodeset
 * Support for [WellKnownRoles & RoleBasedUserManagement](Docs/RoleBasedUserManagement.md).
 
-#### **New in 1.4.368**
+#### **New in 1.04.368**
 * Improved support for [Logging](Docs/Logging.md) with `ILogger` and `EventSource`. 
 * Support for custom certificate stores with refactored `ICertificateStore` and `CertificateStoreType` interface.
 * Client and Server support for [TransferSubscriptions](Docs/TransferSubscription.md).
@@ -44,9 +58,8 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 
 #### Samples and Nuget packages
 
-* OPC UA [Reference Server](Applications/ReferenceServer) and [Reference Client](Applications/ReferenceClient) for .NET Framework.
 * OPC UA [Console Reference Server](Applications/ConsoleReferenceServer) for .NET Core. A Linux Container of the latest builds is available [here](https://github.com/OPCFoundation/UA-.NETStandard/pkgs/container/uanetstandard%2Frefserver). See also [Container support](Docs/ContainerReferenceServer.md).
-* The OPC UA [Reference Server](Applications/ReferenceServer/README.md) has been certified for compliance through an OPC Foundation Certification Test Lab. Fixes and enhancements since the certification process have been tested and verified for compliance using the [Compliance Test Tool (CTT)](https://opcfoundation.org/developer-tools/certification-test-tools/opc-ua-compliance-test-tool-uactt/). 
+* The OPC UA [Reference Server](Applications/README.md) has been certified for compliance through an OPC Foundation Certification Test Lab. Fixes and enhancements since the certification process have been tested and verified for compliance using the [Compliance Test Tool (CTT)](https://opcfoundation.org/developer-tools/certification-test-tools/opc-ua-compliance-test-tool-uactt/). 
     All releases are verified for compliance with the latest official Compliance Test Tool by the maintainers.
 * OPC UA [Console Reference Publisher](Applications/ConsoleReferencePublisher/README.md) and [Console Reference Subscriber](Applications/ConsoleReferenceSubscriber/README.md) for .NET Core and .NET Framework.
 * An official OPC UA [Nuget](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) package of the core, client, server and configuration libraries is available for integration in .NET projects. Note: The package has been split into [Core](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Core/), [Client](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Client/) and [Server](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Server/) packages to reduce the dependencies in projects where only client or server is needed. The [https binding](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Bindings.Https/) is now a seperate optional package.

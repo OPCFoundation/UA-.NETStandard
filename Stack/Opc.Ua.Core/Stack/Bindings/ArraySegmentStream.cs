@@ -172,7 +172,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public override bool CanWrite
         {
-            get { return m_buffers != null; }
+            get { return m_buffers != null && m_bufferManager != null; }
         }
 
         /// <inheritdoc/>
@@ -321,21 +321,19 @@ namespace Opc.Ua.Bindings
             switch (origin)
             {
                 case SeekOrigin.Begin:
-                {
                     break;
-                }
 
                 case SeekOrigin.Current:
-                {
                     offset += GetAbsolutePosition();
                     break;
-                }
 
                 case SeekOrigin.End:
-                {
                     offset += GetAbsoluteLength();
                     break;
-                }
+
+                default:
+                    throw new IOException("Invalid seek origin value.");
+
             }
 
             if (offset < 0)

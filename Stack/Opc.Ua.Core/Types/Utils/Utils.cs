@@ -2466,7 +2466,7 @@ namespace Opc.Ua
 
             // serialize value.
             StringBuilder buffer = new StringBuilder();
-            using (XmlWriter writer = XmlWriter.Create(buffer))
+            using (XmlWriter writer = XmlWriter.Create(buffer, DefaultXmlWriterSettings()))
             {
                 if (value != null)
                 {
@@ -2529,7 +2529,7 @@ namespace Opc.Ua
                 extensions.Add(document.DocumentElement);
             }
         }
-#endregion
+        #endregion
 
         #region Reflection Helper Functions
         /// <summary>
@@ -2712,24 +2712,23 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a X509 certificate object from the DER encoded bytes.
         /// </summary>
-        public static X509Certificate2 ParseCertificateBlob(byte[] certificateData)
+        public static X509Certificate2 ParseCertificateBlob(ReadOnlyMemory<byte> certificateData)
         {
-
             // macOS X509Certificate2 constructor throws exception if a certchain is encoded
             // use AsnParser on macOS to parse for byteblobs,
 #if !NETFRAMEWORK
             bool useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
-#else
-            bool useAsnParser = false;
 #endif
             try
             {
+#if !NETFRAMEWORK
                 if (useAsnParser)
                 {
                     var certBlob = AsnUtils.ParseX509Blob(certificateData);
                     return CertificateFactory.Create(certBlob, true);
                 }
                 else
+#endif
                 {
                     return CertificateFactory.Create(certificateData, true);
                 }
@@ -2748,30 +2747,32 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificateData">The certificate data.</param>
         /// <returns></returns>
-        public static X509Certificate2Collection ParseCertificateChainBlob(byte[] certificateData)
+        public static X509Certificate2Collection ParseCertificateChainBlob(ReadOnlyMemory<byte> certificateData)
         {
             X509Certificate2Collection certificateChain = new X509Certificate2Collection();
-            List<byte> certificatesBytes = new List<byte>(certificateData);
+
             // macOS X509Certificate2 constructor throws exception if a certchain is encoded
             // use AsnParser on macOS to parse for byteblobs,
 #if !NETFRAMEWORK
             bool useAsnParser = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
-#else
-            bool useAsnParser = false;
 #endif
-            while (certificatesBytes.Count > 0)
+            int offset = 0;
+            int length = certificateData.Length;
+            while (offset < length)
             {
                 X509Certificate2 certificate;
                 try
                 {
+#if !NETFRAMEWORK
                     if (useAsnParser)
                     {
-                        var certBlob = AsnUtils.ParseX509Blob(certificatesBytes.ToArray());
+                        var certBlob = AsnUtils.ParseX509Blob(certificateData.Slice(offset));
                         certificate = CertificateFactory.Create(certBlob, true);
                     }
                     else
+#endif
                     {
-                        certificate = CertificateFactory.Create(certificatesBytes.ToArray(), true);
+                        certificate = CertificateFactory.Create(certificateData.Slice(offset), true);
                     }
                 }
                 catch (Exception e)
@@ -2783,7 +2784,7 @@ namespace Opc.Ua
                 }
 
                 certificateChain.Add(certificate);
-                certificatesBytes.RemoveRange(0, certificate.RawData.Length);
+                offset += certificate.RawData.Length;
             }
 
             return certificateChain;

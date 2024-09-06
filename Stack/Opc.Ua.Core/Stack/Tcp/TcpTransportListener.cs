@@ -84,11 +84,13 @@ namespace Opc.Ua.Bindings
 
                     if (m_channels != null)
                     {
-                        foreach (var channel in m_channels.Values)
-                        {
-                            Utils.SilentDispose(channel);
-                        }
+                        var channels = m_channels.ToArray();
+                        m_channels.Clear();
                         m_channels = null;
+                        foreach (var channelKeyValue in channels)
+                        {
+                            Utils.SilentDispose(channelKeyValue.Value);
+                        }
                     }
                 }
             }
@@ -157,7 +159,7 @@ namespace Opc.Ua.Bindings
             m_serverCertificateChain = settings.ServerCertificateChain;
 
             m_bufferManager = new BufferManager("Server", m_quotas.MaxBufferSize);
-            m_channels = new Dictionary<uint, TcpListenerChannel>();
+            m_channels = new ConcurrentDictionary<uint, TcpListenerChannel>();
             m_reverseConnectListener = settings.ReverseConnectListener;
             m_maxChannelCount = settings.MaxChannelCount;
 
@@ -239,12 +241,14 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void ChannelClosed(uint channelId)
         {
-            lock (m_lock)
+            if (m_channels?.TryRemove(channelId, out _) == true)
             {
-                m_channels?.Remove(channelId);
+                Utils.LogInfo("ChannelId {0}: closed", channelId);
             }
-
-            Utils.LogInfo("ChannelId {0}: closed", channelId);
+            else
+            {
+                Utils.LogInfo("ChannelId {0}: closed, but channel was not found", channelId);
+            }
         }
 
         /// <summary>
@@ -291,9 +295,9 @@ namespace Opc.Ua.Bindings
             {
                 channel.EndReverseConnect(result);
 
-                lock (m_lock)
+                if (!m_channels.TryAdd(channel.Id, channel))
                 {
-                    m_channels.Add(channel.Id, channel);
+                    throw new ServiceResultException(StatusCodes.BadInternalError);
                 }
 
                 if (m_callback != null)
@@ -444,12 +448,11 @@ namespace Opc.Ua.Bindings
         {
             bool accepted = false;
             TcpListenerChannel channel = null;
-            lock (m_lock)
+
+            // remove it so it does not get cleaned up as an inactive connection.
+            if (m_channels?.TryRemove(channelId, out channel) != true)
             {
-                if (m_channels?.TryGetValue(channelId, out channel) != true)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadTcpSecureChannelUnknown, "Could not find secure channel request.");
-                }
+                throw ServiceResultException.Create(StatusCodes.BadTcpSecureChannelUnknown, "Could not find secure channel request.");
             }
 
             // notify the application.
@@ -460,13 +463,10 @@ namespace Opc.Ua.Bindings
                 accepted = args.Accepted;
             }
 
-            if (accepted)
+            if (!accepted)
             {
-                lock (m_lock)
-                {
-                    // remove it so it does not get cleaned up as an inactive connection.
-                    m_channels?.Remove(channelId);
-                }
+                // add back in for other connection attempt.
+                m_channels?.TryAdd(channelId, channel);
             }
 
             return accepted;
@@ -526,63 +526,72 @@ namespace Opc.Ua.Bindings
                         return;
                     }
 
-                    int channelCount = m_channels?.Count ?? 0;
-                    bool serveChannel = !(m_maxChannelCount > 0 && m_maxChannelCount < channelCount);
-                    if (!serveChannel)
+                    var channels = m_channels;
+                    if (channels != null)
                     {
-                        Utils.LogError("OnAccept: Maximum number of channels {0} reached, serving channels is stopped until number is lower or equal than {1} ",
-                            channelCount, m_maxChannelCount);
-                        Utils.SilentDispose(e.AcceptSocket);
-                    }
-
-                    // check if the accept socket has been created.
-                    if (serveChannel && e.AcceptSocket != null && e.SocketError == SocketError.Success && m_channels != null)
-                    {
-                        try
+                        // TODO: .Count is flagged as hotpath, implement separate counter
+                        int channelCount = channels.Count;
+                        bool serveChannel = !(m_maxChannelCount > 0 && m_maxChannelCount < channelCount);
+                        if (!serveChannel)
                         {
-                            if (m_reverseConnectListener)
-                            {
-                                // create the channel to manage incoming reverse connections.
-                                channel = new TcpReverseConnectChannel(
-                                    m_listenerId,
-                                    this,
-                                    m_bufferManager,
-                                    m_quotas,
-                                    m_descriptions);
-                            }
-                            else
-                            {
-                                // create the channel to manage incoming connections.
-                                channel = new TcpServerChannel(
-                                    m_listenerId,
-                                    this,
-                                    m_bufferManager,
-                                    m_quotas,
-                                    m_serverCertificate,
-                                    m_serverCertificateChain,
-                                    m_descriptions);
-                            }
-
-                            if (m_callback != null)
-                            {
-                                channel.SetRequestReceivedCallback(new TcpChannelRequestEventHandler(OnRequestReceived));
-                                channel.SetReportOpenSecureChannelAuditCallback(new ReportAuditOpenSecureChannelEventHandler(OnReportAuditOpenSecureChannelEvent));
-                                channel.SetReportCloseSecureChannelAuditCallback(new ReportAuditCloseSecureChannelEventHandler(OnReportAuditCloseSecureChannelEvent));
-                                channel.SetReportCertificateAuditCallback(new ReportAuditCertificateEventHandler(OnReportAuditCertificateEvent));
-                            }
-
-                            // get channel id
-                            uint channelId = GetNextChannelId();
-
-                            // start accepting messages on the channel.
-                            channel.Attach(channelId, e.AcceptSocket);
-
-                            // save the channel for shutdown and reconnects.
-                            m_channels.Add(channelId, channel);
+                            Utils.LogError("OnAccept: Maximum number of channels {0} reached, serving channels is stopped until number is lower or equal than {1} ",
+                                channelCount, m_maxChannelCount);
+                            Utils.SilentDispose(e.AcceptSocket);
                         }
-                        catch (Exception ex)
+
+                        // check if the accept socket has been created.
+                        if (serveChannel && e.AcceptSocket != null && e.SocketError == SocketError.Success)
                         {
-                            Utils.LogError(ex, "Unexpected error accepting a new connection.");
+                            try
+                            {
+                                if (m_reverseConnectListener)
+                                {
+                                    // create the channel to manage incoming reverse connections.
+                                    channel = new TcpReverseConnectChannel(
+                                        m_listenerId,
+                                        this,
+                                        m_bufferManager,
+                                        m_quotas,
+                                        m_descriptions);
+                                }
+                                else
+                                {
+                                    // create the channel to manage incoming connections.
+                                    channel = new TcpServerChannel(
+                                        m_listenerId,
+                                        this,
+                                        m_bufferManager,
+                                        m_quotas,
+                                        m_serverCertificate,
+                                        m_serverCertificateChain,
+                                        m_descriptions);
+                                }
+
+                                if (m_callback != null)
+                                {
+                                    channel.SetRequestReceivedCallback(new TcpChannelRequestEventHandler(OnRequestReceived));
+                                    channel.SetReportOpenSecureChannelAuditCallback(new ReportAuditOpenSecureChannelEventHandler(OnReportAuditOpenSecureChannelEvent));
+                                    channel.SetReportCloseSecureChannelAuditCallback(new ReportAuditCloseSecureChannelEventHandler(OnReportAuditCloseSecureChannelEvent));
+                                    channel.SetReportCertificateAuditCallback(new ReportAuditCertificateEventHandler(OnReportAuditCertificateEvent));
+                                }
+
+                                uint channelId;
+                                do
+                                {
+                                    // get channel id
+                                    channelId = GetNextChannelId();
+
+                                    // save the channel for shutdown and reconnects.
+                                    // retry to get a channel id if it is already in use.
+                                } while (!channels.TryAdd(channelId, channel));
+
+                                // start accepting messages on the channel.
+                                channel.Attach(channelId, e.AcceptSocket);
+                            }
+                            catch (Exception ex)
+                            {
+                                Utils.LogError(ex, "Unexpected error accepting a new connection.");
+                            }
                         }
                     }
 
@@ -616,30 +625,26 @@ namespace Opc.Ua.Bindings
         /// <param name="state"></param>
         private void DetectInactiveChannels(object state = null)
         {
-            List<TcpListenerChannel> channels;
+            var channels = new List<TcpListenerChannel>();
 
-            lock (m_lock)
+            bool cleanup = false;
+            foreach (var chEntry in m_channels)
             {
-                channels = new List<TcpListenerChannel>();
-                foreach (var chEntry in m_channels)
+                if (chEntry.Value.ElapsedSinceLastActiveTime > m_quotas.ChannelLifetime)
                 {
-                    if (chEntry.Value.ElapsedSinceLastActiveTime > m_quotas.ChannelLifetime)
-                    {
-                        channels.Add(chEntry.Value);
-                    }
+                    channels.Add(chEntry.Value);
+                    cleanup = true;
                 }
             }
 
-            if (channels.Count > 0)
+            if (cleanup)
             {
                 Utils.LogInfo("TCPLISTENER: {0} channels scheduled for IdleCleanup.", channels.Count);
                 foreach (var channel in channels)
                 {
-                    lock (m_lock)
-                    {
-                        channel.IdleCleanup();
-                    }
+                    channel.IdleCleanup();
                 }
+                Utils.LogInfo("TCPLISTENER: {0} channels finished IdleCleanup.", channels.Count);
             }
         }
         #endregion
@@ -753,19 +758,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private uint GetNextChannelId()
         {
-            lock (m_lock)
-            {
-                do
-                {
-                    uint nextChannelId = ++m_lastChannelId;
-                    if (nextChannelId != 0 && m_channels?.ContainsKey(nextChannelId) != true)
-                    {
-                        return nextChannelId;
-                    }
-                } while (true);
-            }
+            // wraps at Int32.MaxValue back to 1
+            return (uint)Utils.IncrementIdentifier(ref m_lastChannelId);
         }
-
 
         /// <summary>
         /// Sets the URI for the listener.
@@ -811,10 +806,10 @@ namespace Opc.Ua.Bindings
         private ChannelQuotas m_quotas;
         private X509Certificate2 m_serverCertificate;
         private X509Certificate2Collection m_serverCertificateChain;
-        private uint m_lastChannelId;
+        private int m_lastChannelId;
         private Socket m_listeningSocket;
         private Socket m_listeningSocketIPv6;
-        private Dictionary<uint, TcpListenerChannel> m_channels;
+        private ConcurrentDictionary<uint, TcpListenerChannel> m_channels;
         private ITransportListenerCallback m_callback;
         private bool m_reverseConnectListener;
         private int m_inactivityDetectPeriod;
