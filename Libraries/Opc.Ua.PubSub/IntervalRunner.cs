@@ -192,7 +192,7 @@ namespace Opc.Ua.PubSub
                 }
                 else if (sleepCycle >= 0 && sleepCycle <= 16)
                 {
-                    while (HiResClock.Ticks < m_nextPublishTick)
+                    while (HiResClock.Ticks < nextPublishTick)
                     {
                         // Busy-wait and avoid overhead of Task.Delay for verry small wait times
                     }
