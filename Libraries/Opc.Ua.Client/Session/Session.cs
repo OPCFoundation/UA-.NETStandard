@@ -1,7 +1,7 @@
 /* ========================================================================
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
- * OPC Foundation MIT License 1.00
+ * OPC Foundation MIT License 1.00 
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -4404,7 +4404,7 @@ namespace Opc.Ua.Client
 
                     value = attributes[Attributes.EventNotifier];
 
-                    if (value == null)
+                    if (value == null || value.Value is null)
                     {
                         throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Object does not support the EventNotifier attribute.");
                     }

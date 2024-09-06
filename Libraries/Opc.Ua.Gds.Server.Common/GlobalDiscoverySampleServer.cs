@@ -251,15 +251,19 @@ namespace Opc.Ua.Gds.Server
                 configuration = new GlobalDiscoveryServerConfiguration();
             }
             //check if application certificate is in the Store of the GDS
-            using (ICertificateStore ApplicationsStore = CertificateStoreIdentifier.OpenStore(configuration.ApplicationCertificatesStorePath))
+            var certificateStoreIdentifier = new CertificateStoreIdentifier(configuration.ApplicationCertificatesStorePath);
+            using (ICertificateStore ApplicationsStore = certificateStoreIdentifier.OpenStore())
             {
                 var matchingCerts = ApplicationsStore.FindByThumbprint(applicationInstanceCertificate.Thumbprint).Result;
 
                 if (matchingCerts.Contains(applicationInstanceCertificate))
+                {
                     applicationRegistered = true;
+                }
             }
             //check if application certificate is revoked
-            using (ICertificateStore AuthoritiesStore = CertificateStoreIdentifier.OpenStore(configuration.AuthoritiesStorePath))
+            certificateStoreIdentifier = new CertificateStoreIdentifier(configuration.AuthoritiesStorePath);
+            using (ICertificateStore AuthoritiesStore = certificateStoreIdentifier.OpenStore())
             {
                 var crls = AuthoritiesStore.EnumerateCRLs().Result;
                 foreach (X509CRL crl in crls)

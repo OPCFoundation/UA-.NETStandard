@@ -778,6 +778,7 @@ namespace Opc.Ua
             m_trustedIssuerCertificates = new CertificateTrustList();
             m_trustedPeerCertificates = new CertificateTrustList();
             m_nonceLength = 32;
+            m_maxRejectedCertificates = 5;
             m_autoAcceptUntrustedCertificates = false;
             m_rejectSHA1SignedCertificates = true;
             m_rejectUnknownRevocationStatus = false;
@@ -871,13 +872,30 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Gets or sets a value indicating how many certificates are kept
+        /// in the rejected store before the oldest is removed.
+        /// </summary>
+        /// <remarks>
+        /// This value can be set by applications.
+        /// The number of certificates to keep in the rejected store before it is updated.
+        /// <see langword="0"/> to keep all rejected certificates.
+        /// A negative number to keep no history.
+        /// </remarks>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 8)]
+        public int MaxRejectedCertificates
+        {
+            get { return m_maxRejectedCertificates; }
+            set { m_maxRejectedCertificates = value; }
+        }
+
+        /// <summary>
         /// Gets or sets a value indicating whether untrusted certificates should be automatically accepted.
         /// </summary>
         /// <remarks>
         /// This flag can be set to by servers that allow anonymous clients or use user credentials for authentication.
         /// It can be set by clients that connect to URLs specified in configuration rather than with user entry.
         /// </remarks>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 8)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 9)]
         public bool AutoAcceptUntrustedCertificates
         {
             get { return m_autoAcceptUntrustedCertificates; }
@@ -887,7 +905,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets a directory which contains files representing users roles.
         /// </summary>
-        [DataMember(Order = 9)]
+        [DataMember(Order = 10)]
         public string UserRoleDirectory
         {
             get { return m_userRoleDirectory; }
@@ -900,7 +918,7 @@ namespace Opc.Ua
         /// <remarks>
         /// This flag can be set to false by servers that accept SHA-1 signed certificates.
         /// </remarks>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 10)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 11)]
         public bool RejectSHA1SignedCertificates
         {
             get { return m_rejectSHA1SignedCertificates; }
@@ -913,7 +931,7 @@ namespace Opc.Ua
         /// <remarks>
         /// This flag can be set to true by servers that must have a revocation list for each CA (even if empty).
         /// </remarks>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 11)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 12)]
         public bool RejectUnknownRevocationStatus
         {
             get { return m_rejectUnknownRevocationStatus; }
@@ -926,7 +944,7 @@ namespace Opc.Ua
         /// <remarks>
         /// This value can be set to 1024, 2048 or 4096 by servers
         /// </remarks>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 12)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 13)]
         public ushort MinimumCertificateKeySize
         {
             get { return m_minCertificateKeySize; }
@@ -940,7 +958,7 @@ namespace Opc.Ua
         /// <remarks>
         /// This flag can be set to true by applications.
         /// </remarks>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 13)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 14)]
         public bool UseValidatedCertificates
         {
             get { return m_useValidatedCertificates; }
@@ -953,7 +971,7 @@ namespace Opc.Ua
         /// <remarks>
         /// It is useful for client/server applications running on the same host  and sharing the cert store to autotrust.
         /// </remarks>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 14)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 15)]
         public bool AddAppCertToTrustedStore
         {
             get { return m_addAppCertToTrustedStore; }
@@ -966,7 +984,7 @@ namespace Opc.Ua
         /// <remarks>
         /// If set to true the complete certificate chain will be sent for CA signed certificates.
         /// </remarks>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 15)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 16)]
         public bool SendCertificateChain
         {
             get { return m_sendCertificateChain; }
@@ -976,7 +994,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing additional user issuer certificates.
         /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 16)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 17)]
         public CertificateTrustList UserIssuerCertificates
         {
             get
@@ -998,7 +1016,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing trusted user certificates.
         /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 17)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 18)]
         public CertificateTrustList TrustedUserCertificates
         {
             get
@@ -1020,7 +1038,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing additional Https issuer certificates.
         /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 18)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 19)]
         public CertificateTrustList HttpsIssuerCertificates
         {
             get
@@ -1042,7 +1060,7 @@ namespace Opc.Ua
         /// <summary>
         /// The store containing trusted Https certificates.
         /// </summary>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 19)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 20)]
         public CertificateTrustList TrustedHttpsCertificates
         {
             get
@@ -1069,7 +1087,7 @@ namespace Opc.Ua
         /// If set to true the server nonce validation errors are suppressed.
         /// Please set this flag to true only in close and secured networks since it can cause security vulnerabilities.
         /// </remarks>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 20)]
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 21)]
         public bool SuppressNonceValidationErrors
         {
             get { return m_suppressNonceValidationErrors; }
@@ -1087,6 +1105,7 @@ namespace Opc.Ua
         private CertificateTrustList m_trustedUserCertificates;
         private int m_nonceLength;
         private CertificateStoreIdentifier m_rejectedCertificateStore;
+        private int m_maxRejectedCertificates;
         private bool m_autoAcceptUntrustedCertificates;
         private string m_userRoleDirectory;
         private bool m_rejectSHA1SignedCertificates;
@@ -2916,7 +2935,6 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_lock = new object();
             m_trustedCertificates = new CertificateIdentifierCollection();
         }
 
@@ -2932,7 +2950,8 @@ namespace Opc.Ua
         /// The list of trusted certificates.
         /// </summary>
         /// <value>
-        /// The list of trusted certificates is set when TrustedCertificates is not a null value, otherwise new CertificateIdentifierCollection is set.
+        /// The list of trusted certificates is set when TrustedCertificates is not a null value,
+        /// otherwise new CertificateIdentifierCollection is set.
         /// </value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 3)]
         public CertificateIdentifierCollection TrustedCertificates
