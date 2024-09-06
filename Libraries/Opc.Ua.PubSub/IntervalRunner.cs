@@ -155,6 +155,10 @@ namespace Opc.Ua.PubSub
         /// </summary>
         private async Task ProcessAsync()
         {
+            lock (m_lock)
+            {
+                m_nextPublishTick = HiResClock.Ticks;
+            }
             do
             {
                 if (m_cancellationToken.IsCancellationRequested)
@@ -162,7 +166,6 @@ namespace Opc.Ua.PubSub
                     break;
                 }
 
-                double sleepCycle = m_interval;
                 long nowTick = HiResClock.Ticks;
                 double nextPublishTick = 0;
 
@@ -171,15 +174,34 @@ namespace Opc.Ua.PubSub
                     nextPublishTick = m_nextPublishTick;
                 }
 
-                if (nextPublishTick > nowTick)
+                double sleepCycle = (nextPublishTick - nowTick) / HiResClock.TicksPerMillisecond;
+                if (sleepCycle > 16)
                 {
+                    // Use Task.Delay if sleep cycle is larger
                     await Task.Delay(TimeSpan.FromMilliseconds(sleepCycle), m_cancellationToken.Token).ConfigureAwait(false);
-                }
 
+                    // Still ticks to consume (spurious wakeup too early), improbable
+                    nowTick = HiResClock.Ticks;
+                    if (nowTick < nextPublishTick)
+                    {
+                        while (HiResClock.Ticks < nextPublishTick)
+                        {
+                            // Busy-wait and avoid overhead of Task.Delay for verry small wait times
+                        }
+                    }
+                }
+                else if (sleepCycle >= 0 && sleepCycle <= 16)
+                {
+                    while (HiResClock.Ticks < m_nextPublishTick)
+                    {
+                        // Busy-wait and avoid overhead of Task.Delay for verry small wait times
+                    }
+                }
+                    
                 lock (m_lock)
                 {
                     var nextCycle = (long)m_interval * HiResClock.TicksPerMillisecond;
-                    m_nextPublishTick += HiResClock.Ticks + nextCycle;
+                    m_nextPublishTick += nextCycle;
 
                     if (IntervalAction != null && CanExecuteFunc != null && CanExecuteFunc())
                     {
