@@ -368,7 +368,7 @@ namespace Opc.Ua.Client.Tests
         {
             Configuration.ServerConfiguration.MaxBrowseContinuationPoints = (int)maxNumberOfContinuationPoints;
             ((MasterNodeManagerForThisUnitTest)MasterNodeManagerReference).MaxContinuationPointsPerBrowseForUnitTest = maxNumberOfContinuationPoints;
-            List<Opc.Ua.Server.Session> theServerSideSessions = SessionManagerForTest.GetSessions().ToList();
+            IList<Opc.Ua.Server.Session> theServerSideSessions = SessionManagerForTest.GetSessions();
             foreach (Opc.Ua.Server.Session session in theServerSideSessions)
             {
                 try
