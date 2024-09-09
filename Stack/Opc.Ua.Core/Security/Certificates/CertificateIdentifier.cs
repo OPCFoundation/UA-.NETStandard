@@ -380,6 +380,7 @@ namespace Opc.Ua
         /// A DER blob containing zero or more certificates.
         /// </returns>
         /// <exception cref="CryptographicException">If the <paramref name="certificates"/> is null or empty.</exception>
+        [Obsolete("Use Utils.CreateCertificateChainBlob instead")]
         public static byte[] CreateBlob(IList<X509Certificate2> certificates)
         {
             if (certificates == null || certificates.Count == 0)
@@ -434,6 +435,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Any supporting certificates found in the buffer are processed as well.
         /// </remarks>
+        [Obsolete("Use Utils.ParseCertificateChainBlob instead")]
         public static X509Certificate2Collection ParseBlob(byte[] encodedData)
         {
             if (!IsValidCertificateBlob(encodedData))

@@ -82,6 +82,8 @@ namespace Opc.Ua.Bindings
                     EndpointDescriptionCollection listenerEndpoints = new EndpointDescriptionCollection();
                     uris.Add(uri.Uri);
 
+                    byte[] instanceCertificateChainBlob = Utils.CreateCertificateChainBlob(instanceCertificateChain);
+
                     foreach (ServerSecurityPolicy policy in securityPolicies)
                     {
                         // create the endpoint description.
@@ -100,7 +102,7 @@ namespace Opc.Ua.Bindings
                             description,
                             configuration.SecurityConfiguration.SendCertificateChain,
                             instanceCertificate,
-                            instanceCertificateChain);
+                            instanceCertificateChainBlob);
 
                         listenerEndpoints.Add(description);
                     }

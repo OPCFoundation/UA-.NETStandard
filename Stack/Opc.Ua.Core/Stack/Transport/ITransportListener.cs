@@ -62,6 +62,7 @@ namespace Opc.Ua
         /// </summary>
         void CertificateUpdate(
             ICertificateValidator validator,
+            bool sendCertificateChain,
             X509Certificate2 serverCertificate,
             X509Certificate2Collection serverCertificateChain);
 
