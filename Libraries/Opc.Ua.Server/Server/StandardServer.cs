@@ -2574,7 +2574,7 @@ namespace Opc.Ua.Server
 
             OperationContext context = ServerInternal.SessionManager.ValidateRequest(requestHeader, requestType);
 
-            ServerUtils.EventLog.ServerCall(context.RequestType.ToString(), context.RequestId);
+            ServerUtils.EventLog.ServerCallNative(context.RequestType, context.RequestId);
 
             // notify the request manager.
             ServerInternal.RequestManager.RequestReceived(context);
