@@ -184,18 +184,12 @@ namespace Opc.Ua.PubSub
                     nowTick = HiResClock.Ticks;
                     if (nowTick < nextPublishTick)
                     {
-                        while (HiResClock.Ticks < nextPublishTick)
-                        {
-                            // Busy-wait and avoid overhead of Task.Delay for verry small wait times
-                        }
+                        SpinWait.SpinUntil(() => HiResClock.Ticks >= nextPublishTick);
                     }
                 }
                 else if (sleepCycle >= 0 && sleepCycle <= 16)
                 {
-                    while (HiResClock.Ticks < nextPublishTick)
-                    {
-                        // Busy-wait and avoid overhead of Task.Delay for verry small wait times
-                    }
+                    SpinWait.SpinUntil(() => HiResClock.Ticks >= nextPublishTick);
                 }
                     
                 lock (m_lock)
