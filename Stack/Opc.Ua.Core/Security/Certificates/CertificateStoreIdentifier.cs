@@ -237,8 +237,8 @@ namespace Opc.Ua
                 store = null;
             }
 
-            // create and open the store
-            if (store == null && !string.IsNullOrEmpty(this.StoreType) && !string.IsNullOrEmpty(this.StorePath))
+            // create the store
+            if (store == null)
             {
                 store = CreateStore(this.StoreType);
                 var currentStore = Interlocked.CompareExchange(ref m_store, store, null);
@@ -249,7 +249,8 @@ namespace Opc.Ua
                 }
             }
 
-            store?.Open(this.StorePath, m_noPrivateKeys);
+            // there is always a store
+            store.Open(this.StorePath, m_noPrivateKeys);
 
             return store;
         }
