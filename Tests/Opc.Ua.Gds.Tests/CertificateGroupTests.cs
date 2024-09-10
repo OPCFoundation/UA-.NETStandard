@@ -54,7 +54,8 @@ namespace Opc.Ua.Gds.Tests
             var certificateGroup = new CertificateGroup().Create(_path + "/authorities", configuration);
             var certificate = await certificateGroup.CreateCACertificateAsync(configuration.SubjectName).ConfigureAwait(false);
             Assert.NotNull(certificate);
-            using (ICertificateStore trustedStore = CertificateStoreIdentifier.OpenStore(configuration.TrustedListPath))
+            var certificateStoreIdentifier = new CertificateStoreIdentifier(configuration.TrustedListPath);
+            using (ICertificateStore trustedStore = certificateStoreIdentifier.OpenStore())
             {
                 X509Certificate2Collection certs = await trustedStore.FindByThumbprint(certificate.Thumbprint).ConfigureAwait(false);
                 Assert.IsTrue(certs.Count == 1);
@@ -66,26 +67,30 @@ namespace Opc.Ua.Gds.Tests
         {
             var applicatioConfiguration = new ApplicationConfiguration();
             applicatioConfiguration.SecurityConfiguration = new SecurityConfiguration();
-            applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath = _path + "/issuers";
-            applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StoreType = "Directory";
+            applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath = _path + Path.DirectorySeparatorChar + "issuers";
+            applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StoreType = CertificateStoreType.Directory;
             var cgConfiguration = new CertificateGroupConfiguration();
             cgConfiguration.SubjectName = "CN=GDS Test CA, O=OPC Foundation";
             cgConfiguration.BaseStorePath = _path;
-            var certificateGroup = new CertificateGroup().Create(_path + "/authorities", cgConfiguration, applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath);
+            var certificateGroup = new CertificateGroup().Create(_path + Path.DirectorySeparatorChar + "authorities", cgConfiguration, applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath);
             X509Certificate2 certificate = await certificateGroup.CreateCACertificateAsync(cgConfiguration.SubjectName).ConfigureAwait(false);
             Assert.NotNull(certificate);
-            using (ICertificateStore trustedStore = CertificateStoreIdentifier.OpenStore(applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath))
+            using (ICertificateStore trustedStore = applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.OpenStore())
             {
                 X509Certificate2Collection certs = await trustedStore.FindByThumbprint(certificate.Thumbprint).ConfigureAwait(false);
                 Assert.IsTrue(certs.Count == 1);
+                X509CRLCollection crls = await trustedStore.EnumerateCRLs(certificate).ConfigureAwait(false);
+                Assert.AreEqual(1, crls.Count);
             }
 
             X509Certificate2 certificateUpdated = await certificateGroup.CreateCACertificateAsync(cgConfiguration.SubjectName).ConfigureAwait(false);
             Assert.NotNull(certificateUpdated);
-            using (ICertificateStore trustedStore = CertificateStoreIdentifier.OpenStore(applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath))
+            using (ICertificateStore trustedStore = applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.OpenStore())
             {
+                X509Certificate2Collection certs = await trustedStore.FindByThumbprint(certificate.Thumbprint).ConfigureAwait(false);
+                Assert.IsTrue(certs.Count == 1);
                 X509CRLCollection crls = await trustedStore.EnumerateCRLs(certificateUpdated).ConfigureAwait(false);
-                Assert.IsTrue(crls.Count == 1);
+                Assert.AreEqual(1, crls.Count);
             }
         }
         #endregion
