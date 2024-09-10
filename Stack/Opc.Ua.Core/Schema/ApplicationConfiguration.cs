@@ -1003,20 +1003,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets or sets a value indicating which minimum certificate key strength is accepted for certificates with a ECDSA signature..
-        /// The value is ignored for certificates with a RSA signature.
-        /// </summary>
-        /// <remarks>
-        /// This value can be set to 256 or 448 by servers
-        /// </remarks>
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 125)]
-        public ushort MinimumECCertificateKeySize
-        {
-            get { return m_minECCertificateKeySize; }
-            set { m_minECCertificateKeySize = value; }
-        }
-
-        /// <summary>
         /// Gets or sets a value indicating whether the Validator skips the full chain validation
         /// for already validated or accepted certificates.
         /// </summary>
@@ -1190,7 +1176,6 @@ namespace Opc.Ua
         private bool m_rejectSHA1SignedCertificates;
         private bool m_rejectUnknownRevocationStatus;
         private ushort m_minCertificateKeySize;
-        private ushort m_minECCertificateKeySize;
         private bool m_useValidatedCertificates;
         private bool m_addAppCertToTrustedStore;
         private bool m_sendCertificateChain;

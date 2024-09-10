@@ -554,13 +554,6 @@ namespace Opc.Ua.Configuration
         IApplicationConfigurationBuilderSecurityOptions SetMinimumCertificateKeySize(ushort keySize);
 
         /// <summary>
-        /// The minimum ECDSA key size to accept.
-        /// By default the key size is set to <see cref="CertificateFactory.DefaultKeySize"/>.
-        /// </summary>
-        /// <param name="keySize">The minimum ECDSA key size to accept.</param>
-        IApplicationConfigurationBuilderSecurityOptions SetMinimumECCertificateKeySize(ushort keySize);
-
-        /// <summary>
         /// Add a certificate password provider.
         /// </summary>
         /// <param name="certificatePasswordProvider">The certificate password provider to use.</param>

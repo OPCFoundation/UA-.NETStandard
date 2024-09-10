@@ -511,21 +511,16 @@ namespace Opc.Ua
         /// <returns></returns>
         public ushort GetMinKeySize(SecurityConfiguration securityConfiguration)
         {
-            if (CertificateType == ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType ||
-                CertificateType == ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType ||
-                CertificateType == ObjectTypeIds.EccCurve25519ApplicationCertificateType ||
-                CertificateType == ObjectTypeIds.EccCurve448ApplicationCertificateType ||
-                CertificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType ||
-                CertificateType == ObjectTypeIds.EccNistP384ApplicationCertificateType)
-            {
-                return securityConfiguration.MinimumECCertificateKeySize;
-            }
-            else if (
-                CertificateType == ObjectTypeIds.RsaMinApplicationCertificateType ||
-                CertificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType ||
-                securityConfiguration.IsDeprecatedConfiguration) // Deprecated configurations are implicitly RSA
+            if (CertificateType == ObjectTypeIds.RsaMinApplicationCertificateType ||
+                 CertificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType ||
+                 securityConfiguration.IsDeprecatedConfiguration) // Deprecated configurations are implicitly RSA
             {
                 return securityConfiguration.MinimumCertificateKeySize;
+            }
+            else
+            {
+                // non RSA
+                return 0;
             }
             
             throw new ArgumentException("Certificate type is unknown");

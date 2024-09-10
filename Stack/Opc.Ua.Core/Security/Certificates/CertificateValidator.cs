@@ -216,10 +216,6 @@ namespace Opc.Ua
                 {
                     m_minimumCertificateKeySize = configuration.MinimumCertificateKeySize;
                 }
-                if ((m_protectFlags & ProtectFlags.MinimumECCertificateKeySize) == 0)
-                {
-                    m_minimumECCertificateKeySize = configuration.MinimumECCertificateKeySize;
-                }
                 if ((m_protectFlags & ProtectFlags.UseValidatedCertificates) == 0)
                 {
                     m_useValidatedCertificates = configuration.UseValidatedCertificates;
@@ -415,33 +411,6 @@ namespace Opc.Ua
                         m_minimumCertificateKeySize = value;
                         InternalResetValidatedCertificates();
                     }
-                }
-                finally
-                {
-                    m_semaphore.Release();
-                }
-            }
-        }
-
-        /// <summary>
-        /// The minimum size of an Eliptic Curve certificate key to be trusted.
-        /// </summary>
-        public ushort MinimumECCertificateKeySize
-        {
-            get => m_minimumECCertificateKeySize;
-            set
-            {
-                try
-                {
-                    m_semaphore.Wait();
-
-                    m_protectFlags |= ProtectFlags.MinimumECCertificateKeySize;
-                    if (m_minimumECCertificateKeySize != value)
-                    {
-                        m_minimumECCertificateKeySize = value;
-                        InternalResetValidatedCertificates();
-                    }
-
                 }
                 finally
                 {
@@ -1419,15 +1388,6 @@ namespace Opc.Ua
                         null, null, "Certificate doesn't meet minimum key length requirement.", null, sresult);
                 }
             }
-            else
-            {
-                // check if curve type is secure enough for profile
-                if (!IsECSecureForProfile(certificate, m_minimumECCertificateKeySize))
-                {
-                    sresult = new ServiceResult(StatusCodes.BadCertificatePolicyCheckFailed,
-                        null, null, "Certificate doesn't meet minimum security level requirement.", null, sresult);
-                }
-            }
 
             if (issuedByCA && chainIncomplete)
             {
@@ -1902,8 +1862,7 @@ namespace Opc.Ua
             RejectSHA1SignedCertificates = 2,
             RejectUnknownRevocationStatus = 4,
             MinimumCertificateKeySize = 8,
-            MinimumECCertificateKeySize = 16,
-            UseValidatedCertificates = 32
+            UseValidatedCertificates = 16
         };
         #endregion
 
@@ -1924,7 +1883,6 @@ namespace Opc.Ua
         private bool m_rejectSHA1SignedCertificates;
         private bool m_rejectUnknownRevocationStatus;
         private ushort m_minimumCertificateKeySize;
-        private ushort m_minimumECCertificateKeySize;
         private bool m_useValidatedCertificates;
 
         #endregion

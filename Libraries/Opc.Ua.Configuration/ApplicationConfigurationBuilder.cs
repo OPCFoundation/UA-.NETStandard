@@ -506,14 +506,6 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderSecurityOptions SetMinimumECCertificateKeySize(ushort keySize)
-        {
-            ApplicationConfiguration.SecurityConfiguration.MinimumECCertificateKeySize = keySize;
-            return this;
-        }
-
-
-        /// <inheritdoc/>
         public IApplicationConfigurationBuilderSecurityOptions AddCertificatePasswordProvider(ICertificatePasswordProvider certificatePasswordProvider)
         {
             ApplicationConfiguration.SecurityConfiguration.CertificatePasswordProvider = certificatePasswordProvider;
@@ -1171,7 +1163,6 @@ namespace Opc.Ua.Configuration
             securityConfiguration.SuppressNonceValidationErrors = false;
             securityConfiguration.SendCertificateChain = true;
             securityConfiguration.MinimumCertificateKeySize = CertificateFactory.DefaultKeySize;
-            securityConfiguration.MinimumECCertificateKeySize = CertificateFactory.DefaultECCKeySize;
         }
 
         /// <summary>
