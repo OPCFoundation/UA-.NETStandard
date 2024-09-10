@@ -85,9 +85,21 @@ namespace Opc.Ua.Core.Tests
                 m_trustedStore = null;
                 m_rejectedStore = null;
                 var path = Utils.ReplaceSpecialFolderNames(m_pkiRoot);
-                if (Directory.Exists(path))
+                int retries = 5;
+                while (retries-- > 0)
                 {
-                    Directory.Delete(path, true);
+                    try
+                    {
+                        if (Directory.Exists(path))
+                        {
+                            Directory.Delete(path, true);
+                        }
+                        retries = 0;
+                    }
+                    catch (IOException)
+                    {
+                        Thread.Sleep(1000);
+                    }
                 }
             }
         }
