@@ -170,13 +170,14 @@ namespace Opc.Ua
                 var certificateStoreIdentifier = new CertificateStoreIdentifier(this.StorePath, this.StoreType, false);
                 using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
                 {
-                    if (store.SupportsLoadPrivateKey)
+                    if (store?.SupportsLoadPrivateKey == true)
                     {
                         string password = passwordProvider?.GetPassword(this);
                         m_certificate = await store.LoadPrivateKey(this.Thumbprint, this.SubjectName, password).ConfigureAwait(false);
                         return m_certificate;
                     }
                 }
+                return null;
             }
             return await Find(true).ConfigureAwait(false);
         }
