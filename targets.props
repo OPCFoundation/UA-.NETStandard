@@ -51,12 +51,12 @@
       <PropertyGroup>
         <DisableECCTests>true</DisableECCTests>
         <AnalysisLevel>preview-all</AnalysisLevel>
-        <AppTargetFrameworks>net462</AppTargetFrameworks>
-        <AppTargetFramework>net462</AppTargetFramework>
-        <TestsTargetFrameworks>netnet462</TestsTargetFrameworks>
+        <AppTargetFrameworks>net6.0</AppTargetFrameworks>
+        <AppTargetFramework>net6.0</AppTargetFramework>
+        <TestsTargetFrameworks>net6.0</TestsTargetFrameworks>
         <LibTargetFrameworks>netstandard2.0</LibTargetFrameworks>
         <LibCoreTargetFrameworks>netstandard2.0</LibCoreTargetFrameworks>
-        <LibxTargetFrameworks>net462</LibxTargetFrameworks>
+        <LibxTargetFrameworks>netstandard2.1</LibxTargetFrameworks>
         <HttpsTargetFrameworks>netstandard2.0</HttpsTargetFrameworks>
       </PropertyGroup>
     </When>
