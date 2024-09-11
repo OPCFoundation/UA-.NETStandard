@@ -203,6 +203,11 @@ namespace Opc.Ua
                 var certificateStoreIdentifier = new CertificateStoreIdentifier(StorePath, false);
                 using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
                 {
+                    if (store == null)
+                    {
+                        return null;
+                    }
+
                     X509Certificate2Collection collection = await store.Enumerate().ConfigureAwait(false);
 
                     certificate = Find(collection, m_thumbprint, m_subjectName, needPrivateKey);
