@@ -503,8 +503,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     return new XmlEncoder(systemType, xmlWriter, context);
                 case EncodingType.Json:
                     return new JsonEncoder(context, useReversibleEncoding, topLevelIsArray, stream, true) {
-                        IncludeDefaultValues = includeDefaultValues,
-                        IncludeDefaultNumberValues = includeDefaultNumbers
+                        //IncludeDefaultValues = includeDefaultValues,
+                        //IncludeDefaultNumberValues = includeDefaultNumbers
                     };
                 default:
                     throw new ArgumentOutOfRangeException(nameof(encoderType), encoderType, "Invalid EncoderType specified.");

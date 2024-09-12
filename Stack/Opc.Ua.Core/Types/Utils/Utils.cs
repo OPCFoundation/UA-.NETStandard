@@ -1531,24 +1531,35 @@ namespace Opc.Ua
                 return String.Empty;
             }
 
-            StringBuilder builder = new StringBuilder(buffer.Length * 2);
-
-            if (invertEndian)
+#if NET6_0_OR_GREATER
+            if (!invertEndian)
             {
-                for (int ii = buffer.Length - 1; ii >= 0; ii--)
-                {
-                    builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
-                }
+                return Convert.ToHexString(buffer);
             }
             else
+#endif
             {
-                for (int ii = 0; ii < buffer.Length; ii++)
-                {
-                    builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
-                }
-            }
+                StringBuilder builder = new StringBuilder(buffer.Length * 2);
 
-            return builder.ToString();
+#if !NET6_0_OR_GREATER
+                if (!invertEndian)
+                {
+                    for (int ii = 0; ii < buffer.Length; ii++)
+                    {
+                        builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
+                    }
+                }
+                else
+#endif
+                {
+                    for (int ii = buffer.Length - 1; ii >= 0; ii--)
+                    {
+                        builder.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}", buffer[ii]);
+                    }
+                }
+
+                return builder.ToString();
+            }
         }
 
         /// <summary>
@@ -1556,6 +1567,9 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] FromHexString(string buffer)
         {
+#if NET6_0_OR_GREATER
+            return Convert.FromHexString(buffer);
+#else
             if (buffer == null)
             {
                 return null;
@@ -1602,6 +1616,7 @@ namespace Opc.Ua
             }
 
             return bytes;
+#endif
         }
 
         /// <summary>
@@ -2562,7 +2577,7 @@ namespace Opc.Ua
                 extensions.Add(document.DocumentElement);
             }
         }
-        #endregion
+#endregion
 
         #region Reflection Helper Functions
         /// <summary>
