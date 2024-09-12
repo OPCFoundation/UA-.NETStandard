@@ -374,6 +374,13 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        public IApplicationConfigurationBuilderSecurityOptions SetMaxRejectedCertificates(int maxRejectedCertificates)
+        {
+            ApplicationConfiguration.SecurityConfiguration.MaxRejectedCertificates = maxRejectedCertificates;
+            return this;
+        }
+
+        /// <inheritdoc/>
         public IApplicationConfigurationBuilderSecurityOptions SetAutoAcceptUntrustedCertificates(bool autoAccept)
         {
             ApplicationConfiguration.SecurityConfiguration.AutoAcceptUntrustedCertificates = autoAccept;
@@ -1017,6 +1024,7 @@ namespace Opc.Ua.Configuration
             securityConfiguration.SuppressNonceValidationErrors = false;
             securityConfiguration.SendCertificateChain = true;
             securityConfiguration.MinimumCertificateKeySize = CertificateFactory.DefaultKeySize;
+            securityConfiguration.MaxRejectedCertificates = 5;
         }
 
         /// <summary>

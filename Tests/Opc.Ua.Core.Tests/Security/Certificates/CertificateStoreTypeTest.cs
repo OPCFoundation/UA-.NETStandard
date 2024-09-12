@@ -31,12 +31,19 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
             Assert.IsTrue(instancesCreatedWhileLoadingConfig > 0);
             var trustedIssuers = appConfig.SecurityConfiguration.TrustedIssuerCertificates;
-            ICertificateStore trustedIssuersStore = trustedIssuers.OpenStore();
-            trustedIssuersStore.Close();
-            int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
-            Assert.IsTrue(instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore);
-            CertificateStoreIdentifier.OpenStore(TestCertStore.StoreTypePrefix + @"CurrentUser\Disallowed");
-            Assert.IsTrue(instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
+            using (var trustedIssuersStore = trustedIssuers.OpenStore())
+            {
+                trustedIssuersStore.Close();
+                int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
+                Assert.IsTrue(instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore);
+
+                var certificateStoreIdentifier = new CertificateStoreIdentifier(TestCertStore.StoreTypePrefix + @"CurrentUser\Disallowed");
+                using (var store = certificateStoreIdentifier.OpenStore())
+                {
+
+                    Assert.IsTrue(instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
+                }
+            }
         }
         #endregion Test Methods
     }
@@ -95,6 +102,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public string StorePath => m_innerStore.StorePath;
 
         /// <inheritdoc/>
+        public bool NoPrivateKeys => m_innerStore.NoPrivateKeys;
+
+        /// <inheritdoc/>
         public Task Add(X509Certificate2 certificate, string password = null)
         {
             return m_innerStore.Add(certificate, password);
@@ -148,6 +158,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// <inheritdoc/>
         public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
             => m_innerStore.LoadPrivateKey(thumbprint, subjectName, password);
+
+        /// <inheritdoc/>
+        public Task AddRejected(X509Certificate2Collection certificates, int maxCertificates)
+            => m_innerStore.AddRejected(certificates, maxCertificates);
 
         public static int InstancesCreated => s_instancesCreated;
 

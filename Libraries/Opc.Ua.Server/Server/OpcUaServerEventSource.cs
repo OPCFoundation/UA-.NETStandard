@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Diagnostics.Tracing;
 using Microsoft.Extensions.Logging;
 using static Opc.Ua.Utils;
@@ -90,20 +91,12 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// A server call message.
+        /// A server call message, called from ServerCallNative. Do not call directly..
         /// </summary>
         [Event(kServerCallId, Message = kServerCallMessage, Level = EventLevel.Informational)]
         public void ServerCall(string requestType, uint requestId)
         {
-            if (IsEnabled())
-            {
-                WriteEvent(kServerCallId, requestType, requestId);
-            }
-            else if ((TraceMask & TraceMasks.ServiceDetail) != 0 &&
-                Logger.IsEnabled(LogLevel.Trace))
-            {
-                LogTrace(m_serverCallEventId, kServerCallMessage, requestType, requestId);
-            }
+            WriteEvent(kServerCallId, requestType, requestId);
         }
 
         /// <summary>
@@ -138,6 +131,23 @@ namespace Opc.Ua.Server
                 {
                     LogTrace(m_monitoredItemReadyEventId, kMonitoredItemReadyMessage, id, state);
                 }
+            }
+        }
+
+        /// <summary>
+        /// A server call message.
+        /// </summary>
+        [NonEvent]
+        public void ServerCallNative(RequestType requestType, uint requestId)
+        {
+            if (IsEnabled())
+            {
+                ServerCall(Enum.GetName(typeof(RequestType), requestType), requestId);
+            }
+            else if ((TraceMask & TraceMasks.ServiceDetail) != 0 &&
+                Logger.IsEnabled(LogLevel.Trace))
+            {
+                LogTrace(m_serverCallEventId, kServerCallMessage, Enum.GetName(typeof(RequestType), requestType), requestId);
             }
         }
 
