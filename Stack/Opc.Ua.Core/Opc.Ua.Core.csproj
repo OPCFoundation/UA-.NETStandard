@@ -20,6 +20,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Schema\Opc.Ua.NodeSet2.xml.zip" />
     <None Remove="Schema\Opc.Ua.Types.bsd" />
     <None Remove="Schema\Opc.Ua.Types.xsd" />
     <None Remove="Schema\UANodeSet.xsd" />
@@ -48,18 +49,18 @@
     </When>
     <When Condition="'$(TargetFramework)' == 'net5.0' OR '$(TargetFramework)' == 'net6.0'">
       <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.1" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.4" />
       </ItemGroup>
     </When>
     <When Condition="'$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48'">
       <ItemGroup>
-        <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="8.0.1" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.1" />
+        <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="6.0.1" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.4" />
       </ItemGroup>
     </When>
     <Otherwise>
       <ItemGroup>
-        <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="8.0.1" />
+        <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="6.0.1" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.1.32" />
       </ItemGroup>
     </Otherwise>
@@ -85,16 +86,12 @@
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Update="Nerdbank.GitVersioning" Version="3.6.143">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-  </ItemGroup>
-
   <Target Name="GetPackagingOutputs" />
 
   <!-- Produces a zipped version of the Nodeset 2 to reduce assembly size by 2.7MB ! -->
+  <ItemGroup>
+    <EmbeddedResource Include="Schema\Opc.Ua.NodeSet2.xml.zip" />
+  </ItemGroup>
 
   <PropertyGroup>
     <ZipTmp>$(BaseIntermediateOutputPath)/zipnodeset2</ZipTmp>
