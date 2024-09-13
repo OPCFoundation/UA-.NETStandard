@@ -52,7 +52,7 @@ namespace Opc.Ua
         /// <inheritdoc cref="IEncodeable.Encode(IEncoder)" />
         public void Encode(IEncoder encoder)
         {
-            encoder.WriteUInt32("UriVersion", UrisVersion);
+            encoder.WriteUInt32("UrisVersion", UrisVersion);
             if (NamespaceUris != null && NamespaceUris.Count > 1)
             {
                 string[] uris = new string[NamespaceUris.Count - 1];
@@ -115,7 +115,7 @@ namespace Opc.Ua
         /// <inheritdoc cref="IEncodeable.Decode(IDecoder)" />
         public void Decode(IDecoder decoder)
         {
-            UrisVersion = decoder.ReadUInt32("UriVersion");
+            UrisVersion = decoder.ReadUInt32("UrisVersion");
 
             NamespaceUris = new NamespaceTable();
             var uris = decoder.ReadStringArray("NamespaceUris");

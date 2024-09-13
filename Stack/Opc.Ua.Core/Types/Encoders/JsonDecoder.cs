@@ -286,11 +286,11 @@ namespace Opc.Ua
                     }
                     else
                     {
-                       var index = m_context.NamespaceUris.GetIndex(namespaceUris.GetString(ii));
-                       namespaceMappings[ii] = (index >= 0) ? (UInt16)index : UInt16.MaxValue;
+                        var index = m_context.NamespaceUris.GetIndex(namespaceUris.GetString(ii));
+                        namespaceMappings[ii] = (index >= 0) ? (UInt16)index : UInt16.MaxValue;
                     }
                 }
-               
+
                 m_namespaceMappings = namespaceMappings;
             }
 
@@ -369,11 +369,8 @@ namespace Opc.Ua
         {
             if (disposing)
             {
-                if (m_reader != null)
-                {
-                    m_reader.Close();
-                    m_reader = null;
-                }
+                Utils.SilentDispose(m_reader);
+                m_reader = null;
             }
         }
         #endregion
@@ -1074,7 +1071,7 @@ namespace Opc.Ua
             {
                 var nodeId = ExpandedNodeId.Parse(
                     m_context,
-                    text, 
+                    text,
                     new NodeIdParsingOptions() {
                         UpdateTables = UpdateNamespaceTable,
                         NamespaceMappings = m_namespaceMappings,
