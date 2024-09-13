@@ -94,6 +94,19 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
             Assert.AreEqual(uri.OriginalString, uriBuilder.Uri.OriginalString);
         }
+
+        [Test]
+        public void ValidateAppConfigWithoutAppCert()
+        {
+            var appConfig = new ApplicationConfiguration() {
+                ApplicationName = "Test",
+                ClientConfiguration = new ClientConfiguration() {},
+                SecurityConfiguration = new SecurityConfiguration() {
+                    ApplicationCertificate = new CertificateIdentifier()
+                }
+            };
+            Assert.DoesNotThrow(() => appConfig.Validate(ApplicationType.Client).GetAwaiter().GetResult());
+        }
         #endregion
     }
 }
