@@ -1231,7 +1231,7 @@ namespace Opc.Ua.Server
                     Publish(context, notifications, diagnostics, m_lastValue, m_lastError);
                 }
 
-                bool moreValuesToPublish = m_dataChangeQueueHandler.ItemsInQueue > 0;
+                bool moreValuesToPublish = m_dataChangeQueueHandler?.ItemsInQueue > 0;
 
                 // reset state variables.
                 m_readyToPublish = moreValuesToPublish;
