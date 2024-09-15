@@ -855,29 +855,30 @@ namespace Opc.Ua.Server
                 // check for monitored items that are ready to publish.
                 LinkedListNode<IMonitoredItem> current = m_itemsToPublish.First;
 
-                //the two lines below fail CTT, but should in theory be able to avoid discarding notifications in a scenario with big durable queues
-                //uint maxNoficationsPerMonitoredItem = (uint)(m_maxNotificationsPerPublish == 0 ? uint.MaxValue : (m_maxNotificationsPerPublish * (ulong)m_maxMessageCount / (ulong)m_itemsToPublish.Count));
-                //maxNoficationsPerMonitoredItem = maxNoficationsPerMonitoredItem == 0 ? 1 : maxNoficationsPerMonitoredItem;
-
-                uint maxNoficationsPerMonitoredItem = m_maxNotificationsPerPublish == 0 ? uint.MaxValue : m_maxNotificationsPerPublish * 3;
+                //Limit the amount of values a monitored item publishes at once
+                uint maxNotificationsPerMonitoredItem = m_maxNotificationsPerPublish == 0 ? uint.MaxValue : m_maxNotificationsPerPublish * 3;
 
                 while (current != null)
                 {
                     LinkedListNode<IMonitoredItem> next = current.Next;
                     IMonitoredItem monitoredItem = current.Value;
+                    bool hasMoreValuesToPublish;
 
                     if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                     {
-                        ((IDataChangeMonitoredItem)monitoredItem).Publish(context, datachanges, datachangeDiagnostics, maxNoficationsPerMonitoredItem);
+                        hasMoreValuesToPublish = ((IDataChangeMonitoredItem)monitoredItem).Publish(context, datachanges, datachangeDiagnostics, maxNotificationsPerMonitoredItem);
                     }
                     else
                     {
-                        ((IEventMonitoredItem)monitoredItem).Publish(context, events, maxNoficationsPerMonitoredItem);
+                        hasMoreValuesToPublish = ((IEventMonitoredItem)monitoredItem).Publish(context, events, maxNotificationsPerMonitoredItem);
                     }
 
                     // add back to list to check.
-                    m_itemsToPublish.Remove(current);
-                    m_itemsToCheck.AddLast(current);
+                    if (!hasMoreValuesToPublish)
+                    {
+                        m_itemsToPublish.Remove(current);
+                        m_itemsToCheck.AddLast(current);
+                    }
 
                     // check there are enough notifications for a message.
                     if (m_maxNotificationsPerPublish > 0 && events.Count + datachanges.Count > m_maxNotificationsPerPublish)
@@ -896,18 +897,18 @@ namespace Opc.Ua.Server
                         // add to list of messages to send.
                         messages.Add(message);
 
-                        //stop fetching messages from monitored items when message queue is full to avoid discards
-                        // use m_maxMessageCount - 1 to put remaining values into the last allowed message
-                        if (messages.Count >= m_maxMessageCount - 1)
-                        {
-                            break;
-                        }
-
                         lock (DiagnosticsWriteLock)
                         {
                             m_diagnostics.DataChangeNotificationsCount += (uint)dataChangeCount;
                             m_diagnostics.EventNotificationsCount += (uint)(eventCount - events.Count);
                             m_diagnostics.NotificationsCount += (uint)notificationCount;
+                        }
+
+                        //stop fetching messages from MIs when message queue is full to avoid discards
+                        // use m_maxMessageCount - 2 to put remaining values into the last allowed message (each MI is allowed to publish 3 up to messages at once)
+                        if (messages.Count >= m_maxMessageCount - 2)
+                        {
+                            break;
                         }
                     }
 

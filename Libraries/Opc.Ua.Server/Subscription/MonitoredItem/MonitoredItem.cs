@@ -1070,9 +1070,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Publishes all available event notifications.
         /// </summary>
-        /// <param name="context">the <see cref="OperationContext"/></param>
-        /// <param name="notifications">the published notifications</param>
-        /// <param name="maxNotificationsPerPublish">the max number of notifications being enqueued per publish</param>
         public virtual bool Publish(OperationContext context, Queue<EventFieldList> notifications, uint maxNotificationsPerPublish)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
@@ -1135,8 +1132,8 @@ namespace Opc.Ua.Server
                     {
                         notifications.Enqueue(overflowEvent);
                     }
-
-                    m_eventQueueHandler.Publish(context, notifications, maxNotificationsPerPublish);
+                    uint overflowEventCount = overflowEvent != null ? (uint)1 : (uint)0;
+                    m_eventQueueHandler.Publish(context, notifications, maxNotificationsPerPublish - overflowEventCount);
 
                     // place event at the end of the queue.
                     if (overflowEvent != null && !m_discardOldest)
@@ -1147,12 +1144,14 @@ namespace Opc.Ua.Server
                     Utils.LogTrace(Utils.TraceMasks.OperationDetail, "MONITORED ITEM: Publish(QueueSize={0})", notifications.Count);
                 }
 
+                bool moreValuesToPublish = m_eventQueueHandler?.ItemsInQueue > 0;
+
                 // reset state variables.
-                m_readyToPublish = false;
-                m_readyToTrigger = false;
+                m_readyToPublish = moreValuesToPublish;
+                m_readyToTrigger = moreValuesToPublish;
                 m_triggered = false;
 
-                return false;
+                return moreValuesToPublish;
             }
         }
 
@@ -1205,9 +1204,6 @@ namespace Opc.Ua.Server
 
                     IncrementSampleTime();
                 }
-
-                m_readyToPublish = false;
-
                 // check if queueing enabled.
                 if (m_dataChangeQueueHandler != null && (!m_resendData || m_dataChangeQueueHandler.ItemsInQueue != 0))
                 {
@@ -1223,7 +1219,6 @@ namespace Opc.Ua.Server
 
                         if (m_resendData)
                         {
-                            m_readyToPublish = m_dataChangeQueueHandler.ItemsInQueue > 0;
                             break;
                         }
                     }
@@ -1236,12 +1231,15 @@ namespace Opc.Ua.Server
                     Publish(context, notifications, diagnostics, m_lastValue, m_lastError);
                 }
 
+                bool moreValuesToPublish = m_dataChangeQueueHandler.ItemsInQueue > 0;
+
                 // reset state variables.
-                m_readyToTrigger = false;
+                m_readyToPublish = moreValuesToPublish;
+                m_readyToTrigger = moreValuesToPublish;
                 m_resendData = false;
                 m_triggered = false;
 
-                return false;
+                return moreValuesToPublish;
             }
         }
 
