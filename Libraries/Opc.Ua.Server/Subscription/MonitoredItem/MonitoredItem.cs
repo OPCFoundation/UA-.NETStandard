@@ -1132,7 +1132,7 @@ namespace Opc.Ua.Server
                     {
                         notifications.Enqueue(overflowEvent);
                     }
-                    uint overflowEventCount = overflowEvent != null ? (uint)1 : (uint)0;
+                    uint overflowEventCount = overflowEvent == null ? (uint)0 : 1;
                     m_eventQueueHandler.Publish(context, notifications, maxNotificationsPerPublish - overflowEventCount);
 
                     // place event at the end of the queue.
