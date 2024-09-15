@@ -847,23 +847,30 @@ namespace Opc.Ua.Server
                 // check for monitored items that are ready to publish.
                 LinkedListNode<IMonitoredItem> current = m_itemsToPublish.First;
 
+                //Limit the amount of values a monitored item publishes at once
+                uint maxNotificationsPerMonitoredItem = m_maxNotificationsPerPublish == 0 ? uint.MaxValue : m_maxNotificationsPerPublish * 3;
+
                 while (current != null)
                 {
                     LinkedListNode<IMonitoredItem> next = current.Next;
                     IMonitoredItem monitoredItem = current.Value;
+                    bool hasMoreValuesToPublish;
 
                     if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                     {
-                        ((IDataChangeMonitoredItem)monitoredItem).Publish(context, datachanges, datachangeDiagnostics);
+                        hasMoreValuesToPublish = ((IDataChangeMonitoredItem)monitoredItem).Publish(context, datachanges, datachangeDiagnostics, maxNotificationsPerMonitoredItem);
                     }
                     else
                     {
-                        ((IEventMonitoredItem)monitoredItem).Publish(context, events);
+                        hasMoreValuesToPublish = ((IEventMonitoredItem)monitoredItem).Publish(context, events, maxNotificationsPerMonitoredItem);
                     }
 
                     // add back to list to check.
-                    m_itemsToPublish.Remove(current);
-                    m_itemsToCheck.AddLast(current);
+                    if (!hasMoreValuesToPublish)
+                    {
+                        m_itemsToPublish.Remove(current);
+                        m_itemsToCheck.AddLast(current);
+                    }
 
                     // check there are enough notifications for a message.
                     if (m_maxNotificationsPerPublish > 0 && events.Count + datachanges.Count > m_maxNotificationsPerPublish)
@@ -887,6 +894,13 @@ namespace Opc.Ua.Server
                             m_diagnostics.DataChangeNotificationsCount += (uint)dataChangeCount;
                             m_diagnostics.EventNotificationsCount += (uint)(eventCount - events.Count);
                             m_diagnostics.NotificationsCount += (uint)notificationCount;
+                        }
+
+                        //stop fetching messages from MIs when message queue is full to avoid discards
+                        // use m_maxMessageCount - 2 to put remaining values into the last allowed message (each MI is allowed to publish 3 up to messages at once)
+                        if (messages.Count >= m_maxMessageCount - 2)
+                        {
+                            break;
                         }
                     }
 
