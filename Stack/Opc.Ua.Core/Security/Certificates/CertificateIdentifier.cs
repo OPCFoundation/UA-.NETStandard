@@ -170,13 +170,14 @@ namespace Opc.Ua
                 var certificateStoreIdentifier = new CertificateStoreIdentifier(this.StorePath, this.StoreType, false);
                 using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
                 {
-                    if (store.SupportsLoadPrivateKey)
+                    if (store?.SupportsLoadPrivateKey == true)
                     {
                         string password = passwordProvider?.GetPassword(this);
                         m_certificate = await store.LoadPrivateKey(this.Thumbprint, this.SubjectName, password).ConfigureAwait(false);
                         return m_certificate;
                     }
                 }
+                return null;
             }
             return await Find(true).ConfigureAwait(false);
         }
@@ -202,6 +203,11 @@ namespace Opc.Ua
                 var certificateStoreIdentifier = new CertificateStoreIdentifier(StorePath, false);
                 using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
                 {
+                    if (store == null)
+                    {
+                        return null;
+                    }
+
                     X509Certificate2Collection collection = await store.Enumerate().ConfigureAwait(false);
 
                     certificate = Find(collection, m_thumbprint, m_subjectName, needPrivateKey);
