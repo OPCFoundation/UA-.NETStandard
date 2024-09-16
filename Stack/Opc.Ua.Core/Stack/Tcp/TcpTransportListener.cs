@@ -246,7 +246,7 @@ namespace Opc.Ua.Bindings
             }
             else
             {
-                Utils.LogInfo("ChannelId {0}: closed channel not found", channelId);
+                Utils.LogInfo("ChannelId {0}: closed, but channel was not found", channelId);
             }
         }
 
@@ -521,17 +521,21 @@ namespace Opc.Ua.Bindings
                         return;
                     }
 
-                    int channelCount = m_channels?.Count ?? 0;
-                    bool serveChannel = !(m_maxChannelCount > 0 && m_maxChannelCount < channelCount);
-                    if (!serveChannel)
+                    var channels = m_channels;
+                    if (channels != null)
                     {
-                        Utils.LogError("OnAccept: Maximum number of channels {0} reached, serving channels is stopped until number is lower or equal than {1} ",
-                            channelCount, m_maxChannelCount);
-                        Utils.SilentDispose(e.AcceptSocket);
-                    }
+                        // TODO: .Count is flagged as hotpath, implement separate counter
+                        int channelCount = channels.Count;
+                        bool serveChannel = !(m_maxChannelCount > 0 && m_maxChannelCount < channelCount);
+                        if (!serveChannel)
+                        {
+                            Utils.LogError("OnAccept: Maximum number of channels {0} reached, serving channels is stopped until number is lower or equal than {1} ",
+                                channelCount, m_maxChannelCount);
+                            Utils.SilentDispose(e.AcceptSocket);
+                        }
 
                     // check if the accept socket has been created.
-                    if (serveChannel && e.AcceptSocket != null && e.SocketError == SocketError.Success && m_channels != null)
+                    if (serveChannel && e.AcceptSocket != null && e.SocketError == SocketError.Success)
                     {
                         try
                         {
@@ -557,26 +561,31 @@ namespace Opc.Ua.Bindings
                                     m_descriptions);
                             }
 
-                            if (m_callback != null)
-                            {
-                                channel.SetRequestReceivedCallback(new TcpChannelRequestEventHandler(OnRequestReceived));
-                                channel.SetReportOpenSecureChannelAuditCallback(new ReportAuditOpenSecureChannelEventHandler(OnReportAuditOpenSecureChannelEvent));
-                                channel.SetReportCloseSecureChannelAuditCallback(new ReportAuditCloseSecureChannelEventHandler(OnReportAuditCloseSecureChannelEvent));
-                                channel.SetReportCertificateAuditCallback(new ReportAuditCertificateEventHandler(OnReportAuditCertificateEvent));
+                                if (m_callback != null)
+                                {
+                                    channel.SetRequestReceivedCallback(new TcpChannelRequestEventHandler(OnRequestReceived));
+                                    channel.SetReportOpenSecureChannelAuditCallback(new ReportAuditOpenSecureChannelEventHandler(OnReportAuditOpenSecureChannelEvent));
+                                    channel.SetReportCloseSecureChannelAuditCallback(new ReportAuditCloseSecureChannelEventHandler(OnReportAuditCloseSecureChannelEvent));
+                                    channel.SetReportCertificateAuditCallback(new ReportAuditCertificateEventHandler(OnReportAuditCertificateEvent));
+                                }
+
+                                uint channelId;
+                                do
+                                {
+                                    // get channel id
+                                    channelId = GetNextChannelId();
+
+                                    // save the channel for shutdown and reconnects.
+                                    // retry to get a channel id if it is already in use.
+                                } while (!channels.TryAdd(channelId, channel));
+
+                                // start accepting messages on the channel.
+                                channel.Attach(channelId, e.AcceptSocket);
                             }
-
-                            // get channel id
-                            uint channelId = GetNextChannelId();
-
-                            // start accepting messages on the channel.
-                            channel.Attach(channelId, e.AcceptSocket);
-
-                            // save the channel for shutdown and reconnects.
-                            m_channels.TryAdd(channelId, channel);
-                        }
-                        catch (Exception ex)
-                        {
-                            Utils.LogError(ex, "Unexpected error accepting a new connection.");
+                            catch (Exception ex)
+                            {
+                                Utils.LogError(ex, "Unexpected error accepting a new connection.");
+                            }
                         }
                     }
 
@@ -610,18 +619,19 @@ namespace Opc.Ua.Bindings
         /// <param name="state"></param>
         private void DetectInactiveChannels(object state = null)
         {
-            List<TcpListenerChannel> channels;
+            var channels = new List<TcpListenerChannel>();
 
-            channels = new List<TcpListenerChannel>();
+            bool cleanup = false;
             foreach (var chEntry in m_channels)
             {
                 if (chEntry.Value.ElapsedSinceLastActiveTime > m_quotas.ChannelLifetime)
                 {
                     channels.Add(chEntry.Value);
+                    cleanup = true;
                 }
             }
 
-            if (channels.Count > 0)
+            if (cleanup)
             {
                 Utils.LogInfo("TCPLISTENER: {0} channels scheduled for IdleCleanup.", channels.Count);
                 foreach (var channel in channels)
@@ -742,19 +752,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private uint GetNextChannelId()
         {
-            lock (m_lock)
-            {
-                do
-                {
-                    uint nextChannelId = ++m_lastChannelId;
-                    if (nextChannelId != 0 && m_channels?.ContainsKey(nextChannelId) != true)
-                    {
-                        return nextChannelId;
-                    }
-                } while (true);
-            }
+            // wraps at Int32.MaxValue back to 1
+            return (uint)Utils.IncrementIdentifier(ref m_lastChannelId);
         }
-
 
         /// <summary>
         /// Sets the URI for the listener.
@@ -799,7 +799,7 @@ namespace Opc.Ua.Bindings
         private BufferManager m_bufferManager;
         private ChannelQuotas m_quotas;
         private CertificateTypesProvider m_serverCertificateTypesProvider;
-        private uint m_lastChannelId;
+        private int m_lastChannelId;
         private Socket m_listeningSocket;
         private Socket m_listeningSocketIPv6;
         private ConcurrentDictionary<uint, TcpListenerChannel> m_channels;

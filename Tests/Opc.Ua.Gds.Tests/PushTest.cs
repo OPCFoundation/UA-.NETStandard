@@ -883,29 +883,29 @@ namespace Opc.Ua.Gds.Tests
         /// </summary>
         private async Task CreateCATestCerts(string tempStorePath)
         {
-            Assert.IsTrue(EraseStore(tempStorePath));
-
+            var certificateStoreIdentifier = new CertificateStoreIdentifier(tempStorePath, false);
+            Assert.IsTrue(EraseStore(certificateStoreIdentifier));
             string subjectName = "CN=CA Test Cert, O=OPC Foundation";
             X509Certificate2 newCACert = await CertificateFactory.CreateCertificate(
                 null, null, subjectName, null)
                 .SetCAConstraint()
                 .CreateForRSA()
-                .AddToStoreAsync(CertificateStoreType.Directory, tempStorePath).ConfigureAwait(false);
+                .AddToStoreAsync(certificateStoreIdentifier).ConfigureAwait(false);
 
             m_caCert = newCACert;
 
             // initialize cert revocation list (CRL)
-            X509CRL newCACrl = await CertificateGroup.RevokeCertificateAsync(tempStorePath, newCACert).ConfigureAwait(false);
+            X509CRL newCACrl = await CertificateGroup.RevokeCertificateAsync(certificateStoreIdentifier, newCACert).ConfigureAwait(false);
 
             m_caCrl = newCACrl;
         }
 
-        private bool EraseStore(string storePath)
+        private bool EraseStore(CertificateStoreIdentifier storeIdentifier)
         {
             bool result = true;
             try
             {
-                using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(storePath))
+                using (ICertificateStore store = storeIdentifier.OpenStore())
                 {
                     var storeCerts = store.Enumerate().Result;
                     foreach (var cert in storeCerts)

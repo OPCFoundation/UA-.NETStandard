@@ -48,6 +48,14 @@ namespace Opc.Ua
         string StorePath { get; }
 
         /// <summary>
+        /// Gets a value indicating whether any private keys are found in the store.
+        /// </summary>
+        /// <value>
+        ///   <c>true</c> if [no private keys]; otherwise, <c>false</c>.
+        /// </value>
+        bool NoPrivateKeys { get; }
+
+        /// <summary>
         /// Enumerates the certificates in the store.
         /// </summary>
         Task<X509Certificate2Collection> Enumerate();
@@ -58,6 +66,14 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate.</param>
         /// <param name="password">The certificate password.</param>
         Task Add(X509Certificate2 certificate, string password = null);
+
+        /// <summary>
+        /// Adds a rejected certificate chain to the store.
+        /// </summary>
+        /// <param name="certificates">The certificate collection.</param>
+        /// <param name="maxCertificates">The max number of rejected certificates to keep in the store.
+        /// A negative number keeps no history, 0 is unlimited.</param>
+        Task AddRejected(X509Certificate2Collection certificates, int maxCertificates);
 
         /// <summary>
         /// Deletes a certificate from the store.

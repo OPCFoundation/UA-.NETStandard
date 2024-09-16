@@ -291,7 +291,9 @@ namespace Opc.Ua.Gds.Server
             }
 
             ICertificateGroup certificateGroup = m_certificateGroupFactory.Create(
-                m_globalDiscoveryServerConfiguration.AuthoritiesStorePath, certificateGroupConfiguration, m_configuration.SecurityConfiguration.TrustedIssuerCertificates.StorePath);
+                m_globalDiscoveryServerConfiguration.AuthoritiesStorePath,
+                certificateGroupConfiguration,
+                m_configuration.SecurityConfiguration.TrustedIssuerCertificates.StorePath);
             SetCertificateGroupNodes(certificateGroup);
             await certificateGroup.Init().ConfigureAwait(false);
 
@@ -654,12 +656,12 @@ namespace Opc.Ua.Gds.Server
         }
 
         private ServiceResult OnCheckRevocationStatus(
-        ISystemContext context,
-        MethodState method,
-        NodeId objectId,
-        byte[] certificate,
-        ref StatusCode certificateStatus,
-        ref DateTime validityTime)
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            byte[] certificate,
+            ref StatusCode certificateStatus,
+            ref DateTime validityTime)
         {
             AuthorizationHelper.HasAuthenticatedSecureChannel(context);
 
@@ -673,11 +675,20 @@ namespace Opc.Ua.Gds.Server
                 chain.ChainPolicy.RevocationMode = X509RevocationMode.Online;
                 chain.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain;
 
-                //add GDS Issuer Cert Store Certificates to the Chain validation for consitent behaviour on all Platforms
-                using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(m_configuration.SecurityConfiguration.TrustedIssuerCertificates.StorePath))
+                //add GDS Issuer Cert Store Certificates to the Chain validation for consistent behaviour on all Platforms
+                ICertificateStore store = m_configuration.SecurityConfiguration.TrustedIssuerCertificates.OpenStore();
+                if (store != null)
                 {
-                    chain.ChainPolicy.ExtraStore.AddRange(store.Enumerate().GetAwaiter().GetResult());
+                    try
+                    {
+                        chain.ChainPolicy.ExtraStore.AddRange(store.Enumerate().GetAwaiter().GetResult());
+                    }
+                    finally
+                    {
+                        store.Close();
+                    }
                 }
+
                 using (var x509 = new X509Certificate2(certificate))
                 {
                     if (chain.Build(x509))
@@ -747,13 +758,13 @@ namespace Opc.Ua.Gds.Server
         }
 
         private ServiceResult OnGetCertificates(
-        ISystemContext context,
-        MethodState method,
-        NodeId objectId,
-        NodeId applicationId,
-        NodeId certificateGroupId,
-        ref NodeId[] certificateTypeIds,
-        ref byte[][] certificates)
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            NodeId applicationId,
+            NodeId certificateGroupId,
+            ref NodeId[] certificateTypeIds,
+            ref byte[][] certificates)
         {
             AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin);
 
@@ -797,7 +808,7 @@ namespace Opc.Ua.Gds.Server
 
             return ServiceResult.Good;
         }
-       
+
         private ServiceResult CheckHttpsDomain(ApplicationRecordDataType application, string commonName)
         {
             if (application.ApplicationType == ApplicationType.Client)
@@ -1302,9 +1313,10 @@ namespace Opc.Ua.Gds.Server
             issuerCertificates[0] = certificateGroup.Certificate.RawData;
 
             // store new app certificate
-            using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(m_globalDiscoveryServerConfiguration.ApplicationCertificatesStorePath))
+            var certificateStoreIdentifier = new CertificateStoreIdentifier(m_globalDiscoveryServerConfiguration.ApplicationCertificatesStorePath);
+            using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
             {
-                store.Add(certificate).Wait();
+                store?.Add(certificate).Wait();
             }
 
             m_database.SetApplicationCertificate(applicationId, m_certTypeMap[certificateGroup.CertificateType], signedCertificate);
@@ -1505,7 +1517,7 @@ namespace Opc.Ua.Gds.Server
             handle.Validated = true;
             return handle.Node;
         }
-#endregion
+        #endregion
 
         #region Overridden Methods
         #endregion
@@ -1551,17 +1563,17 @@ namespace Opc.Ua.Gds.Server
             {
                 certificateGroup.DefaultTrustList.Handle = new TrustList(
                     certificateGroup.DefaultTrustList,
-                    certificateGroup.Configuration.TrustedListPath,
-                    certificateGroup.Configuration.IssuerListPath,
+                    new CertificateStoreIdentifier(certificateGroup.Configuration.TrustedListPath),
+                    new CertificateStoreIdentifier(certificateGroup.Configuration.IssuerListPath),
                     new TrustList.SecureAccess(HasTrustListAccess),
                     new TrustList.SecureAccess(HasTrustListAccess));
             }
         }
 
         #region AuthorizationHelpers
-        private void HasTrustListAccess(ISystemContext context, string trustedStorePath)
+        private void HasTrustListAccess(ISystemContext context, CertificateStoreIdentifier trustedStore)
         {
-            AuthorizationHelper.HasTrustListAccess(context, trustedStorePath, m_certTypeMap, m_database);
+            AuthorizationHelper.HasTrustListAccess(context, trustedStore, m_certTypeMap, m_database);
         }
         #endregion
 

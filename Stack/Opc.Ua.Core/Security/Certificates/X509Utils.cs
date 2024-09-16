@@ -644,7 +644,8 @@ namespace Opc.Ua
             // add cert to the store.
             if (!String.IsNullOrEmpty(storePath) && !String.IsNullOrEmpty(storeType))
             {
-                using (ICertificateStore store = Opc.Ua.CertificateStoreIdentifier.CreateStore(storeType))
+                var certificateStoreIdentifier = new CertificateStoreIdentifier(storePath, storeType, false);
+                using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
                 {
                     if (store == null)
                     {
@@ -654,6 +655,43 @@ namespace Opc.Ua
                     store.Open(storePath, false);
                     store.Add(certificate, password).Wait();
                     store.Close();
+                }
+            }
+            return certificate;
+        }
+
+        /// <summary>
+        /// Extension to add a certificate to a <see cref="ICertificateStore"/>.
+        /// </summary>
+        /// <remarks>
+        /// Saves also the private key, if available.
+        /// If written to a Pfx file, the password is used for protection.
+        /// </remarks>
+        /// <param name="certificate">The certificate to store.</param>
+        /// <param name="storeIdentifier">The certificate store.</param>
+        /// <param name="password">The password to use to protect the certificate.</param>
+        /// <returns></returns>
+        public static X509Certificate2 AddToStore(
+            this X509Certificate2 certificate,
+            CertificateStoreIdentifier storeIdentifier,
+            string password = null)
+        {
+            // add cert to the store.
+            if (storeIdentifier != null)
+            {
+                ICertificateStore store = storeIdentifier.OpenStore();
+                try
+                {
+                    if (store == null || store.NoPrivateKeys == true)
+                    {
+                        throw new ArgumentException("Invalid store type");
+                    }
+
+                    store.Add(certificate, password).Wait();
+                }
+                finally
+                {
+                    store?.Close();
                 }
             }
             return certificate;
@@ -681,20 +719,58 @@ namespace Opc.Ua
             // add cert to the store.
             if (!String.IsNullOrEmpty(storePath) && !String.IsNullOrEmpty(storeType))
             {
-                using (ICertificateStore store = Opc.Ua.CertificateStoreIdentifier.CreateStore(storeType))
+                var certificateStoreIdentifier = new CertificateStoreIdentifier(storePath, storeType, false);
+                using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
                 {
                     if (store == null)
                     {
                         throw new ArgumentException("Invalid store type");
                     }
 
-                    store.Open(storePath, false);
                     await store.Add(certificate, password).ConfigureAwait(false);
                     store.Close();
                 }
             }
             return certificate;
         }
+
+        /// <summary>e
+        /// Extension to add a certificate to a <see cref="ICertificateStore"/>.
+        /// </summary>
+        /// <remarks>
+        /// Saves also the private key, if available.
+        /// If written to a Pfx file, the password is used for protection.
+        /// </remarks>
+        /// <param name="certificate">The certificate to store.</param>
+        /// <param name="storeIdentifier">Type of certificate store (Directory) <see cref="CertificateStoreType"/>.</param>
+        /// <param name="password">The password to use to protect the certificate.</param>
+        /// <param name="ct">The cancellation token.</param>
+        public static async Task<X509Certificate2> AddToStoreAsync(
+            this X509Certificate2 certificate,
+            CertificateStoreIdentifier storeIdentifier,
+            string password = null,
+            CancellationToken ct = default)
+        {
+            // add cert to the store.
+            if (storeIdentifier != null)
+            {
+                ICertificateStore store = storeIdentifier.OpenStore();
+                try
+                {
+                    if (store == null)
+                    {
+                        throw new ArgumentException("Invalid store type");
+                    }
+                    await store.Add(certificate, password).ConfigureAwait(false);
+                }
+                finally
+                {
+                    store?.Close();
+                }
+            }
+            return certificate;
+        }
+
 
         /// <summary>
         /// Get the hash algorithm from the hash size in bits.

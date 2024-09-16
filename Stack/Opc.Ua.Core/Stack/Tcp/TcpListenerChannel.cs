@@ -217,10 +217,10 @@ namespace Opc.Ua.Bindings
                 }
 
                 bool close = false;
-                if (State != TcpChannelState.Connecting)
+                if (State != TcpChannelState.Connecting && State != TcpChannelState.Opening)
                 {
-                    int socketHandle = (Socket != null) ? Socket.Handle : 0;
-                    if (socketHandle != -1)
+                    int? socketHandle = Socket?.Handle;
+                    if (socketHandle != null && socketHandle != -1)
                     {
                         Utils.LogError(
                             "{0} ForceChannelFault Socket={1:X8}, ChannelId={2}, TokenId={3}, Reason={4}",
@@ -233,7 +233,7 @@ namespace Opc.Ua.Bindings
                 }
                 else
                 {
-                    // Close immediately if the client never got out of connecting state
+                    // Close immediately if the client never got out of connecting or opening state
                     close = true;
                 }
 
@@ -252,13 +252,11 @@ namespace Opc.Ua.Bindings
                 if (close)
                 {
                     // close channel immediately.
-                    ChannelClosed();
+                    ChannelFaulted();
                 }
-                else
-                {
-                    // notify any monitors.
-                    NotifyMonitors(reason, false);
-                }
+
+                // notify any monitors.
+                NotifyMonitors(reason, close);
             }
         }
 
@@ -297,15 +295,13 @@ namespace Opc.Ua.Bindings
 
         /// <summary>
         /// Closes the channel and releases resources.
+        /// Sets state to Closed and notifies monitors.
         /// </summary>
         protected void ChannelClosed()
         {
             try
             {
-                if (Socket != null)
-                {
-                    Socket.Close();
-                }
+                Socket?.Close();
             }
             finally
             {
@@ -314,6 +310,23 @@ namespace Opc.Ua.Bindings
 
                 // notify any monitors.
                 NotifyMonitors(new ServiceResult(StatusCodes.BadConnectionClosed), true);
+            }
+        }
+
+        /// <summary>
+        /// Closes the channel and releases resources.
+        /// Sets state to Faulted.
+        /// </summary>
+        protected void ChannelFaulted()
+        {
+            try
+            {
+                Socket?.Close();
+            }
+            finally
+            {
+                State = TcpChannelState.Faulted;
+                m_listener.ChannelClosed(ChannelId);
             }
         }
 

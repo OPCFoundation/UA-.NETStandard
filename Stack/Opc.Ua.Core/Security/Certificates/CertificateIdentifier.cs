@@ -79,7 +79,6 @@ namespace Opc.Ua
                 return true;
             }
 
-
             if (!(obj is CertificateIdentifier id))
             {
                 return false;
@@ -174,16 +173,17 @@ namespace Opc.Ua
         {
             if (this.StoreType != CertificateStoreType.X509Store)
             {
-                using (ICertificateStore store = CertificateStoreIdentifier.CreateStore(StoreType))
+                var certificateStoreIdentifier = new CertificateStoreIdentifier(this.StorePath, this.StoreType, false);
+                using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
                 {
-                    if (store.SupportsLoadPrivateKey)
+                    if (store?.SupportsLoadPrivateKey == true)
                     {
-                        store.Open(this.StorePath, false);
                         string password = passwordProvider?.GetPassword(this);
                         m_certificate = await store.LoadPrivateKey(this.Thumbprint, this.SubjectName, this.CertificateType, password).ConfigureAwait(false);
                         return m_certificate;
                     }
                 }
+                return null;
             }
             return await Find(true).ConfigureAwait(false);
         }
@@ -207,9 +207,13 @@ namespace Opc.Ua
             else
             {
                 // open store.
-                using (ICertificateStore store = CertificateStoreIdentifier.CreateStore(StoreType))
+                var certificateStoreIdentifier = new CertificateStoreIdentifier(StorePath, false);
+                using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
                 {
-                    store.Open(StorePath, false);
+                    if (store == null)
+                    {
+                        return null;
+                    }
 
                     X509Certificate2Collection collection = await store.Enumerate().ConfigureAwait(false);
 
@@ -874,6 +878,9 @@ namespace Opc.Ua
         public string StorePath => string.Empty;
 
         /// <inheritdoc/>
+        public bool NoPrivateKeys => true;
+
+        /// <inheritdoc/>
         public async Task<X509Certificate2Collection> Enumerate()
         {
             X509Certificate2Collection collection = new X509Certificate2Collection();
@@ -1002,6 +1009,12 @@ namespace Opc.Ua
         public Task<bool> DeleteCRL(X509CRL crl)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
+        }
+
+        /// <inheritdoc/>
+        public Task AddRejected(X509Certificate2Collection certificates, int maxCertificates)
+        {
+            return Task.CompletedTask;
         }
         #endregion
     }
