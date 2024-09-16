@@ -1512,9 +1512,9 @@ namespace Opc.Ua
             m_multicastDnsEnabled = false;
             m_auditingEnabled = false;
             m_DurableSubscriptionsEnabled = false;
-            m_maxDurableNotificationQueueSize = 200000; //default value in deprecated Conformance Unit Subscription Durable StorageLevel High
-            m_maxDurableEventQueueSize = 200000; //default value in deprecated Conformance Unit Subscription Durable StorageLevel High
-            m_maxDurableSubscriptionLifetime = 360000000;
+            m_maxDurableNotificationQueueSize = 200000;
+            m_maxDurableEventQueueSize = 200000;
+            m_maxDurableSubscriptionLifetimeInHours = 10;
         }
 
         /// <summary>
@@ -1987,10 +1987,10 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The maximum durable subscription lifetime.</value>
         [DataMember(IsRequired = false, Order = 41)]
-        public ulong MaxDurableSubscriptionLifetime
+        public int MaxDurableSubscriptionLifetimeInHours
         {
-            get { return m_maxDurableSubscriptionLifetime; }
-            set { m_maxDurableSubscriptionLifetime = value; }
+            get { return m_maxDurableSubscriptionLifetimeInHours; }
+            set { m_maxDurableSubscriptionLifetimeInHours = value; }
         }
         #endregion
 
@@ -2033,7 +2033,7 @@ namespace Opc.Ua
         private bool m_DurableSubscriptionsEnabled;
         private int m_maxDurableNotificationQueueSize;
         private int m_maxDurableEventQueueSize;
-        private ulong m_maxDurableSubscriptionLifetime;
+        private int m_maxDurableSubscriptionLifetimeInHours;
         #endregion
     }
     #endregion

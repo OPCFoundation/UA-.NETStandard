@@ -878,9 +878,9 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderServerOptions SetMaxDurableSubscriptionLifetime(ulong maxDurableSubscriptionLifetime)
+        public IApplicationConfigurationBuilderServerOptions SetMaxDurableSubscriptionLifetime(int maxDurableSubscriptionLifetimeInHours)
         {
-            ApplicationConfiguration.ServerConfiguration.MaxDurableSubscriptionLifetime = maxDurableSubscriptionLifetime;
+            ApplicationConfiguration.ServerConfiguration.MaxDurableSubscriptionLifetimeInHours = maxDurableSubscriptionLifetimeInHours;
             return this;
         }
         #endregion

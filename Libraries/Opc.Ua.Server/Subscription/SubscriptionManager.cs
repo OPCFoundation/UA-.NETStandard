@@ -57,7 +57,7 @@ namespace Opc.Ua.Server
             m_maxPublishingInterval = configuration.ServerConfiguration.MaxPublishingInterval;
             m_publishingResolution = configuration.ServerConfiguration.PublishingResolution;
             m_maxSubscriptionLifetime = (uint)configuration.ServerConfiguration.MaxSubscriptionLifetime;
-            m_maxDurableSubscriptionLifetime = configuration.ServerConfiguration.MaxDurableSubscriptionLifetime;
+            m_maxDurableSubscriptionLifetimeInHours = (uint)configuration.ServerConfiguration.MaxDurableSubscriptionLifetimeInHours;
             m_minSubscriptionLifetime = (uint)configuration.ServerConfiguration.MinSubscriptionLifetime;
             m_maxMessageCount = (uint)configuration.ServerConfiguration.MaxMessageQueueSize;
             m_maxNotificationsPerPublish = (uint)configuration.ServerConfiguration.MaxNotificationsPerPublish;
@@ -1137,22 +1137,20 @@ namespace Opc.Ua.Server
             }
 
             //use max server lifetime is requested lifetime is 0
-            if (lifetimeInHours == 0)
+            if (lifetimeInHours == 0 || lifetimeInHours > m_maxDurableSubscriptionLifetimeInHours)
             {
                 //seconds->hours
-                lifetimeInHours = (uint)(m_maxDurableSubscriptionLifetime / 3600);
+                lifetimeInHours = m_maxDurableSubscriptionLifetimeInHours;
             }
-
-            //hours -> seconds -> milliseconds -> publishing interval
-            uint requestedLifetimeCount = (uint)(lifetimeInHours / subscription.PublishingInterval * 3600 * 1000);
-
+            uint requestedLifeTimeCount = (uint)(lifetimeInHours * subscription.PublishingInterval / 3_600_000);
+            
             // calculate the revised lifetime count.
-            uint revisedLifetimeCount = CalculateLifetimeCount(subscription.PublishingInterval, subscription.Diagnostics.MaxKeepAliveCount, requestedLifetimeCount, true);
+            uint revisedLifetimeCount = CalculateLifetimeCount(subscription.PublishingInterval, subscription.Diagnostics.MaxKeepAliveCount, requestedLifeTimeCount, true);
 
             ServiceResult result = subscription.SetSubscriptionDurable(revisedLifetimeCount);
 
-            //seconds -> hours
-            revisedLifetimeInHours = revisedLifetimeCount / 3600;
+            revisedLifetimeInHours = (uint)(revisedLifetimeCount * subscription.PublishingInterval / 3_600_000);
+
             return result;
         }
 
@@ -1704,7 +1702,7 @@ namespace Opc.Ua.Server
                 keepAliveCount = 3;
             }
 
-            ulong maxSubscriptionLifetime = isDurableSubscription ? m_maxDurableSubscriptionLifetime : m_maxSubscriptionLifetime;
+            ulong maxSubscriptionLifetime = isDurableSubscription ? m_maxDurableSubscriptionLifetimeInHours : m_maxSubscriptionLifetime;
 
             double keepAliveInterval = keepAliveCount * publishingInterval;
 
@@ -1746,7 +1744,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual uint CalculateLifetimeCount(double publishingInterval, uint keepAliveCount, uint lifetimeCount, bool isDurableSubscription = false)
         {
-            ulong maxSubscriptionLifetime = isDurableSubscription ? m_maxDurableSubscriptionLifetime : m_maxSubscriptionLifetime;
+            ulong maxSubscriptionLifetime = isDurableSubscription ? m_maxDurableSubscriptionLifetimeInHours * 3_600_600 : m_maxSubscriptionLifetime;
 
             double lifetimeInterval = lifetimeCount * publishingInterval;
 
@@ -2116,7 +2114,7 @@ namespace Opc.Ua.Server
         private double m_maxPublishingInterval;
         private int m_publishingResolution;
         private uint m_maxSubscriptionLifetime;
-        private ulong m_maxDurableSubscriptionLifetime;
+        private uint m_maxDurableSubscriptionLifetimeInHours;
         private uint m_minSubscriptionLifetime;
         private uint m_maxMessageCount;
         private uint m_maxNotificationsPerPublish;
