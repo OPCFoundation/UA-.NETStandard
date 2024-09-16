@@ -276,7 +276,7 @@ namespace Opc.Ua.Configuration
         IApplicationConfigurationBuilderServerOptions SetMaxDurableEventQueueSize(int maxDurableEventQueueSize);
 
         /// <inheritdoc cref="ServerConfiguration.MaxDurableSubscriptionLifetimeInHours"/>
-        IApplicationConfigurationBuilderServerOptions SetMaxDurableSubscriptionLifetime(ulong maxDurableSubscriptionLifetime);
+        IApplicationConfigurationBuilderServerOptions SetMaxDurableSubscriptionLifetime(int maxDurableSubscriptionLifetimeInHours);
 
     }
 

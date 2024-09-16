@@ -217,7 +217,7 @@
     <DurableSubscriptionsEnabled>true</DurableSubscriptionsEnabled>
     <MaxDurableNotificationQueueSize>10000</MaxDurableNotificationQueueSize>
     <MaxDurableEventQueueSize>10000</MaxDurableEventQueueSize>
-    <MaxDurableSubscriptionLifetime>360000000</MaxDurableSubscriptionLifetime>
+    <MaxDurableSubscriptionLifetimeInHours>10</MaxDurableSubscriptionLifetimeInHours>
 
     <!-- see https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles -->
     <ServerProfileArray>
