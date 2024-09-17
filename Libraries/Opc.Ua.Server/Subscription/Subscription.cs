@@ -2304,8 +2304,9 @@ namespace Opc.Ua.Server
                 if (!m_supportsDurable)
                 {
                     Utils.LogError("SetSubscriptionDurable requested for subscription with id {0}, but no IMonitoredItemQueueFactory that supports durable queues was registered", m_id);
+                    TraceState(LogLevel.Information, TraceStateId.Config, "SetSubscriptionDurable Failed");
                     return StatusCodes.BadNotSupported;
-                }
+                }   
 
                 m_isDurable = true;
 

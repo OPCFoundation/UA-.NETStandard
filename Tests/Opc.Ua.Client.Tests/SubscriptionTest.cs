@@ -63,6 +63,8 @@ namespace Opc.Ua.Client.Tests
             // create a new session for every test
             SingleSession = false;
             MaxChannelCount = 1000;
+            //await CreateReferenceServerFixture()
+            //ServerFixture.DurableSubscriptionsEnabled = true;
             return base.OneTimeSetUpAsync(writer: null, securityNone: true);
         }
 
@@ -95,6 +97,57 @@ namespace Opc.Ua.Client.Tests
         #endregion
 
         #region Test Methods
+        [Test, Order(99)]
+        public void Archie()
+        {
+            //if ( ClientFixture.Config.ServerConfiguration == null )
+            //{
+            //    ClientFixture.Config.ServerConfiguration = new ServerConfiguration();
+            //}
+
+            //ClientFixture.Config.ServerConfiguration.DurableSubscriptionsEnabled = true;
+            //ClientFixture.Config.ServerConfiguration.MaxDurableNotificationQueueSize = 10000;
+            //ClientFixture.Config.ServerConfiguration.MaxDurableEventQueueSize = 10000;
+            //ClientFixture.Config.ServerConfiguration.MaxDurableSubscriptionLifetimeInHours = 99;
+
+            ServerFixture.Config.ServerConfiguration.DurableSubscriptionsEnabled = true;
+            ServerFixture.Config.ServerConfiguration.MaxDurableNotificationQueueSize = 10000;
+            ServerFixture.Config.ServerConfiguration.MaxDurableEventQueueSize = 10000;
+            ServerFixture.Config.ServerConfiguration.MaxDurableSubscriptionLifetimeInHours = 99;
+
+
+            var subscription = new TestableSubscription();
+
+            // check keepAlive
+            int keepAlive = 0;
+            Session.KeepAlive += (ISession sender, KeepAliveEventArgs e) => { keepAlive++; };
+
+            subscription = new TestableSubscription(Session.DefaultSubscription);
+            TestContext.Out.WriteLine("MaxMessageCount: {0}", subscription.MaxMessageCount);
+            TestContext.Out.WriteLine("MaxNotificationsPerPublish: {0}", subscription.MaxNotificationsPerPublish);
+            TestContext.Out.WriteLine("MinLifetimeInterval: {0}", subscription.MinLifetimeInterval);
+
+            subscription.StateChanged += (Subscription sender, SubscriptionStateChangedEventArgs e) => {
+                TestContext.Out.WriteLine("SubscriptionStateChangedEventArgs: Id: {0} Status: {1}", subscription.Id, e.Status);
+            };
+
+            subscription.KeepAliveCount = 100;
+            subscription.LifetimeCount = 100;
+            subscription.PublishingInterval = 999;
+
+            Assert.True(Session.AddSubscription(subscription));
+            subscription.Create();
+
+            uint revisedLifetimeInHours = 0;
+            Assert.True( subscription.SetSubscriptionDurable( 1000, out revisedLifetimeInHours ) );
+
+
+            Assert.True(Session.RemoveSubscription(subscription));
+
+        }
+
+
+
         [Test, Order(100)]
         public void AddSubscription()
         {
