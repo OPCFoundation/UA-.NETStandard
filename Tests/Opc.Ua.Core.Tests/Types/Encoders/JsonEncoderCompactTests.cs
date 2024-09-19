@@ -270,13 +270,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         [Test]
-        [TestCase(0, false)]
-        [TestCase(1, false)]
-        [TestCase(2, false)]
-        [TestCase(0, true)]
-        [TestCase(1, true)]
-        [TestCase(2, true)]
-        public void EncodeCompactOrVerboseNodeId(int index, bool useCompact)
+        [TestCase(0, JsonEncodingType.Verbose)]
+        [TestCase(1, JsonEncodingType.Verbose)]
+        [TestCase(2, JsonEncodingType.Verbose)]
+        [TestCase(0, JsonEncodingType.Compact)]
+        [TestCase(1, JsonEncodingType.Compact)]
+        [TestCase(2, JsonEncodingType.Compact)]
+        public void EncodeCompactOrVerboseNodeId(int index, JsonEncodingType jsonEncoding)
         {
             var data = $@"
                 {{
@@ -290,11 +290,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             JObject jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            EncoderCommon.PrettifyAndValidateJson(expected, true);
 
             var context = new ServiceMessageContext();
             Array.ForEach(NamespaceUris, x => context.NamespaceUris.Append(x));
 
-            using (var encoder = new JsonEncoder(context, useCompact))
+            using (var encoder = new JsonEncoder(context, jsonEncoding))
             {
                 encoder.WriteNodeId("D0", new NodeId(2263));
                 encoder.WriteNodeId("D1", new NodeId(Get(NumericIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
@@ -303,6 +304,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 encoder.WriteNodeId("D4", new NodeId(Get(OpaqueIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
 
                 string actual = encoder.CloseAndReturnText();
+                EncoderCommon.PrettifyAndValidateJson(actual, true);
                 Assert.AreEqual(expected, actual);
             }
         }
@@ -337,13 +339,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         [Test]
-        [TestCase(0, false)]
-        [TestCase(1, false)]
-        [TestCase(2, false)]
-        [TestCase(0, true)]
-        [TestCase(1, true)]
-        [TestCase(2, true)]
-        public void EncodeCompactOrVerboseExpandedNodeId(int index, bool useCompact)
+        [TestCase(0, JsonEncodingType.Verbose)]
+        [TestCase(1, JsonEncodingType.Verbose)]
+        [TestCase(2, JsonEncodingType.Verbose)]
+        [TestCase(0, JsonEncodingType.Compact)]
+        [TestCase(1, JsonEncodingType.Compact)]
+        [TestCase(2, JsonEncodingType.Compact)]
+
+        public void EncodeCompactOrVerboseExpandedNodeId(int index, JsonEncodingType jsonEncoding)
         {
             var data = $@"
                 {{
@@ -361,13 +364,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             JObject jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            EncoderCommon.PrettifyAndValidateJson(expected, true);
 
             var context = new ServiceMessageContext();
             Array.ForEach(NamespaceUris, x => context.NamespaceUris.Append(x));
             context.ServerUris.Append("http://server-placeholder");
             Array.ForEach(ServerUris, x => context.ServerUris.Append(x));
 
-            using (var encoder = new JsonEncoder(context, useCompact))
+            using (var encoder = new JsonEncoder(context, jsonEncoding))
             {
                 encoder.WriteExpandedNodeId("D0", new ExpandedNodeId(2263));
                 encoder.WriteExpandedNodeId("D1", new ExpandedNodeId(Get(NumericIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
@@ -380,6 +384,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 encoder.WriteExpandedNodeId("D8", new ExpandedNodeId(Get(OpaqueIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)), null, (uint)context.ServerUris.GetIndex(Get(ServerUris, index + 3))));
 
                 string actual = encoder.CloseAndReturnText();
+                EncoderCommon.PrettifyAndValidateJson(actual, true);
                 Assert.AreEqual(expected, actual);
             }
         }
@@ -441,6 +446,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             JObject jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            EncoderCommon.PrettifyAndValidateJson(expected, true);
 
             var context2 = new ServiceMessageContext();
             context2.NamespaceUris.Append(NamespaceUris[2]);
@@ -458,6 +464,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 encoder.WriteNodeId("D4", new NodeId(Get(OpaqueIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
 
                 string actual = encoder.CloseAndReturnText();
+                EncoderCommon.PrettifyAndValidateJson(actual, true);
                 Assert.AreEqual(expected, actual);
             }
         }
@@ -539,6 +546,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             JObject jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            EncoderCommon.PrettifyAndValidateJson(expected, true);
 
             var context2 = new ServiceMessageContext();
             context2.NamespaceUris.Append(NamespaceUris[2]);
@@ -564,6 +572,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 encoder.WriteExpandedNodeId("D8", new ExpandedNodeId(Get(OpaqueIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 3))));
 
                 string actual = encoder.CloseAndReturnText();
+                EncoderCommon.PrettifyAndValidateJson(actual, true);
                 Assert.AreEqual(expected, actual);
             }
         }
@@ -616,6 +625,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             JObject jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            EncoderCommon.PrettifyAndValidateJson(expected, true);
 
             var context2 = new ServiceMessageContext();
             context2.NamespaceUris.Append(NamespaceUris[2]);
@@ -624,6 +634,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             using (var encoder = new JsonEncoder(context2, JsonEncodingType.NonReversible_Deprecated))
             {
+                //encoder.ForceNamespaceUri = true;
+                //encoder.ForceNamespaceUriForIndex1 = true;
                 encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
 
                 encoder.WriteNodeId("D0", new NodeId(2263));
@@ -633,6 +645,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 encoder.WriteNodeId("D4", new NodeId(Get(OpaqueIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
 
                 string actual = encoder.CloseAndReturnText();
+                EncoderCommon.PrettifyAndValidateJson(actual, true);
                 Assert.AreEqual(expected, actual);
             }
         }
@@ -707,6 +720,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             JObject jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            EncoderCommon.PrettifyAndValidateJson(expected, true);
 
             var context2 = new ServiceMessageContext();
             context2.NamespaceUris.Append(NamespaceUris[2]);
@@ -719,6 +733,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             using (var encoder = new JsonEncoder(context2, JsonEncodingType.NonReversible_Deprecated))
             {
+                // encoder.ForceNamespaceUri = true;
+                // encoder.ForceNamespaceUriForIndex1 = true;
+
                 encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
 
                 encoder.WriteExpandedNodeId("D0", new ExpandedNodeId(2263));
@@ -732,6 +749,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 encoder.WriteExpandedNodeId("D8", new ExpandedNodeId(Get(OpaqueIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 3))));
 
                 string actual = encoder.CloseAndReturnText();
+                EncoderCommon.PrettifyAndValidateJson(actual, true);
                 Assert.AreEqual(expected, actual);
             }
         }
@@ -759,9 +777,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         [Test]
-        [TestCase(false)]
-        [TestCase(true)]
-        public void EncodeCompactAndVerboseQualifiedName(bool useCompact)
+        [TestCase(JsonEncodingType.Compact)]
+        [TestCase(JsonEncodingType.Verbose)]
+        public void EncodeCompactAndVerboseQualifiedName(JsonEncodingType jsonEncoding)
         {
             var context1 = new ServiceMessageContext();
             context1.NamespaceUris.Append(NamespaceUris[0]);
@@ -780,13 +798,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             JObject jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            EncoderCommon.PrettifyAndValidateJson(expected, true);
 
             var context2 = new ServiceMessageContext();
             context2.NamespaceUris.Append(NamespaceUris[2]);
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
 
-            using (var encoder = new JsonEncoder(context2, useCompact))
+            using (var encoder = new JsonEncoder(context2, jsonEncoding))
             {
                 encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
 
@@ -797,6 +816,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 encoder.WriteQualifiedName("D4", new QualifiedName("N4", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 3))));
 
                 string actual = encoder.CloseAndReturnText();
+                EncoderCommon.PrettifyAndValidateJson(actual, true);
                 Assert.AreEqual(expected, actual);
             }
         }
@@ -852,6 +872,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             JObject jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            EncoderCommon.PrettifyAndValidateJson(expected, true);
 
             var context2 = new ServiceMessageContext();
             context2.NamespaceUris.Append(NamespaceUris[2]);
@@ -869,6 +890,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 encoder.WriteQualifiedName("D4", new QualifiedName("N4", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 3))));
 
                 string actual = encoder.CloseAndReturnText();
+                EncoderCommon.PrettifyAndValidateJson(actual, true);
                 Assert.AreEqual(expected, actual);
             }
         }
@@ -924,6 +946,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             JObject jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            EncoderCommon.PrettifyAndValidateJson(expected, true);
 
             var context2 = new ServiceMessageContext();
             context2.NamespaceUris.Append(NamespaceUris[2]);
@@ -932,6 +955,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             using (var encoder = new JsonEncoder(context2, JsonEncodingType.NonReversible_Deprecated))
             {
+                // encoder.ForceNamespaceUri = true;
+                // encoder.ForceNamespaceUriForIndex1 = true;
+
                 encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
 
                 encoder.WriteQualifiedName("D0", new QualifiedName("ServerStatus"));
@@ -941,6 +967,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 encoder.WriteQualifiedName("D4", new QualifiedName("N4", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 3))));
 
                 string actual = encoder.CloseAndReturnText();
+                EncoderCommon.PrettifyAndValidateJson(actual, true);
                 Assert.AreEqual(expected, actual);
             }
         }
@@ -975,9 +1002,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         [Test]
-        [TestCase(false)]
-        [TestCase(true)]
-        public void EncodeCompactAndVerboseMatrix(bool useCompact)
+        [TestCase(JsonEncodingType.Compact)]
+        [TestCase(JsonEncodingType.Verbose)]
+        public void EncodeCompactAndVerboseMatrix(JsonEncodingType jsonEncoding)
         {
             var data = $@"
                 {{
@@ -988,15 +1015,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             JObject jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            EncoderCommon.PrettifyAndValidateJson(expected, true);
 
             var context = new ServiceMessageContext();
 
-            using (var encoder = new JsonEncoder(context, true))
+            using (var encoder = new JsonEncoder(context, jsonEncoding))
             {
                 encoder.WriteArray("D0", new int[,] { { 1, 2, 3 }, { 4, 5, 6 } }, 2, BuiltInType.Int32);
                 encoder.WriteArray("D1", new int[,,] { { { 1, 2, 3 }, { 4, 5, 6 } } }, 3, BuiltInType.Int32);
 
                 string actual = encoder.CloseAndReturnText();
+                EncoderCommon.PrettifyAndValidateJson(actual, true);
                 Assert.AreEqual(expected, actual);
             }
         }
@@ -1031,9 +1060,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         [Test]
-        [TestCase(false)]
-        [TestCase(true)]
-        public void EncodeReversibleAndNonReversibleMatrix(bool useReversible)
+        [TestCase(JsonEncodingType.Reversible_Deprecated)]
+        [TestCase(JsonEncodingType.NonReversible_Deprecated)]
+        public void EncodeReversibleAndNonReversibleMatrix(JsonEncodingType jsonEncoding)
         {
             var data = $@"
                 {{
@@ -1044,15 +1073,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             JObject jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            EncoderCommon.PrettifyAndValidateJson(expected, true);
 
             var context = new ServiceMessageContext();
 
-            using (var encoder = new JsonEncoder(context, useReversible ? JsonEncodingType.Reversible_Deprecated : JsonEncodingType.NonReversible_Deprecated))
+            using (var encoder = new JsonEncoder(context, jsonEncoding))
             {
                 encoder.WriteArray("D0", new int[,] { { 1, 2, 3 }, { 4, 5, 6 } }, 2, BuiltInType.Int32);
                 encoder.WriteArray("D1", new int[,,] { { { 1, 2, 3 }, { 4, 5, 6 } } }, 3, BuiltInType.Int32);
 
                 string actual = encoder.CloseAndReturnText();
+                EncoderCommon.PrettifyAndValidateJson(actual, true);
                 Assert.AreEqual(expected, actual);
             }
         }
@@ -1090,7 +1121,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using (var decoder = new JsonDecoder(data, context))
             {
                 var eo = decoder.ReadExtensionObject("D0");
-                Assert.AreEqual(Opc.Ua.DataTypeIds.Range, eo.TypeId.ToString());
+                Assert.AreEqual(Opc.Ua.DataTypeIds.Range.ToString(), eo.TypeId.ToString());
                 var range = eo.Body as Opc.Ua.Range;
                 Assert.IsNotNull(range);
                 Assert.AreEqual(0, range.Low);
@@ -1098,11 +1129,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
                 var v1 = decoder.ReadVariant("D1");
                 Assert.AreEqual(v1.TypeInfo.BuiltInType, BuiltInType.ExtensionObject);
-                
+
                 eo = v1.Value as ExtensionObject;
                 Assert.IsNotNull(eo);
                 Assert.AreEqual(Opc.Ua.Gds.DataTypeIds.ApplicationRecordDataType.ToString(), eo.TypeId.ToString());
-                
+
                 var record = eo.Body as Opc.Ua.Gds.ApplicationRecordDataType;
                 Assert.IsNotNull(record);
                 Assert.AreEqual(Opc.Ua.ApplicationType.Client, record.ApplicationType);
@@ -1129,7 +1160,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                                 ""ApplicationType"": 0,
                                 ""ApplicationNames"": [{{ ""Text"":""Test Client"", ""Locale"":""en"" }}],
                                 ""ProductUri"": ""http://test.org/client"",
-                                ""DiscoveryUrls"": [""opc.tcp://localhost/""]
+                                ""DiscoveryUrls"": [""opc.tcp://localhost/""],
+                                ""ServerCapabilities"": []
                             }}
                         }}
                     }}
@@ -1138,6 +1170,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             JObject jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            EncoderCommon.PrettifyAndValidateJson(expected, true);
 
             var context = new ServiceMessageContext();
             context.NamespaceUris.Append("urn:localhost:server");
@@ -1156,8 +1189,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     "D1",
                     new Variant(new ExtensionObject(
                         Opc.Ua.Gds.DataTypeIds.ApplicationRecordDataType,
-                        new Opc.Ua.Gds.ApplicationRecordDataType()
-                        {
+                        new Opc.Ua.Gds.ApplicationRecordDataType() {
                             ApplicationId = new NodeId("urn:123456789", 1),
                             ApplicationUri = "urn:localhost:test.org:client",
                             ApplicationNames = new LocalizedText[] { new LocalizedText("en", "Test Client") },
@@ -1167,6 +1199,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 );
 
                 string actual = encoder.CloseAndReturnText();
+                EncoderCommon.PrettifyAndValidateJson(actual, true);
                 Assert.AreEqual(expected, actual);
             }
         }
@@ -1205,7 +1238,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using (var decoder = new JsonDecoder(data, context))
             {
                 var eo = decoder.ReadExtensionObject("D0");
-                Assert.AreEqual(Opc.Ua.DataTypeIds.Range, eo.TypeId.ToString());
+                Assert.AreEqual(Opc.Ua.DataTypeIds.Range.ToString(), eo.TypeId.ToString());
                 var range = eo.Body as Opc.Ua.Range;
                 Assert.IsNotNull(range);
                 Assert.AreEqual(0, range.Low);
@@ -1254,6 +1287,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             JObject jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            EncoderCommon.PrettifyAndValidateJson(expected, true);
 
             var context = new ServiceMessageContext();
             context.NamespaceUris.Append("urn:localhost:server");
@@ -1272,8 +1306,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     "D1",
                     new Variant(new ExtensionObject(
                         Opc.Ua.Gds.DataTypeIds.ApplicationRecordDataType,
-                        new Opc.Ua.Gds.ApplicationRecordDataType()
-                        {
+                        new Opc.Ua.Gds.ApplicationRecordDataType() {
                             ApplicationId = new NodeId("urn:123456789", 1),
                             ApplicationUri = "urn:localhost:test.org:client",
                             ApplicationType = Opc.Ua.ApplicationType.Client,
@@ -1284,6 +1317,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 );
 
                 string actual = encoder.CloseAndReturnText();
+                EncoderCommon.PrettifyAndValidateJson(actual, true);
                 Assert.AreEqual(expected, actual);
             }
         }
@@ -1321,7 +1355,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using (var decoder = new JsonDecoder(data, context))
             {
                 var eo = decoder.ReadExtensionObject("D0");
-                Assert.AreEqual(Opc.Ua.DataTypeIds.Range, eo.TypeId.ToString());
+                Assert.AreEqual(Opc.Ua.DataTypeIds.Range.ToString(), eo.TypeId.ToString());
                 var range = eo.Body as Opc.Ua.Range;
                 Assert.IsNotNull(range);
                 Assert.AreEqual(0, range.Low);
@@ -1348,7 +1382,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {{
                     ""D0"": {{ 
                         ""TypeId"": {{ ""Id"": 884 }},
-                        ""Body"": {{ ""High"": 9876.5432 }}
+                        ""Body"": {{ ""Low"":0, ""High"": 9876.5432 }}
                     }},
                     ""D1"": {{ 
                         ""Type"": 22,
@@ -1360,7 +1394,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                                 ""ApplicationType"": 1,
                                 ""ApplicationNames"": [{{ ""Text"":""Test Client"", ""Locale"":""en"" }}],
                                 ""ProductUri"": ""http://test.org/client"",
-                                ""DiscoveryUrls"": [""opc.tcp://localhost/""]
+                                ""DiscoveryUrls"": [""opc.tcp://localhost/""],
+                                ""ServerCapabilities"": []
                             }}
                         }}
                     }}
@@ -1369,6 +1404,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             JObject jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            EncoderCommon.PrettifyAndValidateJson(expected, true);
 
             var context = new ServiceMessageContext();
             context.NamespaceUris.Append("urn:localhost:server");
@@ -1387,8 +1423,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     "D1",
                     new Variant(new ExtensionObject(
                         Opc.Ua.Gds.DataTypeIds.ApplicationRecordDataType,
-                        new Opc.Ua.Gds.ApplicationRecordDataType()
-                        {
+                        new Opc.Ua.Gds.ApplicationRecordDataType() {
                             ApplicationId = new NodeId("urn:123456789", 1),
                             ApplicationUri = "urn:localhost:test.org:client",
                             ApplicationType = Opc.Ua.ApplicationType.Client,
@@ -1399,6 +1434,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 );
 
                 string actual = encoder.CloseAndReturnText();
+                EncoderCommon.PrettifyAndValidateJson(actual, true);
                 Assert.AreEqual(expected, actual);
             }
         }
@@ -1459,6 +1495,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             JObject jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            EncoderCommon.PrettifyAndValidateJson(expected, true);
 
             var context = new ServiceMessageContext();
             context.NamespaceUris.Append("urn:localhost:server");
@@ -1476,8 +1513,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     "D1",
                     new Variant(new ExtensionObject(
                         Opc.Ua.Gds.DataTypeIds.ApplicationRecordDataType,
-                        new Opc.Ua.Gds.ApplicationRecordDataType()
-                        {
+                        new Opc.Ua.Gds.ApplicationRecordDataType() {
                             ApplicationId = new NodeId("urn:123456789", 1),
                             ApplicationUri = "urn:localhost:test.org:client",
                             ApplicationType = Opc.Ua.ApplicationType.Client,
@@ -1488,6 +1524,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 );
 
                 string actual = encoder.CloseAndReturnText();
+                EncoderCommon.PrettifyAndValidateJson(actual, true);
                 Assert.AreEqual(expected, actual);
             }
         }

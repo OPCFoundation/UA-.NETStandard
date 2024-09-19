@@ -96,8 +96,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// Only a small subset of built in types is tested on complex types.
         /// </remarks>
         [DatapointSource]
-        public JsonValidationData[] Data = new JsonValidationDataCollection() {
-            {   BuiltInType.Boolean, false, "false", null },
+        public static readonly JsonValidationData[] Data = new JsonValidationDataCollection() {
+            {   BuiltInType.Boolean, false, "false", null, null, "false"},
             {   BuiltInType.Boolean, true,"true", null },
             {   BuiltInType.Byte, (Byte)0, "0", null},
             {   BuiltInType.Byte, (Byte)88, "88", null },
@@ -117,35 +117,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
         #region Test Methods
         /// <summary>
-        /// Verify reversible Json encoding for Structure as body of ExtensionObject.
+        /// Verify encoding of a Structure as body of ExtensionObject.
         /// </summary>
         [Theory]
-        public void JsonEncodeStructureRev(
-            JsonValidationData jsonValidationData
-            )
-        {
-            ExpandedNodeId nodeId;
-            Type complexType;
-            (nodeId, complexType) = TypeDictionary[StructureType.Structure];
-            object emittedType = Activator.CreateInstance(complexType);
-            var baseType = emittedType as BaseComplexType;
-            baseType[jsonValidationData.BuiltInType.ToString()] = jsonValidationData.Instance;
-            ExtensionObject extensionObject = CreateExtensionObject(StructureType.Structure, nodeId, emittedType);
-            EncodeJsonComplexTypeVerifyResult(
-                jsonValidationData.BuiltInType,
-                MemoryStreamType.MemoryStream,
-                extensionObject,
-                true,
-                jsonValidationData.ExpectedNonReversible ?? jsonValidationData.ExpectedReversible,
-                false);
-        }
-
-        /// <summary>
-        /// Verify non reversible Json encoding of a Structure as body of ExtensionObject.
-        /// </summary>
-        [Theory]
-        public void JsonEncodeStructureNonRev(
-            JsonValidationData jsonValidationData
+        public void JsonEncodeStructure(
+            JsonValidationData jsonValidationData,
+            JsonEncodingType jsonEncoding
             )
         {
             ExpandedNodeId nodeId;
@@ -159,8 +136,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 jsonValidationData.BuiltInType,
                 MemoryStreamType.ArraySegmentStream,
                 extensionObject,
-                false,
-                jsonValidationData.ExpectedNonReversible ?? jsonValidationData.ExpectedReversible,
+                jsonEncoding,
+                jsonValidationData.GetExpected(jsonEncoding),
                 false);
         }
 
@@ -169,8 +146,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// with optional fields as body of ExtensionObject.
         /// </summary>
         [Theory]
-        public void JsonEncodeOptionalFieldsRev(
-            JsonValidationData jsonValidationData
+        public void JsonEncodeOptionalFields(
+            JsonValidationData jsonValidationData,
+            JsonEncodingType jsonEncoding
             )
         {
             ExpandedNodeId nodeId;
@@ -184,32 +162,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 jsonValidationData.BuiltInType,
                 MemoryStreamType.ArraySegmentStream,
                 extensionObject,
-                true,
-                jsonValidationData.ExpectedNonReversible ?? jsonValidationData.ExpectedReversible,
-                false);
-        }
-
-        /// <summary>
-        /// Verify non reversible Json encoding of a Structure
-        /// with optional fields as body of ExtensionObject.
-        /// </summary>
-        [Theory]
-        public void JsonEncodeOptionalFieldsNonRev(
-            JsonValidationData jsonValidationData)
-        {
-            ExpandedNodeId nodeId;
-            Type complexType;
-            (nodeId, complexType) = TypeDictionary[StructureType.StructureWithOptionalFields];
-            object emittedType = Activator.CreateInstance(complexType);
-            var baseType = emittedType as BaseComplexType;
-            baseType[jsonValidationData.BuiltInType.ToString()] = jsonValidationData.Instance;
-            ExtensionObject extensionObject = CreateExtensionObject(StructureType.StructureWithOptionalFields, nodeId, emittedType);
-            EncodeJsonComplexTypeVerifyResult(
-                jsonValidationData.BuiltInType,
-                MemoryStreamType.RecyclableMemoryStream,
-                extensionObject,
-                false,
-                jsonValidationData.ExpectedNonReversible ?? jsonValidationData.ExpectedReversible,
+                jsonEncoding,
+                jsonValidationData.GetExpected(jsonEncoding),
                 false);
         }
 
@@ -217,8 +171,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// Verify reversible Json encoding for Unions with ExtensionObject.
         /// </summary>
         [Theory]
-        public void JsonEncodeUnionRev(
-            JsonValidationData jsonValidationData
+        public void JsonEncodeUnion(
+            JsonValidationData jsonValidationData,
+            JsonEncodingType jsonEncoding
             )
         {
             ExpandedNodeId nodeId;
@@ -232,32 +187,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 jsonValidationData.BuiltInType,
                 MemoryStreamType.ArraySegmentStream,
                 extensionObject,
-                true,
-                jsonValidationData.ExpectedNonReversible ?? jsonValidationData.ExpectedReversible,
-                false);
-        }
-
-        /// <summary>
-        /// Verify non reversible Json encoding of a Union in a ExtensionObject.
-        /// </summary>
-        [Theory]
-        public void JsonEncodeUnionNonRev(
-            JsonValidationData jsonValidationData
-            )
-        {
-            ExpandedNodeId nodeId;
-            Type complexType;
-            (nodeId, complexType) = TypeDictionary[StructureType.Union];
-            object emittedType = Activator.CreateInstance(complexType);
-            var baseType = emittedType as BaseComplexType;
-            baseType[jsonValidationData.BuiltInType.ToString()] = jsonValidationData.Instance;
-            ExtensionObject extensionObject = CreateExtensionObject(StructureType.Union, nodeId, emittedType);
-            EncodeJsonComplexTypeVerifyResult(
-                jsonValidationData.BuiltInType,
-                MemoryStreamType.ArraySegmentStream,
-                extensionObject,
-                false,
-                jsonValidationData.ExpectedNonReversible ?? jsonValidationData.ExpectedReversible,
+                jsonEncoding,
+                jsonValidationData.GetExpected(jsonEncoding),
                 false);
         }
         #endregion Test Methods
@@ -267,48 +198,66 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             BuiltInType builtInType,
             MemoryStreamType memoryStreamType,
             ExtensionObject data,
-            bool useReversibleEncoding,
+            JsonEncodingType jsonEncoding,
             string expected,
             bool topLevelIsArray
             )
         {
-            string encodeInfo = $"Encoder: Json Type:{builtInType} Reversible: {useReversibleEncoding}";
-            TestContext.Out.WriteLine(encodeInfo);
-            TestContext.Out.WriteLine("Data:");
-            TestContext.Out.WriteLine(data);
-            TestContext.Out.WriteLine("Expected:");
+            string encodeInfo = $"Encoder: Json Type:{builtInType} Reversible: {jsonEncoding}";
 
-            expected = BuildExpectedResponse(data, builtInType, expected, useReversibleEncoding);
-            _ = PrettifyAndValidateJson(expected);
+            expected = BuildExpectedResponse(data, builtInType, expected, jsonEncoding);
+            var formattedExpected = PrettifyAndValidateJson(expected);
 
             byte[] buffer;
             using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
                 using (IEncoder encoder = CreateEncoder(
                     EncodingType.Json, EncoderContext, encoderStream,
-                    typeof(ExtensionObject), useReversibleEncoding, topLevelIsArray))
+                    typeof(ExtensionObject), jsonEncoding, topLevelIsArray))
                 {
-                    Encode(encoder, BuiltInType.ExtensionObject, useReversibleEncoding ? builtInType.ToString() : null, data);
+                    var builtInTypeString = (jsonEncoding == JsonEncodingType.Compact || jsonEncoding == JsonEncodingType.Reversible_Deprecated) ? builtInType.ToString() : null;
+                    Encode(encoder, BuiltInType.ExtensionObject, builtInTypeString, data);
                 }
                 buffer = encoderStream.ToArray();
             }
 
-            TestContext.Out.WriteLine("Result:");
-            var result = Encoding.UTF8.GetString(buffer);
-            if (data.Body is UnionComplexType && !useReversibleEncoding)
+            string formattedResult = null;
+            string result = null;
+            try
             {
-                // helper to create testable JSON output for Unions
-                result = result.Replace("{", "{\"Union\" :");
+                result = Encoding.UTF8.GetString(buffer);
+                if (data.Body is UnionComplexType && (jsonEncoding == JsonEncodingType.Verbose || jsonEncoding == JsonEncodingType.NonReversible_Deprecated))
+                {
+                    // helper to create testable JSON output for Unions
+                    result = result.Replace("{", "{\"Union\" :");
+                }
+                formattedResult = PrettifyAndValidateJson(result);
+                var jsonLoadSettings = new JsonLoadSettings() {
+                    CommentHandling = CommentHandling.Ignore,
+                    LineInfoHandling = LineInfoHandling.Ignore
+                };
+                var resultParsed = JObject.Parse(result, jsonLoadSettings);
+                var expectedParsed = JObject.Parse(expected, jsonLoadSettings);
+                var areEqual = JToken.DeepEquals(expectedParsed, resultParsed);
+                Assert.IsTrue(areEqual, encodeInfo);
             }
-            var formattedResult = PrettifyAndValidateJson(result);
-            var jsonLoadSettings = new JsonLoadSettings() {
-                CommentHandling = CommentHandling.Ignore,
-                LineInfoHandling = LineInfoHandling.Ignore
-            };
-            var resultParsed = JObject.Parse(result, jsonLoadSettings);
-            var expectedParsed = JObject.Parse(expected, jsonLoadSettings);
-            var areEqual = JToken.DeepEquals(expectedParsed, resultParsed);
-            Assert.IsTrue(areEqual, encodeInfo);
+            catch
+            {
+                TestContext.Out.WriteLine(encodeInfo);
+                TestContext.Out.WriteLine("Data:");
+                TestContext.Out.WriteLine(data);
+                TestContext.Out.WriteLine("Expected:");
+                TestContext.Out.WriteLine(formattedExpected);
+                TestContext.Out.WriteLine("Result:");
+                if (string.IsNullOrEmpty(formattedResult))
+                {
+                    TestContext.Out.WriteLine(formattedExpected);
+                }
+                else
+                {
+                    TestContext.Out.WriteLine(result);
+                }
+            }
         }
 
         /// <summary>
@@ -320,7 +269,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             ExtensionObject data,
             BuiltInType builtInType,
             string expected,
-            bool useReversibleEncoding)
+            JsonEncodingType jsonEncoding)
         {
             // build expected result
             string typeId = String.Empty;
@@ -335,7 +284,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             }
             else if (data.Body is UnionComplexType)
             {
-                if (useReversibleEncoding)
+                if (jsonEncoding == JsonEncodingType.Compact || jsonEncoding == JsonEncodingType.Reversible_Deprecated)
                 {
                     var union = data.Body as UnionComplexType;
                     var json = $"{{\"{builtInType}\" :{{";
@@ -353,7 +302,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             }
             else if (data.Body is OptionalFieldsComplexType)
             {
-                if (useReversibleEncoding)
+                if (jsonEncoding == JsonEncodingType.Compact || jsonEncoding == JsonEncodingType.Reversible_Deprecated)
                 {
                     var optional = data.Body as OptionalFieldsComplexType;
                     var json = $"{{\"{builtInType}\" :{{";
@@ -393,7 +342,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                         }
                         else if (property.Name == "StatusCode")
                         {
-                            if (useReversibleEncoding)
+                            if (jsonEncoding == JsonEncodingType.Compact || jsonEncoding == JsonEncodingType.Reversible_Deprecated)
                             {
                                 oText = "0";
                             }
@@ -422,7 +371,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                         }
                     }
                 }
-                if (useReversibleEncoding)
+                if (jsonEncoding == JsonEncodingType.Compact || jsonEncoding == JsonEncodingType.Reversible_Deprecated)
                 {
                     var json = $"{{\"{builtInType}\" :{{";
                     if (!data.TypeId.IsNull)

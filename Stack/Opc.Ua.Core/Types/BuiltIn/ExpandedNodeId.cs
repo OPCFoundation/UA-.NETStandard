@@ -643,7 +643,7 @@ namespace Opc.Ua
                 // check for null.
                 if (String.IsNullOrEmpty(text))
                 {
-                    return Null;
+                    return ExpandedNodeId.Null;
                 }
 
                 return new ExpandedNodeId(text);

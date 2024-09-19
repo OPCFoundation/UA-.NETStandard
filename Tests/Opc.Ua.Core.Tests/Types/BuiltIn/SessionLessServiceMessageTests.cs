@@ -15,7 +15,9 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
     public class SessionLessServiceMessageTests
     {
         [Test]
-        public void WhenServerUrisAreLessThanNamespacesShouldNotThrowAndMustReturnCorrectServerUris()
+        [TestCase(JsonEncodingType.Compact)]
+        [TestCase(JsonEncodingType.Reversible_Deprecated)]
+        public void WhenServerUrisAreLessThanNamespacesShouldNotThrowAndMustReturnCorrectServerUris(JsonEncodingType encoding)
         {
             //arrange
             UInt32 urisVersion = 1234;

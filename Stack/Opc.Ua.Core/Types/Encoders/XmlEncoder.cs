@@ -279,7 +279,7 @@ namespace Opc.Ua
         /// <summary>
         /// Xml Encoder always produces reversible encoding.
         /// </summary>
-        public bool UseCompactEncoding => true;
+        public bool UseReversibleEncoding => true;
 
         /// <summary>
         /// Pushes a namespace onto the namespace stack.

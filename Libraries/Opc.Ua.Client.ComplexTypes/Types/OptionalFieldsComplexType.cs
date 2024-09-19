@@ -93,7 +93,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             encoder.PushNamespace(XmlNamespace);
 
-            if (encoder.UseCompactEncoding)
+            if (encoder.UseReversibleEncoding)
             {
                 encoder.WriteUInt32("EncodingMask", m_encodingMask);
             }

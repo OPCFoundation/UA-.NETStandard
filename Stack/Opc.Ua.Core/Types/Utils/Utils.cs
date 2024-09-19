@@ -1279,7 +1279,7 @@ namespace Opc.Ua
         /// </summary>
         public static string UnescapeUri(string uri)
         {
-            if (!String.IsNullOrWhiteSpace(uri))
+            if (!string.IsNullOrWhiteSpace(uri))
             {
                 return Uri.UnescapeDataString(uri);
             }
