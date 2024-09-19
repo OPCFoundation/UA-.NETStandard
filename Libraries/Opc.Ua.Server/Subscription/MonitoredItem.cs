@@ -1222,7 +1222,7 @@ namespace Opc.Ua.Server
                     }
 
                     // place event at the end of the queue.
-                    if (overflowEvent != null && !m_discardOldest)
+                    if (overflowEvent != null && !m_discardOldest && !(m_events.Count > 0))
                     {
                         notifications.Enqueue(overflowEvent);
                     }
@@ -1233,7 +1233,7 @@ namespace Opc.Ua.Server
                 bool moreValuesToPublish = m_events?.Count > 0;
 
                 // reset state variables.
-                m_overflow = false;
+                m_overflow = m_overflow && moreValuesToPublish && !m_discardOldest;
                 m_readyToPublish = moreValuesToPublish;
                 m_readyToTrigger = moreValuesToPublish;
                 m_triggered = false;
