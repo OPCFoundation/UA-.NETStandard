@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Security.Authentication;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -262,17 +263,29 @@ namespace Opc.Ua.Bindings
         {
             Startup.Listener = this;
             m_hostBuilder = new WebHostBuilder();
+
+            // prepare the server TLS certificate
+            var serverCertificate = m_serverCertificate;
+#if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
+            try
+            {
+                // Create a copy of the certificate with the private key on platforms
+                // which default to the ephemeral KeySet. Also a new certificate must be reloaded.
+                // If the key fails to copy, its probably a non exportable key from the X509Store.
+                // Then we can use the original certificate, the private key is already in the key store.
+                serverCertificate = X509Utils.CreateCopyWithPrivateKey(m_serverCertificate, false);
+            }
+            catch (CryptographicException ce)
+            {
+                Utils.LogTrace("Copy of the private key for https was denied: {0}", ce.Message);
+            }
+#endif
+
             var httpsOptions = new HttpsConnectionAdapterOptions() {
                 CheckCertificateRevocation = false,
                 ClientCertificateMode = ClientCertificateMode.NoCertificate,
                 // note: this is the TLS certificate!
-#if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
-                // Create a copy of the certificate with the private key on platforms
-                // which default to the ephemeral KeySet.
-                ServerCertificate = X509Utils.CreateCopyWithPrivateKey(m_serverCertificate, false)
-#else
-                ServerCertificate = m_serverCertificate
-#endif
+                ServerCertificate = serverCertificate,
             };
 
 #if NET462
