@@ -99,9 +99,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public static readonly JsonValidationData[] Data = new JsonValidationDataCollection() {
             {   BuiltInType.Boolean, false, "false", null, null, "false"},
             {   BuiltInType.Boolean, true,"true", null },
-            {   BuiltInType.Byte, (Byte)0, "0", null},
+            {   BuiltInType.Byte, (Byte)0, "0", null, null, "0"},
             {   BuiltInType.Byte, (Byte)88, "88", null },
-            {   BuiltInType.SByte, (SByte)0, "0", null },
+            {   BuiltInType.SByte, (SByte)0, "0", null, null, "0"},
             {   BuiltInType.UInt16, (UInt16)12345, "12345", null },
             {   BuiltInType.Int16, (Int16)(-12345), "-12345", null },
             {   BuiltInType.UInt32, (UInt32)1234567, "1234567", null },
@@ -203,7 +203,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             bool topLevelIsArray
             )
         {
-            string encodeInfo = $"Encoder: Json Type:{builtInType} Reversible: {jsonEncoding}";
+            string encodeInfo = $"Encoder: Json Type:{builtInType} Encoding: {jsonEncoding}";
 
             expected = BuildExpectedResponse(data, builtInType, expected, jsonEncoding);
             var formattedExpected = PrettifyAndValidateJson(expected);
@@ -285,118 +285,138 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     typeId = $"\"TypeId\":\"{nodeId.Format(EncoderContext, true)}\",";
                 }
             }
+
+            bool expectedIsEmpty = false;
             if (String.IsNullOrEmpty(expected))
             {
                 expected = "{}";
+                expectedIsEmpty = true;
             }
-            else if (data.Body is UnionComplexType)
-            {
-                if (jsonEncoding != JsonEncodingType.NonReversible_Deprecated)
-                {
-                    var union = data.Body as UnionComplexType;
-                    var json = $"{{\"{builtInType}\" :{{";
-                    if (!data.TypeId.IsNull)
-                    {
-                        json += typeId;
-                    }
-                    json += $"\"Body\":{{\"SwitchField\" : {union.SwitchField}, \"Value\":" + expected + "}}}";
-                    expected = json;
-                }
-                else
-                {
-                    expected = "{\"Union\" :" + expected + "}";
-                }
-            }
-            else if (data.Body is OptionalFieldsComplexType)
-            {
-                if (jsonEncoding != JsonEncodingType.NonReversible_Deprecated)
-                {
-                    var optional = data.Body as OptionalFieldsComplexType;
-                    var json = $"{{\"{builtInType}\" :{{";
-                    if (!data.TypeId.IsNull)
-                    {
-                        json += typeId;
-                    }
-                    json += $"\"Body\":{{\"EncodingMask\" : {optional.EncodingMask}, \"{builtInType}\":" + expected + "}}}";
-                    expected = json;
-                }
-                else
-                {
-                    expected = $"{{\"{builtInType}\" :" + expected + "}";
-                }
-            }
-            else if (data.Body is BaseComplexType)
-            {
-                var structure = data.Body as BaseComplexType;
-                var body = "";
-                bool commaNeeded = false;
-                foreach (var property in structure.GetPropertyEnumerator())
-                {
-                    if (builtInType.ToString() == property.Name)
-                    {
-                        if (commaNeeded) body += ",";
-                        commaNeeded = true;
-                        body += $"\"{builtInType}\":" + expected;
-                    }
-                    else if (jsonEncoding != JsonEncodingType.Compact)
-                    {
-                        object o = property.GetValue(structure);
-                        string oText = o?.ToString().ToLowerInvariant();
-                        if (property.Name == "DateTime")
-                        {
-                            oText = "\"0001-01-01T00:00:00Z\"";
-                            if (jsonEncoding == JsonEncodingType.Reversible_Deprecated || jsonEncoding == JsonEncodingType.NonReversible_Deprecated)
-                            {
-                                continue;
-                            }
-                        }
-                        else if (property.Name == "StatusCode")
-                        {
-                            if (jsonEncoding == JsonEncodingType.Compact || jsonEncoding == JsonEncodingType.Reversible_Deprecated)
-                            {
-                                oText = "0";
-                            }
-                            else
-                            {
-                                oText = "{\"Code\": 0,\"Symbol\":\"Good\"}";
-                                // default statuscode is not encoded
-                            }
-                            continue;
-                        }
-                        else if (property.Name == "Guid")
-                        {
-                            oText = "\"00000000-0000-0000-0000-000000000000\"";
-                            if (jsonEncoding == JsonEncodingType.Reversible_Deprecated || jsonEncoding == JsonEncodingType.NonReversible_Deprecated)
-                            {
-                                continue;
-                            }
-                        }
-                        else if (property.Name == "UInt64" || property.Name == "Int64")
-                        {
-                            oText = "\"" + oText + "\"";
-                        }
 
-                        if (oText != null)
+            if (!expectedIsEmpty || jsonEncoding == JsonEncodingType.Compact)
+            {
+                if (data.Body is UnionComplexType)
+                {
+                    if (jsonEncoding != JsonEncodingType.NonReversible_Deprecated)
+                    {
+                        var union = data.Body as UnionComplexType;
+                        var json = $"{{\"{builtInType}\" :{{";
+                        if (!data.TypeId.IsNull)
                         {
-                            if (commaNeeded) body += ",";
-                            commaNeeded = true;
-                            body += $"\"{property.Name}\":" + oText;
+                            json += typeId;
+                        }
+                        json += $"\"Body\":{{\"SwitchField\" : {union.SwitchField}";
+                        if (!expectedIsEmpty)
+                        {
+                            json += ", \"Value\":" + expected;
+                        }
+                        json += "}}}";
+                        expected = json;
+                    }
+                    else
+                    {
+                        expected = "{\"Union\" :" + expected + "}";
+                    }
+                }
+                else if (data.Body is OptionalFieldsComplexType)
+                {
+                    if (jsonEncoding != JsonEncodingType.NonReversible_Deprecated)
+                    {
+                        var optional = data.Body as OptionalFieldsComplexType;
+                        var json = $"{{\"{builtInType}\" :{{";
+                        if (!data.TypeId.IsNull)
+                        {
+                            json += typeId;
+                        }
+                        json += $"\"Body\":{{\"EncodingMask\" : {optional.EncodingMask}";
+                        if (!expectedIsEmpty)
+                        {
+                            json += $", \"{builtInType}\":" + expected;
+                        }
+                        json += "}}}";
+                        expected = json;
+                    }
+                    else
+                    {
+                        expected = $"{{\"{builtInType}\" :" + expected + "}";
+                    }
+                }
+                else if (data.Body is BaseComplexType)
+                {
+                    var structure = data.Body as BaseComplexType;
+                    var body = "";
+                    bool commaNeeded = false;
+                    foreach (var property in structure.GetPropertyEnumerator())
+                    {
+                        if (builtInType.ToString() == property.Name)
+                        {
+                            if (!expectedIsEmpty)
+                            {
+                                if (commaNeeded) body += ",";
+                                commaNeeded = true;
+                                body += $"\"{builtInType}\":" + expected;
+                            }
+                        }
+                        else if (jsonEncoding != JsonEncodingType.Compact)
+                        {
+                            object o = property.GetValue(structure);
+                            string oText = o?.ToString().ToLowerInvariant();
+                            if (property.Name == "DateTime")
+                            {
+                                oText = "\"0001-01-01T00:00:00Z\"";
+                                if (jsonEncoding == JsonEncodingType.Reversible_Deprecated || jsonEncoding == JsonEncodingType.NonReversible_Deprecated)
+                                {
+                                    continue;
+                                }
+                            }
+                            else if (property.Name == "StatusCode")
+                            {
+                                if (jsonEncoding == JsonEncodingType.Compact || jsonEncoding == JsonEncodingType.Reversible_Deprecated)
+                                {
+                                    oText = "0";
+                                }
+                                else
+                                {
+                                    oText = "{\"Code\": 0,\"Symbol\":\"Good\"}";
+                                    // default statuscode is not encoded
+                                }
+                                continue;
+                            }
+                            else if (property.Name == "Guid")
+                            {
+                                oText = "\"00000000-0000-0000-0000-000000000000\"";
+                                if (jsonEncoding == JsonEncodingType.Reversible_Deprecated || jsonEncoding == JsonEncodingType.NonReversible_Deprecated)
+                                {
+                                    continue;
+                                }
+                            }
+                            else if (property.Name == "UInt64" || property.Name == "Int64")
+                            {
+                                oText = "\"" + oText + "\"";
+                            }
+
+                            if (oText != null)
+                            {
+                                if (commaNeeded) body += ",";
+                                commaNeeded = true;
+                                body += $"\"{property.Name}\":" + oText;
+                            }
                         }
                     }
-                }
-                if (jsonEncoding != JsonEncodingType.NonReversible_Deprecated)
-                {
-                    var json = $"{{\"{builtInType}\" :{{";
-                    if (!data.TypeId.IsNull)
+                    if (jsonEncoding != JsonEncodingType.NonReversible_Deprecated)
                     {
-                        json += typeId;
+                        var json = $"{{\"{builtInType}\" :{{";
+                        if (!data.TypeId.IsNull)
+                        {
+                            json += typeId;
+                        }
+                        json += "\"Body\":{" + body + "}}}";
+                        expected = json;
                     }
-                    json += "\"Body\":{" + body + "}}}";
-                    expected = json;
-                }
-                else
-                {
-                    expected = "{" + body + "}";
+                    else
+                    {
+                        expected = "{" + body + "}";
+                    }
                 }
             }
             return expected;

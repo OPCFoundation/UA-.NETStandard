@@ -1126,7 +1126,7 @@ namespace Opc.Ua
                         return -1;
                     }
 
-                    if (this.IsNullNodeId && (expandedId.InnerNodeId != null) && expandedId.InnerNodeId.IsNullNodeId)
+                    if (this.IsNullNodeId && expandedId.InnerNodeId?.IsNullNodeId != false)
                     {
                         return 0;
                     }
@@ -1783,7 +1783,7 @@ namespace Opc.Ua
                     byte[] id1 = (byte[])m_identifier;
                     byte[] id2 = (byte[])id;
 
-                    if (id1 == id2)
+                    if (Utils.IsEqual(id1, id2))
                     {
                         return 0;
                     }
