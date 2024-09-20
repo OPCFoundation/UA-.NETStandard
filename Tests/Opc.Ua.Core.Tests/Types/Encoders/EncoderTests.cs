@@ -721,6 +721,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int elements = ElementsFromDimension(dimensions);
             Array randomData = DataGenerator.GetRandomArray(builtInType, false, elements, true);
 
+            // create an invalid matrix to validate that the dimension overflow is catched
             var matrix = new Matrix(randomData, builtInType, dimensions);
             for (int ii = 0; ii < matrixDimension; ii++)
             {
@@ -749,8 +750,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), jsonEncodingType))
                 {
-                    if (encoderType == EncodingType.Json &&
-                        (jsonEncodingType == JsonEncodingType.Verbose || jsonEncodingType == JsonEncodingType.NonReversible_Deprecated))
+                    if (encoderType == EncodingType.Json && jsonEncodingType == JsonEncodingType.NonReversible_Deprecated)
                     {
                         var sre = Assert.Throws<ServiceResultException>(() => encoder.WriteDataValue("DataValue", expected));
                         Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, sre.StatusCode);
@@ -826,8 +826,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), jsonEncodingType))
                 {
-                    if (encoderType == EncodingType.Json &&
-                        (jsonEncodingType == JsonEncodingType.Verbose || jsonEncodingType == JsonEncodingType.NonReversible_Deprecated))
+                    if (encoderType == EncodingType.Json && jsonEncodingType == JsonEncodingType.NonReversible_Deprecated)
                     {
                         var sre = Assert.Throws<ServiceResultException>(() => encoder.WriteDataValue("DataValue", expected));
                         Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, sre.StatusCode);
