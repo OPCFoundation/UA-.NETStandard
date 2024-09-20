@@ -107,74 +107,6 @@ namespace Opc.Ua
         #endregion
 
         #region Public Methods
-        private ushort ToNamespaceIndex(string uri)
-        {
-            var index = m_context.NamespaceUris.GetIndex(uri);
-
-            if (index < 0)
-            {
-                if (!UpdateNamespaceTable)
-                {
-                    return UInt16.MaxValue;
-                }
-                else
-                {
-                    index = m_context.NamespaceUris.GetIndexOrAppend(uri);
-                }
-            }
-
-            return (ushort)index;
-        }
-
-        private ushort ToNamespaceIndex(long index)
-        {
-            if (m_namespaceMappings == null || index <= 0)
-            {
-                return (ushort)index;
-            }
-
-            if (index < 0 || index >= m_namespaceMappings.Length)
-            {
-                throw new ServiceResultException(StatusCodes.BadDecodingError, $"No mapping for NamespaceIndex={index}.");
-            }
-
-            return m_namespaceMappings[index];
-        }
-
-        private ushort ToServerIndex(string uri)
-        {
-            var index = m_context.ServerUris.GetIndex(uri);
-
-            if (index < 0)
-            {
-                if (!UpdateNamespaceTable)
-                {
-                    return UInt16.MaxValue;
-                }
-                else
-                {
-                    index = m_context.ServerUris.GetIndexOrAppend(uri);
-                }
-            }
-
-            return (ushort)index;
-        }
-
-        private ushort ToServerIndex(long index)
-        {
-            if (m_serverMappings == null || index <= 0)
-            {
-                return (ushort)index;
-            }
-
-            if (index < 0 || index >= m_serverMappings.Length)
-            {
-                throw new ServiceResultException(StatusCodes.BadDecodingError, $"No mapping for ServerIndex(={index}.");
-            }
-
-            return m_serverMappings[index];
-        }
-
         /// <summary>
         /// Decodes a session-less message from a buffer.
         /// </summary>
@@ -2833,6 +2765,74 @@ namespace Opc.Ua
         #endregion
 
         #region Private Methods
+        private ushort ToNamespaceIndex(string uri)
+        {
+            var index = m_context.NamespaceUris.GetIndex(uri);
+
+            if (index < 0)
+            {
+                if (!UpdateNamespaceTable)
+                {
+                    return UInt16.MaxValue;
+                }
+                else
+                {
+                    index = m_context.NamespaceUris.GetIndexOrAppend(uri);
+                }
+            }
+
+            return (ushort)index;
+        }
+
+        private ushort ToNamespaceIndex(long index)
+        {
+            if (m_namespaceMappings == null || index <= 0)
+            {
+                return (ushort)index;
+            }
+
+            if (index < 0 || index >= m_namespaceMappings.Length)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError, $"No mapping for NamespaceIndex={index}.");
+            }
+
+            return m_namespaceMappings[index];
+        }
+
+        private ushort ToServerIndex(string uri)
+        {
+            var index = m_context.ServerUris.GetIndex(uri);
+
+            if (index < 0)
+            {
+                if (!UpdateNamespaceTable)
+                {
+                    return UInt16.MaxValue;
+                }
+                else
+                {
+                    index = m_context.ServerUris.GetIndexOrAppend(uri);
+                }
+            }
+
+            return (ushort)index;
+        }
+
+        private ushort ToServerIndex(long index)
+        {
+            if (m_serverMappings == null || index <= 0)
+            {
+                return (ushort)index;
+            }
+
+            if (index < 0 || index >= m_serverMappings.Length)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError, $"No mapping for ServerIndex(={index}.");
+            }
+
+            return m_serverMappings[index];
+        }
+
         /// <summary>
         /// Reads a DiagnosticInfo from the stream.
         /// Limits the InnerDiagnosticInfos to the specified depth.

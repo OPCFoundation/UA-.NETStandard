@@ -56,6 +56,8 @@ namespace Opc.Ua
         private bool m_forceNamespaceUriForIndex1;
         private bool m_includeDefaultNumberValues;
         private bool m_includeDefaultValues;
+        private bool m_encodeNodeIdAsString;
+
 
         [Flags]
         private enum EscapeOptions : int
@@ -70,6 +72,7 @@ namespace Opc.Ua
         #region Constructors
         /// <summary>
         /// Initializes the object with default values.
+        /// Selects the reversible or non reversible encoding.
         /// </summary>
         public JsonEncoder(
             IServiceMessageContext context,
@@ -80,6 +83,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Initializes the object with default values.
+        /// Selects the reversible or non reversible encoding.
         /// </summary>
         public JsonEncoder(
             IServiceMessageContext context,
@@ -94,6 +98,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Initializes the object with default values.
+        /// Selects the reversible or non reversible encoding.
         /// </summary>
         public JsonEncoder(
             IServiceMessageContext context,
@@ -177,23 +182,24 @@ namespace Opc.Ua
             EncodingToUse = encoding;
             if (encoding == JsonEncodingType.Reversible_Deprecated || encoding == JsonEncodingType.NonReversible_Deprecated)
             {
-                // defaults for deprecated JSON encoding
-                // -- encode namespace index for reversible encoding
-                // -- do not include default values for built in types
-                //    which are not a number or a bool
-                // -- include default values for numbers and bool
+                // defaults for reversible and non reversible JSON encoding
+                // -- encode namespace index for reversible encoding / uri for non reversible
+                // -- do not include default values for reversible encoding
+                // -- include default values for non reversible encoding
                 m_forceNamespaceUriForIndex1 =
                 m_forceNamespaceUri =
                 m_includeDefaultValues = encoding == JsonEncodingType.NonReversible_Deprecated;
                 m_includeDefaultNumberValues = true;
+                m_encodeNodeIdAsString = false;
             }
             else
             {
-                // defaults for latest JSON encoding
+                // defaults for compact and verbose JSON encoding, properties throw exception if modified
                 m_forceNamespaceUri = true;
                 m_forceNamespaceUriForIndex1 = true;
                 m_includeDefaultValues = encoding == JsonEncodingType.Verbose;
                 m_includeDefaultNumberValues = encoding == JsonEncodingType.Verbose;
+                m_encodeNodeIdAsString = true;
             }
             m_inVariantWithEncoding = IncludeDefaultValues;
         }
@@ -510,8 +516,7 @@ namespace Opc.Ua
         public EncodingType EncodingType => EncodingType.Json;
 
         /// <inheritdoc/>
-        public bool UseReversibleEncoding =>
-            EncodingToUse == JsonEncodingType.Compact || EncodingToUse == JsonEncodingType.Reversible_Deprecated;
+        public bool UseReversibleEncoding => EncodingToUse != JsonEncodingType.NonReversible_Deprecated;
 
         /// <summary>
         /// The message context associated with the encoder.
@@ -522,23 +527,52 @@ namespace Opc.Ua
         /// The Json encoder to encoder namespace URI instead of
         /// namespace Index in NodeIds.
         /// </summary>
-        public bool ForceNamespaceUri { get => m_forceNamespaceUri; set => m_forceNamespaceUri = ThrowIfNotDeprecated(value); }
+        public bool ForceNamespaceUri
+        {
+            get => m_forceNamespaceUri;
+            set => m_forceNamespaceUri = ThrowIfCompactOrVerbose(value);
+        }
 
         /// <summary>
         /// The Json encoder to encode namespace URI for all
         /// namespaces
         /// </summary>
-        public bool ForceNamespaceUriForIndex1 { get => m_forceNamespaceUriForIndex1; set => m_forceNamespaceUriForIndex1 = ThrowIfNotDeprecated(value); }
+        public bool ForceNamespaceUriForIndex1
+        {
+            get => m_forceNamespaceUriForIndex1;
+            set => m_forceNamespaceUriForIndex1 = ThrowIfCompactOrVerbose(value);
+        }
 
         /// <summary>
         /// The Json encoder default value option.
         /// </summary>
-        public bool IncludeDefaultValues { get => m_includeDefaultValues; set { m_includeDefaultValues = ThrowIfNotDeprecated(value); m_inVariantWithEncoding = m_includeDefaultValues; } }
+        public bool IncludeDefaultValues
+        {
+            get => m_includeDefaultValues;
+            set
+            {
+                m_includeDefaultValues = ThrowIfCompactOrVerbose(value);
+                m_inVariantWithEncoding = m_includeDefaultValues;
+            }
+        }
 
         /// <summary>
         /// The Json encoder default value option.
         /// </summary>
-        public bool IncludeDefaultNumberValues { get => m_includeDefaultNumberValues; set => m_includeDefaultNumberValues = ThrowIfNotDeprecated(value); }
+        public bool IncludeDefaultNumberValues
+        {
+            get => m_includeDefaultNumberValues;
+            set => m_includeDefaultNumberValues = ThrowIfCompactOrVerbose(value);
+        }
+
+        /// <summary>
+        /// The Json encoder default encoding for NodeId as string or object.
+        /// </summary>
+        public bool EncodeNodeIdAsString
+        {
+            get => m_encodeNodeIdAsString;
+            set => m_encodeNodeIdAsString = ThrowIfCompactOrVerbose(value);
+        }
 
         /// <summary>
         /// Pushes a namespace onto the namespace stack.
@@ -1218,7 +1252,7 @@ namespace Opc.Ua
                 return;
             }
 
-            if (EncodingToUse == JsonEncodingType.Compact || EncodingToUse == JsonEncodingType.Verbose)
+            if (m_encodeNodeIdAsString)
             {
                 WriteSimpleField(fieldName, value.Format(m_context, ForceNamespaceUri), EscapeOptions.Quotes);
                 return;
@@ -1250,7 +1284,7 @@ namespace Opc.Ua
                 return;
             }
 
-            if (EncodingToUse == JsonEncodingType.Compact || EncodingToUse == JsonEncodingType.Verbose)
+            if (m_encodeNodeIdAsString)
             {
                 WriteSimpleField(fieldName, value.Format(m_context, ForceNamespaceUri), EscapeOptions.Quotes);
                 return;
@@ -1309,7 +1343,7 @@ namespace Opc.Ua
                 return;
             }
 
-            if (UseReversibleEncoding)
+            if (EncodingToUse == JsonEncodingType.Reversible_Deprecated || EncodingToUse == JsonEncodingType.Compact)
             {
                 WriteUInt32(fieldName, value.Code);
                 return;
@@ -1347,7 +1381,7 @@ namespace Opc.Ua
                 return;
             }
 
-            if (EncodingToUse == JsonEncodingType.Compact || EncodingToUse == JsonEncodingType.Verbose)
+            if (m_encodeNodeIdAsString)
             {
                 WriteSimpleField(fieldName, value.Format(m_context, ForceNamespaceUri), EscapeOptions.Quotes);
                 return;
@@ -1637,7 +1671,7 @@ namespace Opc.Ua
         {
             int numeric = Convert.ToInt32(value, CultureInfo.InvariantCulture);
             var numericString = numeric.ToString(CultureInfo.InvariantCulture);
-            if (UseReversibleEncoding)
+            if (EncodingToUse == JsonEncodingType.Reversible_Deprecated || EncodingToUse == JsonEncodingType.Compact)
             {
                 WriteSimpleField(fieldName, numericString);
             }
@@ -1650,7 +1684,7 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    WriteSimpleField(fieldName, Utils.Format("{0}_{1}", value.ToString(), numeric), EscapeOptions.Quotes);
+                    WriteSimpleField(fieldName, Utils.Format("{0}_{1}", valueString, numeric), EscapeOptions.Quotes);
                 }
             }
         }
@@ -1660,8 +1694,9 @@ namespace Opc.Ua
         /// </summary>
         public void WriteEnumerated(string fieldName, int numeric)
         {
+            bool writeNumber = EncodingToUse == JsonEncodingType.Reversible_Deprecated || EncodingToUse == JsonEncodingType.Compact;
             var numericString = numeric.ToString(CultureInfo.InvariantCulture);
-            WriteSimpleField(fieldName, numericString, !UseReversibleEncoding ? EscapeOptions.Quotes : EscapeOptions.None);
+            WriteSimpleField(fieldName, numericString, writeNumber ? EscapeOptions.None : EscapeOptions.Quotes);
         }
 
         /// <summary>
@@ -2498,7 +2533,10 @@ namespace Opc.Ua
             bool inVariantWithEncoding = m_inVariantWithEncoding;
             try
             {
-                m_inVariantWithEncoding = UseReversibleEncoding || IncludeDefaultValues;
+                bool includeDefaultValuesinVariant =
+                    EncodingToUse == JsonEncodingType.Compact ||
+                    EncodingToUse == JsonEncodingType.Reversible_Deprecated;
+                m_inVariantWithEncoding = includeDefaultValuesinVariant || IncludeDefaultValues;
 
                 // check for null.
                 if (value == null)
@@ -2544,7 +2582,7 @@ namespace Opc.Ua
                 else if (typeInfo.ValueRank >= ValueRanks.OneDimension)
                 {
                     int valueRank = typeInfo.ValueRank;
-                    if (UseReversibleEncoding && value is Matrix matrix)
+                    if (EncodingToUse != JsonEncodingType.NonReversible_Deprecated && value is Matrix matrix)
                     {
                         // linearize the matrix
                         value = matrix.Elements;
@@ -2722,11 +2760,11 @@ namespace Opc.Ua
         /// <summary>
         /// Called on properties which can only be modified for the deprecated encoding.
         /// </summary>
-        private bool ThrowIfNotDeprecated(bool value)
+        private bool ThrowIfCompactOrVerbose(bool value)
         {
             if (EncodingToUse == JsonEncodingType.Compact || EncodingToUse == JsonEncodingType.Verbose)
             {
-                throw new NotSupportedException("This property can only be set for deprecated encoding types.");
+                throw new NotSupportedException($"This property can not be modified with {EncodingToUse} encoding.");
             }
             return value;
         }
