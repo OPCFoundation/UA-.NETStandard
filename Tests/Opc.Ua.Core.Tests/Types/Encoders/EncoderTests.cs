@@ -32,8 +32,8 @@
 #endif
 
 using System;
-using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Xml;
 using Newtonsoft.Json;
@@ -585,6 +585,20 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(result);
             object expected = AdjustExpectedBoundaryValues(encoderType, builtInType, randomData);
 
+            // strip the locale information from localized text for non reversible
+            if (builtInType == BuiltInType.LocalizedText && jsonEncodingType == JsonEncodingType.NonReversible_Deprecated)
+            {
+                var localizedTextCollection = new LocalizedTextCollection(randomData.Length);
+                foreach (var entry in randomData)
+                {
+                    if (entry is LocalizedText localizedText)
+                    {
+                        localizedTextCollection.Add(new LocalizedText(null, localizedText.Text));
+                    }
+                }
+                expected = localizedTextCollection.ToArray();
+            }
+
             Assert.AreEqual(expected, result, encodeInfo);
             Assert.IsTrue(Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
         }
@@ -697,6 +711,26 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Result:");
             TestContext.Out.WriteLine(result);
             object expected = AdjustExpectedBoundaryValues(encoderType, builtInType, matrix);
+
+            // strip the locale information from localized text for non reversible
+            if (builtInType == BuiltInType.LocalizedText && jsonEncodingType == JsonEncodingType.NonReversible_Deprecated)
+            {
+                var localizedTextCollection = new LocalizedTextCollection(randomData.Length);
+                foreach (var entry in matrix.Elements)
+                {
+                    if (entry is LocalizedText localizedText)
+                    {
+                        localizedTextCollection.Add(new LocalizedText(null, localizedText.Text));
+                    }
+                }
+
+                // only compare the text portion
+                if (result is Array resultArray)
+                {
+                    expected = localizedTextCollection.ToArray();
+                    result = resultArray.OfType<LocalizedText>().ToArray();
+                }
+            }
 
             Assert.AreEqual(expected, result, encodeInfo);
             Assert.IsTrue(Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);

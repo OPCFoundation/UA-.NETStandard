@@ -186,8 +186,8 @@ namespace Opc.Ua
                 // -- encode namespace index for reversible encoding / uri for non reversible
                 // -- do not include default values for reversible encoding
                 // -- include default values for non reversible encoding
-                m_forceNamespaceUriForIndex1 =
                 m_forceNamespaceUri =
+                m_forceNamespaceUriForIndex1 =
                 m_includeDefaultValues = encoding == JsonEncodingType.NonReversible_Deprecated;
                 m_includeDefaultNumberValues = true;
                 m_encodeNodeIdAsString = false;
@@ -549,11 +549,7 @@ namespace Opc.Ua
         public bool IncludeDefaultValues
         {
             get => m_includeDefaultValues;
-            set
-            {
-                m_includeDefaultValues = ThrowIfCompactOrVerbose(value);
-                m_inVariantWithEncoding = m_includeDefaultValues;
-            }
+            set => m_includeDefaultValues = ThrowIfCompactOrVerbose(value);
         }
 
         /// <summary>
@@ -1671,7 +1667,11 @@ namespace Opc.Ua
         {
             int numeric = Convert.ToInt32(value, CultureInfo.InvariantCulture);
             var numericString = numeric.ToString(CultureInfo.InvariantCulture);
-            if (EncodingToUse == JsonEncodingType.Reversible_Deprecated || EncodingToUse == JsonEncodingType.Compact)
+
+            // encode as Int32 in a Variant 
+            if (m_inVariantWithEncoding ||
+                EncodingToUse == JsonEncodingType.Reversible_Deprecated ||
+                EncodingToUse == JsonEncodingType.Compact)
             {
                 WriteSimpleField(fieldName, numericString);
             }
@@ -1694,7 +1694,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteEnumerated(string fieldName, int numeric)
         {
-            bool writeNumber = EncodingToUse == JsonEncodingType.Reversible_Deprecated || EncodingToUse == JsonEncodingType.Compact;
+            bool writeNumber = m_inVariantWithEncoding || EncodingToUse == JsonEncodingType.Reversible_Deprecated || EncodingToUse == JsonEncodingType.Compact;
             var numericString = numeric.ToString(CultureInfo.InvariantCulture);
             WriteSimpleField(fieldName, numericString, writeNumber ? EscapeOptions.None : EscapeOptions.Quotes);
         }
@@ -1704,9 +1704,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteBooleanArray(string fieldName, IList<bool> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1731,9 +1730,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteSByteArray(string fieldName, IList<sbyte> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1758,9 +1756,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteByteArray(string fieldName, IList<byte> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1785,9 +1782,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteInt16Array(string fieldName, IList<short> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1812,9 +1808,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteUInt16Array(string fieldName, IList<ushort> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1839,9 +1834,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteInt32Array(string fieldName, IList<int> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1866,9 +1860,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteUInt32Array(string fieldName, IList<uint> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1893,9 +1886,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteInt64Array(string fieldName, IList<long> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1920,9 +1912,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteUInt64Array(string fieldName, IList<ulong> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1947,9 +1938,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteFloatArray(string fieldName, IList<float> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -1974,9 +1964,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDoubleArray(string fieldName, IList<double> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2001,9 +1990,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteStringArray(string fieldName, IList<string> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2028,9 +2016,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDateTimeArray(string fieldName, IList<DateTime> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2062,9 +2049,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteGuidArray(string fieldName, IList<Uuid> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2089,9 +2075,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteGuidArray(string fieldName, IList<Guid> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2116,9 +2101,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteByteStringArray(string fieldName, IList<byte[]> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2143,9 +2127,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteXmlElementArray(string fieldName, IList<XmlElement> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2170,9 +2153,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteNodeIdArray(string fieldName, IList<NodeId> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2197,9 +2179,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteExpandedNodeIdArray(string fieldName, IList<ExpandedNodeId> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2224,9 +2205,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteStatusCodeArray(string fieldName, IList<StatusCode> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2259,9 +2239,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDiagnosticInfoArray(string fieldName, IList<DiagnosticInfo> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2286,9 +2265,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteQualifiedNameArray(string fieldName, IList<QualifiedName> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2313,9 +2291,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteLocalizedTextArray(string fieldName, IList<LocalizedText> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2340,9 +2317,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteVariantArray(string fieldName, IList<Variant> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2373,9 +2349,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDataValueArray(string fieldName, IList<DataValue> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2400,9 +2375,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteExtensionObjectArray(string fieldName, IList<ExtensionObject> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2427,9 +2401,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteEncodeableArray(string fieldName, IList<IEncodeable> values, System.Type systemType)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2533,10 +2506,7 @@ namespace Opc.Ua
             bool inVariantWithEncoding = m_inVariantWithEncoding;
             try
             {
-                bool includeDefaultValuesinVariant =
-                    EncodingToUse == JsonEncodingType.Compact ||
-                    EncodingToUse == JsonEncodingType.Reversible_Deprecated;
-                m_inVariantWithEncoding = includeDefaultValuesinVariant || IncludeDefaultValues;
+                m_inVariantWithEncoding = true;
 
                 // check for null.
                 if (value == null)
@@ -2602,9 +2572,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteObjectArray(string fieldName, IList<object> values)
         {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            if (CheckForSimpleFieldNull(fieldName, values))
             {
-                WriteSimpleFieldNull(fieldName);
                 return;
             }
 
@@ -2757,6 +2726,21 @@ namespace Opc.Ua
         #endregion
 
         #region Private Methods
+        /// <summary>
+        /// Returns true if a simple field can be written.
+        /// </summary>
+        private bool CheckForSimpleFieldNull<T>(string fieldName, IList<T> values)
+        {
+            // always include default values for non reversible/verbose
+            // include default values when encoding in a Variant
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding && !m_includeDefaultValues))
+            {
+                WriteSimpleFieldNull(fieldName);
+                return true;
+            }
+            return false;
+        }
+
         /// <summary>
         /// Called on properties which can only be modified for the deprecated encoding.
         /// </summary>

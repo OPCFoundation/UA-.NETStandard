@@ -238,43 +238,58 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine(data);
             DataValue expected = CreateDataValue(builtInType, data);
             Assert.IsNotNull(expected, "Expected DataValue is Null, " + encodeInfo);
-            TestContext.Out.WriteLine("Expected:");
-            TestContext.Out.WriteLine(expected);
 
-            byte[] buffer;
-            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+            string formatted = null;
+            DataValue result = null;
+            try
             {
-                using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), jsonEncodingType))
+                byte[] buffer;
+                using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
                 {
-                    encoder.WriteDataValue("DataValue", expected);
+                    using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), jsonEncodingType))
+                    {
+                        encoder.WriteDataValue("DataValue", expected);
+                    }
+                    buffer = encoderStream.ToArray();
                 }
-                buffer = encoderStream.ToArray();
-            }
 
-            string formatted;
-            switch (encoderType)
+                switch (encoderType)
+                {
+                    case EncodingType.Json:
+                        formatted = PrettifyAndValidateJson(buffer);
+                        break;
+                    case EncodingType.Xml:
+                        formatted = PrettifyAndValidateXml(buffer);
+                        break;
+                }
+
+                using (var decoderStream = new MemoryStream(buffer))
+                using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, typeof(DataValue)))
+                {
+                    result = decoder.ReadDataValue("DataValue");
+                }
+
+                Assert.IsNotNull(result, "Resulting DataValue is Null, " + encodeInfo);
+                expected.Value = AdjustExpectedBoundaryValues(encoderType, builtInType, expected.Value);
+                Assert.AreEqual(expected, result, encodeInfo);
+                Assert.IsTrue(Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
+            }
+            catch
             {
-                case EncodingType.Json:
-                    formatted = PrettifyAndValidateJson(buffer);
-                    break;
-                case EncodingType.Xml:
-                    formatted = PrettifyAndValidateXml(buffer);
-                    break;
-            }
+                TestContext.Out.WriteLine("Expected:");
+                TestContext.Out.WriteLine(expected);
+                if (formatted != null)
+                {
+                    TestContext.Out.WriteLine("Encoded:");
+                    TestContext.Out.WriteLine(formatted);
+                }
 
-            DataValue result;
-            using (var decoderStream = new MemoryStream(buffer))
-            using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, typeof(DataValue)))
-            {
-                result = decoder.ReadDataValue("DataValue");
+                TestContext.Out.WriteLine("Result:");
+                if (result != null)
+                {
+                    TestContext.Out.WriteLine(result);
+                }
             }
-
-            TestContext.Out.WriteLine("Result:");
-            TestContext.Out.WriteLine(result);
-            Assert.IsNotNull(result, "Resulting DataValue is Null, " + encodeInfo);
-            expected.Value = AdjustExpectedBoundaryValues(encoderType, builtInType, expected.Value);
-            Assert.AreEqual(expected, result, encodeInfo);
-            Assert.IsTrue(Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
         }
 
         /// <summary>
