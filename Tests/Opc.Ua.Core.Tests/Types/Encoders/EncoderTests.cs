@@ -519,7 +519,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         [Category("Array"), Repeat(kArrayRepeats)]
         public void ReEncodeVariantArrayInDataValue(
-            [ValueSource(nameof(EncodingTypesAll))]
+            [ValueSource(nameof(EncodingTypesAllButJsonNonReversible))]
             EncodingTypeGroup encoderTypeGroup,
             BuiltInType builtInType
             )
@@ -616,7 +616,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int elements = ElementsFromDimension(dimensions);
             Array randomData = DataGenerator.GetRandomArray(builtInType, false, elements, true);
             var variant = new Variant(new Matrix(randomData, builtInType, dimensions));
-                EncodeDecodeDataValue(encoderType, jsonEncodingType, BuiltInType.Variant, MemoryStreamType.RecyclableMemoryStream, variant);
+            EncodeDecodeDataValue(encoderType, jsonEncodingType, BuiltInType.Variant, MemoryStreamType.RecyclableMemoryStream, variant);
         }
 
         /// <summary>
@@ -749,7 +749,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), jsonEncodingType))
                 {
-                    encoder.WriteDataValue("DataValue", expected);
+                    if (encoderType == EncodingType.Json &&
+                        (jsonEncodingType == JsonEncodingType.Verbose || jsonEncodingType == JsonEncodingType.NonReversible_Deprecated))
+                    {
+                        var sre = Assert.Throws<ServiceResultException>(() => encoder.WriteDataValue("DataValue", expected));
+                        Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, sre.StatusCode);
+                        return;
+                    }
+                    else
+                    {
+                        encoder.WriteDataValue("DataValue", expected);
+                    }
                 }
                 buffer = encoderStream.ToArray();
             }
@@ -801,7 +811,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             matrix.Dimensions[3] = 14087;
             matrix.Dimensions[4] = 20446;
 
-
             var variant = new Variant(matrix);
 
             string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
@@ -817,7 +826,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), jsonEncodingType))
                 {
-                    encoder.WriteDataValue("DataValue", expected);
+                    if (encoderType == EncodingType.Json &&
+                        (jsonEncodingType == JsonEncodingType.Verbose || jsonEncodingType == JsonEncodingType.NonReversible_Deprecated))
+                    {
+                        var sre = Assert.Throws<ServiceResultException>(() => encoder.WriteDataValue("DataValue", expected));
+                        Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, sre.StatusCode);
+                        return;
+                    }
+                    else
+                    {
+                        encoder.WriteDataValue("DataValue", expected);
+                    }
                 }
                 buffer = encoderStream.ToArray();
             }

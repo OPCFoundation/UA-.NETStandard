@@ -182,8 +182,8 @@ namespace Opc.Ua
                 // -- do not include default values for built in types
                 //    which are not a number or a bool
                 // -- include default values for numbers and bool
-                m_forceNamespaceUri =
                 m_forceNamespaceUriForIndex1 =
+                m_forceNamespaceUri =
                 m_includeDefaultValues = encoding == JsonEncodingType.NonReversible_Deprecated;
                 m_includeDefaultNumberValues = true;
             }
@@ -1550,15 +1550,6 @@ namespace Opc.Ua
             var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
             WriteNodeId("TypeId", localTypeId);
 
-            //if (UseCompactEncoding)
-            //{
-            //    WriteNodeId("TypeId", localTypeId);
-            //}
-            //else
-            //{
-            //    WriteExpandedNodeId("TypeId", typeId);
-            //}
-
             if (encodeable != null)
             {
                 WriteEncodeable("Body", encodeable, null);
@@ -2689,6 +2680,7 @@ namespace Opc.Ua
                     }
                 }
             }
+
             // write matrix.
             else if (valueRank > ValueRanks.OneDimension)
             {
@@ -2707,19 +2699,17 @@ namespace Opc.Ua
                     }
                 }
 
-                if (EncodingToUse == JsonEncodingType.Compact || EncodingToUse == JsonEncodingType.Verbose)
-                {
-                    PushStructure(fieldName);
-                    WriteInt32Array("Dimensions", matrix.Dimensions);
-                    WriteArray("Array", matrix.Elements, 1, builtInType);
-                    PopStructure();
-                    return;
-                }
-
                 if (matrix != null)
                 {
-                    int index = 0;
-                    WriteStructureMatrix(fieldName, matrix, 0, ref index, matrix.TypeInfo);
+                    if (EncodingToUse == JsonEncodingType.Compact || EncodingToUse == JsonEncodingType.Verbose)
+                    {
+                        WriteArrayDimensionMatrix(fieldName, builtInType, matrix);
+                    }
+                    else
+                    {
+                        int index = 0;
+                        WriteStructureMatrix(fieldName, matrix, 0, ref index, matrix.TypeInfo);
+                    }
                     return;
                 }
 
@@ -2729,6 +2719,9 @@ namespace Opc.Ua
         #endregion
 
         #region Private Methods
+        /// <summary>
+        /// Called on properties which can only be modified for the deprecated encoding.
+        /// </summary>
         private bool ThrowIfNotDeprecated(bool value)
         {
             if (EncodingToUse == JsonEncodingType.Compact || EncodingToUse == JsonEncodingType.Verbose)
@@ -2836,6 +2829,28 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Encode the Matrix as Dimensions/Array element.
+        /// Writes the matrix as a flattended array with dimensions.
+        /// Validates the dimensions and array size.
+        /// </summary>
+        private void WriteArrayDimensionMatrix(string fieldName, BuiltInType builtInType, Matrix matrix)
+        {
+            // check if matrix is well formed
+            (bool valid, int sizeFromDimensions) = Matrix.ValidateDimensions(true, matrix.Dimensions, Context.MaxArrayLength);
+
+            if (!valid || (sizeFromDimensions != matrix.Elements.Length))
+            {
+                throw ServiceResultException.Create(StatusCodes.BadEncodingError,
+                    "The number of elements in the matrix does not match the dimensions.");
+            }
+
+            PushStructure(fieldName);
+            WriteInt32Array("Dimensions", matrix.Dimensions);
+            WriteArray("Array", matrix.Elements, 1, builtInType);
+            PopStructure();
+        }
+
+        /// <summary>
         /// Write multi dimensional array in structure.
         /// </summary>
         private void WriteStructureMatrix(
@@ -2850,7 +2865,8 @@ namespace Opc.Ua
 
             if (!valid || (sizeFromDimensions != matrix.Elements.Length))
             {
-                throw new ArgumentException("The number of elements in the matrix does not match the dimensions.");
+                throw ServiceResultException.Create(StatusCodes.BadEncodingError,
+                    "The number of elements in the matrix does not match the dimensions.");
             }
 
             CheckAndIncrementNestingLevel();

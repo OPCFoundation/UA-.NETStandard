@@ -181,6 +181,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
         };
+
+        public static readonly EncodingTypeGroup[] EncodingTypesAllButJsonNonReversible = new EncodingTypeGroup[] {
+            new EncodingTypeGroup(EncodingType.Binary),
+            new EncodingTypeGroup(EncodingType.Xml),
+            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible_Deprecated),
+            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact),
+            new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
+        };
         #endregion
 
         #region Protected Methods
@@ -406,7 +414,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 var formattedExpected = PrettifyAndValidateJson(expected);
                 TestContext.Out.WriteLine(formattedExpected);
                 TestContext.Out.WriteLine("Result:");
-                if (string.IsNullOrEmpty(formattedResult))
+                if (!string.IsNullOrEmpty(formattedResult))
                 {
                     TestContext.Out.WriteLine(formattedResult);
                 }

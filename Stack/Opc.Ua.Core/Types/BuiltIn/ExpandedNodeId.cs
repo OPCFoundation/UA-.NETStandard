@@ -108,7 +108,7 @@ namespace Opc.Ua
                 m_nodeId = new NodeId(nodeId);
             }
 
-            if (!String.IsNullOrEmpty(namespaceUri))
+            if (!string.IsNullOrEmpty(namespaceUri))
             {
                 SetNamespaceUri(namespaceUri);
             }
@@ -133,7 +133,7 @@ namespace Opc.Ua
                 m_nodeId = new NodeId(nodeId);
             }
 
-            if (!String.IsNullOrEmpty(namespaceUri))
+            if (!string.IsNullOrEmpty(namespaceUri))
             {
                 SetNamespaceUri(namespaceUri);
             }
@@ -417,7 +417,7 @@ namespace Opc.Ua
         {
             get
             {
-                if (!String.IsNullOrEmpty(m_namespaceUri))
+                if (!string.IsNullOrEmpty(m_namespaceUri))
                 {
                     return false;
                 }
@@ -441,7 +441,7 @@ namespace Opc.Ua
         {
             get
             {
-                if (!String.IsNullOrEmpty(m_namespaceUri) || m_serverIndex > 0)
+                if (!string.IsNullOrEmpty(m_namespaceUri) || m_serverIndex > 0)
                 {
                     return true;
                 }
@@ -565,7 +565,7 @@ namespace Opc.Ua
                 buffer.AppendFormat(formatProvider, "svr={0};", serverIndex);
             }
 
-            if (!String.IsNullOrEmpty(namespaceUri))
+            if (!string.IsNullOrEmpty(namespaceUri))
             {
                 buffer.Append("nsu=");
                 buffer.Append(Utils.EscapeUri(namespaceUri));
@@ -596,7 +596,7 @@ namespace Opc.Ua
             // translate the namespace uri.
             ushort namespaceIndex = 0;
 
-            if (!String.IsNullOrEmpty(uri))
+            if (!string.IsNullOrEmpty(uri))
             {
                 int index = targetNamespaces.GetIndex(uri);
 
@@ -641,7 +641,7 @@ namespace Opc.Ua
             try
             {
                 // check for null.
-                if (String.IsNullOrEmpty(text))
+                if (string.IsNullOrEmpty(text))
                 {
                     return ExpandedNodeId.Null;
                 }
@@ -677,7 +677,7 @@ namespace Opc.Ua
 
                         ushort value = 0;
 
-                        int digit = kHexDigits.IndexOf(Char.ToUpperInvariant(text[++ii]));
+                        int digit = kHexDigits.IndexOf(char.ToUpperInvariant(text[++ii]));
 
                         if (digit == -1)
                         {
@@ -687,7 +687,7 @@ namespace Opc.Ua
                         value += (ushort)digit;
                         value <<= 4;
 
-                        digit = kHexDigits.IndexOf(Char.ToUpperInvariant(text[++ii]));
+                        digit = kHexDigits.IndexOf(char.ToUpperInvariant(text[++ii]));
 
                         if (digit == -1)
                         {
@@ -770,7 +770,7 @@ namespace Opc.Ua
                 {
                     if (this.NamespaceUri != null)
                     {
-                        return String.CompareOrdinal(NamespaceUri, expandedId.NamespaceUri);
+                        return string.CompareOrdinal(NamespaceUri, expandedId.NamespaceUri);
                     }
 
                     return -1;
@@ -983,7 +983,7 @@ namespace Opc.Ua
             }
 
             // return a reference to the internal node id object.
-            if (String.IsNullOrEmpty(nodeId.m_namespaceUri) && nodeId.m_serverIndex == 0)
+            if (string.IsNullOrEmpty(nodeId.m_namespaceUri) && nodeId.m_serverIndex == 0)
             {
                 return nodeId.m_nodeId;
             }
@@ -1049,7 +1049,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException">Thrown if the namespace URI is not in the namespace table.</exception>
         public static ExpandedNodeId Parse(IServiceMessageContext context, string text, NodeIdParsingOptions options = null)
         {
-            if (String.IsNullOrEmpty(text))
+            if (string.IsNullOrEmpty(text))
             {
                 return Null;
             }
@@ -1086,7 +1086,7 @@ namespace Opc.Ua
                     throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"Invalid ExpandedNodeId ({originalText}).");
                 }
 
-                if (UInt16.TryParse(text.Substring(4, index - 4), out ushort ns))
+                if (ushort.TryParse(text.Substring(4, index - 4), out ushort ns))
                 {
                     serverIndex = ns;
 
@@ -1152,7 +1152,7 @@ namespace Opc.Ua
                 {
                     var serverUri = context.ServerUris.GetString(m_serverIndex);
 
-                    if (!String.IsNullOrEmpty(serverUri))
+                    if (!string.IsNullOrEmpty(serverUri))
                     {
                         buffer.Append("svu=");
                         buffer.Append(Utils.EscapeUri(serverUri));
@@ -1173,7 +1173,7 @@ namespace Opc.Ua
                 }
             }
 
-            if (!String.IsNullOrEmpty(m_namespaceUri))
+            if (!string.IsNullOrEmpty(m_namespaceUri))
             {
                 buffer.Append("nsu=");
                 buffer.Append(Utils.EscapeUri(m_namespaceUri));

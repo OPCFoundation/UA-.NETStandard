@@ -215,7 +215,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     EncodingType.Json, EncoderContext, encoderStream,
                     typeof(ExtensionObject), jsonEncoding, topLevelIsArray))
                 {
-                    var builtInTypeString = (jsonEncoding == JsonEncodingType.Compact || jsonEncoding == JsonEncodingType.Reversible_Deprecated) ? builtInType.ToString() : null;
+                    var builtInTypeString = (jsonEncoding != JsonEncodingType.NonReversible_Deprecated) ? builtInType.ToString() : null;
                     Encode(encoder, BuiltInType.ExtensionObject, builtInTypeString, data);
                 }
                 buffer = encoderStream.ToArray();
@@ -226,7 +226,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             try
             {
                 result = Encoding.UTF8.GetString(buffer);
-                if (data.Body is UnionComplexType && (jsonEncoding == JsonEncodingType.Verbose || jsonEncoding == JsonEncodingType.NonReversible_Deprecated))
+                if (data.Body is UnionComplexType && (jsonEncoding == JsonEncodingType.NonReversible_Deprecated))
                 {
                     // helper to create testable JSON output for Unions
                     result = result.Replace("{", "{\"Union\" :");
@@ -249,9 +249,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 TestContext.Out.WriteLine("Expected:");
                 TestContext.Out.WriteLine(formattedExpected);
                 TestContext.Out.WriteLine("Result:");
-                if (string.IsNullOrEmpty(formattedResult))
+                if (!string.IsNullOrEmpty(formattedResult))
                 {
-                    TestContext.Out.WriteLine(formattedExpected);
+                    TestContext.Out.WriteLine(formattedResult);
                 }
                 else
                 {
@@ -276,7 +276,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             if (!data.TypeId.IsNull)
             {
                 var nodeId = ExpandedNodeId.ToNodeId(data.TypeId, EncoderContext.NamespaceUris);
-                typeId = $"\"TypeId\":{{\"Id\":{nodeId.Identifier},\"Namespace\":{nodeId.NamespaceIndex}}},";
+                if (jsonEncoding == JsonEncodingType.NonReversible_Deprecated || jsonEncoding == JsonEncodingType.Reversible_Deprecated)
+                {
+                    typeId = $"\"TypeId\":{{\"Id\":{nodeId.Identifier},\"Namespace\":{nodeId.NamespaceIndex}}},";
+                }
+                else
+                {
+                    typeId = $"\"TypeId\":\"{nodeId.Format(EncoderContext, true)}\",";
+                }
             }
             if (String.IsNullOrEmpty(expected))
             {
@@ -284,7 +291,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             }
             else if (data.Body is UnionComplexType)
             {
-                if (jsonEncoding == JsonEncodingType.Compact || jsonEncoding == JsonEncodingType.Reversible_Deprecated)
+                if (jsonEncoding != JsonEncodingType.NonReversible_Deprecated)
                 {
                     var union = data.Body as UnionComplexType;
                     var json = $"{{\"{builtInType}\" :{{";
@@ -302,7 +309,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             }
             else if (data.Body is OptionalFieldsComplexType)
             {
-                if (jsonEncoding == JsonEncodingType.Compact || jsonEncoding == JsonEncodingType.Reversible_Deprecated)
+                if (jsonEncoding != JsonEncodingType.NonReversible_Deprecated)
                 {
                     var optional = data.Body as OptionalFieldsComplexType;
                     var json = $"{{\"{builtInType}\" :{{";
@@ -331,14 +338,17 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                         commaNeeded = true;
                         body += $"\"{builtInType}\":" + expected;
                     }
-                    else
+                    else if (jsonEncoding != JsonEncodingType.Compact)
                     {
                         object o = property.GetValue(structure);
                         string oText = o?.ToString().ToLowerInvariant();
                         if (property.Name == "DateTime")
                         {
                             oText = "\"0001-01-01T00:00:00Z\"";
-                            continue;
+                            if (jsonEncoding == JsonEncodingType.Reversible_Deprecated || jsonEncoding == JsonEncodingType.NonReversible_Deprecated)
+                            {
+                                continue;
+                            }
                         }
                         else if (property.Name == "StatusCode")
                         {
@@ -356,7 +366,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                         else if (property.Name == "Guid")
                         {
                             oText = "\"00000000-0000-0000-0000-000000000000\"";
-                            continue;
+                            if (jsonEncoding == JsonEncodingType.Reversible_Deprecated || jsonEncoding == JsonEncodingType.NonReversible_Deprecated)
+                            {
+                                continue;
+                            }
                         }
                         else if (property.Name == "UInt64" || property.Name == "Int64")
                         {
@@ -371,7 +384,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                         }
                     }
                 }
-                if (jsonEncoding == JsonEncodingType.Compact || jsonEncoding == JsonEncodingType.Reversible_Deprecated)
+                if (jsonEncoding != JsonEncodingType.NonReversible_Deprecated)
                 {
                     var json = $"{{\"{builtInType}\" :{{";
                     if (!data.TypeId.IsNull)
