@@ -1135,7 +1135,7 @@ namespace Opc.Ua.Server
                     uint overflowEventCount = overflowEvent == null ? (uint)0 : 1;
                     m_eventQueueHandler.Publish(context, notifications, maxNotificationsPerPublish - overflowEventCount);
 
-                    // place overflwo event at the end of the queue if queue is emtpy.
+                    // place overflow event at the end of the queue if queue is empty.
                     if (overflowEvent != null && !m_discardOldest && m_eventQueueHandler?.ItemsInQueue == 0)
                     {
                         notifications.Enqueue(overflowEvent);
