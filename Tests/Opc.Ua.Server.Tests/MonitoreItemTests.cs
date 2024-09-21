@@ -1298,7 +1298,7 @@ namespace Opc.Ua.Server.Tests
 
 
             var result = new Queue<EventFieldList>();
-            monitoredItem.Publish(new OperationContext(monitoredItem), result, 2);
+            monitoredItem.Publish(new OperationContext(monitoredItem), result, 3);
 
             Assert.That(result, Is.Not.Empty);
             EventFieldList publishResult = result.LastOrDefault();
